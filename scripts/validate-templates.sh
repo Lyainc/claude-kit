@@ -153,17 +153,23 @@ validate_skills() {
 
         ((skill_count++))
 
+        # 각 스킬별 에러 카운터
+        local skill_errors=0
+
         # SKILL.md 존재 확인
         if [ ! -f "$skill_file" ]; then
             echo -e "${RED}ERROR${NC}: $dir_name/ - SKILL.md 파일 없음"
             ((errors++))
+            ((skill_errors++))
             continue
         fi
 
         # name 추출 및 검증
         local name
         name=$(extract_field "$skill_file" "name")
+        local errors_before=$errors
         validate_name "$name" "$skill_file" "skill"
+        [ $errors -gt $errors_before ] && ((skill_errors++))
 
         # 디렉토리명과 name 일치 확인
         if [ -n "$name" ] && [ "$name" != "$dir_name" ]; then
@@ -172,10 +178,12 @@ validate_skills() {
         fi
 
         # description 검증
+        errors_before=$errors
         validate_description "$skill_file" "skill"
+        [ $errors -gt $errors_before ] && ((skill_errors++))
 
-        # 성공 시 출력
-        if [ $errors -eq 0 ] || [ -n "$name" ]; then
+        # 성공 시 출력 (이 스킬에만 에러가 없으면 출력)
+        if [ $skill_errors -eq 0 ]; then
             echo -e "${GREEN}✓${NC} skills/$dir_name"
         fi
     done
@@ -203,10 +211,15 @@ validate_agents() {
 
         ((agent_count++))
 
+        # 각 에이전트별 에러 카운터
+        local agent_errors=0
+
         # name 추출 및 검증
         local name
         name=$(extract_field "$agent_file" "name")
+        local errors_before=$errors
         validate_name "$name" "$agent_file" "agent"
+        [ $errors -gt $errors_before ] && ((agent_errors++))
 
         # 파일명과 name 일치 확인
         if [ -n "$name" ] && [ "$name" != "$file_name" ]; then
@@ -215,7 +228,9 @@ validate_agents() {
         fi
 
         # description 검증
+        errors_before=$errors
         validate_description "$agent_file" "agent"
+        [ $errors -gt $errors_before ] && ((agent_errors++))
 
         # model 검증 (있는 경우)
         local model
@@ -232,8 +247,8 @@ validate_agents() {
             esac
         fi
 
-        # 성공 시 출력
-        if [ $errors -eq 0 ] || [ -n "$name" ]; then
+        # 성공 시 출력 (이 에이전트에만 에러가 없으면 출력)
+        if [ $agent_errors -eq 0 ]; then
             echo -e "${GREEN}✓${NC} agents/$file_name.md"
         fi
     done
