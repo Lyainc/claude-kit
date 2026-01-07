@@ -130,19 +130,65 @@ Follow conventional commits when appropriate:
 
 **Detailed guidelines**: See [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
 
+## Version Management Workflow
+
+**CRITICAL**: After modifying any file in `template/`, you MUST update the manifest version.
+
+**Detailed guide**: See [docs/VERSION_MANAGEMENT.md](docs/VERSION_MANAGEMENT.md)
+
+### Workflow for template/ modifications
+
+```bash
+# 1. Modify template files
+vim template/skills/expert-panel/SKILL.md
+
+# 2. Update version in manifest (REQUIRED)
+# Edit template/.claude-kit-manifest.json and bump version:
+# "skills/expert-panel": { "version": "1.0.0" → "1.1.0" }
+
+# 3. Regenerate manifest to update hash
+./scripts/generate-manifest.sh
+
+# 4. Commit changes
+git add template/ && git commit -m "feat: Update expert-panel skill to v1.1.0"
+```
+
+### Version Bumping Rules
+
+Follow semantic versioning:
+
+- **Major (1.0.0 → 2.0.0)**: Breaking changes, API changes
+- **Minor (1.0.0 → 1.1.0)**: New features, enhancements (backward compatible)
+- **Patch (1.0.0 → 1.0.1)**: Bug fixes, typos, documentation updates
+
+### Quick Version Update
+
+```bash
+# Update version for a specific module
+jq '.modules["skills/expert-panel"].version = "1.1.0"' \
+  template/.claude-kit-manifest.json > /tmp/manifest.tmp && \
+  mv /tmp/manifest.tmp template/.claude-kit-manifest.json
+
+# Regenerate manifest (updates hash automatically)
+./scripts/generate-manifest.sh
+```
+
 ## Extension Patterns
 
 ```bash
 # 에이전트
 cp template/agents/_TEMPLATE.md template/agents/[name].md
+# Then: Set version to "1.0.0" in manifest
 
 # 스킬 (폴더 단위)
 cp -r template/skills/_TEMPLATE template/skills/[name]
+# Then: Add to manifest with version "1.0.0"
 
 # 스타일/커맨드/캐릭터
 cp template/output-styles/_TEMPLATE.md template/output-styles/[name].md
 cp template/commands/_TEMPLATE.md template/commands/[name].md
 cp template/characters/_TEMPLATE.md template/characters/[name].md
+# Then: Regenerate manifest with ./scripts/generate-manifest.sh
 ```
 
 ## Key Files
