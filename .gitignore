@@ -32,3 +32,6 @@
 # Local customizations (not shared)
 template/local/
 local/
+
+# Local document
+docs/

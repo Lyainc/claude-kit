@@ -31,10 +31,19 @@ cd ~/.claude-kit && git pull && ./setup-claude-global.sh
 ## 설치 옵션
 
 ```bash
-./setup-claude-global.sh              # 기본 설치 (변경 파일만 백업)
-./setup-claude-global.sh --dry-run    # 미리보기
-./setup-claude-global.sh --force      # 백업 없이 덮어쓰기
-./setup-claude-global.sh --version    # 설치된 버전 확인
+# Interactive mode (recommended for first-time users)
+./setup-claude-global.sh
+
+# Direct modes
+./setup-claude-global.sh install      # First-time installation
+./setup-claude-global.sh update       # Update (add new files only)
+./setup-claude-global.sh reset        # Reset (backup and replace all)
+
+# Options
+./setup-claude-global.sh update --dry-run     # Preview changes
+./setup-claude-global.sh reset --show-diff    # Show diff for changed files
+./setup-claude-global.sh update --cleanup     # Remove orphaned files
+./setup-claude-global.sh install --force      # Force without backup (dangerous!)
 ```
 
 ## 설치 구조
