@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Claude Code 글로벌 설정 배포 패키지. `template/` 디렉토리의 설정 파일을 `~/.claude/`에 설치.
+**claude-kit**: Claude Code 글로벌 설정 키트. `template/` 디렉토리의 설정 파일을 `~/.claude/`에 설치.
 
 ## Commands
 
@@ -26,7 +26,7 @@ Claude Code 글로벌 설정 배포 패키지. `template/` 디렉토리의 설�
 ### Directory Structure
 
 ```text
-claudepromptrev/
+claude-kit/
 ├── template/                  # 배포 원본 (live) → ~/.claude/로 복사됨
 │   ├── CLAUDE.md              # 핵심 설정
 │   ├── modules/               # @import로 로드되는 모듈
@@ -70,14 +70,14 @@ cp template/characters/_TEMPLATE.md template/characters/[name].md
 
 ## Key Files
 
-| 파일                                                             | 역할                      |
-|------------------------------------------------------------------|---------------------------|
-| [template/CLAUDE.md](template/CLAUDE.md)                         | 배포될 핵심 설정          |
-| [template/modules/principles.md](template/modules/principles.md) | Analysis/Engineering 모드 |
-| [template/modules/models.md](template/modules/models.md)         | Opus/Sonnet 최적화        |
-| [template/skills/expert-panel/](template/skills/expert-panel/)   | 전문가 패널 토론 스킬     |
+| 파일                                                               | 역할                      |
+|--------------------------------------------------------------------|---------------------------|
+| [template/CLAUDE.md](template/CLAUDE.md)                           | 배포될 핵심 설정          |
+| [template/modules/principles.md](template/modules/principles.md)   | Analysis/Engineering 모드 |
+| [template/modules/models.md](template/modules/models.md)           | Opus/Sonnet 최적화        |
+| [template/skills/expert-panel/](template/skills/expert-panel/)     | 전문가 패널 토론 스킬     |
 | [template/skills/doc-concretize/](template/skills/doc-concretize/) | 문서 구체화 스킬          |
-| [setup-claude-global.sh](setup-claude-global.sh)                 | 설치 스크립트             |
+| [setup-claude-global.sh](setup-claude-global.sh)                   | 설치 스크립트             |
 
 ## Template Requirements
 

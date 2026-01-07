@@ -28,3 +28,7 @@
 # Temporary files
 *.tmp
 *.temp
+
+# Local customizations (not shared)
+template/local/
+local/

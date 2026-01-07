@@ -34,13 +34,22 @@ for arg in "$@"; do
         --force)
             FORCE=true
             ;;
+        --version|-v)
+            if [ -f "$HOME/.claude/.claude-kit-version" ]; then
+                cat "$HOME/.claude/.claude-kit-version"
+            else
+                echo "버전 정보 없음 (install.sh로 설치 시 기록됨)"
+            fi
+            exit 0
+            ;;
         --help|-h)
             echo "사용법: $0 [옵션]"
             echo ""
             echo "옵션:"
-            echo "  --dry-run    실제 설치 없이 미리보기"
-            echo "  --force      백업 없이 덮어쓰기"
-            echo "  --help, -h   이 도움말 표시"
+            echo "  --dry-run      실제 설치 없이 미리보기"
+            echo "  --force        백업 없이 덮어쓰기"
+            echo "  --version, -v  설치된 버전 정보 표시"
+            echo "  --help, -h     이 도움말 표시"
             echo ""
             echo "동작 방식:"
             echo "  - ~/.claude/ 내 기존 파일들은 모두 유지"
