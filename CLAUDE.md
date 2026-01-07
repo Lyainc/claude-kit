@@ -9,17 +9,33 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-./setup-claude-global.sh              # 기본 설치 (선택적 병합)
-./setup-claude-global.sh --dry-run    # 미리보기
-./setup-claude-global.sh --force      # 백업 없이 덮어쓰기
+# Interactive mode
+./setup-claude-global.sh
+
+# Direct modes
+./setup-claude-global.sh install      # First installation
+./setup-claude-global.sh update       # Update (add new files only)
+./setup-claude-global.sh reset        # Reset (backup and replace all)
+
+# Options
+./setup-claude-global.sh update --dry-run     # Preview changes
+./setup-claude-global.sh reset --show-diff    # Show diff
+./setup-claude-global.sh update --cleanup     # Remove orphaned files
 ```
 
-**스크립트 동작 방식**:
+**Mode Behaviors**:
 
-- `~/.claude/` 폴더의 모든 기존 내용 유지 (플러그인, 대화 이력, 스냅샷 등)
-- `template/`의 파일만 선택적으로 병합
-- `_TEMPLATE` 패턴 파일은 자동 제외 (Claude Code에 로드되지 않음)
-- 덮어쓸 파일이 있으면 개별 백업 (`~/.claude.file-backups.*` 폴더)
+- **install**: First-time setup. Fails if any files exist (prevents accidental overwrites).
+- **update**: Adds new files only. Keeps existing files (user customizations preserved).
+- **reset**: Backup and replace all files (clean slate).
+
+**Edge Case Handling**:
+
+- File hash comparison for change detection
+- CLAUDE.md reference validation (fails if modules missing)
+- Atomic folder operations for skills/agents
+- Orphaned file detection (use `--cleanup` to remove)
+- `_TEMPLATE` patterns automatically excluded
 
 ## Architecture
 

@@ -35,7 +35,9 @@ description: |
 
 | Role | Description |
 |------|-------------|
-| **Expert Panel** | 유저가 지정하는 도메인 전문가 3명 이상 (예: 보안, UX, 법률, 성능) |
+| **Expert Panel** | 유저가 지정하는 도메인 전문가 3명 이상 (예: 보안, UX, 성능, 법률, LLM 등) |
+
+**중요**: 전문가는 해당 분야의 핵심 메커니즘, 측정 지표, 선례를 기반으로 사고합니다 (상세: [reference.md](reference.md)).
 
 ## Consensus Rules
 
@@ -60,10 +62,20 @@ description: |
 3. **Dialectic**: 정(Thesis) → 반(Antithesis) → 합(Synthesis)
 4. **Conclusion**: 합의 또는 보류 결정
 
-### Phase 2: Recording
-- 속기록: `docs/discussions/{YYYYMMDD}_{name}/transcripts/`
-- 요약본: `SUMMARY.md`
-- 미해결: `UNRESOLVED.md`
+### Phase 2: Recording (MANDATORY)
+
+토론 종료 후 **반드시** 다음 문서를 생성해야 합니다:
+
+1. **미가공 속기록**: `docs/discussions/{YYYYMMDD}_{name}/transcripts/{순번}_{topic}.md`
+   - 모든 발언을 시간순으로 기록 (템플릿: `templates/TRANSCRIPT_TEMPLATE.md`)
+
+2. **요약본**: `docs/discussions/{YYYYMMDD}_{name}/SUMMARY.md`
+   - 합의 사항, 권고사항, 액션 아이템 정리 (템플릿: `templates/SUMMARY_TEMPLATE.md`)
+
+3. **미해결 이슈**: `docs/discussions/{YYYYMMDD}_{name}/UNRESOLVED.md`
+   - 보류된 토픽 상세 기록 (템플릿: `templates/UNRESOLVED_TEMPLATE.md`)
+
+**중요**: 문서 생성 없이 토론을 종료할 수 없습니다. 모든 토픽 논의 완료 즉시 Phase 2로 진행합니다.
 
 ### Phase 3: Moderator Authority
 - 팩트체크 필요 시 유저에게 정보 요청
