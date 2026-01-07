@@ -36,14 +36,35 @@ cd ~/.claude-kit && git pull && ./setup-claude-global.sh
 
 # Direct modes
 ./setup-claude-global.sh install      # First-time installation
-./setup-claude-global.sh update       # Update (add new files only)
+./setup-claude-global.sh update       # Smart update (version-aware, preserves user changes)
 ./setup-claude-global.sh reset        # Reset (backup and replace all)
+./setup-claude-global.sh doctor       # Check installation health
 
 # Options
-./setup-claude-global.sh update --dry-run     # Preview changes
-./setup-claude-global.sh reset --show-diff    # Show diff for changed files
-./setup-claude-global.sh update --cleanup     # Remove orphaned files
-./setup-claude-global.sh install --force      # Force without backup (dangerous!)
+./setup-claude-global.sh update --dry-run       # Preview changes
+./setup-claude-global.sh update --force-update  # Update even user-modified modules
+./setup-claude-global.sh reset --show-diff      # Show diff for changed files
+./setup-claude-global.sh update --cleanup       # Remove orphaned files
+```
+
+## 버전 관리 시스템
+
+v1.1.0부터 manifest 기반 스마트 업데이트를 지원합니다:
+
+- **자동 버전 감지**: 모듈 변경 사항 자동 추적
+- **사용자 수정 보호**: 수정한 파일은 자동으로 skip
+- **선택적 업데이트**: `--force-update`로 선택적 강제 업데이트
+- **Health Check**: `doctor` 명령으로 설치 상태 확인
+
+```bash
+# 업데이트 확인
+./setup-claude-global.sh doctor
+
+# 스마트 업데이트 (사용자 수정 보호)
+./setup-claude-global.sh update
+
+# 수정한 파일도 강제 업데이트 (백업 후)
+./setup-claude-global.sh update --force-update
 ```
 
 ## 설치 구조
@@ -143,6 +164,48 @@ claude-kit/
 ├── setup-claude-global.sh     # 설치/업데이트 스크립트
 └── README.md
 ```
+
+## FAQ
+
+### 커스텀 스킬을 유지하면서 업데이트하려면?
+
+`update` 모드를 사용하세요. 기존 파일은 절대 덮어쓰지 않습니다.
+
+```bash
+./setup-claude-global.sh update
+```
+
+### 수정한 모듈을 최신 버전으로 업데이트하려면?
+
+두 가지 방법이 있습니다:
+
+**방법 1**: 선택적 강제 업데이트 (권장)
+
+```bash
+# 수정한 파일도 업데이트 (자동 백업)
+./setup-claude-global.sh update --force-update
+```
+
+**방법 2**: 수동 삭제 후 재설치
+
+```bash
+# 1. 특정 모듈 삭제
+rm -rf ~/.claude/skills/expert-panel
+
+# 2. 업데이트 (새 버전 설치됨)
+./setup-claude-global.sh update
+```
+
+### 대화 이력은 어떻게 관리되나요?
+
+Claude Code가 별도로 관리하며, 이 스크립트는 건드리지 않습니다.
+
+### Update vs Reset 차이는?
+
+- **Update**: 새 파일만 추가 (안전, 커스터마이징 보존)
+- **Reset**: 전부 교체 (위험, 커스텀 파일 삭제됨)
+
+대부분의 경우 `update`를 사용하세요.
 
 ## 문제 해결
 

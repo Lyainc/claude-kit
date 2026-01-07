@@ -1,0 +1,42 @@
+{
+  "version": "1.0.0",
+  "generated_at": "2026-01-07T22:58:14Z",
+  "commit": "237975d",
+  "modules": {
+    "skills/doc-concretize": {
+      "version": "1.0.0",
+      "hash": "d26df2323636c25cb285ef0b8db383fd",
+      "type": "folder"
+    },
+    "skills/expert-panel": {
+      "version": "1.0.0",
+      "hash": "705453500a747a064f9d1ae132cfc76d",
+      "type": "folder"
+    },
+    "modules/characters.md": {
+      "version": "1.0.0",
+      "hash": "13b4911b67592416c7f2abbbf526ef14",
+      "type": "file"
+    },
+    "modules/models.md": {
+      "version": "1.0.0",
+      "hash": "ea3896995e157da23ac1790be8afb162",
+      "type": "file"
+    },
+    "modules/principles.md": {
+      "version": "1.0.0",
+      "hash": "5b3245bca97018c3d7ad87bc2ba6a686",
+      "type": "file"
+    },
+    "output-styles/team.md": {
+      "version": "1.0.0",
+      "hash": "fdd0cc1c70625083469ac6846732eb18",
+      "type": "file"
+    },
+    "CLAUDE.md": {
+      "version": "1.0.0",
+      "hash": "9cc37681964f7c3e50d5d1edd5fea171",
+      "type": "file"
+    }
+  }
+}
