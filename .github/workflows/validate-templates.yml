@@ -1,0 +1,37 @@
+name: Validate Templates
+
+on:
+  pull_request:
+    paths:
+      - 'template/skills/**'
+      - 'template/agents/**'
+  push:
+    branches: [main]
+    paths:
+      - 'template/skills/**'
+      - 'template/agents/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run template validation
+        run: |
+          chmod +x ./scripts/validate-templates.sh
+          ./scripts/validate-templates.sh
+
+      - name: Post validation result
+        if: failure() && github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ **템플릿 검증 실패**\n\n스킬 또는 에이전트 정의에 오류가 있습니다. 로그를 확인해주세요.\n\n필수 요구사항:\n- `name`: 64자 이하, 소문자/숫자/하이픈만\n- `description`: 1024자 이하\n- 디렉토리명과 `name` 필드 일치'
+            })
