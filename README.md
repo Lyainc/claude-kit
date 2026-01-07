@@ -71,6 +71,21 @@ cd ~/.claude-kit && git pull && ./setup-claude-global.sh
 | `expert-panel`   | 전문가 패널 토론 시뮬레이션      | "전문가 토론", "찬반 분석"        |
 | `doc-concretize` | 추상적 개념을 구체적 문서로 변환 | "문서화", "구체화", "체계적 정리" |
 
+## 개발자 가이드
+
+### Git Workflow
+
+이 프로젝트에 기여하거나 개발하는 경우, Git 워크플로우 가이드를 참조하세요:
+
+- **간단 체크리스트**: [CLAUDE.md - Git Workflow](CLAUDE.md#git-workflow)
+- **상세 가이드**: [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
+
+핵심 규칙:
+
+- Main 브랜치 중심, feature/fix 브랜치는 당일 완료
+- 작업 시작 전 항상 `git fetch && git status`
+- 머지 후 브랜치 즉시 삭제 (로컬 + 리모트)
+
 ## 커스터마이징
 
 ### 개인 설정 추가

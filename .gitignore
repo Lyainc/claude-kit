@@ -33,5 +33,7 @@
 template/local/
 local/
 
-# Local document
-docs/
+# Sensitive or temporary documents (docs/ is now tracked by default)
+# Add specific files here if needed, e.g.:
+# docs/private-notes.md
+# docs/credentials.txt

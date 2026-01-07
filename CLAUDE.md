@@ -69,6 +69,67 @@ claude-kit/
 2. `./setup-claude-global.sh` 실행하여 `~/.claude/`에 배포
 3. Claude Code 재시작하여 테스트
 
+## Git Workflow
+
+### Branch Strategy
+
+**Main branch only** for production-ready code. Feature/fix branches are short-lived (max 1 day).
+
+### Starting New Work
+
+```bash
+# 1. Sync with remote (prevent conflicts)
+git fetch origin
+git checkout main
+git pull origin main
+
+# 2. Create feature branch (if needed)
+git checkout -b feature/descriptive-name
+# or fix/descriptive-name
+```
+
+**When to skip branching**: Single-file trivial changes can commit directly to main.
+
+### Completing Work
+
+```bash
+# 1. Check for remote changes (CRITICAL for multi-session work)
+git fetch origin
+git checkout main
+git pull origin main
+
+# 2. Merge with no-ff (preserve merge commit)
+git merge --no-ff feature/xyz
+
+# 3. Push to remote
+git push origin main
+
+# 4. Delete branch immediately (local + remote)
+git branch -d feature/xyz
+git push origin --delete feature/xyz
+```
+
+### Multi-Session Protocol
+
+When working across multiple Claude sessions or terminals:
+
+1. **Always start with**: `git fetch && git status`
+2. **Before merge**: Verify no uncommitted changes
+3. **Branch lifespan**: Same day only - merge or discard before EOD
+
+### Commit Messages
+
+Follow conventional commits when appropriate:
+- `feat:` New features
+- `fix:` Bug fixes
+- `docs:` Documentation only
+- `refactor:` Code restructuring
+- `chore:` Tooling, dependencies
+
+**Language**: English for commit messages, Korean for PR descriptions (unless otherwise specified).
+
+**Detailed guidelines**: See [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
+
 ## Extension Patterns
 
 ```bash
