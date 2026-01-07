@@ -1,0 +1,30 @@
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# Editor
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
+*.sublime-project
+*.sublime-workspace
+
+# Backup files
+*.bak
+*.backup
+*.orig
+
+# Local test files
+.local/
+.test/
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
