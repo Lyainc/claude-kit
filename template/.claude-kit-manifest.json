@@ -1,7 +1,7 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-01-07T22:58:14Z",
-  "commit": "237975d",
+  "generated_at": "2026-01-09T05:21:50Z",
+  "commit": "7dd25ac",
   "modules": {
     "skills/doc-concretize": {
       "version": "1.0.0",
@@ -11,6 +11,11 @@
     "skills/expert-panel": {
       "version": "1.0.0",
       "hash": "705453500a747a064f9d1ae132cfc76d",
+      "type": "folder"
+    },
+    "skills/pptx": {
+      "version": "1.0.0",
+      "hash": "84721c573f0f2d15e9776abafc061f0a",
       "type": "folder"
     },
     "modules/characters.md": {
