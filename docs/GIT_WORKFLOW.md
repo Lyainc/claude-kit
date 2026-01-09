@@ -160,11 +160,11 @@ git rebase origin/main
 
 **예시**:
 ```bash
-git commit -m "feat: Add git-workflow validation skill
+git commit -m "feat: Add expert-panel skill
 
-Implements automatic Git workflow compliance checking.
-- Pre-commit hook for fetch status
-- Post-merge hook for branch cleanup
+Implements multi-perspective dialectical analysis for decision-making.
+- Optimistic/Critical practitioner + Domain expert personas
+- Thesis-antithesis-synthesis methodology
 
 Refs: #12"
 ```
@@ -185,18 +185,17 @@ Refs: #12"
 ```markdown
 ## 변경사항
 
-Git 워크플로우 문서화 및 자동화 도구 추가
+Git 워크플로우 문서화
 
 ## 상세 내용
 
 - CLAUDE.md에 Git 워크플로우 체크리스트 추가
 - docs/GIT_WORKFLOW.md 상세 가이드 작성
-- Advisory git hooks 설치 스크립트 제공
 
 ## 테스트
 
 - [ ] 템플릿 검증 통과
-- [ ] Git hooks 설치 테스트
+- [ ] 다중 세션 시나리오 확인
 ```
 
 ---
@@ -466,44 +465,6 @@ git push --force-with-lease origin feature/xyz
 
 # --force-with-lease: 리모트가 예상한 상태일 때만 푸시
 # (다른 사람이 푸시했으면 실패 → 안전)
-```
-
----
-
-## Git Hooks (선택 사항)
-
-Advisory hooks를 설치하면 자동으로 체크리스트를 확인할 수 있습니다.
-
-**설치**:
-```bash
-./scripts/install-git-hooks.sh
-```
-
-**포함된 Hooks**:
-
-### Pre-commit
-```bash
-# Remote에 새 커밋이 있는지 경고
-git fetch origin --dry-run 2>&1 | grep -q "new"
-if [ $? -eq 0 ]; then
-  echo "⚠️  Warning: Remote has new commits. Run 'git pull' first."
-fi
-# But don't block commit
-exit 0
-```
-
-### Post-merge
-```bash
-# 머지 후 브랜치 삭제 제안
-echo "✓ Merge complete. Don't forget to delete the branch:"
-echo "  git branch -d <branch-name>"
-echo "  git push origin --delete <branch-name>"
-```
-
-**제거**:
-```bash
-rm .git/hooks/pre-commit
-rm .git/hooks/post-merge
 ```
 
 ---
