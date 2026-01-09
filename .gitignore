@@ -35,5 +35,5 @@ local/
 
 # Sensitive or temporary documents (docs/ is now tracked by default)
 # Add specific files here if needed, e.g.:
-# docs/private-notes.md
-# docs/credentials.txt
+.antrophics_official_skills/
+docs/private/
