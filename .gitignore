@@ -37,3 +37,6 @@ local/
 # Add specific files here if needed, e.g.:
 .antrophics_official_skills/
 docs/private/
+
+# Future templates (preparing for repo split)
+future-templates/
