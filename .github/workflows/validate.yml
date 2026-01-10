@@ -21,6 +21,12 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Verify dependencies
+        run: |
+          echo "Checking for jq..."
+          jq --version || (echo "jq not found, installing..." && sudo apt-get update && sudo apt-get install -y jq)
+          jq --version
+
       - name: Validate templates
         run: |
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
@@ -35,11 +41,15 @@ jobs:
           echo "🔍 Checking Manifest Integrity"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          # Generate manifest (modifies file in place)
-          ./scripts/generate-manifest.sh > /dev/null 2>&1
+          # Generate manifest to temp file (don't modify working directory)
+          TEMP_MANIFEST=$(mktemp)
+          ./scripts/generate-manifest.sh "$TEMP_MANIFEST" > /dev/null 2>&1
 
-          # Compare with committed manifest
-          if ! git diff --exit-code template/.claude-kit-manifest.json; then
+          # Compare hashes
+          FRESH_HASH=$(jq -r '.manifest_hash // ""' "$TEMP_MANIFEST")
+          CURRENT_HASH=$(jq -r '.manifest_hash // ""' template/.claude-kit-manifest.json)
+
+          if [ "$CURRENT_HASH" != "$FRESH_HASH" ]; then
             echo ""
             echo "❌ ERROR: Manifest is out of sync with template files"
             echo ""
