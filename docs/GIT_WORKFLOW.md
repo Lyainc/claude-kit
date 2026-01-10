@@ -256,16 +256,42 @@ feature:     C---D
 
 ---
 
-### 4. 다중 세션 작업 시
+### 4. 다중 세션/에이전트 작업 시
 
-#### 시나리오: 2개 이상의 Claude 세션에서 작업
+#### 시나리오: 2개 이상의 Claude 세션 또는 에이전트에서 작업
 
 **문제**:
-- Session A: `feature/add-skill` 작업 중
-- Session B: `fix/typo` 작업 중
+
+- Session/Agent A: `feature/add-skill` 작업 중
+- Session/Agent B: `fix/typo` 작업 중
 - 둘 다 모르고 main에 머지 → 충돌
 
-**해결책**: Session Protocol
+**해결책**: Safe-Merge 스크립트 + 명확한 프로토콜
+
+#### 권장 워크플로우 (자동화)
+
+```bash
+# 1. 작업 시작 - 일반적인 브랜치 생성
+git fetch origin
+git checkout main
+git pull origin main
+git checkout -b feature/add-new-skill
+
+# 2. 작업 완료 후 - Safe-Merge 스크립트 사용 (권장)
+./scripts/safe-merge.sh feature/add-new-skill
+```
+
+**Safe-Merge가 자동으로 처리하는 것**:
+
+- Remote 최신 상태 확인
+- Local/Remote diverge 감지
+- 충돌 사전 체크 (dry-run merge)
+- 안전한 머지 + 푸시
+- 브랜치 자동 삭제 (local + remote)
+
+#### 수동 워크플로우 (기존 방식)
+
+Safe-Merge 스크립트를 사용할 수 없는 경우:
 
 ```bash
 # Session A 시작 전
@@ -276,10 +302,29 @@ git log origin/main --oneline -5  # 다른 세션 작업 확인
 git fetch && git status
 ```
 
-**규칙**:
+**핵심 규칙**:
+
 1. **세션 시작 전 반드시 fetch**
 2. **머지 전 다시 fetch**
 3. **브랜치 이름으로 작업 내용 표시** (다른 세션에서 확인 가능)
+
+#### 추가 보호 옵션 (선택적)
+
+프로젝트에 Git hooks가 준비되어 있으나, **사용을 권장하지 않습니다**.
+
+**이유**:
+
+- `safe-merge.sh`가 이미 모든 안전장치 제공
+- Hook 설치/관리 복잡도 불필요
+- 현재 프로젝트 규모에서는 과도
+
+**Hook 사용이 필요한 경우** (팀 5명+ 규모):
+```bash
+cp hooks/pre-push .git/hooks/pre-push
+chmod +x .git/hooks/pre-push
+```
+
+자세한 내용: `hooks/README.md`
 
 #### 충돌 발생 시
 
@@ -301,6 +346,38 @@ git commit  # 머지 커밋 완성
 # 4. 푸시
 git push origin main
 ```
+
+#### 다중 에이전트 협업 팁
+
+**가시성 확보**:
+```bash
+# 다른 에이전트 작업 확인
+git fetch origin
+git branch -r  # Remote 브랜치 목록
+git log origin/main --oneline -10  # 최근 커밋
+
+# 특정 브랜치 상태 확인
+git log origin/feature/some-work --oneline
+```
+
+**작업 충돌 방지**:
+
+- 브랜치 이름에 작업 내용 명시: `feature/add-expert-panel-skill`
+- 같은 파일 동시 수정 피하기: 시작 전 `git fetch`로 확인
+- 긴급 작업은 즉시 공유: 커밋 메시지에 명확히 표시
+
+**권장 브랜치 네이밍 (타임스탬프 포함)**:
+```bash
+# 충돌 가능성을 더욱 줄이려면
+feature/20260111-1430-add-new-skill
+fix/20260111-0920-typo-in-readme
+```
+
+타임스탬프 포함 시 장점:
+
+- 브랜치 생성 시점 명확
+- 동일 작업 이름 충돌 방지
+- 자동 정리 스크립트 작성 가능
 
 ---
 
