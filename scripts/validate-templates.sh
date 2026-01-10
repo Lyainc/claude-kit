@@ -175,6 +175,11 @@ validate_skills() {
     echo "📦 스킬 검증 중..."
     echo ""
 
+    echo "DEBUG: TEMPLATE_DIR=$TEMPLATE_DIR"
+    echo "DEBUG: Listing skills directory..."
+    ls -la "$TEMPLATE_DIR/skills/" || echo "Failed to list skills directory"
+    echo ""
+
     local skill_count=0
 
     for skill_dir in "$TEMPLATE_DIR"/skills/*/; do
