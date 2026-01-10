@@ -8,6 +8,13 @@
 #   ./scripts/validate-templates.sh --skills  # 스킬만 검증
 #   ./scripts/validate-templates.sh --agents  # 에이전트만 검증
 #
+# 검증 레벨:
+#   ERROR - Claude Code 실행 실패를 야기하는 필수 항목 (exit 1)
+#   WARN  - 권장사항 및 베스트 프랙티스 위반 (exit 0)
+#
+# 변경 이력:
+#   2026-01-11: ERROR/WARN 구분 명확화, YAML 파싱 개선 (awk 사용)
+#
 # =============================================================================
 
 set -e
@@ -74,29 +81,29 @@ validate_name() {
     local file="$2"
     local type="$3"
 
-    # 필수 체크
+    # 필수 체크 (ERROR - 실제 Claude Code 실행 실패)
     if [ -z "$name" ]; then
         echo -e "${RED}ERROR${NC}: $file - 'name' 필드 누락"
         ((errors++))
         return 1
     fi
 
-    # 길이 체크 (64자)
+    # 길이 체크 (WARNING - 권장사항)
     if [ ${#name} -gt 64 ]; then
-        echo -e "${RED}ERROR${NC}: $file - 'name' 64자 초과 (${#name}자)"
-        ((errors++))
+        echo -e "${YELLOW}WARN${NC}: $file - 'name' 64자 초과 권장하지 않음 (${#name}자)"
+        ((warnings++))
     fi
 
-    # 형식 체크 (소문자, 숫자, 하이픈)
+    # 형식 체크 (WARNING - 컨벤션, 필수 아님)
     if ! echo "$name" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$'; then
-        echo -e "${RED}ERROR${NC}: $file - 'name' 형식 오류 (소문자/숫자/하이픈만 허용)"
-        ((errors++))
+        echo -e "${YELLOW}WARN${NC}: $file - 'name' 권장 형식: 소문자/숫자/하이픈 (현재: $name)"
+        ((warnings++))
     fi
 
-    # 금지어 체크
+    # 금지어 체크 (WARNING - 베스트 프랙티스)
     if echo "$name" | grep -qiE '(anthropic|claude)'; then
-        echo -e "${RED}ERROR${NC}: $file - 'name'에 금지어 포함 (anthropic, claude)"
-        ((errors++))
+        echo -e "${YELLOW}WARN${NC}: $file - 'name'에 'anthropic' 또는 'claude' 포함 권장하지 않음"
+        ((warnings++))
     fi
 
     return 0
@@ -107,27 +114,54 @@ validate_description() {
     local file="$1"
     local type="$2"
 
-    # description 추출
+    # description 추출 (단일 라인)
     local desc
     desc=$(extract_field "$file" "description")
 
-    # 멀티라인 description 처리 (| 로 시작하는 경우)
-    if [ -z "$desc" ] || [ "$desc" = "|" ]; then
-        desc=$(sed -n '/^---$/,/^---$/p' "$file" | sed -n '/^description:/,/^[a-z_-]*:/p' | grep -v "^description:" | grep -v "^[a-z_-]*:" | tr -d '\n' | sed 's/^[[:space:]]*//')
+    # 멀티라인 description 처리 (| 또는 > 로 시작하는 경우)
+    if [ -z "$desc" ] || [ "$desc" = "|" ] || [ "$desc" = ">" ]; then
+        # frontmatter 내에서 description: 이후 다음 필드 또는 닫는 --- 전까지 추출
+        # awk를 사용하여 더 정확한 파싱
+        desc=$(awk '
+            /^---$/ {
+                if (!started) {
+                    started=1;
+                    next;
+                }
+                # 두 번째 ---를 만나면 frontmatter 종료
+                exit;
+            }
+            started && /^description:/ {
+                in_desc=1;
+                next;
+            }
+            started && in_desc && /^[a-z_-]+:/ {
+                # 다른 필드 시작 시 description 종료
+                exit;
+            }
+            started && in_desc {
+                gsub(/^[[:space:]]+/, "");  # 앞 공백 제거
+                if (length($0) > 0) {
+                    if (output) output = output " " $0;
+                    else output = $0;
+                }
+            }
+            END { print output }
+        ' "$file")
     fi
 
-    # 필수 체크
+    # 필수 체크 (ERROR - 실제 Claude Code 실행 실패)
     if [ -z "$desc" ]; then
         echo -e "${RED}ERROR${NC}: $file - 'description' 필드 누락"
         ((errors++))
         return 1
     fi
 
-    # 길이 체크 (1024자) - 대략적 체크
+    # 길이 체크 (WARNING - 권장사항, 1024자)
     local desc_len=${#desc}
     if [ $desc_len -gt 1024 ]; then
-        echo -e "${RED}ERROR${NC}: $file - 'description' 1024자 초과 (~${desc_len}자)"
-        ((errors++))
+        echo -e "${YELLOW}WARN${NC}: $file - 'description' 1024자 초과 권장하지 않음 (${desc_len}자)"
+        ((warnings++))
     fi
 
     return 0
