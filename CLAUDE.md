@@ -158,52 +158,13 @@ All PRs must pass automated validation:
 
 See [.github/workflows/README.md](.github/workflows/README.md) for details.
 
-## Version Management Workflow
+## Version Management
 
-**CRITICAL**: After modifying any file in `template/`, you MUST update the manifest version.
+**CRITICAL**: Template 수정 후 반드시 manifest 버전 업데이트 필요.
 
-**Detailed guide**: See [docs/VERSION_MANAGEMENT.md](docs/VERSION_MANAGEMENT.md)
+**Workflow**: [CONTRIBUTING.md](CONTRIBUTING.md)
 
-### Workflow for template/ modifications
-
-```bash
-# 1. Modify template files
-vim template/skills/expert-panel/SKILL.md
-
-# 2. Update version in manifest (REQUIRED)
-jq '.modules["skills/expert-panel"].version = "1.1.0"' \
-  template/.claude-kit-manifest.json > /tmp/manifest.tmp && \
-  mv /tmp/manifest.tmp template/.claude-kit-manifest.json
-
-# 3. Validate templates (recommended)
-./scripts/validate-templates.sh
-
-# 4. Regenerate manifest to update hash
-./scripts/generate-manifest.sh
-
-# 5. Commit changes
-git add template/ && git commit -m "feat: Update expert-panel skill to v1.1.0"
-```
-
-### Version Bumping Rules
-
-Follow semantic versioning:
-
-- **Major (1.0.0 → 2.0.0)**: Breaking changes, API changes
-- **Minor (1.0.0 → 1.1.0)**: New features, enhancements (backward compatible)
-- **Patch (1.0.0 → 1.0.1)**: Bug fixes, typos, documentation updates
-
-### Quick Version Update
-
-```bash
-# Update version for a specific module
-jq '.modules["skills/expert-panel"].version = "1.1.0"' \
-  template/.claude-kit-manifest.json > /tmp/manifest.tmp && \
-  mv /tmp/manifest.tmp template/.claude-kit-manifest.json
-
-# Regenerate manifest (updates hash automatically)
-./scripts/generate-manifest.sh
-```
+**Details**: [docs/VERSION_MANAGEMENT.md](docs/VERSION_MANAGEMENT.md)
 
 ## Extension Patterns
 
