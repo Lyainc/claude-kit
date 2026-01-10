@@ -1,11 +1,11 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-01-10T22:10:38Z",
-  "commit": "abed604",
+  "generated_at": "2026-01-10T22:41:03Z",
+  "commit": "94b750e",
   "modules": {
     "skills/doc-concretize": {
-      "version": "1.0.0",
-      "hash": "d26df2323636c25cb285ef0b8db383fd",
+      "version": "1.1.0",
+      "hash": "55ea47adcaec688f5361ff242b0fae71",
       "type": "folder"
     },
     "skills/docx": {
@@ -14,8 +14,8 @@
       "type": "folder"
     },
     "skills/expert-panel": {
-      "version": "1.0.0",
-      "hash": "705453500a747a064f9d1ae132cfc76d",
+      "version": "1.1.0",
+      "hash": "3ab97221eacde4553aa9610e62fbd81b",
       "type": "folder"
     },
     "skills/pptx": {

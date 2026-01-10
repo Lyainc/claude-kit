@@ -2,6 +2,17 @@
 
 상세 절차 및 가이드라인.
 
+## Table of Contents
+
+- [Phase 1: Segmentation 상세](#phase-1-segmentation-상세)
+- [Phase 2: Recursive Build 상세](#phase-2-recursive-build-상세)
+- [Phase 3: Final Review 상세](#phase-3-final-review-상세)
+- [Phase 4: Polish 상세](#phase-4-polish-상세)
+- [Threshold 세부 기준](#threshold-세부-기준)
+- [상태 추적 JSON 스키마](#상태-추적-json-스키마)
+
+---
+
 ## Phase 1: Segmentation 상세
 
 ### 의미 단위 식별 기준

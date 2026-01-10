@@ -4,34 +4,20 @@ name: doc-concretize
 description: |
   Transform abstract concepts into concrete, well-structured documentation
   through step-by-step recursive writing with verification at each step.
+
   Use when the user requests documentation of abstract ideas, strategies,
-  or concepts requiring structured concretization (800+ Korean characters),
-  or when the user mentions 구체화, 문서화, 체계적 정리, 개념 정리,
-  아이디어 문서화, 전략 문서, 글로 정리.
+  or concepts requiring structured concretization (expected output > 800 Korean characters).
+
+  Trigger when user mentions: 구체화, 문서화, 체계적 정리, 개념 정리, 아이디어 문서화, 전략 문서, 글로 정리,
+  or requests: "이 개념을 문서로 정리해줘", "아이디어를 체계적으로 구체화해줘",
+  "전략을 상세 문서로 작성해줘", "비전을 실행 가능한 계획으로 풀어줘".
+
+  Skip for: simple definitions, "짧게"/"간단히" requests, or already-structured content.
 ---
 
 # Document Concretization
 
 추상적 개념을 단계적 재귀 작성과 검증을 통해 구체적 문서로 변환한다.
-
-## When to Use
-
-- 추상적 개념/아이디어/전략을 체계적 문서로 정리할 때
-- 여러 개념이 얽힌 복잡한 주제를 구조화할 때
-- 일관성과 논리적 흐름이 중요한 긴 문서 작성 시
-- 사용자 문체를 유지하며 기존 문서를 확장/보완할 때
-
-## Auto-Trigger Conditions
-
-다음 조건이 **모두** 충족될 때 자동 활성화:
-
-| 조건 | 예시 |
-|------|------|
-| 추상성 | 개념, 아이디어, 전략, 방향성, 철학, 비전 |
-| 문서화 의도 | 정리해줘, 문서로, 구체화, 체계적으로 |
-| 예상 분량 | 800자 이상 (한글 기준) |
-
-**Bypass**: 단순 정의/설명, "짧게"/"간단히" 명시, 이미 구조화된 정리
 
 ## Prerequisites
 
