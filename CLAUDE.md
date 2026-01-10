@@ -8,19 +8,35 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Commands
 
+### Setup & Installation
+
 ```bash
-# Interactive mode
+# Interactive mode (recommended)
 ./setup-claude-global.sh
 
 # Direct modes
 ./setup-claude-global.sh install      # First installation
-./setup-claude-global.sh update       # Update (add new files only)
+./setup-claude-global.sh update       # Smart update (version-aware, preserves user changes)
 ./setup-claude-global.sh reset        # Reset (backup and replace all)
+./setup-claude-global.sh doctor       # Health check and version status
 
 # Options
-./setup-claude-global.sh update --dry-run     # Preview changes
-./setup-claude-global.sh reset --show-diff    # Show diff
-./setup-claude-global.sh update --cleanup     # Remove orphaned files
+./setup-claude-global.sh update --dry-run       # Preview changes
+./setup-claude-global.sh update --force-update  # Update even user-modified files (with backup)
+./setup-claude-global.sh reset --show-diff      # Show diff
+./setup-claude-global.sh update --cleanup       # Remove orphaned files
+```
+
+### Development & Validation
+
+```bash
+# Validate templates before committing
+./scripts/validate-templates.sh           # Validate all
+./scripts/validate-templates.sh --skills  # Skills only
+./scripts/validate-templates.sh --agents  # Agents only
+
+# Generate/update manifest after template changes
+./scripts/generate-manifest.sh
 ```
 
 **Mode Behaviors**:
@@ -73,6 +89,27 @@ claude-kit/
 
 **Automation First**: Use scripts for safety and consistency.
 
+### Pre-commit Hooks (Optional)
+
+Install hooks for automatic validation before commits:
+
+```bash
+# Recommended: Auto-detect best method
+./scripts/setup-hooks.sh
+
+# Or choose explicitly
+./scripts/setup-hooks.sh native       # No dependencies
+./scripts/setup-hooks.sh pre-commit   # Industry standard (requires pip)
+```
+
+**Hook features**:
+
+- Template validation (ERROR → blocks commit)
+- Manifest integrity check (hash verification)
+- Version bump warning (non-blocking)
+
+**Note**: Hooks are optional but recommended. CI validation is mandatory for all PRs.
+
 ### Starting New Work
 
 ```bash
@@ -101,6 +138,7 @@ When multiple Claude sessions/agents work simultaneously:
 1. **Start with**: `git fetch && git status`
 2. **Use automation**: Scripts required (don't manually merge)
 3. **Keep branches short**: Same day preferred, max 2-3 days
+4. **Tag AI branches**: Use descriptive names (e.g., `agent-update-skill-v2`)
 
 ### Commit Messages
 
@@ -109,6 +147,16 @@ Follow conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
 **Language**: English for commits, Korean for PR descriptions.
 
 **Details**: See [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
+
+### CI/CD
+
+All PRs must pass automated validation:
+
+- **Template Validation**: Frontmatter errors block merge
+- **Manifest Integrity**: Hash mismatch blocks merge
+- **Branch Protection**: Direct push to main is blocked
+
+See [.github/workflows/README.md](.github/workflows/README.md) for details.
 
 ## Version Management Workflow
 
@@ -123,13 +171,17 @@ Follow conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
 vim template/skills/expert-panel/SKILL.md
 
 # 2. Update version in manifest (REQUIRED)
-# Edit template/.claude-kit-manifest.json and bump version:
-# "skills/expert-panel": { "version": "1.0.0" → "1.1.0" }
+jq '.modules["skills/expert-panel"].version = "1.1.0"' \
+  template/.claude-kit-manifest.json > /tmp/manifest.tmp && \
+  mv /tmp/manifest.tmp template/.claude-kit-manifest.json
 
-# 3. Regenerate manifest to update hash
+# 3. Validate templates (recommended)
+./scripts/validate-templates.sh
+
+# 4. Regenerate manifest to update hash
 ./scripts/generate-manifest.sh
 
-# 4. Commit changes
+# 5. Commit changes
 git add template/ && git commit -m "feat: Update expert-panel skill to v1.1.0"
 ```
 
@@ -155,21 +207,35 @@ jq '.modules["skills/expert-panel"].version = "1.1.0"' \
 
 ## Extension Patterns
 
+### Adding New Components
+
 ```bash
-# 에이전트
-cp template/agents/_TEMPLATE.md template/agents/[name].md
-# Then: Set version to "1.0.0" in manifest
-
-# 스킬 (폴더 단위)
+# Skill (folder-based)
 cp -r template/skills/_TEMPLATE template/skills/[name]
-# Then: Add to manifest with version "1.0.0"
+vim template/skills/[name]/SKILL.md
+./scripts/validate-templates.sh --skills
+./scripts/generate-manifest.sh  # Auto-adds with version 1.0.0
 
-# 스타일/커맨드/캐릭터
+# Agent (file-based)
+cp template/agents/_TEMPLATE.md template/agents/[name].md
+vim template/agents/[name].md
+./scripts/validate-templates.sh --agents
+./scripts/generate-manifest.sh  # Auto-adds with version 1.0.0
+
+# Output Style / Command / Character
 cp template/output-styles/_TEMPLATE.md template/output-styles/[name].md
 cp template/commands/_TEMPLATE.md template/commands/[name].md
 cp template/characters/_TEMPLATE.md template/characters/[name].md
-# Then: Regenerate manifest with ./scripts/generate-manifest.sh
+./scripts/generate-manifest.sh
 ```
+
+### Template File Exclusions
+
+Files/folders with `_TEMPLATE` pattern are automatically excluded from:
+
+- Manifest generation
+- Template validation
+- Installation/update operations
 
 ## Key Files
 
