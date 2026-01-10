@@ -202,7 +202,7 @@ validate_skills() {
         local name
         name=$(extract_field "$skill_file" "name")
         local errors_before=$errors
-        validate_name "$name" "$skill_file" "skill"
+        validate_name "$name" "$skill_file" "skill" || true
         [ $errors -gt $errors_before ] && ((skill_errors++))
 
         # 디렉토리명과 name 일치 확인
@@ -213,7 +213,7 @@ validate_skills() {
 
         # description 검증
         errors_before=$errors
-        validate_description "$skill_file" "skill"
+        validate_description "$skill_file" "skill" || true
         [ $errors -gt $errors_before ] && ((skill_errors++))
 
         # 성공 시 출력 (이 스킬에만 에러가 없으면 출력)
@@ -252,7 +252,7 @@ validate_agents() {
         local name
         name=$(extract_field "$agent_file" "name")
         local errors_before=$errors
-        validate_name "$name" "$agent_file" "agent"
+        validate_name "$name" "$agent_file" "agent" || true
         [ $errors -gt $errors_before ] && ((agent_errors++))
 
         # 파일명과 name 일치 확인
@@ -263,7 +263,7 @@ validate_agents() {
 
         # description 검증
         errors_before=$errors
-        validate_description "$agent_file" "agent"
+        validate_description "$agent_file" "agent" || true
         [ $errors -gt $errors_before ] && ((agent_errors++))
 
         # model 검증 (있는 경우)
