@@ -183,11 +183,20 @@ validate_skills() {
     local skill_count=0
 
     for skill_dir in "$TEMPLATE_DIR"/skills/*/; do
+        echo "DEBUG: Processing skill_dir: $skill_dir"
+
         # _TEMPLATE 제외
-        [[ "$skill_dir" == *_TEMPLATE* ]] && continue || true
-        [ ! -d "$skill_dir" ] && continue || true
+        [[ "$skill_dir" == *_TEMPLATE* ]] && {
+            echo "DEBUG: Skipping _TEMPLATE"
+            continue
+        }
+        [ ! -d "$skill_dir" ] && {
+            echo "DEBUG: Not a directory, skipping"
+            continue
+        }
 
         local dir_name=$(basename "$skill_dir")
+        echo "DEBUG: dir_name=$dir_name"
         local skill_file="$skill_dir/SKILL.md"
 
         ((skill_count++))
