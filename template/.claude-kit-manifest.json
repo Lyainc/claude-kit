@@ -1,11 +1,16 @@
 {
   "version": "1.0.0",
-  "generated_at": "2026-01-09T05:21:50Z",
-  "commit": "7dd25ac",
+  "generated_at": "2026-01-10T22:10:38Z",
+  "commit": "abed604",
   "modules": {
     "skills/doc-concretize": {
       "version": "1.0.0",
       "hash": "d26df2323636c25cb285ef0b8db383fd",
+      "type": "folder"
+    },
+    "skills/docx": {
+      "version": "1.0.0",
+      "hash": "2a1913aa71d00edc55e3f63dead8836a",
       "type": "folder"
     },
     "skills/expert-panel": {
