@@ -5,21 +5,18 @@ description: |
   Facilitate structured expert panel discussions with dialectical analysis for decision-making.
   Simulates debates between optimistic practitioners, critical practitioners, and domain experts
   to reach consensus through thesis-antithesis-synthesis methodology.
-  Use when reviewing proposals, designs, code, policies, or documents with multiple expert perspectives,
-  or when the user mentions 전문가 토론, 패널 논의, 찬반 토론, 합의 도출, 다관점 분석, 검토 회의, 리뷰 세션.
+
+  Use when reviewing proposals, designs, code, policies, or documents with multiple expert perspectives.
+
+  Trigger when user mentions: 전문가 토론, 패널 논의, 찬반 토론, 합의 도출, 다관점 분석, 검토 회의, 리뷰 세션,
+  or requests: "이 설계를 보안/성능/UX 전문가 관점에서 검토해줘", "찬반 의견 정리해줘",
+  "전문가 패널로 분석해줘", "다양한 관점에서 평가해줘", "장단점을 체계적으로 분석해줘",
+  "트레이드오프를 정리해줘", "이해관계자별 의견을 시뮬레이션해줘".
 ---
 
 # Expert Panel Discussion
 
 전문가 패널 토론 스킬. 다양한 관점의 전문가들이 변증법적 토론을 통해 합의를 도출한다.
-
-## When to Use This Skill
-
-- 기획안/설계 문서에 대해 다양한 관점의 검토가 필요할 때
-- 코드 리뷰에서 찬반 의견을 체계적으로 정리하고 싶을 때
-- 정책/제도 변경 전 이해관계자 관점 시뮬레이션이 필요할 때
-- 중요한 의사결정에서 장단점을 균형있게 분석하고 싶을 때
-- 복잡한 트레이드오프를 구조화된 논의로 정리하고 싶을 때
 
 ## Participants
 
