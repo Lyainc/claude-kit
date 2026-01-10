@@ -107,6 +107,13 @@ install_native_hooks() {
     echo -e "${BLUE}📦 Installing native git hooks...${NC}"
     echo ""
 
+    # Ensure validation scripts are executable
+    echo -e "${BLUE}Checking script permissions...${NC}"
+    chmod +x "$PROJECT_ROOT/scripts/validate-templates.sh" 2>/dev/null || true
+    chmod +x "$PROJECT_ROOT/scripts/generate-manifest.sh" 2>/dev/null || true
+    echo -e "${GREEN}✓ Script permissions verified${NC}"
+    echo ""
+
     HOOK_FILE="$HOOKS_DIR/pre-commit"
 
     # Create hooks directory if needed
@@ -172,19 +179,25 @@ echo ""
 
 echo -e "${BLUE}[2/3] Checking manifest integrity...${NC}"
 
-# Save current manifest
-CURRENT_MANIFEST=$(cat "$PROJECT_ROOT/template/.claude-kit-manifest.json")
+# Save current manifest hash
+CURRENT_HASH=$(jq -r '.manifest_hash // ""' "$PROJECT_ROOT/template/.claude-kit-manifest.json")
 
-# Generate fresh manifest (to temp, don't modify)
+# Generate fresh manifest to temp file (don't modify original)
+TEMP_MANIFEST=$(mktemp)
+trap 'rm -f "$TEMP_MANIFEST"' EXIT
+
 cd "$PROJECT_ROOT"
 ./scripts/generate-manifest.sh > /dev/null 2>&1
-FRESH_MANIFEST=$(cat "$PROJECT_ROOT/template/.claude-kit-manifest.json")
+cp "$PROJECT_ROOT/template/.claude-kit-manifest.json" "$TEMP_MANIFEST"
 
-# Restore original manifest
-echo "$CURRENT_MANIFEST" > "$PROJECT_ROOT/template/.claude-kit-manifest.json"
+# Restore original from git (undo generate-manifest.sh modification)
+git checkout -- template/.claude-kit-manifest.json 2>/dev/null || true
 
-# Compare
-if [ "$CURRENT_MANIFEST" != "$FRESH_MANIFEST" ]; then
+# Extract fresh hash
+FRESH_HASH=$(jq -r '.manifest_hash // ""' "$TEMP_MANIFEST")
+
+# Compare hashes
+if [ "$CURRENT_HASH" != "$FRESH_HASH" ]; then
     echo ""
     echo -e "${RED}❌ COMMIT BLOCKED: Manifest out of sync${NC}"
     echo ""
@@ -308,11 +321,14 @@ repos:
       - id: check-manifest-integrity
         name: Check Manifest Integrity
         entry: bash -c '
-          CURRENT=$(cat template/.claude-kit-manifest.json);
+          CURRENT_HASH=$(jq -r ".manifest_hash // \"\"" template/.claude-kit-manifest.json);
+          TEMP_MANIFEST=$(mktemp);
+          trap "rm -f $TEMP_MANIFEST" EXIT;
           ./scripts/generate-manifest.sh > /dev/null 2>&1;
-          FRESH=$(cat template/.claude-kit-manifest.json);
-          echo "$CURRENT" > template/.claude-kit-manifest.json;
-          if [ "$CURRENT" != "$FRESH" ]; then
+          cp template/.claude-kit-manifest.json "$TEMP_MANIFEST";
+          git checkout -- template/.claude-kit-manifest.json 2>/dev/null || true;
+          FRESH_HASH=$(jq -r ".manifest_hash // \"\"" "$TEMP_MANIFEST");
+          if [ "$CURRENT_HASH" != "$FRESH_HASH" ]; then
             echo "";
             echo "❌ ERROR: Manifest out of sync";
             echo "";

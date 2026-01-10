@@ -35,8 +35,7 @@ jobs:
           echo "🔍 Checking Manifest Integrity"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 
-          # Generate manifest to temporary file
-          TEMP_MANIFEST=$(mktemp)
+          # Generate manifest (modifies file in place)
           ./scripts/generate-manifest.sh > /dev/null 2>&1
 
           # Compare with committed manifest

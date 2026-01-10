@@ -24,11 +24,14 @@ repos:
       - id: check-manifest-integrity
         name: Check Manifest Integrity
         entry: bash -c '
-          CURRENT=$(cat template/.claude-kit-manifest.json);
+          CURRENT_HASH=$(jq -r ".manifest_hash // \"\"" template/.claude-kit-manifest.json);
+          TEMP_MANIFEST=$(mktemp);
+          trap "rm -f $TEMP_MANIFEST" EXIT;
           ./scripts/generate-manifest.sh > /dev/null 2>&1;
-          FRESH=$(cat template/.claude-kit-manifest.json);
-          echo "$CURRENT" > template/.claude-kit-manifest.json;
-          if [ "$CURRENT" != "$FRESH" ]; then
+          cp template/.claude-kit-manifest.json "$TEMP_MANIFEST";
+          git checkout -- template/.claude-kit-manifest.json 2>/dev/null || true;
+          FRESH_HASH=$(jq -r ".manifest_hash // \"\"" "$TEMP_MANIFEST");
+          if [ "$CURRENT_HASH" != "$FRESH_HASH" ]; then
             echo "";
             echo "❌ ERROR: Manifest out of sync";
             echo "";
