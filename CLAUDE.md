@@ -71,64 +71,44 @@ claude-kit/
 
 ## Git Workflow
 
-### Branch Strategy
-
-**Main branch only** for production-ready code. Feature/fix branches are short-lived (max 1 day).
+**Automation First**: Use scripts for safety and consistency.
 
 ### Starting New Work
 
 ```bash
-# 1. Sync with remote (prevent conflicts)
-git fetch origin
-git checkout main
-git pull origin main
+# Recommended: Timestamp-based branches
+./scripts/new-branch.sh feature add-new-skill
+./scripts/new-branch.sh fix typo-in-readme
 
-# 2. Create feature branch (if needed)
-git checkout -b feature/descriptive-name
-# or fix/descriptive-name
+# Creates: feature/YYYYMMDD-HHMM-description
 ```
 
-**When to skip branching**: Single-file trivial changes can commit directly to main.
+**Direct commits OK for**: Typos, docs-only, single-line fixes.
 
 ### Completing Work
 
 ```bash
-# 1. Check for remote changes (CRITICAL for multi-session work)
-git fetch origin
-git checkout main
-git pull origin main
+# REQUIRED: Use safe-merge script
+./scripts/safe-merge.sh feature/xyz
 
-# 2. Merge with no-ff (preserve merge commit)
-git merge --no-ff feature/xyz
-
-# 3. Push to remote
-git push origin main
-
-# 4. Delete branch immediately (local + remote)
-git branch -d feature/xyz
-git push origin --delete feature/xyz
+# Automatically: fetch, conflict check, merge, push, cleanup
 ```
 
-### Multi-Session Protocol
+### Multi-Agent Rules
 
-When working across multiple Claude sessions or terminals:
+When multiple Claude sessions/agents work simultaneously:
 
-1. **Always start with**: `git fetch && git status`
-2. **Before merge**: Verify no uncommitted changes
-3. **Branch lifespan**: Same day only - merge or discard before EOD
+1. **Start with**: `git fetch && git status`
+2. **Use automation**: Scripts required (don't manually merge)
+3. **Keep branches short**: Same day preferred, max 2-3 days
 
 ### Commit Messages
 
-Follow conventional commits when appropriate:
-- `feat:` New features
-- `fix:` Bug fixes
-- `docs:` Documentation only
-- `refactor:` Code restructuring
-- `chore:` Tooling, dependencies
+Follow conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
 
-**Language**: English for commit messages, Korean for PR descriptions (unless otherwise specified).
+**Language**: English for commits, Korean for PR descriptions.
 
-**Detailed guidelines**: See [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
+**Details**: See [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
 
 ## Version Management Workflow
 
