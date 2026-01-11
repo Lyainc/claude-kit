@@ -550,6 +550,7 @@ process_file() {
 }
 
 # Find orphaned files (Bash 3.2 compatible - no process substitution)
+# IMPORTANT: Only checks paths that this script manages (based on template/ structure)
 find_orphaned_files() {
     local orphaned=()
 
@@ -557,19 +558,51 @@ find_orphaned_files() {
         return 0
     fi
 
-    # For each file in target, check if it exists in template
-    find "$CLAUDE_DIR" -type f -print0 2>/dev/null | while IFS= read -r -d '' target_file; do
-        local rel_path="${target_file#$CLAUDE_DIR/}"
+    # Get managed paths from template structure
+    # This script only manages: CLAUDE*.md files and specific subdirectories
+    local managed_paths=(
+        "CLAUDE.md"
+        "CLAUDE-PLATFORM-SETTINGS.md"
+        "modules"
+        "agents"
+        "skills"
+        "output-styles"
+        "commands"
+        "characters"
+    )
 
-        # Skip exclusions
-        if [[ "$rel_path" == ".claude-kit-version" ]] || [[ "$rel_path" == .backup.* ]]; then
+    # For each managed path in target, check if it exists in template
+    for managed_path in "${managed_paths[@]}"; do
+        local target_path="$CLAUDE_DIR/$managed_path"
+
+        # Skip if path doesn't exist in target
+        if [ ! -e "$target_path" ]; then
             continue
         fi
 
-        # Check if corresponding template file exists
-        local template_file="$TEMPLATE_DIR/$rel_path"
-        if [ ! -f "$template_file" ]; then
-            echo "$rel_path"
+        # Check files in this managed path
+        if [ -f "$target_path" ]; then
+            # Single file
+            local template_file="$TEMPLATE_DIR/$managed_path"
+            if [ ! -f "$template_file" ]; then
+                echo "$managed_path"
+            fi
+        elif [ -d "$target_path" ]; then
+            # Directory - check all files within
+            find "$target_path" -type f -print0 2>/dev/null | while IFS= read -r -d '' target_file; do
+                local rel_path="${target_file#$CLAUDE_DIR/}"
+
+                # Skip exclusions
+                if [[ "$rel_path" == ".claude-kit-version" ]] || [[ "$rel_path" == .backup.* ]]; then
+                    continue
+                fi
+
+                # Check if corresponding template file exists
+                local template_file="$TEMPLATE_DIR/$rel_path"
+                if [ ! -f "$template_file" ]; then
+                    echo "$rel_path"
+                fi
+            done
         fi
     done
 }

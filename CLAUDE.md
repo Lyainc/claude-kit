@@ -50,8 +50,17 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - File hash comparison for change detection
 - CLAUDE.md reference validation (fails if modules missing)
 - Atomic folder operations for skills/agents
-- Orphaned file detection (use `--cleanup` to remove)
+- Orphaned file detection - **only scans managed paths** (see below)
 - `_TEMPLATE` patterns automatically excluded
+
+**Managed Paths** (orphaned detection scope):
+
+The script only manages these paths in `~/.claude/`:
+
+- Files: `CLAUDE.md`, `CLAUDE-PLATFORM-SETTINGS.md`
+- Directories: `modules/`, `agents/`, `skills/`, `output-styles/`, `commands/`, `characters/`
+
+All other paths (e.g., `mcp/`, `hooks/`, `sessions/`, custom files) are **completely ignored** by the script.
 
 ## Architecture
 

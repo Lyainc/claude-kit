@@ -196,9 +196,14 @@ rm -rf ~/.claude/skills/expert-panel
 ./setup-claude-global.sh update
 ```
 
-### 대화 이력은 어떻게 관리되나요?
+### 대화 이력이나 MCP 설정은 어떻게 되나요?
 
-Claude Code가 별도로 관리하며, 이 스크립트는 건드리지 않습니다.
+이 스크립트는 **관리하는 경로만** 건드립니다:
+
+- **관리 대상**: `CLAUDE.md`, `modules/`, `agents/`, `skills/`, `output-styles/`, `commands/`, `characters/`
+- **완전히 무시**: `mcp/`, `hooks/`, `sessions/`, 기타 모든 커스텀 파일/폴더
+
+따라서 MCP 서버 설정, Git 훅, 대화 세션, 에디터 설정 등은 **절대 영향받지 않습니다**.
 
 ### Update vs Reset 차이는?
 
