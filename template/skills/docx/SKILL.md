@@ -43,16 +43,25 @@ Word 문서 파일(.docx) 작업을 위한 종합 스킬. 변경 추적, 코멘�
 - 타인 문서 → **Redlining workflow** (권장)
 - 법률/학술/비즈니스/정부 문서 → **Redlining workflow** (필수)
 
-### 1. 텍스트 추출 및 분석
+### 1. 문서 분석 (권장: 텍스트 + 시각적 맥락)
 
-문서의 텍스트 내용만 필요한 경우 pandoc으로 markdown 변환:
+**중요**: 복잡한 문서(레이아웃, 표, 이미지 포함) 분석 시 텍스트만으로는 구조 파악 불충분. **두 가지를 함께 확인 권장**:
 
 ```bash
-# 변경 추적이 포함된 문서를 markdown으로 변환
-pandoc --track-changes=all path-to-file.docx -o output.md
+# Step 1: 텍스트 구조 추출 (변경 추적 포함)
+pandoc --track-changes=all path-to-file.docx -o content.md
 
-# 옵션: --track-changes=accept/reject/all
+# Step 2: 시각적 맥락 확보 (복잡한 문서일 경우)
+soffice --headless --convert-to pdf path-to-file.docx
+pdftoppm -jpeg -r 150 path-to-file.pdf pages
 ```
+
+**분석 시 확인 사항**:
+
+- 변경 추적 상태 (삽입/삭제 마킹)
+- 문서 구조 (제목, 섹션, 목록)
+- 표/이미지 배치 및 레이아웃
+- 스타일 일관성 (폰트, 여백)
 
 ### 2. Raw XML 접근
 
@@ -204,6 +213,40 @@ Word 문서 시각적 분석을 위해 2단계 프로세스로 이미지 변환:
 ```bash
 pdftoppm -jpeg -r 150 -f 2 -l 5 document.pdf page  # 페이지 2-5만 변환
 ```
+
+## Google Docs 호환성 가이드
+
+Google Docs에서 열어야 하는 경우, 호환성을 위해 다음 사항 준수:
+
+**권장 (호환성 높음)**:
+
+- 기본 텍스트 서식: 굵게, 기울임, 밑줄, 취소선
+- 표준 제목 스타일 (Heading 1-6)
+- 기본 글머리 기호 및 번호 목록
+- 단순 표 (병합 셀 최소화)
+- 표준 이미지 형식 (PNG, JPG)
+- 기본 페이지 여백 및 방향
+
+**주의 (호환성 낮음)**:
+
+- 복잡한 변경 추적 (Google Docs는 자체 방식 사용)
+- 고급 표 서식 (복잡한 셀 병합, 중첩 표)
+- 사용자 정의 글꼴 (웹 안전 폰트 사용 권장)
+- 필드 코드 및 수식
+- 매크로 또는 VBA 스크립트
+- 복잡한 머리글/바닥글
+
+**검증 방법**: 생성된 DOCX를 Google Drive에 업로드하여 호환성 확인
+
+## 품질 체크리스트
+
+생성/편집 완료 후 반드시 확인:
+
+- [ ] 변경 추적이 올바르게 표시되는지 검증
+- [ ] 모든 텍스트 인코딩 정상 (특수문자, 유니코드)
+- [ ] 표/이미지 레이아웃 정상
+- [ ] 스타일 일관성 (폰트, 크기, 색상)
+- [ ] (Google Docs 타겟 시) 단순 기능만 사용 확인
 
 ## Code Style Guidelines
 

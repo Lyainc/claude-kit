@@ -25,13 +25,23 @@ PowerPoint 프레젠테이션 파일(.pptx) 작업을 위한 종합 스킬.
 
 ## Core Workflows
 
-### 1. 텍스트 추출 및 분석
+### 1. 프레젠테이션 분석 (필수: 텍스트 + 시각적 맥락)
 
-프레젠테이션의 텍스트 내용만 필요한 경우 markdown으로 변환:
+**중요**: 프레젠테이션 분석 시 텍스트만으로는 레이아웃/디자인 의도 파악 불가. **반드시 두 가지를 함께 확인**:
 
 ```bash
-python -m markitdown path-to-file.pptx
+# Step 1: 텍스트 구조 추출
+python -m markitdown path-to-file.pptx > content.md
+
+# Step 2: 시각적 맥락 확보 (필수!)
+python scripts/thumbnail.py path-to-file.pptx thumbnails
 ```
+
+**분석 시 확인 사항**:
+
+- 썸네일로 슬라이드 레이아웃 패턴 파악
+- 텍스트와 시각적 배치 간 관계 이해
+- 색상 팔레트, 폰트 스타일, 여백 패턴 관찰
 
 ### 2. Raw XML 접근
 
@@ -93,10 +103,11 @@ python ooxml/scripts/unpack.py <office_file> <output_dir>
    - `html2pptx()` 함수로 각 HTML 파일 처리
    - PptxGenJS API로 placeholder 영역에 차트/테이블 추가
    - `pptx.writeFile()`로 프레젠테이션 저장
-4. **시각적 검증**: 썸네일 생성 및 레이아웃 이슈 검사
-   - 썸네일 그리드: `python scripts/thumbnail.py output.pptx workspace/thumbnails --cols 4`
+4. **필수 - 시각적 검증 및 반복 수정**:
+   - 썸네일 생성: `python scripts/thumbnail.py output.pptx workspace/thumbnails --cols 4`
+   - **반드시 썸네일 확인 후 사용자에게 보고**
    - 확인 사항: 텍스트 잘림, 텍스트 겹침, 위치 문제, 대비 이슈
-   - 문제 발견 시 HTML 여백/간격/색상 조정 후 재생성
+   - 문제 발견 시 HTML 수정 → 재생성 → 재검증 (문제 해결까지 반복)
 
 ### 4. 기존 프레젠테이션 편집
 
@@ -178,9 +189,42 @@ python scripts/thumbnail.py template.pptx [output_prefix]
 1. **PPTX를 PDF로**: `soffice --headless --convert-to pdf template.pptx`
 2. **PDF 페이지를 JPEG로**: `pdftoppm -jpeg -r 150 template.pdf slide`
 
+## Google Slides 호환성 가이드
+
+Google Slides에서 열어야 하는 경우, 호환성을 위해 다음 사항 준수:
+
+**권장 (호환성 높음)**:
+
+- 기본 도형: 사각형, 원, 화살표
+- 단순 텍스트 서식: 굵게, 기울임, 밑줄
+- 기본 글머리 기호 및 번호 목록
+- 표준 이미지 형식 (PNG, JPG)
+- 기본 차트 유형 (막대, 선, 원형)
+
+**주의 (호환성 낮음)**:
+
+- 복잡한 SmartArt 또는 다이어그램
+- 고급 애니메이션 및 전환 효과
+- 사용자 정의 글꼴 (웹 안전 폰트 사용 권장)
+- 복잡한 그라데이션 또는 패턴 채우기
+- 매크로 또는 VBA 스크립트
+
+**검증 방법**: 생성된 PPTX를 Google Drive에 업로드하여 호환성 확인
+
+## 품질 체크리스트
+
+생성 완료 후 반드시 확인:
+
+- [ ] 썸네일로 모든 슬라이드 레이아웃 검증
+- [ ] 텍스트 잘림 또는 오버플로우 없음
+- [ ] 색상 대비 및 가독성 확인
+- [ ] 차트/테이블 데이터 정확성
+- [ ] (Google Slides 타겟 시) 단순 기능만 사용 확인
+
 ## Code Style Guidelines
 
 **중요**: PPTX 작업 코드 생성 시:
+
 - 간결한 코드 작성
 - 장황한 변수명 및 불필요한 연산 지양
 - 불필요한 print 문 지양
