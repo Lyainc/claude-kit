@@ -1,0 +1,99 @@
+name: Validate Templates
+
+on:
+  pull_request:
+    paths:
+      - 'template/**'
+      - 'scripts/validate-templates.sh'
+      - 'scripts/generate-manifest.sh'
+  push:
+    branches:
+      - main
+    paths:
+      - 'template/**'
+
+jobs:
+  validate:
+    name: Template Validation
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Verify dependencies
+        run: |
+          echo "Checking for jq..."
+          jq --version || (echo "jq not found, installing..." && sudo apt-get update && sudo apt-get install -y jq)
+          jq --version
+
+      - name: Validate templates
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "📋 Running Template Validation"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          ./scripts/validate-templates.sh
+
+      - name: Check manifest integrity
+        run: |
+          echo ""
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🔍 Checking Manifest Integrity"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+          # Generate manifest to temp file (don't modify working directory)
+          TEMP_MANIFEST=$(mktemp)
+          ./scripts/generate-manifest.sh "$TEMP_MANIFEST" > /dev/null 2>&1
+
+          # Compare hashes
+          FRESH_HASH=$(jq -r '.manifest_hash // ""' "$TEMP_MANIFEST")
+          CURRENT_HASH=$(jq -r '.manifest_hash // ""' template/.claude-kit-manifest.json)
+
+          if [ "$CURRENT_HASH" != "$FRESH_HASH" ]; then
+            echo ""
+            echo "❌ ERROR: Manifest is out of sync with template files"
+            echo ""
+            echo "The manifest hash does not match the current template files."
+            echo "This usually means you modified templates but didn't regenerate the manifest."
+            echo ""
+            echo "To fix:"
+            echo "  1. Run: ./scripts/generate-manifest.sh"
+            echo "  2. Review changes: git diff template/.claude-kit-manifest.json"
+            echo "  3. Commit the updated manifest"
+            echo ""
+            exit 1
+          fi
+
+          echo "✅ Manifest integrity verified"
+
+      - name: Validation summary
+        if: success()
+        run: |
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║                  ✅ All Checks Passed!                       ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "✓ Template validation: PASS"
+          echo "✓ Manifest integrity: PASS"
+          echo ""
+
+      - name: Validation failed summary
+        if: failure()
+        run: |
+          echo ""
+          echo "╔══════════════════════════════════════════════════════════════╗"
+          echo "║                  ❌ Validation Failed                        ║"
+          echo "╚══════════════════════════════════════════════════════════════╝"
+          echo ""
+          echo "Please fix the errors above and try again."
+          echo ""
+          echo "Common fixes:"
+          echo "  • Template errors: Check SKILL.md frontmatter (name, description)"
+          echo "  • Manifest errors: Run ./scripts/generate-manifest.sh"
+          echo "  • Version errors: Update version in manifest before regenerating"
+          echo ""
+          echo "For detailed guidance, see:"
+          echo "  • CLAUDE.md - Version Management Workflow"
+          echo "  • docs/VERSION_MANAGEMENT.md"
+          echo ""

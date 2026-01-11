@@ -91,19 +91,19 @@ validate_name() {
     # 길이 체크 (WARNING - 권장사항)
     if [ ${#name} -gt 64 ]; then
         echo -e "${YELLOW}WARN${NC}: $file - 'name' 64자 초과 권장하지 않음 (${#name}자)"
-        ((warnings++))
+        ((warnings++)) || true
     fi
 
     # 형식 체크 (WARNING - 컨벤션, 필수 아님)
     if ! echo "$name" | grep -qE '^[a-z0-9]+(-[a-z0-9]+)*$'; then
         echo -e "${YELLOW}WARN${NC}: $file - 'name' 권장 형식: 소문자/숫자/하이픈 (현재: $name)"
-        ((warnings++))
+        ((warnings++)) || true
     fi
 
     # 금지어 체크 (WARNING - 베스트 프랙티스)
     if echo "$name" | grep -qiE '(anthropic|claude)'; then
         echo -e "${YELLOW}WARN${NC}: $file - 'name'에 'anthropic' 또는 'claude' 포함 권장하지 않음"
-        ((warnings++))
+        ((warnings++)) || true
     fi
 
     return 0
@@ -161,7 +161,7 @@ validate_description() {
     local desc_len=${#desc}
     if [ $desc_len -gt 1024 ]; then
         echo -e "${YELLOW}WARN${NC}: $file - 'description' 1024자 초과 권장하지 않음 (${desc_len}자)"
-        ((warnings++))
+        ((warnings++)) || true
     fi
 
     return 0
@@ -185,7 +185,7 @@ validate_skills() {
         local dir_name=$(basename "$skill_dir")
         local skill_file="$skill_dir/SKILL.md"
 
-        ((skill_count++))
+        ((skill_count++)) || true
 
         # 각 스킬별 에러 카운터
         local skill_errors=0
@@ -193,8 +193,8 @@ validate_skills() {
         # SKILL.md 존재 확인
         if [ ! -f "$skill_file" ]; then
             echo -e "${RED}ERROR${NC}: $dir_name/ - SKILL.md 파일 없음"
-            ((errors++))
-            ((skill_errors++))
+            ((errors++)) || true
+            ((skill_errors++)) || true
             continue
         fi
 
@@ -203,18 +203,18 @@ validate_skills() {
         name=$(extract_field "$skill_file" "name")
         local errors_before=$errors
         validate_name "$name" "$skill_file" "skill" || true
-        [ $errors -gt $errors_before ] && ((skill_errors++))
+        [ $errors -gt $errors_before ] && ((skill_errors++)) || true
 
         # 디렉토리명과 name 일치 확인
         if [ -n "$name" ] && [ "$name" != "$dir_name" ]; then
             echo -e "${YELLOW}WARN${NC}: $skill_file - 'name'($name)과 디렉토리명($dir_name) 불일치"
-            ((warnings++))
+            ((warnings++)) || true
         fi
 
         # description 검증
         errors_before=$errors
         validate_description "$skill_file" "skill" || true
-        [ $errors -gt $errors_before ] && ((skill_errors++))
+        [ $errors -gt $errors_before ] && ((skill_errors++)) || true
 
         # 성공 시 출력 (이 스킬에만 에러가 없으면 출력)
         if [ $skill_errors -eq 0 ]; then
@@ -238,12 +238,12 @@ validate_agents() {
 
     for agent_file in "$TEMPLATE_DIR"/agents/*.md; do
         # _TEMPLATE 제외
-        [[ "$agent_file" == *_TEMPLATE* ]] && continue
-        [ ! -f "$agent_file" ] && continue
+        [[ "$agent_file" == *_TEMPLATE* ]] && continue || true
+        [ ! -f "$agent_file" ] && continue || true
 
         local file_name=$(basename "$agent_file" .md)
 
-        ((agent_count++))
+        ((agent_count++)) || true
 
         # 각 에이전트별 에러 카운터
         local agent_errors=0
@@ -253,18 +253,18 @@ validate_agents() {
         name=$(extract_field "$agent_file" "name")
         local errors_before=$errors
         validate_name "$name" "$agent_file" "agent" || true
-        [ $errors -gt $errors_before ] && ((agent_errors++))
+        [ $errors -gt $errors_before ] && ((agent_errors++)) || true
 
         # 파일명과 name 일치 확인
         if [ -n "$name" ] && [ "$name" != "$file_name" ]; then
             echo -e "${YELLOW}WARN${NC}: $agent_file - 'name'($name)과 파일명($file_name) 불일치"
-            ((warnings++))
+            ((warnings++)) || true
         fi
 
         # description 검증
         errors_before=$errors
         validate_description "$agent_file" "agent" || true
-        [ $errors -gt $errors_before ] && ((agent_errors++))
+        [ $errors -gt $errors_before ] && ((agent_errors++)) || true
 
         # model 검증 (있는 경우)
         local model
@@ -276,7 +276,7 @@ validate_agents() {
                     ;;
                 *)
                     echo -e "${YELLOW}WARN${NC}: $agent_file - 'model' 값 확인 필요: $model"
-                    ((warnings++))
+                    ((warnings++)) || true || true
                     ;;
             esac
         fi

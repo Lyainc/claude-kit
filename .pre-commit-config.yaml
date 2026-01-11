@@ -1,0 +1,44 @@
+# Claude Kit - Pre-commit Configuration
+# See https://pre-commit.com for more information
+#
+# Installation:
+#   pip install pre-commit
+#   pre-commit install
+#
+# Or use setup script:
+#   ./scripts/setup-hooks.sh pre-commit
+
+repos:
+  - repo: local
+    hooks:
+      # Template validation
+      - id: validate-templates
+        name: Validate Claude Kit Templates
+        entry: ./scripts/validate-templates.sh
+        language: system
+        pass_filenames: false
+        files: ^template/
+        stages: [commit]
+
+      # Manifest integrity check
+      - id: check-manifest-integrity
+        name: Check Manifest Integrity
+        entry: bash -c '
+          TEMP_MANIFEST=$(mktemp);
+          trap "rm -f $TEMP_MANIFEST" EXIT;
+          ./scripts/generate-manifest.sh "$TEMP_MANIFEST" > /dev/null 2>&1;
+          FRESH_HASH=$(jq -r ".manifest_hash // \"\"" "$TEMP_MANIFEST");
+          CURRENT_HASH=$(jq -r ".manifest_hash // \"\"" template/.claude-kit-manifest.json);
+          if [ "$CURRENT_HASH" != "$FRESH_HASH" ]; then
+            echo "";
+            echo "❌ ERROR: Manifest out of sync";
+            echo "";
+            echo "Run: ./scripts/generate-manifest.sh";
+            echo "";
+            exit 1;
+          fi
+        '
+        language: system
+        pass_filenames: false
+        files: ^template/
+        stages: [commit]

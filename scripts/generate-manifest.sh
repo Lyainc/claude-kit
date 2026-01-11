@@ -6,7 +6,10 @@
 # Automatically generates .claude-kit-manifest.json from template/ directory
 #
 # Usage:
-#   ./scripts/generate-manifest.sh
+#   ./scripts/generate-manifest.sh [output-file]
+#
+# Arguments:
+#   output-file  Optional path to write manifest (default: template/.claude-kit-manifest.json)
 #
 # =============================================================================
 
@@ -15,7 +18,7 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATE_DIR="$PROJECT_ROOT/template"
-MANIFEST_FILE="$TEMPLATE_DIR/.claude-kit-manifest.json"
+MANIFEST_FILE="${1:-$TEMPLATE_DIR/.claude-kit-manifest.json}"
 
 # Colors
 GREEN='\033[0;32m'
