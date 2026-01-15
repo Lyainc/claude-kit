@@ -1,318 +1,343 @@
 # Document Concretization - Examples
 
-실제 사용 예시와 처리 과정.
+Real usage examples with processing walkthrough.
 
 ---
 
-## Example 1: 스타트업 핵심 가치 문서화
+## Example 1: Startup Core Values Documentation
 
-### 입력
+### Input
 
 ```
-User: "우리 스타트업의 핵심 가치를 문서화해줘.
-       고객 중심, 빠른 실행, 투명성이 중요해."
+User: "Document our startup's core values.
+       Customer focus, fast execution, and transparency matter."
 ```
 
 ### Phase 1: Segmentation
 
-**분석 결과**:
-- 추상적 개념: 핵심 가치 (철학적)
-- 문서화 의도: "문서화해줘"
-- 예상 분량: ~1,500자 (3개 가치 × 500자)
+**Analysis Result**:
+- Abstract concept: Core values (philosophical)
+- Documentation intent: "Document" keyword
+- Estimated length: ~1,500 chars (3 values × 500 chars)
 
-**세그먼트 분할**:
+**Segment Division**:
 ```json
 {
   "segments": [
-    {"id": 1, "name": "고객 중심", "status": "pending"},
-    {"id": 2, "name": "빠른 실행", "status": "pending"},
-    {"id": 3, "name": "투명성", "status": "pending"}
+    {"id": 1, "name": "Customer Focus", "status": "pending", "depends_on": []},
+    {"id": 2, "name": "Fast Execution", "status": "pending", "depends_on": []},
+    {"id": 3, "name": "Transparency", "status": "pending", "depends_on": []}
   ],
   "current": 1,
-  "style_ref": null
+  "style_ref": null,
+  "quality_gate": "passed"
 }
 ```
 
 ### Phase 2: Recursive Build
 
-**Segment 1: 고객 중심**
+**Segment 1: Customer Focus**
 
 [Build]
 ```
-고객 중심은 우리가 모든 의사결정에서 가장 먼저 묻는 질문이다.
-"이것이 고객에게 어떤 가치를 주는가?"
+Customer focus is the first question we ask in every decision.
+"What value does this bring to our customers?"
 
-우리는 고객의 피드백을 단순히 수집하는 데 그치지 않는다.
-피드백을 제품 개선의 최우선 입력으로 삼는다.
-분기별 고객 인터뷰, 주간 NPS 리뷰, 실시간 지원 채널 분석이
-이 원칙을 실행하는 구체적 방법이다.
+We don't just collect customer feedback.
+We treat feedback as the primary input for product improvement.
+Quarterly customer interviews, weekly NPS reviews, and real-time support channel analysis
+are the concrete methods that execute this principle.
 ```
 
 [Verify]
-- □ 논리적 연결: 통과 (정의→실천 방법 순)
-- □ 모순 없음: 통과
-- □ 톤앤매너: 통과 (~다 체)
+- □ Logical connection: Passed (definition → execution method)
+- □ No contradictions: Passed
+- □ Tone and manner: Passed (plain declarative)
 
 [Reflect]
-- 모두 통과 → 다음 세그먼트
+- All passed → proceed to next segment
 
-**Segment 2: 빠른 실행**
-
-[Build]
-```
-빠른 실행은 완벽을 기다리지 않는다는 의미다.
-80%의 확신이 있으면 시작하고, 나머지는 실행하며 보완한다.
-
-이 원칙이 무모함을 뜻하지는 않는다.
-핵심 가설을 검증할 최소 단위로 실험을 설계하고,
-결과에 따라 빠르게 방향을 수정한다.
-주간 스프린트와 데일리 스탠드업이 이 리듬을 유지하는 장치다.
-```
-
-[Verify]
-- □ 논리적 연결: 통과 (이전 섹션과 대비되는 속도 관점)
-- □ 모순 없음: 통과
-- □ 톤앤매너: 통과
-
-**Segment 3: 투명성**
+**Segment 2: Fast Execution**
 
 [Build]
 ```
-투명성은 정보의 기본값이 공개라는 원칙이다.
-숨겨야 할 이유가 없으면 공유한다.
+Fast execution means not waiting for perfection.
+When we have 80% confidence, we start. We refine the rest while executing.
 
-팀 내에서는 모든 회의록, 의사결정 배경, 실패 사례를 공유한다.
-고객에게는 제품 로드맵, 장애 보고서, 가격 정책 변경 이유를 공개한다.
-이 원칙은 단기적으로 불편할 수 있지만,
-장기적으로 신뢰를 구축하는 가장 빠른 방법이다.
+This principle doesn't mean recklessness.
+We design experiments as minimal units to validate core hypotheses,
+and quickly adjust direction based on results.
+Weekly sprints and daily standups maintain this rhythm.
 ```
 
 [Verify]
-- □ 논리적 연결: 통과
-- □ 모순 없음: 통과
-- □ 톤앤매너: 통과
+- □ Logical connection: Passed (contrasts with previous section's deliberate approach)
+- □ No contradictions: Passed
+- □ Tone and manner: Passed
+
+**Segment 3: Transparency**
+
+[Build]
+```
+Transparency means information defaults to open.
+If there's no reason to hide it, we share it.
+
+Within the team, we share all meeting notes, decision backgrounds, and failure cases.
+To customers, we publish our product roadmap, incident reports, and pricing change rationale.
+This principle may cause short-term discomfort,
+but it's the fastest path to building long-term trust.
+```
+
+[Verify]
+- □ Logical connection: Passed
+- □ No contradictions: Passed
+- □ Tone and manner: Passed
 
 ### Phase 3: Final Review
 
 **Self-Critique**:
-1. 근거가 약한 주장? → "장기적으로 신뢰 구축" - 추상적이나 가치 문서이므로 허용
-2. 오해 가능 표현? → "80%의 확신" - 구체적 기준 필요할 수 있음
-3. 누락된 관점? → 가치 간 상충 시 우선순위 없음 → 추가 고려
+1. Weak evidence claims? → "fastest path to building trust" - abstract but acceptable for values document
+2. Misunderstandable expressions? → "80% confidence" - may need concrete criteria
+3. Missing perspectives? → No priority when values conflict → consider adding
 
-**의도 정렬**:
-- 원래 요청: 3개 핵심 가치 문서화
-- 작성 결과: 3개 가치 각각 정의 + 실천 방법 포함
-- 정렬 상태: 충족
+**Adversarial Check**:
+- Claim: "Fast execution is essential"
+- Counter: "Speed without validation can waste resources"
+- Response: Document addresses this with "doesn't mean recklessness" caveat
+
+**Intent Alignment**:
+- Original request: Document 3 core values
+- Written result: 3 values with definition + execution methods each
+- Alignment status: Fulfilled
 
 ### Phase 4: Polish
 
-**교정 전**:
-> 이 원칙은 단기적으로 불편할 수 있지만, 장기적으로 신뢰를 구축하는 가장 빠른 방법이다.
+**Before**:
+> This principle may cause short-term discomfort, but it's the fastest path to building long-term trust.
 
-**교정 후**:
-> 단기적으로 불편할 수 있지만, 장기적 신뢰를 쌓는 가장 빠른 방법이다.
+**After**:
+> Short-term discomfort is possible, but this builds trust fastest over time.
 
-(불필요한 "이 원칙은" 제거, "구축하는" → "쌓는" 자연스러운 표현)
+(Removed unnecessary "This principle", simplified structure)
 
-### 최종 출력
+### Final Output
 
 ```
-# 우리의 핵심 가치
+# Our Core Values
 
-## 고객 중심
+## Customer Focus
 
-고객 중심은 우리가 모든 의사결정에서 가장 먼저 묻는 질문이다.
-"이것이 고객에게 어떤 가치를 주는가?"
+Customer focus is the first question we ask in every decision.
+"What value does this bring to our customers?"
 
-우리는 고객의 피드백을 단순히 수집하는 데 그치지 않는다.
-피드백을 제품 개선의 최우선 입력으로 삼는다.
-분기별 고객 인터뷰, 주간 NPS 리뷰, 실시간 지원 채널 분석이
-이 원칙을 실행하는 구체적 방법이다.
+We don't just collect customer feedback.
+We treat feedback as the primary input for product improvement.
+Quarterly customer interviews, weekly NPS reviews, and real-time support channel analysis
+execute this principle in practice.
 
-## 빠른 실행
+## Fast Execution
 
-빠른 실행은 완벽을 기다리지 않는다는 의미다.
-80%의 확신이 있으면 시작하고, 나머지는 실행하며 보완한다.
+Fast execution means not waiting for perfection.
+When we have 80% confidence, we start. We refine the rest while executing.
 
-이 원칙이 무모함을 뜻하지는 않는다.
-핵심 가설을 검증할 최소 단위로 실험을 설계하고,
-결과에 따라 빠르게 방향을 수정한다.
-주간 스프린트와 데일리 스탠드업이 이 리듬을 유지하는 장치다.
+This doesn't mean recklessness.
+We design experiments as minimal units to validate core hypotheses,
+and quickly adjust direction based on results.
+Weekly sprints and daily standups maintain this rhythm.
 
-## 투명성
+## Transparency
 
-투명성은 정보의 기본값이 공개라는 원칙이다.
-숨겨야 할 이유가 없으면 공유한다.
+Transparency means information defaults to open.
+If there's no reason to hide it, we share it.
 
-팀 내에서는 모든 회의록, 의사결정 배경, 실패 사례를 공유한다.
-고객에게는 제품 로드맵, 장애 보고서, 가격 정책 변경 이유를 공개한다.
-단기적으로 불편할 수 있지만, 장기적 신뢰를 쌓는 가장 빠른 방법이다.
+Within the team, we share all meeting notes, decision backgrounds, and failure cases.
+To customers, we publish our product roadmap, incident reports, and pricing change rationale.
+Short-term discomfort is possible, but this builds trust fastest over time.
 
 ---
 <details>
-<summary>작성 프로세스</summary>
+<summary>Writing Process</summary>
 
-- 분절: 3개 섹션
-- 검증 통과: 3/3
-- 수정 항목: Phase 4 문체 다듬기 1건
-- 문체 참조: 없음
+- Segments: 3 sections
+- Verification passed: 3/3
+- Revisions: Phase 4 style polish 1 item
+- Style reference: None
 </details>
 ```
 
 ---
 
-## Example 2: 원본 문서 문체 유지
+## Example 2: Style Reference Matching
 
-### 입력
+### Input
 
 ```
-User: "아래 내 글 스타일을 유지하면서 '팀 협업 원칙'을 추가해줘.
+User: "Add 'Team Collaboration Principles' matching the style of my existing document.
 
-[기존 문서]
-우린 회의를 싫어한다. 꼭 필요한 회의만 한다.
-회의 시간은 30분을 넘기지 않는다.
-결정 없는 회의는 하지 않는다."
+[Existing Document]
+We hate meetings. We only hold necessary ones.
+Meetings never exceed 30 minutes.
+No meeting without a decision."
 ```
 
 ### Phase 1: Segmentation
 
-**문체 분석**:
+**Style Analysis**:
 ```json
 {
   "style_ref": "user_input",
   "style_notes": {
-    "어미": "~다 (단호한 서술체)",
-    "문장 길이": "평균 15자 (매우 짧음)",
-    "특징": "부정형 강조 ('싫어한다', '넘기지 않는다', '하지 않는다')"
+    "endings": "plain declarative (firm tone)",
+    "avg_sentence_length": 8,
+    "characteristic_expressions": ["We hate...", "never exceed", "No... without"]
   }
 }
 ```
 
-**세그먼트**:
-- 팀 협업의 핵심 원칙 (1개 청크, 짧은 문서이므로)
+**Segments**:
+- Team collaboration core principles (1 chunk, short document)
 
 ### Phase 2: Recursive Build
 
 [Build]
 ```
-팀 협업도 원칙이 있다.
-혼자 할 수 있는 일은 혼자 한다.
-도움이 필요하면 바로 말한다. 눈치 보지 않는다.
-피드백은 직접 전달한다. 뒷담화는 금지다.
+Team collaboration has rules too.
+Work alone if you can do it alone.
+Ask immediately when you need help. No hesitation.
+Deliver feedback directly. No talking behind backs.
 ```
 
 [Verify]
-- □ 원본 문체 유지: 통과 (짧은 문장, ~다 체, 부정형 강조)
-- □ 톤앤매너: 통과 (단호함 유지)
+- □ Reference style maintained: Passed (short sentences, firm tone, negative emphasis)
+- □ Tone and manner: Passed (matches assertiveness)
 
-### 최종 출력
+### Final Output
 
 ```
-## 팀 협업 원칙
+## Team Collaboration Principles
 
-팀 협업도 원칙이 있다.
-혼자 할 수 있는 일은 혼자 한다.
-도움이 필요하면 바로 말한다. 눈치 보지 않는다.
-피드백은 직접 전달한다. 뒷담화는 금지다.
+Team collaboration has rules too.
+Work alone if you can do it alone.
+Ask immediately when you need help. No hesitation.
+Deliver feedback directly. No talking behind backs.
 ```
 
 ---
 
-## Example 3: Critical Issue 발생
+## Example 3: Critical Issue Handling
 
-### 입력
+### Input
 
 ```
-User: "우리 회사의 AI 도입 전략을 문서화해줘.
-       효율성 향상이 목표야."
+User: "Document our company's AI adoption strategy.
+       The goal is efficiency improvement."
 ```
 
-### Phase 2 중 Critical Issue 발생
+### Phase 2: Critical Issue Occurs
 
 [Build - Segment 2]
 ```
-AI 도입으로 기대되는 효율성 향상은 약 30% 수준이다.
+The expected efficiency improvement from AI adoption is approximately 30%.
 ```
 
 [Verify]
-- □ 팩트체크 필요: **실패** - 30%의 근거 불명
+- □ Fact-check needed: **FAILED** - 30% has no stated basis
 
 [Reflect - Critical Issue]
 
 ```
-AskUserQuestion 호출:
+AskUserQuestion called:
 
-"효율성 향상 목표치가 있으신가요?
-또는 참고할 수 있는 벤치마크 자료가 있을까요?
+"Do you have a target efficiency improvement figure?
+Or is there benchmark data I can reference?
 
-1. 구체적 수치가 있다 (예: 업무 시간 20% 감소)
-2. 아직 없다 - 일반적인 표현으로 대체
-3. 업계 벤치마크를 찾아봐줘"
+1. I have a specific target (e.g., 20% reduction in task time)
+2. Not yet - use general phrasing instead
+3. Find industry benchmarks for me"
 ```
 
-**사용자 응답**: "아직 없다"
+**User Response**: "Not yet"
 
-**수정된 Build**:
+**Revised Build**:
 ```
-AI 도입을 통해 반복 업무의 자동화와 의사결정 속도 개선을 기대한다.
-구체적 효과는 파일럿 프로젝트 이후 측정할 예정이다.
+We expect AI adoption to automate repetitive tasks and speed up decision-making.
+Concrete impact will be measured after the pilot project.
 ```
 
 ---
 
-## Example 4: Bypass 사례
+## Example 4: Bypass Case
 
-### 입력
-
-```
-User: "API가 뭔지 간단히 설명해줘"
-```
-
-### 판단
-
-- 추상성: 기술 용어 (O)
-- 문서화 의도: "설명해줘" (정의 요청)
-- **"간단히" 명시**: Bypass 조건 충족
-
-### 결과
-
-스킬 미적용, 일반 응답:
+### Input
 
 ```
-API(Application Programming Interface)는 프로그램 간
-소통 방식을 정의한 규약이다.
-한 프로그램이 다른 프로그램의 기능을 호출할 때 사용한다.
+User: "Briefly explain what an API is"
+```
+
+### Judgment
+
+- Abstraction: Technical term (O)
+- Documentation intent: "explain" (definition request)
+- **"Briefly" specified**: Bypass condition met
+
+### Result
+
+Skill not applied, standard response:
+
+```
+API (Application Programming Interface) is a protocol defining how programs communicate.
+It allows one program to call another program's functions.
 ```
 
 ---
 
 ## Anti-Pattern Examples
 
-### 잘못된 예 1: 과도한 검증 루프
+### Anti-Pattern 1: Excessive Verification Loop
 
 ```
-[문제]
-Segment 1 작성 → 검증 실패 → 수정 → 검증 실패 → 수정 → 검증 실패...
+[Problem]
+Segment 1 written → verify failed → revise → verify failed → revise → verify failed...
 
-[해결]
-최대 2회 재검증 후 강제 진행, 이슈 마킹
+[Solution]
+Max 2 re-verifications, then force proceed with issue marked
 ```
 
-### 잘못된 예 2: 문체 무시
+### Anti-Pattern 2: Ignoring Style Reference
 
 ```
-[원본 문체] "~입니다/~합니다" (공손체)
-[작성 결과] "~다/~이다" (서술체)
+[Reference Style] "~입니다/~합니다" (polite Korean)
+[Written Result] "~다/~이다" (plain Korean)
 
-→ Phase 4에서 반드시 교정
+→ Must correct in Phase 4
 ```
 
-### 잘못된 예 3: LLM 표현 남발
+### Anti-Pattern 3: LLM Expression Overuse
 
 ```
-[문제]
-"매우 효과적이고 다양한 방법을 통해 성공적으로 달성할 수 있습니다."
+[Problem]
+"Through various highly effective methods, we can successfully achieve significant outcomes."
 
-[교정]
-"여러 방법으로 달성할 수 있다."
+[Correction]
+"We can achieve outcomes through these methods." (then specify methods)
+```
+
+### Anti-Pattern 4: Missing Adversarial Check
+
+```
+[Problem]
+Document makes bold claims without considering counter-arguments
+
+[Solution]
+Phase 3 requires explicit counter-argument generation for each main claim
+```
+
+### Anti-Pattern 5: Skipping Quality Gates
+
+```
+[Problem]
+Proceeding to next phase despite failed verification
+
+[Solution]
+Quality gate must show "passed" status before proceeding
 ```
