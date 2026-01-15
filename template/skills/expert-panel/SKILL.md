@@ -2,6 +2,9 @@
 name: expert-panel
 
 description: |
+  DEPRECATED: This skill has been migrated to the plugin version at /skills/expert-panel/.
+  The repository root is now a Claude Code plugin. Install with: claude plugin add ./claude-kit
+
   Facilitate structured expert panel discussions with dialectical analysis for decision-making.
   Simulates debates between optimistic practitioners, critical practitioners, and domain experts
   to reach consensus through thesis-antithesis-synthesis methodology.

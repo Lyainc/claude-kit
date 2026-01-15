@@ -1,19 +1,28 @@
 # claude-kit
 
-Claude Code Plugin. Skills, agents, modules를 포함한 설정 키트.
+Claude Code의 기본 동작을 커스터마이징하는 설정 키트이자 **Claude Code 플러그인**.
 
-## 설치
+## 플러그인으로 설치 (권장)
+
+Claude Code 마켓플레이스 또는 로컬에서 플러그인으로 설치:
 
 ```bash
-# Plugin marketplace에서 설치
-/plugin install claude-kit@claude-plugin-directory
+# 마켓플레이스에서 설치 (추후 지원)
+claude plugin install claude-kit
 
-# Plugin 관리
-/plugin list                    # 설치된 플러그인 목록
-/plugin enable claude-kit       # 활성화
-/plugin disable claude-kit      # 비활성화
-/plugin remove claude-kit       # 제거
+# 로컬 설치 (GitHub에서 클론 후)
+git clone https://github.com/Lyainc/claude-kit.git
+claude plugin add ./claude-kit
 ```
+
+### 플러그인에 포함된 스킬
+
+| Skill | Description | Triggers (EN/KO) |
+|-------|-------------|------------------|
+| `expert-panel` | Expert panel discussions with dialectical analysis | expert panel, design review / 전문가 토론, 찬반 분석 |
+| `doc-concretize` | Transform abstract concepts into structured documents | 문서화, 구체화, 체계적 정리 |
+| `docx` | Word document generation and editing | 워드, 문서 작성 |
+| `pptx` | PowerPoint presentation generation | PPT, 프레젠테이션, 슬라이드 |
 
 ## 설치 구조
 
@@ -32,13 +41,6 @@ Claude Code Plugin. Skills, agents, modules를 포함한 설정 키트.
 ├── commands/                  # 슬래시 커맨드
 └── characters/                # 캐릭터 정의
 ```
-
-## 포함된 스킬
-
-| 스킬             | 설명                             | 트리거                            |
-|------------------|----------------------------------|-----------------------------------|
-| `expert-panel`   | 전문가 패널 토론 시뮬레이션      | "전문가 토론", "찬반 분석"        |
-| `doc-concretize` | 추상적 개념을 구체적 문서로 변환 | "문서화", "구체화", "체계적 정리" |
 
 ## 개발자 가이드
 

@@ -1,0 +1,24 @@
+{
+  "name": "claude-kit",
+  "version": "1.0.0",
+  "description": "A comprehensive Claude Code productivity toolkit featuring expert panel discussions, document concretization, and office document generation skills.",
+  "author": {
+    "name": "Lyainc",
+    "url": "https://github.com/Lyainc"
+  },
+  "homepage": "https://github.com/Lyainc/claude-kit",
+  "repository": "https://github.com/Lyainc/claude-kit",
+  "license": "MIT",
+  "keywords": [
+    "claude-kit",
+    "productivity",
+    "expert-panel",
+    "dialectical-analysis",
+    "document-generation",
+    "docx",
+    "pptx",
+    "decision-making",
+    "code-review",
+    "design-review"
+  ]
+}
