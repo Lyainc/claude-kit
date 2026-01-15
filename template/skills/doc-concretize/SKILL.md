@@ -2,6 +2,9 @@
 name: doc-concretize
 
 description: |
+  DEPRECATED: This skill has been migrated to the plugin version at /skills/doc-concretize/.
+  The repository root is now a Claude Code plugin. Install with: claude plugin add ./claude-kit
+
   Transform abstract concepts into concrete, well-structured documentation
   through step-by-step recursive writing with verification at each step.
 
@@ -17,149 +20,41 @@ description: |
 
 # Document Concretization
 
-Transform abstract concepts into concrete, well-structured documentation through recursive writing and rigorous verification.
+추상적 개념을 구체적이고 구조화된 문서로 변환하는 스킬.
 
-## Language Behavior
+## Migration Notice
 
-- **Instructions**: English (optimized for LLM parsing)
-- **Output**: MUST match input language
-  - Korean input → Korean output
-  - English input → English output
-  - Mixed input → follow dominant language
-- **Style reference**: If user provides a reference document, match its language and tone
+이 스킬은 플러그인 버전으로 마이그레이션되었습니다.
 
-## Prerequisites
+**플러그인 위치**: `/skills/doc-concretize/`
 
-- Abstract concept or idea to concretize
-- (Optional) Reference document for style matching
-- (Optional) Specific format/structure request
-
-## Core Workflow
-
-### Phase 1: Segmentation
-
-1. Analyze input → identify core semantic units (3-7 chunks)
-2. Determine logical order and dependencies
-3. Estimate output length → if < 800 chars, switch to standard writing
-4. If reference document exists, analyze and record its style
-
-**Mandatory State Tracking**:
-```json
-{
-  "segments": [
-    {"id": 1, "name": "segment_name", "status": "pending", "depends_on": []},
-    ...
-  ],
-  "current": 0,
-  "style_ref": "user_doc.md or null",
-  "verify_count": {},
-  "quality_gate": "pending"
-}
+**설치 방법**:
+```bash
+claude plugin add ./claude-kit
 ```
 
-**Quality Gate**: Segments defined + dependencies mapped → proceed
+## Core Workflow (Summary)
 
-### Phase 2: Recursive Build
-
-For each segment, execute **Build → Verify → Reflect** cycle:
-
-```
-[Build]
-1. Load context from previous sections
-2. Draft current section
-   - One idea per sentence
-   - No detail omission
-   - Clear subject-predicate structure
-
-[Verify] — ALL must pass
-□ Logical connection with previous content?
-□ No contradictions or redundancy?
-□ Consistent tone and manner?
-□ Reference style maintained? (if applicable)
-
-[Reflect]
-- All passed → proceed to next segment
-- 1-2 failed → revise and re-verify (max 2 attempts)
-- 3+ failed → rewrite entire segment
-- Fact uncertain → call AskUserQuestion or WebFetch
-```
-
-**Critical Issues** (require user approval):
-- Core premise has multiple interpretations
-- Conflicting information discovered
-- Sensitive claims or judgments involved
-
-**Quality Gate**: All verify checks passed for current segment → proceed
-
-### Phase 3: Final Review
-
-1. **Full Read**: Review entire document from start to end
-2. **Self-Critique**: Answer these mandatory questions:
-   - What claims lack sufficient evidence?
-   - What expressions could readers misunderstand?
-   - What important perspectives or counterarguments are missing?
-   - What parts are unnecessarily long or repetitive?
-   - What content diverges from the original request?
-3. **Adversarial Check**: Generate at least one counter-argument to main claims
-4. **Intent Verification**: Confirm alignment with original request
-5. **Gap Check**: Ensure no core content is missing
-
-**Quality Gate**: All questions answered + counter-arguments addressed → proceed
-
-### Phase 4: Polish
-
-**Grammar & Spelling** (mandatory):
-- Fix spacing, spelling, particle errors
-
-**Style Refinement**:
-- Remove LLM-specific expressions (see [reference.md](reference.md) for blacklist)
-- Minimize unnecessary modifiers
-- Balance sentence length
-- Apply language-specific polish rules (see [reference.md](reference.md))
-
-**Reference Style Maintenance** (if applicable):
-- Reflect user's tone and style from reference document
-- Confirm with user if tone change is necessary
-
-**Quality Gate**: Zero blacklisted expressions remaining → complete
-
-## Tool Usage
-
-| Tool | When | Example |
-|------|------|---------|
-| AskUserQuestion | Clarify ambiguous concepts, Critical Issues | "Did you mean X or Y?" |
-| WebFetch | Fact-check (numbers, quotes, external info) | Verify statistics |
-
-## Output Format
-
-```
-[Completed Document]
-
----
-<details>
-<summary>Writing Process</summary>
-
-- Segments: N sections
-- Verification passed: N/N
-- Revisions: (if any)
-- Style reference: (if any)
-</details>
-```
+1. **Phase 1: Segmentation** — 입력 분석 → 3-7개 의미 단위로 분할
+2. **Phase 2: Recursive Build** — Build → Verify → Reflect 사이클
+3. **Phase 3: Final Review** — Self-critique + adversarial check
+4. **Phase 4: Polish** — Grammar, style, blacklist expression 제거
 
 ## References
 
-- **Detailed procedures**: See [reference.md](reference.md)
-- **Examples**: See [examples.md](examples.md)
+- **Full documentation**: See `/skills/doc-concretize/SKILL.md`
+- **Detailed procedures**: See `/skills/doc-concretize/reference.md`
+- **Examples**: See `/skills/doc-concretize/examples.md`
 
 ## Quick Start
 
 ```
-User: "Document our service's core values.
-       Customer focus, fast execution, and transparency matter."
+User: "우리 서비스의 핵심 가치를 문서로 정리해줘.
+       고객 중심, 빠른 실행, 투명성이 중요해."
 
-→ Phase 1: Segment into 3 chunks (customer focus / fast execution / transparency)
-→ Phase 2: Recursive build + verify each segment
-→ Phase 3: Full review, self-critique, adversarial check
-→ Phase 4: Polish with language-specific rules
-→ Output: Structured core values document (~1,500 chars)
+→ Phase 1: 3개 세그먼트로 분할 (고객 중심 / 빠른 실행 / 투명성)
+→ Phase 2: 각 세그먼트 작성 + 검증
+→ Phase 3: 전체 리뷰 + 비판적 검토
+→ Phase 4: 문법/스타일 다듬기
+→ Output: 구조화된 핵심 가치 문서 (~1,500자)
 ```
