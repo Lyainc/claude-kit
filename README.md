@@ -1,6 +1,30 @@
 # claude-kit
 
-Claude Code의 기본 동작을 커스터마이징하는 설정 키트.
+Claude Code의 기본 동작을 커스터마이징하는 설정 키트이자 **Claude Code 플러그인**.
+
+## 플러그인으로 설치 (권장)
+
+Claude Code 마켓플레이스 또는 로컬에서 플러그인으로 설치:
+
+```bash
+# 마켓플레이스에서 설치 (추후 지원)
+claude plugin install claude-kit
+
+# 로컬 설치 (GitHub에서 클론 후)
+git clone https://github.com/Lyainc/claude-kit.git
+claude plugin add ./claude-kit
+```
+
+### 플러그인에 포함된 스킬
+
+| Skill | Description | Triggers (EN/KO) |
+|-------|-------------|------------------|
+| `expert-panel` | Expert panel discussions with dialectical analysis | expert panel, design review / 전문가 토론, 찬반 분석 |
+| `doc-concretize` | Transform abstract concepts into structured documents | (coming soon) |
+| `docx` | Word document generation and editing | (coming soon) |
+| `pptx` | PowerPoint presentation generation | (coming soon) |
+
+---
 
 ## 빠른 시작
 
