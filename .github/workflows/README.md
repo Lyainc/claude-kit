@@ -1,6 +1,6 @@
 # GitHub Actions Workflows
 
-Template 및 manifest 무결성을 자동 검증하는 CI/CD workflows입니다.
+Template을 자동 검증하는 CI/CD workflows입니다.
 
 ## validate.yml
 
@@ -8,20 +8,17 @@ Template 및 manifest 무결성을 자동 검증하는 CI/CD workflows입니다.
 
 **검증 항목**:
 
-1. Template validation: SKILL.md/Agent frontmatter 검증
-2. Manifest integrity: Hash 일치 여부 확인
+- Template validation: SKILL.md/Agent frontmatter 검증
 
 **실패 시**:
 
 ```bash
-# Template 오류
 ./scripts/validate-templates.sh
-
-# Manifest 불일치
-./scripts/generate-manifest.sh
-git add template/.claude-kit-manifest.json
-git commit --amend --no-edit
 ```
+
+## claude.yml / claude-code-review.yml
+
+Claude Code GitHub Action 설정. PR/Issue에서 `@claude` 멘션으로 Claude 호출.
 
 ## 로컬 실행
 
