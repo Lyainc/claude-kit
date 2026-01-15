@@ -75,13 +75,16 @@ description: |
 
 1. **Why Chain**: After each answer, ask "Why do you think so?" (1x mandatory)
 2. **Adaptive Selection**: On uncertainty signals (hedging, avoidance), dive deeper
-3. **Checkpoint**: Every 4 questions, summarize and confirm continuation
+3. **Checkpoint**: After completing each Core area OR every 4-5 questions, summarize and confirm
 4. **Progress Display**: Show `[Area 2/4 | Q5]` format
 
 ### Phase 2: Synthesis
 
 1. Organize discovered Unknown Unknowns
-2. Tag priorities: `[Critical]`, `[Important]`, `[Nice-to-have]`
+2. Tag priorities using decision tree:
+   - **Critical**: Would this cause project failure if unaddressed?
+   - **Important**: Would this significantly impact timeline/quality/cost?
+   - **Nice-to-have**: Is this an optimization or enhancement?
 3. Extract key insights
 
 ### Phase 3: Documentation
@@ -94,7 +97,7 @@ description: |
 
 | Condition | Detection | Action |
 |-----------|-----------|--------|
-| **Explicit Done** | "done", "완료", "충분해" keywords | Proceed to Phase 2 |
+| **Explicit Done** | "done", "stop", "enough", "완료", "충분해", "끝", "그만" | Proceed to Phase 2 |
 | **Saturation** | 3 consecutive: short response + repetition + avoidance | "Covered core areas" + confirm |
 | **Depth Limit** | Each Core 4 area at 2-depth | Ask about Extended areas |
 | **Gap Check** | End of Phase 1 | "Anything important we haven't covered?" |
@@ -170,3 +173,7 @@ Output:
 - Important: 법적 규제 확인 필요
 - Nice-to-have: 경쟁사 대응 전략
 ```
+
+## Privacy Note
+
+This interview may surface sensitive business information (strategy, financials, internal concerns). Claude does not store conversations beyond the session. Save outputs explicitly if needed for future reference.
