@@ -8,11 +8,12 @@ Template을 자동 검증하는 CI/CD workflows입니다.
 
 **검증 항목**:
 
-- Template validation: SKILL.md/Agent frontmatter 검증
+- Template validation: SKILL.md/Agent frontmatter 검증 (name, description 필수)
 
 **실패 시**:
 
 ```bash
+# Template 오류 확인 및 수정
 ./scripts/validate-templates.sh
 ```
 
