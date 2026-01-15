@@ -36,5 +36,13 @@ local/
 # Claude Code local settings (user-specific, not shared)
 .claude/
 
+# Serena IDE context provider
+.serena/
+
+# Sensitive or temporary documents (docs/ is now tracked by default)
+# Add specific files here if needed, e.g.:
+.antrophics_official_skills/
+docs/private/
+
 # Conductor local config
 .conductor/
