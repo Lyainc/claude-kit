@@ -1,195 +1,292 @@
 # Document Concretization - Reference
 
-상세 절차 및 가이드라인.
+Detailed procedures and guidelines.
 
 ## Table of Contents
 
-- [Phase 1: Segmentation 상세](#phase-1-segmentation-상세)
-- [Phase 2: Recursive Build 상세](#phase-2-recursive-build-상세)
-- [Phase 3: Final Review 상세](#phase-3-final-review-상세)
-- [Phase 4: Polish 상세](#phase-4-polish-상세)
-- [Threshold 세부 기준](#threshold-세부-기준)
-- [상태 추적 JSON 스키마](#상태-추적-json-스키마)
+- [Phase 1: Segmentation Details](#phase-1-segmentation-details)
+- [Phase 2: Recursive Build Details](#phase-2-recursive-build-details)
+- [Phase 3: Final Review Details](#phase-3-final-review-details)
+- [Phase 4: Polish Details](#phase-4-polish-details)
+- [Language-Specific Polish](#language-specific-polish)
+- [Threshold Criteria](#threshold-criteria)
+- [State Tracking JSON Schema](#state-tracking-json-schema)
 
 ---
 
-## Phase 1: Segmentation 상세
+## Phase 1: Segmentation Details
 
-### 의미 단위 식별 기준
+### Semantic Unit Identification Criteria
 
-| 기준 | 설명 | 예시 |
-|------|------|------|
-| 독립적 개념 | 단독으로 설명 가능한 단위 | "고객 중심" vs "빠른 실행" |
-| 논리적 전환점 | 주제나 관점이 바뀌는 지점 | 원인→결과, 현재→미래 |
-| 구조적 구분 | 문서 형식상 분리되는 단위 | 배경/본론/결론 |
+| Criterion | Description | Example |
+|-----------|-------------|---------|
+| Independent concept | Unit that can stand alone | "Customer focus" vs "Fast execution" |
+| Logical transition | Point where topic or perspective shifts | Cause→Effect, Present→Future |
+| Structural division | Units separated by document format | Background/Body/Conclusion |
 
-### 청크 수 결정
+### Chunk Count Guidelines
 
-| 예상 분량 | 권장 청크 수 |
-|----------|-------------|
-| 800-1,200자 | 3개 |
-| 1,200-2,000자 | 4-5개 |
-| 2,000자 이상 | 5-7개 |
+| Estimated Length | Recommended Chunks |
+|------------------|-------------------|
+| 800-1,200 chars | 3 |
+| 1,200-2,000 chars | 4-5 |
+| 2,000+ chars | 5-7 |
 
-### 순서 결정 패턴
+### Ordering Patterns
 
-1. **연역적**: 원칙 → 세부 사항 → 예시
-2. **귀납적**: 현상 → 분석 → 원칙 도출
-3. **시간순**: 과거 → 현재 → 미래
-4. **중요도순**: 핵심 → 부가 → 선택
+1. **Deductive**: Principle → Details → Examples
+2. **Inductive**: Observation → Analysis → Principle derivation
+3. **Chronological**: Past → Present → Future
+4. **Priority**: Core → Secondary → Optional
 
-## Phase 2: Recursive Build 상세
+---
 
-### Build 단계
+## Phase 2: Recursive Build Details
 
-**컨텍스트 로드 시 참조할 것**:
-- 이전 섹션의 마지막 2-3문장
-- 사용된 핵심 용어 목록
-- 설정된 톤앤매너 (공식/비공식, 거리감 등)
+### Build Step
 
-**작성 원칙**:
+**Context loading requirements**:
+- Last 2-3 sentences from previous section
+- List of key terms used
+- Established tone and manner (formal/informal, distance)
+
+**Writing principles**:
 ```
-1. 한 문장에 하나의 아이디어
-2. 주어-술어 명확히
-3. 수식어는 최소화
-4. 전문 용어는 첫 등장 시 설명
-```
-
-### Verify 체크리스트
-
-```
-[논리적 연결]
-□ 이전 섹션과 접속어/연결어 자연스러움
-□ 개념 간 인과관계 명확
-□ 비약 없음
-
-[모순 검사]
-□ 이전에 언급한 내용과 충돌 없음
-□ 동일 용어의 의미 일관성
-□ 수치/사실 정보 일치
-
-[톤앤매너]
-□ 문장 종결 스타일 일관
-□ 경어/비경어 통일
-□ 문장 길이 편차 ±10자 이내
+1. One idea per sentence
+2. Clear subject-predicate structure
+3. Minimize modifiers
+4. Explain technical terms on first appearance
 ```
 
-### Reflect 분기
+### Verify Checklist
 
 ```
-검증 결과 → 분기
-├─ 모두 통과 → 다음 세그먼트
-├─ 1-2개 실패 → 해당 부분 수정 후 재검증 (최대 2회)
-├─ 3개 이상 실패 → 세그먼트 전체 재작성
-└─ 팩트 불확실 → 도구 호출 또는 마킹
+[Logical Connection]
+□ Natural transitions/connectors with previous section
+□ Clear cause-effect relationships between concepts
+□ No logical leaps
+
+[Contradiction Check]
+□ No conflict with previously mentioned content
+□ Consistent meaning of same terms
+□ Numbers and facts match
+
+[Tone and Manner]
+□ Consistent sentence ending style
+□ Unified formality level
+□ Sentence length variance within ±10 chars
 ```
 
-### Critical Issue 판단 기준
-
-| 상황 | 행동 |
-|------|------|
-| 해석이 2가지 이상 가능 | AskUserQuestion으로 확인 |
-| 외부 정보 필요 | WebFetch 시도, 실패 시 사용자에게 질문 |
-| 민감한 주장 | 근거 명시 + 사용자 승인 요청 |
-| 원본 문체와 괴리 | 어느 쪽을 따를지 확인 |
-
-## Phase 3: Final Review 상세
-
-### Self-Critique 질문 목록
+### Reflect Branching
 
 ```
-1. 이 문서의 주장 중 근거가 약한 것은?
-2. 독자가 오해할 수 있는 표현은?
-3. 누락된 중요 관점이나 반론은?
-4. 불필요하게 길거나 반복되는 부분은?
-5. 원래 요청에서 벗어난 내용은?
+Verify Result → Branch
+├─ All passed → Next segment
+├─ 1-2 failed → Revise and re-verify (max 2 attempts)
+├─ 3+ failed → Rewrite entire segment
+└─ Fact uncertain → Call tool or mark for later
 ```
 
-### 의도 정렬 체크
+### Critical Issue Judgment Criteria
+
+| Situation | Action |
+|-----------|--------|
+| 2+ possible interpretations | Confirm via AskUserQuestion |
+| External information needed | Try WebFetch, ask user if fails |
+| Sensitive claim | State evidence + request user approval |
+| Style mismatch with reference | Confirm which to follow |
+
+---
+
+## Phase 3: Final Review Details
+
+### Self-Critique Questions (Mandatory)
 
 ```
-원래 요청: [사용자 원문 인용]
-작성 결과: [핵심 내용 요약]
-
-정렬 상태:
-□ 핵심 요청 충족
-□ 범위 적절 (과잉/누락 없음)
-□ 톤 일치
+1. Which claims in this document lack evidence?
+2. What expressions could readers misunderstand?
+3. What important perspectives or counterarguments are missing?
+4. What parts are unnecessarily long or repetitive?
+5. What content diverges from the original request?
 ```
 
-## Phase 4: Polish 상세
+### Adversarial Thinking (Mandatory)
 
-### LLM 특유 표현 교정 목록
-
-| 제거 대상 | 대안 |
-|----------|------|
-| "매우 중요한" | "핵심적인" 또는 삭제 |
-| "다양한 방법으로" | 구체적 방법 명시 또는 삭제 |
-| "효과적으로" | 삭제 또는 구체적 효과 명시 |
-| "성공적으로 달성" | "달성" |
-| "심층적으로 분석" | "분석" |
-| "폭넓게 활용" | "활용" |
-
-### 문장 길이 조정
-
+For each main claim, generate at least one counter-argument:
 ```
-[문제] 50자 이상 문장
-→ 두 문장으로 분리
-→ 관계절을 별도 문장으로
-
-[문제] 10자 미만 문장 연속
-→ 앞뒤 문장과 결합 검토
+Main claim: "Fast execution is essential for startup success"
+Counter-argument: "Premature execution without validation can waste resources"
+Response: Address in document or acknowledge as limitation
 ```
 
-### 문체 참조 적용
-
-원본 문서가 있을 경우:
-
-1. **어미 패턴 추출**: ~다/~이다 vs ~습니다/~입니다
-2. **문장 평균 길이 측정**: 원본과 ±5자 이내로 맞춤
-3. **자주 쓰는 접속어 파악**: 그래서/따라서/하지만 등
-4. **특징적 표현 유지**: 사용자 고유의 표현이 있으면 보존
-
-## Threshold 세부 기준
-
-### 800자 기준 근거
-
-| 분량 | 특성 | 스킬 적용 |
-|------|------|----------|
-| ~500자 | 단일 개념, 1-2 문단 | 불필요 |
-| 500-800자 | 2-3 문단, 구조 단순 | 선택적 |
-| **800자+** | 3+ 문단, 논리 구조 필요 | **권장** |
-| 2,000자+ | 복잡한 구조, 다중 개념 | 필수 |
-
-### Bypass 조건 상세
+### Intent Alignment Check
 
 ```
-1. 명시적 단순화 요청
+Original request: [Quote user's original text]
+Written result: [Summarize core content]
+
+Alignment status:
+□ Core request fulfilled
+□ Scope appropriate (no excess/omission)
+□ Tone matches
+```
+
+---
+
+## Phase 4: Polish Details
+
+### LLM Expression Blacklist
+
+Mandatory removal or revision:
+
+| Language | Remove/Revise | Alternative |
+|----------|---------------|-------------|
+| English | "very important" | "critical" or remove |
+| English | "various ways" | Specify methods or remove |
+| English | "effectively" | Remove or specify effect |
+| English | "successfully achieved" | "achieved" |
+| English | "in-depth analysis" | "analysis" |
+| English | "widely utilized" | "used" |
+| English | "It is important to..." | Direct statement |
+| English | "In order to..." | "To..." |
+| Korean | "매우 중요한" | "핵심적인" or remove |
+| Korean | "다양한 방법으로" | Specify methods or remove |
+| Korean | "효과적으로" | Remove or specify effect |
+| Korean | "성공적으로 달성" | "달성" |
+| Korean | "심층적으로 분석" | "분석" |
+| Korean | "폭넓게 활용" | "활용" |
+| Korean | "~하는 것이 중요합니다" | Direct statement |
+
+### Sentence Length Guidelines
+
+```
+[Problem] Sentence over 50 chars (Korean) / 25 words (English)
+→ Split into two sentences
+→ Convert relative clauses to separate sentences
+
+[Problem] Consecutive sentences under 10 chars (Korean) / 5 words (English)
+→ Consider combining with adjacent sentences
+```
+
+---
+
+## Language-Specific Polish
+
+### Korean
+
+**Sentence Endings**:
+- Balance ~다/~이다 (plain) with ~습니다/~입니다 (polite)
+- Match reference document if provided
+- Default to ~다 체 for formal documents
+
+**Expression Rules**:
+- Remove: "매우", "정말", "확실히", "다양한" overuse
+- Avoid: "~하는 것이 중요합니다" → prefer direct statements
+- Fix: Spacing errors (띄어쓰기), particle usage (조사)
+
+**Sentence Length**:
+- Recommended: 15-30 characters
+- Maximum: 50 characters before splitting
+
+**Style Markers**:
+- Identify user's preferred endings from reference
+- Note frequent connectors: 그래서/따라서/하지만
+- Preserve user's characteristic expressions
+
+### English
+
+**Voice**:
+- Prefer active voice over passive
+- Use passive only when actor is unknown or irrelevant
+
+**Expression Rules**:
+- Remove: "very", "really", "certainly", "various" overuse
+- Avoid: "It is important to...", "In order to..."
+- Avoid: Nominalizations when verbs work better
+
+**Sentence Length**:
+- Recommended: 10-25 words
+- Maximum: 35 words before splitting
+
+**Style Markers**:
+- Match formality level of reference document
+- Preserve technical terminology as used by user
+
+### General (All Languages)
+
+- Remove redundant modifiers
+- One idea per sentence
+- Consistent tone throughout
+- No hedging without purpose ("perhaps", "maybe", "somewhat")
+- Concrete over abstract
+
+---
+
+## Threshold Criteria
+
+### 800-Character Threshold Rationale
+
+| Length | Characteristics | Skill Application |
+|--------|-----------------|-------------------|
+| ~500 chars | Single concept, 1-2 paragraphs | Unnecessary |
+| 500-800 chars | 2-3 paragraphs, simple structure | Optional |
+| **800+ chars** | 3+ paragraphs, logical structure needed | **Recommended** |
+| 2,000+ chars | Complex structure, multiple concepts | Required |
+
+### Bypass Conditions
+
+```
+1. Explicit simplification request
+   - "briefly", "simply", "in one sentence", "summarize"
    - "짧게", "간단히", "한 문장으로", "요약"
 
-2. 이미 구조화된 입력
-   - 사용자가 이미 목차/구조 제시
-   - 단순 번역/정리 요청
+2. Already-structured input
+   - User provided outline/structure
+   - Simple translation/organization request
 
-3. 단순 정의/설명
-   - "X가 뭐야?", "X 설명해줘"
-   - 개념 정의만 필요한 경우
+3. Simple definition/explanation
+   - "What is X?", "Explain X"
+   - Only definition needed
 ```
 
-## 상태 추적 JSON 스키마
+---
+
+## State Tracking JSON Schema
 
 ```json
 {
   "segments": [
-    {"id": 1, "name": "세그먼트명", "status": "completed|in_progress|pending"},
-    ...
+    {
+      "id": 1,
+      "name": "segment_name",
+      "status": "completed|in_progress|pending",
+      "depends_on": [0]
+    }
   ],
   "current": 1,
-  "style_ref": "파일명 또는 null",
-  "style_notes": "추출된 문체 특성",
+  "style_ref": "filename or null",
+  "style_notes": {
+    "endings": "plain ~다 or polite ~습니다",
+    "avg_sentence_length": 20,
+    "characteristic_expressions": ["term1", "term2"]
+  },
   "issues": [
-    {"segment": 1, "type": "critical|warning", "desc": "설명", "resolved": false}
+    {
+      "segment": 1,
+      "type": "critical|warning",
+      "desc": "description",
+      "resolved": false
+    }
   ],
-  "verify_count": {"1": 0, "2": 1, ...}
+  "verify_count": {"1": 0, "2": 1},
+  "quality_gate": "pending|passed|failed"
 }
+```
+
+### Quality Gate Status Transitions
+
+```
+pending → passed (all checks passed)
+pending → failed (max retries exceeded)
+failed → passed (after user intervention or rewrite)
 ```
