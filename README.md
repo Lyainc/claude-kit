@@ -10,12 +10,14 @@ claude plugin add Lyainc/claude-kit
 
 ## 포함된 스킬
 
-| Skill            | Description                                         | Triggers                                       |
-| ---------------- | --------------------------------------------------- | ---------------------------------------------- |
-| `expert-panel`   | Expert panel discussions with dialectical analysis  | expert panel, design review, 전문가 토론       |
-| `doc-concretize` | Transform abstract concepts into structured docs    | 문서화, 구체화, 체계적 정리                    |
-| `docx`           | Word document generation and editing                | 워드, 문서 작성                                |
-| `pptx`           | PowerPoint presentation generation                  | PPT, 프레젠테이션, 슬라이드                    |
+| Skill              | Description                                         | Triggers                                       |
+| ------------------ | --------------------------------------------------- | ---------------------------------------------- |
+| `diverse-sampling` | Generate diverse responses using Verbalized Sampling | 브레인스토밍, 다양한 아이디어, 대안 제시       |
+| `doc-concretize`   | Transform abstract concepts into structured docs    | 문서화, 구체화, 체계적 정리                    |
+| `expert-panel`     | Expert panel discussions with dialectical analysis  | expert panel, design review, 전문가 토론       |
+| `unknown-discovery`| Discover blind spots through iterative interviews   | 맹점, 놓친 것, blind spot, 심층 인터뷰         |
+| `docx`             | Word document generation and editing                | 워드, 문서 작성                                |
+| `pptx`             | PowerPoint presentation generation                  | PPT, 프레젠테이션, 슬라이드                    |
 
 ## 설정 철학
 

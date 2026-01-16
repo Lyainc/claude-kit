@@ -22,16 +22,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```text
 claude-kit/
-├── .claude-plugin/plugin.json    # Plugin metadata (required)
-├── template/                     # Plugin content (deployed to ~/.claude/)
-│   ├── CLAUDE.md                 # Core instructions
-│   ├── modules/                  # @import modules
-│   ├── agents/                   # Subagent definitions
-│   ├── skills/                   # Skills (folder-based, SKILL.md required)
-│   ├── output-styles/            # Output styles
-│   ├── commands/                 # Slash commands
-│   └── characters/               # Character definitions
-└── scripts/                      # Dev tools (validate-templates.sh, setup-hooks.sh)
+├── .claude-plugin/plugin.json          # Plugin metadata (required)
+├── template/                           # Plugin content (deployed to ~/.claude/)
+│   ├── CLAUDE.md                       # Core instructions
+│   ├── CLAUDE-PLATFORM-SETTINGS.md     # Platform (Web/macOS) settings guide
+│   ├── modules/                        # @import modules
+│   ├── agents/                         # Subagent definitions
+│   ├── skills/                         # Skills (folder-based, SKILL.md required)
+│   ├── output-styles/                  # Output styles
+│   ├── commands/                       # Slash commands
+│   └── characters/                     # Character definitions
+├── docs/archive/                       # Archived implementation plans
+└── scripts/                            # Dev tools (validate-templates.sh, setup-hooks.sh)
 ```
 
 ## Template Requirements
