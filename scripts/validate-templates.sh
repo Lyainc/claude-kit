@@ -21,7 +21,7 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname "$SCRIPT_DIR")"
-TEMPLATE_DIR="$ROOT_DIR/template"
+TEMPLATE_DIR="$ROOT_DIR"
 
 # 색상
 RED='\033[0;31m'
