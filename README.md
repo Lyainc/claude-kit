@@ -1,6 +1,6 @@
 # claude-kit
 
-Claude Code의 기본 동작을 커스터마이징하는 **Claude Code 플러그인**.
+Claude Code용 **스킬 플러그인**. 생산성 향상을 위한 6개의 스킬을 제공합니다.
 
 ## 설치
 
@@ -14,21 +14,14 @@ claude plugin install claude-kit@Lyainc-claude-kit
 
 ## 포함된 스킬
 
-| Skill              | Description                                         | Triggers                                       |
-| ------------------ | --------------------------------------------------- | ---------------------------------------------- |
-| `diverse-sampling` | Generate diverse responses using Verbalized Sampling | 브레인스토밍, 다양한 아이디어, 대안 제시       |
-| `doc-concretize`   | Transform abstract concepts into structured docs    | 문서화, 구체화, 체계적 정리                    |
-| `expert-panel`     | Expert panel discussions with dialectical analysis  | expert panel, design review, 전문가 토론       |
-| `unknown-discovery`| Discover blind spots through iterative interviews   | 맹점, 놓친 것, blind spot, 심층 인터뷰         |
-| `docx`             | Word document generation and editing                | 워드, 문서 작성                                |
-| `pptx`             | PowerPoint presentation generation                  | PPT, 프레젠테이션, 슬라이드                    |
-
-## 설정 철학
-
-| 구성요소                 | 언어   | 근거                     |
-| ------------------------ | ------ | ------------------------ |
-| Core Rules, Verification | 영어   | LLM 절차적 정렬에 최적화 |
-| Identity, 톤, 출력 지시  | 한국어 | 문화적 뉘앙스 유지       |
+| Skill              | Description                                          | Triggers                                 |
+| ------------------ | ---------------------------------------------------- | ---------------------------------------- |
+| `diverse-sampling` | Generate diverse responses using Verbalized Sampling | 브레인스토밍, 다양한 아이디어, 대안 제시 |
+| `doc-concretize`   | Transform abstract concepts into structured docs     | 문서화, 구체화, 체계적 정리              |
+| `expert-panel`     | Expert panel discussions with dialectical analysis   | expert panel, design review, 전문가 토론 |
+| `unknown-discovery`| Discover blind spots through iterative interviews    | 맹점, 놓친 것, blind spot, 심층 인터뷰   |
+| `docx`             | Word document generation and editing                 | 워드, 문서 작성                          |
+| `pptx`             | PowerPoint presentation generation                   | PPT, 프레젠테이션, 슬라이드              |
 
 ## 문제 해결
 
