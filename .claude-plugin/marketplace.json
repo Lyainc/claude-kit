@@ -1,20 +1,23 @@
 {
   "name": "Lyainc-claude-kit",
+  "version": "1.0.0",
+  "description": "Claude Code productivity toolkit marketplace",
   "owner": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
   },
-  "metadata": {
-    "description": "Claude Code productivity toolkit marketplace",
-    "version": "1.0.0"
-  },
+  "homepage": "https://github.com/Lyainc/claude-kit",
+  "repository": "https://github.com/Lyainc/claude-kit",
+  "license": "MIT",
   "plugins": [
     {
       "name": "claude-kit",
-      "source": "./",
-      "description": "Claude Code skills plugin: expert panel discussions, document concretization, diverse sampling, and blind spot detection.",
       "version": "1.1.0",
-      "license": "MIT",
+      "description": "Claude Code skills plugin: expert panel discussions, document concretization, diverse sampling, and blind spot detection.",
+      "author": {
+        "name": "Lyainc",
+        "url": "https://github.com/Lyainc"
+      },
       "keywords": [
         "skills",
         "productivity",
@@ -22,7 +25,11 @@
         "doc-concretize",
         "diverse-sampling",
         "unknown-discovery"
-      ]
+      ],
+      "homepage": "https://github.com/Lyainc/claude-kit",
+      "repository": "https://github.com/Lyainc/claude-kit",
+      "license": "MIT",
+      "source": "./"
     }
   ]
 }
