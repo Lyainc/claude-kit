@@ -1,6 +1,6 @@
 # claude-kit
 
-Claude Code용 **스킬 플러그인**. 생산성 향상을 위한 6개의 스킬을 제공합니다.
+Claude Code용 **스킬 플러그인**. 생산성 향상을 위한 4개의 스킬을 제공합니다.
 
 ## 설치
 
@@ -20,8 +20,6 @@ claude plugin install claude-kit@Lyainc-claude-kit
 | `doc-concretize`   | Transform abstract concepts into structured docs     | 문서화, 구체화, 체계적 정리              |
 | `expert-panel`     | Expert panel discussions with dialectical analysis   | expert panel, design review, 전문가 토론 |
 | `unknown-discovery`| Discover blind spots through iterative interviews    | 맹점, 놓친 것, blind spot, 심층 인터뷰   |
-| `docx`             | Word document generation and editing                 | 워드, 문서 작성                          |
-| `pptx`             | PowerPoint presentation generation                   | PPT, 프레젠테이션, 슬라이드              |
 
 ## 문제 해결
 
@@ -32,7 +30,7 @@ claude plugin install claude-kit@Lyainc-claude-kit
 
 ## 개발
 
-개발자 가이드는 [DEVELOPMENT.md](DEVELOPMENT.md) 참조.
+개발자 가이드는 [CLAUDE.md](CLAUDE.md) 참조.
 
 ## 라이선스
 

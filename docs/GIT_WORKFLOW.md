@@ -62,4 +62,4 @@ Implements multi-perspective dialectical analysis."
 ## 참고 자료
 
 - [Conventional Commits](https://www.conventionalcommits.org/)
-- [개발 가이드](../DEVELOPMENT.md)
+- [개발 가이드](../CLAUDE.md)

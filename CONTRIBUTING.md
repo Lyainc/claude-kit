@@ -28,5 +28,5 @@ docs: Update README
 
 ## 추가 문서
 
-- 개발 가이드: [DEVELOPMENT.md](DEVELOPMENT.md)
+- 개발 가이드: [CLAUDE.md](CLAUDE.md)
 - Git 상세 가이드: [docs/GIT_WORKFLOW.md](docs/GIT_WORKFLOW.md)
