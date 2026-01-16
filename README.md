@@ -5,7 +5,11 @@ Claude Code의 기본 동작을 커스터마이징하는 **Claude Code 플러그
 ## 설치
 
 ```bash
-claude plugin add Lyainc/claude-kit
+# 1. 마켓플레이스 등록
+claude plugin marketplace add Lyainc/claude-kit
+
+# 2. 플러그인 설치
+claude plugin install claude-kit@Lyainc-claude-kit
 ```
 
 ## 포함된 스킬
@@ -35,7 +39,7 @@ claude plugin add Lyainc/claude-kit
 
 ## 개발
 
-개발자 가이드는 [CLAUDE.md](CLAUDE.md) 참조.
+개발자 가이드는 [DEVELOPMENT.md](DEVELOPMENT.md) 참조.
 
 ## 라이선스
 

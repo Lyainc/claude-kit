@@ -3,13 +3,22 @@ name: Validate Templates
 on:
   pull_request:
     paths:
-      - 'template/**'
+      - 'skills/**'
+      - 'commands/**'
+      - 'agents/**'
+      - 'output-styles/**'
+      - 'modules/**'
+      - 'characters/**'
+      - 'CLAUDE.md'
       - 'scripts/validate-templates.sh'
   push:
     branches:
       - main
     paths:
-      - 'template/**'
+      - 'skills/**'
+      - 'commands/**'
+      - 'agents/**'
+      - 'output-styles/**'
 
 jobs:
   validate:
