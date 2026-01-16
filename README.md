@@ -30,7 +30,7 @@ claude plugin install claude-kit@Lyainc-claude-kit
 
 ## 개발
 
-개발자 가이드는 [DEVELOPMENT.md](DEVELOPMENT.md) 참조.
+개발자 가이드는 [CLAUDE.md](CLAUDE.md) 참조.
 
 ## 라이선스
 
