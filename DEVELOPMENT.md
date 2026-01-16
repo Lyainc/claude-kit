@@ -1,6 +1,6 @@
-# CLAUDE.md
+# Development Guide
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance for developers working on this repository.
 
 ## Project Overview
 
@@ -22,36 +22,37 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ```text
 claude-kit/
-├── .claude-plugin/plugin.json          # Plugin metadata (required)
-├── template/                           # Plugin content (deployed to ~/.claude/)
-│   ├── CLAUDE.md                       # Core instructions
-│   ├── CLAUDE-PLATFORM-SETTINGS.md     # Platform (Web/macOS) settings guide
-│   ├── modules/                        # @import modules
-│   ├── agents/                         # Subagent definitions
-│   ├── skills/                         # Skills (folder-based, SKILL.md required)
-│   ├── output-styles/                  # Output styles
-│   ├── commands/                       # Slash commands
-│   └── characters/                     # Character definitions
-├── docs/archive/                       # Archived implementation plans
-└── scripts/                            # Dev tools (validate-templates.sh, setup-hooks.sh)
+├── .claude-plugin/
+│   ├── plugin.json              # Plugin metadata (required)
+│   └── marketplace.json         # Marketplace catalog (required for GitHub distribution)
+├── skills/                      # Skills (folder-based, SKILL.md required)
+├── commands/                    # Slash commands
+├── agents/                      # Subagent definitions
+├── output-styles/               # Output styles
+├── modules/                     # @import modules
+├── characters/                  # Character definitions
+├── CLAUDE.md                    # Plugin user instructions
+├── CLAUDE-PLATFORM-SETTINGS.md  # Platform (Web/macOS) settings guide
+├── scripts/                     # Dev tools (validate-templates.sh, setup-hooks.sh)
+└── docs/                        # Documentation and archives
 ```
 
-## Template Requirements
+## Component Requirements
 
 ### Skill (folder-based)
 
-| Field         | Requirement                                        |
-| ------------- | -------------------------------------------------- |
-| Location      | `template/skills/{name}/SKILL.md`                  |
-| `name`        | Required. Lowercase/numbers/hyphens, ≤64 chars     |
-| `description` | Required. ≤1024 chars, "Use when..." pattern       |
-| References    | 1-level depth only                                 |
+| Field         | Requirement                                    |
+| ------------- | ---------------------------------------------- |
+| Location      | `skills/{name}/SKILL.md`                       |
+| `name`        | Required. Lowercase/numbers/hyphens, ≤64 chars |
+| `description` | Required. ≤1024 chars, "Use when..." pattern   |
+| References    | 1-level depth only                             |
 
 ### Agent (file-based)
 
 | Field         | Requirement                                            |
 | ------------- | ------------------------------------------------------ |
-| Location      | `template/agents/{name}.md`                            |
+| Location      | `agents/{name}.md`                                     |
 | `name`        | Required                                               |
 | `description` | Required. Include trigger keywords for auto-invocation |
 | `model`       | Optional: sonnet, opus, haiku, inherit                 |
@@ -65,21 +66,21 @@ claude-kit/
 
 ```bash
 # Skill
-cp -r template/skills/_TEMPLATE template/skills/{name}
-vim template/skills/{name}/SKILL.md
+cp -r skills/_TEMPLATE skills/{name}
+vim skills/{name}/SKILL.md
 
 # Agent
-cp template/agents/_TEMPLATE.md template/agents/{name}.md
+cp agents/_TEMPLATE.md agents/{name}.md
 
 # Others (output-styles, commands, characters)
-cp template/{type}/_TEMPLATE.md template/{type}/{name}.md
+cp {type}/_TEMPLATE.md {type}/{name}.md
 ```
 
 ## Git Workflow
 
 - Conventional commits: `feat:`, `fix:`, `docs:`, `refactor:`, `chore:`
 - English for commits, Korean for PR descriptions
-- CI runs `validate-templates.sh` on PRs touching `template/`
+- CI runs `validate-templates.sh` on PRs touching plugin components
 - Pre-commit hooks optional but recommended (`./scripts/setup-hooks.sh`)
 
 ## Hybrid Language Strategy
