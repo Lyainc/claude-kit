@@ -1,0 +1,29 @@
+{
+  "name": "Lyainc-claude-kit",
+  "owner": {
+    "name": "Lyainc",
+    "url": "https://github.com/Lyainc"
+  },
+  "metadata": {
+    "description": "Claude Code productivity toolkit marketplace",
+    "version": "1.0.0"
+  },
+  "plugins": [
+    {
+      "name": "claude-kit",
+      "source": ".",
+      "description": "Comprehensive Claude Code productivity toolkit featuring expert panel discussions, document concretization, diverse sampling, and office document generation skills.",
+      "version": "1.0.0",
+      "license": "MIT",
+      "keywords": [
+        "productivity",
+        "expert-panel",
+        "doc-concretize",
+        "diverse-sampling",
+        "unknown-discovery",
+        "pptx",
+        "docx"
+      ]
+    }
+  ]
+}
