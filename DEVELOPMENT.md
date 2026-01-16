@@ -4,7 +4,7 @@ This file provides guidance for developers working on this repository.
 
 ## Project Overview
 
-**claude-kit**: Claude Code skills plugin providing 6 productivity skills.
+**claude-kit**: Claude Code skills plugin providing 4 productivity skills.
 
 ## Commands
 
@@ -27,9 +27,7 @@ claude-kit/
 ├── skills/                      # Skills (folder-based, SKILL.md required)
 │   ├── diverse-sampling/
 │   ├── doc-concretize/
-│   ├── docx/
 │   ├── expert-panel/
-│   ├── pptx/
 │   └── unknown-discovery/
 ├── agents/                      # Subagent definitions (reserved for future use)
 ├── scripts/                     # Dev tools (validate-templates.sh, setup-hooks.sh)
