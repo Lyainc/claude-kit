@@ -11,7 +11,7 @@
   "plugins": [
     {
       "name": "claude-kit",
-      "source": "Lyainc/claude-kit",
+      "source": "./",
       "description": "Claude Code skills plugin: expert panel discussions, document concretization, diverse sampling, and blind spot detection.",
       "version": "1.1.0",
       "license": "MIT",
