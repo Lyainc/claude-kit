@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**claude-kit**: Claude Code Plugin providing skills (expert-panel, doc-concretize, docx, pptx), agents, and modules.
+**claude-kit**: Claude Code Plugin providing skills (diverse-sampling, doc-concretize, expert-panel, unknown-discovery, docx, pptx), agents, and modules.
 
 ## Commands
 
