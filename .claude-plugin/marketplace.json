@@ -12,7 +12,7 @@
     {
       "name": "claude-kit",
       "source": ".",
-      "description": "Claude Code skills plugin: expert panel discussions, document concretization, diverse sampling, blind spot detection, and office document generation.",
+      "description": "Claude Code skills plugin: expert panel discussions, document concretization, diverse sampling, and blind spot detection.",
       "version": "1.1.0",
       "license": "MIT",
       "keywords": [
@@ -21,9 +21,7 @@
         "expert-panel",
         "doc-concretize",
         "diverse-sampling",
-        "unknown-discovery",
-        "pptx",
-        "docx"
+        "unknown-discovery"
       ]
     }
   ]
