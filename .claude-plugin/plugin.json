@@ -1,7 +1,7 @@
 {
   "name": "claude-kit",
-  "version": "1.0.0",
-  "description": "A comprehensive Claude Code productivity toolkit featuring expert panel discussions, document concretization, and office document generation skills.",
+  "version": "1.1.0",
+  "description": "Claude Code skills plugin: expert panel discussions, document concretization, diverse sampling, blind spot detection, and office document generation.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -10,20 +10,13 @@
   "repository": "https://github.com/Lyainc/claude-kit",
   "license": "MIT",
   "keywords": [
-    "claude-kit",
+    "skills",
     "productivity",
-    "diverse-sampling",
-    "doc-concretize",
     "expert-panel",
+    "doc-concretize",
+    "diverse-sampling",
     "unknown-discovery",
-    "docx",
     "pptx",
-    "dialectical-analysis",
-    "document-generation",
-    "decision-making",
-    "code-review",
-    "design-review",
-    "brainstorming",
-    "blind-spot-detection"
+    "docx"
   ]
 }
