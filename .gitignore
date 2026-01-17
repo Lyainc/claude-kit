@@ -30,7 +30,6 @@
 *.temp
 
 # Local customizations (not shared)
-template/local/
 local/
 
 # Claude Code local settings (user-specific, not shared)
