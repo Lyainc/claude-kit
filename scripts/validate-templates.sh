@@ -178,8 +178,6 @@ validate_skills() {
     local skill_count=0
 
     for skill_dir in "$TEMPLATE_DIR"/skills/*/; do
-        # _TEMPLATE 제외
-        [[ "$skill_dir" == *_TEMPLATE* ]] && continue
         [ ! -d "$skill_dir" ] && continue
 
         local dir_name=$(basename "$skill_dir")
@@ -237,8 +235,6 @@ validate_agents() {
     local agent_count=0
 
     for agent_file in "$TEMPLATE_DIR"/agents/*.md; do
-        # _TEMPLATE 제외
-        [[ "$agent_file" == *_TEMPLATE* ]] && continue || true
         [ ! -f "$agent_file" ] && continue || true
 
         local file_name=$(basename "$agent_file" .md)
