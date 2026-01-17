@@ -36,6 +36,7 @@ Supporting files: `reference.md` (detailed procedures), `examples.md` (usage exa
 
 ```bash
 cp -r skills/_TEMPLATE skills/{name}
+mv skills/{name}/SKILL.template.md skills/{name}/SKILL.md
 # Edit skills/{name}/SKILL.md
 ./scripts/validate-templates.sh --skills
 git commit -m "feat: add {name} skill"
