@@ -21,7 +21,7 @@ git commit -m "feat: Update expert-panel skill"
 Conventional Commits 사용:
 
 ```
-feat: Add new skill
+feat: Update expert-panel skill
 fix: Resolve validation error
 docs: Update README
 ```

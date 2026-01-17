@@ -9,38 +9,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 ## Commands
 
 ```bash
-# Validate templates before committing
+# Validate skills/agents before committing
 ./scripts/validate-templates.sh           # Validate all
 ./scripts/validate-templates.sh --skills  # Skills only
+./scripts/validate-templates.sh --agents  # Agents only
 
 # Setup pre-commit hooks (optional)
 ./scripts/setup-hooks.sh
 ```
 
-## Skill Structure
+## Validation Levels
 
-Each skill lives in `skills/{name}/` with `SKILL.md` as the entry point:
-
-```yaml
----
-name: skill-name          # lowercase/numbers/hyphens, ≤64 chars
-description: |            # ≤1024 chars, "Use when..." pattern required
-  What this skill does.
-  Use when [scenario], or when the user mentions [trigger].
----
-```
-
-Supporting files: `reference.md` (detailed procedures), `examples.md` (usage examples).
-
-## Adding a New Skill
-
-```bash
-cp -r skills/_TEMPLATE skills/{name}
-mv skills/{name}/SKILL.template.md skills/{name}/SKILL.md
-# Edit skills/{name}/SKILL.md
-./scripts/validate-templates.sh --skills
-git commit -m "feat: add {name} skill"
-```
+- **ERROR**: Blocks execution - missing `name` or `description` fields
+- **WARN**: Advisory - naming conventions, length limits, directory/name mismatch
 
 ## Git Conventions
 
