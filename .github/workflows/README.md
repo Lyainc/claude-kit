@@ -4,7 +4,7 @@ Template을 자동 검증하는 CI/CD workflows입니다.
 
 ## validate.yml
 
-**트리거**: PR 생성/업데이트 또는 main push 시 (template/ 변경된 경우)
+**트리거**: PR 생성/업데이트 또는 main push 시 (skills/ 또는 agents/ 변경된 경우)
 
 **검증 항목**:
 

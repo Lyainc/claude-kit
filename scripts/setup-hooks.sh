@@ -134,11 +134,11 @@ NC='\033[0m'
 PROJECT_ROOT="$(git rev-parse --show-toplevel)"
 
 # ============================================================================
-# Check if template/ modified
+# Check if skills/ or agents/ modified
 # ============================================================================
 
-if ! git diff --cached --name-only | grep -q '^template/'; then
-    # No template changes, skip validation
+if ! git diff --cached --name-only | grep -qE '^(skills|agents)/'; then
+    # No skills/agents changes, skip validation
     exit 0
 fi
 
@@ -213,7 +213,7 @@ repos:
         entry: ./scripts/validate-templates.sh
         language: system
         pass_filenames: false
-        files: ^template/
+        files: ^(skills|agents)/
         stages: [commit]
 YAML_EOF
         echo -e "${GREEN}Created .pre-commit-config.yaml${NC}"

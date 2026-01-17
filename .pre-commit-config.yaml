@@ -17,5 +17,5 @@ repos:
         entry: ./scripts/validate-templates.sh
         language: system
         pass_filenames: false
-        files: ^template/
+        files: ^(skills|agents)/
         stages: [commit]
