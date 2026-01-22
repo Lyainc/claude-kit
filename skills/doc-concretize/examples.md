@@ -347,11 +347,12 @@ Quality gate must show "passed" status before proceeding
 
 ```
 [Problem]
-Spending Phase 4 on sentence flow optimization instead of gap detection
+Spending Completeness Check phase on sentence flow optimization instead of gap detection
 
 [Solution]
-Phase 4 = Completeness check (gaps, contradictions, coverage)
-Expression polish = Separate doc-polish skill
+Phase 4 (Completeness Check) = gaps, contradictions, coverage verification
+Phase 5 (Basic Polish) = grammar/spelling only
+Expression quality refinement = Separate doc-polish skill
 ```
 
 ---

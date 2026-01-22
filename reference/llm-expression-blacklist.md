@@ -177,7 +177,7 @@ Shared reference for detecting and replacing typical LLM-generated expressions.
 ## Usage
 
 This reference is used by:
-- `skills/doc-concretize` - Phase 4 basic quality check
+- `skills/doc-concretize` - Phase 5 basic quality check
 - `skills/doc-polish` - Layer 2 Linguistic analysis
 
 When detecting these expressions, always provide:
