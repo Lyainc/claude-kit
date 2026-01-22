@@ -36,12 +36,13 @@ Transform abstract concepts into concrete, well-structured documentation through
 
 ## Core Workflow
 
-### Phase 1: Segmentation
+### Phase 1: Concept Analysis
 
-1. Analyze input → identify core semantic units (3-7 chunks)
-2. Determine logical order and dependencies
-3. Estimate output length → if < 800 chars, switch to standard writing
-4. If reference document exists, analyze and record its style
+1. Decompose core concepts and identify relationships between them
+2. Identify semantic units (3-7 chunks) for document structure
+3. Determine logical order and dependencies
+4. Estimate output length → if < 800 chars, switch to standard writing
+5. If reference document exists, analyze and record its style
 
 **Mandatory State Tracking**:
 ```json
@@ -57,9 +58,19 @@ Transform abstract concepts into concrete, well-structured documentation through
 }
 ```
 
-**Quality Gate**: Segments defined + dependencies mapped → proceed
+**Quality Gate**: Concepts decomposed + relationships mapped + segments defined → proceed
 
-### Phase 2: Recursive Build
+### Phase 2: Structure Design
+
+Plan document architecture and determine optimal ordering patterns:
+
+1. **Architecture Planning**: Define hierarchy (sections, subsections, flow)
+2. **Ordering Strategy**: Determine presentation order (chronological, priority-based, conceptual progression)
+3. **Dependency Resolution**: Ensure prerequisites are addressed before dependent concepts
+
+**Quality Gate**: Document structure defined + ordering determined → proceed to content build
+
+### Phase 3: Content Build
 
 For each segment, execute **Build → Verify → Reflect** cycle:
 
@@ -91,37 +102,31 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 
 **Quality Gate**: All verify checks passed for current segment → proceed
 
-### Phase 3: Final Review
+### Phase 4: Completeness Check
 
 1. **Full Read**: Review entire document from start to end
 2. **Self-Critique**: Answer these mandatory questions:
    - What claims lack sufficient evidence?
-   - What expressions could readers misunderstand?
    - What important perspectives or counterarguments are missing?
    - What parts are unnecessarily long or repetitive?
    - What content diverges from the original request?
-3. **Adversarial Check**: Generate at least one counter-argument to main claims
-4. **Intent Verification**: Confirm alignment with original request
-5. **Gap Check**: Ensure no core content is missing
+3. **Logical Gap Detection**: Identify missing connections, unsupported claims, or contradictions
+4. **Adversarial Check**: Generate at least one counter-argument to main claims
+5. **Intent Verification**: Confirm alignment with original request
+6. **Missing Content Check**: Ensure all core concepts are covered
 
-**Quality Gate**: All questions answered + counter-arguments addressed → proceed
+**Quality Gate**: All logical gaps addressed + no contradictions + all critical content present → proceed
 
-### Phase 4: Polish
+### Phase 5: Basic Polish
 
 **Grammar & Spelling** (mandatory):
 - Fix spacing, spelling, particle errors
-
-**Style Refinement**:
-- Remove LLM-specific expressions (see [reference.md](reference.md) for blacklist)
-- Minimize unnecessary modifiers
-- Balance sentence length
-- Apply language-specific polish rules (see [reference.md](reference.md))
 
 **Reference Style Maintenance** (if applicable):
 - Reflect user's tone and style from reference document
 - Confirm with user if tone change is necessary
 
-**Quality Gate**: Zero blacklisted expressions remaining → complete
+**Quality Gate**: No grammar errors + reference style maintained → complete
 
 ## Tool Usage
 
@@ -146,6 +151,18 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 </details>
 ```
 
+## Expression Quality Enhancement
+
+`doc-concretize` focuses on **content creation** (logic, structure, completeness). For **expression quality** (clarity, readability, style refinement), run `doc-polish` as a follow-up step:
+
+```
+1. Complete doc-concretize (content creation)
+2. Run doc-polish (expression refinement)
+```
+
+`doc-concretize` = Writer (creates content)
+`doc-polish` = Editor (refines expression)
+
 ## References
 
 - **Detailed procedures**: See [reference.md](reference.md)
@@ -157,9 +174,11 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 User: "Document our service's core values.
        Customer focus, fast execution, and transparency matter."
 
-→ Phase 1: Segment into 3 chunks (customer focus / fast execution / transparency)
-→ Phase 2: Recursive build + verify each segment
-→ Phase 3: Full review, self-critique, adversarial check
-→ Phase 4: Polish with language-specific rules
+→ Phase 1: Concept Analysis - Decompose core values and identify relationships
+→ Phase 2: Structure Design - Plan document architecture and ordering
+→ Phase 3: Content Build - Build → Verify → Reflect cycle for each segment
+→ Phase 4: Completeness Check - Review for logical gaps and missing content
+→ Phase 5: Basic Polish - Fix grammar and maintain reference style
 → Output: Structured core values document (~1,500 chars)
+→ Optional: Run doc-polish for expression quality refinement
 ```
