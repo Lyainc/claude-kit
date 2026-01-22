@@ -54,6 +54,19 @@ Detailed procedures and guidelines.
 - Temporal relationships (before/after)
 - Logical progression (necessary sequence)
 
+**Circular dependency detection**:
+```
+1. Build directed graph of concept dependencies
+2. Run DFS-based cycle detection:
+   - Mark nodes as: unvisited, in-progress, completed
+   - If visiting in-progress node → cycle detected
+3. If cycle found:
+   - Identify the circular path (A → B → C → A)
+   - Ask user to resolve: which dependency is optional?
+   - Or suggest: combine circular concepts into single segment
+4. Proceed only when dependency graph is acyclic (DAG)
+```
+
 ### Chunk Count Guidelines
 
 | Estimated Length | Recommended Chunks |

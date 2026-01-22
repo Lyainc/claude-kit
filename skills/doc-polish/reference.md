@@ -386,10 +386,16 @@ When validating external links, apply these security measures:
 **SSRF Prevention**:
 ```
 1. Only allow http:// and https:// schemes
-2. Block private IP ranges (10.x.x.x, 192.168.x.x, 127.x.x.x)
+2. Block private IP ranges:
+   - IPv4: 10.x.x.x, 192.168.x.x, 172.16-31.x.x, 127.x.x.x
+   - IPv6: ::1, fe80::/10, fc00::/7
 3. Block localhost and internal hostnames
-4. Limit redirect depth (max 3 redirects)
-5. Validate final URL after redirects
+4. Block cloud metadata endpoints:
+   - 169.254.169.254 (AWS/GCP/Azure)
+   - metadata.google.internal
+   - 169.254.170.2 (ECS)
+5. Limit redirect depth (max 3 redirects)
+6. Validate final URL after redirects
 ```
 
 **Timeout Configuration**:

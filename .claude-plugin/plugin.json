@@ -1,6 +1,6 @@
 {
   "name": "claude-kit",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Claude Code skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, and blind spot detection.",
   "author": {
     "name": "Lyainc",
