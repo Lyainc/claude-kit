@@ -374,3 +374,69 @@ If document > 10,000 words:
   - Aggregate results
   - Report: "Large document - partial analysis possible"
 ```
+
+---
+
+## Security Considerations
+
+### URL Validation for WebFetch
+
+When validating external links, apply these security measures:
+
+**SSRF Prevention**:
+```
+1. Only allow http:// and https:// schemes
+2. Block private IP ranges (10.x.x.x, 192.168.x.x, 127.x.x.x)
+3. Block localhost and internal hostnames
+4. Limit redirect depth (max 3 redirects)
+5. Validate final URL after redirects
+```
+
+**Timeout Configuration**:
+```
+- Connection timeout: 5 seconds
+- Read timeout: 10 seconds
+- Total timeout: 15 seconds
+```
+
+**Rate Limiting**:
+```
+- Max 10 external URLs per document
+- 1 second delay between requests
+- If exceeded: sample URLs instead of checking all
+```
+
+---
+
+## Error Handling
+
+### External Link Validation Failures
+
+| Error Type | Handling | Report Output |
+|------------|----------|---------------|
+| Connection timeout | Skip URL | "⚠️ URL unreachable (timeout)" |
+| DNS resolution failure | Skip URL | "⚠️ URL unreachable (DNS)" |
+| SSL/TLS error | Report warning | "⚠️ SSL certificate issue" |
+| HTTP 4xx | Report as broken | "❌ Broken link (404/403)" |
+| HTTP 5xx | Report as uncertain | "⚠️ Server error (may be temporary)" |
+| Too many redirects | Report warning | "⚠️ Redirect loop detected" |
+| Rate limited | Partial check | "ℹ️ Rate limited - partial check only" |
+
+### Graceful Degradation
+
+```
+If external link validation fails entirely:
+  1. Log the failure reason
+  2. Continue with internal link validation
+  3. Report: "External link validation skipped due to [reason]"
+  4. Document remains usable without external checks
+```
+
+### Network Unavailable
+
+```
+If no network connectivity:
+  - Skip all external URL checks
+  - Complete Layer 1 internal checks only
+  - Report: "Offline mode - external links not verified"
+```
