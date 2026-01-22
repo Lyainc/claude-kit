@@ -4,17 +4,16 @@ Detailed procedures and guidelines.
 
 ## Table of Contents
 
-- [Phase 1: Segmentation Details](#phase-1-segmentation-details)
-- [Phase 2: Recursive Build Details](#phase-2-recursive-build-details)
-- [Phase 3: Final Review Details](#phase-3-final-review-details)
-- [Phase 4: Polish Details](#phase-4-polish-details)
-- [Language-Specific Polish](#language-specific-polish)
+- [Phase 1: Concept Analysis Details](#phase-1-concept-analysis-details)
+- [Phase 2: Structure Design Details](#phase-2-structure-design-details)
+- [Phase 3: Content Build Details](#phase-3-content-build-details)
+- [Phase 4: Completeness Check Details](#phase-4-completeness-check-details)
 - [Threshold Criteria](#threshold-criteria)
 - [State Tracking JSON Schema](#state-tracking-json-schema)
 
 ---
 
-## Phase 1: Segmentation Details
+## Phase 1: Concept Analysis Details
 
 ### Semantic Unit Identification Criteria
 
@@ -24,6 +23,50 @@ Detailed procedures and guidelines.
 | Logical transition | Point where topic or perspective shifts | Cause→Effect, Present→Future |
 | Structural division | Units separated by document format | Background/Body/Conclusion |
 
+### Concept Decomposition
+
+**Breaking complex concepts into atomic units**:
+- Identify core vs supporting concepts
+- Separate definition from explanation
+- Distinguish mechanism from outcome
+- Isolate assumptions from conclusions
+
+**Atomic unit criteria**:
+- Can be understood without external context
+- Represents single logical idea
+- Has clear boundaries
+- Can be referenced independently
+
+### Dependency Mapping
+
+**Prerequisite relationships**:
+- Concept A must be explained before concept B
+- Foundation → Building blocks → Advanced concepts
+- Track which concepts require prior knowledge
+
+**Cause-effect chains**:
+- Identify causal relationships between concepts
+- Map input → process → output flows
+- Track conditions and consequences
+
+**Sequential dependencies**:
+- Process steps that must occur in order
+- Temporal relationships (before/after)
+- Logical progression (necessary sequence)
+
+**Circular dependency detection**:
+```
+1. Build directed graph of concept dependencies
+2. Run DFS-based cycle detection:
+   - Mark nodes as: unvisited, in-progress, completed
+   - If visiting in-progress node → cycle detected
+3. If cycle found:
+   - Identify the circular path (A → B → C → A)
+   - Ask user to resolve: which dependency is optional?
+   - Or suggest: combine circular concepts into single segment
+4. Proceed only when dependency graph is acyclic (DAG)
+```
+
 ### Chunk Count Guidelines
 
 | Estimated Length | Recommended Chunks |
@@ -32,6 +75,10 @@ Detailed procedures and guidelines.
 | 1,200-2,000 chars | 4-5 |
 | 2,000+ chars | 5-7 |
 
+---
+
+## Phase 2: Structure Design Details
+
 ### Ordering Patterns
 
 1. **Deductive**: Principle → Details → Examples
@@ -39,9 +86,45 @@ Detailed procedures and guidelines.
 3. **Chronological**: Past → Present → Future
 4. **Priority**: Core → Secondary → Optional
 
+### Document Architecture Patterns
+
+**Problem-Solution structure**:
+- State problem clearly
+- Explain why it matters
+- Present solution systematically
+- Show evidence of effectiveness
+
+**Compare-Contrast structure**:
+- Establish comparison criteria
+- Present option A characteristics
+- Present option B characteristics
+- Synthesize differences and implications
+
+**Hierarchical breakdown**:
+- Start with overview/big picture
+- Decompose into major components
+- Break components into sub-elements
+- Maintain consistent depth level
+
+### Argument Structure
+
+**Claim-Evidence-Example pattern**:
+```
+1. Make clear claim
+2. Provide supporting evidence
+3. Illustrate with concrete example
+4. Connect back to main thesis
+```
+
+**Logical flow validation**:
+- Each paragraph advances the argument
+- No circular reasoning
+- Conclusions follow from premises
+- Counterarguments acknowledged
+
 ---
 
-## Phase 2: Recursive Build Details
+## Phase 3: Content Build Details
 
 ### Build Step
 
@@ -98,7 +181,54 @@ Verify Result → Branch
 
 ---
 
-## Phase 3: Final Review Details
+## Phase 4: Completeness Check Details
+
+### Gap Detection
+
+**Missing logical steps**:
+- Check if conclusions follow from premises
+- Identify unstated assumptions
+- Find missing explanatory links
+- Detect jumps in reasoning
+
+**Questions to ask**:
+```
+1. Can reader follow the logic without filling in blanks?
+2. Are there unexplained transitions between ideas?
+3. What background knowledge is assumed but not stated?
+4. Which terms are used without definition?
+```
+
+### Contradiction Detection
+
+**Find conflicting statements**:
+- Same concept described differently
+- Numbers or facts that don't align
+- Recommendations that oppose each other
+- Definitions that conflict
+
+**Validation checklist**:
+```
+□ All instances of key terms used consistently
+□ Numerical data cross-checked
+□ Claims don't contradict in different sections
+□ Cause-effect relationships don't reverse
+```
+
+### Coverage Verification
+
+**All key points addressed**:
+```
+1. Compare final content against initial request
+2. Check all concepts from analysis phase included
+3. Verify promised topics were covered
+4. Ensure argument structure is complete
+```
+
+**Depth check**:
+- Core concepts: Fully explained with examples
+- Supporting concepts: Adequately covered
+- Minor points: Mentioned or justified omission
 
 ### Self-Critique Questions (Mandatory)
 
@@ -131,94 +261,16 @@ Alignment status:
 □ Tone matches
 ```
 
----
+### doc-polish Integration
 
-## Phase 4: Polish Details
+**After completeness check passes, recommend doc-polish for**:
+- Expression quality improvement
+- LLM cliche removal
+- Sentence rhythm and flow
+- Language-specific polish
 
-### LLM Expression Blacklist
-
-Mandatory removal or revision:
-
-| Language | Remove/Revise | Alternative |
-|----------|---------------|-------------|
-| English | "very important" | "critical" or remove |
-| English | "various ways" | Specify methods or remove |
-| English | "effectively" | Remove or specify effect |
-| English | "successfully achieved" | "achieved" |
-| English | "in-depth analysis" | "analysis" |
-| English | "widely utilized" | "used" |
-| English | "It is important to..." | Direct statement |
-| English | "In order to..." | "To..." |
-| Korean | "매우 중요한" | "핵심적인" or remove |
-| Korean | "다양한 방법으로" | Specify methods or remove |
-| Korean | "효과적으로" | Remove or specify effect |
-| Korean | "성공적으로 달성" | "달성" |
-| Korean | "심층적으로 분석" | "분석" |
-| Korean | "폭넓게 활용" | "활용" |
-| Korean | "~하는 것이 중요합니다" | Direct statement |
-
-### Sentence Length Guidelines
-
-```
-[Problem] Sentence over 50 chars (Korean) / 25 words (English)
-→ Split into two sentences
-→ Convert relative clauses to separate sentences
-
-[Problem] Consecutive sentences under 10 chars (Korean) / 5 words (English)
-→ Consider combining with adjacent sentences
-```
-
----
-
-## Language-Specific Polish
-
-### Korean
-
-**Sentence Endings**:
-- Balance ~다/~이다 (plain) with ~습니다/~입니다 (polite)
-- Match reference document if provided
-- Default to ~다 체 for formal documents
-
-**Expression Rules**:
-- Remove: "매우", "정말", "확실히", "다양한" overuse
-- Avoid: "~하는 것이 중요합니다" → prefer direct statements
-- Fix: Spacing errors (띄어쓰기), particle usage (조사)
-
-**Sentence Length**:
-- Recommended: 15-30 characters
-- Maximum: 50 characters before splitting
-
-**Style Markers**:
-- Identify user's preferred endings from reference
-- Note frequent connectors: 그래서/따라서/하지만
-- Preserve user's characteristic expressions
-
-### English
-
-**Voice**:
-- Prefer active voice over passive
-- Use passive only when actor is unknown or irrelevant
-
-**Expression Rules**:
-- Remove: "very", "really", "certainly", "various" overuse
-- Avoid: "It is important to...", "In order to..."
-- Avoid: Nominalizations when verbs work better
-
-**Sentence Length**:
-- Recommended: 10-25 words
-- Maximum: 35 words before splitting
-
-**Style Markers**:
-- Match formality level of reference document
-- Preserve technical terminology as used by user
-
-### General (All Languages)
-
-- Remove redundant modifiers
-- One idea per sentence
-- Consistent tone throughout
-- No hedging without purpose ("perhaps", "maybe", "somewhat")
-- Concrete over abstract
+**Note**: doc-concretize focuses on content quality (logic, structure, completeness).
+doc-polish focuses on expression quality (style, clarity, readability).
 
 ---
 

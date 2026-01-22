@@ -13,28 +13,28 @@ User: "Document our startup's core values.
        Customer focus, fast execution, and transparency matter."
 ```
 
-### Phase 1: Segmentation
+### Phase 1: Concept Analysis
 
 **Analysis Result**:
 - Abstract concept: Core values (philosophical)
 - Documentation intent: "Document" keyword
 - Estimated length: ~1,500 chars (3 values × 500 chars)
 
-**Segment Division**:
-```json
-{
-  "segments": [
-    {"id": 1, "name": "Customer Focus", "status": "pending", "depends_on": []},
-    {"id": 2, "name": "Fast Execution", "status": "pending", "depends_on": []},
-    {"id": 3, "name": "Transparency", "status": "pending", "depends_on": []}
-  ],
-  "current": 1,
-  "style_ref": null,
-  "quality_gate": "passed"
-}
-```
+**Dependency Mapping**:
+- Three independent concepts: Customer Focus, Fast Execution, Transparency
+- No sequential dependencies detected
+- Each can be built independently
 
-### Phase 2: Recursive Build
+*[Internal: State tracking - 3 segments defined, dependencies mapped, no circular dependencies detected]*
+
+### Phase 2: Structure Design
+
+**Structural Decisions**:
+- Format: Separate sections for each value
+- Each section structure: Definition → Concrete methods → Caveats
+- Logical flow: Customer → Speed → Transparency (descending operational priority)
+
+### Phase 3: Content Build
 
 **Segment 1: Customer Focus**
 
@@ -93,12 +93,12 @@ but it's the fastest path to building long-term trust.
 - □ No contradictions: Passed
 - □ Tone and manner: Passed
 
-### Phase 3: Final Review
+*[Internal: Build→Verify→Reflect cycle completed for all 3 segments, quality gates passed]*
 
-**Self-Critique**:
-1. Weak evidence claims? → "fastest path to building trust" - abstract but acceptable for values document
-2. Misunderstandable expressions? → "80% confidence" - may need concrete criteria
-3. Missing perspectives? → No priority when values conflict → consider adding
+**Completeness Review** (integrated in Phase 3):
+- Weak evidence claims? → "fastest path to building trust" - abstract but acceptable for values document
+- Misunderstandable expressions? → "80% confidence" - may need concrete criteria
+- Missing perspectives? → No priority when values conflict → consider adding
 
 **Adversarial Check**:
 - Claim: "Fast execution is essential"
@@ -110,15 +110,18 @@ but it's the fastest path to building long-term trust.
 - Written result: 3 values with definition + execution methods each
 - Alignment status: Fulfilled
 
-### Phase 4: Polish
+### Phase 4: Completeness Check
 
-**Before**:
-> This principle may cause short-term discomfort, but it's the fastest path to building long-term trust.
+**Coverage Analysis**:
+- □ All requested values documented: Passed (3/3)
+- □ Each value has definition: Passed
+- □ Concrete methods provided: Passed
+- □ No logical contradictions: Passed
+- □ No critical information gaps: Passed
 
-**After**:
-> Short-term discomfort is possible, but this builds trust fastest over time.
+**Completeness Status**: Verified
 
-(Removed unnecessary "This principle", simplified structure)
+**Note**: For expression quality refinement (tone adjustment, sentence flow optimization), run `doc-polish` as a separate step.
 
 ### Final Output
 
@@ -160,8 +163,10 @@ Short-term discomfort is possible, but this builds trust fastest over time.
 
 - Segments: 3 sections
 - Verification passed: 3/3
-- Revisions: Phase 4 style polish 1 item
+- Completeness verified: Yes
 - Style reference: None
+
+**Tip**: Run `doc-polish` for expression quality refinement (sentence flow, tone adjustment, clarity optimization)
 </details>
 ```
 
@@ -180,24 +185,27 @@ Meetings never exceed 30 minutes.
 No meeting without a decision."
 ```
 
-### Phase 1: Segmentation
+### Phase 1: Concept Analysis
+
+**Analysis Result**:
+- Abstract concept: Team collaboration principles
+- Style reference provided: User's existing document
 
 **Style Analysis**:
-```json
-{
-  "style_ref": "user_input",
-  "style_notes": {
-    "endings": "plain declarative (firm tone)",
-    "avg_sentence_length": 8,
-    "characteristic_expressions": ["We hate...", "never exceed", "No... without"]
-  }
-}
-```
+- Tone: Firm, assertive declaratives
+- Sentence length: Short (avg 8 words)
+- Characteristic patterns: Negative emphasis ("hate", "never", "No")
 
-**Segments**:
-- Team collaboration core principles (1 chunk, short document)
+*[Internal: Style fingerprint extracted - 3 key patterns identified]*
 
-### Phase 2: Recursive Build
+### Phase 2: Structure Design
+
+**Structural Decisions**:
+- Format: Short declarative rules (matching reference)
+- Single section (brief document)
+- Pattern: Principle → Rule → Constraint (mirroring reference structure)
+
+### Phase 3: Content Build
 
 [Build]
 ```
@@ -233,7 +241,10 @@ User: "Document our company's AI adoption strategy.
        The goal is efficiency improvement."
 ```
 
-### Phase 2: Critical Issue Occurs
+### Phase 1-2: Analysis and Design
+*[Phases 1-2 completed normally]*
+
+### Phase 3: Critical Issue Occurs
 
 [Build - Segment 2]
 ```
@@ -309,20 +320,10 @@ Max 2 re-verifications, then force proceed with issue marked
 [Reference Style] "~입니다/~합니다" (polite Korean)
 [Written Result] "~다/~이다" (plain Korean)
 
-→ Must correct in Phase 4
+→ Must detect and maintain style consistency throughout
 ```
 
-### Anti-Pattern 3: LLM Expression Overuse
-
-```
-[Problem]
-"Through various highly effective methods, we can successfully achieve significant outcomes."
-
-[Correction]
-"We can achieve outcomes through these methods." (then specify methods)
-```
-
-### Anti-Pattern 4: Missing Adversarial Check
+### Anti-Pattern 3: Missing Adversarial Check
 
 ```
 [Problem]
@@ -332,7 +333,7 @@ Document makes bold claims without considering counter-arguments
 Phase 3 requires explicit counter-argument generation for each main claim
 ```
 
-### Anti-Pattern 5: Skipping Quality Gates
+### Anti-Pattern 4: Skipping Quality Gates
 
 ```
 [Problem]
@@ -341,3 +342,35 @@ Proceeding to next phase despite failed verification
 [Solution]
 Quality gate must show "passed" status before proceeding
 ```
+
+### Anti-Pattern 5: Confusing Completeness with Polish
+
+```
+[Problem]
+Spending Completeness Check phase on sentence flow optimization instead of gap detection
+
+[Solution]
+Phase 4 (Completeness Check) = gaps, contradictions, coverage verification
+Phase 5 (Basic Polish) = grammar/spelling only
+Expression quality refinement = Separate doc-polish skill
+```
+
+---
+
+## Skill Pipeline Recommendation
+
+For comprehensive documentation quality:
+
+1. **doc-concretize**: Structure, logic, completeness
+2. **doc-polish**: Expression refinement, tone adjustment, flow optimization
+
+```
+User: "Document our product philosophy"
+→ doc-concretize (this skill) → Complete structured content
+→ doc-polish → Refined expression quality
+```
+
+This separation ensures:
+- **doc-concretize** focuses on content substance and structure
+- **doc-polish** focuses on linguistic quality and readability
+- No overlap or confusion between phases

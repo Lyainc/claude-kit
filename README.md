@@ -1,6 +1,6 @@
 # claude-kit
 
-Claude Code용 **스킬 플러그인**. 생산성 향상을 위한 4개의 스킬을 제공합니다.
+Claude Code용 **스킬 플러그인**. 생산성 향상을 위한 5개의 스킬을 제공합니다.
 
 ## 설치
 
@@ -18,6 +18,7 @@ claude plugin install claude-kit@Lyainc-claude-kit
 | ------------------ | ---------------------------------------------------- | ---------------------------------------- |
 | `diverse-sampling` | Generate diverse responses using Verbalized Sampling | 브레인스토밍, 다양한 아이디어, 대안 제시 |
 | `doc-concretize`   | Transform abstract concepts into structured docs     | 문서화, 구체화, 체계적 정리              |
+| `doc-polish`       | Validate and improve existing MD docs (3-layer QA)   | 검사해줘, 다듬어줘, polish, lint         |
 | `expert-panel`     | Expert panel discussions with dialectical analysis   | expert panel, design review, 전문가 토론 |
 | `unknown-discovery`| Discover blind spots through iterative interviews    | 맹점, 놓친 것, blind spot, 심층 인터뷰   |
 
