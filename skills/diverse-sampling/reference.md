@@ -290,6 +290,11 @@ Convert probability to percentage using normalization:
 3. Scale others proportionally: `(prob / max_prob) × 100%`
 4. Round to nearest integer
 
+**Edge Cases**:
+- If max_prob = 0: fallback to equal distribution (20% each)
+- If all probabilities equal: all show 100%
+- If negative probability detected: trigger fallback
+
 **Example Calculation**:
 - Probabilities: [0.35, 0.25, 0.20, 0.12, 0.08]
 - Max: 0.35

@@ -159,9 +159,9 @@ Short-term discomfort is possible, but this builds trust fastest over time.
 
 ───
 *3개 섹션 작성 완료 · 검토 통과*
+```
 
 > **Tip**: 표현 품질 개선이 필요하면 `doc-polish` 실행 (문장 흐름, 톤 조정, 명확성 최적화)
-```
 
 ---
 
