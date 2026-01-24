@@ -376,6 +376,22 @@ failed → passed (after user intervention or rewrite)
 | Footer separator  | `·` (middle dot, NOT `/`)                    |
 | Footer style      | Italic (`*...*`)                             |
 
+### Output Integrity Principle
+
+**Presentation Layer** (Unicode/ASCII decorative elements allowed):
+- Footer separators (`───`)
+- Metadata tables
+- Progress/status indicators
+
+**Content Layer** (Unicode/ASCII decorative elements prohibited):
+- Generated text content itself
+- Results that users will directly use
+- Examples: brand names, document body, discussion conclusions
+
+**Exceptions**:
+- Original source already contains special characters
+- User explicitly requests emoji/special characters
+
 ### Fallback Messages
 
 When process fails or structured output unavailable:
