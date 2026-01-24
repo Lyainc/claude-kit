@@ -123,39 +123,51 @@ Apply selection strategy based on option:
 
 **Default Output** (single response):
 ```
-[Selected Response]
+💡 **브루잉 포레스트 (Brewing Forest)**
 
----
-<details>
-<summary>Generation Info</summary>
+커피가 숲처럼 천천히 우러나는 공간이라는 의미를 담았습니다.
 
-- Method: Verbalized Sampling (weighted random)
-- Candidates: 5 responses generated
-- Language: [detected language]
-</details>
+───
+*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
 ```
 
 **--all Output** (all responses):
 ```
-## Generated Alternatives
+## 💡 생성된 대안들
 
-| # | Probability | Response |
-|---|-------------|----------|
-| 1 | 0.08 | [response 1] |
-| 2 | 0.07 | [response 2] |
-| 3 | 0.06 | [response 3] |
-| 4 | 0.05 | [response 4] |
-| 5 | 0.04 | [response 5] |
+| 순위 | 선호도 | 아이디어 |
+|:---:|:------:|----------|
+| 🥇 | ████████░░ | 첫 번째 아이디어 설명 |
+| 🥈 | ██████░░░░ | 두 번째 아이디어 설명 |
+| 🥉 | █████░░░░░ | 세 번째 아이디어 설명 |
+| 4 | ████░░░░░░ | 네 번째 아이디어 설명 |
+| 5 | ███░░░░░░░ | 다섯 번째 아이디어 설명 |
 
----
-<details>
-<summary>Generation Info</summary>
-
-- Method: Verbalized Sampling (show all)
-- Total candidates: 5
-- Language: [detected language]
-</details>
+───
+*다양성 기법으로 5개 대안 생성*
 ```
+
+**--best Output**:
+```
+⭐ **Inkwell**
+
+A classic writing reference that evokes craftsmanship.
+
+───
+*5개 대안 중 가장 선호되는 옵션*
+```
+
+## Model Capabilities
+
+### Extended Thinking (Opus)
+- 구조화 데이터 처리를 thinking 단계에서 수행
+- 출력에는 변환된 자연어만 포함
+- 확률 calibration 더 정확
+
+### Standard Mode (Sonnet)
+- 명시적 지시로 구조화 데이터 은닉
+- "NEVER output XML/JSON to user" 강조
+- 파싱 실패 시 즉시 fallback
 
 ## Fallback Mechanism
 
@@ -166,10 +178,9 @@ Apply selection strategy based on option:
 
 **Fallback Procedure**:
 ```
-1. Log warning: "VS 형식 파싱 실패, 일반 응답으로 전환합니다"
+1. Log warning (Korean): "일반 응답으로 대체되었습니다." | (English): "Falling back to standard response."
 2. Generate standard response to original query
-3. Append note: "(Fallback: VS parsing failed)"
-4. Return standard response
+3. Return standard response
 ```
 
 ## Use Case Boundaries
@@ -214,14 +225,10 @@ User: "/diverse-sampling 스타트업 이름 아이디어 좀 줘"
 → Phase 3: Output selected response
 
 Output:
-"NexaFlow - 다음 단계로의 흐름을 의미"
+💡 **NexaFlow**
 
----
-<details>
-<summary>Generation Info</summary>
+다음 단계로의 흐름을 의미
 
-- Method: Verbalized Sampling (weighted random)
-- Candidates: 5 responses generated
-- Language: Korean
-</details>
+───
+*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
 ```
