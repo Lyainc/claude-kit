@@ -57,10 +57,11 @@
 - [ ] [영역 1]: [이유]
 - [ ] [영역 2]: [이유]
 
----
+───
+*N개 질문 · N개 영역 완료 · N개 Unknown Unknowns 발견*
 
 <details>
-<summary>Interview Metadata</summary>
+<summary>상세 메타데이터</summary>
 
 | 항목 | 값 |
 |------|-----|
