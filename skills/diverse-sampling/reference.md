@@ -278,22 +278,22 @@ Convert probability to percentage using normalization:
 
 | Probability | Display |
 |-------------|---------|
-| Highest (max) | 78% |
-| ~90% of max | 68% |
-| ~80% of max | 58% |
-| ~70% of max | 48% |
-| ~60% of max | 38% |
+| Highest (max) | 100% |
+| ~70% of max | 70% |
+| ~55% of max | 55% |
+| ~35% of max | 35% |
+| ~20% of max | 20% |
 
 **Normalization Logic**:
 1. Find max probability among 5 responses
-2. Scale max to ~78% (reference percentage)
-3. Scale others proportionally: `(prob / max_prob) × 78%`
+2. Scale max to 100%
+3. Scale others proportionally: `(prob / max_prob) × 100%`
 4. Round to nearest integer
 
 **Example Calculation**:
-- Probabilities: [0.08, 0.07, 0.06, 0.05, 0.04]
-- Max: 0.08
-- Scaled: [78%, 68%, 58%, 48%, 38%]
+- Probabilities: [0.35, 0.25, 0.20, 0.12, 0.08]
+- Max: 0.35
+- Scaled: [100%, 71%, 57%, 34%, 23%]
 
 ### Rank Display
 
