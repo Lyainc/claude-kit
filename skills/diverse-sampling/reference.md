@@ -140,6 +140,8 @@ Probability:    <probability>([0-9.]+)</probability>
 
 ## Selection Strategies
 
+*This section describes internal logic. Users see simplified output format only.*
+
 ### Weighted Random Sampling (Default)
 
 ```
@@ -212,8 +214,8 @@ Algorithm:
 ```
 [Standard response to user query]
 
----
-⚠️ Note: Verbalized Sampling parsing failed. Standard response provided.
+───
+*일반 응답으로 대체되었습니다.*
 ```
 
 ---
@@ -237,6 +239,53 @@ Algorithm:
 1. **Simplicity**: Users don't need to understand VS internals
 2. **Consistency**: Fixed values ensure reproducible behavior
 3. **Validation**: These values are research-validated defaults
+
+---
+
+## Output Terminology
+
+### User-Friendly Conversion Table
+
+| Internal Term | Korean Output | English Output |
+|---------------|---------------|----------------|
+| Verbalized Sampling | 다양성 기법 | diversity technique |
+| weighted random | 다양성 기반 선택 | diversity-based selection |
+| highest probability | 가장 선호되는 | most preferred |
+| show all | 전체 보기 | show all |
+| Candidates: 5 | 5개 대안 중 | from 5 alternatives |
+
+### Progress Bar Rendering
+
+Convert probability to 10-char Unicode bar using `█` (filled) and `░` (empty):
+
+| Probability | Display | Visual |
+|-------------|---------|--------|
+| Highest (normalized to ~80%) | `████████░░` | 8 filled, 2 empty |
+| ~60% relative | `██████░░░░` | 6 filled, 4 empty |
+| ~50% relative | `█████░░░░░` | 5 filled, 5 empty |
+| ~40% relative | `████░░░░░░` | 4 filled, 6 empty |
+| ~30% relative | `███░░░░░░░` | 3 filled, 7 empty |
+
+**Normalization Logic**:
+1. Find max probability among 5 responses
+2. Scale max to ~80% (8 filled blocks)
+3. Scale others proportionally
+
+### Rank Display
+
+| Rank | Display |
+|------|---------|
+| 1st | 🥇 |
+| 2nd | 🥈 |
+| 3rd | 🥉 |
+| 4th | 4 |
+| 5th | 5 |
+
+### Fallback Messages
+
+When parsing fails or structured output unavailable:
+- Korean: `일반 응답으로 대체되었습니다.`
+- English: `Falling back to standard response.`
 
 ---
 
