@@ -140,6 +140,8 @@ Probability:    <probability>([0-9.]+)</probability>
 
 ## Selection Strategies
 
+*This section describes internal logic. Users see simplified output format only.*
+
 ### Weighted Random Sampling (Default)
 
 ```
@@ -212,8 +214,8 @@ Algorithm:
 ```
 [Standard response to user query]
 
----
-⚠️ Note: Verbalized Sampling parsing failed. Standard response provided.
+───
+*일반 응답으로 대체되었습니다.*
 ```
 
 ---
@@ -237,6 +239,84 @@ Algorithm:
 1. **Simplicity**: Users don't need to understand VS internals
 2. **Consistency**: Fixed values ensure reproducible behavior
 3. **Validation**: These values are research-validated defaults
+
+---
+
+## Output Integrity Principle
+
+**Presentation Layer** (Unicode/ASCII decorative elements allowed):
+- Footer separators (`───`)
+- Metadata tables
+- Progress/status indicators
+
+**Content Layer** (Unicode/ASCII decorative elements prohibited):
+- Generated text content itself
+- Results that users will directly use
+- Examples: brand names, document body, discussion conclusions
+
+**Exceptions**:
+- Original source already contains special characters
+- User explicitly requests emoji/special characters
+
+---
+
+## Output Terminology
+
+### User-Friendly Conversion Table
+
+| Internal Term | Korean Output | English Output |
+|---------------|---------------|----------------|
+| Verbalized Sampling | 다양성 기법 | diversity technique |
+| weighted random | 다양성 기반 선택 | diversity-based selection |
+| highest probability | 가장 선호되는 | most preferred |
+| show all | 전체 보기 | show all |
+| Candidates: 5 | 5개 대안 중 | from 5 alternatives |
+
+### Percentage Display
+
+Convert probability to percentage using normalization:
+
+| Probability | Display |
+|-------------|---------|
+| Highest (max) | 100% |
+| ~70% of max | 70% |
+| ~55% of max | 55% |
+| ~35% of max | 35% |
+| ~20% of max | 20% |
+
+**Normalization Logic**:
+1. Find max probability among 5 responses
+2. Scale max to 100%
+3. Scale others proportionally: `(prob / max_prob) × 100%`
+4. Round to nearest integer
+
+**Edge Cases**:
+- If max_prob = 0: fallback to equal distribution (20% each)
+- If all probabilities equal: all show 100%
+- If negative probability detected: trigger fallback
+
+**Example Calculation**:
+- Probabilities: [0.35, 0.25, 0.20, 0.12, 0.08]
+- Max: 0.35
+- Scaled: [100%, 71%, 57%, 34%, 23%]
+
+### Rank Display
+
+| Rank | Display |
+|------|---------|
+| 1st | 1 |
+| 2nd | 2 |
+| 3rd | 3 |
+| 4th | 4 |
+| 5th | 5 |
+
+*Note: Use simple numbers for professional appearance. Percentage provides clear quantitative distinction.*
+
+### Fallback Messages
+
+When parsing fails or structured output unavailable:
+- Korean: `일반 응답으로 대체되었습니다.`
+- English: `Falling back to standard response.`
 
 ---
 

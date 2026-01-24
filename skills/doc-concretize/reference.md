@@ -9,7 +9,8 @@ Detailed procedures and guidelines.
 - [Phase 3: Content Build Details](#phase-3-content-build-details)
 - [Phase 4: Completeness Check Details](#phase-4-completeness-check-details)
 - [Threshold Criteria](#threshold-criteria)
-- [State Tracking JSON Schema](#state-tracking-json-schema)
+- [State Tracking JSON Schema](#state-tracking-json-schema-internal-only)
+- [Output Terminology](#output-terminology)
 
 ---
 
@@ -303,7 +304,7 @@ doc-polish focuses on expression quality (style, clarity, readability).
 
 ---
 
-## State Tracking JSON Schema
+## State Tracking JSON Schema *(Internal Only)*
 
 ```json
 {
@@ -342,3 +343,58 @@ pending → passed (all checks passed)
 pending → failed (max retries exceeded)
 failed → passed (after user intervention or rewrite)
 ```
+
+---
+
+## Output Terminology
+
+### User-Facing Language
+
+| Internal Process         | User Output (Korean)   | User Output (English)    |
+|--------------------------|------------------------|--------------------------|
+| Segments: 3              | 3개 섹션 작성 완료     | 3 sections completed     |
+| Verification passed: 3/3 | 검토 통과              | verification passed      |
+| Revisions: 2             | 2회 수정               | 2 revisions              |
+| Style reference: doc.md  | 스타일: doc.md         | style: doc.md            |
+| Quality gate: passed     | (omit - implied)       | (omit - implied)         |
+
+### Footer Format
+
+**Base format**: `*[count]개 섹션 작성 완료 · 검토 통과*`
+
+**Conditional additions** (using `·` as separator):
+
+- With revisions: `*3개 섹션 작성 완료 · 검토 통과 (2회 수정)*`
+- With style ref: `*3개 섹션 작성 완료 · 검토 통과 · 스타일: doc.md*`
+- Combined: `*3개 섹션 작성 완료 · 검토 통과 (1회 수정) · 스타일: doc.md*`
+
+### Visual Elements
+
+| Element           | Format                                       |
+|-------------------|----------------------------------------------|
+| Section divider   | `───` (box-drawing character, NOT `---`)     |
+| Footer separator  | `·` (middle dot, NOT `/`)                    |
+| Footer style      | Italic (`*...*`)                             |
+
+### Output Integrity Principle
+
+**Presentation Layer** (Unicode/ASCII decorative elements allowed):
+- Footer separators (`───`)
+- Metadata tables
+- Progress/status indicators
+
+**Content Layer** (Unicode/ASCII decorative elements prohibited):
+- Generated text content itself
+- Results that users will directly use
+- Examples: brand names, document body, discussion conclusions
+
+**Exceptions**:
+- Original source already contains special characters
+- User explicitly requests emoji/special characters
+
+### Fallback Messages
+
+When process fails or structured output unavailable:
+
+- Korean: `일반 응답으로 대체되었습니다.`
+- English: `Falling back to standard response.`

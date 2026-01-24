@@ -32,117 +32,109 @@ User: 이 REST API 설계 문서를 보안전문가, 성능전문가, UX전문�
 ### Phase 1: Topic 1 - 인증 방식
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 TOPIC 1: 인증 방식
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### TOPIC 1: 인증 방식
 
-🎤 [긍정적 실무자]:
+**[Optimistic Practitioner]**:
 JWT + Refresh Token 방식을 제안합니다.
 - Stateless하여 서버 확장에 유리
 - 모바일/웹 클라이언트 모두 지원 용이
 - Access Token 15분, Refresh Token 7일로 설정 권장
 
-🎤 [부정적 실무자]:
+**[Critical Practitioner]**:
 JWT 방식의 리스크를 지적합니다.
 - Token 탈취 시 만료까지 무효화 불가
 - Payload 크기로 인한 네트워크 오버헤드
 - Refresh Token 저장 위치 보안 이슈
 
-🎤 [보안전문가]:
+**[Security Expert]**:
 Refresh Token Rotation은 적용 예정인가요?
 탈취 감지를 위한 추가 메커니즘이 필요해 보입니다.
 
-🎤 [긍정적 실무자]:
+**[Optimistic Practitioner]**:
 네, Refresh Token Rotation과 함께
 Device Fingerprint 검증을 추가할 수 있습니다.
 
-🎤 [성능전문가]:
+**[Performance Expert]**:
 JWT 검증 시 매 요청마다 signature 검증이 필요한데,
 Redis 캐싱으로 검증 결과를 저장하면 부하를 줄일 수 있습니다.
 
-🎤 [UX전문가]:
+**[UX Expert]**:
 사용자 관점에서 Silent Refresh가 잘 동작한다면
 세션 방식과 UX 차이가 없을 것 같습니다.
 
-🎤 [부정적 실무자]:
+**[Critical Practitioner]**:
 보안전문가의 우려가 타당합니다.
 Refresh Token Rotation + Device Fingerprint 조건으로
 JWT 방식에 동의할 수 있습니다.
 
-✅ CONCLUSION:
+**결론**:
 JWT + Refresh Token 방식 합의
 조건: Refresh Token Rotation, Device Fingerprint 검증 필수
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ### Phase 1: Topic 2 - 페이지네이션
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 TOPIC 2: 페이지네이션 전략
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### TOPIC 2: 페이지네이션 전략
 
-🎤 [긍정적 실무자]:
+**[Optimistic Practitioner]**:
 Cursor 기반 페이지네이션을 제안합니다.
 - 실시간 데이터 변경에 일관성 유지
 - 대용량 데이터에서 성능 우수 (O(1) vs O(n))
 
-🎤 [부정적 실무자]:
+**[Critical Practitioner]**:
 Cursor 방식의 단점도 있습니다.
 - 특정 페이지로 직접 이동 불가
 - 구현 복잡도 증가
 - 정렬 기준 변경 시 cursor 무효화
 
-🎤 [UX전문가]:
+**[UX Expert]**:
 관리자 페이지에서는 "5페이지로 이동" 기능이 필요한데,
 Cursor 방식으로는 어떻게 처리하나요?
 
-🎤 [긍정적 실무자]:
+**[Optimistic Practitioner]**:
 관리자용 API와 사용자용 API를 분리하여
 관리자는 Offset, 사용자는 Cursor를 사용할 수 있습니다.
 
-🎤 [성능전문가]:
+**[Performance Expert]**:
 하이브리드 방식은 유지보수 부담이 됩니다.
 사용자 API만이라도 Cursor로 통일하는 게 좋겠습니다.
 
-🎤 [부정적 실무자]:
+**[Critical Practitioner]**:
 사용자 API는 무한 스크롤이 대부분이므로 Cursor가 적합합니다.
 하이브리드 제안에 동의합니다.
 
-✅ CONCLUSION:
+**결론**:
 하이브리드 방식 합의
 - 사용자 API: Cursor 기반
 - 관리자 API: Offset 기반 (데이터량 제한적)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ### Phase 1: Topic 3 - 에러 처리 (보류)
 
 ```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📋 TOPIC 3: 에러 응답 형식
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+### TOPIC 3: 에러 응답 형식
 
-🎤 [긍정적 실무자]:
+**[Optimistic Practitioner]**:
 RFC 7807 (Problem Details) 표준을 제안합니다.
 상세한 에러 정보로 디버깅에 유리합니다.
 
-🎤 [보안전문가]:
+**[Security Expert]**:
 상세 에러 정보는 공격자에게 시스템 정보를 노출합니다.
 프로덕션에서는 최소 정보만 반환해야 합니다.
 
-🎤 [UX전문가]:
+**[UX Expert]**:
 하지만 사용자에게 "문제가 발생했습니다"만 보여주면
 무엇을 잘못했는지 알 수 없습니다.
 
-🎤 [보안전문가]:
+**[Security Expert]**:
 사용자 입력 오류와 시스템 오류를 구분해야 합니다.
 4xx는 상세히, 5xx는 최소화하는 방식이 필요합니다.
 
-🎤 [부정적 실무자]:
+**[Critical Practitioner]**:
 환경별로 다른 응답을 주는 것은 테스트/운영 불일치를 야기합니다.
 
-[모더레이터]
+**[Moderator]**:
 의견이 교착 상태입니다.
 에러 응답 정책에 대한 보안 가이드라인이 있는지 확인이 필요합니다.
 
@@ -150,8 +142,7 @@ RFC 7807 (Problem Details) 표준을 제안합니다.
 **필요 정보**: 회사 보안 정책에서 API 에러 응답 관련 가이드라인
 **재개 조건**: 정책 확인 후 재논의
 
-⏸️ CONCLUSION: 보류 - 보안 정책 확인 필요
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**결론**: 보류 - 보안 정책 확인 필요
 ```
 
 ### 최종 산출물
@@ -163,6 +154,9 @@ RFC 7807 (Problem Details) 표준을 제안합니다.
 | 인증 방식 | JWT + Refresh Token | Rotation + Fingerprint 조건부 합의 |
 | 페이지네이션 | 하이브리드 (User: Cursor, Admin: Offset) | 용도별 최적화 |
 | 에러 처리 | 보류 | 보안 정책 확인 필요 |
+
+───
+*3개 토픽 논의 완료 · 2개 합의, 1개 보류*
 
 ---
 

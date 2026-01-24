@@ -113,6 +113,24 @@ description: |
 
 ## Output Format
 
+### Output Integrity Principle
+
+**Presentation Layer** (Unicode/ASCII decorative elements allowed):
+- Footer separators (`───`)
+- Metadata tables
+- Progress/status indicators
+
+**Content Layer** (Unicode/ASCII decorative elements prohibited):
+- Generated text content itself
+- Results that users will directly use
+- Examples: brand names, document body, discussion conclusions
+
+**Exceptions**:
+- Original source already contains special characters
+- User explicitly requests emoji/special characters
+
+### Report Template
+
 See [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md)
 
 ```markdown

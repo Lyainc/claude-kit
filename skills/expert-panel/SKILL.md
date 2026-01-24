@@ -79,6 +79,47 @@ description: |
 - 논의 발전 없음 판단 시 강제 종료
 - 미해결 이슈 별도 기록
 
+## Output Format
+
+### Discussion Style
+
+Use clean, professional formatting without emoji:
+
+| Element | Format | Example |
+|---------|--------|---------|
+| Topic header | `### TOPIC N: {title}` | `### TOPIC 1: 인증 방식` |
+| Speaker | `**[Role]**:` | `**[Optimistic Practitioner]**:` |
+| Conclusion | `**결론**:` or `**결론**: 보류` | `**결론**: JWT + Refresh Token 방식 합의` |
+| Footer | `───` + metadata | `*3개 토픽 논의 완료 · 2개 합의, 1개 보류*` |
+
+### Output Integrity Principle
+
+**Presentation Layer** (Unicode/ASCII decorative elements allowed):
+- Footer separators (`───`)
+- Metadata tables
+- Progress/status indicators
+
+**Content Layer** (Unicode/ASCII decorative elements prohibited):
+- Generated text content itself
+- Results that users will directly use
+- Examples: brand names, document body, discussion conclusions
+
+**Exceptions**:
+- Original source already contains special characters
+- User explicitly requests emoji/special characters
+
+### Role Labels (English)
+
+| Korean | English |
+|--------|---------|
+| 긍정적 실무자 | Optimistic Practitioner |
+| 부정적 실무자 | Critical Practitioner |
+| 모더레이터 | Moderator |
+| 보안전문가 | Security Expert |
+| 성능전문가 | Performance Expert |
+| UX전문가 | UX Expert |
+| (기타 도메인) | {Domain} Expert |
+
 ## References
 
 - **Detailed procedures**: See [reference.md](reference.md)

@@ -175,10 +175,11 @@ Nice-to-have:
 | 3 | Circuit breaker 설계 | High | 1차 서비스 분리 전 |
 | 4 | Saga 패턴 PoC | Medium | 데이터 관련 서비스 분리 전 |
 
----
+───
+*10개 질문 · 4개 영역 완료 · 6개 Unknown Unknowns 발견*
 
 <details>
-<summary>Interview Metadata</summary>
+<summary>상세 메타데이터</summary>
 
 - 질문 수: 10
 - 완료 영역: Assumptions, Edge Cases, Dependencies, Blindspots

@@ -44,7 +44,7 @@ Transform abstract concepts into concrete, well-structured documentation through
 4. Estimate output length → if < 800 chars, switch to standard writing
 5. If reference document exists, analyze and record its style
 
-**Mandatory State Tracking**:
+**Mandatory State Tracking** *(Internal Only - not shown to users)*:
 ```json
 {
   "segments": [
@@ -140,16 +140,33 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 ```
 [Completed Document]
 
----
-<details>
-<summary>Writing Process</summary>
-
-- Segments: N sections
-- Verification passed: N/N
-- Revisions: (if any)
-- Style reference: (if any)
-</details>
+───
+*N개 섹션 작성 완료 · 검토 통과*
 ```
+
+**Conditional Footer Variants**:
+
+- With style reference: `*N개 섹션 작성 완료 · 검토 통과 · 스타일: [reference]*`
+- With revisions: `*N개 섹션 작성 완료 · 검토 통과 (N회 수정)*`
+
+**Fallback Output** (if process fails):
+
+- Korean: `일반 응답으로 대체되었습니다.`
+- English: `Falling back to standard response.`
+
+## Model Capabilities
+
+### Extended Thinking (Opus)
+
+- 구조화 데이터 처리를 thinking 단계에서 수행
+- 출력에는 변환된 자연어만 포함
+- 확률 calibration 더 정확
+
+### Standard Mode (Sonnet)
+
+- 명시적 지시로 구조화 데이터 은닉
+- "NEVER output XML/JSON to user" 강조
+- 파싱 실패 시 즉시 fallback
 
 ## Expression Quality Enhancement
 
@@ -180,5 +197,9 @@ User: "Document our service's core values.
 → Phase 4: Completeness Check - Review for logical gaps and missing content
 → Phase 5: Basic Polish - Fix grammar and maintain reference style
 → Output: Structured core values document (~1,500 chars)
+
+───
+*3개 섹션 작성 완료 · 검토 통과*
+
 → Optional: Run doc-polish for expression quality refinement
 ```
