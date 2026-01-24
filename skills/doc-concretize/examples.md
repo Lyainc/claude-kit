@@ -157,17 +157,10 @@ Within the team, we share all meeting notes, decision backgrounds, and failure c
 To customers, we publish our product roadmap, incident reports, and pricing change rationale.
 Short-term discomfort is possible, but this builds trust fastest over time.
 
----
-<details>
-<summary>Writing Process</summary>
+───
+*3개 섹션 작성 완료 · 검토 통과*
 
-- Segments: 3 sections
-- Verification passed: 3/3
-- Completeness verified: Yes
-- Style reference: None
-
-**Tip**: Run `doc-polish` for expression quality refinement (sentence flow, tone adjustment, clarity optimization)
-</details>
+> **Tip**: 표현 품질 개선이 필요하면 `doc-polish` 실행 (문장 흐름, 톤 조정, 명확성 최적화)
 ```
 
 ---
@@ -228,9 +221,12 @@ Team collaboration has rules too.
 Work alone if you can do it alone.
 Ask immediately when you need help. No hesitation.
 Deliver feedback directly. No talking behind backs.
+
+───
+*1개 섹션 작성 완료 · 검토 통과 · 스타일: User document*
 ```
 
----
+───
 
 ## Example 3: Critical Issue Handling
 

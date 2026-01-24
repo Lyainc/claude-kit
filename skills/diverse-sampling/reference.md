@@ -275,11 +275,13 @@ Convert probability to 10-char Unicode bar using `█` (filled) and `░` (empty
 
 | Rank | Display |
 |------|---------|
-| 1st | 🥇 |
-| 2nd | 🥈 |
-| 3rd | 🥉 |
+| 1st | 1 |
+| 2nd | 2 |
+| 3rd | 3 |
 | 4th | 4 |
 | 5th | 5 |
+
+*Note: Use simple numbers for professional appearance. Unicode progress bar provides visual distinction.*
 
 ### Fallback Messages
 

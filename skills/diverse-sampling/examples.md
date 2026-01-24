@@ -38,17 +38,13 @@ Phase 2:
 
 **Output**:
 ```
-"브루잉 포레스트 (Brewing Forest)" - 커피가 숲처럼 천천히 우러나는 공간이라는 의미를 담았습니다.
+**브루잉 포레스트 (Brewing Forest)**
+
+커피가 숲처럼 천천히 우러나는 공간이라는 의미를 담았습니다.
 자연 친화적이면서도 커피 문화를 강조하는 이름입니다.
 
----
-<details>
-<summary>Generation Info</summary>
-
-- Method: Verbalized Sampling (weighted random)
-- Candidates: 5 responses generated
-- Language: Korean
-</details>
+───
+*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
 ```
 
 ---
@@ -78,19 +74,13 @@ Phase 2:
 
 **Output**:
 ```
-"Your body keeps score. Make it count."
+**"Your body keeps score. Make it count."**
 
 A tagline that acknowledges the connection between physical activity and mental well-being,
 while motivating users to track their progress meaningfully.
 
----
-<details>
-<summary>Generation Info</summary>
-
-- Method: Verbalized Sampling (weighted random)
-- Candidates: 5 responses generated
-- Language: English
-</details>
+───
+*Diversity-based selection from 5 alternatives · Show all: `--all`*
 ```
 
 ---
@@ -121,16 +111,12 @@ Options:
 
 **Output**:
 ```
-"작은 시작, 큰 파장" - 스타트업의 초기 단계지만 시장에 미칠 영향력을 강조합니다.
+**"작은 시작, 큰 파장"**
 
----
-<details>
-<summary>Generation Info</summary>
+스타트업의 초기 단계지만 시장에 미칠 영향력을 강조합니다.
 
-- Method: Verbalized Sampling (weighted random)
-- Candidates: 5 responses generated
-- Language: Korean
-</details>
+───
+*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
 ```
 
 ---
@@ -175,24 +161,18 @@ Options:
 
 **Output**:
 ```
-## Generated Alternatives
+## 생성된 대안들
 
-| # | Probability | Response |
-|---|-------------|----------|
-| 1 | 0.09 | 커피가 왜 경찰에 신고당했을까요? 자꾸 필터를 거쳤거든요. |
-| 2 | 0.07 | 에스프레소가 친구한테 뭐라고 했을까요? "너 왜 그렇게 묽어?" |
-| 3 | 0.06 | 커피콩의 좌우명은? "갈려야 빛난다!" |
-| 4 | 0.05 | 디카페인 커피가 우울한 이유는? 존재의 이유를 잃어버려서요. |
-| 5 | 0.04 | 라떼가 심리상담사가 된 이유는? 항상 거품만 빠지니까요. |
+| 순위 | 선호도 | 아이디어 |
+|:---:|:------:|----------|
+| 1 | ████████░░ | 커피가 왜 경찰에 신고당했을까요? 자꾸 필터를 거쳤거든요. |
+| 2 | ██████░░░░ | 에스프레소가 친구한테 뭐라고 했을까요? "너 왜 그렇게 묽어?" |
+| 3 | █████░░░░░ | 커피콩의 좌우명은? "갈려야 빛난다!" |
+| 4 | ████░░░░░░ | 디카페인 커피가 우울한 이유는? 존재의 이유를 잃어버려서요. |
+| 5 | ███░░░░░░░ | 라떼가 심리상담사가 된 이유는? 항상 거품만 빠지니까요. |
 
----
-<details>
-<summary>Generation Info</summary>
-
-- Method: Verbalized Sampling (show all)
-- Total candidates: 5
-- Language: Korean
-</details>
+───
+*다양성 기법으로 5개 대안 생성*
 ```
 
 ---
@@ -208,17 +188,13 @@ Options:
 
 **Output**:
 ```
-"Inkwell" - A classic writing reference that evokes craftsmanship and creativity,
+**Inkwell** ★
+
+A classic writing reference that evokes craftsmanship and creativity,
 while remaining modern and memorable.
 
----
-<details>
-<summary>Generation Info</summary>
-
-- Method: Verbalized Sampling (highest probability)
-- Selected probability: 0.09
-- Language: English
-</details>
+───
+*Most preferred from 5 alternatives*
 ```
 
 ---
@@ -253,8 +229,8 @@ Fallback triggered:
 3. **네거티브 스페이스**: 빈 공간을 활용해 숨겨진 의미 표현
 4. **아이소메트릭 스타일**: 3D 느낌의 평면 디자인
 
----
-⚠️ Note: Verbalized Sampling parsing failed. Standard response provided.
+───
+*일반 응답으로 대체되었습니다.*
 ```
 
 ---
@@ -270,17 +246,10 @@ Fallback triggered:
 
 **Output**:
 ```
-"매일 밤 11시 47분, 그 아이는 창문 밖에서 손을 흔들었다.
-우리 집은 23층인데."
+**"매일 밤 11시 47분, 그 아이는 창문 밖에서 손을 흔들었다. 우리 집은 23층인데."**
 
----
-<details>
-<summary>Generation Info</summary>
-
-- Method: Verbalized Sampling (weighted random)
-- Candidates: 5 responses generated
-- Language: Korean
-</details>
+───
+*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
 ```
 
 ---
@@ -294,24 +263,18 @@ Fallback triggered:
 
 **Output**:
 ```
-## Generated Alternatives
+## 생성된 대안들
 
-| # | Probability | Response |
-|---|-------------|----------|
-| 1 | 0.08 | "가상 출퇴근" - 집 주변을 걷는 동안 출근/퇴근 모드로 전환되는 기능. 물리적 경계를 만들어 워라밸 향상. |
-| 2 | 0.07 | "침묵의 동료" - AI가 가끔 슬랙에 "커피 마실 사람?" 같은 메시지를 보내 고립감 해소. |
-| 3 | 0.06 | "창문 동기화" - 전 세계 재택근무자들의 창문 뷰를 실시간으로 공유하는 소셜 기능. |
-| 4 | 0.05 | "업무 환경 소음" - 사무실 백색소음(키보드, 커피머신, 대화)을 재현해 집중력 향상. |
-| 5 | 0.04 | "점심시간 매칭" - 같은 시간에 점심 먹는 재택근무자끼리 화상 식사 연결. |
+| 순위 | 선호도 | 아이디어 |
+|:---:|:------:|----------|
+| 1 | ████████░░ | "가상 출퇴근" - 집 주변을 걷는 동안 출근/퇴근 모드로 전환되는 기능. 물리적 경계를 만들어 워라밸 향상. |
+| 2 | ███████░░░ | "침묵의 동료" - AI가 가끔 슬랙에 "커피 마실 사람?" 같은 메시지를 보내 고립감 해소. |
+| 3 | ██████░░░░ | "창문 동기화" - 전 세계 재택근무자들의 창문 뷰를 실시간으로 공유하는 소셜 기능. |
+| 4 | █████░░░░░ | "업무 환경 소음" - 사무실 백색소음(키보드, 커피머신, 대화)을 재현해 집중력 향상. |
+| 5 | ████░░░░░░ | "점심시간 매칭" - 같은 시간에 점심 먹는 재택근무자끼리 화상 식사 연결. |
 
----
-<details>
-<summary>Generation Info</summary>
-
-- Method: Verbalized Sampling (show all)
-- Total candidates: 5
-- Language: Korean
-</details>
+───
+*다양성 기법으로 5개 대안 생성*
 ```
 
 ---
@@ -325,19 +288,13 @@ Fallback triggered:
 
 **Output**:
 ```
-"Every sip is a vote for the planet."
+**"Every sip is a vote for the planet."**
 
 A headline that transforms the simple act of drinking water into environmental activism,
 creating emotional resonance with eco-conscious consumers.
 
----
-<details>
-<summary>Generation Info</summary>
-
-- Method: Verbalized Sampling (weighted random)
-- Candidates: 5 responses generated
-- Language: English
-</details>
+───
+*Diversity-based selection from 5 alternatives · Show all: `--all`*
 ```
 
 ---
