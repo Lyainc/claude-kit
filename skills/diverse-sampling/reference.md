@@ -242,6 +242,24 @@ Algorithm:
 
 ---
 
+## Output Integrity Principle
+
+**Presentation Layer** (Unicode/ASCII decorative elements allowed):
+- Footer separators (`───`)
+- Metadata tables
+- Progress/status indicators
+
+**Content Layer** (Unicode/ASCII decorative elements prohibited):
+- Generated text content itself
+- Results that users will directly use
+- Examples: brand names, document body, discussion conclusions
+
+**Exceptions**:
+- Original source already contains special characters
+- User explicitly requests emoji/special characters
+
+---
+
 ## Output Terminology
 
 ### User-Friendly Conversion Table
@@ -254,22 +272,28 @@ Algorithm:
 | show all | 전체 보기 | show all |
 | Candidates: 5 | 5개 대안 중 | from 5 alternatives |
 
-### Progress Bar Rendering
+### Percentage Display
 
-Convert probability to 10-char Unicode bar using `█` (filled) and `░` (empty):
+Convert probability to percentage using normalization:
 
-| Probability | Display | Visual |
-|-------------|---------|--------|
-| Highest (normalized to ~80%) | `████████░░` | 8 filled, 2 empty |
-| ~60% relative | `██████░░░░` | 6 filled, 4 empty |
-| ~50% relative | `█████░░░░░` | 5 filled, 5 empty |
-| ~40% relative | `████░░░░░░` | 4 filled, 6 empty |
-| ~30% relative | `███░░░░░░░` | 3 filled, 7 empty |
+| Probability | Display |
+|-------------|---------|
+| Highest (max) | 78% |
+| ~90% of max | 68% |
+| ~80% of max | 58% |
+| ~70% of max | 48% |
+| ~60% of max | 38% |
 
 **Normalization Logic**:
 1. Find max probability among 5 responses
-2. Scale max to ~80% (8 filled blocks)
-3. Scale others proportionally
+2. Scale max to ~78% (reference percentage)
+3. Scale others proportionally: `(prob / max_prob) × 78%`
+4. Round to nearest integer
+
+**Example Calculation**:
+- Probabilities: [0.08, 0.07, 0.06, 0.05, 0.04]
+- Max: 0.08
+- Scaled: [78%, 68%, 58%, 48%, 38%]
 
 ### Rank Display
 
@@ -281,7 +305,7 @@ Convert probability to 10-char Unicode bar using `█` (filled) and `░` (empty
 | 4th | 4 |
 | 5th | 5 |
 
-*Note: Use simple numbers for professional appearance. Unicode progress bar provides visual distinction.*
+*Note: Use simple numbers for professional appearance. Percentage provides clear quantitative distinction.*
 
 ### Fallback Messages
 
