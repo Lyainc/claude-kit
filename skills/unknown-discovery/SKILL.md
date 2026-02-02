@@ -58,7 +58,7 @@ description: |
 
 1. 영역당: 기본 질문 1 → 후속 질문 1 → Why chain 1 (총 3Q)
 2. Checkpoint: 매 영역 완료 시 진행 상황 요약 + STATE 블록 출력
-3. 불확실성 신호 감지 시 해당 영역 1Q 추가 (상세: [reference.md](reference.md) §2)
+3. 불확실성 신호 감지 시 해당 영역 1Q 추가 (상세: [reference.md](reference.md) §3)
 4. Core 4 완료 후: Extended 영역 진입 여부를 사용자에게 확인
 
 **Extended Areas** (사용자 선택 시):
