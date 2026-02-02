@@ -36,62 +36,50 @@ description: |
 ## Core Workflow
 
 ### Phase 0: Context Analysis
+<!-- Active during Phase 0 only -->
 
 1. 대상 분석 (프로젝트/문서/아이디어)
-2. 도메인 추론 → AskUserQuestion으로 확인
-3. 질문 영역 프리셋 선택 (Tech/Biz/Creative/Custom)
-4. 인터뷰 계획 수립
-
-**Domain Presets**:
-
-| Preset | Focus Areas | Specialized Questions |
-|--------|-------------|----------------------|
-| **Tech** | Edge Cases, Dependencies | Performance, scalability, security |
-| **Biz** | Stakeholders, Trade-offs | ROI, market, competition, legal |
-| **Creative** | Assumptions, Counterfactual | Originality, acceptance, trends |
-| **Custom** | User-defined | User-specified areas |
+2. 도메인 확인 (Tech/Biz/Creative/Custom) → AskUserQuestion으로 사용자 확인
+3. 인터뷰 계획 수립
 
 ### Phase 1: Iterative Interview Loop
+<!-- Active during Phase 1 only -->
 
-**Core 4 Areas** (Required):
+**순회 순서** (고정):
 
-| Area | Purpose | Question Pattern |
-|------|---------|-----------------|
-| **Assumptions** | Uncover implicit premises | "What assumptions must be true for this to work?" |
-| **Trade-offs** | Explore sacrificed values | "What are you giving up with this choice?" |
-| **Edge Cases** | Explore extreme scenarios | "What happens at 10x scale?" |
-| **Blindspots** | Meta-cognition | "What important question haven't I asked?" |
-
-**Extended 4 Areas** (Optional):
-
-| Area | Question Pattern |
-|------|-----------------|
-| **Feasibility** | "What's the biggest technical/resource barrier?" |
-| **Stakeholders** | "Who might oppose this decision?" |
-| **Counterfactual** | "What completely different approach could work?" |
-| **Dependencies** | "If this fails, what else breaks?" |
+| # | Area | 기본 질문 패턴 | 질문 수 |
+|---|------|---------------|---------|
+| 1 | Assumptions | "이것이 성립하려면 어떤 전제가 필요한가요?" | 2-3 |
+| 2 | Trade-offs | "이 선택으로 포기하게 되는 것은?" | 2-3 |
+| 3 | Edge Cases | "10배 규모/최악의 시나리오에서 어떻게 되나요?" | 2-3 |
+| 4 | Blindspots | "아직 질문하지 않은 것 중 중요한 것은?" | 2-3 |
 
 **Interview Rules**:
 
-1. **Why Chain**: After each answer, ask "Why do you think so?" (1x mandatory)
-2. **Adaptive Selection**: On uncertainty signals (hedging, avoidance), dive deeper
-3. **Checkpoint**: After completing each Core area OR every 4-5 questions, summarize and confirm
-4. **Progress Display**: Show `[Area 2/4 | Q5]` format
+1. 영역당: 기본 질문 1 → 후속 질문 1 → Why chain 1 (총 3Q)
+2. Checkpoint: 매 영역 완료 시 진행 상황 요약 + STATE 블록 출력
+3. 불확실성 신호 감지 시 해당 영역 1Q 추가 (상세: [reference.md](reference.md) §2)
+4. Core 4 완료 후: Extended 영역 진입 여부를 사용자에게 확인
+
+**Extended Areas** (사용자 선택 시):
+- Feasibility | Stakeholders | Counterfactual | Dependencies
 
 ### Phase 2: Synthesis
+<!-- Active during Phase 2 only -->
 
-1. Organize discovered Unknown Unknowns
-2. Tag priorities using decision tree:
-   - **Critical**: Would this cause project failure if unaddressed?
-   - **Important**: Would this significantly impact timeline/quality/cost?
-   - **Nice-to-have**: Is this an optimization or enhancement?
-3. Extract key insights
+1. 발견된 Unknown Unknowns 정리
+2. 우선순위 태깅 (Critical / Important / Nice-to-have):
+   - **Critical**: 프로젝트 실패 가능성이 있는가?
+   - **Important**: 타임라인/품질/비용에 영향을 주는가?
+   - **Nice-to-have**: 최적화/개선 기회인가?
+3. 핵심 인사이트 추출
 
 ### Phase 3: Documentation
+<!-- Active during Phase 3 only -->
 
-1. Generate Discovery Report
-2. Derive recommended action items
-3. Record interview metadata
+1. Discovery Report 생성 (템플릿: [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md))
+2. 권장 액션 아이템 도출
+3. 인터뷰 메타데이터 기록
 
 ## Termination Conditions
 
@@ -103,6 +91,24 @@ description: |
 | **Gap Check** | End of Phase 1 | "Anything important we haven't covered?" |
 
 **Soft Landing**: Summary → Confirm → Close (3-step)
+
+## State Management
+
+매 Checkpoint마다 STATE 블록을 출력하여 진행 상태를 기록한다.
+Compaction 발생 시 가장 최근 STATE 블록에서 상태를 복원한다.
+
+```
+<!-- STATE:CHECKPOINT -->
+Target: {name} | Domain: {domain} | Phase: {phase}
+Progress: [assumptions:{status}] [trade-offs:{status}] [edge-cases:{status}] [blindspots:{status}]
+Q: {count} | CP: {count}
+
+Discoveries:
+1. [{C|I|N}] {finding} — {description}
+<!-- /STATE -->
+```
+
+상세 형식: [templates/INTERVIEW_STATE.md](templates/INTERVIEW_STATE.md)
 
 ## Tool Usage
 
@@ -123,7 +129,6 @@ description: |
 **Content Layer** (Unicode/ASCII decorative elements prohibited):
 - Generated text content itself
 - Results that users will directly use
-- Examples: brand names, document body, discussion conclusions
 
 **Exceptions**:
 - Original source already contains special characters
@@ -133,63 +138,23 @@ description: |
 
 See [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md)
 
-```markdown
-# Unknown Unknowns Discovery Report
-
-**Target**: [Analysis Target]
-**Date**: YYYY-MM-DD
-**Domain**: [Tech/Biz/Creative]
-
-## 1. Discovered Unknown Unknowns
-
-### Critical
-- [ ] [Finding 1]: [Description] → **Action**: [Recommended action]
-
-### Important
-- [ ] [Finding 2]: [Description] → **Action**: [Recommended action]
-
-### Nice-to-have
-- [ ] [Finding 3]: [Description]
-
-## 2. Key Insights
-
-1. [Insight 1]
-2. [Insight 2]
-
-## 3. Recommended Follow-ups
-
-| # | Action | Priority | Owner |
-|---|--------|----------|-------|
-| 1 | | | |
-```
-
 ## References
 
-- **Design document**: See [/docs/UNKNOWN_DISCOVERY_DESIGN.md](/docs/UNKNOWN_DISCOVERY_DESIGN.md)
-- **Detailed procedures**: See [reference.md](reference.md)
-- **Examples**: See [examples.md](examples.md)
-- **Output templates**: See `templates/` folder
+- **판단 기준 가이드**: See [reference.md](reference.md)
+- **워크플로우 예시**: See [examples.md](examples.md)
+- **출력 템플릿**: See `templates/` folder
 
 ## Quick Start
 
 ```text
 User: "새로운 결제 시스템 도입을 검토해줘. 놓친 게 있는지 봐줘."
 
-→ Phase 0: Domain 확인 (Tech? Biz?) → "Biz" 선택
-→ Phase 1: Iterative Interview
-   Q1: "이 결제 시스템이 성공하려면 어떤 전제가 필요한가요?" (Assumptions)
-   Q2: "왜 그 전제가 맞다고 생각하시나요?" (Why chain)
-   Q3: "이 선택으로 포기하게 되는 것은?" (Trade-offs)
-   ...
-   [Checkpoint at Q4]: "지금까지 가정과 트레이드오프를 다뤘습니다. 계속할까요?"
-   ...
-→ Phase 2: 발견된 6개 blind spots 정리, 우선순위 태깅
+→ Phase 0: Domain 확인 → "Biz" 선택
+→ Phase 1: Assumptions → Trade-offs → Edge Cases → Blindspots (각 2-3Q)
+→ Phase 2: 발견된 blind spots 정리, 우선순위 태깅
 → Phase 3: Discovery Report 생성
 
-Output:
-- Critical: 기존 고객 이탈 리스크 미고려
-- Important: 법적 규제 확인 필요
-- Nice-to-have: 경쟁사 대응 전략
+Output: Critical/Important/Nice-to-have 분류된 발견 보고서
 ```
 
 ## Privacy Note
