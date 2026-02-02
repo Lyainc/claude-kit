@@ -11,7 +11,16 @@
 | **의사결정** | 선택지, 기준, 영향 범위 | 평가 기준의 완전성, 이해관계자 |
 | **아이디어** | 핵심 컨셉, 차별점 | 실현 가능성, 수용성 |
 
-## 2. 불확실성 신호 감지
+## 2. Domain Presets
+
+| Preset | Focus Areas | Specialized Questions |
+|--------|-------------|----------------------|
+| **Tech** | Edge Cases, Dependencies | Performance, scalability, security |
+| **Biz** | Stakeholders, Trade-offs | ROI, market, competition, legal |
+| **Creative** | Assumptions, Counterfactual | Originality, acceptance, trends |
+| **Custom** | User-defined | User-specified areas |
+
+## 3. 불확실성 신호 감지
 
 | 신호 | 감지 기준 | 대응 |
 |------|----------|------|
@@ -22,7 +31,7 @@
 
 **포화 판정**: 3개 연속 신호 → 해당 영역 종료 확인 후 전환.
 
-## 3. 우선순위 분류 기준
+## 4. 우선순위 분류 기준
 
 | 우선순위 | 기준 | 예시 |
 |---------|------|------|
@@ -30,7 +39,7 @@
 | **Important** | 품질/성과에 영향, 계획 수정 필요 | 누락된 이해관계자, 리소스 부족 |
 | **Nice-to-have** | 개선 기회, 선택적 대응 | 추가 기능 아이디어, 최적화 포인트 |
 
-## 4. Checklist
+## 5. Checklist
 
 ### Phase 0
 - [ ] 분석 대상 명확히 정의
