@@ -12,6 +12,12 @@ description: |
 
 Initialize a consistent development workflow with tool selection, commit discipline, and optional team coordination.
 
+## Prerequisites
+
+- **oh-my-claudecode** plugin: Required for /team, /ralph, and build-fixer. If not installed, the skill works in Solo Mode only (these options will not appear in tool selection).
+- **serena**: Optional. Requires LSP MCP server to be running.
+- **chrome-devtools**: Optional. Requires Chrome DevTools MCP server.
+
 ## Step 1: Tool Selection
 
 Present tool selection using AskUserQuestion (multiSelect: true):
@@ -42,7 +48,7 @@ Determine the working mode based on tool selection:
 Apply these rules throughout the entire development session:
 
 ### Atomic Commits
-- One logical change = one commit. Follow `git-master` style conventions.
+- One logical change = one commit. Follow Conventional Commits style (see [git-master guide](references/tool-guide.md#git-master-atomic-commit-style)).
 - Write a clear, imperative commit message describing the "why".
 - Stage only related files per commit. Never bundle unrelated changes.
 
@@ -76,9 +82,9 @@ Invoke selected tools after setup:
 
 **Important**: Only invoke /team OR /ralph, not both. If both are selected, ask the user to choose one.
 
-## Step 5: Context Recording
+## Step 5: Context Recording (Optional)
 
-Record the session setup using the notepad MCP tool:
+If the `notepad_write_working` MCP tool is available, record the session setup. If unavailable, skip this step silently.
 
 ```
 Tool: notepad_write_working
