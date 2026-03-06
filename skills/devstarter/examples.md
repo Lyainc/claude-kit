@@ -165,6 +165,12 @@ User: "/devstarter"
   4. 승인 시 커밋
 ```
 
+### Step 5: Context Recording
+
+```
+notepad_write_working: "[2026-03-06] devstarter: Team Mode (/ralph) | serena, /ralph"
+```
+
 ### Step 6: Confirmation
 
 ```

@@ -66,7 +66,7 @@ Discover user's Unknown Unknowns (things they don't know they don't know) throug
 
 1. Per area: base question 1 → follow-up 1 → Why chain 1 (total 3Q)
 2. Checkpoint: output progress summary + STATE block after each area completion
-3. On uncertainty signal detection, add 1Q to that area (details: [reference.md](reference.md) S3)
+3. On uncertainty signal detection, add 1Q to that area (details: [reference.md](reference.md) §3)
 4. After Core 4 complete: confirm with user whether to enter Extended areas
 
 **Extended Areas** (user-selected):
