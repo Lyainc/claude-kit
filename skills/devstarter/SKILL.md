@@ -2,13 +2,26 @@
 name: devstarter
 
 description: |
-  This skill should be used when the user asks to "개발 시작", "dev start",
-  "작업 시작", "팀 작업 시작", "start development", or invokes "/devstarter".
-  Initializes consistent development workflow with tool selection,
+  Initialize consistent development workflow with tool selection,
   atomic commits, testing, and optional team coordination.
+
+  Use when starting a new development session that needs structured workflow setup.
+
+  Trigger when user mentions: 개발 시작, dev start, 작업 시작, 팀 작업 시작, start development,
+  or invokes: "/devstarter".
+
+  Skip for: simple questions, non-development tasks, or when already mid-session.
 ---
 
 # Development Starter
+
+## Language Behavior
+
+- **Instructions**: English (optimized for LLM parsing)
+- **Output**: Korean by default
+  - Tool selection prompts → Korean (user-facing)
+  - Commit messages → English (code convention)
+  - Status confirmations → match user's language
 
 Initialize a consistent development workflow with tool selection, commit discipline, and optional team coordination.
 
@@ -99,6 +112,33 @@ After setup is complete:
 1. Confirm the selected tools, mode, and rules to the user.
 2. If a skill was chained (Step 4), follow that skill's workflow.
 3. If Solo Mode with no chained skill, ask the user for the first task.
+
+## Output Format
+
+### Setup Confirmation
+
+After completing Steps 1-6, display a confirmation summary:
+
+| Item | Value |
+|------|-------|
+| Mode | Solo / Team |
+| Tools | {selected tools} |
+| Rules | Atomic commits, Test-on-commit{, Live verification} |
+| Branch | {current branch or worktree info} |
+
+### Output Integrity Principle
+
+**Presentation Layer** (Unicode/ASCII decorative elements allowed):
+- Setup confirmation table
+- Status indicators
+
+**Content Layer** (Unicode/ASCII decorative elements prohibited):
+- Commit messages
+- Code output
+- Task descriptions
+
+**Exceptions**:
+- User explicitly requests emoji
 
 ## References
 
