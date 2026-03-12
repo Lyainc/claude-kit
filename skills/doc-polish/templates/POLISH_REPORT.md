@@ -110,6 +110,28 @@ No medium-priority issues found.
 No low-priority suggestions.
 {{/IF}}
 
+### AI Trope Density
+
+| Metric | Value |
+|--------|-------|
+| Raw Trope Count | {{TROPE_COUNT}} |
+| Weighted Density | {{TROPE_DENSITY}}/1000 words |
+| Assessment | {{DENSITY_ASSESSMENT}} |
+
+{{#IF HOTSPOTS}}
+#### Clustering Hotspots
+
+| Lines | Tropes | Categories |
+|-------|--------|------------|
+{{#EACH HOTSPOTS}}
+| {{LINE_RANGE}} | {{TROPE_NAMES}} | {{CATEGORIES}} |
+{{/EACH}}
+{{/IF}}
+
+{{#IF NO_HOTSPOTS}}
+No clustering hotspots detected.
+{{/IF}}
+
 ### Term Consistency
 
 {{#IF TERM_ISSUES}}
