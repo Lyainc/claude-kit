@@ -46,28 +46,50 @@ Discover user's Unknown Unknowns (things they don't know they don't know) throug
 ### Phase 0: Context Analysis
 <!-- Active during Phase 0 only -->
 
-1. Analyze target (project/document/idea)
-2. Confirm domain (Tech/Biz/Creative/Custom) → verify with user via AskUserQuestion
-3. Establish interview plan
+1. 대상 분석 (프로젝트/문서/아이디어)
+2. 도메인 확인 (Tech/Biz/Creative/Custom) → AskUserQuestion으로 사용자 확인
+3. 성숙도 감지 (Idea/Plan/Execution) → AskUserQuestion으로 확인 (상세: [reference.md](reference.md) §9)
+4. 성숙도에 따라 Exploration Depth 가중치 조정
+5. 인터뷰 계획 수립
 
 ### Phase 1: Iterative Interview Loop
 <!-- Active during Phase 1 only -->
 
-**Traversal Order** (fixed):
+**Dynamic Area Targeting**: 매 라운드 Exploration Depth가 가장 낮은 영역을 자동 타겟팅한다 (상세: [reference.md](reference.md) §7).
 
-| # | Area | Base Question Pattern | Question Count |
-|---|------|-----------------------|----------------|
-| 1 | Assumptions | "What prerequisites must hold for this to succeed?" | 2-3 |
-| 2 | Trade-offs | "What are you giving up with this choice?" | 2-3 |
-| 3 | Edge Cases | "What happens at 10x scale or worst-case scenario?" | 2-3 |
-| 4 | Blindspots | "What important thing haven't we asked about yet?" | 2-3 |
+- 첫 라운드: 항상 Assumptions (모든 발견의 기초)
+- 이후: 점수 기반 최저 영역 타겟
+- 동점 시: Assumptions > Trade-offs > Edge Cases > Blindspots
+
+**Core Areas** (질문 패턴):
+
+| Area | 기본 질문 패턴 | 질문 수 |
+|------|---------------|---------|
+| Assumptions | "이것이 성립하려면 어떤 전제가 필요한가요?" | 2-3 |
+| Trade-offs | "이 선택으로 포기하게 되는 것은?" | 2-3 |
+| Edge Cases | "10배 규모/최악의 시나리오에서 어떻게 되나요?" | 2-3 |
+| Blindspots | "아직 질문하지 않은 것 중 중요한 것은?" | 2-3 |
 
 **Interview Rules**:
 
-1. Per area: base question 1 → follow-up 1 → Why chain 1 (total 3Q)
-2. Checkpoint: output progress summary + STATE block after each area completion
-3. On uncertainty signal detection, add 1Q to that area (details: [reference.md](reference.md) §3)
-4. After Core 4 complete: confirm with user whether to enter Extended areas
+1. 영역당: 기본 질문 1 → 후속 질문 1 → Why chain 1 (총 3Q)
+2. Checkpoint: 매 영역 완료 시 진행 상황 요약 + STATE 블록 출력 (Exploration Depth 포함)
+3. 불확실성 신호 감지 시 해당 영역 점수 10% 차감 + 1Q 추가 (상세: [reference.md](reference.md) §3, §6)
+4. Core 4의 Depth ≥ 65% 도달 시: Extended 영역 진입 여부를 사용자에게 확인
+
+**Exploration Depth Scoring**: 매 체크포인트마다 4개 영역의 탐색 깊이를 0-100%로 평가하고 가중 평균을 표시한다 (상세: [reference.md](reference.md) §6).
+
+```
+Round N | [Edge Cases:35%] ← 최저 영역 타겟팅 | Depth: 52%
+```
+
+**Challenge Modes**: 인터뷰 중 특정 시점에 관점 전환 질문을 삽입한다 (각 1회, 1-2Q). 상세: [reference.md](reference.md) §8.
+
+| Mode | 진입 조건 | 목적 |
+|------|----------|------|
+| Inverter | 라운드 3+ | 핵심 가정 뒤집기 |
+| Outsider | 라운드 5+ | 외부자 시각 확보 |
+| Pre-mortem | 라운드 7+ / Depth 60%+ | 미래 실패 역추적 |
 
 **Extended Areas** (user-selected):
 - Feasibility | Stakeholders | Counterfactual | Dependencies
@@ -82,34 +104,55 @@ Discover user's Unknown Unknowns (things they don't know they don't know) throug
    - **Nice-to-have**: Is this an optimization/improvement opportunity?
 3. Extract key insights
 
-### Phase 3: Documentation
+### Phase 3: Documentation & Bridge
 <!-- Active during Phase 3 only -->
 
-1. Generate Discovery Report (template: [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md))
-2. Derive recommended action items
-3. Record interview metadata
+1. Discovery Report 생성 (템플릿: [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md))
+2. Exploration Depth 요약 포함
+3. 권장 액션 아이템 도출
+4. 인터뷰 메타데이터 기록
+5. **Post-Discovery Options** 제시 (AskUserQuestion):
+   - **Expert Panel**: Critical 발견에 대해 다관점 전문가 토론 (`/expert-panel` 연계)
+   - **Action Plan**: 발견 기반 구체적 실행 계획 작성
+   - **Deep Dive**: 특정 Critical 항목에 대해 새 인터뷰 세션 시작
+   - **Export**: 보고서를 파일로 저장
 
 ## Termination Conditions
 
 | Condition | Detection | Action |
 |-----------|-----------|--------|
-| **Explicit Done** | "done", "stop", "enough", "완료", "충분해", "끝", "그만" | Proceed to Phase 2 |
-| **Saturation** | 3 consecutive: short response + repetition + avoidance | Confirm "Covered core areas" then transition |
+| **Depth Gate** | Exploration Depth ≥ 65% | Phase 2 진입 제안 (사용자 동의 필요) |
+| **Explicit Done** | "done", "stop", "enough", "완료", "충분해", "끝", "그만" | Depth 경고 표시 후 Phase 2 진행 |
+| **Saturation** | 3 consecutive: short response + repetition + avoidance | Depth 표시 + confirm |
 | **Depth Limit** | Each Core 4 area at 2-depth | Ask about Extended areas |
 | **Gap Check** | End of Phase 1 | "Anything important we haven't covered?" |
 
-**Soft Landing**: Summary → Confirm → Close (3-step)
+**Depth Gate가 주요 종료 기준**이며, Saturation은 보조 지표로 유지한다.
+Explicit Done 시 Depth가 65% 미만이면 경고를 표시하되, 사용자 의사를 존중한다.
+
+**Soft Landing**: Depth 요약 → Confirm → Close (3-step)
 
 ## State Management
 
 Output a STATE block at every checkpoint to record progress.
 On compaction, restore state from the most recent STATE block.
 
+### Optional File Persistence
+
+사용자가 인터뷰 상태를 파일로 저장하여 세션 간 재개를 원할 경우:
+
+1. **저장**: Phase 1 체크포인트에서 사용자 요청 시 `docs/discovery/{target}/state.md`에 STATE 블록 저장
+2. **재개**: 새 세션에서 저장된 파일을 읽어 인터뷰 복원
+3. **트리거**: "저장해줘", "save state", "나중에 이어하자" 등
+
+저장 시 STATE 블록 + 발견 목록 + 메타데이터를 포함한다. 상세: [templates/INTERVIEW_STATE.md](templates/INTERVIEW_STATE.md)
+
 ```
 <!-- STATE:CHECKPOINT -->
-Target: {name} | Domain: {domain} | Phase: {phase}
-Progress: [assumptions:{status}] [trade-offs:{status}] [edge-cases:{status}] [blindspots:{status}]
-Q: {count} | CP: {count}
+Target: {name} | Domain: {domain} | Maturity: {idea|plan|execution} | Phase: {phase}
+Progress: [assumptions:{status}:{score}%] [trade-offs:{status}:{score}%] [edge-cases:{status}:{score}%] [blindspots:{status}:{score}%]
+Depth: {weighted_avg}% | Q: {count} | CP: {count}
+Challenges: [inverter:{done|pending}] [outsider:{done|pending}] [pre-mortem:{done|pending}]
 
 Discoveries:
 1. [{C|I|N}] {finding} — {description}
@@ -157,12 +200,13 @@ See [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md)
 ```text
 User: "새로운 결제 시스템 도입을 검토해줘. 놓친 게 있는지 봐줘."
 
-→ Phase 0: Domain 확인 → "Biz" 선택
-→ Phase 1: Assumptions → Trade-offs → Edge Cases → Blindspots (각 2-3Q)
+→ Phase 0: Domain "Biz" + Maturity "Plan" 확인
+→ Phase 1: Assumptions(30%) → Trade-offs 타겟(25%) → [Inverter] → Edge Cases(20%) → ...
+   매 체크포인트마다 Depth 표시, 최저 영역 자동 타겟팅
 → Phase 2: 발견된 blind spots 정리, 우선순위 태깅
-→ Phase 3: Discovery Report 생성
+→ Phase 3: Discovery Report + Exploration Depth 요약 + Next Steps 제안
 
-Output: Critical/Important/Nice-to-have 분류된 발견 보고서
+Output: Depth 72% · Critical/Important/Nice-to-have 분류된 발견 보고서
 ```
 
 ## Privacy Note
