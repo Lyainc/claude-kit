@@ -21,7 +21,7 @@ claude plugin install claude-kit@Lyainc-claude-kit
 | `doc-polish`       | Validate and improve existing MD docs (3-layer QA)   | 검사해줘, 다듬어줘, polish, lint         |
 | `expert-panel`     | Expert panel discussions with dialectical analysis   | expert panel, design review, 전문가 토론 |
 | `unknown-discovery`| Discover blind spots through iterative interviews    | 맹점, 놓친 것, blind spot, 심층 인터뷰   |
-| `devstarter`       | Initialize dev workflow with tool selection & commit discipline | 개발 시작, dev start, 작업 시작           |
+| `dev-wrap`         | Verify changes, organize atomic commits, handoff     | 작업 마무리, 커밋 정리, dev wrap         |
 
 ## 문제 해결
 

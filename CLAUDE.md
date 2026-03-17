@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**claude-kit**: Claude Code skills plugin providing 6 productivity skills (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, devstarter).
+**claude-kit**: Claude Code skills plugin providing 6 productivity skills (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, dev-wrap).
 
 ## Git Conventions
 
