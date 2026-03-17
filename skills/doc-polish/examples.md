@@ -276,6 +276,160 @@ Consider running doc-polish after each doc-concretize session.
 
 ---
 
+## Example 5: Structural Trope Detection + Density Score
+
+### Input
+
+```
+User: "blog-post.md 다듬어줘 --report"
+
+[blog-post.md content - ~800 words]
+# Why AI-First Companies Will Define the Next Era
+
+The AI revolution isn't just coming — it's already here. And it's not just a tool — it's a
+platform that will fundamentally reshape how every industry operates.
+
+## The Landscape is Shifting
+
+Here's the thing: most companies are still thinking about AI the wrong way. They're treating
+it as an add-on — a nice-to-have — when it should be the foundation of everything they do.
+
+Think of it as building a house. You wouldn't add the foundation after the walls are up. The
+same principle applies to AI integration — it needs to be baked in from day one.
+
+The result? Companies that get this right will see unprecedented growth. Companies that don't?
+They'll be left behind — wondering what happened — while their competitors reshape the market.
+
+## Three Pillars of AI-First Strategy
+
+The first pillar is **data infrastructure**. Without robust data pipelines — companies simply
+can't leverage AI effectively. Building a comprehensive data strategy — from collection to
+analysis — is the essential first step.
+
+The second pillar is **talent acquisition**. Experts argue that the war for AI talent will
+define the next decade. Organizations need to streamline their hiring — facilitate knowledge
+transfer — and harness the power of interdisciplinary teams.
+
+The third pillar is **cultural transformation**. It's not about technology — it's about
+mindset. Companies need to fundamentally reimagine how they approach innovation.
+
+## The Bottom Line
+
+In conclusion, AI-first companies will define the next era of business. The landscape is
+shifting, the stakes are high, and the time to act is now.
+
+This isn't just an opportunity. It's a necessity.
+
+And it starts today.
+```
+
+### Processing
+
+*[Internal: Layer 2 - 6-Category Trope Scan]*
+
+**Category A (Word Choice)**:
+- Line 2: "fundamentally reshape" — A1 Magic Adverb + D6 Stakes Inflation (High)
+- Line 16: "robust" — A2 Delve and Friends (High)
+- Line 16: "leverage" — A2 (High)
+- Line 17: "comprehensive" — A2 (High)
+- Line 19: "streamline" — A2 (High)
+- Line 19: "facilitate" — A2 (High)
+- Line 19: "harness" — A2 (High)
+- Line 22: "fundamentally reimagine" — A1 (High)
+- Line 24: "unprecedented" — D6 (High)
+
+**Category B (Sentence Structure)**:
+- Line 2: "it's not just a tool — it's a platform" — B1 Negative Parallelism (High)
+- Line 10: "The result? ... Companies that don't?" — B3 Rhetorical Q&A (High)
+- Line 22: "It's not about technology — it's about mindset" — B1 (High)
+
+**Category C (Paragraph Structure)**:
+- Lines 27-29: "This isn't just an opportunity.\n\nIt's a necessity.\n\nAnd it starts today." — C1 Short Punchy Fragments (High)
+- Lines 14-21: "The first pillar... The second pillar... The third pillar..." — C2 Listicle in Trench Coat (Medium)
+
+**Category D (Tone Markers)**:
+- Line 6: "Here's the thing" — D1 False Suspense (High)
+- Line 8: "Think of it as building a house" — D2 Patronizing Analogies (Medium)
+- Line 2: "fundamentally reshape" — D6 Stakes Inflation (High)
+- Line 19: "define the next decade" — D6 (High)
+
+**Category E (Formatting Signals)**:
+- Document-wide: 10 em-dashes in ~800 words — E1 Em-Dash Addiction (High)
+- Lines 14-21: Bold-first pattern on all list items — E2 Bold-First Bullets (High)
+
+**Category F (Composition Tics)**:
+- Lines 1-2 vs 24-25: Intro and conclusion both claim "define the next era" — F1 Fractal Summary (High)
+- Line 24: "In conclusion" — F6 Signposted Conclusion (Medium)
+
+*[Internal: Trope Density Calculation]*
+
+```
+Raw trope count: 22
+Word count: ~800
+Raw density: 27.5 / 1000 words
+
+Weighted calculation:
+  High tropes: 18 × 3 = 54
+  Medium tropes: 4 × 2 = 8
+  Low tropes: 0 × 1 = 0
+  Weighted total: 62
+  Weighted density: 62 / 800 × 1000 = 77.5 / 1000 words
+
+Assessment: HIGH (threshold: >6.0)
+```
+
+*[Internal: Clustering Detection]*
+
+```
+Hotspot 1: Lines 2-10 (8 tropes across A, B, D categories)
+Hotspot 2: Lines 14-22 (9 tropes across A, B, C, D, E categories)
+Hotspot 3: Lines 24-29 (5 tropes across C, D, F categories)
+```
+
+### Output
+
+```
+[Document Polish Summary]
+
+File: blog-post.md
+
+Layer 1 (Mechanical): 0 issues
+Layer 2 (Linguistic): 22 tropes found
+  Trope Density: 77.5/1000 words (HIGH)
+  Clustering: 3 hotspots detected
+
+  Hotspot 1 (lines 2-10): 8 tropes — Word Choice + Structure + Tone
+  Hotspot 2 (lines 14-22): 9 tropes — Word Choice + Structure + Paragraph + Tone + Formatting
+  Hotspot 3 (lines 24-29): 5 tropes — Paragraph + Tone + Composition
+
+  Top issues by category:
+    A. Word Choice (9): "robust", "leverage", "comprehensive", "streamline",
+       "facilitate", "harness", "fundamentally" ×2, "unprecedented"
+       → Replace with specific terms or remove
+    B. Sentence Structure (3): Negative parallelism ×2, Rhetorical Q&A ×1
+       → Rewrite as direct statements
+    C. Paragraph Structure (2): Short punchy fragments, Listicle-in-trench-coat
+       → Combine fragments; convert to actual list
+    D. Tone Markers (4): False suspense, Patronizing analogy, Stakes inflation ×2
+       → Remove framing; reduce claims to evidence
+    E. Formatting Signals (2): Em-dash overuse (10), Bold-first bullets
+       → Reduce em-dashes to 2-3; vary list formatting
+    F. Composition Tics (2): Fractal summary, Signposted conclusion
+       → Remove "In conclusion"; differentiate ending from intro
+
+  Term consistency: No issues
+  Sentence quality: 2 sentences exceed 35 words
+
+Layer 3 (Semantic): 3 warnings
+  - Line 2: "every industry" — vague scope claim
+  - Line 19: "Experts argue" — vague attribution (D8)
+  - Line 24: "define the next era" — unsubstantiated prediction
+
+Run with --report for full trope analysis with rewrite suggestions.
+```
+
+---
+
 ## Anti-Pattern Examples
 
 ### Anti-Pattern 1: Content Modification Attempt

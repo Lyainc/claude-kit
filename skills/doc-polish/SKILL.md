@@ -59,12 +59,18 @@ Expression quality analysis:
 
 | Check | Detection Target | Output |
 |-------|-----------------|--------|
-| LLM Trace | Blacklisted expressions | Alternative suggestions |
+| LLM Trope (Word) | Magic adverbs, delve, grandiose nouns, serves-as | Alternative suggestions |
+| LLM Trope (Structure) | Negative parallelism, rhetorical Q&A, anaphora, tricolon | Pattern name + rewrite hint |
+| LLM Trope (Paragraph) | Short punchy fragments, listicle-in-trench-coat | Structure warning |
+| LLM Trope (Tone) | False suspense, patronizing analogies, stakes inflation | Tone correction |
+| LLM Trope (Formatting) | Em-dash overuse, bold-first bullets, unicode arrows | Format fix suggestion |
+| LLM Trope (Composition) | Fractal summaries, dead metaphors, one-point dilution | Structural warning |
+| Trope Density | Clustering analysis (tropes/1000 words) | Density score + hotspots |
 | Term Consistency | "사용자/유저" mixing | Unification candidates |
 | Sentence Quality | >50 char (KO) / >35 words (EN) | Split suggestions |
 | Tone Uniformity | 존댓말/반말 mixing | Inconsistency locations |
 
-**Reference**: See [llm-expression-blacklist](../../reference/llm-expression-blacklist.md)
+**Reference**: See [AI Writing Tropes Reference](../../reference/llm-expression-blacklist.md)
 
 ### Layer 3: Semantic (Warning)
 
@@ -91,10 +97,18 @@ Phase 1: Mechanical Check
 └── Output: Auto-fixed file or issue list
 
 Phase 2: Linguistic Analysis
-├── Scan for LLM expressions
+├── Scan for AI writing tropes (6 categories)
+│   ├── A. Word Choice
+│   ├── B. Sentence Structure
+│   ├── C. Paragraph Structure
+│   ├── D. Tone Markers
+│   ├── E. Formatting Signals
+│   └── F. Composition Tics
+├── Calculate Trope Density Score
+├── Detect trope clustering (hotspots)
 ├── Check term consistency
 ├── Analyze sentence quality
-└── Output: Suggestions with locations
+└── Output: Trope report + density score + suggestions
 
 Phase 3: Semantic Review
 ├── Flag vague claims
@@ -123,7 +137,10 @@ Output: Fixed file and/or Quality Report
 File: path/to/document.md
 
 Layer 1 (Mechanical): 3 issues found, 2 auto-fixed
-Layer 2 (Linguistic): 5 suggestions
+Layer 2 (Linguistic): 8 tropes found
+  Trope Density: 5.3/1000 words (Medium)
+  Clustering: 1 hotspot detected (lines 22-28)
+  Term consistency: 1 issue
 Layer 3 (Semantic): 2 warnings
 
 Run with --fix to apply auto-corrections.
