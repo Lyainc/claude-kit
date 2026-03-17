@@ -48,7 +48,12 @@ Discover user's Unknown Unknowns (things they don't know they don't know) throug
 
 1. 대상 분석 (프로젝트/문서/아이디어)
 2. 도메인 확인 (Tech/Biz/Creative/Custom) → AskUserQuestion으로 사용자 확인
-3. 성숙도 감지 (Idea/Plan/Execution) → AskUserQuestion으로 확인 (상세: [reference.md](reference.md) §9)
+3. 성숙도 감지 (Idea/Plan/Execution):
+   - **자동 감지 우선**: 사용자 입력 컨텍스트에서 성숙도 신호를 분석하여 자동 판별 (상세: [reference.md](reference.md) §9)
+     - 구체적 수치/일정 없음, "~할 것 같다" → Idea
+     - 마일스톤/리소스/일정 언급 → Plan
+     - 진행 상황/이슈/메트릭 언급 → Execution
+   - **불명확 시에만** AskUserQuestion으로 사용자에게 확인
 4. 성숙도에 따라 Exploration Depth 가중치 조정
 5. 인터뷰 계획 수립
 
