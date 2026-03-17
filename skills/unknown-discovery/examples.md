@@ -27,11 +27,11 @@ Tech 도메인 예시를 통한 전체 워크플로우 데모.
 
 **Checkpoint 1:**
 ```
-Progress: [assumptions:active:55%] [trade-offs:pending:0%] [edge-cases:pending:0%] [blindspots:pending:0%]
-Depth: 17%
+Progress: [assumptions:active:45%] [trade-offs:pending:0%] [edge-cases:pending:0%] [blindspots:pending:0%]
+Depth: 14%
 ```
 
-**Round 3 | [Trade-offs:0%] ← 최저 영역 타겟팅 | Depth: 17%**
+**Round 3 | [Trade-offs:0%] ← 최저 영역 타겟팅 | Depth: 14%**
 
 **[Trade-offs - Q3]** "마이크로서비스 전환으로 포기하게 되는 것은?"
 → "단순함? 모놀리스에서는 디버깅이 쉬운데..."
@@ -98,7 +98,7 @@ Round 3: [Trade-offs:0%] ← 최저 영역 전환      | Depth: 12%
 Round 4: [Trade-offs:35%] + [Inverter] 발동    | Depth: 21%
 Round 5: [Edge Cases:0%] ← Blindspots와 동점, 우선순위상 Edge Cases | Depth: 21%
 Round 6: [Blindspots:0%] ← 최저 영역 전환      | Depth: 33%
-  (불확실성 신호 → Blindspots 점수 25%-10%→15%)
+  (불확실성 신호 → Blindspots 점수 25%-10%→15%; Depth 일시 감소는 페널티 반영)
 Round 7: [Blindspots:15%] ← 차감 후 최저       | Depth: 30%
 Round 8: [Edge Cases:30%] + [Pre-mortem] 발동  | Depth: 45%
 ...

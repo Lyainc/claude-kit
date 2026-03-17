@@ -142,6 +142,18 @@ Explicit Done 시 Depth가 65% 미만이면 경고를 표시하되, 사용자 �
 Output a STATE block at every checkpoint to record progress.
 On compaction, restore state from the most recent STATE block.
 
+### Legacy Format Compatibility
+
+기존 STATE 블록은 점수 없이 상태만 기록했다:
+```
+Progress: [assumptions:done] [trade-offs:pending]
+```
+새 포맷은 점수를 포함한다:
+```
+Progress: [assumptions:done:75%] [trade-offs:pending:0%]
+```
+컴팩션 복원 시 레거시 포맷을 만나면: 상태(`done/active/pending`)만 복원하고, 점수는 상태 기반으로 추정한다 (`done`→70%, `active`→40%, `pending`→0%).
+
 ### Optional File Persistence
 
 사용자가 인터뷰 상태를 파일로 저장하여 세션 간 재개를 원할 경우:
