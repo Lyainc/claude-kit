@@ -40,8 +40,31 @@
 | 2 | | High | | |
 | 3 | | Medium | | |
 
+---
+
+## 4. Exploration Depth
+
+| Dimension | Score | Weight | Weighted |
+|-----------|-------|--------|----------|
+| Assumptions | N% | 0.30 | N% |
+| Trade-offs | N% | 0.25 | N% |
+| Edge Cases | N% | 0.25 | N% |
+| Blindspots | N% | 0.20 | N% |
+| **Total Depth** | | | **N%** |
+
+---
+
+## 5. Next Steps
+
+| Option | 설명 |
+|--------|------|
+| **Expert Panel** | Critical 발견에 대해 다관점 전문가 토론 (`/expert-panel`) |
+| **Action Plan** | 발견 기반 구체적 실행 계획 작성 |
+| **Deep Dive** | 특정 Critical 항목에 대해 새 인터뷰 세션 |
+| **Export** | 이 보고서를 파일로 저장 |
+
 ───
-*N개 질문 · N개 영역 완료 · N개 Unknown Unknowns 발견*
+*N개 질문 · N개 영역 완료 · N개 Unknown Unknowns 발견 · Depth N%*
 
 <details>
 <summary>상세 메타데이터</summary>
@@ -53,5 +76,8 @@
 | 체크포인트 | N회 |
 | 포화 도달 | Yes / No |
 | 도메인 프리셋 | [Tech / Biz / Creative / Custom] |
+| 성숙도 | [Idea / Plan / Execution] |
+| Exploration Depth | N% |
+| Challenge Modes | [Inverter: ✓/✗, Outsider: ✓/✗, Pre-mortem: ✓/✗] |
 
 </details>
