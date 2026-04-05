@@ -29,3 +29,57 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Skill instructions** (SKILL.md body): Korean (사용자 대면 vault 관리 도메인)
 - **Agent instructions**: Korean body + English frontmatter
 - **Metadata** (frontmatter keys): English 유지
+
+## Directory Structure
+
+```
+claude-kit/                              # marketplace repo (Lyainc-claude-kit)
+├── .claude-plugin/
+│   └── marketplace.json                 # 마켓플레이스 매니페스트 (플러그인 목록 + source 경로)
+├── thinking-tools/                      # plugin: thinking-tools
+│   ├── .claude-plugin/plugin.json       # 플러그인 매니페스트
+│   ├── skills/                          # 스킬 디렉토리 (SKILL.md 기반 자동 검색)
+│   ├── reference/
+│   └── docs/
+├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
+│   ├── .claude-plugin/plugin.json
+│   ├── skills/
+│   └── agents/
+├── CLAUDE.md
+└── README.md
+```
+
+## Marketplace Structure
+
+- `marketplace.json`: 전체 플러그인 목록. 각 항목의 `source` 필드가 플러그인 루트 경로
+- `plugin.json`: 개별 플러그인 메타데이터 (name, version, keywords)
+- `skills/*/SKILL.md`: Claude Code가 자동 검색하는 스킬 정의 파일
+- `agents/*.md`: 에이전트 정의 파일 (obsidian-vault-manager 전용)
+
+## Validation
+
+```bash
+# JSON 유효성 검사
+python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
+python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
+
+# 스킬 파일 존재 확인
+find thinking-tools/skills -name "SKILL.md" | sort
+find obsidian-vault-manager/skills -name "SKILL.md" | sort
+```
+
+## Adding a New Skill
+
+1. 해당 플러그인의 `skills/{skill-name}/SKILL.md` 생성
+2. `plugin.json`의 `keywords`에 스킬명 추가
+3. 상위 `marketplace.json`의 해당 플러그인 항목 버전 범프
+
+## Adding a New Plugin
+
+1. `{plugin-name}/` 디렉토리 생성
+2. `{plugin-name}/.claude-plugin/plugin.json` 작성
+3. `{plugin-name}/skills/` 하위에 스킬 추가
+4. `.claude-plugin/marketplace.json`의 `plugins` 배열에 항목 추가 (`source` 경로 지정)
+5. `{plugin-name}/README.md` 작성
+6. 루트 `README.md`에 플러그인 소개 추가
