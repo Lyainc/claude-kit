@@ -1,27 +1,40 @@
 # claude-kit
 
-Claude Code용 **스킬 플러그인**. 생산성 향상을 위한 6개의 스킬을 제공합니다.
+Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러그인들을 하나의 저장소에서 관리합니다.
 
-## 설치
+## 플러그인 목록
+
+### [thinking-tools](thinking-tools/)
+
+분석, 문서 작성, 품질 검증을 위한 사고 도구 스킬 플러그인.
 
 ```bash
-# 1. 마켓플레이스 등록
-claude plugin marketplace add Lyainc/claude-kit
-
-# 2. 플러그인 설치
-claude plugin install claude-kit@Lyainc-claude-kit
+claude plugin install thinking-tools@Lyainc-claude-kit
 ```
 
-## 포함된 스킬
+| Skill | Description |
+| --- | --- |
+| `diverse-sampling` | Verbalized Sampling 기반 다양한 응답 생성 |
+| `doc-concretize` | 추상적 개념을 구조화된 문서로 변환 |
+| `doc-polish` | 마크다운 문서 3-layer QA 검증 |
+| `expert-panel` | 변증법적 전문가 패널 토론 |
+| `unknown-discovery` | 반복 인터뷰를 통한 맹점 발견 |
+| `dev-wrap` | 변경사항 검증 + atomic commit 정리 |
 
-| Skill              | Description                                          | Triggers                                 |
-| ------------------ | ---------------------------------------------------- | ---------------------------------------- |
-| `diverse-sampling` | Generate diverse responses using Verbalized Sampling | 브레인스토밍, 다양한 아이디어, 대안 제시 |
-| `doc-concretize`   | Transform abstract concepts into structured docs     | 문서화, 구체화, 체계적 정리              |
-| `doc-polish`       | Validate and improve existing MD docs (3-layer QA)   | 검사해줘, 다듬어줘, polish, lint         |
-| `expert-panel`     | Expert panel discussions with dialectical analysis   | expert panel, design review, 전문가 토론 |
-| `unknown-discovery`| Discover blind spots through iterative interviews    | 맹점, 놓친 것, blind spot, 심층 인터뷰   |
-| `dev-wrap`         | Verify changes, organize atomic commits, handoff     | 작업 마무리, 커밋 정리, dev wrap         |
+### [obsidian-vault-manager](obsidian-vault-manager/)
+
+Obsidian vault 지식 관리 플러그인. 에이전트 + 6개 스킬.
+
+```bash
+claude plugin install obsidian-vault-manager@Lyainc-claude-kit
+```
+
+| Component | Description |
+| --- | --- |
+| `vault-knowledge-manager` (agent) | 메인 에이전트 — 노트 생성, MOC 관리, 프로젝트 추적 |
+| `vault-file-organizer` (agent) | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
+| `capture` / `note` / `project` | 노트 캡처, 생성, 프로젝트 관리 스킬 |
+| `inbox-review` / `wrapup` / `context` | Inbox 정리, 세션 마무리, 맥락 로드 스킬 |
 
 ## 문제 해결
 
