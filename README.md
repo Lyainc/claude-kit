@@ -36,6 +36,20 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `capture` / `note` / `project` | 노트 캡처, 생성, 프로젝트 관리 스킬 |
 | `inbox-review` / `wrapup` / `context` | Inbox 정리, 세션 마무리, 맥락 로드 스킬 |
 
+## 기존 claude-kit 사용자 마이그레이션
+
+기존 `claude-kit` 플러그인이 `thinking-tools`로 이름이 변경되었습니다.
+
+```bash
+# 1. 기존 플러그인 제거
+claude plugin uninstall claude-kit
+
+# 2. 새 이름으로 재설치
+claude plugin install thinking-tools@Lyainc-claude-kit
+```
+
+스킬 이름과 트리거는 동일하므로 사용법 변경은 없습니다.
+
 ## 문제 해결
 
 **설치 후 적용 안됨**: Claude Code 재시작 필요

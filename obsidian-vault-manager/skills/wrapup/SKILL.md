@@ -9,7 +9,8 @@ allowed-tools: Read Write Bash Glob
 ## 절차
 
 1. **파일 변경 추적**: 세션 중 생성/수정한 파일 목록을 정리한다.
-   - `find ~/vault -newer /tmp/session-marker -type f 2>/dev/null` 또는 세션 중 기록한 파일 목록 활용.
+   - 대화 컨텍스트에서 이번 세션에 생성/수정한 파일 경로들을 수집한다.
+   - 컨텍스트에 기록이 없으면 `find ~/vault -mmin -60 -type f -not -path '*/\.*'` 로 최근 변경 파일을 탐색한다.
 2. **요약 생성**: 3줄 이내로 세션 핵심 내용을 요약한다.
 3. **저장 제안**: `00_Inbox/YYYY-MM-DD-session-wrapup.md`로 저장할지 사용자에게 묻는다.
 4. **저장 시 포맷**:
