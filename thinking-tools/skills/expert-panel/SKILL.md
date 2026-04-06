@@ -45,6 +45,17 @@ Facilitate expert panel discussions where diverse specialists reach consensus th
 
 **Important**: Experts reason based on core mechanisms, metrics, and precedents from their domain (details: [reference.md](reference.md)).
 
+### Expert Selection Guide
+
+| Criteria | Recommendation |
+|----------|---------------|
+| Topic count | Min 3 experts, max 7 (diminishing returns beyond 7) |
+| Domain overlap | At least 1 expert per major topic area |
+| Perspective balance | Include at least 1 implementation-focused + 1 strategy-focused expert |
+| Rotation | For 5+ topics, rotate 1-2 experts per topic to maintain focus |
+
+**When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert with user confirmation.
+
 ## Consensus Rules
 
 | Item | Rule |
@@ -62,11 +73,25 @@ Facilitate expert panel discussions where diverse specialists reach consensus th
 3. Generate discussion agenda
 
 ### Phase 1: Topic Rounds
-For each topic:
+For each topic (max 3 rounds per topic):
 1. **Briefing**: Practitioners present pro/con perspectives
-2. **Q&A**: Experts ask questions and exchange answers
+2. **Q&A**: Experts ask questions and exchange answers (max 2 exchanges per expert)
 3. **Dialectic**: Thesis → Antithesis → Synthesis
 4. **Conclusion**: Consensus or hold decision
+
+**Round Limits**:
+- Each topic has a maximum of 3 discussion rounds
+- If no consensus after 3 rounds, Moderator escalates to tie-breaking
+- A "round" = one complete Briefing → Q&A → Dialectic → Conclusion cycle
+
+**Tie-Breaking Mechanism**:
+When consensus cannot be reached after 3 rounds:
+1. **Weighted Vote**: Each expert votes with confidence level (High/Medium/Low)
+   - High confidence = 3 points, Medium = 2, Low = 1
+   - Option with highest total points wins
+2. **Moderator Summary**: Record the majority position AND dissenting rationale
+3. **Conditional Approval**: If vote margin < 2 points, mark as "Conditional — requires validation"
+4. **Document**: All tie-break decisions recorded in SUMMARY.md with vote breakdown
 
 ### Phase 2: Recording (MANDATORY)
 

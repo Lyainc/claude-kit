@@ -32,6 +32,7 @@ Generate diverse responses using Verbalized Sampling technique to overcome LLM m
 - Creative or open-ended query requiring diverse outputs
 - (Optional) `--all` flag to show all generated responses
 - (Optional) `--best` flag to select highest probability response
+- (Optional) `--count N` to generate N responses instead of default 5 (range: 3-10)
 
 ## Invocation Detection
 
@@ -88,11 +89,11 @@ Options:
 
 1. **Apply VS Prompt Template** (see [reference.md](reference.md) for templates)
    - Inject user query into template
-   - Request 5 responses with probability distribution
+   - Request k responses with probability distribution (k = `--count` value, default 5)
    - Specify tail sampling (probability < 0.10)
 
 2. **Generate Responses**
-   - Model produces 5 `<response>` blocks
+   - Model produces k `<response>` blocks
    - Each contains `<text>` and `<probability>`
 
 3. **Parse Output**
@@ -100,7 +101,7 @@ Options:
    - Parse probability values
    - **On parse failure → Fallback**
 
-**Quality Gate**: 5 valid responses parsed → proceed to Phase 2
+**Quality Gate**: k valid responses parsed (k = `--count` value, default 5) → proceed to Phase 2
 
 ### Phase 2: Selection
 
@@ -128,7 +129,7 @@ Apply selection strategy based on option:
 커피가 숲처럼 천천히 우러나는 공간이라는 의미를 담았습니다.
 
 ───
-*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
+*{k}개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
 ```
 
 **--all Output** (all responses):
@@ -144,7 +145,7 @@ Apply selection strategy based on option:
 | 5 | 23% | 다섯 번째 아이디어 설명 |
 
 ───
-*다양성 기법으로 5개 대안 생성*
+*다양성 기법으로 {k}개 대안 생성*
 ```
 
 **--best Output**:
@@ -154,7 +155,7 @@ Apply selection strategy based on option:
 A classic writing reference that evokes craftsmanship.
 
 ───
-*5개 대안 중 가장 선호되는 옵션*
+*{k}개 대안 중 가장 선호되는 옵션*
 ```
 
 ## Model Capabilities
@@ -173,12 +174,25 @@ A classic writing reference that evokes craftsmanship.
 
 **Trigger Conditions**:
 - XML parsing failure
-- Fewer than 5 valid responses
+- Fewer than expected valid responses
 - Probability values not parseable
 
-**Fallback Procedure**:
+**Fallback Strategy** (cascading):
 ```
-1. Log warning (Korean): "일반 응답으로 대체되었습니다." | (English): "Falling back to standard response."
+1. XML parse failed → retry with JSON format prompt
+2. JSON parse failed → extract responses via regex pattern matching
+3. All structured parsing failed → generate standard response
+```
+
+**JSON Fallback Prompt** (injected on XML failure):
+```
+Respond in JSON array format:
+[{"text": "response text", "probability": 0.35}, ...]
+```
+
+**Final Fallback**:
+```
+1. Log warning (Korean): "구조화 파싱 실패. 일반 응답으로 대체되었습니다." | (English): "Structured parsing failed. Falling back to standard response."
 2. Generate standard response to original query
 3. Return standard response
 ```
@@ -230,5 +244,5 @@ Output:
 다음 단계로의 흐름을 의미
 
 ───
-*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
+*{k}개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
 ```

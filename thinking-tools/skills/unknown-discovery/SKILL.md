@@ -40,6 +40,35 @@ Discover user's Unknown Unknowns (things they don't know they don't know) throug
 
 - Analysis target (project/proposal/decision/idea)
 - (Optional) Current assumptions or considerations
+- (Optional) `--quick` flag for Quick Discovery mode (5-7 questions, single area focus)
+
+## Quick Discovery Mode (`--quick`)
+
+Compressed interview for time-constrained analysis (5-7 questions total):
+
+1. **Phase 0**: Context Analysis (same, but skip maturity detection — default to Plan)
+2. **Phase 1**: Single-pass interview targeting ONE area:
+   - Auto-select highest-risk area based on context (default: Assumptions)
+   - 3 core questions + 2-4 follow-up questions
+   - No Challenge Modes, no Extended Areas
+   - Depth scoring for targeted area only
+3. **Phase 2**: Quick synthesis (top 3-5 findings only)
+4. **Phase 3**: Abbreviated report (no full template, inline summary)
+
+Quick Mode output format:
+```
+## Quick Discovery — {target}
+
+**Area**: {targeted area} | **Questions**: {count} | **Depth**: {score}%
+
+### Findings
+1. [{C|I|N}] {finding}
+2. [{C|I|N}] {finding}
+...
+
+───
+*Quick Discovery 완료 · 전체 분석: `--quick` 없이 재실행*
+```
 
 ## Core Workflow
 
@@ -61,6 +90,13 @@ Discover user's Unknown Unknowns (things they don't know they don't know) throug
 <!-- Active during Phase 1 only -->
 
 **Dynamic Area Targeting**: 매 라운드 Exploration Depth가 가장 낮은 영역을 자동 타겟팅한다 (상세: [reference.md](reference.md) §7).
+
+**Round Counter Display**: Each interview round shows explicit progress:
+```
+[Round N/~12] Area: {current_area} ({score}%) | Overall Depth: {weighted_avg}%
+```
+- Round count is approximate (soft limit 12-15, hard limit 20)
+- Display updates at every question transition
 
 - 첫 라운드: 항상 Assumptions (모든 발견의 기초)
 - 이후: 점수 기반 최저 영역 타겟
@@ -131,6 +167,7 @@ Round N | [Edge Cases:35%] ← 최저 영역 타겟팅 | Depth: 52%
 | **Saturation** | 3 consecutive: short response + repetition + avoidance | Depth 표시 + confirm |
 | **Depth Limit** | Each Core 4 area at 2-depth | Ask about Extended areas |
 | **Gap Check** | End of Phase 1 | "Anything important we haven't covered?" |
+| **Early Exit** | User says "skip to results", "요약해줘", "결과만" | Save state → skip to Phase 2 with current findings |
 
 **Depth Gate가 주요 종료 기준**이며, Saturation은 보조 지표로 유지한다.
 Explicit Done 시 Depth가 65% 미만이면 경고를 표시하되, 사용자 의사를 존중한다.
