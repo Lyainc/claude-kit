@@ -19,7 +19,6 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `doc-polish` | 마크다운 문서 3-layer QA 검증 |
 | `expert-panel` | 변증법적 전문가 패널 토론 |
 | `unknown-discovery` | 반복 인터뷰를 통한 맹점 발견 |
-| `dev-wrap` | 변경사항 검증 + atomic commit 정리 |
 
 ### [obsidian-vault-manager](obsidian-vault-manager/)
 

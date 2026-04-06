@@ -1,6 +1,6 @@
 # thinking-tools
 
-Claude Code용 **사고 도구 스킬 플러그인**. 분석, 문서 작성, 품질 검증을 위한 6개 스킬을 제공합니다.
+Claude Code용 **사고 도구 스킬 플러그인**. 분석, 문서 작성, 품질 검증을 위한 5개 스킬을 제공합니다.
 
 ## 설치
 
@@ -17,7 +17,6 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `doc-polish` | Validate and improve existing MD docs (3-layer QA) | 검사해줘, 다듬어줘, polish, lint |
 | `expert-panel` | Expert panel discussions with dialectical analysis | expert panel, design review, 전문가 토론 |
 | `unknown-discovery` | Discover blind spots through iterative interviews | 맹점, 놓친 것, blind spot, 심층 인터뷰 |
-| `dev-wrap` | Verify changes, organize atomic commits, handoff | 작업 마무리, 커밋 정리, dev wrap |
 
 ## 문제 해결
 
