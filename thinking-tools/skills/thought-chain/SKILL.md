@@ -111,11 +111,14 @@ Users can run subset pipelines:
 
 **Alias mapping**: `discovery` = unknown-discovery, `panel` = expert-panel, `concretize` = doc-concretize, `polish` = doc-polish
 
+**Validation**: Invalid stage name in `--skip`/`--start` → warn "Unknown stage: {name}. Valid: discovery, panel, concretize, polish." and ignore the flag.
+
 ## Inter-Skill Data Flow
 
-Each stage produces a structured handoff:
+Each stage produces a conceptual handoff (managed as natural language internally, not literal JSON):
 
 ```json
+// Conceptual schema — not a literal output format
 {
   "stage": "discovery",
   "findings": [...],

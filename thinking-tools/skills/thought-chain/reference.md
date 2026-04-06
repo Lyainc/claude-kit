@@ -58,15 +58,13 @@ Action: Load diverse-sampling results as expert-panel topics
 
 ## Implementation Notes
 
-These hooks are suggestions for users who want tighter integration between skills. They can be implemented in Claude Code's `settings.json` hook configuration:
+These hooks are suggestions for users who want tighter integration between skills. The `thought-chain` skill itself implements this pipeline without hooks — hooks are for users who want automatic suggestions when using skills individually.
 
-```json
-{
-  "hooks": {
-    "PostToolUse": [
-      {
-        "matcher": "AskUserQuestion",
-        "hook": "echo 'Discovery complete. Consider /expert-panel for Critical findings.'"
+**Note**: Claude Code hooks cannot currently distinguish which skill triggered a tool call. Therefore, these hooks should be implemented as prompt-based suggestions within each skill's post-completion flow, not as `settings.json` hook matchers. Example concept (not a literal config):
+
+```
+# Conceptual: After unknown-discovery Phase 3 completes with Critical findings,
+# the skill itself suggests: "Critical 발견이 있습니다. /expert-panel로 전문가 토론을 진행할까요?"
       }
     ]
   }

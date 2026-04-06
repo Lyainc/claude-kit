@@ -11,8 +11,9 @@ agent: Explore
 ## 절차
 
 1. `~/vault/10_MOC/$ARGUMENTS.md` (또는 유사 이름)를 읽는다.
-   - MOC가 없으면 `mdfind -onlyin ~/vault "$ARGUMENTS"` 로 관련 노트를 검색한다.
-   - **크로스플랫폼 폴백**: `uname -s` 결과가 `Darwin`이 아니면 `grep -rl "$ARGUMENTS" ~/vault --include="*.md"` 사용
+   - MOC가 없으면 플랫폼에 따라 검색:
+     - macOS (`uname -s` = `Darwin`): `mdfind -onlyin ~/vault "$ARGUMENTS"`
+     - 그 외: `grep -rl "$ARGUMENTS" ~/vault --include="*.md"`
    - **크로스도메인**: `$ARGUMENTS`에 쉼표가 포함되면 (예: `devops,kubernetes`) 각 도메인을 개별 조회 후 결과를 병합한다.
 2. MOC에 링크된 노트들의 제목과 태그를 수집한다.
 3. 최근 수정된 관련 노트를 우선 표시한다.

@@ -6,8 +6,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 두 개의 독립 플러그인을 포함합니다.
 
-- **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 5개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 + 스킬 6개
+- **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 + 스킬 8개
 
 ## Git Conventions
 
@@ -58,7 +58,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 - `marketplace.json`: 전체 플러그인 목록. 각 항목의 `source` 필드가 플러그인 루트 경로
 - `plugin.json`: 개별 플러그인 메타데이터 (name, version, keywords)
 - `skills/*/SKILL.md`: Claude Code가 자동 검색하는 스킬 정의 파일
-- `agents/*.md`: 에이전트 정의 파일 (obsidian-vault-manager 전용)
+- `agents/*.md`: 에이전트 정의 파일 (두 플러그인 모두 보유)
 
 ## Validation
 
@@ -78,6 +78,19 @@ find obsidian-vault-manager/skills -name "SKILL.md" | sort
 1. 해당 플러그인의 `skills/{skill-name}/SKILL.md` 생성
 2. `plugin.json`의 `keywords`에 스킬명 추가
 3. 상위 `marketplace.json`의 해당 플러그인 항목 버전 범프
+
+## Adding a New Agent
+
+1. 해당 플러그인의 `agents/{agent-name}.md` 생성 (frontmatter: name, description, model, skills)
+2. `plugin.json`의 `keywords`에 에이전트명 추가
+3. 상위 `marketplace.json`의 해당 플러그인 항목 버전 범프
+
+## Version Sync Rule
+
+`plugin.json`과 `marketplace.json`의 다음 필드는 항상 동기화:
+- `version`: 양쪽 동일하게 범프
+- `description`: 양쪽 동일한 문자열 유지
+- `keywords`: 양쪽 동일한 배열 유지
 
 ## Adding a New Plugin
 

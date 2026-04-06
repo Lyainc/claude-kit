@@ -33,6 +33,7 @@ allowed-tools: Read Write Bash Glob
 ## 규칙
 
 - 한국어로 응답한다.
+- 당일 `00_Inbox/YYYY-MM-DD-daily.md`가 존재하면: wrapup 요약을 daily 노트의 `## Notes` 섹션에 추가할지 사용자에게 제안한다.
 
 ## Metrics
 
@@ -51,5 +52,5 @@ allowed-tools: Read Write Bash Glob
 
 | 옵션 | 설명 | 기본값 |
 |------|------|--------|
-| `--hours N` | 파일 변경 탐색 범위 (양의 정수, min 1, max 24. 범위 밖/비숫자 → 기본 1) | 1 |
+| `--hours N` | 파일 변경 탐색 범위 (양의 정수, min 1, max 24. 범위 밖/비숫자 → "유효하지 않은 값입니다. 기본값(1시간)을 사용합니다" 경고 출력 후 기본값 사용) | 1시간 (60분) |
 | `--no-save` | 요약만 출력, 파일 저장 안 함 | false |
