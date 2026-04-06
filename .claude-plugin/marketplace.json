@@ -25,8 +25,7 @@
         "doc-concretize",
         "doc-polish",
         "diverse-sampling",
-        "unknown-discovery",
-        "dev-wrap"
+        "unknown-discovery"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
