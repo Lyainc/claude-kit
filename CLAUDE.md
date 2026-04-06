@@ -7,7 +7,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 두 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 + 스킬 8개
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 8개 (capture, note, project, inbox-review, wrapup, context, archive, vault-daily)
 
 ## Git Conventions
 
@@ -73,11 +73,24 @@ find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
 ```
 
+## SKILL.md Frontmatter
+
+```yaml
+---
+name: skill-name              # 필수: kebab-case
+description: "한 줄 설명"       # 필수: 스킬 용도 + 사용 예시
+allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
+# context: fork                # 선택: fork 시 별도 에이전트에서 실행
+# agent: Explore               # 선택: fork 시 사용할 에이전트 타입
+---
+```
+
 ## Adding a New Skill
 
 1. 해당 플러그인의 `skills/{skill-name}/SKILL.md` 생성
 2. `plugin.json`의 `keywords`에 스킬명 추가
 3. 상위 `marketplace.json`의 해당 플러그인 항목 버전 범프
+4. 에이전트가 해당 스킬을 사용해야 하면: 에이전트 `.md`의 `skills:` frontmatter에 추가
 
 ## Adding a New Agent
 

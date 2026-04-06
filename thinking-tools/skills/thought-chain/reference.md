@@ -65,10 +65,4 @@ These hooks are suggestions for users who want tighter integration between skill
 ```
 # Conceptual: After unknown-discovery Phase 3 completes with Critical findings,
 # the skill itself suggests: "Critical 발견이 있습니다. /expert-panel로 전문가 토론을 진행할까요?"
-      }
-    ]
-  }
-}
 ```
-
-The `thought-chain` skill itself implements this pipeline without hooks — hooks are for users who want automatic suggestions when using skills individually.

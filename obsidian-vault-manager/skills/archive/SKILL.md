@@ -29,7 +29,7 @@ allowed-tools: Read Write Edit Bash Glob Grep
    a. `_index.md`의 `status`를 `archived`로 변경, `archived` 날짜 추가
    b. 파일 이동은 `vault-file-organizer` 에이전트에 위임: `20_Projects/{name}/` → `50_Archive/{name}/` (에러 핸들링은 file-organizer의 Error Handling 정책을 따름)
    c. `Home.md`의 "Active Projects" 섹션에서 해당 링크 제거
-   d. 관련 MOC 검색: `grep -rl "{project-name}" ~/vault/10_MOC/` 로 프로젝트를 참조하는 MOC를 찾고, 해당 링크에 `(archived)` 표시 추가
+   d. 관련 MOC 검색: `grep -rl "{project-name}" ~/vault/10_MOC/` 로 프로젝트를 참조하는 MOC를 찾고, 해당 링크에 `(archived)` 표시 추가 (macOS에서도 `grep` 사용 — `mdfind`는 전체 vault 검색에만 사용)
 5. **결과 출력**:
    ```
    ✓ 아카이브 완료: {project-name}

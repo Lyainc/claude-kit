@@ -1,7 +1,7 @@
 ---
 name: vault-daily
 description: "데일리 노트를 생성하고 전날 리뷰를 연동한다. 사용 예: '/vault-daily', '/vault-daily --review'"
-allowed-tools: Read Write Edit Bash Glob
+allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
 오늘의 데일리 노트를 생성하거나 전날 리뷰를 수행한다.
