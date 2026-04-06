@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/Lyainc/claude-kit/compare/v1.0.1...v1.0.2) (2026-04-06)
+
+
+### Bug Fixes
+
+* address PR [#43](https://github.com/Lyainc/claude-kit/issues/43) review feedback ([da73098](https://github.com/Lyainc/claude-kit/commit/da73098e875e3b9e5430ca913d78f6b306095c09))
+
 ## [1.0.1](https://github.com/Lyainc/claude-kit/compare/v1.0.0...v1.0.1) (2026-04-05)
 
 
