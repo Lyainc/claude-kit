@@ -23,6 +23,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - **Skill output/examples** (examples.md, templates): Korean (primary user language)
 - **Metadata** (frontmatter, section headers): English 유지
 - **테이블 헤더**: 한국어 우선, 기술 용어는 영어 원문 유지
+- **Agent instructions** (agents/*.md body): Korean (사용자 대면 라우팅 로직) + English frontmatter
 
 ### obsidian-vault-manager
 
@@ -41,6 +42,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 ├── thinking-tools/                      # plugin: thinking-tools
 │   ├── .claude-plugin/plugin.json       # 플러그인 매니페스트
 │   ├── skills/                          # 스킬 디렉토리 (SKILL.md 기반 자동 검색)
+│   ├── agents/                          # 에이전트 디렉토리 (thinking-facilitator)
 │   ├── reference/
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
