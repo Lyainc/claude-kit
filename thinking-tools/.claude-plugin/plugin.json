@@ -1,7 +1,7 @@
 {
   "name": "thinking-tools",
-  "version": "1.4.0",
-  "description": "Claude Code thinking skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, and blind spot detection.",
+  "version": "1.5.0",
+  "description": "Claude Code thinking skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, blind spot detection, thought chain orchestration, and thinking facilitator agent.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -16,6 +16,8 @@
     "doc-concretize",
     "doc-polish",
     "diverse-sampling",
-    "unknown-discovery"
+    "unknown-discovery",
+    "thought-chain",
+    "thinking-facilitator"
   ]
 }

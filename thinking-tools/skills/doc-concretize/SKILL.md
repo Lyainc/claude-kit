@@ -41,7 +41,10 @@ Transform abstract concepts into concrete, well-structured documentation through
 1. Decompose core concepts and identify relationships between them
 2. Identify semantic units (3-7 chunks) for document structure
 3. Determine logical order and dependencies
-4. Estimate output length → if < 800 chars, switch to standard writing
+4. Estimate output length:
+      - If < 800 chars → switch to standard writing (skip this skill)
+      - If 800-2000 chars → **Quick Mode**: compress to Phase 1 → Phase 3 (skip Phase 2, Phase 4 reduced to single review pass)
+      - If > 2000 chars → **Full Mode**: execute all phases
 5. If reference document exists, analyze and record its style
 
 **Mandatory State Tracking** *(Internal Only - not shown to users)*:
@@ -59,6 +62,17 @@ Transform abstract concepts into concrete, well-structured documentation through
 ```
 
 **Quality Gate**: Concepts decomposed + relationships mapped + segments defined → proceed
+
+### Quick Mode (800-2000 chars)
+
+When estimated output is 800-2000 characters, use compressed workflow:
+
+1. **Phase 1**: Concept Analysis (same as Full Mode)
+2. **Phase 3**: Content Build with Build → Verify → Reflect cycle (skip Phase 2 Structure Design — use linear ordering)
+3. **Phase 4 (Reduced)**: Single completeness review pass (skip adversarial check and self-critique questions)
+4. **Phase 5**: Basic Polish (same as Full Mode)
+
+Quick Mode skips Structure Design and reduces Completeness Check, cutting processing time by ~40% for shorter documents.
 
 ### Phase 2: Structure Design
 
@@ -90,7 +104,7 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 
 [Reflect]
 - All passed → proceed to next segment
-- 1-2 failed → revise and re-verify (max 2 attempts)
+- 1-2 failed → revise and re-verify (max 3 attempts)
 - 3+ failed → rewrite entire segment
 - Fact uncertain → call AskUserQuestion or WebFetch
 ```

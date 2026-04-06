@@ -70,6 +70,16 @@ Expression quality analysis:
 | Sentence Quality | >50 char (KO) / >35 words (EN) | Split suggestions |
 | Tone Uniformity | 존댓말/반말 mixing | Inconsistency locations |
 
+**Context-Aware Whitelist**: The following patterns are NOT flagged when accompanied by supporting specifics:
+
+| Pattern | Whitelisted When | Example |
+|---------|-----------------|---------|
+| "various", "다양한" | Followed by enumerated list within 3 lines | "다양한 옵션: A, B, C" |
+| "important", "중요한" | Preceded by specific metric or evidence | "응답시간 50% 감소라는 중요한 성과" |
+| "significant", "상당한" | Accompanied by quantitative data | "significant improvement (p<0.01)" |
+| "helps", "도움이 된다" | Specifies concrete mechanism | "캐싱으로 DB 부하를 줄여 도움이 된다" |
+| Em-dash (—) | Used ≤2 times per 1000 words | Low-density em-dash usage is acceptable |
+
 **Reference**: See [AI Writing Tropes Reference](../../reference/llm-expression-blacklist.md)
 
 ### Layer 3: Semantic (Warning)
@@ -83,7 +93,16 @@ Content quality warnings:
 | Unexplained Terms | Undefined acronyms/jargon | Explanation recommendation |
 | Missing Context | References without explanation | Clarification recommendation |
 
-**Note**: Layer 3 issues are warnings only - requires human judgment.
+**Auto-Suggestions**: Layer 3 issues include actionable recommendations:
+
+| Issue Type | Auto-Suggestion |
+|------------|----------------|
+| Vague Claims | "약 80%" → Ask: "정확한 수치를 확인할 수 있나요? (예: 78.3%)" |
+| Outdated Info | Version/year detected → "현재 최신 버전을 확인해주세요" + WebFetch offer |
+| Unexplained Terms | First occurrence without definition → "첫 등장 시 간단한 설명을 추가하세요" |
+| Missing Context | Reference without explanation → "이 참조의 배경을 1-2문장으로 추가하세요" |
+
+**Note**: Layer 3 auto-suggestions are recommendations — final judgment requires human review.
 
 ## Workflow
 

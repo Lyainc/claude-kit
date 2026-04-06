@@ -12,8 +12,8 @@
   "plugins": [
     {
       "name": "thinking-tools",
-      "version": "1.4.0",
-      "description": "Claude Code thinking skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, and blind spot detection.",
+      "version": "1.5.0",
+      "description": "Claude Code thinking skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, blind spot detection, thought chain orchestration, and thinking facilitator agent.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -25,7 +25,9 @@
         "doc-concretize",
         "doc-polish",
         "diverse-sampling",
-        "unknown-discovery"
+        "unknown-discovery",
+        "thought-chain",
+        "thinking-facilitator"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
@@ -34,8 +36,8 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.1.0",
-      "description": "Obsidian vault knowledge management plugin with agents and skills for note creation, MOC management, project tracking, and inbox review.",
+      "version": "0.2.0",
+      "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, session wrapup, project archiving, and daily notes.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -47,7 +49,9 @@
         "agents",
         "skills",
         "note-taking",
-        "moc"
+        "moc",
+        "archive",
+        "vault-daily"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
