@@ -13,6 +13,7 @@ allowed-tools: Read Write Bash Glob
    - 컨텍스트에 기록이 없으면 `find ~/vault -mmin -{minutes} -type f -not -path '*/\.*'` 로 최근 변경 파일을 탐색한다. (`{minutes}` = `--hours N` 값 × 60, 기본: 60분)
 2. **요약 생성**: 3줄 이내로 세션 핵심 내용을 요약한다.
 3. **저장 제안**: `00_Inbox/YYYY-MM-DD-session-wrapup.md`로 저장할지 사용자에게 묻는다.
+   - `--no-save` 옵션이 있으면 이 단계를 건너뛰고 요약만 출력한다.
 4. **저장 시 포맷**:
    ```markdown
    ---
@@ -50,5 +51,5 @@ allowed-tools: Read Write Bash Glob
 
 | 옵션 | 설명 | 기본값 |
 |------|------|--------|
-| `--hours N` | 파일 변경 탐색 범위 (시간) | 1 |
+| `--hours N` | 파일 변경 탐색 범위 (양의 정수, min 1, max 24. 범위 밖/비숫자 → 기본 1) | 1 |
 | `--no-save` | 요약만 출력, 파일 저장 안 함 | false |

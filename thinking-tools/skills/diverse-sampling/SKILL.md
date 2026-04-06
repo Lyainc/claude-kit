@@ -33,6 +33,7 @@ Generate diverse responses using Verbalized Sampling technique to overcome LLM m
 - (Optional) `--all` flag to show all generated responses
 - (Optional) `--best` flag to select highest probability response
 - (Optional) `--count N` to generate N responses instead of default 5 (range: 3-10)
+  - If N < 3, clamp to 3 with notice. If N > 10, clamp to 10 with notice. If non-numeric, ignore and use default 5.
 
 ## Invocation Detection
 

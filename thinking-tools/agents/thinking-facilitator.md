@@ -89,8 +89,8 @@ skills:
 
 ## Constraints
 
-- 스킬 선택 시 항상 사용자 확인을 받는다 (자동 실행 금지)
-- 강한 신호 + 명시적 트리거는 확인 없이 바로 실행
-- 약한 신호만 감지된 경우 반드시 AskUserQuestion으로 확인
+- 강한 신호 + 명시적 트리거: Confirmation Template으로 선택 스킬 표시 후 바로 실행 (별도 확인 불필요)
+- 약한 신호: AskUserQuestion으로 의도 확인 후 실행
+- 불명확: AskUserQuestion으로 어떤 유형의 분석이 필요한지 확인
 - 스킬 내부 워크플로우는 각 SKILL.md의 지시를 그대로 따른다
 - 에이전트가 스킬의 동작을 수정하거나 단축하지 않는다

@@ -11,8 +11,9 @@ allowed-tools: Read Write Edit Bash Glob Grep
 1. **프로젝트 확인**: `~/vault/20_Projects/$ARGUMENTS/` 디렉토리 존재 여부를 확인한다.
    - 없으면: "프로젝트를 찾을 수 없습니다: $ARGUMENTS" 출력 후 종료.
    - `_index.md`의 `status` frontmatter를 확인한다. (필수 형식: `status: active|completed|archived`. 없으면 경고 후 `active`로 간주)
-2. **상태 확인**: 현재 상태가 `active`인지 확인한다.
-   - 이미 `archived`이면: "이미 아카이브된 프로젝트입니다" 출력 후 종료.
+2. **상태 확인**: 현재 상태(`active` 또는 `completed`)를 확인한다.
+   - `archived`이면: "이미 아카이브된 프로젝트입니다" 출력 후 종료.
+   - `active` 또는 `completed`이면: 절차 계속 진행.
 3. **아카이브 계획 제시**: 사용자에게 아카이브 계획을 보여주고 확인을 받는다:
    ```
    ## 아카이브 계획 — {project-name}

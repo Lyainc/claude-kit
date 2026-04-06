@@ -155,7 +155,8 @@ Each stage uses its own skill's tool set internally.
 
 ## References
 
-- **Skills used**: [diverse-sampling](../diverse-sampling/SKILL.md), [unknown-discovery](../unknown-discovery/SKILL.md), [expert-panel](../expert-panel/SKILL.md), [doc-concretize](../doc-concretize/SKILL.md), [doc-polish](../doc-polish/SKILL.md)
+- **Pipeline skills**: [unknown-discovery](../unknown-discovery/SKILL.md), [expert-panel](../expert-panel/SKILL.md), [doc-concretize](../doc-concretize/SKILL.md), [doc-polish](../doc-polish/SKILL.md)
+- **Related skill**: [diverse-sampling](../diverse-sampling/SKILL.md) (not in pipeline, but can feed options into expert-panel)
 
 ## Quick Start
 

@@ -12,7 +12,7 @@ agent: Explore
 
 1. `~/vault/10_MOC/$ARGUMENTS.md` (또는 유사 이름)를 읽는다.
    - MOC가 없으면 `mdfind -onlyin ~/vault "$ARGUMENTS"` 로 관련 노트를 검색한다.
-   - **크로스플랫폼 폴백**: macOS가 아닌 경우 `grep -rl "$ARGUMENTS" ~/vault --include="*.md"` 사용
+   - **크로스플랫폼 폴백**: `uname -s` 결과가 `Darwin`이 아니면 `grep -rl "$ARGUMENTS" ~/vault --include="*.md"` 사용
    - **크로스도메인**: `$ARGUMENTS`에 쉼표가 포함되면 (예: `devops,kubernetes`) 각 도메인을 개별 조회 후 결과를 병합한다.
 2. MOC에 링크된 노트들의 제목과 태그를 수집한다.
 3. 최근 수정된 관련 노트를 우선 표시한다.
@@ -40,4 +40,6 @@ agent: Explore
 | 옵션 | 설명 | 예시 |
 |------|------|------|
 | `--exclude {tag}` | 지정 태그의 노트 제외 | `/context kubernetes --exclude private` |
-| `--limit N` | 표시할 최대 노트 수 | `/context devops --limit 10` |
+| `--limit N` | 표시할 최대 노트 수 (양의 정수, 기본: 20) | `/context devops --limit 10` |
+
+**Validation**: `--limit`은 양의 정수만 허용 (0 이하/비숫자 → 기본값 20). `--exclude`에 존재하지 않는 태그 지정 시 무시하고 계속 진행.
