@@ -36,6 +36,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 ├── .claude-plugin/
 │   └── marketplace.json                 # 마켓플레이스 매니페스트 (플러그인 목록 + source 경로)
+├── CHANGELOG.md
+├── CONTRIBUTING.md
 ├── thinking-tools/                      # plugin: thinking-tools
 │   ├── .claude-plugin/plugin.json       # 플러그인 매니페스트
 │   ├── skills/                          # 스킬 디렉토리 (SKILL.md 기반 자동 검색)
