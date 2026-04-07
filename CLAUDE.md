@@ -24,6 +24,8 @@ All plugins (thinking-tools, obsidian-vault-manager, vault-reader) follow a unif
 - **Agent instructions** (agents/*.md body): English for LLM-optimized parsing
 - **Metadata** (frontmatter keys, section headers): English
 - **User-facing output**: Korean (each file contains a Korean I/O directive)
+- **README descriptions**: English by default (consistent with skill/agent body)
+- **README trigger examples**: Korean OK (user-facing trigger phrases)
 - **Reference docs / examples** (`reference/`, `examples.md`): Korean (user-facing content)
 - **Korean text in templates/examples** representing actual vault content: preserved as Korean
 
@@ -84,6 +86,21 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 # agent: Explore               # 선택: fork 시 사용할 에이전트 타입
 ---
 ```
+
+## Cross-Plugin MECE Boundaries
+
+Skills across `obsidian-vault-manager` and `vault-reader` share overlapping domains. Boundaries:
+
+| Area | obsidian-vault-manager | vault-reader |
+|------|----------------------|--------------|
+| Domain context load | `context` skill (internal, `--exclude`/`--limit` options) | `vault-searcher` Mode 2 (external, read-only lightweight) |
+| Session end | `wrapup` skill (backward-looking summary) | `vault-searcher` Mode 4 (forward-looking handoff) |
+| Note creation logic | `note` skill owns domain determination + MOC linking | `inbox-review` delegates to `note` skill procedure |
+
+Within `thinking-tools`:
+- `diverse-sampling`: creative generation (brainstorming, alternatives)
+- `expert-panel`: evaluative debate (multi-perspective assessment, decision-making)
+- Trigger "여러 관점" → `expert-panel` only (evaluative, not creative)
 
 ## Adding a New Skill
 
