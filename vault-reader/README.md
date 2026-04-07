@@ -68,6 +68,11 @@ Create a structured handoff note for the next session to resume.
 - vault-reader **never modifies or deletes existing vault files**. It can only create new handoff notes.
 - For full vault management (note creation, MOC updates, inbox review), use `obsidian-vault-manager`.
 
+## Notes
+
+- 같은 날 여러 handoff를 생성하면 자동으로 `-v2`, `-v3` suffix가 붙습니다
+- vault-searcher는 기존 vault 파일을 수정/삭제하지 않습니다. 새 handoff 노트 생성만 가능합니다
+
 ## Prerequisites
 
 - `~/vault/` must contain an Obsidian vault

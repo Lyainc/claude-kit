@@ -46,8 +46,8 @@ Load MOC and related notes for a specific domain.
 **Procedure**:
 1. Read `~/vault/10_MOC/{domain}.md` (or similar name).
    - If no MOC found, search adaptively:
-     - macOS (`uname -s` = `Darwin`): `mdfind -onlyin ~/vault "{domain}"`
-     - Other: `grep -rl "{domain}" ~/vault --include="*.md"`
+     - macOS (`uname -s` = `Darwin`): `mdfind -onlyin ~/vault "{domain}"` (결과 없으면 grep fallback)
+     - Other / fallback: `grep -rl "{domain}" ~/vault --include="*.md"`
    - Comma-separated domains: query each individually, merge results.
 2. Collect titles and tags from MOC-linked notes.
 3. If `status: active` handoff exists for the domain, show as "In Progress" priority section.
@@ -61,8 +61,8 @@ Search the entire vault by keyword and load note contents.
 
 **Procedure**:
 1. Search (exclude `.claude/`, `90_Assets/`):
-   - macOS: `mdfind -onlyin ~/vault "{keyword}"`
-   - Other: `grep -rl "{keyword}" ~/vault --include="*.md"`
+   - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
+   - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
 2. Sort: title match > tag match > body match > recent modification.
 3. Output preview: filename + first 2 lines + location + tags + modification date.
 4. Load full note content when user selects a number (default 10 results).
