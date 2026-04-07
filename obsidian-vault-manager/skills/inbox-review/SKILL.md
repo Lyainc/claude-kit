@@ -1,6 +1,6 @@
 ---
 name: inbox-review
-description: "Inbox에 있는 노트를 정리한다. 일괄 목록을 보여주고 번호로 선택하여 이동/삭제/유지를 결정한다. 사용 예: '/inbox-review'"
+description: "Organize Inbox notes. Shows a batch list and decides move/delete/keep by number selection. Example: '/inbox-review'"
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
