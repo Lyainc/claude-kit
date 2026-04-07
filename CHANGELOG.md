@@ -1,5 +1,25 @@
 # Changelog
 
+## [1.1.0](https://github.com/Lyainc/claude-kit/compare/v1.0.1...v1.1.0) (2026-04-07)
+
+
+### Features
+
+* add vault-reader plugin and handoff integration ([eb321f6](https://github.com/Lyainc/claude-kit/commit/eb321f6255b7b45cc5acdac4da65aa86a078afb4))
+* add vault-reader plugin with vault-searcher I/O agent ([54f0394](https://github.com/Lyainc/claude-kit/commit/54f0394163c83b76bd2a566a781430fc3e2aec28))
+* improve thinking-tools and obsidian-vault-manager plugins ([#45](https://github.com/Lyainc/claude-kit/issues/45)) ([8036c92](https://github.com/Lyainc/claude-kit/commit/8036c929acf1f35e4ac12750b76004bd07144282))
+* integrate handoff support into context, vault-daily, wrapup skills ([7168ea1](https://github.com/Lyainc/claude-kit/commit/7168ea1f4864fca24ac0530bfc50ef6cb7b3d4cb))
+
+
+### Bug Fixes
+
+* add packages block to release-please config ([6c45556](https://github.com/Lyainc/claude-kit/commit/6c45556b008b49623f5577dce44089560c54edf8))
+* address PR [#43](https://github.com/Lyainc/claude-kit/issues/43) review feedback ([da73098](https://github.com/Lyainc/claude-kit/commit/da73098e875e3b9e5430ca913d78f6b306095c09))
+* address PR [#46](https://github.com/Lyainc/claude-kit/issues/46) review feedback ([955b8b8](https://github.com/Lyainc/claude-kit/commit/955b8b82087a49ea99d690cb32200d0ad559ce9a))
+* address PR [#46](https://github.com/Lyainc/claude-kit/issues/46) second review feedback ([7d3d22c](https://github.com/Lyainc/claude-kit/commit/7d3d22cd4484748bca00d4c6837cf8c6b26793d3))
+* address PR [#47](https://github.com/Lyainc/claude-kit/issues/47) review feedback ([87fbd0c](https://github.com/Lyainc/claude-kit/commit/87fbd0c25223bdbbec382242d0346b02b41d7955))
+* restore Korean output template headers in context/SKILL.md ([e828881](https://github.com/Lyainc/claude-kit/commit/e828881fa1d1e815d108a6545de42c92d035c143))
+
 ## [1.0.1](https://github.com/Lyainc/claude-kit/compare/v1.0.0...v1.0.1) (2026-04-05)
 
 
