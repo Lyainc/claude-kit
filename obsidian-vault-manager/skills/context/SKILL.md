@@ -22,15 +22,15 @@ Load context for the `$ARGUMENTS` domain.
 4. Prioritize recently modified related notes.
 5. Format and output the results:
    ```
-   ## {domain} Domain Context
+   ## {domain} 도메인 맥락
 
-   ### Work in Progress
-   - handoff-2025-01-15.md — {current status summary}
+   ### 진행 중인 작업
+   - handoff-2025-01-15.md — {현재 상태 요약}
 
    ### MOC: 10_MOC/{domain}.md
-   - N notes linked
+   - N개 노트 연결
 
-   ### Related Notes (most recently modified)
+   ### 관련 노트 (최근 수정순)
    1. note-a.md — 2025-01-15
    2. note-b.md — 2025-01-10
 
