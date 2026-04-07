@@ -1,6 +1,6 @@
 ---
 name: vault-knowledge-manager
-description: "Obsidian vault 지식 베이스를 관리하는 에이전트. 노트 생성, MOC(Map of Content) 관리, 프로젝트 추적, 인박스 정리, dev/ 디렉토리와의 볼트 연동 작업을 처리한다. 한국어로 응답한다. 사용 예: '새 노트 만들어줘', '프로젝트 정리해줘', 'MOC 업데이트해줘', '~/dev/my-project 분석하고 인사이트 정리해줘'"
+description: "Obsidian vault knowledge base manager. Handles note creation, MOC management, project tracking, inbox review, session wrapup, and vault operations. Responds in Korean. Example: 'create a new note', 'organize project', 'update MOC'"
 model: sonnet
 color: purple
 memory: project

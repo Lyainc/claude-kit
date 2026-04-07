@@ -1,6 +1,6 @@
 ---
 name: note
-description: "새 노트를 생성하고 관련 MOC에 연결한다. 사용 예: '/note kubernetes 네트워킹 기초'"
+description: "Create a new note and link it to the relevant MOC. Example: '/note kubernetes networking basics'"
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 

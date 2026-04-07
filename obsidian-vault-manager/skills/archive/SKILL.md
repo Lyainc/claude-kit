@@ -1,6 +1,6 @@
 ---
 name: archive
-description: "프로젝트를 아카이브하고 관련 MOC/Home.md를 정리한다. 사용 예: '/archive api-gateway'"
+description: "Archive a project and clean up related MOC/Home.md. Example: '/archive api-gateway'"
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 

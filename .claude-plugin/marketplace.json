@@ -36,7 +36,7 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, session wrapup, project archiving, and daily notes.",
       "author": {
         "name": "Lyainc",
@@ -57,6 +57,27 @@
       "repository": "https://github.com/Lyainc/claude-kit",
       "license": "MIT",
       "source": "./obsidian-vault-manager/"
+    },
+    {
+      "name": "vault-reader",
+      "version": "0.1.0",
+      "description": "Lightweight Obsidian vault I/O plugin for searching notes, loading domain context, restoring handoff sessions, and creating handoff notes. Use from external projects to access vault knowledge.",
+      "author": {
+        "name": "Lyainc",
+        "url": "https://github.com/Lyainc"
+      },
+      "keywords": [
+        "obsidian",
+        "vault",
+        "reader",
+        "vault-searcher",
+        "handoff",
+        "search"
+      ],
+      "homepage": "https://github.com/Lyainc/claude-kit",
+      "repository": "https://github.com/Lyainc/claude-kit",
+      "license": "MIT",
+      "source": "./vault-reader/"
     }
   ]
 }

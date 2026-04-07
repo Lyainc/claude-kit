@@ -1,6 +1,6 @@
 ---
 name: vault-file-organizer
-description: "Vault 내 단순 파일 이동, 이름 변경, 아카이브 등 기계적 파일 정리 작업을 수행한다. 판단이 필요 없는 파일 조작에 사용한다."
+description: "Lightweight mechanical file organizer for vault. Handles file moving, renaming, and archiving without judgment calls."
 model: haiku
 color: green
 tools: Read, Write, Edit, Bash, Glob, Grep

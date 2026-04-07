@@ -1,6 +1,6 @@
 ---
 name: project
-description: "새 프로젝트를 생성하고 Home.md에 등록한다. 사용 예: '/project api-gateway'"
+description: "Create a new project and register it in Home.md. Example: '/project api-gateway'"
 allowed-tools: Read Write Edit Bash Glob
 ---
 

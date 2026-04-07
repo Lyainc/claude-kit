@@ -1,6 +1,6 @@
 ---
 name: capture
-description: "빠른 메모 캡처. 즉시 Inbox에 저장하고 파일 경로만 출력한다. 사용 예: '/capture 오늘 회의에서 나온 API 변경 사항'"
+description: "Quick memo capture. Saves immediately to Inbox and outputs file path only. Example: '/capture API changes from today's meeting'"
 allowed-tools: Read Write Bash
 ---
 
