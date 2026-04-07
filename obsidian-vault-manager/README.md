@@ -1,11 +1,10 @@
 # obsidian-vault-manager
 
-Claude Code용 **Obsidian vault 지식 관리 플러그인**. 에이전트 + 6개 스킬로 vault를 체계적으로 관리합니다.
+Claude Code용 **Obsidian vault 지식 관리 플러그인**. 2개 에이전트 + 8개 스킬로 vault를 체계적으로 관리합니다.
 
 ## 설치
 
 ```bash
-# 마켓플레이스 설치
 claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 ```
 
@@ -23,14 +22,25 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `capture` | 즉시 Inbox에 메모 저장 (`/capture 내용`) |
 | `note` | 새 노트 생성 + MOC 연결 (`/note 주제`) |
 | `project` | 프로젝트 디렉토리 생성 (`/project 이름`) |
-| `inbox-review` | Inbox 파일 일괄 정리 |
-| `wrapup` | 세션 요약 + 변경 내역 정리 |
-| `context` | 도메인 맥락 로드 (Explore fork) |
+| `inbox-review` | Inbox 파일 일괄 정리 (분류/이동/삭제) |
+| `wrapup` | 세션 요약 노트 생성 (후향적 기록) |
+| `context` | vault 내부 도메인 맥락 로드 (Explore fork) |
+| `archive` | 완료 프로젝트 아카이브 + MOC/Home.md 정리 |
+| `vault-daily` | 데일리 노트 생성 및 전일 리뷰 |
+
+## vault-reader와의 관계
+
+| 영역 | obsidian-vault-manager | vault-reader |
+| --- | --- | --- |
+| 사용 맥락 | vault 관리 세션 내부 | 외부 프로젝트에서 vault 접근 |
+| 쓰기 범위 | 노트/MOC/프로젝트 전체 생성·수정·삭제 | 새 핸드오프 노트 생성만 가능 |
+| `context` vs `vault-searcher` | MOC 기반 도메인 로드 + `--exclude`/`--limit` 옵션 | MOC 기반 도메인 로드 (읽기 전용, 외부 접근용) |
+| `wrapup` vs 핸드오프 | 세션 요약 (무엇을 했는가) | 핸드오프 생성 (다음에 무엇을 할 것인가) |
 
 ## 사전 요구사항
 
 - `~/vault/` 경로에 Obsidian vault가 존재해야 합니다
-- macOS 환경 (vault 검색에 `mdfind` 사용)
+- macOS 환경 권장 (vault 검색에 `mdfind` 사용, 미지원 시 `grep` fallback)
 
 ## 아키텍처
 

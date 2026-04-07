@@ -16,7 +16,7 @@ claude plugin install vault-reader@Lyainc-claude-kit
 
 ## Modes
 
-vault-searcher auto-selects the appropriate mode based on natural language requests:
+vault-searcher auto-selects the appropriate mode based on natural language requests.
 
 ### 1. Handoff Restore
 
@@ -30,7 +30,7 @@ Load the most recent active handoff note to restore session context.
 
 ### 2. Domain Context Load
 
-Load MOC and related notes for a specific domain.
+Load MOC and related notes for a specific domain. Lightweight read-only version for external projects. For advanced filtering (`--exclude`, `--limit`), use `obsidian-vault-manager`'s `context` skill instead.
 
 ```
 "vault에서 kubernetes 관련 노트 찾아줘"
@@ -48,7 +48,7 @@ Search the entire vault by keyword.
 
 ### 4. Handoff Creation
 
-Create a structured handoff note for the next session to resume.
+Create a structured handoff note (forward-looking continuation plan) for the next session to resume. Complementary to `obsidian-vault-manager`'s `wrapup` skill (backward-looking session summary).
 
 ```
 "handoff 생성해줘"
@@ -60,20 +60,24 @@ Create a structured handoff note for the next session to resume.
 
 ## Relationship with obsidian-vault-manager
 
-| Direction | Plugin | Role |
+| Aspect | vault-reader | obsidian-vault-manager |
 | --- | --- | --- |
-| Vault management | `obsidian-vault-manager` | Full vault management (notes, MOC, projects, inbox) |
-| External access | `vault-reader` | Vault search + handoff I/O from external projects |
+| Use context | External project access | Internal vault management session |
+| Write scope | Create new handoff notes only | Full note/MOC/project management |
+| Role | Read-focused I/O | Full knowledge management |
 
 - vault-reader **never modifies or deletes existing vault files**. It can only create new handoff notes.
 - For full vault management (note creation, MOC updates, inbox review), use `obsidian-vault-manager`.
 
 ## Notes
 
-- 같은 날 여러 handoff를 생성하면 자동으로 `-v2`, `-v3` suffix가 붙습니다
-- vault-searcher는 기존 vault 파일을 수정/삭제하지 않습니다. 새 handoff 노트 생성만 가능합니다
+- Multiple handoffs on the same day auto-increment with `-v2`, `-v3` suffixes
+- Works best when paired with `obsidian-vault-manager`'s wrapup/context/vault-daily integration
 
 ## Prerequisites
 
 - `~/vault/` must contain an Obsidian vault
-- Handoff restore works best when paired with `obsidian-vault-manager`'s wrapup/context/vault-daily integration
+
+## License
+
+MIT
