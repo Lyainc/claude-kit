@@ -8,6 +8,10 @@ allowed-tools: Read Write Bash Glob
 
 Summarize the files created or modified during the current session.
 
+## Scope
+
+This skill produces a **backward-looking session summary** (what was done). For a **forward-looking continuation plan** (what to do next), use `vault-reader`'s `vault-searcher` agent (Mode 4: Handoff Creation). The two are complementary: run `wrapup` first, then create a handoff if work continues.
+
 ## Procedure
 
 1. **Track file changes**: Compile a list of files created or modified during the session.
