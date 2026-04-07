@@ -4,17 +4,19 @@ description: "Archive a project and clean up related MOC/Home.md. Example: '/arc
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
-`$ARGUMENTS` 프로젝트를 아카이브한다.
+**User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
 
-## 절차
+Archive the `$ARGUMENTS` project.
 
-1. **프로젝트 확인**: `~/vault/20_Projects/$ARGUMENTS/` 디렉토리 존재 여부를 확인한다.
-   - 없으면: "프로젝트를 찾을 수 없습니다: $ARGUMENTS" 출력 후 종료.
-   - `_index.md`의 `status` frontmatter를 확인한다. (필수 형식: `status: active|completed|archived`. 없으면 경고 후 `active`로 간주)
-2. **상태 확인**: 현재 상태(`active` 또는 `completed`)를 확인한다.
-   - `archived`이면: "이미 아카이브된 프로젝트입니다" 출력 후 종료.
-   - `active` 또는 `completed`이면: 절차 계속 진행.
-3. **아카이브 계획 제시**: 사용자에게 아카이브 계획을 보여주고 확인을 받는다:
+## Procedure
+
+1. **Verify project**: Check whether the `~/vault/20_Projects/$ARGUMENTS/` directory exists.
+   - If not found: output "프로젝트를 찾을 수 없습니다: $ARGUMENTS" and exit.
+   - Check the `status` frontmatter of `_index.md`. (Required format: `status: active|completed|archived`. If missing, warn and treat as `active`.)
+2. **Check status**: Verify the current status (`active` or `completed`).
+   - If `archived`: output "이미 아카이브된 프로젝트입니다" and exit.
+   - If `active` or `completed`: continue with the procedure.
+3. **Present archive plan**: Show the archive plan to the user and ask for confirmation:
    ```
    ## 아카이브 계획 — {project-name}
 
@@ -25,12 +27,12 @@ allowed-tools: Read Write Edit Bash Glob Grep
 
    진행할까요?
    ```
-4. **실행** (사용자 확인 후):
-   a. `_index.md`의 `status`를 `archived`로 변경, `archived` 날짜 추가
-   b. 파일 이동은 `vault-file-organizer` 에이전트에 위임: `20_Projects/{name}/` → `50_Archive/{name}/` (에러 핸들링은 file-organizer의 Error Handling 정책을 따름)
-   c. `Home.md`의 "Active Projects" 섹션에서 해당 링크 제거
-   d. 관련 MOC 검색: `grep -rl "{project-name}" ~/vault/10_MOC/` 로 프로젝트를 참조하는 MOC를 찾고, 해당 링크에 `(archived)` 표시 추가 (macOS에서도 `grep` 사용 — `mdfind`는 전체 vault 검색에만 사용)
-5. **결과 출력**:
+4. **Execute** (after user confirmation):
+   a. Update `status` in `_index.md` to `archived` and add an `archived` date.
+   b. Delegate file move to the `vault-file-organizer` agent: `20_Projects/{name}/` → `50_Archive/{name}/` (error handling follows the file-organizer's Error Handling policy).
+   c. Remove the corresponding link from the "Active Projects" section in `Home.md`.
+   d. Search related MOCs: use `grep -rl "{project-name}" ~/vault/10_MOC/` to find MOCs that reference the project, and append `(archived)` to those links (use `grep` even on macOS — `mdfind` is only for full-vault searches).
+5. **Output result**:
    ```
    ✓ 아카이브 완료: {project-name}
      - 이동: 50_Archive/{name}/
@@ -44,14 +46,13 @@ allowed-tools: Read Write Edit Bash Glob Grep
 active → completed → archived
 ```
 
-- `active`: 진행 중인 프로젝트
-- `completed`: 작업 완료, 아직 vault에 활성 상태
-- `archived`: 50_Archive/로 이동 완료
+- `active`: project in progress
+- `completed`: work finished, still active in the vault
+- `archived`: moved to `50_Archive/`
 
-`/archive`는 `active` 또는 `completed` 상태의 프로젝트를 `archived`로 전환한다.
+`/archive` transitions a project in `active` or `completed` status to `archived`.
 
-## 규칙
+## Rules
 
-- 아카이브 전 반드시 사용자 확인을 받는다.
-- `30_Notes/`의 노트는 이동하지 않는다 — MOC 링크만 유지.
-- 한국어로 응답한다.
+- Always obtain user confirmation before archiving.
+- Do not move notes in `30_Notes/` — only preserve MOC links.

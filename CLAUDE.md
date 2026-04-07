@@ -18,19 +18,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Language Policy
 
-### thinking-tools
+All plugins (thinking-tools, obsidian-vault-manager, vault-reader) follow a unified policy:
 
-- **Skill instructions** (SKILL.md body, reference.md): English for LLM-optimized parsing
-- **Skill output/examples** (examples.md, templates): Korean (primary user language)
-- **Metadata** (frontmatter, section headers): English 유지
-- **테이블 헤더**: 한국어 우선, 기술 용어는 영어 원문 유지
-- **Agent instructions** (agents/*.md body): Korean (사용자 대면 라우팅 로직) + English frontmatter
-
-### obsidian-vault-manager
-
-- **Skill instructions** (SKILL.md body): Korean (사용자 대면 vault 관리 도메인)
-- **Agent instructions**: Korean body + English frontmatter
-- **Metadata** (frontmatter keys): English 유지
+- **Skill instructions** (SKILL.md body): English for LLM-optimized parsing
+- **Agent instructions** (agents/*.md body): English for LLM-optimized parsing
+- **Metadata** (frontmatter keys, section headers): English
+- **User-facing output**: Korean (each file contains a Korean I/O directive)
+- **Korean text in templates/examples** representing actual vault content: preserved as Korean
 
 ## Directory Structure
 
