@@ -34,7 +34,9 @@ allowed-tools: Read Write Bash Glob
 
 - 한국어로 응답한다.
 - 당일 `00_Inbox/YYYY-MM-DD-daily.md`가 존재하면: wrapup 요약을 daily 노트의 `## Notes` 섹션에 추가할지 사용자에게 제안한다.
-- wrapup 저장 완료 후, 다음 세션에 이어서 할 작업이 있다면: "handoff 노트도 생성할까요?" 제안한다 (vault-reader 플러그인의 vault-searcher 에이전트 필요).
+- wrapup 저장 완료 후, 다음 세션에 이어서 할 작업이 있다면:
+  - vault-reader 플러그인이 설치된 경우: "vault-searcher로 handoff 노트를 생성할까요?" 제안한다.
+  - 미설치 시: 이 제안을 생략한다.
 
 ## Metrics
 

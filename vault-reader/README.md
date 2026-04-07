@@ -54,6 +54,8 @@ Create a structured handoff note for the next session to resume.
 "handoff 생성해줘"
 "다음 세션 준비"
 "인수인계 노트 만들어"
+"handoff 생성해줘 --quick"
+"handoff 생성해줘 --hours 3"
 ```
 
 ## Relationship with obsidian-vault-manager

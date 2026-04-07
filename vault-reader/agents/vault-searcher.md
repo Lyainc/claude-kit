@@ -81,17 +81,18 @@ Create a new handoff note summarizing the current session for the next session t
    - No arguments: auto-detect from session topics. Ask user if unclear.
 
 2. **Gather related files**: Collect file paths mentioned in conversation.
-   - Supplement with `find ~/vault -mmin -{minutes} -type f -not -path '*/\.*'` if insufficient (default: 60min).
+   - Supplement with `find ~/vault -mmin -{hours × 60} -type f -not -path '*/\.*'` if insufficient (default: `--hours 1` = 60min).
 
 3. **Check existing handoff**: Search for previous `status: active` handoff in the same project/domain.
    - If found: cross-reference "next steps" with current session work. Carry over incomplete items.
+   - Suggest to user: "이전 active handoff를 archived로 변경할까요?" (vault-searcher는 기존 파일을 수정할 수 없으므로, obsidian-vault-manager의 vault-file-organizer에게 위임하거나 사용자가 직접 변경).
 
 4. **Draft handoff note**: Use the template below. Show draft to user for confirmation before saving.
 
 5. **Save**:
    - Project mode: `~/vault/20_Projects/{project-name}/handoff-YYYY-MM-DD.md`
    - Inbox mode: `~/vault/00_Inbox/YYYY-MM-DD-handoff.md`
-   - If same-date file exists: append `-v2`, `-v3` suffix.
+   - If same-date file exists: check `-v2`, then `-v3`, incrementing until a free filename is found.
 
 **Template**:
 ```markdown
