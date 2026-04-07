@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 두 개의 독립 플러그인을 포함합니다.
+**claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 8개 (capture, note, project, inbox-review, wrapup, context, archive, vault-daily)
@@ -66,6 +66,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
 python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool vault-reader/.claude-plugin/plugin.json > /dev/null
 
 # 스킬 파일 존재 확인
 find thinking-tools/skills -name "SKILL.md" | sort
@@ -77,7 +78,7 @@ find obsidian-vault-manager/skills -name "SKILL.md" | sort
 ```yaml
 ---
 name: skill-name              # 필수: kebab-case
-description: "한 줄 설명"       # 필수: 스킬 용도 + 사용 예시
+description: "One-line summary"  # Required: skill purpose + usage example
 allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 # context: fork                # 선택: fork 시 별도 에이전트에서 실행
 # agent: Explore               # 선택: fork 시 사용할 에이전트 타입
