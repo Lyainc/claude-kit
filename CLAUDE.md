@@ -8,6 +8,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 8개 (capture, note, project, inbox-review, wrapup, context, archive, vault-daily)
+- **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku). vault 검색 + handoff 생성.
 
 ## Git Conventions
 
@@ -49,6 +50,9 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/
 │   └── agents/
+├── vault-reader/                        # plugin: vault-reader
+│   ├── .claude-plugin/plugin.json
+│   └── agents/                          # 에이전트 디렉토리 (vault-searcher)
 ├── CLAUDE.md
 └── README.md
 ```

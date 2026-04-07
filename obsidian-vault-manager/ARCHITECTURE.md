@@ -43,7 +43,7 @@ obsidian-vault-manager/
 ### 1. Agent ↔ Skill 분리 (Progressive Disclosure)
 
 **Before**: 1개 agent 파일(~300줄)에 모든 것이 포함
-**After**: agent(~90줄) + 6개 skill 파일
+**After**: agent(~90줄) + 8개 skill 파일
 
 | 항목 | 효과 |
 |------|------|
