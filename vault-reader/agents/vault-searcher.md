@@ -40,7 +40,7 @@ If no active handoff found: output "active handoff가 없습니다." and stop.
 
 ### 2. Domain Context Load
 
-Load MOC and related notes for a specific domain.
+Load MOC and related notes for a specific domain. This is a lightweight, read-only version for external projects. For advanced filtering (`--exclude`, `--limit`) within vault management sessions, use `obsidian-vault-manager`'s `context` skill instead.
 
 **Triggers**: "vault notes about {domain}", "{domain} context", "{domain} knowledge needed"
 

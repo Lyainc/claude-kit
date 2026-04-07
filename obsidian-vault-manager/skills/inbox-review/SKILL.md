@@ -21,9 +21,9 @@ Organize files in `~/vault/00_Inbox/`.
 3. **Wait for user selection**: Allow the user to specify numbers and actions.
    - Example: "1,3 → Notes로 이동", "2 → 삭제", "나머지 유지"
 4. **Handle moves** (when moving to Notes):
-   - Determine the domain and move to `30_Notes/{topic}.md`
+   - Follow the `note` skill's procedure for domain determination, duplicate checking, and MOC linking
+   - Move the file to `30_Notes/{topic}.md` (rename if needed)
    - If a file with the same name already exists, ask the user for confirmation
-   - Add a backlink to the relevant MOC
 5. **Handle deletions**: Ask for final confirmation before deleting.
 
 ## Rules

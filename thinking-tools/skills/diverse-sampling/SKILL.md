@@ -8,7 +8,7 @@ description: |
   Use when creative diversity is needed: brainstorming, ideation, alternative solutions,
   creative writing, synthetic data generation, or exploring multiple perspectives.
 
-  Trigger when user mentions: 다양한 아이디어, 브레인스토밍, 대안 제시, 여러 관점, 창의적 답변,
+  Trigger when user mentions: 다양한 아이디어, 브레인스토밍, 대안 제시, 창의적 답변,
   diverse ideas, brainstorming, alternatives, multiple options,
   or explicitly: "/diverse-sampling", "VS 기법으로", "verbalized sampling으로".
 
@@ -52,7 +52,7 @@ Generate diverse responses using Verbalized Sampling technique to overcome LLM m
 |---------|---------|
 | "다양한 아이디어" | "다양한 아이디어 좀 내줘" |
 | "브레인스토밍" | "브레인스토밍 해보자" |
-| "여러 관점" | "여러 관점에서 분석해줘" |
+| "여러 대안" | "여러 대안을 만들어줘" |
 | "alternatives" | "Give me some alternatives" |
 
 **Confirmation Prompt** (via AskUserQuestion):
