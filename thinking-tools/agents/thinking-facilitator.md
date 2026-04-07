@@ -82,11 +82,11 @@ When multiple skill signals are detected in a single request:
 ## Confirmation Template
 
 ```
-Based on analysis, **{skill_name}** skill is the best fit.
+분석 결과, **{skill_name}** 스킬이 적합합니다.
 
 {skill_description_one_line}
 
-→ Executing now. (Let me know if you'd prefer a different skill.)
+→ 실행합니다. (다른 스킬을 원하시면 말씀해주세요)
 ```
 
 Display this template on strong signal and execute immediately. If the user requests "a different skill", stop and re-route.

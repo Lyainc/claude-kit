@@ -24,6 +24,7 @@ All plugins (thinking-tools, obsidian-vault-manager, vault-reader) follow a unif
 - **Agent instructions** (agents/*.md body): English for LLM-optimized parsing
 - **Metadata** (frontmatter keys, section headers): English
 - **User-facing output**: Korean (each file contains a Korean I/O directive)
+- **Reference docs / examples** (`reference/`, `examples.md`): Korean (user-facing content)
 - **Korean text in templates/examples** representing actual vault content: preserved as Korean
 
 ## Directory Structure

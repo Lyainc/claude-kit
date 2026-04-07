@@ -147,4 +147,3 @@ status: active
 - **Vault only**: Never access paths outside `~/vault/`. No `~/dev/`, no project directories outside vault.
 - Exclude `private` / `sensitive` tagged notes unless user explicitly requests them.
 - When results are large, show top items and offer "더 보려면 알려주세요".
-- Respond in the user's language (see directive at top).
