@@ -4,19 +4,21 @@ description: "Create a daily note and integrate previous day review. Example: '/
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
-오늘의 데일리 노트를 생성하거나 전날 리뷰를 수행한다.
+**User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
 
-## 절차
+Create today's daily note or perform a previous-day review.
 
-### 기본 모드 (`/vault-daily`)
+## Procedure
 
-1. **날짜 확인**: 오늘 날짜(YYYY-MM-DD) 확인
-2. **중복 확인**: `~/vault/00_Inbox/YYYY-MM-DD-daily.md` 존재 여부 확인
-   - 이미 존재하면: 기존 파일 내용을 보여주고 "이어서 작성할까요?" 확인
-3. **전날 요약 로드** (자동):
-   - 전날 daily 노트가 있으면 읽어서 미완료 항목을 수집
-   - 전날 `session-wrapup` 노트가 있으면 참조
-4. **데일리 노트 생성**:
+### Default mode (`/vault-daily`)
+
+1. **Check date**: Confirm today's date (YYYY-MM-DD)
+2. **Check for duplicates**: Check whether `~/vault/00_Inbox/YYYY-MM-DD-daily.md` already exists
+   - If it exists: show the existing file contents and ask "이어서 작성할까요?"
+3. **Load previous day summary** (automatic):
+   - If the previous day's daily note exists, read it and collect incomplete items
+   - If a previous day's `session-wrapup` note exists, reference it
+4. **Create daily note**:
    ```markdown
    ---
    created: YYYY-MM-DD
@@ -37,18 +39,18 @@ allowed-tools: Read Write Edit Bash Glob Grep
    - [ ] Inbox 정리 완료
    - [ ] 주요 작업 노트 작성 완료
    ```
-5. **출력**: 생성된 파일 경로 + 전날 carry-over 항목 수
+5. **Output**: Created file path + number of carry-over items from the previous day
 
-### 리뷰 모드 (`/vault-daily --review`)
+### Review mode (`/vault-daily --review`)
 
-1. **전날 데일리 노트 로드**: 전날 `YYYY-MM-DD-daily.md` 읽기
-   - 없으면: "전날 데일리 노트가 없습니다" 출력 후 종료
-2. **active handoff 탐색**: `~/vault/20_Projects/*/handoff-*.md` 및 `~/vault/00_Inbox/*-handoff.md`에서 `status: active`인 handoff 노트를 탐색한다.
-   - active handoff가 있으면: "다음 단계" 항목을 Carry-over 후보에 포함한다.
-3. **완료 상태 분석**:
-   - `End of Day` 체크리스트 완료 여부 확인
-   - `Today's Focus` 항목의 달성 여부 확인
-4. **리뷰 요약 출력**:
+1. **Load previous day's daily note**: Read the previous day's `YYYY-MM-DD-daily.md`
+   - If not found: output "전날 데일리 노트가 없습니다" and exit
+2. **Search for active handoffs**: Search for handoff notes with `status: active` in `~/vault/20_Projects/*/handoff-*.md` and `~/vault/00_Inbox/*-handoff.md`.
+   - If active handoffs exist: include their "next steps" items as carry-over candidates.
+3. **Analyze completion status**:
+   - Check whether the `End of Day` checklist was completed
+   - Check whether `Today's Focus` items were achieved
+4. **Output review summary**:
    ```
    ## Daily Review — YYYY-MM-DD
 
@@ -62,16 +64,15 @@ allowed-tools: Read Write Edit Bash Glob Grep
 
    오늘의 데일리 노트를 생성할까요?
    ```
-5. 사용자 확인 시 기본 모드로 전환하여 carry-over 포함 데일리 노트 생성
+5. Upon user confirmation, switch to default mode and create a daily note with carry-over items included
 
-## Wrapup 연동
+## Wrapup Integration
 
-`/wrapup` 실행 시 당일 daily 노트가 있으면:
-- wrapup 요약을 daily 노트의 `## Notes` 섹션에 추가 제안
-- daily 노트의 `End of Day` 체크리스트 업데이트 제안
+When `/wrapup` is run and a daily note exists for today:
+- Suggest appending the wrapup summary to the `## Notes` section of the daily note
+- Suggest updating the `End of Day` checklist in the daily note
 
-## 규칙
+## Rules
 
-- 데일리 노트는 `00_Inbox/`에 생성한다 (MOC 링크 없음).
-- `--review`는 전날 노트만 대상으로 한다.
-- 한국어로 응답한다.
+- Daily notes are created in `00_Inbox/` (no MOC links).
+- `--review` targets only the previous day's note.

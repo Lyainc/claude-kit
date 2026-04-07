@@ -4,28 +4,29 @@ description: "Create a new note and link it to the relevant MOC. Example: '/note
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
-`$ARGUMENTS` 주제로 `~/vault/30_Notes/`에 새 노트를 생성한다.
+**User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
 
-## 절차
+Create a new note in `~/vault/30_Notes/` on the topic of `$ARGUMENTS`.
 
-1. **도메인 판별**: 주제에서 관련 도메인을 결정한다.
-2. **중복 확인**: `mdfind -onlyin ~/vault/30_Notes "$ARGUMENTS"` 또는 `ls ~/vault/30_Notes/ | grep -i {keyword}`로 기존 노트 확인.
-   - 동일/유사 노트가 있으면 사용자에게 알리고 덮어쓰기/이름변경/병합 중 선택 요청.
-3. **파일 생성**: `30_Notes/{topic-in-kebab-case}.md`
+## Procedure
+
+1. **Determine domain**: Identify the relevant domain from the topic.
+2. **Check for duplicates**: Use `mdfind -onlyin ~/vault/30_Notes "$ARGUMENTS"` or `ls ~/vault/30_Notes/ | grep -i {keyword}` to check for existing notes.
+   - If an identical or similar note exists, notify the user and ask them to choose: overwrite / rename / merge.
+3. **Create file**: `30_Notes/{topic-in-kebab-case}.md`
    ```yaml
    ---
    created: YYYY-MM-DD
    tags: [domain, keyword]
    ---
    ```
-4. **MOC 연결**:
-   - `10_MOC/{domain}.md`가 있으면 → 백링크 추가
-   - 없으면 → 새 도메인 MOC 생성 후 `Home.md`에도 링크 추가 (사용자 확인 필요)
-   - 여러 도메인에 걸치면 → 모든 관련 MOC에 링크
-5. **결과 출력**: 생성된 파일 경로 + 업데이트된 MOC 목록
+4. **Link to MOC**:
+   - If `10_MOC/{domain}.md` exists → add backlink
+   - If not → create a new domain MOC, then add a link in `Home.md` as well (requires user confirmation)
+   - If the topic spans multiple domains → link to all relevant MOCs
+5. **Output result**: Created file path + list of updated MOCs
 
-## 규칙
+## Rules
 
-- `30_Notes/` 안에 하위 폴더를 만들지 않는다.
-- 사용자 확인 후에 파일을 생성한다 (생성 계획을 먼저 보여준다).
-- 한국어로 응답한다.
+- Do not create subdirectories inside `30_Notes/`.
+- Show the creation plan first and create the file only after user confirmation.

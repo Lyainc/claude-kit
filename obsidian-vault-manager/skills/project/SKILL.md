@@ -4,13 +4,15 @@ description: "Create a new project and register it in Home.md. Example: '/projec
 allowed-tools: Read Write Edit Bash Glob
 ---
 
-`$ARGUMENTS` 이름으로 새 프로젝트를 생성한다.
+**User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
 
-## 절차
+Create a new project named `$ARGUMENTS`.
 
-1. **중복 확인**: `~/vault/20_Projects/$ARGUMENTS/` 존재 여부 확인.
-   - 이미 있으면 사용자에게 알리고 중단.
-2. **디렉토리 + _index.md 생성**:
+## Procedure
+
+1. **Check for duplicates**: Verify whether `~/vault/20_Projects/$ARGUMENTS/` already exists.
+   - If it exists, notify the user and stop.
+2. **Create directory + `_index.md`**:
    ```
    ~/vault/20_Projects/{project-name}/_index.md
    ```
@@ -25,10 +27,9 @@ allowed-tools: Read Write Edit Bash Glob
    ## Outputs
    ## Related Notes
    ```
-3. **Home.md 업데이트**: "Active Projects" 섹션에 `[[20_Projects/{project-name}/_index|{Project Name}]]` 링크 추가.
-4. **결과 출력**: 생성된 경로.
+3. **Update `Home.md`**: Add `[[20_Projects/{project-name}/_index|{Project Name}]]` link to the "Active Projects" section.
+4. **Output result**: The created path.
 
-## 규칙
+## Rules
 
-- 사용자 확인 후에 생성한다 (계획을 먼저 보여준다).
-- 한국어로 응답한다.
+- Show the plan first and create only after user confirmation.

@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-**claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 두 개의 독립 플러그인을 포함합니다.
+**claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 8개 (capture, note, project, inbox-review, wrapup, context, archive, vault-daily)
@@ -18,19 +18,14 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Language Policy
 
-### thinking-tools
+All plugins (thinking-tools, obsidian-vault-manager, vault-reader) follow a unified policy:
 
-- **Skill instructions** (SKILL.md body, reference.md): English for LLM-optimized parsing
-- **Skill output/examples** (examples.md, templates): Korean (primary user language)
-- **Metadata** (frontmatter, section headers): English 유지
-- **테이블 헤더**: 한국어 우선, 기술 용어는 영어 원문 유지
-- **Agent instructions** (agents/*.md body): Korean (사용자 대면 라우팅 로직) + English frontmatter
-
-### obsidian-vault-manager
-
-- **Skill instructions** (SKILL.md body): Korean (사용자 대면 vault 관리 도메인)
-- **Agent instructions**: Korean body + English frontmatter
-- **Metadata** (frontmatter keys): English 유지
+- **Skill instructions** (SKILL.md body): English for LLM-optimized parsing
+- **Agent instructions** (agents/*.md body): English for LLM-optimized parsing
+- **Metadata** (frontmatter keys, section headers): English
+- **User-facing output**: Korean (each file contains a Korean I/O directive)
+- **Reference docs / examples** (`reference/`, `examples.md`): Korean (user-facing content)
+- **Korean text in templates/examples** representing actual vault content: preserved as Korean
 
 ## Directory Structure
 
@@ -71,6 +66,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
 python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool vault-reader/.claude-plugin/plugin.json > /dev/null
 
 # 스킬 파일 존재 확인
 find thinking-tools/skills -name "SKILL.md" | sort
@@ -82,7 +78,7 @@ find obsidian-vault-manager/skills -name "SKILL.md" | sort
 ```yaml
 ---
 name: skill-name              # 필수: kebab-case
-description: "한 줄 설명"       # 필수: 스킬 용도 + 사용 예시
+description: "One-line summary"  # Required: skill purpose + usage example
 allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 # context: fork                # 선택: fork 시 별도 에이전트에서 실행
 # agent: Explore               # 선택: fork 시 사용할 에이전트 타입
