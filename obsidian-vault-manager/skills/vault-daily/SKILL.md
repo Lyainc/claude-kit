@@ -1,6 +1,6 @@
 ---
 name: vault-daily
-description: "데일리 노트를 생성하고 전날 리뷰를 연동한다. 사용 예: '/vault-daily', '/vault-daily --review'"
+description: "Create a daily note and integrate previous day review. Example: '/vault-daily', '/vault-daily --review'"
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
@@ -43,10 +43,12 @@ allowed-tools: Read Write Edit Bash Glob Grep
 
 1. **전날 데일리 노트 로드**: 전날 `YYYY-MM-DD-daily.md` 읽기
    - 없으면: "전날 데일리 노트가 없습니다" 출력 후 종료
-2. **완료 상태 분석**:
+2. **active handoff 탐색**: `~/vault/20_Projects/*/handoff-*.md` 및 `~/vault/00_Inbox/*-handoff.md`에서 `status: active`인 handoff 노트를 탐색한다.
+   - active handoff가 있으면: "다음 단계" 항목을 Carry-over 후보에 포함한다.
+3. **완료 상태 분석**:
    - `End of Day` 체크리스트 완료 여부 확인
    - `Today's Focus` 항목의 달성 여부 확인
-3. **리뷰 요약 출력**:
+4. **리뷰 요약 출력**:
    ```
    ## Daily Review — YYYY-MM-DD
 
@@ -60,7 +62,7 @@ allowed-tools: Read Write Edit Bash Glob Grep
 
    오늘의 데일리 노트를 생성할까요?
    ```
-4. 사용자 확인 시 기본 모드로 전환하여 carry-over 포함 데일리 노트 생성
+5. 사용자 확인 시 기본 모드로 전환하여 carry-over 포함 데일리 노트 생성
 
 ## Wrapup 연동
 

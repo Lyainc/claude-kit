@@ -1,6 +1,6 @@
 ---
 name: context
-description: "특정 도메인의 기존 노트와 맥락을 로드한다. 사용 예: '/context kubernetes', '/context devops,kubernetes --exclude private'"
+description: "Load existing notes and context for a specific domain. Example: '/context kubernetes', '/context devops,kubernetes --exclude private'"
 allowed-tools: Read Bash Glob Grep
 context: fork
 agent: Explore
@@ -16,10 +16,14 @@ agent: Explore
      - 그 외: `grep -rl "$ARGUMENTS" ~/vault --include="*.md"`
    - **크로스도메인**: `$ARGUMENTS`에 쉼표가 포함되면 (예: `devops,kubernetes`) 각 도메인을 개별 조회 후 결과를 병합한다.
 2. MOC에 링크된 노트들의 제목과 태그를 수집한다.
-3. 최근 수정된 관련 노트를 우선 표시한다.
-4. 결과를 정리하여 출력한다:
+3. 해당 도메인에 `status: active`인 handoff 노트가 있으면 "진행 중인 작업" 섹션으로 우선 표시한다.
+4. 최근 수정된 관련 노트를 우선 표시한다.
+5. 결과를 정리하여 출력한다:
    ```
    ## {domain} 도메인 맥락
+
+   ### 진행 중인 작업
+   - handoff-2025-01-15.md — {현재 상태 요약}
 
    ### MOC: 10_MOC/{domain}.md
    - 노트 N개 연결됨

@@ -1,6 +1,6 @@
 ---
 name: wrapup
-description: "세션에서 작업한 내용을 요약하고 Inbox에 세션 정리 노트를 저장한다. 사용 예: '/wrapup', '/wrapup --hours 3'"
+description: "Summarize session work and save a session wrapup note to Inbox. Example: '/wrapup', '/wrapup --hours 3'"
 allowed-tools: Read Write Bash Glob
 ---
 
@@ -34,6 +34,7 @@ allowed-tools: Read Write Bash Glob
 
 - 한국어로 응답한다.
 - 당일 `00_Inbox/YYYY-MM-DD-daily.md`가 존재하면: wrapup 요약을 daily 노트의 `## Notes` 섹션에 추가할지 사용자에게 제안한다.
+- wrapup 저장 완료 후, 다음 세션에 이어서 할 작업이 있다면: "handoff 노트도 생성할까요?" 제안한다 (vault-reader 플러그인의 vault-searcher 에이전트 필요).
 
 ## Metrics
 
