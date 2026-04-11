@@ -38,7 +38,6 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `note` | 새 노트 생성 + MOC 연결 |
 | `project` | 프로젝트 디렉토리 생성 |
 | `inbox-review` | Inbox 파일 일괄 정리 |
-| `wrapup` | 세션 요약 + 변경 내역 정리 |
 | `context` | vault 내부 도메인 맥락 로드 (Explore fork) |
 | `archive` | 프로젝트 아카이브 + MOC 정리 |
 | `vault-daily` | 데일리 노트 생성 및 리뷰 |
@@ -53,7 +52,7 @@ claude plugin install vault-reader@Lyainc-claude-kit
 
 | Component | Description |
 | --- | --- |
-| `vault-searcher` (agent) | vault 검색, 핸드오프 복원/생성 (Haiku) |
+| `vault-searcher` (agent) | vault 검색, session-note 복원/생성 (Haiku) |
 
 ## 기존 claude-kit 사용자 마이그레이션
 
