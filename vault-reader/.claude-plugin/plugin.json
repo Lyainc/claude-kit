@@ -16,5 +16,18 @@
     "vault-searcher",
     "session-note",
     "search"
-  ]
+  ],
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "The session is ending. If this session involved meaningful work (file modifications, multi-turn discussion, research, or decision-making), use AskUserQuestion to offer session-note creation with these options: [네, 기록] to create a full session-note via vault-searcher Mode 4, [간단히] to create a quick-mode session-note, [건너뛰기] to skip. If the session was trivial (simple question-answer, single lookup), do NOT prompt — just let the session end. Never auto-create a session note without user confirmation."
+          }
+        ]
+      }
+    ]
+  }
 }
