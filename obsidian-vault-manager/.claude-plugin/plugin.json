@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vault-manager",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, project archiving, and daily notes.",
   "author": {
     "name": "Lyainc",

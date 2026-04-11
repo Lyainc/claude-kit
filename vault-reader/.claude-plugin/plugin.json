@@ -1,7 +1,7 @@
 {
   "name": "vault-reader",
-  "version": "0.1.0",
-  "description": "Lightweight Obsidian vault I/O plugin for searching notes, loading domain context, restoring handoff sessions, and creating handoff notes. Use from external projects to access vault knowledge.",
+  "version": "0.2.0",
+  "description": "Lightweight Obsidian vault I/O plugin for searching notes, loading domain context, restoring session context, and creating session notes. Use from external projects to access vault knowledge.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -14,7 +14,7 @@
     "vault",
     "reader",
     "vault-searcher",
-    "handoff",
+    "session-note",
     "search"
   ]
 }
