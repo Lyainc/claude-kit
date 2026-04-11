@@ -35,12 +35,14 @@ You handle mechanical file operations: moving, renaming, archiving files.
 
 ### Rename File
 1. Confirm the existing filename
-2. Apply kebab-case normalization rules:
+2. Apply naming rules:
    - Spaces → `-` (hyphen)
    - Uppercase → lowercase
    - Remove special characters (except hyphens and dots)
+   - **Type-first convention**: files with date should follow `{type}-YYYY-MM-DD[-{topic}].md` pattern
    - e.g., `My File Name.md` → `my-file-name.md`
-   - e.g., `2025-01-15 - API.md` → `2025-01-15-api.md`
+   - e.g., `2025-01-15 - API.md` → `capture-2025-01-15-api.md`
+   - e.g., `2025-01-15-daily.md` → `daily-2025-01-15.md`
 3. Execute the rename
 4. Output rename log: `이름변경: {old} → {new}`
 
