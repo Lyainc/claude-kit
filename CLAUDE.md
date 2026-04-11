@@ -7,8 +7,8 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 8개 (capture, note, project, inbox-review, wrapup, context, archive, vault-daily)
-- **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku). vault 검색 + handoff 생성.
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 7개 (capture, note, project, inbox-review, context, archive, vault-daily)
+- **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku). vault 검색 + session-note 생성.
 
 ## Git Conventions
 
@@ -94,7 +94,7 @@ Skills across `obsidian-vault-manager` and `vault-reader` share overlapping doma
 | Area | obsidian-vault-manager | vault-reader |
 |------|----------------------|--------------|
 | Domain context load | `context` skill (internal, `--exclude`/`--limit` options) | `vault-searcher` Mode 2 (external, read-only lightweight) |
-| Session end | `wrapup` skill (backward-looking summary) | `vault-searcher` Mode 4 (forward-looking handoff) |
+| Session record | N/A (use vault-reader's session-note) | `vault-searcher` Mode 4: Session Note Creation (record/handoff/quick modes) |
 | Note creation logic | `note` skill owns domain determination + MOC linking | `inbox-review` delegates to `note` skill procedure |
 
 Within `thinking-tools`:
