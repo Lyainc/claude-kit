@@ -14,7 +14,9 @@ obsidian-vault-manager/
 │   ├── note/SKILL.md                 # /note — 노트 생성 + MOC 연결
 │   ├── project/SKILL.md              # /project — 프로젝트 생성
 │   ├── inbox-review/SKILL.md         # /inbox-review — 인박스 정리
-│   └── context/SKILL.md              # /context — 도메인 맥락 로드 (Explore fork)
+│   ├── context/SKILL.md              # /context — 도메인 맥락 로드 (Explore fork)
+│   ├── archive/SKILL.md              # /archive — 프로젝트 아카이브
+│   └── vault-daily/SKILL.md          # /vault-daily — 데일리 노트
 └── ARCHITECTURE.md
 ```
 
@@ -30,7 +32,9 @@ obsidian-vault-manager/
 │   ├── note/SKILL.md
 │   ├── project/SKILL.md
 │   ├── inbox-review/SKILL.md
-│   └── context/SKILL.md
+│   ├── context/SKILL.md
+│   ├── archive/SKILL.md
+│   └── vault-daily/SKILL.md
 └── agent-memory/
     └── vault-knowledge-manager/
         └── MEMORY.md
