@@ -17,7 +17,8 @@ Create a new note in `~/vault/30_Notes/` on the topic of `$ARGUMENTS`.
    ```yaml
    ---
    created: YYYY-MM-DD
-   tags: [domain, keyword]
+   tags: [note, {domain}, {keyword}]
+   type: note
    ---
    ```
 4. **Link to MOC**:

@@ -100,7 +100,7 @@ MOC updates are considered approved together with note creation/move confirmatio
 
 ## Inbox Rules
 
-- Quick captures and unclassified content → `00_Inbox/YYYY-MM-DD-{topic}.md`
+- Quick captures and unclassified content → `00_Inbox/capture-YYYY-MM-DD-{topic}.md`
 - Do not add MOC links to Inbox notes.
 - Update MOC only when moving a note to `30_Notes/`.
 

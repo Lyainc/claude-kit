@@ -19,6 +19,8 @@ Create a new project named `$ARGUMENTS`.
    ```markdown
    ---
    created: YYYY-MM-DD
+   tags: [project, {project-name}]
+   type: project
    status: active
    ---
    # {Project Name}
