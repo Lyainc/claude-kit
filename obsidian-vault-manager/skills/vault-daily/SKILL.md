@@ -17,7 +17,7 @@ Create today's daily note or perform a previous-day review.
    - If it exists: show the existing file contents and ask "이어서 작성할까요?"
 3. **Load previous day summary** (automatic):
    - If the previous day's daily note exists, read it and collect incomplete items
-   - If a previous day's `session-wrapup` note exists, reference it
+   - If a previous day's session note exists (`session-*.md`), reference it
 4. **Create daily note**:
    ```markdown
    ---
@@ -65,12 +65,6 @@ Create today's daily note or perform a previous-day review.
    오늘의 데일리 노트를 생성할까요?
    ```
 5. Upon user confirmation, switch to default mode and create a daily note with carry-over items included
-
-## Wrapup Integration
-
-When `/wrapup` is run and a daily note exists for today:
-- Suggest appending the wrapup summary to the `## Notes` section of the daily note
-- Suggest updating the `End of Day` checklist in the daily note
 
 ## Rules
 
