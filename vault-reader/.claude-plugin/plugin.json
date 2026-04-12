@@ -24,7 +24,18 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "The session is ending. If this session involved meaningful work (file modifications, multi-turn discussion, research, or decision-making), use AskUserQuestion to offer session-note creation with these options: [네, 기록] to create a full session-note via vault-searcher Mode 4, [간단히] to create a quick-mode session-note, [건너뛰기] to skip. If the session was trivial (simple question-answer, single lookup), do NOT prompt — just let the session end. Never auto-create a session note without user confirmation."
+            "prompt": "Check if the user's most recent message contains an explicit session-closing signal: '세션 끝', '세션 마무리', '세션 종료', '오늘은 여기까지', '마무리하자', '그만하자', 'wrap up', 'let's end', 'we're done for today', or the user is about to type /exit or /quit. ONLY if such a signal is present, use AskUserQuestion to offer session-note creation: [네, 기록] full session-note via vault-searcher Mode 4, [간단히] quick-mode session-note, [건너뛰기] skip. If NO closing signal is present, do NOTHING — this hook fires every turn, so silent pass-through is the default behavior. Never auto-create a session note without confirmation."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "The session is ending (user exited or timed out). If the session had meaningful work (3+ turns of substantive exchange, file modifications, research, or decisions), silently create a quick-mode session-note via vault-searcher Mode 4 as a safety net — this captures minimal context (Summary + Related Files) without user interaction. Save to ~/vault/00_Inbox/session-YYYY-MM-DD.md with frontmatter type: session, tags: [session, auto-saved], no status field (record-style). Skip entirely if the session was trivial (1-2 turns, pure Q&A). Do not use AskUserQuestion — the session is closing and cannot accept user input."
           }
         ]
       }
