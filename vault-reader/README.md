@@ -48,7 +48,15 @@ Search the entire vault by keyword.
 
 ### 4. Session Note Creation
 
-Create a session note recording the current session's work. Supports three modes: **record** (past-focused summary), **handoff** (past + future plan), and **quick** (minimal).
+Create a session note recording the current session's work. Three modes:
+
+| Mode | When to use | Sections |
+|------|------------|----------|
+| `record` | No continuation work — past summary only | Summary, Done, Related Files, Reference Context |
+| `handoff` | Next session will continue this work | All sections + Next Steps, In Progress, Blockers |
+| `quick` | Minimal capture | Summary, Related Files (+ Next Steps if handoff) |
+
+The agent uses **AskUserQuestion** at two points: mode selection (before drafting) and save confirmation (before writing).
 
 ```
 "세션 정리해줘"
@@ -71,8 +79,11 @@ Create a session note recording the current session's work. Supports three modes
 
 ## Notes
 
-- Multiple session notes on the same day auto-increment with `-v2`, `-v3` suffixes
-- Session end triggers automatic suggestion to create a session note (Stop hook)
+- Filename: `session-YYYY-MM-DD.md` (type-first convention)
+- Frontmatter: `created`, `tags: [session, {project}]`, `type: session`, `status: active` (handoff mode only)
+- Same-date collisions auto-increment with `-v2`, `-v3` suffixes
+- **Stop hook**: fires AskUserQuestion only when the user explicitly signals session close ("세션 끝", "마무리", pre-`/exit`) — avoids per-turn prompt fatigue
+- **SessionEnd hook**: auto-saves a quick-mode session-note as a safety net when meaningful work happened but the user exited without saving
 
 ## Prerequisites
 

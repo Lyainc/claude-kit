@@ -87,6 +87,39 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 ---
 ```
 
+## Vault File Conventions
+
+Files written to `~/vault/` by OVM or vault-reader follow a unified convention.
+
+**Filename**: `{type}-YYYY-MM-DD[-{topic}][-vN].md` (type-first)
+
+| Type | Example | Path |
+|------|---------|------|
+| `session` | `session-2026-04-12.md` | `00_Inbox/` or `20_Projects/{name}/` |
+| `capture` | `capture-2026-04-12-api-changes.md` | `00_Inbox/` |
+| `daily` | `daily-2026-04-12.md` | `00_Inbox/` |
+| `note` | `{topic}.md` (no date) | `30_Notes/` |
+| `project` | `_index.md` (fixed) | `20_Projects/{name}/` |
+
+Same-date collisions: `-v2`, `-v3` increment.
+
+**Frontmatter standard**:
+```yaml
+created: YYYY-MM-DD            # required, all files
+tags: [{type}, {domain}]       # required
+type: session|capture|daily|note|project  # required
+status: active|archived        # conditional (session-handoff, project)
+```
+
+## Session-Note Hooks (vault-reader)
+
+vault-reader registers two hooks for the session-note workflow:
+
+- **Stop**: per-turn. Fires AskUserQuestion ONLY when the user signals session close ("세션 끝", "마무리", pre-`/exit`). Silent pass-through otherwise.
+- **SessionEnd**: session close. Auto-saves quick-mode session-note as safety net if meaningful work happened without manual save. No user interaction (session already closing).
+
+The two-hook split avoids per-turn prompt fatigue while guaranteeing no session data is lost.
+
 ## Cross-Plugin MECE Boundaries
 
 Skills across `obsidian-vault-manager` and `vault-reader` share overlapping domains. Boundaries:

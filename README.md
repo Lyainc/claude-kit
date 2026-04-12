@@ -24,7 +24,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ### [obsidian-vault-manager](obsidian-vault-manager/)
 
-Obsidian vault 지식 관리 플러그인. 2개 에이전트 + 8개 스킬.
+Obsidian vault 지식 관리 플러그인. 2개 에이전트 + 7개 스킬.
 
 ```bash
 claude plugin install obsidian-vault-manager@Lyainc-claude-kit
@@ -44,7 +44,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 ### [vault-reader](vault-reader/)
 
-외부 프로젝트에서 Obsidian vault에 읽기 접근하는 경량 I/O 플러그인.
+외부 프로젝트에서 Obsidian vault에 접근하는 경량 I/O 플러그인. 검색·도메인 컨텍스트 로드·session-note 생성을 지원합니다.
 
 ```bash
 claude plugin install vault-reader@Lyainc-claude-kit
