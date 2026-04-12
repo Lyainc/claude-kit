@@ -13,6 +13,7 @@ description: |
   "polish this document", "lint my markdown".
 
   Skip for: content creation (use doc-concretize), simple questions, non-MD files.
+allowed-tools: Read, Edit, Grep, Glob
 ---
 
 # Document Polish

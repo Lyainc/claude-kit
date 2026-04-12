@@ -13,6 +13,7 @@ description: |
   "전략을 상세 문서로 작성해줘", "비전을 실행 가능한 계획으로 풀어줘".
 
   Skip for: simple definitions, "짧게"/"간단히"/"briefly" requests, or already-structured content.
+allowed-tools: Read, Write, AskUserQuestion, WebFetch
 ---
 
 # Document Concretization
