@@ -1,6 +1,6 @@
 ---
 name: vault-knowledge-manager
-description: "Obsidian vault knowledge base manager. Handles note creation, MOC management, project tracking, inbox review, project archiving, and daily notes. Example: 'create a new note', 'organize project', 'update MOC'. For session recording (handoff / record / quick session notes) use vault-reader's vault-searcher (Mode 4) instead — this agent does not manage session lifecycle."
+description: "Obsidian vault knowledge base manager. Handles note creation, MOC management, project tracking, inbox review, and project archiving. Example: 'create a new note', 'organize project', 'update MOC'. For session recording (handoff / record / quick session notes) use vault-reader's vault-searcher (Mode 4) instead — this agent does not manage session lifecycle."
 model: sonnet
 color: purple
 memory: project
@@ -11,7 +11,6 @@ skills:
   - inbox-review
   - context
   - archive
-  - vault-daily
 ---
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.

@@ -7,7 +7,7 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 | 플러그인 | 버전 | 구성 |
 |---|---|---|
 | [thinking-tools](thinking-tools/) | `1.5.1` | 스킬 6 + 에이전트 1 |
-| [obsidian-vault-manager](obsidian-vault-manager/) | `0.4.0` | 스킬 7 + 에이전트 2 |
+| [obsidian-vault-manager](obsidian-vault-manager/) | `0.5.0` | 스킬 6 + 에이전트 2 |
 | [vault-reader](vault-reader/) | `0.2.0` | 에이전트 1 + 훅 2 (Stop / SessionEnd) |
 
 ## 플러그인 목록
@@ -32,7 +32,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ### [obsidian-vault-manager](obsidian-vault-manager/)
 
-Obsidian vault 지식 관리 플러그인. 2개 에이전트 + 7개 스킬.
+Obsidian vault 지식 관리 플러그인. 2개 에이전트 + 6개 스킬.
 
 ```bash
 claude plugin install obsidian-vault-manager@Lyainc-claude-kit
@@ -48,7 +48,6 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `inbox-review` | Inbox 파일 일괄 정리 |
 | `context` | vault 내부 도메인 맥락 로드 (Explore fork) |
 | `archive` | 프로젝트 아카이브 + MOC 정리 |
-| `vault-daily` | 데일리 노트 생성 및 리뷰 |
 
 ### [vault-reader](vault-reader/)
 

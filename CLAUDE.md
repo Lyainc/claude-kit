@@ -7,7 +7,7 @@ This file provides guidance to Claude Code when **developing/contributing to thi
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 7개 (capture, note, project, inbox-review, context, archive, vault-daily)
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 6개 (capture, note, project, inbox-review, context, archive)
 - **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 2개 (Stop, SessionEnd). vault 검색 + session-note 4-mode 생성 + 세션 생명주기 안전망.
 
 ## Git Conventions
@@ -97,7 +97,6 @@ Files written to `~/vault/` by OVM or vault-reader follow a unified convention.
 |------|---------|------|
 | `session` | `session-2026-04-12.md` | `00_Inbox/` or `20_Projects/{name}/` |
 | `capture` | `capture-2026-04-12-api-changes.md` | `00_Inbox/` |
-| `daily` | `daily-2026-04-12.md` | `00_Inbox/` |
 | `note` | `{topic}.md` (no date) | `30_Notes/` |
 | `project` | `_index.md` (fixed) | `20_Projects/{name}/` |
 
@@ -107,7 +106,7 @@ Same-date collisions: `-v2`, `-v3` increment.
 ```yaml
 created: YYYY-MM-DD            # required, all files
 tags: [{type}, {domain}]       # required
-type: session|capture|daily|note|project  # required
+type: session|capture|note|project  # required
 status: active|archived        # conditional (session-handoff, project)
 ```
 
