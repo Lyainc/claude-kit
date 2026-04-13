@@ -113,12 +113,13 @@ status: active|archived        # conditional (session-handoff, project)
 
 ## Session-Note Hooks (vault-reader)
 
-vault-reader registers two hooks for the session-note workflow:
+vault-reader registers two hooks plus one slash command for the session-note workflow:
 
-- **Stop**: per-turn. Fires AskUserQuestion ONLY when the user signals session close ("세션 끝", "마무리", pre-`/exit`). Silent pass-through otherwise.
-- **SessionEnd**: session close. Auto-saves quick-mode session-note as safety net if meaningful work happened without manual save. No user interaction (session already closing).
+- **Stop** (`hooks/stop-check.sh`, deterministic shell script): per-turn. Reads transcript JSONL, regex-matches the last user text against closing keywords (`세션 끝`, `마무리`, `wrap up`, `end session`, etc.), and emits a `systemMessage` suggesting `/save-session` only on match. **No LLM call** → no per-turn cost and no infinite-loop risk (the prior prompt-based hook caused a loop because every LLM response, even "(silent pass-through)", re-fired the Stop hook).
+- **SessionEnd** (prompt-based): session close. Auto-saves quick-mode session-note as safety net if meaningful work happened without manual save. No user interaction (session already closing).
+- **`/save-session`** (slash command): explicit user trigger to invoke vault-searcher Mode 4 with full mode selection (record/handoff/quick).
 
-The two-hook split avoids per-turn prompt fatigue while guaranteeing no session data is lost.
+The split (deterministic Stop + prompt SessionEnd + explicit slash command) ensures: zero per-turn LLM cost, no loops, safety-net auto-save on `/exit`, and a clear user-driven path for full session notes.
 
 ## Cross-Plugin MECE Boundaries
 

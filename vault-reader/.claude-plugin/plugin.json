@@ -1,6 +1,6 @@
 {
   "name": "vault-reader",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Lightweight Obsidian vault I/O plugin for searching notes, loading domain context, restoring session context, and creating session notes. Use from external projects to access vault knowledge.",
   "author": {
     "name": "Lyainc",
@@ -23,8 +23,9 @@
         "matcher": "",
         "hooks": [
           {
-            "type": "prompt",
-            "prompt": "Check if the user's most recent message contains an explicit session-closing signal: '세션 끝', '세션 마무리', '세션 종료', '오늘은 여기까지', '마무리하자', '그만하자', '끝내자', '오늘 끝', 'wrap up', 'let's end', 'we're done for today', 'end session', 'session done', 'finish up', 'call it a day', 'that's all'. ONLY if such a signal is present, use AskUserQuestion to offer session-note creation: [네, 기록] full session-note via vault-searcher Mode 4, [간단히] quick-mode session-note, [건너뛰기] skip. If NO closing signal is present, do NOTHING — this hook fires every turn, so silent pass-through is the default behavior. Never auto-create a session note without confirmation. Note: /exit and /quit cannot be predicted by this hook (they terminate the session before the next Stop fires); SessionEnd hook handles that case as a safety net."
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.sh",
+            "timeout": 5
           }
         ]
       }
