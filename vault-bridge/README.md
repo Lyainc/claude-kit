@@ -1,11 +1,13 @@
-# vault-reader
+# vault-bridge
 
-Lightweight **Obsidian vault I/O plugin** for Claude Code. Access vault knowledge from external projects.
+**Obsidian vault ↔ external project bridge** plugin for Claude Code. Access vault knowledge from external projects and record session notes back into the vault.
+
+> **Renamed from `vault-reader` (≤ v0.3.0) at v1.0.0.** The plugin's scope expanded beyond read-only search (session-note creation, Stop/SessionEnd hooks, `/save-session` command), so the name now reflects the two-way bridge role. See [Migration](#migration-from-vault-reader) below.
 
 ## Install
 
 ```bash
-claude plugin install vault-reader@Lyainc-claude-kit
+claude plugin install vault-bridge@Lyainc-claude-kit
 ```
 
 ## Agent
@@ -68,13 +70,13 @@ The agent uses **AskUserQuestion** at two points: mode selection (before draftin
 
 ## Relationship with obsidian-vault-manager
 
-| Aspect | vault-reader | obsidian-vault-manager |
+| Aspect | vault-bridge | obsidian-vault-manager |
 | --- | --- | --- |
 | Use context | External project access | Internal vault management session |
 | Write scope | Create new session notes only | Full note/MOC/project management |
-| Role | Read-focused I/O | Full knowledge management |
+| Role | Cross-session bridge (read + append) | Full knowledge management |
 
-- vault-reader **never modifies or deletes existing vault files**. It can only create new session notes.
+- vault-bridge **never modifies or deletes existing vault files**. It can only create new session notes.
 - For full vault management (note creation, MOC updates, inbox review), use `obsidian-vault-manager`.
 
 ## Notes
@@ -90,6 +92,19 @@ The agent uses **AskUserQuestion** at two points: mode selection (before draftin
 
 - `~/vault/` must contain an Obsidian vault
 - [`jq`](https://jqlang.github.io/jq/) on PATH (used by the Stop hook to parse the transcript JSONL)
+
+## Migration from vault-reader
+
+`vault-bridge` v1.0.0 supersedes `vault-reader` v0.3.0. Plugin name changed — existing installations must re-install under the new name. Vault data (`~/vault/`) is fully compatible; no file migration needed.
+
+```bash
+claude plugin uninstall vault-reader
+claude plugin install vault-bridge@Lyainc-claude-kit
+```
+
+Behavior and trigger phrases are unchanged. The `vault-searcher` agent keeps the same 4 modes (restore, domain context, keyword search, session-note creation), the Stop hook still watches for closing keywords, and `/save-session` works identically.
+
+If you reference the agent by qualified name in prompts or scripts, update `vault-reader:vault-searcher` → `vault-bridge:vault-searcher`.
 
 ## License
 

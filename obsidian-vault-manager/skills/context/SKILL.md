@@ -12,7 +12,7 @@ Load context for the `$ARGUMENTS` domain.
 
 ## Scope
 
-This skill is for use **within vault management sessions** (via `vault-knowledge-manager`). It provides advanced options (`--exclude`, `--limit`) for filtering results. For lightweight read-only access from external projects, use `vault-reader`'s `vault-searcher` agent (Mode 2: Domain Context Load) instead.
+This skill is for use **within vault management sessions** (via `vault-knowledge-manager`). It provides advanced options (`--exclude`, `--limit`) for filtering results. For lightweight read-only access from external projects, use `vault-bridge`'s `vault-searcher` agent (Mode 2: Domain Context Load) instead.
 
 ## Procedure
 

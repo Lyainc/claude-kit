@@ -3,6 +3,7 @@
 > 작성일: 2026-04-12
 > 도출 과정: Unknown Discovery (7개 발견) → Expert Panel (6개 합의) → Doc Concretize
 > **2026-04-13 업데이트**: `vault-daily` 스킬이 제거되어 `daily` 타입은 더 이상 생성되지 않습니다. 본 문서의 `daily` 관련 항목은 과거 설계 기록으로 보존.
+> **2026-04-13 업데이트**: `vault-reader` 플러그인이 `vault-bridge` v1.0.0으로 리네이밍되었습니다. 본문의 `vault-reader` 참조는 과거 설계 기록으로 보존.
 
 ## 1. 문제 정의
 

@@ -26,14 +26,14 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `context` | vault 내부 도메인 맥락 로드 (Explore fork) |
 | `archive` | 완료 프로젝트 아카이브 + MOC/Home.md 정리 |
 
-## vault-reader와의 관계
+## vault-bridge와의 관계
 
-| 영역 | obsidian-vault-manager | vault-reader |
+| 영역 | obsidian-vault-manager | vault-bridge |
 | --- | --- | --- |
 | 사용 맥락 | vault 관리 세션 내부 | 외부 프로젝트에서 vault 접근 |
 | 쓰기 범위 | 노트/MOC/프로젝트 전체 생성·수정·삭제 | 새 session-note 생성만 가능 |
 | `context` vs `vault-searcher` | MOC 기반 도메인 로드 + `--exclude`/`--limit` 옵션 | MOC 기반 도메인 로드 (읽기 전용, 외부 접근용) |
-| 세션 기록 | 해당 없음 (vault-reader의 session-note 사용) | session-note 생성 (과거 기록 + 미래 계획 통합) |
+| 세션 기록 | 해당 없음 (vault-bridge의 session-note 사용) | session-note 생성 (과거 기록 + 미래 계획 통합) |
 
 ## 사전 요구사항
 
