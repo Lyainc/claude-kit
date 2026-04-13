@@ -97,7 +97,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ### `/wrapup` 스킬 제거 (obsidian-vault-manager v0.4.0)
 
-**Breaking change**: obsidian-vault-manager의 `/wrapup` 스킬이 제거되고, 세션 기록은 `vault-bridge` 플러그인(구 `vault-reader`)의 `vault-searcher` 에이전트 Mode 4 (Session Note Creation)로 일원화되었습니다.
+**Breaking change**: obsidian-vault-manager의 `/wrapup` 스킬이 제거되고, 세션 기록은 `vault-bridge` 플러그인의 `vault-searcher` 에이전트 Mode 4 (Session Note Creation)로 일원화되었습니다.
 
 | 기존 `/wrapup` 사용 | 신규 사용 |
 |---|---|
