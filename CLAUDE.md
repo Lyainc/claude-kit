@@ -120,6 +120,14 @@ vault-reader registers two hooks for the session-note workflow:
 
 The two-hook split avoids per-turn prompt fatigue while guaranteeing no session data is lost.
 
+## Vault Access Policy
+
+When a task touches `~/vault/`:
+- **ALWAYS delegate read/search to `vault-searcher`** (haiku, cost-optimized). Direct `Read`/`Grep`/`Glob` on `~/vault/` is permitted **only for a single file path explicitly provided by the user**.
+- **Session notes** (`~/vault/00_Inbox/session-*.md`, `~/vault/20_Projects/{name}/session-*.md`) MUST be created via `vault-searcher` Mode 4 — never via direct `Write`.
+- **Note creation, MOC updates, project/inbox management** → `vault-knowledge-manager` (sonnet). Do not use `vault-searcher` for these write-side operations.
+- **Rationale**: haiku-tier search is ~5x cheaper than Opus direct grep, and the agent enforces vault layout conventions (frontmatter, type-first naming, MOC linking). Bypassing it causes drift.
+
 ## Cross-Plugin MECE Boundaries
 
 Skills across `obsidian-vault-manager` and `vault-reader` share overlapping domains. Boundaries:

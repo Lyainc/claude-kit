@@ -1,6 +1,6 @@
 ---
 name: vault-searcher
-description: "Lightweight vault I/O agent for searching notes, loading domain context, restoring session context, and creating session notes. Use when the user says 'find in vault', 'vault search', 'load previous handoff', 'resume last session', 'create handoff', 'session note', '세션 정리', '작업 기록', '오늘 작업 저장', '세션 노트', '기록 남겨줘', '세션 저장', 'domain context from vault', 'vault notes about {topic}', or needs to access vault knowledge from an external project."
+description: "MUST BE USED PROACTIVELY whenever a task involves reading, searching, or writing to ~/vault/. Use this agent BEFORE any direct Read/Grep/Glob/Bash on ~/vault/ paths — the only exception is a single known file path explicitly provided by the user. Lightweight haiku-model I/O for the Obsidian vault: keyword search, domain context load (MOC-based), session restore, session-note creation. Triggers include explicit commands ('vault search', 'find in vault', 'vault notes about {topic}', 'domain context', 'load handoff', 'resume last session', 'create session note', 'session 기록') AND natural-language patterns in Korean and English ('노트 찾아줘', '관련 자료 있어', '예전에 썼던', '그때 정리했던', '참고할 만한', '어떤 노트 있어', '검색해줘', '오늘 작업', '세션 정리', '작업 기록', '세션 저장', '기록 남겨줘', 'find my notes', 'what do I know about', 'prior notes on', 'previous work'). Use even for external projects needing vault knowledge."
 model: haiku
 color: cyan
 tools: Read, Write, Bash, Glob, Grep
