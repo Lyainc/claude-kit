@@ -60,7 +60,7 @@
     },
     {
       "name": "vault-reader",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "description": "Lightweight Obsidian vault I/O plugin for searching notes, loading domain context, restoring session context, and creating session notes. Use from external projects to access vault knowledge.",
       "author": {
         "name": "Lyainc",

@@ -82,8 +82,9 @@ The agent uses **AskUserQuestion** at two points: mode selection (before draftin
 - Filename: `session-YYYY-MM-DD.md` (type-first convention)
 - Frontmatter: `created`, `tags: [session, {project}]`, `type: session`, `status: active` (handoff mode only)
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
-- **Stop hook**: fires AskUserQuestion only when the user explicitly signals session close ("세션 끝", "마무리", pre-`/exit`) — avoids per-turn prompt fatigue
+- **Stop hook** (deterministic shell script `hooks/stop-check.sh`): silently checks the user's last message for session-closing keywords; injects a one-line `systemMessage` suggesting `/save-session` only when a closing signal is detected. No LLM call → no per-turn cost, no infinite-loop risk
 - **SessionEnd hook**: auto-saves a quick-mode session-note as a safety net when meaningful work happened but the user exited without saving
+- **`/save-session` command**: explicit user trigger that delegates to vault-searcher Mode 4 with full mode selection (record/handoff/quick)
 
 ## Prerequisites
 
