@@ -30,8 +30,10 @@ if [[ -z "$transcript_path" || ! -f "$transcript_path" ]]; then
   exit 0
 fi
 
-# Extract the most recent USER text message (string content OR array with text blocks).
-# Skip tool_result-only user entries — they are tool responses, not user prompts.
+# Extract the most recent USER text PROMPT (string content OR array with text blocks).
+# We deliberately scan all user entries and take the last non-empty TEXT — not the
+# transcript's last entry — because tool_result entries are also user-role and would
+# mask the actual user prompt that triggered the closing-signal check.
 last_user_text=$(jq -rs '
   map(select(.type == "user"))
   | map(
