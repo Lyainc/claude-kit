@@ -68,6 +68,23 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 스킬 이름과 트리거는 동일하므로 사용법 변경은 없습니다.
 
+### `/wrapup` 스킬 제거 (obsidian-vault-manager v0.4.0)
+
+**Breaking change**: obsidian-vault-manager의 `/wrapup` 스킬이 제거되고, 세션 기록은 `vault-reader` 플러그인의 `vault-searcher` 에이전트 Mode 4 (Session Note Creation)로 일원화되었습니다.
+
+| 기존 `/wrapup` 사용 | 신규 사용 |
+|---|---|
+| `/wrapup` | "세션 정리해줘" / "세션 노트 만들어줘" — vault-searcher가 자동 소환되어 Mode 4 실행 |
+| `/wrapup --hours 3` | Mode 4 프로시저가 대화 컨텍스트 + 최근 변경 파일(`find -mmin`)을 수집. 범위는 세션 내용 기반으로 자동 판단. |
+| `/wrapup --no-save` | Mode 4 Step 6의 AskUserQuestion에서 `[취소]` 선택 |
+| 자동 저장 (세션 종료 시) | SessionEnd hook이 meaningful work 감지 시 자동 quick-save (`session-YYYY-MM-DD.md`, `tags: [session, auto-saved]`) |
+
+**기존 파일 처리**:
+- 과거 `session-wrapup` 태그/파일명의 노트는 그대로 유지 (migration script 제공하지 않음)
+- 필요 시 수동으로 `type: session` frontmatter 추가 또는 그대로 아카이브
+
+자세한 session-note 3-mode(`record` / `handoff` / `quick`) 설명은 [`vault-reader/README.md`](vault-reader/README.md) 참조.
+
 ## 문제 해결
 
 **설치 후 적용 안됨**: Claude Code 재시작 필요
