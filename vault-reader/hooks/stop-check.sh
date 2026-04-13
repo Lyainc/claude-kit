@@ -9,6 +9,19 @@
 
 set -euo pipefail
 
+# Ensure a UTF-8 locale so Korean keywords match under grep -E even when the
+# parent shell uses a bare C/POSIX locale (otherwise multi-byte chars silently fail).
+# Probe for an installed UTF-8 locale; leave LC_ALL untouched if none found
+# (setting a non-existent locale would cause setlocale warnings on every fire).
+if ! printf '%s' "${LC_ALL:-${LANG:-}}" | grep -qiE 'utf-?8'; then
+  for cand in C.UTF-8 en_US.UTF-8 en_US.utf8 C.utf8; do
+    if locale -a 2>/dev/null | grep -qx "$cand"; then
+      export LC_ALL="$cand"
+      break
+    fi
+  done
+fi
+
 payload=$(cat)
 
 transcript_path=$(printf '%s' "$payload" | jq -r '.transcript_path // empty')

@@ -89,6 +89,7 @@ The agent uses **AskUserQuestion** at two points: mode selection (before draftin
 ## Prerequisites
 
 - `~/vault/` must contain an Obsidian vault
+- [`jq`](https://jqlang.github.io/jq/) on PATH (used by the Stop hook to parse the transcript JSONL)
 
 ## License
 
