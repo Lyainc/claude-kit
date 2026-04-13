@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.0.0](https://github.com/Lyainc/claude-kit/compare/v1.2.0...v2.0.0) (2026-04-13)
+
+
+### ⚠ BREAKING CHANGES
+
+* plugin name changed from "vault-reader" to "vault-bridge" (v1.0.0). The plugin's scope expanded beyond read-only search (now includes session-note creation, Stop/SessionEnd hooks, /save-session command), so the new name reflects the two-way bridge role between external projects and the Obsidian vault.
+* **obsidian-vault-manager:** vault-daily skill is removed from obsidian-vault-manager v0.5.0. Use capture for quick memos or session-note for session records. Existing daily-*.md files in vault remain readable but no longer created via slash command.
+
+### Features
+
+* **obsidian-vault-manager:** remove vault-daily skill ([#53](https://github.com/Lyainc/claude-kit/issues/53)) ([715cea0](https://github.com/Lyainc/claude-kit/commit/715cea042c1fc458bd884d6ea6398bf2c09d843e))
+
+
+### Code Refactoring
+
+* rename vault-reader plugin to vault-bridge ([#56](https://github.com/Lyainc/claude-kit/issues/56)) ([b65c243](https://github.com/Lyainc/claude-kit/commit/b65c2431f5feb24d4f79d83dcb5049baec5cc787))
+
 ## [1.2.0](https://github.com/Lyainc/claude-kit/compare/v1.1.0...v1.2.0) (2026-04-13)
 
 
