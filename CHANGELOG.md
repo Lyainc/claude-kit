@@ -1,5 +1,26 @@
 # Changelog
 
+## [1.2.0](https://github.com/Lyainc/claude-kit/compare/v1.1.0...v1.2.0) (2026-04-13)
+
+
+### Features
+
+* add Stop hook for session-note suggestion ([44d6085](https://github.com/Lyainc/claude-kit/commit/44d6085e2f0560a3e29b93049f45a41d0d296b53))
+* replace handoff with session-note in vault-reader ([65deb2e](https://github.com/Lyainc/claude-kit/commit/65deb2e728aeff5dd2fb3518049d29bf6a64011a))
+* **vault-reader:** make vault-searcher proactively invoked for vault access ([5157b73](https://github.com/Lyainc/claude-kit/commit/5157b7375f8c802db23c28e4123c14600ef89d89))
+* vault-searcher proactive invocation + hook refinement + cleanup ([2946e53](https://github.com/Lyainc/claude-kit/commit/2946e53d7f46cbb6f01fe1239268d3f2a1270e44))
+
+
+### Bug Fixes
+
+* address PR [#50](https://github.com/Lyainc/claude-kit/issues/50) review feedback ([131e4c2](https://github.com/Lyainc/claude-kit/commit/131e4c2949d1d3266e3bbcc3b68fb46e1cc896d3))
+* address PR [#50](https://github.com/Lyainc/claude-kit/issues/50) second review feedback ([34bee92](https://github.com/Lyainc/claude-kit/commit/34bee92a4967099a1fb7e1cf28291e8b7c997ddb))
+* refine session-note hooks to avoid per-turn prompt fatigue ([a6e051f](https://github.com/Lyainc/claude-kit/commit/a6e051ffa6c93dfb193469223b0b135706c3dc42))
+* **vault-reader:** expand hook signal coverage and tighten sessionend threshold ([75a6a6c](https://github.com/Lyainc/claude-kit/commit/75a6a6caa54848ee2805e7508ac3c7e9e7e126c5))
+* **vault-reader:** probe UTF-8 locale in stop-check.sh + document jq dep ([b2198e9](https://github.com/Lyainc/claude-kit/commit/b2198e908327c724cba4698c60817793c3bf044d))
+* **vault-reader:** replace prompt-based Stop hook with deterministic shell script ([2ee8691](https://github.com/Lyainc/claude-kit/commit/2ee869135c0e8f8db8d71a811729edeb931d7f3a))
+* **vault-reader:** replace prompt-based Stop hook with deterministic shell script ([3d04628](https://github.com/Lyainc/claude-kit/commit/3d046288c180d1d418bbd3eec206bd27549caca6))
+
 ## [1.1.0](https://github.com/Lyainc/claude-kit/compare/v1.0.1...v1.1.0) (2026-04-07)
 
 
