@@ -1,14 +1,14 @@
-# CLAUDE.md
+# CLAUDE.md (for claude-kit contributors)
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This file provides guidance to Claude Code when **developing/contributing to this repository**. Runtime behavior rules (how Claude should act when these plugins are active in external projects) live in each plugin's agent/skill `description` fields, which are the single source of truth for runtime delegation.
 
 ## Project Overview
 
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 8개 (capture, note, project, inbox-review, wrapup, context, archive, vault-daily)
-- **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku). vault 검색 + handoff 생성.
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 7개 (capture, note, project, inbox-review, context, archive, vault-daily)
+- **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 2개 (Stop, SessionEnd). vault 검색 + session-note 4-mode 생성 + 세션 생명주기 안전망.
 
 ## Git Conventions
 
@@ -87,6 +87,39 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 ---
 ```
 
+## Vault File Conventions
+
+Files written to `~/vault/` by OVM or vault-reader follow a unified convention.
+
+**Filename**: `{type}-YYYY-MM-DD[-{topic}][-vN].md` (type-first)
+
+| Type | Example | Path |
+|------|---------|------|
+| `session` | `session-2026-04-12.md` | `00_Inbox/` or `20_Projects/{name}/` |
+| `capture` | `capture-2026-04-12-api-changes.md` | `00_Inbox/` |
+| `daily` | `daily-2026-04-12.md` | `00_Inbox/` |
+| `note` | `{topic}.md` (no date) | `30_Notes/` |
+| `project` | `_index.md` (fixed) | `20_Projects/{name}/` |
+
+Same-date collisions: `-v2`, `-v3` increment.
+
+**Frontmatter standard**:
+```yaml
+created: YYYY-MM-DD            # required, all files
+tags: [{type}, {domain}]       # required
+type: session|capture|daily|note|project  # required
+status: active|archived        # conditional (session-handoff, project)
+```
+
+## Session-Note Hooks (vault-reader)
+
+vault-reader registers two hooks for the session-note workflow:
+
+- **Stop**: per-turn. Fires AskUserQuestion ONLY when the user signals session close ("세션 끝", "마무리", pre-`/exit`). Silent pass-through otherwise.
+- **SessionEnd**: session close. Auto-saves quick-mode session-note as safety net if meaningful work happened without manual save. No user interaction (session already closing).
+
+The two-hook split avoids per-turn prompt fatigue while guaranteeing no session data is lost.
+
 ## Cross-Plugin MECE Boundaries
 
 Skills across `obsidian-vault-manager` and `vault-reader` share overlapping domains. Boundaries:
@@ -94,7 +127,7 @@ Skills across `obsidian-vault-manager` and `vault-reader` share overlapping doma
 | Area | obsidian-vault-manager | vault-reader |
 |------|----------------------|--------------|
 | Domain context load | `context` skill (internal, `--exclude`/`--limit` options) | `vault-searcher` Mode 2 (external, read-only lightweight) |
-| Session end | `wrapup` skill (backward-looking summary) | `vault-searcher` Mode 4 (forward-looking handoff) |
+| Session record | N/A (use vault-reader's session-note) | `vault-searcher` Mode 4: Session Note Creation (record/handoff/quick modes) |
 | Note creation logic | `note` skill owns domain determination + MOC linking | `inbox-review` delegates to `note` skill procedure |
 
 Within `thinking-tools`:

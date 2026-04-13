@@ -15,6 +15,7 @@ description: |
   "blind spot을 찾아줘", "심층 인터뷰해줘", "Unknown unknowns를 발견해줘".
 
   Skip for: simple Q&A, factual queries, or when user wants quick answers.
+allowed-tools: AskUserQuestion Read Write
 ---
 
 # Unknown Discovery

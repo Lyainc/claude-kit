@@ -1,6 +1,6 @@
 ---
 name: vault-knowledge-manager
-description: "Obsidian vault knowledge base manager. Handles note creation, MOC management, project tracking, inbox review, session wrapup, and vault operations. Example: 'create a new note', 'organize project', 'update MOC'"
+description: "Obsidian vault knowledge base manager. Handles note creation, MOC management, project tracking, inbox review, project archiving, and daily notes. Example: 'create a new note', 'organize project', 'update MOC'. For session recording (handoff / record / quick session notes) use vault-reader's vault-searcher (Mode 4) instead — this agent does not manage session lifecycle."
 model: sonnet
 color: purple
 memory: project
@@ -9,7 +9,6 @@ skills:
   - note
   - project
   - inbox-review
-  - wrapup
   - context
   - archive
   - vault-daily
@@ -101,7 +100,7 @@ MOC updates are considered approved together with note creation/move confirmatio
 
 ## Inbox Rules
 
-- Quick captures and unclassified content → `00_Inbox/YYYY-MM-DD-{topic}.md`
+- Quick captures and unclassified content → `00_Inbox/capture-YYYY-MM-DD-{topic}.md`
 - Do not add MOC links to Inbox notes.
 - Update MOC only when moving a note to `30_Notes/`.
 
@@ -124,4 +123,4 @@ MOC updates are considered approved together with note creation/move confirmatio
 - After every file operation, verify the file was successfully created/modified.
 - After MOC updates, validate link integrity.
 - On failure, provide a clear error report with resolution steps.
-- Track the list of files created/modified during the session for use in `/wrapup`.
+- Track the list of files created/modified during the session.

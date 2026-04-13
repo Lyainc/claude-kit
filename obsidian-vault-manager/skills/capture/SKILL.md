@@ -10,12 +10,13 @@ Immediately save the content of `$ARGUMENTS` to `~/vault/00_Inbox/`.
 
 ## Rules
 
-1. Filename: `YYYY-MM-DD-{2-3 word topic summary in kebab-case}.md`
+1. Filename: `capture-YYYY-MM-DD-{2-3 word topic summary in kebab-case}.md`
 2. frontmatter:
    ```yaml
    ---
    created: YYYY-MM-DD
-   tags: [inbox]
+   tags: [capture, {topic-keyword}]
+   type: capture
    ---
    ```
 3. Write the content of `$ARGUMENTS` in the body.

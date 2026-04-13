@@ -14,8 +14,9 @@ obsidian-vault-manager/
 │   ├── note/SKILL.md                 # /note — 노트 생성 + MOC 연결
 │   ├── project/SKILL.md              # /project — 프로젝트 생성
 │   ├── inbox-review/SKILL.md         # /inbox-review — 인박스 정리
-│   ├── wrapup/SKILL.md               # /wrapup — 세션 요약
-│   └── context/SKILL.md              # /context — 도메인 맥락 로드 (Explore fork)
+│   ├── context/SKILL.md              # /context — 도메인 맥락 로드 (Explore fork)
+│   ├── archive/SKILL.md              # /archive — 프로젝트 아카이브
+│   └── vault-daily/SKILL.md          # /vault-daily — 데일리 노트
 └── ARCHITECTURE.md
 ```
 
@@ -31,8 +32,9 @@ obsidian-vault-manager/
 │   ├── note/SKILL.md
 │   ├── project/SKILL.md
 │   ├── inbox-review/SKILL.md
-│   ├── wrapup/SKILL.md
-│   └── context/SKILL.md
+│   ├── context/SKILL.md
+│   ├── archive/SKILL.md
+│   └── vault-daily/SKILL.md
 └── agent-memory/
     └── vault-knowledge-manager/
         └── MEMORY.md
@@ -43,7 +45,7 @@ obsidian-vault-manager/
 ### 1. Agent ↔ Skill 분리 (Progressive Disclosure)
 
 **Before**: 1개 agent 파일(~300줄)에 모든 것이 포함
-**After**: agent(~90줄) + 8개 skill 파일
+**After**: agent(~90줄) + 7개 skill 파일
 
 | 항목 | 효과 |
 |------|------|

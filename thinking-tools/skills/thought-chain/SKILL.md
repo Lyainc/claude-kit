@@ -15,6 +15,7 @@ description: |
   "종합적으로 분석하고 결과를 문서로 만들어줘".
 
   Skip for: single-skill tasks, quick questions, already-structured analysis.
+allowed-tools: Skill Read Write AskUserQuestion
 ---
 
 # Thought Chain — Skill Orchestration Pipeline

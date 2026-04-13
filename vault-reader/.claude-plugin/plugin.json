@@ -1,7 +1,7 @@
 {
   "name": "vault-reader",
-  "version": "0.1.0",
-  "description": "Lightweight Obsidian vault I/O plugin for searching notes, loading domain context, restoring handoff sessions, and creating handoff notes. Use from external projects to access vault knowledge.",
+  "version": "0.2.0",
+  "description": "Lightweight Obsidian vault I/O plugin for searching notes, loading domain context, restoring session context, and creating session notes. Use from external projects to access vault knowledge.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -14,7 +14,31 @@
     "vault",
     "reader",
     "vault-searcher",
-    "handoff",
+    "session-note",
     "search"
-  ]
+  ],
+  "hooks": {
+    "Stop": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "Check if the user's most recent message contains an explicit session-closing signal: '세션 끝', '세션 마무리', '세션 종료', '오늘은 여기까지', '마무리하자', '그만하자', '끝내자', '오늘 끝', 'wrap up', 'let's end', 'we're done for today', 'end session', 'session done', 'finish up', 'call it a day', 'that's all'. ONLY if such a signal is present, use AskUserQuestion to offer session-note creation: [네, 기록] full session-note via vault-searcher Mode 4, [간단히] quick-mode session-note, [건너뛰기] skip. If NO closing signal is present, do NOTHING — this hook fires every turn, so silent pass-through is the default behavior. Never auto-create a session note without confirmation. Note: /exit and /quit cannot be predicted by this hook (they terminate the session before the next Stop fires); SessionEnd hook handles that case as a safety net."
+          }
+        ]
+      }
+    ],
+    "SessionEnd": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "prompt",
+            "prompt": "The session is ending (user exited or timed out). Save a safety-net session-note INLINE (do NOT delegate to vault-searcher Mode 4 — that mode requires AskUserQuestion which cannot fire during session close). Create the file ONLY if the session had meaningful work — defined as 3+ turns AND at least one of: (a) file modification/creation, (b) vault read, (c) explicit decision or recommendation recorded, (d) code execution or test run, (e) external research (WebFetch/docs lookup). Pure Q&A dialogue with no artifacts → skip entirely. Procedure: (1) Resolve target path: start with ~/vault/00_Inbox/session-YYYY-MM-DD.md. Use Bash (`ls ~/vault/00_Inbox/session-YYYY-MM-DD*.md 2>/dev/null`) or Glob to check collision. If base exists, append `-v2`, then `-v3`, incrementing until a free filename is found. (2) Write the file via the Write tool. Frontmatter MUST contain EXACTLY these three fields and no others — do NOT include a `status` field (record-style): `created: YYYY-MM-DD`, `tags: [session, auto-saved]`, `type: session`. (3) Body: a '## Summary' section (2-3 lines recapping the session), then '## Related Files' listing paths touched during the session. No further sections required. (4) Do NOT use AskUserQuestion — the session is closing and cannot accept user input. (5) If Write fails for any reason (permission, path missing), log the failure via a single assistant message and stop; do not retry."
+          }
+        ]
+      }
+    ]
+  }
 }
