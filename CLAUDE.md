@@ -8,7 +8,7 @@ This file provides guidance to Claude Code when **developing/contributing to thi
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 6개 (capture, note, project, inbox-review, context, archive)
-- **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 2개 (Stop, SessionEnd). vault 검색 + session-note 4-mode 생성 + 세션 생명주기 안전망.
+- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 2개 (Stop, SessionEnd). vault 검색 + session-note 4-mode 생성 + 세션 생명주기 안전망.
 
 ## Git Conventions
 
@@ -18,7 +18,7 @@ This file provides guidance to Claude Code when **developing/contributing to thi
 
 ## Language Policy
 
-All plugins (thinking-tools, obsidian-vault-manager, vault-reader) follow a unified policy:
+All plugins (thinking-tools, obsidian-vault-manager, vault-bridge) follow a unified policy:
 
 - **Skill instructions** (SKILL.md body): English for LLM-optimized parsing
 - **Agent instructions** (agents/*.md body): English for LLM-optimized parsing
@@ -47,7 +47,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── .claude-plugin/plugin.json
 │   ├── skills/
 │   └── agents/
-├── vault-reader/                        # plugin: vault-reader
+├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
 │   └── agents/                          # 에이전트 디렉토리 (vault-searcher)
 ├── CLAUDE.md
@@ -68,7 +68,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
 python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
-python3 -m json.tool vault-reader/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 
 # 스킬 파일 존재 확인
 find thinking-tools/skills -name "SKILL.md" | sort
@@ -89,7 +89,7 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 
 ## Vault File Conventions
 
-Files written to `~/vault/` by OVM or vault-reader follow a unified convention.
+Files written to `~/vault/` by OVM or vault-bridge follow a unified convention.
 
 **Filename**: `{type}-YYYY-MM-DD[-{topic}][-vN].md` (type-first)
 
@@ -110,9 +110,9 @@ type: session|capture|note|project  # required
 status: active|archived        # conditional (session-handoff, project)
 ```
 
-## Session-Note Hooks (vault-reader)
+## Session-Note Hooks (vault-bridge)
 
-vault-reader registers two hooks plus one slash command for the session-note workflow:
+vault-bridge registers two hooks plus one slash command for the session-note workflow:
 
 - **Stop** (`hooks/stop-check.sh`, deterministic shell script): per-turn. Reads transcript JSONL, regex-matches the last user text against closing keywords (`세션 끝`, `마무리`, `wrap up`, `end session`, etc.), and emits a `systemMessage` suggesting `/save-session` only on match. **No LLM call** → no per-turn cost and no infinite-loop risk (the prior prompt-based hook caused a loop because every LLM response, even "(silent pass-through)", re-fired the Stop hook).
 - **SessionEnd** (prompt-based): session close. Auto-saves quick-mode session-note as safety net if meaningful work happened without manual save. No user interaction (session already closing).
@@ -122,12 +122,12 @@ The split (deterministic Stop + prompt SessionEnd + explicit slash command) ensu
 
 ## Cross-Plugin MECE Boundaries
 
-Skills across `obsidian-vault-manager` and `vault-reader` share overlapping domains. Boundaries:
+Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping domains. Boundaries:
 
-| Area | obsidian-vault-manager | vault-reader |
+| Area | obsidian-vault-manager | vault-bridge |
 |------|----------------------|--------------|
 | Domain context load | `context` skill (internal, `--exclude`/`--limit` options) | `vault-searcher` Mode 2 (external, read-only lightweight) |
-| Session record | N/A (use vault-reader's session-note) | `vault-searcher` Mode 4: Session Note Creation (record/handoff/quick modes) |
+| Session record | N/A (use vault-bridge's session-note) | `vault-searcher` Mode 4: Session Note Creation (record/handoff/quick modes) |
 | Note creation logic | `note` skill owns domain determination + MOC linking | `inbox-review` delegates to `note` skill procedure |
 
 Within `thinking-tools`:

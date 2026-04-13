@@ -1,7 +1,7 @@
 {
-  "name": "vault-reader",
-  "version": "0.3.0",
-  "description": "Lightweight Obsidian vault I/O plugin for searching notes, loading domain context, restoring session context, and creating session notes. Use from external projects to access vault knowledge.",
+  "name": "vault-bridge",
+  "version": "1.0.0",
+  "description": "Obsidian vault ↔ external project bridge plugin. Agent (vault-searcher, haiku) + Stop/SessionEnd hooks + /save-session command. Searches notes, loads domain context, restores session context, and creates session notes with record/handoff/quick modes.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -12,10 +12,11 @@
   "keywords": [
     "obsidian",
     "vault",
-    "reader",
+    "bridge",
     "vault-searcher",
     "session-note",
-    "search"
+    "search",
+    "hooks"
   ],
   "hooks": {
     "Stop": [

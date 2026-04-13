@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# vault-reader Stop hook — deterministic session-closing signal detector.
+# vault-bridge Stop hook — deterministic session-closing signal detector.
 #
 # Why this is a shell script (not a prompt hook):
 #   The previous prompt-based Stop hook caused an infinite loop because every
@@ -52,7 +52,7 @@ if [[ -z "$last_user_text" ]]; then
 fi
 
 # Closing-signal regex (Korean + English). Case-insensitive for English.
-# Keep this list in sync with vault-reader README documentation.
+# Keep this list in sync with vault-bridge README documentation.
 if printf '%s' "$last_user_text" | grep -qiE \
   -e '세션 끝|세션 마무리|세션 종료|오늘은 여기까지|마무리하자|그만하자|끝내자|오늘 끝|세션 정리해줘|작업 기록 남겨줘' \
   -e "wrap up|let's end|we're done for today|end session|session done|finish up|call it a day|that's all"; then
