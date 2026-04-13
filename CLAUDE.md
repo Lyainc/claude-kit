@@ -8,7 +8,7 @@ This file provides guidance to Claude Code when **developing/contributing to thi
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 7개 (capture, note, project, inbox-review, context, archive, vault-daily)
-- **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku). vault 검색 + session-note 생성.
+- **vault-reader** (`vault-reader/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 2개 (Stop, SessionEnd). vault 검색 + session-note 4-mode 생성 + 세션 생명주기 안전망.
 
 ## Git Conventions
 

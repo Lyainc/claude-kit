@@ -2,6 +2,14 @@
 
 Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러그인들을 하나의 저장소에서 관리합니다.
 
+## 플러그인 버전
+
+| 플러그인 | 버전 | 구성 |
+|---|---|---|
+| [thinking-tools](thinking-tools/) | `1.5.1` | 스킬 6 + 에이전트 1 |
+| [obsidian-vault-manager](obsidian-vault-manager/) | `0.4.0` | 스킬 7 + 에이전트 2 |
+| [vault-reader](vault-reader/) | `0.2.0` | 에이전트 1 + 훅 2 (Stop / SessionEnd) |
+
 ## 플러그인 목록
 
 ### [thinking-tools](thinking-tools/)
@@ -44,7 +52,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 ### [vault-reader](vault-reader/)
 
-외부 프로젝트에서 Obsidian vault에 접근하는 경량 I/O 플러그인. 검색·도메인 컨텍스트 로드·session-note 생성을 지원합니다.
+외부 프로젝트에서 Obsidian vault에 접근하는 경량 I/O 플러그인. `vault-searcher` 에이전트(Haiku)가 **proactive invocation**으로 `~/vault/` 접근 시 자동 소환됩니다.
 
 ```bash
 claude plugin install vault-reader@Lyainc-claude-kit
@@ -52,7 +60,11 @@ claude plugin install vault-reader@Lyainc-claude-kit
 
 | Component | Description |
 | --- | --- |
-| `vault-searcher` (agent) | vault 검색, session-note 복원/생성 (Haiku) |
+| `vault-searcher` (agent) | 4-mode I/O: (1) Session Restore, (2) Domain Context Load, (3) Keyword Search, (4) Session Note Creation (record/handoff/quick) |
+| Stop hook | 매 턴 실행. 세션 종료 신호(`세션 끝`, `wrap up` 등) 감지 시에만 AskUserQuestion으로 session-note 저장 제안 |
+| SessionEnd hook | 세션 종료 시 silent 안전망 — meaningful work(파일 수정/볼트 읽기/결정 기록/코드 실행/리서치 중 하나 + 3턴 이상) 감지 시 자동 quick-save |
+
+자세한 4-mode 동작과 파일 컨벤션은 [vault-reader/README.md](vault-reader/README.md) 참조.
 
 ## 기존 claude-kit 사용자 마이그레이션
 
