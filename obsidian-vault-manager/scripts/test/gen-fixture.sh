@@ -1,11 +1,21 @@
 #!/usr/bin/env bash
 # gen-fixture.sh — synthesize a test vault fixture under /tmp/ovm-fixture-*/
+#
+# Flags:
+#   --with-audit-errors   Inject 5 seeded errors of each of the 8 vault-audit
+#                         error types (40 total) for measurement.md DoD verification.
+#                         Also adds 200 extra clean notes for FP measurement.
 
 set -euo pipefail
 
 if [[ "${VAULT_BRIDGE_DISABLE:-}" == "1" ]]; then
   exit 0
 fi
+
+WITH_AUDIT_ERRORS=0
+for arg in "$@"; do
+  [[ "$arg" == "--with-audit-errors" ]] && WITH_AUDIT_ERRORS=1
+done
 
 FIXTURE_DIR="${OVM_FIXTURE_DIR:-/tmp/ovm-fixture-$$}"
 
@@ -275,6 +285,185 @@ log "      Issues: 5 missing frontmatter, 5 bad filenames, 5 broken links,"
 log "              5 missing fields, 10 orphans"
 log "    .ovm/           : audit-state.json with 100 pre-audited records"
 log ""
+
+# ── --with-audit-errors: inject 5×8=40 seeded errors for DoD measurement ──────
+
+if [[ "$WITH_AUDIT_ERRORS" == "1" ]]; then
+  log "Injecting audit-error fixtures (--with-audit-errors) ..."
+
+  mkdir -p \
+    "$FIXTURE_DIR/20_Projects/gamma" \
+    "$FIXTURE_DIR/20_Projects/delta"
+
+  # ── E1: missing_frontmatter (5 files) ────────────────────────────────────────
+  # Files with NO frontmatter at all.
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e1-missing-fm-$(printf '%03d' $i).md" <<EOF
+# Audit E1 Note ${i}
+
+This note has no frontmatter block whatsoever.
+EOF
+  done
+
+  # ── E2: missing_required_fields (5 files) ────────────────────────────────────
+  # Files with frontmatter but missing tags and/or type.
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e2-missing-fields-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+---
+
+# Audit E2 Note ${i}
+
+Has created but missing tags and type.
+EOF
+  done
+
+  # ── E3: filename_convention_violation (5 files) ───────────────────────────────
+  # Notes with dated prefixes (violates note naming rule).
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/30_Notes/2026-04-audit-e3-bad-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+---
+
+# Audit E3 Note ${i}
+
+Non-conforming filename with date prefix.
+EOF
+  done
+
+  # ── E4: broken_wikilink (5 files) ────────────────────────────────────────────
+  # Files referencing stems that don't exist anywhere in the vault.
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e4-broken-links-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+---
+
+# Audit E4 Note ${i}
+
+Links to [[audit-ghost-target-${i}]] which does not exist.
+EOF
+  done
+
+  # ── E5: orphan_note (5 files) ────────────────────────────────────────────────
+  # Clean notes that no other file links to (and not in project linked_notes).
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e5-orphan-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+---
+
+# Audit E5 Orphan Note ${i}
+
+This note exists but nothing links to it.
+EOF
+  done
+
+  # ── E6: broken_project_to_note (5 entries via 1 project) ─────────────────────
+  # gamma/_index.md lists 5 note stems that don't exist in 30_Notes/.
+  write_file "$FIXTURE_DIR/20_Projects/gamma/_index.md" <<'EOF'
+---
+created: 2026-04-01
+tags: [project, gamma]
+type: project
+status: active
+linked_notes: [audit-e6-ghost-note-001, audit-e6-ghost-note-002, audit-e6-ghost-note-003, audit-e6-ghost-note-004, audit-e6-ghost-note-005]
+---
+
+# Project Gamma
+
+Project with linked_notes pointing to nonexistent notes (E6 errors).
+EOF
+
+  # ── E7: missing_back_reference (5 files) ─────────────────────────────────────
+  # delta/_index.md lists 5 notes that exist but lack project: delta back-ref.
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e7-no-backref-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+---
+
+# Audit E7 Note ${i}
+
+Exists but has no project: delta back-reference.
+EOF
+  done
+
+  write_file "$FIXTURE_DIR/20_Projects/delta/_index.md" <<'EOF'
+---
+created: 2026-04-01
+tags: [project, delta]
+type: project
+status: active
+linked_notes: [audit-e7-no-backref-001, audit-e7-no-backref-002, audit-e7-no-backref-003, audit-e7-no-backref-004, audit-e7-no-backref-005]
+---
+
+# Project Delta
+
+Project where all linked notes exist but lack back-references.
+EOF
+
+  # ── E8: broken_note_to_project (5 files) ─────────────────────────────────────
+  # Notes with project: field pointing to a project that has no _index.md.
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e8-bad-project-ref-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+project: audit-nonexistent-project
+---
+
+# Audit E8 Note ${i}
+
+Points to project 'audit-nonexistent-project' which has no _index.md.
+EOF
+  done
+
+  # ── 200 extra clean notes for FP measurement ─────────────────────────────────
+  # These have fully valid frontmatter and filenames; none should be flagged.
+  # Linking strategy: note i links to note i+1 (mod 200), forming a ring so
+  # every note has exactly one inbound link and is never an orphan.
+  for i in $(seq 1 200); do
+    name="audit-clean-$(printf '%03d' $i)"
+    next=$(( (i % 200) + 1 ))
+    link_target="audit-clean-$(printf '%03d' $next)"
+    write_file "$FIXTURE_DIR/30_Notes/${name}.md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+---
+
+# Audit Clean Note ${i}
+
+Clean note for FP measurement. Links to [[${link_target}]].
+EOF
+  done
+
+  log "  Audit error fixtures:"
+  log "    E1 missing_frontmatter         : 5 files"
+  log "    E2 missing_required_fields     : 5 files"
+  log "    E3 filename_convention_violation: 5 files"
+  log "    E4 broken_wikilink             : 5 files"
+  log "    E5 orphan_note                 : 5 files"
+  log "    E6 broken_project_to_note      : 5 entries (gamma/_index.md)"
+  log "    E7 missing_back_reference      : 5 files (delta project)"
+  log "    E8 broken_note_to_project      : 5 files"
+  log "    Total seeded errors            : 40"
+  log "    Extra clean notes (FP base)    : 200"
+  log ""
+fi
 
 # Print fixture path on stdout for programmatic consumption
 echo "$FIXTURE_DIR"
