@@ -8,7 +8,7 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 |---|---|---|
 | [thinking-tools](thinking-tools/) | `1.6.0` | 스킬 7 + 에이전트 1 |
 | [obsidian-vault-manager](obsidian-vault-manager/) | `0.5.0` | 스킬 6 + 에이전트 2 |
-| [vault-bridge](vault-bridge/) | `1.1.0` | 에이전트 1 + 훅 2 (Stop / SessionEnd) + 슬래시 커맨드 2 (`/save-session`, `/vault-link`) (구 `vault-reader`) |
+| [vault-bridge](vault-bridge/) | `1.2.0` | 에이전트 1 + 훅 3 (Stop / SessionEnd / SessionStart) + 슬래시 커맨드 3 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`) (구 `vault-reader`) |
 
 ## 플러그인 목록
 
@@ -67,6 +67,8 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 | SessionEnd hook | 세션 종료 시 silent 안전망 — meaningful work(파일 수정/볼트 읽기/결정 기록/코드 실행/리서치 중 하나 + 3턴 이상) 감지 시 자동 quick-save |
 | `/save-session` | 사용자가 명시적으로 호출하는 슬래시 커맨드 — vault-searcher Mode 4 전체 플로우 진입 |
 | `/vault-link` | 현재 디렉토리에 `.vault-link` 포인터 파일 생성 — 코드 리포를 특정 vault 프로젝트에 바인딩. Mode 2 검색 스코프 제한 + Mode 4 저장 경로 자동 결정 |
+| `/vault-manifest-refresh` | vault manifest 강제 재생성 — `~/vault/.vault-bridge/manifest.json` 갱신. 토큰 절감 효과: 도메인 컨텍스트 로드 시 ~97% 절감 |
+| SessionStart hook | 세션 시작 시 manifest staleness 체크 → 변경 파일만 incremental 업데이트 (백그라운드, 세션 차단 없음) |
 
 자세한 4-mode 동작, `.vault-link` 포인터 파일 컨벤션은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
 

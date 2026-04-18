@@ -68,6 +68,100 @@ The agent uses **AskUserQuestion** at two points: mode selection (before draftin
 "세션 저장 --hours 3"
 ```
 
+## Vault Manifest
+
+vault-bridge v1.2.0 introduces a manifest cache that compresses vault metadata into a single JSON file, enabling Claude to select target files before reading any content.
+
+### Purpose
+
+Without a manifest, loading vault context requires reading 20+ files at ~50 KB each (~1,000 KB total). With a manifest, Claude reads one ~25 KB index first and then reads only the relevant files — a **97% reduction** in token consumption for typical domain context loads.
+
+### Schema
+
+`~/vault/.vault-bridge/manifest.json`:
+
+```json
+{
+  "generated_at": "2026-04-18T14:32:00+09:00",
+  "vault_root": "/Users/Lyainc/vault",
+  "schema_version": 1,
+  "file_count": 142,
+  "files": [
+    {
+      "path": "20_Projects/claude-kit/plan-2026-04-18-vault-bridge-value-prop.md",
+      "type": "plan",
+      "status": "active",
+      "workstream": "W10",
+      "tags": ["plan", "claude-kit", "vault-bridge"],
+      "title": "W10 — vault-bridge Value Proposition & Enforcement",
+      "summary": "Phase A manifest generator spec — token cost reduction via compressed metadata index.",
+      "mtime": 1747612320,
+      "size_bytes": 4820
+    }
+  ]
+}
+```
+
+**Field rules**:
+
+| Field | Source | Notes |
+|-------|--------|-------|
+| `path` | filesystem | Relative to `vault_root` |
+| `type` | frontmatter `type` | `session/capture/note/project/plan`; `"unknown"` if absent |
+| `status` | frontmatter `status` | Omitted when not present |
+| `workstream` | frontmatter `workstream` | Omitted when not present |
+| `tags` | frontmatter `tags` | Empty array if absent |
+| `title` | first `# H1` in body | Filename stem fallback |
+| `summary` | first body paragraph | Truncated at 200 chars |
+| `mtime` | filesystem | Unix epoch (seconds) |
+| `size_bytes` | filesystem | File size in bytes |
+
+### Trigger strategy
+
+The manifest is regenerated automatically via the **SessionStart hook** (`hooks/session-start-manifest.sh`) using mtime-based staleness detection:
+
+| Condition | Action |
+|-----------|--------|
+| `manifest.json` absent | Full scan (generate from scratch) |
+| Any vault file mtime > manifest mtime | Incremental update (changed files only) |
+| `schema_version` mismatch | Full scan |
+| `/vault-manifest-refresh` invoked | Full scan (`--force`) |
+
+The hook runs the Python generator in the background (10 s kill guard). Session startup is never blocked.
+
+### Token savings estimate
+
+For a 142-file vault (typical):
+
+| Approach | Files read | Estimated tokens |
+|----------|-----------|-----------------|
+| Full scan (no manifest) | 20 files × ~50 KB | ~25,000 tokens |
+| Manifest-first | 1 manifest (~25 KB) + 3–5 target files | ~750–1,500 tokens |
+| **Reduction** | | **~97%** |
+
+### `/vault-manifest-refresh` command
+
+Force-regenerate the manifest on demand:
+
+```
+/vault-manifest-refresh
+```
+
+Runs the generator with `--force`, bypassing the staleness check. Reports file count and elapsed time in Korean.
+
+### Generator script
+
+`scripts/generate-manifest.py` — Python 3, standard library only.
+
+```bash
+python3 vault-bridge/scripts/generate-manifest.py \
+  --vault-root ~/vault \
+  [--force] \
+  [--out /custom/path/manifest.json]
+```
+
+stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
+
 ## Vault-Project Link
 
 `.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes Mode 2 searches and determines the Mode 4 save path automatically — zero user intervention required.
@@ -135,8 +229,18 @@ Set `VAULT_BRIDGE_DISABLE=1` to skip `.vault-link` discovery entirely (useful in
 - Frontmatter: `created`, `tags: [session, {project}]`, `type: session`, `status: active` (handoff mode only)
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **Stop hook** (deterministic shell script `hooks/stop-check.sh`): silently checks the user's last message for session-closing keywords; injects a one-line `systemMessage` suggesting `/save-session` only when a closing signal is detected. No LLM call → no per-turn cost, no infinite-loop risk
+- **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup
 - **SessionEnd hook**: auto-saves a quick-mode session-note as a safety net when meaningful work happened but the user exited without saving
 - **`/save-session` command**: explicit user trigger that delegates to vault-searcher Mode 4 with full mode selection (record/handoff/quick)
+- **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
+
+## Slash Commands
+
+| Command | Description |
+|---------|-------------|
+| `/save-session` | Delegate to vault-searcher Mode 4 — full session note creation with mode selection (record/handoff/quick) |
+| `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
+| `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 
 ## Prerequisites
 
