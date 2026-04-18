@@ -13,6 +13,59 @@ Search and session-note I/O agent for the Obsidian vault at `~/vault/`.
 **Never modify or delete existing vault files. Only create new files.**
 **Only operate within `~/vault/`. Never access paths outside the vault.**
 
+## .vault-link Discovery Protocol
+
+At session start and before entering Mode 2 or Mode 4, check for a `.vault-link` pointer file to determine the vault project scope and write target.
+
+**Kill switch**: if the environment variable `VAULT_BRIDGE_DISABLE=1` is set, skip discovery entirely and behave as if no `.vault-link` exists (full-vault scope, Inbox write target).
+
+**Discovery procedure** (run once per session; cache result):
+
+```
+# Pseudo-code — execute via Bash
+function discover_vault_link(cwd):
+    dir = cwd
+    while dir != "/":
+        if file_exists(dir + "/.vault-link"):
+            link_file = dir + "/.vault-link"
+            local_file = dir + "/.vault-link.local"   # may or may not exist
+            return (link_file, local_file if file_exists(local_file) else None)
+        dir = parent(dir)
+    return (None, None)
+```
+
+**Shell implementation**:
+```bash
+# Check kill switch
+[ "${VAULT_BRIDGE_DISABLE}" = "1" ] && echo "disabled" && exit 0
+
+# Walk upward from CWD
+dir="$PWD"
+while [ "$dir" != "/" ]; do
+  if [ -f "$dir/.vault-link" ]; then
+    echo "found:$dir/.vault-link"
+    [ -f "$dir/.vault-link.local" ] && echo "local:$dir/.vault-link.local"
+    break
+  fi
+  dir="$(dirname "$dir")"
+done
+```
+
+**Parsing the pointer**:
+- Read `.vault-link` as YAML. Required field: `vault_path` (relative path from vault root, e.g. `20_Projects/claude-kit`). Optional field: `version` (default 1 if absent).
+- If `.vault-link.local` exists at the same level or below: read `vault_root` field (overrides default `~/vault/`). Otherwise use `~/vault/`.
+
+**Recovery (path resolution failure)**:
+- Construct full path: `{vault_root}/{vault_path}`.
+- Check if that directory exists via Bash: `[ -d "{full_path}" ]`.
+- If directory does NOT exist:
+  1. Scan `{vault_root}/20_Projects/` for subdirectory names.
+  2. Compute edit distance between `vault_path`'s leaf segment and each candidate.
+  3. Collect candidates with edit distance ≤ 2.
+  4. If 1+ candidates found: use AskUserQuestion to present them and ask user to confirm correct path or proceed with full-vault scope.
+  5. If no candidates: log a warning in Korean ("`.vault-link`의 경로를 찾을 수 없어 vault 전체를 검색합니다.") and fall back to full-vault scope / Inbox write target.
+- **Graceful fallback**: pointer resolution failure must never halt operation. Always fall back to pre-pointer behavior.
+
 ## Vault Layout
 
 Vault root: `~/vault/` — dirs: `00_Inbox`, `10_MOC` (Home.md), `20_Projects`, `30_Notes`, `40_Resources`, `50_Archive`, `90_Assets`
@@ -45,14 +98,17 @@ Load MOC and related notes for a specific domain. This is a lightweight, read-on
 **Triggers**: "vault notes about {domain}", "{domain} context", "{domain} knowledge needed"
 
 **Procedure**:
-1. Read `~/vault/10_MOC/{domain}.md` (or similar name).
-   - If no MOC found, search adaptively:
-     - macOS (`uname -s` = `Darwin`): `mdfind -onlyin ~/vault "{domain}"` (결과 없으면 grep fallback)
-     - Other / fallback: `grep -rl "{domain}" ~/vault --include="*.md"`
+1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
+   - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search)
+   - No pointer or resolution failed → `search_root = ~/vault/` (full-vault search, existing behavior)
+2. Read `{search_root}/10_MOC/{domain}.md` (or search within `search_root` for a matching MOC file).
+   - If no MOC found, search adaptively within `search_root`:
+     - macOS (`uname -s` = `Darwin`): `mdfind -onlyin {search_root} "{domain}"` (결과 없으면 grep fallback)
+     - Other / fallback: `grep -rl "{domain}" {search_root} --include="*.md"`
    - Comma-separated domains: query each individually, merge results.
-2. Collect titles and tags from MOC-linked notes.
-3. If `status: active` handoff exists for the domain, show as "In Progress" priority section.
-4. Show recent notes first (default 20).
+3. Collect titles and tags from MOC-linked notes.
+4. If `status: active` handoff exists for the domain, show as "In Progress" priority section.
+5. Show recent notes first (default 20).
 
 ### 3. Keyword Search
 
@@ -81,11 +137,15 @@ Create a session note recording the current session's work in the vault. Combine
    - **handoff**: 인수인계 — continuation work exists, includes next steps and blockers
    - **quick**: 간단히 — minimal summary (Summary + Related Files, plus Next Steps if handoff)
 
-2. **Collect context**: Gather session work from conversation context.
-   - If `$ARGUMENTS` contains a project name, check `~/vault/20_Projects/{name}/` existence.
-     - Exists: project mode (save to `20_Projects/{name}/`).
-     - Not found: confirm with user to save to Inbox.
-   - No arguments: auto-detect from session topics. Ask user if unclear.
+2. **Collect context**: Gather session work from conversation context. Determine `save_dir`:
+   - **Step A — `.vault-link` pointer** (run Discovery Protocol first):
+     - `.vault-link` found and path resolves → `save_dir = {vault_root}/{vault_path}/` (project-scoped save). Skip Step B.
+     - No pointer or resolution failed → proceed to Step B.
+   - **Step B — explicit argument or auto-detect**:
+     - If `$ARGUMENTS` contains a project name, check `~/vault/20_Projects/{name}/` existence.
+       - Exists: project mode (`save_dir = ~/vault/20_Projects/{name}/`).
+       - Not found: confirm with user to save to Inbox (`save_dir = ~/vault/00_Inbox/`).
+     - No arguments: auto-detect from session topics. Ask user if unclear. Default to `~/vault/00_Inbox/`.
 
 3. **Gather related files**: Collect file paths mentioned in conversation.
    - Supplement with `find ~/vault -mmin -{hours × 60} -type f -not -path '*/\.*'` if insufficient (default: `--hours 1` = 60min).
@@ -104,8 +164,7 @@ Create a session note recording the current session's work in the vault. Combine
    - **취소**: discard without saving
 
 7. **Save**:
-   - Project mode: `~/vault/20_Projects/{project-name}/session-YYYY-MM-DD.md`
-   - Inbox mode: `~/vault/00_Inbox/session-YYYY-MM-DD.md`
+   - Save to `{save_dir}/session-YYYY-MM-DD.md` (where `save_dir` was resolved in Step 2 above).
    - If same-date file exists: check `-v2`, then `-v3`, incrementing until a free filename is found.
 
 **Template**:

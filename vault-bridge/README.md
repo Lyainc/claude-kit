@@ -68,6 +68,56 @@ The agent uses **AskUserQuestion** at two points: mode selection (before draftin
 "세션 저장 --hours 3"
 ```
 
+## Vault-Project Link
+
+`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes Mode 2 searches and determines the Mode 4 save path automatically — zero user intervention required.
+
+### Schema
+
+**`.vault-link`** (commit this file):
+
+```yaml
+version: 1                          # optional; v1 assumed if absent
+vault_path: 20_Projects/my-project  # required; relative to vault root
+```
+
+**`.vault-link.local`** (gitignore this file):
+
+```yaml
+vault_root: /Users/me/work-vault    # optional; overrides default ~/vault/
+```
+
+### Discovery
+
+vault-searcher walks upward from CWD (git-style) until it finds `.vault-link`. The first file found is used. If `.vault-link.local` exists at the same level, its `vault_root` overrides the default `~/vault/`.
+
+### Effect on Modes
+
+| Mode | Without `.vault-link` | With `.vault-link` |
+|------|-----------------------|--------------------|
+| **2. Domain Context Load** | Searches all of `~/vault/` | Searches only `{vault_root}/{vault_path}/` |
+| **4. Session Note Creation** | Saves to `~/vault/00_Inbox/` | Saves to `{vault_root}/{vault_path}/` |
+
+Modes 1 and 3 are unaffected.
+
+### Recovery
+
+If the `vault_path` directory does not exist, vault-searcher checks `20_Projects/` for candidates with edit distance ≤ 2 and asks the user to confirm. If no candidates are found, it falls back silently to full-vault scope and Inbox save target.
+
+### `/vault-link` command
+
+Create or update `.vault-link` in the current directory:
+
+```
+/vault-link
+```
+
+The command scans `~/vault/20_Projects/` and presents a selection list. For new projects, it directs you to `obsidian-vault-manager`'s `/project` skill first. It never auto-modifies `.gitignore` — only suggests adding `.vault-link.local` to it.
+
+### Kill switch
+
+Set `VAULT_BRIDGE_DISABLE=1` to skip `.vault-link` discovery entirely (useful in CI or remote environments where the vault is not available).
+
 ## Relationship with obsidian-vault-manager
 
 | Aspect | vault-bridge | obsidian-vault-manager |

@@ -60,8 +60,8 @@
     },
     {
       "name": "vault-bridge",
-      "version": "1.0.0",
-      "description": "Obsidian vault ↔ external project bridge plugin. Agent (vault-searcher, haiku) + Stop/SessionEnd hooks + /save-session command. Searches notes, loads domain context, restores session context, and creates session notes with record/handoff/quick modes.",
+      "version": "1.1.0",
+      "description": "Obsidian vault ↔ external project bridge plugin. Agent (vault-searcher, haiku) + Stop/SessionEnd hooks + /save-session command + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, and creates session notes with record/handoff/quick modes.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -73,7 +73,9 @@
         "vault-searcher",
         "session-note",
         "search",
-        "hooks"
+        "hooks",
+        "vault-link",
+        "project-binding"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
