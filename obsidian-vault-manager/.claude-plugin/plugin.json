@@ -1,7 +1,7 @@
 {
   "name": "obsidian-vault-manager",
-  "version": "0.7.0",
-  "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, project archiving, note↔project bidirectional binding, plus reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
+  "version": "0.8.0",
+  "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review (4-phase SCAN→PROPOSE→CONFIRM→EXECUTE pipeline with audit-state caching for ≥3x token reduction and ≤3 user interactions), project archiving, note↔project bidirectional binding, plus reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
