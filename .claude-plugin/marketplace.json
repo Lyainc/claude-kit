@@ -37,8 +37,8 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.6.0",
-      "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, project archiving, and note↔project bidirectional binding.",
+      "version": "0.7.0",
+      "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, project archiving, note↔project bidirectional binding, plus reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -53,7 +53,9 @@
         "moc",
         "archive",
         "project-binding",
-        "schema"
+        "schema",
+        "primitives",
+        "audit-state"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
