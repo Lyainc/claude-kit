@@ -1,7 +1,7 @@
 {
   "name": "vault-bridge",
-  "version": "1.2.0",
-  "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart hooks + /save-session + /vault-manifest-refresh commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, and creates session notes with record/handoff/quick modes.",
+  "version": "1.3.0",
+  "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching and direct-access awareness. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, and creates session notes with record/handoff/quick modes.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -20,7 +20,9 @@
     "vault-link",
     "project-binding",
     "manifest",
-    "token-optimization"
+    "token-optimization",
+    "guard",
+    "access-awareness"
   ],
   "hooks": {
     "Stop": [
@@ -41,7 +43,7 @@
         "hooks": [
           {
             "type": "prompt",
-            "prompt": "The session is ending (user exited or timed out). Save a safety-net session-note INLINE (do NOT delegate to vault-searcher Mode 4 — that mode requires AskUserQuestion which cannot fire during session close). Create the file ONLY if the session had meaningful work — defined as 3+ turns AND at least one of: (a) file modification/creation, (b) vault read, (c) explicit decision or recommendation recorded, (d) code execution or test run, (e) external research (WebFetch/docs lookup). Pure Q&A dialogue with no artifacts → skip entirely. Procedure: (1) Resolve target path: start with ~/vault/00_Inbox/session-YYYY-MM-DD.md. Use Bash (`ls ~/vault/00_Inbox/session-YYYY-MM-DD*.md 2>/dev/null`) or Glob to check collision. If base exists, append `-v2`, then `-v3`, incrementing until a free filename is found. (2) Write the file via the Write tool. Frontmatter MUST contain EXACTLY these three fields and no others — do NOT include a `status` field (record-style): `created: YYYY-MM-DD`, `tags: [session, auto-saved]`, `type: session`. (3) Body: a '## Summary' section (2-3 lines recapping the session), then '## Related Files' listing paths touched during the session. No further sections required. (4) Do NOT use AskUserQuestion — the session is closing and cannot accept user input. (5) If Write fails for any reason (permission, path missing), log the failure via a single assistant message and stop; do not retry."
+            "prompt": "The session is ending (user exited or timed out). Save a safety-net session-note INLINE (do NOT delegate to vault-searcher Mode 4 — that mode requires AskUserQuestion which cannot fire during session close). Create the file ONLY if the session had meaningful work — defined as 3+ turns AND at least one of: (a) file modification/creation, (b) vault read, (c) explicit decision or recommendation recorded, (d) code execution or test run, (e) external research (WebFetch/docs lookup). Pure Q&A dialogue with no artifacts → skip entirely. Procedure: (1) Resolve target path: start with ~/vault/00_Inbox/session-YYYY-MM-DD.md. Use Bash (`ls ~/vault/00_Inbox/session-YYYY-MM-DD*.md 2>/dev/null`) or Glob to check collision. If base exists, append `-v2`, then `-v3`, incrementing until a free filename is found. (2) Write the file via the Write tool. Frontmatter MUST contain EXACTLY these three fields and no others — do NOT include a `status` field (record-style): `created: YYYY-MM-DD`, `tags: [session, auto-saved]`, `type: session`. (3) Body: a '## Summary' section (2-3 lines recapping the session), then '## Related Files' listing paths touched during the session. Then check the direct-access counter: run Bash(`cat /tmp/vault-bridge-session-${CLAUDE_SESSION_ID:-unknown}/direct-access-count 2>/dev/null || echo 0`). If the result is greater than 0, append a '## Notes' section with exactly one line: 'Direct vault access: N times (consider using vault-searcher next session for 97% token savings).' where N is the count. After writing the session-note, run Bash(`rm -rf /tmp/vault-bridge-session-${CLAUDE_SESSION_ID:-unknown} 2>/dev/null`) to clean up the counter directory. (4) Do NOT use AskUserQuestion — the session is closing and cannot accept user input. (5) If Write fails for any reason (permission, path missing), log the failure via a single assistant message and stop; do not retry."
           }
         ]
       }
@@ -54,6 +56,18 @@
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start-manifest.sh",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-access-guard.sh",
+            "timeout": 3
           }
         ]
       }

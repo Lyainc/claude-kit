@@ -223,6 +223,39 @@ Set `VAULT_BRIDGE_DISABLE=1` to skip `.vault-link` discovery entirely (useful in
 - vault-bridge **never modifies or deletes existing vault files**. It can only create new session notes.
 - For full vault management (note creation, MOC updates, inbox review), use `obsidian-vault-manager`.
 
+## Direct Access Guard
+
+vault-bridge v1.3.0 adds a **PreToolUse hook** (`hooks/pre-access-guard.sh`) that detects when Claude directly reads vault files with `Read`, `Grep`, or `Glob` tools, bypassing the vault-searcher agent.
+
+### Purpose
+
+Direct file access skips the manifest-first approach that delivers [97% token savings](#token-savings-estimate). The guard makes this visible by emitting a soft notice whenever it happens — it never blocks the operation.
+
+### Soft enforcement philosophy
+
+- **Never blocks**: `exit 0` always. User workflow is never interrupted.
+- **Informs only**: a `systemMessage` is injected into Claude's context suggesting vault-searcher as the more efficient path.
+- **Counts silently**: each direct access increments a session counter at `/tmp/vault-bridge-session-{session_id}/direct-access-count`.
+- **Reports at session end**: the SessionEnd hook reads the counter and appends a one-line note to the auto-saved session note.
+
+### Counter file structure
+
+```
+/tmp/vault-bridge-session-{CLAUDE_SESSION_ID}/
+  direct-access-count   # plain integer, total count for this session
+  direct-access-log     # tab-separated: timestamp + tool + abs_path (debug)
+```
+
+`CLAUDE_SESSION_ID` from environment; falls back to `pid-{PID}` if absent. The directory is deleted at SessionEnd.
+
+### Kill switch
+
+Set `VAULT_BRIDGE_DISABLE=1` to suppress all vault-bridge hooks including this guard (useful in CI or environments without a vault).
+
+```bash
+VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
+```
+
 ## Notes
 
 - Filename: `session-YYYY-MM-DD.md` (type-first convention)
@@ -230,7 +263,8 @@ Set `VAULT_BRIDGE_DISABLE=1` to skip `.vault-link` discovery entirely (useful in
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **Stop hook** (deterministic shell script `hooks/stop-check.sh`): silently checks the user's last message for session-closing keywords; injects a one-line `systemMessage` suggesting `/save-session` only when a closing signal is detected. No LLM call → no per-turn cost, no infinite-loop risk
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup
-- **SessionEnd hook**: auto-saves a quick-mode session-note as a safety net when meaningful work happened but the user exited without saving
+- **SessionEnd hook**: auto-saves a quick-mode session-note as a safety net when meaningful work happened but the user exited without saving; also reports the session's direct vault access count and cleans up the counter directory
+- **PreToolUse hook** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **`/save-session` command**: explicit user trigger that delegates to vault-searcher Mode 4 with full mode selection (record/handoff/quick)
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
