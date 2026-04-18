@@ -17,13 +17,35 @@ for arg in "$@"; do
   [[ "$arg" == "--with-audit-errors" ]] && WITH_AUDIT_ERRORS=1
 done
 
-FIXTURE_DIR="${OVM_FIXTURE_DIR:-/tmp/ovm-fixture-$$}"
+if [[ -n "${OVM_FIXTURE_DIR:-}" ]]; then
+  FIXTURE_DIR="$OVM_FIXTURE_DIR"
+else
+  # Default dir name varies by mode so that a clean fixture and an
+  # audit-error fixture do not collide on $$ collision or repeated runs.
+  if [[ "$WITH_AUDIT_ERRORS" -eq 1 ]]; then
+    FIXTURE_DIR="/tmp/ovm-fixture-audit-errors-$$"
+  else
+    FIXTURE_DIR="/tmp/ovm-fixture-$$"
+  fi
+fi
 
-# Allow reuse of an existing fixture dir (for testing stability)
+# Allow reuse of an existing fixture dir (for testing stability),
+# but only if the existing fixture matches the requested mode. The mode
+# marker prevents returning a stale clean fixture when --with-audit-errors
+# is requested (and vice versa).
+MARKER_FILE="$FIXTURE_DIR/.ovm/fixture-mode"
+expected_mode="clean"
+[[ "$WITH_AUDIT_ERRORS" -eq 1 ]] && expected_mode="audit-errors"
 if [[ -d "$FIXTURE_DIR" ]]; then
-  echo "Fixture already exists at $FIXTURE_DIR" >&2
-  echo "$FIXTURE_DIR"
-  exit 0
+  existing_mode="$(cat "$MARKER_FILE" 2>/dev/null || echo "unknown")"
+  if [[ "$existing_mode" == "$expected_mode" ]]; then
+    echo "Fixture already exists at $FIXTURE_DIR (mode=$existing_mode)" >&2
+    echo "$FIXTURE_DIR"
+    exit 0
+  fi
+  echo "ERROR: $FIXTURE_DIR exists with mode=$existing_mode but mode=$expected_mode was requested." >&2
+  echo "Remove the existing dir or set OVM_FIXTURE_DIR to a different path." >&2
+  exit 1
 fi
 
 log() { echo "$*" >&2; }
@@ -464,6 +486,9 @@ EOF
   log "    Extra clean notes (FP base)    : 200"
   log ""
 fi
+
+# Write mode marker so subsequent runs can detect mismatched reuse.
+echo "$expected_mode" > "$MARKER_FILE"
 
 # Print fixture path on stdout for programmatic consumption
 echo "$FIXTURE_DIR"

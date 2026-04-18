@@ -31,8 +31,9 @@ validate_vault_path() {
   if [[ "$p" == *".."* ]]; then
     die "Path traversal detected: $p"
   fi
-  # Check prefix
-  if [[ "$real" != "$vault_real"* ]]; then
+  # Check prefix — require exact match or trailing-slash boundary
+  # to avoid matching sibling dirs like /vault2/ when VAULT_ROOT=/vault.
+  if [[ "$real" != "$vault_real" && "$real" != "$vault_real"/* ]]; then
     die "Path '$real' is not under VAULT_ROOT '$vault_real'"
   fi
   echo "$real"
