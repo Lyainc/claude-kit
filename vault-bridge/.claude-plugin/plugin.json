@@ -1,7 +1,7 @@
 {
   "name": "vault-bridge",
-  "version": "1.3.0",
-  "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching and direct-access awareness. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, and creates session notes with record/handoff/quick modes.",
+  "version": "1.4.0",
+  "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, direct-access awareness, and session auto-commit. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh + /vault-commit commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, creates session notes with record/handoff/quick modes, and commits vault changes with user approval.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -22,7 +22,9 @@
     "manifest",
     "token-optimization",
     "guard",
-    "access-awareness"
+    "access-awareness",
+    "git-commit",
+    "auto-commit"
   ],
   "hooks": {
     "Stop": [

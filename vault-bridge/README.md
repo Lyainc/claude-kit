@@ -268,6 +268,49 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - **`/save-session` command**: explicit user trigger that delegates to vault-searcher Mode 4 with full mode selection (record/handoff/quick)
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
+## Session Auto-Commit
+
+vault-bridge v1.4.0 adds `/vault-commit`, a slash command that commits uncommitted vault changes to git with user approval.
+
+### Purpose
+
+When vault-bridge writes session notes, captures, or plan files to a git-tracked vault, those changes accumulate as uncommitted working tree modifications. `/vault-commit` surfaces this cleanly — showing a grouped diff summary, generating a descriptive commit message, and requiring explicit approval before touching git history.
+
+### `/vault-commit` flow
+
+1. Check `VAULT_BRIDGE_DISABLE=1` — skip with notice if set
+2. Resolve vault root: `VAULT_BRIDGE_VAULT_ROOT` > `~/vault`
+3. Verify vault is a git repository (`git rev-parse --git-dir`) — stop with notice if not
+4. Run `git status --porcelain` — stop with "nothing to commit" if clean
+5. Analyze changed files: count by type (`session`, `capture`, `note`, `plan`, `project`); collect project names from `20_Projects/{name}/`
+6. Generate auto commit message: `"vault session YYYY-MM-DD: 2 plans, 1 note in claude-kit"`
+7. **AskUserQuestion** with 3 options (approval required — no silent commit):
+   - **이 메시지로 커밋**: use auto-generated message
+   - **메시지 직접 입력 후 커밋**: freeform message input via second AskUserQuestion
+   - **커밋 안 함**: no-op, exit cleanly
+8. On approval: `git add -A && git commit -m "{msg}"`
+9. Report result in Korean: `✓ 커밋됨: {hash} — {msg}` on success, stderr + manual action hint on failure
+
+### Auto commit message examples
+
+| Scenario | Generated message |
+|----------|-------------------|
+| One session note | `vault session 2026-04-18: 1 session-note` |
+| Two plans + one note in a project | `vault session 2026-04-18: 2 plans, 1 note in claude-kit` |
+| Mixed types, no clear project | `vault session 2026-04-18: 3 files` |
+
+### Stop hook integration
+
+The Stop hook (`hooks/stop-check.sh`) already suggests `/save-session` when a closing keyword (`세션 끝`, `wrap up`, etc.) is detected. With v1.4.0 it additionally checks whether the vault has uncommitted changes and, if so, appends a suggestion to run `/vault-commit` in the same `systemMessage`. This is fully deterministic (no LLM call) and adds negligible latency.
+
+### Kill switch
+
+Set `VAULT_BRIDGE_DISABLE=1` to suppress both the `/vault-commit` command and the Stop hook's vault dirty check.
+
+```bash
+VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks or commit suggestions fire
+```
+
 ## Slash Commands
 
 | Command | Description |
@@ -275,6 +318,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 | `/save-session` | Delegate to vault-searcher Mode 4 — full session note creation with mode selection (record/handoff/quick) |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
+| `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |
 
 ## Prerequisites
 
