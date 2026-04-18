@@ -14,7 +14,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 | Agent | Model | Description |
 | --- | --- | --- |
-| `vault-searcher` | Haiku | Vault I/O agent — search notes, load domain context, restore/create session notes |
+| `vault-searcher` | Haiku | Vault I/O agent — search notes, load domain context, restore session, create session notes and artifacts (single vault write entry point) |
 
 ## Modes
 
@@ -48,9 +48,9 @@ Search the entire vault by keyword.
 "이전에 정리한 배포 파이프라인 문서"
 ```
 
-### 4. Session Note Creation
+### 4. Vault Write (session + artifact)
 
-Create a session note recording the current session's work. Three modes:
+Create a new vault file — session notes, captures, or plan documents. vault-searcher is the **single entry point** for all vault writes; the main agent must never write to `~/vault/` directly. Three session modes:
 
 | Mode | When to use | Sections |
 |------|------------|----------|
@@ -58,7 +58,7 @@ Create a session note recording the current session's work. Three modes:
 | `handoff` | Next session will continue this work | All sections + Next Steps, In Progress, Blockers |
 | `quick` | Minimal capture | Summary, Related Files (+ Next Steps if handoff) |
 
-The agent uses **AskUserQuestion** at two points: mode selection (before drafting) and save confirmation (before writing).
+The agent uses **AskUserQuestion** at every discrete choice: type/mode selection, path confirmation, same-date collision resolution, and final save confirmation. Free-form content (edit instructions) uses plain text.
 
 ```
 "세션 정리해줘"
@@ -66,6 +66,8 @@ The agent uses **AskUserQuestion** at two points: mode selection (before draftin
 "session note 생성"
 "세션 노트 --quick"
 "세션 저장 --hours 3"
+"capture 저장해줘"
+"plan 파일 만들어줘"
 ```
 
 ## Vault Manifest
@@ -212,15 +214,97 @@ The command scans `~/vault/20_Projects/` and presents a selection list. For new 
 
 Set `VAULT_BRIDGE_DISABLE=1` to skip `.vault-link` discovery entirely (useful in CI or remote environments where the vault is not available).
 
+## Write Role Contract
+
+vault-bridge v1.5.0 formalizes vault-searcher as the **single entry point** for all vault writes from external projects.
+
+### Permitted writes
+
+| Target | File types |
+|--------|-----------|
+| `00_Inbox/` | `session-*`, `capture-*`, `plan-*` (new files only) |
+| `20_Projects/{name}/` | `session-*`, `capture-*`, `plan-*` (new files only, when `.vault-link` resolves to that project) |
+
+### Forbidden writes
+
+| Target | Reason |
+|--------|--------|
+| `30_Notes/` | Note creation is exclusively handled by obsidian-vault-manager's `note` skill |
+| Any existing file (overwrite) | Immutable vault contract — vault-bridge never modifies existing files |
+| Any existing file (append) | Same as overwrite — existing content is never touched |
+| `50_Archive/` | Archiving belongs to obsidian-vault-manager |
+| `10_MOC/`, `Home.md`, system files | MOC management belongs to obsidian-vault-manager |
+
+### Same-date collision handling
+
+If `session-2026-04-18.md` already exists, vault-searcher tries `-v2`, `-v3`, … up to `-v9`. A collision `AskUserQuestion` is shown before creating `-v2` or higher. The existing file is never touched.
+
+## Structured Error Protocol
+
+When a vault write fails or is forbidden, vault-searcher returns a structured error block to the calling context. The main agent reads this and decides how to respond.
+
+```
+<vault-bridge-error>
+kind: permission | path_invalid | convention_violation | name_collision | disabled
+path: {attempted_path}
+detail: {human-readable explanation}
+suggestion: {alternative action}
+</vault-bridge-error>
+```
+
+**Error kind reference**:
+
+| kind | When | Example |
+|------|------|---------|
+| `permission` | Write target is in a forbidden zone | Tried to write `30_Notes/oauth.md` directly |
+| `path_invalid` | `.vault-link` resolution failed completely, no fuzzy candidates | `vault_path` points to non-existent directory |
+| `convention_violation` | Filename does not conform to the required pattern for that directory | `00_Inbox/random-file.md` (missing type prefix and date) |
+| `name_collision` | All `-v2` through `-v9` suffixes are already taken | `session-2026-04-18-v9.md` already exists |
+| `disabled` | `VAULT_BRIDGE_DISABLE=1` is set | Kill switch active |
+
+## File Naming Convention
+
+vault-bridge v1.5.0 adds a **PreToolUse hook** (`hooks/pre-write-guard.sh`) that validates filenames when Claude writes to `~/vault/` with the `Write` or `Edit` tool.
+
+### Per-directory patterns
+
+| Directory | Required pattern | Example |
+|-----------|-----------------|---------|
+| `00_Inbox/` | `^(session\|capture\|plan)-YYYY-MM-DD[-topic][-vN].md$` | `session-2026-04-18.md`, `capture-2026-04-18-jwt-debug.md` |
+| `30_Notes/` | `^[a-z0-9-]+\.md$` (no date prefix) | `oauth-flow.md` |
+| `20_Projects/{name}/` | `_index.md` or `^(session\|plan\|capture)-YYYY-MM-DD[-topic][-vN].md$` | `plan-2026-04-18-vault-bridge-value-prop.md` |
+| `50_Archive/` | Any filename (warning logged for awareness) | — |
+| `10_MOC/` | `MOC-*.md` pattern (whitelist only) | `MOC-api.md` |
+
+### Whitelist — always allowed
+
+The following filenames pass unconditionally regardless of directory: `_index.md`, `Home.md`, `home.md`, `MOC-*.md` (case-insensitive `MOC` prefix).
+
+### Log-only vs strict mode
+
+| Mode | Behavior | When |
+|------|----------|------|
+| **Log-only** (default) | `exit 0` always — injects a `systemMessage` warning; never blocks | Default |
+| **Strict** | `exit 2` on violation — blocks the write tool call | `VAULT_BRIDGE_STRICT_NAMING=1` |
+
+```bash
+# Enable strict enforcement (blocks non-conforming vault writes)
+VAULT_BRIDGE_STRICT_NAMING=1 claude
+```
+
+### Kill switch
+
+`VAULT_BRIDGE_DISABLE=1` suppresses the pre-write-guard entirely (same kill switch as other vault-bridge hooks).
+
 ## Relationship with obsidian-vault-manager
 
 | Aspect | vault-bridge | obsidian-vault-manager |
 | --- | --- | --- |
 | Use context | External project access | Internal vault management session |
-| Write scope | Create new session notes only | Full note/MOC/project management |
-| Role | Cross-session bridge (read + append) | Full knowledge management |
+| Write scope | New session notes, captures, plans in Inbox/Projects | Full note/MOC/project management |
+| Role | Cross-session bridge (read + write) | Full knowledge management |
 
-- vault-bridge **never modifies or deletes existing vault files**. It can only create new session notes.
+- vault-bridge **never modifies or deletes existing vault files**. It only creates new files.
 - For full vault management (note creation, MOC updates, inbox review), use `obsidian-vault-manager`.
 
 ## Direct Access Guard
@@ -264,7 +348,8 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - **Stop hook** (deterministic shell script `hooks/stop-check.sh`): silently checks the user's last message for session-closing keywords; injects a one-line `systemMessage` suggesting `/save-session` only when a closing signal is detected. No LLM call → no per-turn cost, no infinite-loop risk
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup
 - **SessionEnd hook**: auto-saves a quick-mode session-note as a safety net when meaningful work happened but the user exited without saving; also reports the session's direct vault access count and cleans up the counter directory
-- **PreToolUse hook** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
+- **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
+- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates filenames when writing to `~/vault/`; emits a `systemMessage` warning on convention violation; log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/save-session` command**: explicit user trigger that delegates to vault-searcher Mode 4 with full mode selection (record/handoff/quick)
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 

@@ -1,7 +1,7 @@
 {
   "name": "vault-bridge",
-  "version": "1.4.0",
-  "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, direct-access awareness, and session auto-commit. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh + /vault-commit commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, creates session notes with record/handoff/quick modes, and commits vault changes with user approval.",
+  "version": "1.5.0",
+  "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, direct-access awareness, session auto-commit, and write path governance. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh + /vault-commit commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, creates session notes and artifacts with record/handoff/quick modes, enforces file naming conventions, and commits vault changes with user approval.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -24,7 +24,9 @@
     "guard",
     "access-awareness",
     "git-commit",
-    "auto-commit"
+    "auto-commit",
+    "write-guard",
+    "naming-convention"
   ],
   "hooks": {
     "Stop": [
@@ -69,6 +71,16 @@
           {
             "type": "command",
             "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-access-guard.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-guard.sh",
             "timeout": 3
           }
         ]
