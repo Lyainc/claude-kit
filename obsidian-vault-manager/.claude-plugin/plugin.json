@@ -1,7 +1,7 @@
 {
   "name": "obsidian-vault-manager",
-  "version": "0.5.0",
-  "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, and project archiving.",
+  "version": "0.6.0",
+  "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, project archiving, and note↔project bidirectional binding.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -17,6 +17,8 @@
     "skills",
     "note-taking",
     "moc",
-    "archive"
+    "archive",
+    "project-binding",
+    "schema"
   ]
 }

@@ -84,12 +84,16 @@ Use the following patterns as a reference when inferring domains. This is a guid
    ```yaml
    ---
    created: YYYY-MM-DD
-   tags: [domain, keyword]
+   tags: [note, domain, keyword]
+   type: note
+   # also_related_projects: []   # optional: populated when user links to active projects
+   # promoted_to_project: ""     # set automatically by /project --promote-from (never at creation)
    ---
    ```
 4. After creation, add a backlink to the relevant domain MOC (`10_MOC/{domain}.md`).
 5. If the domain MOC does not exist, create it and link it from `Home.md`.
 6. Notes spanning multiple domains must be linked in all relevant MOCs.
+7. During note creation, scan `~/vault/20_Projects/` for active projects. If any appear relevant to the topic, offer to set `also_related_projects` via AskUserQuestion (with "나중에 정할게" escape option).
 
 ## MOC Update Policy
 
@@ -105,10 +109,17 @@ MOC updates are considered approved together with note creation/move confirmatio
 
 ## Project Rules
 
-- New project → create `20_Projects/{project-name}/_index.md`
+- New project → create `20_Projects/{project-name}/_index.md` using the **minimum 5-field schema**: `created`, `tags` (must include `project`), `type: project`, `status: active`, `domain: [...]`
 - Add a link in the "Active Projects" section of `Home.md`
 - On completion → move to `50_Archive/`, remove link from `Home.md`
 - MOC links of related `30_Notes/` notes are preserved on archive (the notes themselves are not moved)
+- To promote a note to a project: `/project {name} --promote-from 30_Notes/{topic}.md` — this sets `absorbs` in `_index.md` and `promoted_to_project` in the source note
+- To add enrichment fields to an existing project: `/project {name} --enrich {field}={value}`
+- Do NOT auto-modify existing `_index.md` files that predate the 5-field schema; provide a migration guide instead
+
+### _index.md Progressive Enrichment Fields
+
+Optional fields added when needed: `last_session`, `vault_link_source`, `absorbs`, `related_notes`, `related_plans`, `auto_capture`. See `reference/note-project-binding.md` for the full field dictionary.
 
 ## dev/ Integration
 
