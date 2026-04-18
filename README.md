@@ -8,7 +8,7 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 |---|---|---|
 | [thinking-tools](thinking-tools/) | `1.6.0` | 스킬 7 + 에이전트 1 |
 | [obsidian-vault-manager](obsidian-vault-manager/) | `0.7.0` | 스킬 6 + 에이전트 2 + scripts (ovm-primitives) |
-| [vault-bridge](vault-bridge/) | `1.5.0` | 에이전트 1 + 훅 5 (Stop / SessionEnd / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 4 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`) (구 `vault-reader`) |
+| [vault-bridge](vault-bridge/) | `1.6.0` | 에이전트 1 + 훅 5 (Stop / SessionEnd / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
 
 ## 플러그인 목록
 
@@ -69,6 +69,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 | `/vault-link` | 현재 디렉토리에 `.vault-link` 포인터 파일 생성 — 코드 리포를 특정 vault 프로젝트에 바인딩. Mode 2 검색 스코프 제한 + Mode 4 저장 경로 자동 결정 |
 | `/vault-manifest-refresh` | vault manifest 강제 재생성 — `~/vault/.vault-bridge/manifest.json` 갱신. 토큰 절감 효과: 도메인 컨텍스트 로드 시 ~97% 절감 |
 | `/vault-commit` | vault git 리포의 미커밋 변경사항 commit — 변경 요약 표시, 커밋 메시지 자동 생성, 사용자 승인 후 실행 |
+| `/save-plan-doc` | 외부 프로젝트의 plan/design/RFC 문서를 바인딩된 vault 프로젝트에 스냅샷으로 저장 — 2-layer opt-in gate(`.vault-link` + `_index.md`의 `auto_capture: true`), 5-case source_commit fallback, 본문 기준 중복 제거 |
 | SessionStart hook | 세션 시작 시 manifest staleness 체크 → 변경 파일만 incremental 업데이트 (백그라운드, 세션 차단 없음) |
 | PreToolUse hook (Read\|Grep\|Glob) | `Read`/`Grep`/`Glob`으로 `~/vault/` 직접 접근 감지 → vault-searcher 사용 권장 `systemMessage` 방출 (soft warning, 차단 없음). 세션 직접 접근 횟수 카운팅 → SessionEnd 요약에 포함 |
 | PreToolUse hook (Write\|Edit) | `Write`/`Edit`으로 `~/vault/` 쓰기 시 파일명 컨벤션 검증 → 위반 시 `systemMessage` 경고 (log-only 기본). `VAULT_BRIDGE_STRICT_NAMING=1` 시 차단 (exit 2) |
