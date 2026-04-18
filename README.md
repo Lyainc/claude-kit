@@ -6,7 +6,7 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 
 | 플러그인 | 버전 | 구성 |
 |---|---|---|
-| [thinking-tools](thinking-tools/) | `1.5.1` | 스킬 6 + 에이전트 1 |
+| [thinking-tools](thinking-tools/) | `1.6.0` | 스킬 7 + 에이전트 1 |
 | [obsidian-vault-manager](obsidian-vault-manager/) | `0.5.0` | 스킬 6 + 에이전트 2 |
 | [vault-bridge](vault-bridge/) | `1.0.0` | 에이전트 1 + 훅 2 (Stop / SessionEnd) + 슬래시 커맨드 1 (구 `vault-reader`) |
 
@@ -14,7 +14,7 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 
 ### [thinking-tools](thinking-tools/)
 
-분석, 문서 작성, 품질 검증을 위한 사고 도구 스킬 플러그인. 6개 스킬 + 1개 에이전트.
+분석, 문서 작성, 품질 검증을 위한 사고 도구 스킬 플러그인. 7개 스킬 + 1개 에이전트.
 
 ```bash
 claude plugin install thinking-tools@Lyainc-claude-kit
@@ -28,6 +28,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `expert-panel` | 변증법적 전문가 패널 토론 |
 | `unknown-discovery` | 반복 인터뷰를 통한 맹점 발견 |
 | `thought-chain` | 스킬 파이프라인 오케스트레이션 |
+| `adversarial-review` | 주장 반증 테스트 + Survival Score 정량 평가 |
 | `thinking-facilitator` (agent) | 요청을 분석하여 최적 스킬로 자동 라우팅 |
 
 ### [obsidian-vault-manager](obsidian-vault-manager/)
