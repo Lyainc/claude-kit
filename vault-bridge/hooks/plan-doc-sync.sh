@@ -65,6 +65,7 @@ state_dir="/tmp/vault-bridge-session-${session_id}"
 asked_flag="${state_dir}/plan-doc-asked"
 
 mkdir -p "$state_dir" 2>/dev/null || true
+chmod 700 "$state_dir" 2>/dev/null || true
 
 if [ -f "$asked_flag" ]; then
   # Already suggested once this session — skip to enforce 1-ask limit.

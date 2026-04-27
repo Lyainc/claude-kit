@@ -85,6 +85,7 @@ counter_file="${counter_dir}/direct-access-count"
 log_file="${counter_dir}/direct-access-log"
 
 mkdir -p "$counter_dir" 2>/dev/null || true
+chmod 700 "$counter_dir" 2>/dev/null || true
 
 # Read current count, increment, write back
 current=0

@@ -65,7 +65,7 @@ DEFAULT_EXCLUDE_PATTERNS = [
 ]
 
 # Vault-native plan paths — never autosync these (§9.5 boundary)
-VAULT_NATIVE_PATTERN = re.compile(r"(~/vault/|/Users/[^/]+/vault/)", re.IGNORECASE)
+VAULT_NATIVE_PATTERN = re.compile(r"(~/vault/|/Users/[^/]+/vault/|/home/[^/]+/vault/)", re.IGNORECASE)
 
 # ---------------------------------------------------------------------------
 # Frontmatter parser (stdlib only — reused from generate-manifest.py pattern)
@@ -338,18 +338,23 @@ def _to_kebab(text: str) -> str:
     return text.lower().strip("-")
 
 
+_MAX_VERSION_SUFFIX = 99
+
+
 def _resolve_collision_free_path(target_dir: Path, base_filename: str) -> Path:
     """Return a collision-free path, appending -v2/-v3 as needed."""
     stem = base_filename[:-3] if base_filename.endswith(".md") else base_filename
     candidate = target_dir / base_filename
     if not candidate.exists():
         return candidate
-    n = 2
-    while True:
+    for n in range(2, _MAX_VERSION_SUFFIX + 1):
         candidate = target_dir / f"{stem}-v{n}.md"
         if not candidate.exists():
             return candidate
-        n += 1
+    raise RuntimeError(
+        f"refused to allocate -v{_MAX_VERSION_SUFFIX + 1} suffix for {base_filename!r} "
+        f"in {target_dir} (filesystem may be full or inaccessible)"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -417,8 +422,13 @@ def _build_snapshot_content(
     ]
 
     if git_error:
-        # Inline git error as a single-line comment-style field
-        safe_err = git_error.replace("\n", " ")[:120]
+        # Inline git error as a single-line YAML double-quoted scalar.
+        # Must escape backslash and double-quote to keep frontmatter valid.
+        safe_err = (
+            git_error.replace("\n", " ")[:120]
+            .replace("\\", "\\\\")
+            .replace("\"", "\\\"")
+        )
         frontmatter_lines.append(f"source_commit_error: \"{safe_err}\"")
 
     frontmatter_lines.append("---")
@@ -520,13 +530,11 @@ def sync(
     source_body = _FM_BLOCK_RE.sub("", source_text, count=1).strip()
     stem = base_filename[:-3] if base_filename.endswith(".md") else base_filename
     candidates_to_check: list[Path] = [vault_project_dir / base_filename]
-    n = 2
-    while True:
+    for n in range(2, _MAX_VERSION_SUFFIX + 1):
         vn = vault_project_dir / f"{stem}-v{n}.md"
         if not vn.exists():
             break
         candidates_to_check.append(vn)
-        n += 1
     for existing_candidate in candidates_to_check:
         if existing_candidate.exists():
             try:
