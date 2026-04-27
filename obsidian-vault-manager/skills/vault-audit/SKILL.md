@@ -71,14 +71,15 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```
 
 8. Collect project binding data — for each `_index.md` under `20_Projects/`:
-   - Read its `related_notes` frontmatter field (list of vault-relative note paths, e.g. `30_Notes/oauth.md`).
-   - Record: `{project_path, project_name, related_notes[]}`.
+   - Read its `related_notes` frontmatter field (list of vault-relative paths, e.g. `30_Notes/foo.md`).
+   - Read its `absorbs` frontmatter field (list of vault-relative paths). Both fields are forward links.
+   - Record: `{project_path, project_name, related_notes[], absorbs[]}`.
+   - Combined forward-link set: `all_forward_paths = related_notes[] + absorbs[]`.
 
 9. Collect note → project back-references — for each `.md` in `30_Notes/`:
-   - Read its `promoted_to_project` frontmatter field (string, optional — primary project name).
-   - Read its `also_related_projects` frontmatter field (list of project names, optional).
+   - Read its `promoted_to_project` frontmatter field (single string, optional).
+   - Read its `also_related_projects` frontmatter field (array of strings, optional).
    - Record: `{note_path, promoted_to_project, also_related_projects[]}`.
-   - The note's set of "linked projects" for back-reference checks is `{promoted_to_project} ∪ also_related_projects` (skipping null/empty).
 
 **Outputs**: An in-memory scan bundle:
 ```
@@ -87,7 +88,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
   filename_records[],      // from scan-filename
   wikilinks_by_file{},     // source_path → links[]
   inbound_links{},         // target_stem → source_paths[]
-  project_indexes[],       // {project_path, project_name, related_notes[]}
+  project_indexes[],       // {project_path, project_name, related_notes[], absorbs[]}
   note_projects{}          // note_relpath → {promoted_to_project, also_related_projects[]}
 }
 ```
@@ -130,24 +131,72 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 **Guard**: `_index.md` files are never orphans. Files in `00_Inbox/` are exempt (not yet processed).
 
 ### E6 — `broken_project_to_note` [Critical]
-**Rule**: `_index.md` has a `related_notes` field listing vault-relative path `P`, but no file exists at `~/vault/P`.
+**Rule**: `_index.md` has a `related_notes` or `absorbs` field listing a vault-relative path `P`, but no file exists at `~/vault/P`.
 **Source**: `project_indexes`.
-**False-positive guard**: Path matching is exact against the resolved vault path. If the path is bare (no directory prefix), resolve against `30_Notes/` before checking.
+**Detection logic**:
+```
+for each project_index in project_indexes:
+  for each path in (project_index.related_notes + project_index.absorbs):
+    if ~/vault/{path} does not exist:
+      → broken_project_to_note
+```
+**False-positive guard**: Path matching is case-insensitive. Notes in subdirectories of `30_Notes/` are resolved by full path, not stem. If both `related_notes` and `absorbs` are absent or empty, no E6 findings are generated.
 
 ### E7 — `missing_back_reference` [Warning]
-**Rule**: `_index.md` (project name `N`) has a `related_notes` field listing path `P`, the file at `P` exists, but the note's linked-projects set (`promoted_to_project` ∪ `also_related_projects`) does NOT contain `N`.
+**Rule**: `_index.md` lists a note path `P` in `related_notes` or `absorbs`, the note at `P` exists, but the note does NOT have either `promoted_to_project == <project_name>` OR `<project_name>` in `also_related_projects`.
 **Source**: `project_indexes`, `note_projects`.
-**False-positive guard**: Only flag when the file at `P` actually exists (no double-flag with E6). A note that lists `N` in `also_related_projects` satisfies the back-reference requirement even if `promoted_to_project` is some other project.
+**Detection logic**:
+```
+for each project_index in project_indexes:
+  project_name = directory name of project_index (e.g., "alpha")
+  for each path in (project_index.related_notes + project_index.absorbs):
+    if ~/vault/{path} exists:
+      note = note_projects[path]
+      back_linked = (note.promoted_to_project == project_name)
+                    OR (project_name in note.also_related_projects)
+      if NOT back_linked:
+        → missing_back_reference
+```
+**Auto-fix**: Append `project_name` to `also_related_projects` in the note's frontmatter. Do NOT overwrite `promoted_to_project`.
+**False-positive guard**: Only flag when the note actually exists (no double-flag with E6). Do NOT fire if `promoted_to_project == project_name` OR `project_name in also_related_projects` — either field satisfies the back-reference.
 
 ### E8 — `broken_note_to_project` [Critical]
-**Rule**: A note in `30_Notes/` has either a `promoted_to_project: <name>` field or includes `<name>` in its `also_related_projects` list, but `~/vault/20_Projects/<name>/_index.md` does NOT exist.
+**Rule**: A note in `30_Notes/` has a `promoted_to_project: <name>` field OR contains `<name>` in `also_related_projects`, but `~/vault/20_Projects/<name>/_index.md` does NOT exist. Each broken project reference is one E8 finding (a note with both a broken `promoted_to_project` and a broken entry in `also_related_projects` generates two E8 findings).
 **Source**: `note_projects`.
-**False-positive guard**: Each project name in the union set is checked independently; flag only the missing ones.
+**Detection logic**:
+```
+for each note_path in note_projects:
+  note = note_projects[note_path]
+  candidates = []
+  if note.promoted_to_project is not None:
+    candidates.append(note.promoted_to_project)
+  candidates.extend(note.also_related_projects)
+  for project_name in candidates:
+    if ~/vault/20_Projects/{project_name}/_index.md does not exist:
+      → broken_note_to_project (one finding per missing project_name)
+```
 
 ### Derived check — `missing_forward_reference` [Warning]
-**Rule**: A note `R` in `30_Notes/` has `promoted_to_project: <name>` (or includes `<name>` in `also_related_projects`) pointing to an existing project, but the project's `_index.md` does NOT list `R`'s vault-relative path in its `related_notes` field.
+**Rule**: A note in `30_Notes/` claims a project via `promoted_to_project` or `also_related_projects`, the project `_index.md` exists, but the project does NOT list this note's vault-relative path in its `related_notes` OR `absorbs` field.
 **Source**: `project_indexes`, `note_projects`.
-**False-positive guard**: Only flag when the note file actually exists and the project `_index.md` exists. Path comparison is exact.
+**Detection logic**:
+```
+for each note_path in note_projects:
+  note = note_projects[note_path]
+  candidates = []
+  if note.promoted_to_project is not None:
+    candidates.append(note.promoted_to_project)
+  candidates.extend(note.also_related_projects)
+  for project_name in candidates:
+    index_path = 20_Projects/{project_name}/_index.md
+    if index_path exists:
+      project = project_indexes[project_name]
+      all_forward = project.related_notes + project.absorbs
+      note_relpath = vault-relative path of note_path (e.g. "30_Notes/foo.md")
+      if note_relpath not in all_forward (case-insensitive):
+        → missing_forward_reference
+```
+**False-positive guard**: Only flag when both the note and the project `_index.md` exist (no double-flag with E8 or E6).
 
 > **Implementation note**: The spec W2 DoD lists 8 error type names. The mapping used here:
 > `orphan_note` → E5, `broken_wikilink` → E4, `filename_convention_violation` → E3,
@@ -231,8 +280,8 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
 **Auto-fix eligible types**:
 - `missing_required_fields` (E2): add missing `tags`, `type`, `created` fields with inferred values.
-- `missing_back_reference` (E7): append the project name to the note's `also_related_projects` list (do NOT overwrite any existing `promoted_to_project`).
-- `missing_forward_reference`: append the note's vault-relative path to the project `_index.md` `related_notes` list.
+- `missing_back_reference` (E7): append `<project_name>` to `also_related_projects` array in note frontmatter. Do NOT overwrite `promoted_to_project`.
+- `missing_forward_reference`: append vault-relative note path to `related_notes` list in the project `_index.md`.
 
 **Auto-fix NOT eligible** (never mutate):
 - `missing_frontmatter` (E1): body structure unknown, skip.
@@ -251,8 +300,8 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
      context: |
        수정 대상:
        • missing_required_fields: X건 (tags/type/created 추가)
-       • missing_back_reference: Y건 (note의 also_related_projects 에 프로젝트명 추가)
-       • missing_forward_reference: Z건 (_index.md related_notes 에 note 경로 추가)
+       • missing_back_reference: Y건 (also_related_projects 추가)
+       • missing_forward_reference: Z건 (_index.md related_notes 추가)
        
        frontmatter만 수정합니다. 파일 이름 · 내용 · 위치는 변경하지 않습니다.
      options:
@@ -264,8 +313,8 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
 3. If "수정 실행":
    - For each `missing_required_fields` finding: use Edit to add the missing fields to the existing frontmatter block.
-   - For each `missing_back_reference`: use Edit to append the project name to the note's `also_related_projects` list (creating the list if absent). Do NOT touch any existing `promoted_to_project` value.
-   - For each `missing_forward_reference`: use Edit to append the note's vault-relative path to the `related_notes` list in the project `_index.md` (creating the list if absent).
+   - For each `missing_back_reference`: use Edit to append the project name to `also_related_projects` in the note's frontmatter (create the field as an array if absent; never overwrite `promoted_to_project`).
+   - For each `missing_forward_reference`: use Edit to append the vault-relative note path to the `related_notes` list in the project `_index.md` (create the field as an array if absent).
    - All edits are **frontmatter-only** — never touch the markdown body.
 
 4. After all fixes, mark all processed files clean:

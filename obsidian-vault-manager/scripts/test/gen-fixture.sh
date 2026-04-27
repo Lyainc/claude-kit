@@ -112,8 +112,12 @@ created: 2026-04-01
 tags: [project, alpha]
 type: project
 status: active
-related_notes: [30_Notes/alpha-architecture.md, 30_Notes/alpha-decisions.md]
-related_plans: [plan-2026-04-01-init, plan-2026-04-10-phase2]
+related_notes:
+  - 30_Notes/alpha-architecture.md
+  - 30_Notes/alpha-decisions.md
+related_plans:
+  - 20_Projects/alpha/plan-2026-04-01-task-1.md
+  - 20_Projects/alpha/plan-2026-04-02-task-2.md
 ---
 
 # Project Alpha
@@ -172,6 +176,35 @@ status: active
 [[nonexistent-note-${i}]]
 EOF
 done
+
+# ── 30_Notes: named notes referenced by alpha project ────────────────────────
+# These are created so alpha/_index.md related_notes are valid (no E6/E7/E4).
+
+write_file "$FIXTURE_DIR/30_Notes/alpha-architecture.md" <<'EOF'
+---
+created: 2026-04-01
+tags: [note, alpha]
+type: note
+also_related_projects: [alpha]
+---
+
+# Alpha Architecture
+
+Architecture decisions for Project Alpha.
+EOF
+
+write_file "$FIXTURE_DIR/30_Notes/alpha-decisions.md" <<'EOF'
+---
+created: 2026-04-01
+tags: [note, alpha]
+type: note
+also_related_projects: [alpha]
+---
+
+# Alpha Decisions
+
+Key decisions for Project Alpha.
+EOF
 
 # ── 30_Notes: 200 clean notes ─────────────────────────────────────────────────
 
@@ -308,14 +341,15 @@ log "              5 missing fields, 10 orphans"
 log "    .ovm/           : audit-state.json with 100 pre-audited records"
 log ""
 
-# ── --with-audit-errors: inject 5×8=40 seeded errors for DoD measurement ──────
+# ── --with-audit-errors: inject 5×9=45 seeded errors for DoD measurement ──────
 
 if [[ "$WITH_AUDIT_ERRORS" == "1" ]]; then
   log "Injecting audit-error fixtures (--with-audit-errors) ..."
 
   mkdir -p \
     "$FIXTURE_DIR/20_Projects/gamma" \
-    "$FIXTURE_DIR/20_Projects/delta"
+    "$FIXTURE_DIR/20_Projects/delta" \
+    "$FIXTURE_DIR/20_Projects/epsilon"
 
   # ── E1: missing_frontmatter (5 files) ────────────────────────────────────────
   # Files with NO frontmatter at all.
@@ -390,14 +424,19 @@ EOF
   done
 
   # ── E6: broken_project_to_note (5 entries via 1 project) ─────────────────────
-  # gamma/_index.md lists 5 note paths that don't exist in 30_Notes/.
+  # gamma/_index.md lists 5 vault-relative paths that don't exist in 30_Notes/.
   write_file "$FIXTURE_DIR/20_Projects/gamma/_index.md" <<'EOF'
 ---
 created: 2026-04-01
 tags: [project, gamma]
 type: project
 status: active
-related_notes: [30_Notes/audit-e6-ghost-note-001.md, 30_Notes/audit-e6-ghost-note-002.md, 30_Notes/audit-e6-ghost-note-003.md, 30_Notes/audit-e6-ghost-note-004.md, 30_Notes/audit-e6-ghost-note-005.md]
+related_notes:
+  - 30_Notes/audit-e6-ghost-001.md
+  - 30_Notes/audit-e6-ghost-002.md
+  - 30_Notes/audit-e6-ghost-003.md
+  - 30_Notes/audit-e6-ghost-004.md
+  - 30_Notes/audit-e6-ghost-005.md
 ---
 
 # Project Gamma
@@ -406,8 +445,8 @@ Project with related_notes pointing to nonexistent notes (E6 errors).
 EOF
 
   # ── E7: missing_back_reference (5 files) ─────────────────────────────────────
-  # delta/_index.md lists 5 notes that exist but lack a delta back-ref
-  # (no promoted_to_project: delta and 'delta' not in also_related_projects).
+  # delta/_index.md lists 5 notes that exist but lack promoted_to_project: delta
+  # AND lack "delta" in also_related_projects.
   for i in $(seq 1 5); do
     write_file "$FIXTURE_DIR/30_Notes/audit-e7-no-backref-$(printf '%03d' $i).md" <<EOF
 ---
@@ -418,7 +457,7 @@ type: note
 
 # Audit E7 Note ${i}
 
-Exists but has no promoted_to_project / also_related_projects pointing to delta.
+Exists but has neither promoted_to_project nor also_related_projects pointing to delta.
 EOF
   done
 
@@ -428,30 +467,84 @@ created: 2026-04-01
 tags: [project, delta]
 type: project
 status: active
-related_notes: [30_Notes/audit-e7-no-backref-001.md, 30_Notes/audit-e7-no-backref-002.md, 30_Notes/audit-e7-no-backref-003.md, 30_Notes/audit-e7-no-backref-004.md, 30_Notes/audit-e7-no-backref-005.md]
+related_notes:
+  - 30_Notes/audit-e7-no-backref-001.md
+  - 30_Notes/audit-e7-no-backref-002.md
+  - 30_Notes/audit-e7-no-backref-003.md
+  - 30_Notes/audit-e7-no-backref-004.md
+  - 30_Notes/audit-e7-no-backref-005.md
 ---
 
 # Project Delta
 
-Project where all linked notes exist but lack back-references.
+Project where all related notes exist but lack back-references (E7 errors).
 EOF
 
   # ── E8: broken_note_to_project (5 files) ─────────────────────────────────────
-  # Notes with promoted_to_project pointing to a project that has no _index.md.
-  for i in $(seq 1 5); do
+  # Notes with promoted_to_project / also_related_projects pointing to a project
+  # that has no _index.md.
+  # Notes 1-3: broken via promoted_to_project
+  for i in $(seq 1 3); do
     write_file "$FIXTURE_DIR/30_Notes/audit-e8-bad-project-ref-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2026-04-01
 tags: [note]
 type: note
-promoted_to_project: audit-nonexistent-project
+promoted_to_project: audit-e8-broken-$(printf '%03d' $i)
 ---
 
 # Audit E8 Note ${i}
 
-Points to project 'audit-nonexistent-project' which has no _index.md.
+promoted_to_project points to 'audit-e8-broken-$(printf '%03d' $i)' which has no _index.md.
 EOF
   done
+  # Notes 4-5: broken via also_related_projects
+  for i in $(seq 4 5); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e8-bad-project-ref-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+also_related_projects: [audit-e8-broken-$(printf '%03d' $i)]
+---
+
+# Audit E8 Note ${i}
+
+also_related_projects contains 'audit-e8-broken-$(printf '%03d' $i)' which has no _index.md.
+EOF
+  done
+
+  # ── E9: missing_forward_reference (5 files) ──────────────────────────────────
+  # epsilon/_index.md exists but does NOT list these 5 notes in related_notes or absorbs.
+  # The notes each have promoted_to_project: epsilon or also_related_projects: [epsilon].
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e9-no-fwdref-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+also_related_projects: [epsilon]
+---
+
+# Audit E9 Note ${i}
+
+Claims epsilon project but epsilon/_index.md does not list this note (E9 error).
+EOF
+  done
+
+  # epsilon/_index.md exists but has empty related_notes (does not list the E9 notes)
+  write_file "$FIXTURE_DIR/20_Projects/epsilon/_index.md" <<'EOF'
+---
+created: 2026-04-01
+tags: [project, epsilon]
+type: project
+status: active
+---
+
+# Project Epsilon
+
+Project that exists but does not list its related notes (E9 source).
+EOF
 
   # ── 200 extra clean notes for FP measurement ─────────────────────────────────
   # These have fully valid frontmatter and filenames; none should be flagged.
@@ -475,16 +568,17 @@ EOF
   done
 
   log "  Audit error fixtures:"
-  log "    E1 missing_frontmatter         : 5 files"
-  log "    E2 missing_required_fields     : 5 files"
-  log "    E3 filename_convention_violation: 5 files"
-  log "    E4 broken_wikilink             : 5 files"
-  log "    E5 orphan_note                 : 5 files"
-  log "    E6 broken_project_to_note      : 5 entries (gamma/_index.md)"
-  log "    E7 missing_back_reference      : 5 files (delta project)"
-  log "    E8 broken_note_to_project      : 5 files"
-  log "    Total seeded errors            : 40"
-  log "    Extra clean notes (FP base)    : 200"
+  log "    E1 missing_frontmatter              : 5 files"
+  log "    E2 missing_required_fields          : 5 files"
+  log "    E3 filename_convention_violation     : 5 files"
+  log "    E4 broken_wikilink                  : 5 files"
+  log "    E5 orphan_note                      : 5 files"
+  log "    E6 broken_project_to_note           : 5 entries (gamma/_index.md related_notes)"
+  log "    E7 missing_back_reference           : 5 files (delta project related_notes)"
+  log "    E8 broken_note_to_project           : 5 files (promoted_to_project/also_related_projects)"
+  log "    E9 missing_forward_reference        : 5 files (epsilon project, no forward listing)"
+  log "    Total seeded errors                 : 45"
+  log "    Extra clean notes (FP base)         : 200"
   log ""
 fi
 
