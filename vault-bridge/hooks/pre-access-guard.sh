@@ -78,6 +78,8 @@ esac
 
 # Increment session counter
 session_id="${CLAUDE_SESSION_ID:-pid-$$}"
+session_id="${session_id//[^a-zA-Z0-9_-]/}"
+[ -z "$session_id" ] && session_id="pid-$$"
 counter_dir="/tmp/vault-bridge-session-${session_id}"
 counter_file="${counter_dir}/direct-access-count"
 log_file="${counter_dir}/direct-access-log"

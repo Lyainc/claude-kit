@@ -75,11 +75,10 @@ def parse_frontmatter(content):
         # Skip blank lines
         if not line.strip():
             continue
-        # List item continuation
-        if line.startswith('  - ') or line.startswith('- '):
-            item = line.strip().lstrip('- ').strip()
-            # strip quotes
-            item = item.strip('"\'')
+        # List item continuation (any indent level)
+        stripped = line.lstrip()
+        if stripped.startswith('- '):
+            item = stripped[2:].strip().strip('"\'')
             if current_key and current_list is not None:
                 current_list.append(item)
                 result[current_key] = current_list
@@ -410,16 +409,16 @@ elif op == 'list-dirty-since':
     for relpath, rec in state['paths'].items():
         mtime = file_mtime(relpath)
         if mtime is None:
-            dirty.append({'path': relpath, 'reason': 'file_missing', **rec})
+            dirty.append({**rec, 'path': relpath, 'reason': 'file_missing'})
             continue
         if rec.get('status') == 'dirty':
-            dirty.append({'path': relpath, 'reason': 'explicitly_invalidated', 'mtime': mtime, **rec})
+            dirty.append({**rec, 'path': relpath, 'reason': 'explicitly_invalidated', 'mtime': mtime})
             continue
         audit_ts = rec.get('mtime_at_audit', 0)
         if mtime > audit_ts:
             if since_ts is None or mtime > since_ts:
-                dirty.append({'path': relpath, 'reason': 'mtime_changed',
-                              'mtime': mtime, 'mtime_at_audit': audit_ts, **rec})
+                dirty.append({**rec, 'path': relpath, 'reason': 'mtime_changed',
+                              'mtime': mtime, 'mtime_at_audit': audit_ts})
     print(json.dumps(dirty, indent=2, ensure_ascii=False))
 
 else:

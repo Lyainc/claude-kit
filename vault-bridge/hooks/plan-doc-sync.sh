@@ -59,6 +59,8 @@ fi
 # Session-level 1-ask guard: track whether we already fired this session.
 # Uses a per-session temp dir (same pattern as other vault-bridge hooks).
 session_id="${CLAUDE_SESSION_ID:-unknown}"
+session_id="${session_id//[^a-zA-Z0-9_-]/}"
+[ -z "$session_id" ] && session_id="unknown"
 state_dir="/tmp/vault-bridge-session-${session_id}"
 asked_flag="${state_dir}/plan-doc-asked"
 

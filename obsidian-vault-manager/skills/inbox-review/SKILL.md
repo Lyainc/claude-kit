@@ -87,7 +87,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 | Primary tag | Default proposed action |
 |-------------|------------------------|
-| `auto-classifiable` (type=capture) | Move to `00_Inbox/` → keep until user decides (display for Q1) |
+| `auto-classifiable` (type=capture) | Keep in `00_Inbox/` → display for Q1 so user decides next destination |
 | `auto-classifiable` (type=session) | Move to `20_Projects/{project}/` if `project:` present, else keep |
 | `project-bound` | Move to `20_Projects/{project}/` per frontmatter `project:` field |
 | `delete-candidate` | Propose delete; include reason (size / name pattern) |
