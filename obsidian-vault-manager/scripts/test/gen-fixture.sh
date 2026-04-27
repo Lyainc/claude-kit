@@ -112,7 +112,7 @@ created: 2026-04-01
 tags: [project, alpha]
 type: project
 status: active
-linked_notes: [alpha-architecture, alpha-decisions]
+related_notes: [30_Notes/alpha-architecture.md, 30_Notes/alpha-decisions.md]
 related_plans: [plan-2026-04-01-init, plan-2026-04-10-phase2]
 ---
 
@@ -154,7 +154,7 @@ status: active
 
 # Project Beta
 
-Beta project. Missing linked_notes field (intentional gap).
+Beta project. Missing related_notes field (intentional gap).
 EOF
 
 for i in $(seq 1 3); do
@@ -374,7 +374,7 @@ EOF
   done
 
   # ── E5: orphan_note (5 files) ────────────────────────────────────────────────
-  # Clean notes that no other file links to (and not in project linked_notes).
+  # Clean notes that no other file links to (and not in any project related_notes).
   for i in $(seq 1 5); do
     write_file "$FIXTURE_DIR/30_Notes/audit-e5-orphan-$(printf '%03d' $i).md" <<EOF
 ---
@@ -390,23 +390,24 @@ EOF
   done
 
   # ── E6: broken_project_to_note (5 entries via 1 project) ─────────────────────
-  # gamma/_index.md lists 5 note stems that don't exist in 30_Notes/.
+  # gamma/_index.md lists 5 note paths that don't exist in 30_Notes/.
   write_file "$FIXTURE_DIR/20_Projects/gamma/_index.md" <<'EOF'
 ---
 created: 2026-04-01
 tags: [project, gamma]
 type: project
 status: active
-linked_notes: [audit-e6-ghost-note-001, audit-e6-ghost-note-002, audit-e6-ghost-note-003, audit-e6-ghost-note-004, audit-e6-ghost-note-005]
+related_notes: [30_Notes/audit-e6-ghost-note-001.md, 30_Notes/audit-e6-ghost-note-002.md, 30_Notes/audit-e6-ghost-note-003.md, 30_Notes/audit-e6-ghost-note-004.md, 30_Notes/audit-e6-ghost-note-005.md]
 ---
 
 # Project Gamma
 
-Project with linked_notes pointing to nonexistent notes (E6 errors).
+Project with related_notes pointing to nonexistent notes (E6 errors).
 EOF
 
   # ── E7: missing_back_reference (5 files) ─────────────────────────────────────
-  # delta/_index.md lists 5 notes that exist but lack project: delta back-ref.
+  # delta/_index.md lists 5 notes that exist but lack a delta back-ref
+  # (no promoted_to_project: delta and 'delta' not in also_related_projects).
   for i in $(seq 1 5); do
     write_file "$FIXTURE_DIR/30_Notes/audit-e7-no-backref-$(printf '%03d' $i).md" <<EOF
 ---
@@ -417,7 +418,7 @@ type: note
 
 # Audit E7 Note ${i}
 
-Exists but has no project: delta back-reference.
+Exists but has no promoted_to_project / also_related_projects pointing to delta.
 EOF
   done
 
@@ -427,7 +428,7 @@ created: 2026-04-01
 tags: [project, delta]
 type: project
 status: active
-linked_notes: [audit-e7-no-backref-001, audit-e7-no-backref-002, audit-e7-no-backref-003, audit-e7-no-backref-004, audit-e7-no-backref-005]
+related_notes: [30_Notes/audit-e7-no-backref-001.md, 30_Notes/audit-e7-no-backref-002.md, 30_Notes/audit-e7-no-backref-003.md, 30_Notes/audit-e7-no-backref-004.md, 30_Notes/audit-e7-no-backref-005.md]
 ---
 
 # Project Delta
@@ -436,14 +437,14 @@ Project where all linked notes exist but lack back-references.
 EOF
 
   # ── E8: broken_note_to_project (5 files) ─────────────────────────────────────
-  # Notes with project: field pointing to a project that has no _index.md.
+  # Notes with promoted_to_project pointing to a project that has no _index.md.
   for i in $(seq 1 5); do
     write_file "$FIXTURE_DIR/30_Notes/audit-e8-bad-project-ref-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2026-04-01
 tags: [note]
 type: note
-project: audit-nonexistent-project
+promoted_to_project: audit-nonexistent-project
 ---
 
 # Audit E8 Note ${i}

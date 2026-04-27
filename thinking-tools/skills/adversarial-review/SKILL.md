@@ -141,6 +141,18 @@ Survival Score = (Logical Integrity × 0.30) + (Evidence × 0.25) + (Counter-res
 
 **Steelman v2** (Vulnerability path): If triggered, rebuild Steelman once with the attack history as context, then resume Phase 1 from the failed dimension. Maximum 1 rebuild per claim.
 
+**Priority order when multiple conditions fire in the same round** (highest first; the first match wins, do not evaluate lower-priority conditions):
+
+1. **Explicit Done** — user override beats every internal heuristic.
+2. **Vulnerability Detected** — score ≤ 25% (2 consecutive). Forcing this over the Round Limit ensures the user sees the 3-choice prompt before Phase 2 is forced.
+3. **Round Limit** — 5 rounds reached. Hard cap; nothing below this row can override it.
+4. **Survival Gate** — score ≥ 60% with 3+ post-gate rounds. Only meaningful when Round Limit is not yet reached.
+5. **Saturation** — 3 consecutive low-quality defenses. Warns then confirms; user can override.
+6. **Attack Exhaustion** — ≥ 3 of 4 vectors stalled. Proposes early termination but does not force it.
+7. **Soft Round Checkpoint** — 3 rounds completed without higher-priority termination. Asks the user; default is to continue.
+
+Concretely: at round 3 with score 58%, none of #1–#5 fire, Soft Round Checkpoint (#7) wins → ask user. At round 5 with score 22%, Vulnerability Detected (#2) wins over Round Limit (#3). At round 5 with score 70% and post-gate=3, Round Limit (#3) wins over Survival Gate (#4) → force Phase 2 (the score still becomes the "survived" verdict via §Phase 2).
+
 ### Phase 2: Verdict and Export
 
 **Per-claim verdict**:

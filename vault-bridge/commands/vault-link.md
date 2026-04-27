@@ -83,17 +83,29 @@ After writing, output:
 > vault_root: /Users/{username}/your-vault-path
 > ```
 >
-> `.vault-link.local`은 개인 경로가 담기므로 `.gitignore`에 추가를 권장합니다:
-> ```
-> .vault-link.local
-> ```
->
-> `.gitignore` 자동 수정은 하지 않습니다. 필요하면 직접 추가해 주세요.
+> `.vault-link.local`은 개인 경로가 담기므로 `.gitignore`에 추가를 권장합니다.
+
+### Step 5 — Offer to append `.vault-link.local` to `.gitignore`
+
+1. Check whether the CWD is inside a git working tree (`git rev-parse --is-inside-work-tree` returns `true`). If not, skip this step.
+2. Resolve the project root via `git rev-parse --show-toplevel` and inspect `${root}/.gitignore`. If the file already contains a non-comment line equal to `.vault-link.local`, skip this step (already protected).
+3. Otherwise, AskUserQuestion:
+   ```
+   질문: ".vault-link.local 항목을 .gitignore에 추가할까요?"
+   옵션:
+     - "추가" (Recommended)
+     - "건너뜀"
+   ```
+4. On "추가":
+   - If `.gitignore` does not exist, create it with a single line `.vault-link.local\n`.
+   - If it exists, append `.vault-link.local` on a new line (ensure trailing newline before append).
+   - Confirm with: `> .gitignore에 .vault-link.local 항목을 추가했습니다.`
+5. On "건너뜀": output `> .gitignore는 변경하지 않았습니다. 필요하면 직접 추가해 주세요.` and continue.
 
 ## Rules
 
 - Write `.vault-link` to CWD only. Never write to parent directories or inside `~/vault/`.
-- Never auto-modify `.gitignore`. Only suggest it.
+- `.gitignore` is modified only after explicit user confirmation in Step 5; never write without the AskUserQuestion answer.
 - Never auto-call OVM skills or create vault project directories.
 - If `~/vault/20_Projects/` does not exist or is empty, inform the user and stop:
   > `~/vault/20_Projects/` 디렉토리가 없거나 비어 있습니다. `obsidian-vault-manager`의 `/project` 스킬로 프로젝트를 먼저 생성해 주세요.

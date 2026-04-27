@@ -259,7 +259,7 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
         }
         updated_count = 0
         removed_count = 0
-        generated_count = len(files_list)
+        processed_count = len(files_list)
     else:
         # Incremental update: compare mtimes
         manifest_mtime = _manifest_mtime(out_path)
@@ -285,7 +285,7 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
                     new_files_list.append(_build_entry(rel, abs_path, vault_root))
                     if rel in existing_by_path:
                         updated_count += 1
-                    # else: new file (counted in generated_count below)
+                    # else: new file (counted in processed_count below)
                 except Exception as exc:
                     print(f"WARNING: skipping {rel}: {exc}", file=sys.stderr)
 
@@ -293,19 +293,21 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
         current_paths = set(md_files.keys())
         removed_count = sum(1 for p in existing_by_path if p not in current_paths)
 
-        generated_count = len(new_files_list)
+        processed_count = len(new_files_list)
 
         manifest = {
             "generated_at": _iso_now(),
             "vault_root": str(vault_root),
             "schema_version": SCHEMA_VERSION,
-            "file_count": generated_count,
+            "file_count": processed_count,
             "files": new_files_list,
         }
 
     elapsed_ms = int((time.monotonic() - t0) * 1000)
+    # NOTE: stats key stays "generated" for back-compat with README/consumers;
+    # this counts every file in the resulting manifest, not just newly added ones.
     return manifest, {
-        "generated": generated_count,
+        "generated": processed_count,
         "updated": updated_count,
         "removed": removed_count,
         "elapsed_ms": elapsed_ms,

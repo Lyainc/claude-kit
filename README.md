@@ -6,9 +6,9 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 
 | 플러그인 | 버전 | 구성 |
 |---|---|---|
-| [thinking-tools](thinking-tools/) | `1.6.0` | 스킬 7 + 에이전트 1 |
-| [obsidian-vault-manager](obsidian-vault-manager/) | `0.9.2` | 스킬 7 + 에이전트 2 + scripts (ovm-primitives) |
-| [vault-bridge](vault-bridge/) | `1.6.2` | 에이전트 1 + 훅 5 (Stop / SessionEnd / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
+| [thinking-tools](thinking-tools/) | `1.6.1` | 스킬 7 + 에이전트 1 |
+| [obsidian-vault-manager](obsidian-vault-manager/) | `0.9.3` | 스킬 7 + 에이전트 2 + scripts (ovm-primitives) |
+| [vault-bridge](vault-bridge/) | `1.6.3` | 에이전트 1 + 훅 5 (Stop / SessionEnd / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
 
 ## 플러그인 목록
 
