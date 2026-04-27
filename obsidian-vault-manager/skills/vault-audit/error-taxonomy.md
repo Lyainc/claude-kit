@@ -143,7 +143,7 @@ For each file in 30_Notes/:
 - `_index.md` files are never orphans (they are the root of a project, not expected to be linked).
 - Files in `00_Inbox/` are exempt — inbox items are unprocessed and not yet linked.
 - A note linked only from itself (self-link) counts as having zero external inbound links.
-- Notes referenced by a project's `linked_notes` frontmatter field count as having one inbound reference (even if no explicit `[[...]]` link exists in the `_index.md` body).
+- Notes referenced by a project's `related_notes` or `absorbs` frontmatter field count as having one inbound reference (even if no explicit `[[...]]` link exists in the `_index.md` body).
 
 ---
 
@@ -151,29 +151,33 @@ For each file in 30_Notes/:
 
 **Severity**: Critical
 
-**Definition**: A project `_index.md` has a `linked_notes` frontmatter field listing a note stem, but no file with that stem exists in `30_Notes/`.
+**Definition**: A project `_index.md` has a `related_notes` or `absorbs` frontmatter field listing a vault-relative path, but no file exists at that path.
 
 **Detection rule**:
 ```
 For each project_index in project_indexes:
-  for each stem in project_index.linked_notes:
-    if no file exists at 30_Notes/{stem}.md (case-insensitive):
+  for each path in (project_index.related_notes + project_index.absorbs):
+    if ~/vault/{path} does not exist (case-insensitive):
       → broken_project_to_note
 ```
 
 **Example**:
 ```yaml
 # 20_Projects/alpha/_index.md
-linked_notes: [alpha-architecture, alpha-decisions, nonexistent-note]
+related_notes:
+  - 30_Notes/audit-e6-ghost-001.md
+  - 30_Notes/alpha-decisions.md
+absorbs:
+  - 30_Notes/api-redesign.md
 ```
-`30_Notes/nonexistent-note.md` does not exist → broken.
+`30_Notes/audit-e6-ghost-001.md` does not exist → broken (one E6 finding).
 
 **Auto-fix eligible**: No — a missing note cannot be created automatically (content is unknown).
 
 **False-positive guard**:
-- Case-insensitive stem matching.
-- Notes in subdirectories of `30_Notes/` are resolved by walking the directory tree, not just the flat root.
-- If `linked_notes` field is absent or empty, no E6 findings are generated for that project.
+- Case-insensitive path matching.
+- Notes in subdirectories of `30_Notes/` are resolved by full vault-relative path, not just stem.
+- If both `related_notes` and `absorbs` are absent or empty, no E6 findings are generated for that project.
 
 ---
 
@@ -181,17 +185,19 @@ linked_notes: [alpha-architecture, alpha-decisions, nonexistent-note]
 
 **Severity**: Warning
 
-**Definition**: A project `_index.md` lists a note stem in `linked_notes`, the note exists, but the note does NOT have a `project:` frontmatter field pointing back to this project.
+**Definition**: A project `_index.md` lists a note path in `related_notes` or `absorbs`, the note exists, but the note does NOT have either `promoted_to_project: <project_name>` OR `<project_name>` in `also_related_projects`.
 
 **Detection rule**:
 ```
 For each project_index in project_indexes:
   project_name = directory name of project_index.path (e.g., "alpha")
-  for each stem in project_index.linked_notes:
-    note_path = 30_Notes/{stem}.md
+  for each path in (project_index.related_notes + project_index.absorbs):
+    note_path = ~/vault/{path}
     if note_path exists:
-      note_project_field = note_projects[note_path]
-      if note_project_field is None OR note_project_field != project_name:
+      note = note_projects[path]
+      back_linked = (note.promoted_to_project == project_name)
+                    OR (project_name in note.also_related_projects)
+      if NOT back_linked:
         → missing_back_reference
 ```
 
@@ -201,15 +207,16 @@ For each project_index in project_indexes:
 created: 2026-04-01
 tags: [note]
 type: note
-# missing: project: alpha
+# missing: promoted_to_project: alpha  OR  also_related_projects: [alpha]
 ```
 
-**Auto-fix eligible**: Yes — add `project: <name>` to note frontmatter. Only touches the frontmatter block; body is unchanged.
+**Auto-fix eligible**: Yes — append `<project_name>` to `also_related_projects` in note frontmatter. Creates the field as `also_related_projects: [<name>]` if absent. Never overwrites `promoted_to_project`.
 
 **False-positive guard**:
 - Only flag when the note actually exists (no double-flag with E6).
-- If `project:` field exists but points to a different project, flag as E8 (`broken_note_to_project`) instead, not E7.
-- Notes may legitimately belong to multiple projects; if `also_related_projects` field is used, check both `project:` and `also_related_projects` before flagging.
+- Do NOT fire if `promoted_to_project == project_name` — primary promotion satisfies the back-reference.
+- Do NOT fire if `project_name in also_related_projects` — secondary relation also satisfies.
+- Both fields are optional; absence of both is required to trigger E7.
 
 ---
 
@@ -217,30 +224,35 @@ type: note
 
 **Severity**: Critical
 
-**Definition**: A note in `30_Notes/` has a `project:` frontmatter field, but the referenced project directory (`~/vault/20_Projects/<value>/`) does not contain an `_index.md`.
+**Definition**: A note in `30_Notes/` has a `promoted_to_project: <name>` field OR contains `<name>` in `also_related_projects`, but `~/vault/20_Projects/<name>/_index.md` does NOT exist. Each broken project reference generates one E8 finding.
 
 **Detection rule**:
 ```
 For each note_path in note_projects:
-  project_name = note_projects[note_path]
-  if project_name is not None:
-    index_path = 20_Projects/{project_name}/_index.md
-    if index_path does not exist in vault:
-      → broken_note_to_project
+  note = note_projects[note_path]
+  candidates = []
+  if note.promoted_to_project is not None:
+    candidates.append(note.promoted_to_project)
+  candidates.extend(note.also_related_projects)
+  for project_name in candidates:
+    if ~/vault/20_Projects/{project_name}/_index.md does not exist:
+      → broken_note_to_project (one finding per missing project_name)
 ```
 
 **Example**:
 ```yaml
 # 30_Notes/orphaned-note.md
-project: deleted-project
+promoted_to_project: deleted-project
+also_related_projects: [also-gone]
 ```
-`20_Projects/deleted-project/_index.md` does not exist → broken.
+Both `20_Projects/deleted-project/_index.md` and `20_Projects/also-gone/_index.md` are missing → two E8 findings.
 
 **Auto-fix eligible**: No — the project may have been renamed or deleted; correct action is ambiguous.
 
 **False-positive guard**:
 - Case-insensitive directory name matching.
-- If `project:` field is present but empty string, skip (not a broken reference).
+- If `promoted_to_project` is present but empty string, skip (not a broken reference).
+- Empty or absent `also_related_projects` array produces no E8 findings from that field.
 - Check for `_index.md` specifically, not just the directory — a project directory without an `_index.md` is also broken.
 
 ---
@@ -249,28 +261,34 @@ project: deleted-project
 
 **Severity**: Warning
 
-**Definition**: A note in `30_Notes/` has a `project: <name>` field pointing to an existing project, but the project's `_index.md` does NOT list this note's stem in its `linked_notes` field.
+**Definition**: A note in `30_Notes/` claims a project via `promoted_to_project` or `also_related_projects`, the project `_index.md` exists, but the project does NOT list this note's vault-relative path in its `related_notes` OR `absorbs` field.
 
 This is the mirror of E7: E7 = project knows note but note doesn't know project; `missing_forward_reference` = note knows project but project doesn't know note.
 
 **Detection rule**:
 ```
 For each note_path in note_projects:
-  project_name = note_projects[note_path]
-  if project_name is not None:
+  note = note_projects[note_path]
+  candidates = []
+  if note.promoted_to_project is not None:
+    candidates.append(note.promoted_to_project)
+  candidates.extend(note.also_related_projects)
+  for project_name in candidates:
     index_path = 20_Projects/{project_name}/_index.md
     if index_path exists:
-      project_linked = project_indexes[project_name].linked_notes
-      note_stem = stem(note_path)
-      if note_stem not in project_linked (case-insensitive):
+      project = project_indexes[project_name]
+      all_forward = project.related_notes + project.absorbs
+      note_relpath = vault-relative path of note (e.g. "30_Notes/foo.md")
+      if note_relpath not in all_forward (case-insensitive):
         → missing_forward_reference
 ```
 
-**Auto-fix eligible**: Yes — append note stem to `linked_notes` list in the project `_index.md`. Frontmatter-only edit.
+**Auto-fix eligible**: Yes — append vault-relative note path to `related_notes` list in the project `_index.md`. Frontmatter-only edit. Creates the field as an array if absent.
 
 **False-positive guard**:
 - Only flag when both the note and the project `_index.md` exist (no double-flag with E8 or E6).
-- If `linked_notes` is absent from `_index.md`, treat as empty list (flag applies).
+- If the note path appears in `absorbs` (not `related_notes`), it still counts as a forward link — do NOT fire.
+- If both `related_notes` and `absorbs` are absent from `_index.md`, treat as empty (flag applies).
 
 ---
 
