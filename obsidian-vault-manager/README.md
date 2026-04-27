@@ -20,11 +20,74 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | Skill | Description |
 | --- | --- |
 | `capture` | 즉시 Inbox에 메모 저장 (`/capture 내용`) |
-| `note` | 새 노트 생성 + MOC 연결 (`/note 주제`) |
-| `project` | 프로젝트 디렉토리 생성 (`/project 이름`) |
+| `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 (`/note 주제`) |
+| `project` | 프로젝트 생성 / 노트 승격 / 필드 enrichment (`/project 이름`) |
 | `inbox-review` | Inbox 파일 일괄 정리 (분류/이동/삭제) |
 | `context` | vault 내부 도메인 맥락 로드 (Explore fork) |
 | `archive` | 완료 프로젝트 아카이브 + MOC/Home.md 정리 |
+
+## `_index.md` 스키마 (W7)
+
+### 최소 템플릿 (생성 시 5필드 필수)
+
+```yaml
+---
+created: YYYY-MM-DD
+tags: [project, {name}]
+type: project
+status: active
+domain: [{domain}]
+---
+```
+
+### 점진 enrichment 필드 (필요 시점에 추가)
+
+```yaml
+last_session: 20_Projects/{name}/session-YYYY-MM-DD.md
+vault_link_source: /abs/path/to/code-repo
+absorbs:
+  - 30_Notes/{origin-topic}.md
+related_notes:
+  - 30_Notes/{topic-a}.md
+related_plans:
+  - 20_Projects/{name}/plan-YYYY-MM-DD-{topic}.md
+auto_capture: false
+```
+
+전체 필드 사전 및 Dataview 쿼리는 [reference/note-project-binding.md](reference/note-project-binding.md) 참조.
+
+## 스킬 사용 예시
+
+### `project` — Note → Project 승격
+
+```
+/project api-gateway --promote-from 30_Notes/api-redesign.md
+```
+
+- `20_Projects/api-gateway/_index.md` 생성 (최소 5필드 + `absorbs`)
+- `30_Notes/api-redesign.md` frontmatter에 `promoted_to_project: api-gateway` 추가
+- `Home.md` Active Projects 섹션 업데이트
+
+### `project` — 기존 프로젝트 enrichment
+
+```
+/project api-gateway --enrich related_notes=30_Notes/oauth.md
+```
+
+### `note` — 프로젝트 연결 옵션
+
+```
+/note kubernetes networking basics
+```
+
+note 생성 시 `~/vault/20_Projects/` 를 스캔하여 관련 프로젝트가 있으면 연결 여부를 질문합니다. 선택하면 `also_related_projects` 필드가 frontmatter에 기록됩니다. "나중에 정할게" 선택 시 건너뜁니다.
+
+### Note optional 필드
+
+| 필드 | 설명 |
+| --- | --- |
+| `also_related_projects` | 이 note와 연관된 프로젝트들 (복수 가능) |
+| `promoted_to_project` | 이 note가 승격된 프로젝트 (`/project --promote-from` 이 자동 설정) |
 
 ## vault-bridge와의 관계
 

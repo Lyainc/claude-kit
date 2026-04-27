@@ -1,7 +1,7 @@
 {
   "name": "vault-bridge",
-  "version": "1.0.0",
-  "description": "Obsidian vault ↔ external project bridge plugin. Agent (vault-searcher, haiku) + Stop/SessionEnd hooks + /save-session command. Searches notes, loads domain context, restores session context, and creates session notes with record/handoff/quick modes.",
+  "version": "1.7.0",
+  "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, direct-access awareness, session auto-commit, write path governance, and opt-in plan-doc autosync. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, creates session notes and artifacts with record/handoff/quick modes, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -16,7 +16,20 @@
     "vault-searcher",
     "session-note",
     "search",
-    "hooks"
+    "hooks",
+    "vault-link",
+    "project-binding",
+    "manifest",
+    "token-optimization",
+    "guard",
+    "access-awareness",
+    "git-commit",
+    "auto-commit",
+    "write-guard",
+    "naming-convention",
+    "plan-doc-autosync",
+    "save-plan-doc",
+    "snapshot"
   ],
   "hooks": {
     "Stop": [
@@ -36,8 +49,47 @@
         "matcher": "",
         "hooks": [
           {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-end-pre.sh",
+            "timeout": 5
+          },
+          {
             "type": "prompt",
-            "prompt": "The session is ending (user exited or timed out). Save a safety-net session-note INLINE (do NOT delegate to vault-searcher Mode 4 — that mode requires AskUserQuestion which cannot fire during session close). Create the file ONLY if the session had meaningful work — defined as 3+ turns AND at least one of: (a) file modification/creation, (b) vault read, (c) explicit decision or recommendation recorded, (d) code execution or test run, (e) external research (WebFetch/docs lookup). Pure Q&A dialogue with no artifacts → skip entirely. Procedure: (1) Resolve target path: start with ~/vault/00_Inbox/session-YYYY-MM-DD.md. Use Bash (`ls ~/vault/00_Inbox/session-YYYY-MM-DD*.md 2>/dev/null`) or Glob to check collision. If base exists, append `-v2`, then `-v3`, incrementing until a free filename is found. (2) Write the file via the Write tool. Frontmatter MUST contain EXACTLY these three fields and no others — do NOT include a `status` field (record-style): `created: YYYY-MM-DD`, `tags: [session, auto-saved]`, `type: session`. (3) Body: a '## Summary' section (2-3 lines recapping the session), then '## Related Files' listing paths touched during the session. No further sections required. (4) Do NOT use AskUserQuestion — the session is closing and cannot accept user input. (5) If Write fails for any reason (permission, path missing), log the failure via a single assistant message and stop; do not retry."
+            "prompt": "The session is ending (user exited or timed out). Save a safety-net session-note INLINE — do NOT delegate to vault-searcher Mode 4, which needs AskUserQuestion that cannot fire during session close. (1) Decide whether to write at all: only proceed if the session had meaningful work — 3+ turns AND at least one of {file modification, vault read, decision/recommendation recorded, code/test execution, external research}. Pure Q&A → skip entirely and stop. (2) Read the SessionEnd state JSON written by the pre-hook: run Bash(`cat /tmp/vault-bridge-session-$(id=\"${CLAUDE_SESSION_ID:-unknown}\"; printf '%s' \"$id\" | tr -cd 'A-Za-z0-9_-')/session-end-state.json 2>/dev/null`). If the result is empty or has `\"disabled\": true`, treat all gate flags as false but still write the basic session-note. (3) Resolve target path: start with ~/vault/00_Inbox/session-YYYY-MM-DD.md. Use Bash (`ls ~/vault/00_Inbox/session-YYYY-MM-DD*.md 2>/dev/null`) or Glob to check collision; on collision append `-v2`, `-v3`, … until a free name is found. (4) Write the file via the Write tool. Frontmatter MUST contain EXACTLY these three fields and no others (do NOT include `status`): `created: YYYY-MM-DD`, `tags: [session, auto-saved]`, `type: session`. Body: '## Summary' (2–3 lines recapping the session) followed by '## Related Files' listing paths touched. (5) If the state JSON's `direct_access_count` is > 0, append a '## Notes' section with exactly one line: 'Direct vault access: N times (consider using vault-searcher next session for 97% token savings).' (6) If the state JSON's `plan_docs.auto_capture_active` is true AND `plan_docs.already_asked` is false AND `plan_docs.candidates` is non-empty, append a '## Plan Doc Sync' section with one line: 'Plan docs detected. Run /save-plan-doc to snapshot to vault.' Then touch the asked-flag: Bash(`touch \"$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))[\"session_state_dir\"])' /tmp/vault-bridge-session-$(printf '%s' \"${CLAUDE_SESSION_ID:-unknown}\" | tr -cd 'A-Za-z0-9_-')/session-end-state.json)/plan-doc-asked\" 2>/dev/null`). (7) Cleanup: Bash(`rm -rf /tmp/vault-bridge-session-$(printf '%s' \"${CLAUDE_SESSION_ID:-unknown}\" | tr -cd 'A-Za-z0-9_-') 2>/dev/null`). (8) Do NOT use AskUserQuestion — the session is closing. (9) If Write fails (permission, missing path), surface a single assistant log line and stop; do not retry."
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start-manifest.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Read|Grep|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-access-guard.sh",
+            "timeout": 3
+          }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-guard.sh",
+            "timeout": 3
           }
         ]
       }

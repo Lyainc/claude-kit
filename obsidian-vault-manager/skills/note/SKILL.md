@@ -13,21 +13,64 @@ Create a new note in `~/vault/30_Notes/` on the topic of `$ARGUMENTS`.
 1. **Determine domain**: Identify the relevant domain from the topic.
 2. **Check for duplicates**: Use `mdfind -onlyin ~/vault/30_Notes "$ARGUMENTS"` or `ls ~/vault/30_Notes/ | grep -i {keyword}` to check for existing notes.
    - If an identical or similar note exists, notify the user and ask them to choose: overwrite / rename / merge.
-3. **Create file**: `30_Notes/{topic-in-kebab-case}.md`
+3. **Scan active projects** (optional project linking):
+   - List directories under `~/vault/20_Projects/` to discover active projects.
+   - If any project names appear relevant to the note topic, ask the user via AskUserQuestion:
+     > "이 노트를 연관 프로젝트에 연결할까요? 아래 프로젝트 중 관련된 것을 선택해 주세요."
+     > Options: `[{project-a}]`, `[{project-b}]`, ..., `[여러 개 선택]`, `[나중에 정할게]`
+   - If the user selects one or more projects, set `also_related_projects: [{name1}, {name2}]` in the frontmatter.
+   - If the user selects "나중에 정할게" or no projects are relevant, omit `also_related_projects`.
+   - If no projects exist yet (`20_Projects/` is empty or absent), skip this step silently.
+4. **Create file**: `30_Notes/{topic-in-kebab-case}.md`
    ```yaml
    ---
    created: YYYY-MM-DD
    tags: [note, {domain}, {keyword}]
    type: note
+   # also_related_projects: []   # populated if user selected projects in step 3
+   # promoted_to_project: ""     # populated when this note is promoted via /project --promote-from
    ---
    ```
-4. **Link to MOC**:
+   - Include `also_related_projects` only if the user selected projects (non-empty).
+   - Never include `promoted_to_project` at creation time — it is set only during `/project {name} --promote-from` promotion.
+5. **Link to MOC**:
    - If `10_MOC/{domain}.md` exists → add backlink
    - If not → create a new domain MOC, then add a link in `Home.md` as well (requires user confirmation)
    - If the topic spans multiple domains → link to all relevant MOCs
-5. **Output result**: Created file path + list of updated MOCs
+6. **Output result**: Created file path + list of updated MOCs + any project links established
+
+## Optional Note Fields
+
+| Field | When to use | Example |
+|-------|-------------|---------|
+| `also_related_projects` | note is relevant to one or more projects (user-confirmed) | `[foo, bar]` |
+| `promoted_to_project` | note was promoted to a project via `/project --promote-from` | `foo` |
+
+Both fields are optional. Do not prompt the user about `promoted_to_project` at note creation — it is set automatically by the `project` skill.
+
+## AskUserQuestion — Project Linking (Step 3)
+
+When active projects exist and at least one appears relevant, present this question:
+
+```json
+{
+  "question": "이 노트를 연관 프로젝트에 연결할까요?",
+  "options": [
+    "{project-a}",
+    "{project-b}",
+    "여러 개 선택",
+    "나중에 정할게"
+  ],
+  "note": "선택한 프로젝트는 노트 frontmatter의 also_related_projects 필드에 기록됩니다."
+}
+```
+
+If the user selects "여러 개 선택", follow up with a multi-select list of all active projects.
 
 ## Rules
 
 - Do not create subdirectories inside `30_Notes/`.
 - Show the creation plan first and create the file only after user confirmation.
+- The project linking question (step 3) adds at most 1–2 extra interaction steps; keep it concise.
+- If scanning `20_Projects/` fails or is empty, silently skip step 3 and proceed with note creation.
+- Preserve all existing MOC connection logic unchanged.

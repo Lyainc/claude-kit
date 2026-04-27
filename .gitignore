@@ -51,3 +51,7 @@ docs/private/
 
 # Conductor local config
 .conductor/
+
+# Python bytecode (generated when scripts are imported, e.g. during local testing)
+__pycache__/
+*.pyc

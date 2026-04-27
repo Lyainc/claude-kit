@@ -115,7 +115,7 @@ status: active|archived        # conditional (session-handoff, project)
 vault-bridge registers two hooks plus one slash command for the session-note workflow:
 
 - **Stop** (`hooks/stop-check.sh`, deterministic shell script): per-turn. Reads transcript JSONL, regex-matches the last user text against closing keywords (`세션 끝`, `마무리`, `wrap up`, `end session`, etc.), and emits a `systemMessage` suggesting `/save-session` only on match. **No LLM call** → no per-turn cost and no infinite-loop risk (the prior prompt-based hook caused a loop because every LLM response, even "(silent pass-through)", re-fired the Stop hook).
-- **SessionEnd** (prompt-based): session close. Auto-saves quick-mode session-note as safety net if meaningful work happened without manual save. No user interaction (session already closing).
+- **SessionEnd** (chained `hooks/session-end-pre.sh` → prompt): session close. The shell pre-hook collects deterministic state (vault-link gate flags, plan-doc candidates, counters) and writes a JSON file under `/tmp/vault-bridge-session-${SID}/`; the prompt then reads the JSON, decides whether work was meaningful, and writes the safety-net session-note. Shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery. No user interaction (session already closing).
 - **`/save-session`** (slash command): explicit user trigger to invoke vault-searcher Mode 4 with full mode selection (record/handoff/quick).
 
 The split (deterministic Stop + prompt SessionEnd + explicit slash command) ensures: zero per-turn LLM cost, no loops, safety-net auto-save on `/exit`, and a clear user-driven path for full session notes.

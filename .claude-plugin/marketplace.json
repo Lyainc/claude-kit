@@ -12,8 +12,8 @@
   "plugins": [
     {
       "name": "thinking-tools",
-      "version": "1.5.1",
-      "description": "Claude Code thinking skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, blind spot detection, thought chain orchestration, and thinking facilitator agent.",
+      "version": "1.6.1",
+      "description": "Claude Code thinking skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, blind spot detection, thought chain orchestration, adversarial claim review, and thinking facilitator agent.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -27,7 +27,8 @@
         "diverse-sampling",
         "unknown-discovery",
         "thought-chain",
-        "thinking-facilitator"
+        "thinking-facilitator",
+        "adversarial-review"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
@@ -36,8 +37,8 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.5.0",
-      "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review, and project archiving.",
+      "version": "0.9.3",
+      "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review (4-phase pipeline with ≥3x token reduction), project archiving, note↔project bidirectional binding, and vault-audit (8-error-type structural integrity scan with ≥93% detection / <10% FP against fixture), plus reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -50,7 +51,13 @@
         "skills",
         "note-taking",
         "moc",
-        "archive"
+        "archive",
+        "project-binding",
+        "schema",
+        "primitives",
+        "audit-state",
+        "vault-audit",
+        "integrity"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
@@ -59,8 +66,8 @@
     },
     {
       "name": "vault-bridge",
-      "version": "1.0.0",
-      "description": "Obsidian vault ↔ external project bridge plugin. Agent (vault-searcher, haiku) + Stop/SessionEnd hooks + /save-session command. Searches notes, loads domain context, restores session context, and creates session notes with record/handoff/quick modes.",
+      "version": "1.7.0",
+      "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, direct-access awareness, session auto-commit, write path governance, and opt-in plan-doc autosync. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, creates session notes and artifacts with record/handoff/quick modes, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -72,7 +79,20 @@
         "vault-searcher",
         "session-note",
         "search",
-        "hooks"
+        "hooks",
+        "vault-link",
+        "project-binding",
+        "manifest",
+        "token-optimization",
+        "guard",
+        "access-awareness",
+        "git-commit",
+        "auto-commit",
+        "write-guard",
+        "naming-convention",
+        "plan-doc-autosync",
+        "save-plan-doc",
+        "snapshot"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",

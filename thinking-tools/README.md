@@ -1,6 +1,6 @@
 # thinking-tools
 
-Claude Code용 **사고 도구 스킬 플러그인**. 분석, 문서 작성, 품질 검증을 위한 6개 스킬과 1개 에이전트를 제공합니다.
+Claude Code용 **사고 도구 스킬 플러그인**. 분석, 문서 작성, 품질 검증을 위한 7개 스킬과 1개 에이전트를 제공합니다.
 
 ## 설치
 
@@ -24,6 +24,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `expert-panel` | Expert panel discussions with dialectical analysis | expert panel, design review, 전문가 토론 |
 | `unknown-discovery` | Discover blind spots through Socratic interviews | 맹점, 놓친 것, blind spot, 심층 인터뷰 |
 | `thought-chain` | Orchestrate multiple skills into a sequential pipeline ([rationale](docs/thought-chain-rationale.md)) | thought chain, 종합 분석, 전체 파이프라인 |
+| `adversarial-review` | Stress-test claims with 1:1 attack rounds and Survival Score | 반증, 공격, 검증, adversarial review, 주장 반박 |
 
 ## 문제 해결
 
