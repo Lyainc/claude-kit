@@ -40,7 +40,7 @@ Injects exactly 5 seeded errors per error type (45 total), plus 200 extra clean 
 | E6 `broken_project_to_note` | 5 | `20_Projects/gamma/_index.md` `related_notes` lists 5 nonexistent vault-relative paths |
 | E7 `missing_back_reference` | 5 | `audit-e7-no-backref-NNN.md` listed in `delta/_index.md` `related_notes` but has neither `promoted_to_project: delta` nor `also_related_projects: [delta]` |
 | E8 `broken_note_to_project` | 5 | `audit-e8-bad-project-ref-NNN.md` with `promoted_to_project`/`also_related_projects` pointing to nonexistent projects |
-| E9 `missing_forward_reference` | 5 | `audit-e9-no-fwdref-NNN.md` with `also_related_projects: [epsilon]` but `epsilon/_index.md` has no `related_notes` listing them |
+| E9 `missing_forward_reference` | 5 | `audit-e9-no-fwdref-NNN.md` claiming `epsilon` (notes 1-2 via `promoted_to_project`, notes 3-5 via `also_related_projects`) but `epsilon/_index.md` has no `related_notes` listing them |
 | **Total seeded** | **45** | |
 
 **Clean subset**: 200 extra notes (`audit-clean-NNN.md`) forming a ring (note i links to note i+1 mod 200), ensuring every clean note has one inbound link and is never an orphan.

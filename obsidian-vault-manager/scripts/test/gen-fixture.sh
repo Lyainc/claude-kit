@@ -516,8 +516,23 @@ EOF
 
   # ── E9: missing_forward_reference (5 files) ──────────────────────────────────
   # epsilon/_index.md exists but does NOT list these 5 notes in related_notes or absorbs.
-  # The notes each have promoted_to_project: epsilon or also_related_projects: [epsilon].
-  for i in $(seq 1 5); do
+  # Notes 1-2: claim epsilon via promoted_to_project (primary promotion)
+  for i in $(seq 1 2); do
+    write_file "$FIXTURE_DIR/30_Notes/audit-e9-no-fwdref-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+promoted_to_project: epsilon
+---
+
+# Audit E9 Note ${i}
+
+Claims epsilon via promoted_to_project but epsilon/_index.md does not list this note (E9 error).
+EOF
+  done
+  # Notes 3-5: claim epsilon via also_related_projects (secondary relation)
+  for i in $(seq 3 5); do
     write_file "$FIXTURE_DIR/30_Notes/audit-e9-no-fwdref-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2026-04-01
@@ -528,7 +543,7 @@ also_related_projects: [epsilon]
 
 # Audit E9 Note ${i}
 
-Claims epsilon project but epsilon/_index.md does not list this note (E9 error).
+Claims epsilon via also_related_projects but epsilon/_index.md does not list this note (E9 error).
 EOF
   done
 

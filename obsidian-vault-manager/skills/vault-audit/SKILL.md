@@ -72,9 +72,8 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 8. Collect project binding data — for each `_index.md` under `20_Projects/`:
    - Read its `related_notes` frontmatter field (list of vault-relative paths, e.g. `30_Notes/foo.md`).
-   - Read its `absorbs` frontmatter field (list of vault-relative paths). Both fields are forward links.
+   - Read its `absorbs` frontmatter field (list of vault-relative paths). Both fields are forward links — checks against the project's forward set use `(related_notes + absorbs)`.
    - Record: `{project_path, project_name, related_notes[], absorbs[]}`.
-   - Combined forward-link set: `all_forward_paths = related_notes[] + absorbs[]`.
 
 9. Collect note → project back-references — for each `.md` in `30_Notes/`:
    - Read its `promoted_to_project` frontmatter field (single string, optional).
@@ -191,9 +190,8 @@ for each note_path in note_projects:
     index_path = 20_Projects/{project_name}/_index.md
     if index_path exists:
       project = project_indexes[project_name]
-      all_forward = project.related_notes + project.absorbs
       note_relpath = vault-relative path of note_path (e.g. "30_Notes/foo.md")
-      if note_relpath not in all_forward (case-insensitive):
+      if note_relpath not in (project.related_notes + project.absorbs) (case-insensitive):
         → missing_forward_reference
 ```
 **False-positive guard**: Only flag when both the note and the project `_index.md` exist (no double-flag with E8 or E6).
