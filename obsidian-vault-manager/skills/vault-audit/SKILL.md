@@ -79,6 +79,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    - Read its `promoted_to_project` frontmatter field (single string, optional).
    - Read its `also_related_projects` frontmatter field (array of strings, optional).
    - Record: `{note_path, promoted_to_project, also_related_projects[]}`.
+   - Back-reference and forward-link checks treat both fields as a union (`{promoted_to_project} ∪ also_related_projects`, skipping null/empty).
 
 **Outputs**: An in-memory scan bundle:
 ```
