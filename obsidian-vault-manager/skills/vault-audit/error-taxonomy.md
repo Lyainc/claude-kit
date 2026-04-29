@@ -277,9 +277,8 @@ For each note_path in note_projects:
     index_path = 20_Projects/{project_name}/_index.md
     if index_path exists:
       project = project_indexes[project_name]
-      all_forward = project.related_notes + project.absorbs
       note_relpath = vault-relative path of note (e.g. "30_Notes/foo.md")
-      if note_relpath not in all_forward (case-insensitive):
+      if note_relpath not in (project.related_notes + project.absorbs) (case-insensitive):
         → missing_forward_reference
 ```
 

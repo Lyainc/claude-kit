@@ -425,6 +425,8 @@ EOF
 
   # ── E6: broken_project_to_note (5 entries via 1 project) ─────────────────────
   # gamma/_index.md lists 5 vault-relative paths that don't exist in 30_Notes/.
+  # Split across related_notes (4) and absorbs (1) to exercise both forward-link
+  # fields in the E6 detection path.
   write_file "$FIXTURE_DIR/20_Projects/gamma/_index.md" <<'EOF'
 ---
 created: 2026-04-01
@@ -436,12 +438,13 @@ related_notes:
   - 30_Notes/audit-e6-ghost-002.md
   - 30_Notes/audit-e6-ghost-003.md
   - 30_Notes/audit-e6-ghost-004.md
+absorbs:
   - 30_Notes/audit-e6-ghost-005.md
 ---
 
 # Project Gamma
 
-Project with related_notes pointing to nonexistent notes (E6 errors).
+Project with related_notes / absorbs pointing to nonexistent notes (E6 errors).
 EOF
 
   # ── E7: missing_back_reference (5 files) ─────────────────────────────────────
@@ -461,6 +464,8 @@ Exists but has neither promoted_to_project nor also_related_projects pointing to
 EOF
   done
 
+  # delta lists notes across related_notes (4) and absorbs (1) so the E7
+  # back-reference check is exercised for both forward-link fields.
   write_file "$FIXTURE_DIR/20_Projects/delta/_index.md" <<'EOF'
 ---
 created: 2026-04-01
@@ -472,12 +477,13 @@ related_notes:
   - 30_Notes/audit-e7-no-backref-002.md
   - 30_Notes/audit-e7-no-backref-003.md
   - 30_Notes/audit-e7-no-backref-004.md
+absorbs:
   - 30_Notes/audit-e7-no-backref-005.md
 ---
 
 # Project Delta
 
-Project where all related notes exist but lack back-references (E7 errors).
+Project where listed notes exist (across related_notes and absorbs) but lack back-references (E7 errors).
 EOF
 
   # ── E8: broken_note_to_project (5 files) ─────────────────────────────────────

@@ -207,19 +207,22 @@ def classify(bundle: dict) -> dict:
         if not sources:
             add("E5_orphan_note", rec["rel"])
 
-    file_set = set(bundle["files"])
+    # SKILL.md: path comparisons in E6/E7/E9 are case-insensitive.
+    file_set_lower = {f.lower() for f in bundle["files"]}
+    note_projects_lower = {k.lower(): v for k, v in bundle["note_projects"].items()}
     for proj in bundle["project_indexes"]:
         forward = (proj.get("related_notes") or []) + (proj.get("absorbs") or [])
         for path in forward:
-            if path not in file_set:
+            if path.lower() not in file_set_lower:
                 add("E6_broken_project_to_note", proj["rel"], path)
 
     for proj in bundle["project_indexes"]:
         forward = (proj.get("related_notes") or []) + (proj.get("absorbs") or [])
         for path in forward:
-            if path not in file_set:
+            path_l = path.lower()
+            if path_l not in file_set_lower:
                 continue
-            note = bundle["note_projects"].get(path)
+            note = note_projects_lower.get(path_l)
             if not note:
                 continue
             promoted = note.get("promoted_to_project")
@@ -240,8 +243,11 @@ def classify(bundle: dict) -> dict:
                 add("E8_broken_note_to_project", note_path, project_name)
             else:
                 proj = proj_by_name[project_name]
-                forward = (proj.get("related_notes") or []) + (proj.get("absorbs") or [])
-                if note_path not in forward:
+                forward_lower = {
+                    p.lower() for p in
+                    (proj.get("related_notes") or []) + (proj.get("absorbs") or [])
+                }
+                if note_path.lower() not in forward_lower:
                     add("E9_missing_forward_reference", note_path, project_name)
 
     counts: dict = {}
