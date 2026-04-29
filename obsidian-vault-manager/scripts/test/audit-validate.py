@@ -201,8 +201,13 @@ def classify(bundle: dict) -> dict:
             continue
         stem = rel_path.stem.lower()
         sources = [s for s in bundle["inbound"].get(stem, []) if s != rec["rel"]]
+        rel_lower = rec["rel"].lower()
         for proj in bundle["project_indexes"]:
-            if rec["rel"] in (proj.get("related_notes") or []) + (proj.get("absorbs") or []):
+            forward_lower = {
+                p.lower() for p in
+                (proj.get("related_notes") or []) + (proj.get("absorbs") or [])
+            }
+            if rel_lower in forward_lower:
                 sources.append(proj["rel"])
         if not sources:
             add("E5_orphan_note", rec["rel"])
