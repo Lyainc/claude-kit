@@ -5,6 +5,8 @@ Reproducible fixture + verification for the Phase B DoD:
 - False positive rate < 10% on clean vault subset
 
 > **Schema correction note**: The original implementation used `linked_notes` (stems) and `project:` fields that do not match the canonical W7 schema. Per code review, these were corrected to `related_notes`/`absorbs` (vault-relative paths) and `promoted_to_project`/`also_related_projects` respectively. This measurement was re-run against the corrected fixture after that fix.
+>
+> **Mechanical verification**: The numbers in this document are produced by `obsidian-vault-manager/scripts/test/audit-validate.py`, which mechanically applies the SKILL.md Phase 1 SCAN + Phase 2 CLASSIFY rules and reports per-type seeded-detection and FP-on-clean counts. Re-run via `python3 audit-validate.py <fixture> --dod`. The validator is a reference implementation; the runtime LLM execution should reach the same counts when faithfully following SKILL.md.
 
 ---
 
@@ -125,17 +127,17 @@ E4 total of 18 (down from 19 in prior run): the alpha project wikilinks (`[[alph
 ## Reproducibility
 
 ```bash
-# Clean run from scratch
+# Generate the fixture
 rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
 
-# Run the classification script (inline below) against the fixture
-FIXTURE=/tmp/ovm-fixture-audit-recheck
-# ... run detection script as defined in measurement procedure
+# Run the validator with DoD analysis
+python3 obsidian-vault-manager/scripts/test/audit-validate.py \
+  /tmp/ovm-fixture-audit-recheck --dod
 ```
 
-The classification logic used for measurement is exactly the rule set defined in `error-taxonomy.md` — no special-casing for the fixture. The same rules will execute inside the `vault-audit` skill's CLASSIFY phase against a real vault.
+Expected `dod.seeded_detected` per type: 5. Expected `dod.fp_on_clean` per type: 0. The classification logic used for measurement is exactly the rule set defined in `error-taxonomy.md` — no special-casing for the fixture. The same rules will execute inside the `vault-audit` skill's CLASSIFY phase against a real vault.
 
 ---
 
