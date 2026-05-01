@@ -91,6 +91,7 @@ def collect(vault: Path) -> dict:
     fm_records: list = []
     files: list = []
     inbound: dict = {}
+    wikilinks_by_file: dict = {}
     project_indexes: list = []
     note_projects: dict = {}
     all_stems: set = set()
@@ -125,6 +126,7 @@ def collect(vault: Path) -> dict:
         for m in WIKILINK_PATTERN.finditer(content):
             target = m.group(1).strip().lower()
             inbound.setdefault(target, set()).add(str(rel))
+            wikilinks_by_file.setdefault(str(rel), []).append(target)
 
         if rel.name == "_index.md" and len(rel.parts) >= 2 and rel.parts[0] == "20_Projects":
             project_indexes.append(
@@ -151,6 +153,7 @@ def collect(vault: Path) -> dict:
         "files": [str(f) for f in files],
         "all_stems": all_stems,
         "inbound": {k: sorted(v) for k, v in inbound.items()},
+        "wikilinks_by_file": wikilinks_by_file,
         "project_indexes": project_indexes,
         "note_projects": note_projects,
         "vault": vault,
@@ -183,13 +186,8 @@ def classify(bundle: dict) -> dict:
         if not filename_conforms(rel_path):
             add("E3_filename_convention_violation", str(rel_path))
 
-    for rel in bundle["files"]:
-        try:
-            content = (vault / rel).read_text(encoding="utf-8")
-        except OSError:
-            continue
-        for m in WIKILINK_PATTERN.finditer(content):
-            target = m.group(1).strip().lower()
+    for rel, targets in bundle["wikilinks_by_file"].items():
+        for target in targets:
             if target not in bundle["all_stems"]:
                 add("E4_broken_wikilink", rel, target)
 

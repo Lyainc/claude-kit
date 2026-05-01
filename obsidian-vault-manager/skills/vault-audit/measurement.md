@@ -108,6 +108,8 @@ The detection script also finds pre-existing issues from the base fixture. These
 
 The high E5 total (245 orphans) reflects the base fixture's 200 original clean notes, the 30 issue notes, and 10 inbox sessions — most of which are not linked from other notes. This is expected vault behavior and does not affect the FP rate measurement, which is scoped to the 200 `audit-clean-*` files only.
 
+E5 also absorbs 5 cross-error contamination from E9: the `audit-e9-no-fwdref-*` notes have no inbound wikilinks (epsilon's `_index.md` lists nothing in `related_notes`/`absorbs`), so they fire E5 too. The seeded-detection check in `audit-validate.py --dod` scopes E5 to the `audit-e5-` prefix only, so this contamination doesn't inflate the seeded count.
+
 E4 total of 18 (down from 19 in prior run): the alpha project wikilinks (`[[alpha-architecture]]`, `[[alpha-decisions]]`) now resolve correctly because those notes were added to the base fixture.
 
 ---
