@@ -73,6 +73,14 @@ python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 # 스킬 파일 존재 확인
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
+
+# vault-audit DoD 측정 (mechanical reference impl)
+rm -rf /tmp/ovm-fixture-audit-recheck
+OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
+  bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
+python3 obsidian-vault-manager/scripts/test/audit-validate.py \
+  /tmp/ovm-fixture-audit-recheck --dod
+# Expected: dod.seeded_detected per type = 5; dod.fp_on_clean per type = 0
 ```
 
 ## SKILL.md Frontmatter
