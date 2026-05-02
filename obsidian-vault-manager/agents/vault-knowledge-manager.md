@@ -78,6 +78,8 @@ Use the following patterns as a reference when inferring domains. This is a guid
 
 ## Note Creation Rules
 
+Follow `reference/obsidian-format.md` when generating note bodies, frontmatter, internal links, callouts, task lists, and comments. Use wikilinks for vault-internal references and Markdown links for external URLs.
+
 1. All new notes → `30_Notes/{topic-in-kebab-case}.md` (flat)
 2. If the filename already exists: ask the user to choose between overwrite / rename / merge.
 3. Always include frontmatter:

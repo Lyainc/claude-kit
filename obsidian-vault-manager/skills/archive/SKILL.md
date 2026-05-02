@@ -29,6 +29,8 @@ Archive the `$ARGUMENTS` project.
    ```
 4. **Execute** (after user confirmation):
    a. Update `status` in `_index.md` to `archived` and add an `archived` date.
+      - Optional CLI path: follow the availability gate and timeout helper in `../../reference/obsidian-cli.md`. When the gate passes, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 5} obsidian property:set name="status" value="archived" path="20_Projects/{name}/_index.md"` and `${OBSIDIAN_TO:+$OBSIDIAN_TO 5} obsidian property:set name="archived" value="YYYY-MM-DD" type=date path="20_Projects/{name}/_index.md"` before moving the project. The `type=date` parameter is required so Obsidian Properties and Dataview treat `archived` as a date, not text. (Never hard-code bare `timeout` — it is missing on default macOS.)
+      - Fallback path: if either CLI command is unavailable, fails, or times out, update YAML frontmatter directly with Edit as before.
    b. Delegate file move to the `vault-file-organizer` agent: `20_Projects/{name}/` → `50_Archive/{name}/` (error handling follows the file-organizer's Error Handling policy).
    c. Remove the corresponding link from the "Active Projects" section in `Home.md`.
    d. Search related MOCs: use `grep -rl "{project-name}" ~/vault/10_MOC/` to find MOCs that reference the project, and append `(archived)` to those links (use `grep` even on macOS — `mdfind` is only for full-vault searches).

@@ -17,7 +17,8 @@ This skill is for use **within vault management sessions** (via `vault-knowledge
 ## Procedure
 
 1. Read `~/vault/10_MOC/$ARGUMENTS.md` (or a similarly named file).
-   - If no MOC exists, search based on platform:
+   - Optional CLI path: follow the availability gate and timeout helper in `../../reference/obsidian-cli.md`. When the gate passes, `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian read path="10_MOC/{domain}.md"` may be used for an exact MOC path, and `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="$ARGUMENTS" limit={N}` may be used for indexed search (add `path="{folder}"` when scoping to a subtree).
+   - If no MOC exists or the CLI path is unavailable/fails/times out, search based on platform:
      - macOS (`uname -s` = `Darwin`): `mdfind -onlyin ~/vault "$ARGUMENTS"`
      - Other: `grep -rl "$ARGUMENTS" ~/vault --include="*.md"`
    - **Cross-domain**: If `$ARGUMENTS` contains a comma (e.g., `devops,kubernetes`), query each domain individually and merge the results.

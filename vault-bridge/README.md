@@ -41,7 +41,7 @@ Load MOC and related notes for a specific domain. Lightweight read-only version 
 
 ### 3. Keyword Search
 
-Search the entire vault by keyword.
+Search the entire vault by keyword. If Obsidian CLI is available and responsive, vault-searcher may use `obsidian search` as an indexed search path before falling back to manifest/mdfind/grep behavior.
 
 ```
 "JWT 인증 설계 결정 기록 있어?"
@@ -69,6 +69,10 @@ The agent uses **AskUserQuestion** at every discrete choice: type/mode selection
 "capture 저장해줘"
 "plan 파일 만들어줘"
 ```
+
+## Optional Obsidian CLI integration
+
+When `obsidian` is installed, registered in `PATH`, and the Obsidian app is running, vault-searcher may use `obsidian search query="..."` for indexed keyword searches. This is an optimization only: manifest-first loading and filesystem fallback remain the correctness path, and `.vault-link` scoped searches must preserve their project boundary.
 
 ## Vault Manifest
 

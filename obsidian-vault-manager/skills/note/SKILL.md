@@ -10,6 +10,8 @@ Create a new note in `~/vault/30_Notes/` on the topic of `$ARGUMENTS`.
 
 ## Procedure
 
+Before drafting the note, follow `../../reference/obsidian-format.md` for Obsidian-native wikilinks, callouts, task lists, comments, and YAML property formatting. Prefer wikilinks for internal vault references and Markdown links for external URLs.
+
 1. **Determine domain**: Identify the relevant domain from the topic.
 2. **Check for duplicates**: Use `mdfind -onlyin ~/vault/30_Notes "$ARGUMENTS"` or `ls ~/vault/30_Notes/ | grep -i {keyword}` to check for existing notes.
    - If an identical or similar note exists, notify the user and ask them to choose: overwrite / rename / merge.

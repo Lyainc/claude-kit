@@ -37,8 +37,8 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.9.4",
-      "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review (4-phase pipeline with ≥3x token reduction), project archiving, note↔project bidirectional binding, and vault-audit (9-error-type structural integrity scan with ≥93% detection / <10% FP against fixture), plus reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
+      "version": "0.10.0",
+      "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review (4-phase pipeline with ≥3x token reduction), project archiving, note↔project bidirectional binding, Obsidian-native formatting guidance, optional Defuddle URL extraction for captures, optional Obsidian CLI acceleration, and vault-audit (9-error-type structural integrity scan with ≥93% detection / <10% FP against fixture), plus reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -57,7 +57,10 @@
         "primitives",
         "audit-state",
         "vault-audit",
-        "integrity"
+        "integrity",
+        "obsidian-format",
+        "defuddle",
+        "obsidian-cli"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
@@ -66,8 +69,8 @@
     },
     {
       "name": "vault-bridge",
-      "version": "1.7.0",
-      "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, direct-access awareness, session auto-commit, write path governance, and opt-in plan-doc autosync. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, creates session notes and artifacts with record/handoff/quick modes, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
+      "version": "1.7.1",
+      "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, optional Obsidian CLI search acceleration, direct-access awareness, session auto-commit, write path governance, and opt-in plan-doc autosync. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, creates session notes and artifacts with record/handoff/quick modes, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -92,7 +95,8 @@
         "naming-convention",
         "plan-doc-autosync",
         "save-plan-doc",
-        "snapshot"
+        "snapshot",
+        "obsidian-cli"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",

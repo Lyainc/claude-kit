@@ -15,6 +15,12 @@ Parse `$ARGUMENTS` to detect options:
 
 ---
 
+## Format Reference
+
+When generating `_index.md` content, frontmatter, or internal vault links, follow `../../reference/obsidian-format.md`. Prefer wikilinks for vault-internal references, keep `_index.md` properties flat YAML, and quote wikilinks inside YAML values.
+
+---
+
 ## Mode A: Plain Project Creation
 
 Arguments: `{name}` (no flags)

@@ -191,7 +191,8 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search)
    - No pointer or resolution failed → `search_root = ~/vault/` (full-vault search, existing behavior)
 2. Read `{search_root}/10_MOC/{domain}.md` (or search within `search_root` for a matching MOC file).
-   - If no MOC found, search adaptively within `search_root`:
+   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree (the CLI supports `path=<folder>` natively — no need to fall back for scope reasons alone).
+   - If no MOC found, or if the CLI path is unavailable/fails/times out, search adaptively within `search_root`:
      - macOS (`uname -s` = `Darwin`): `mdfind -onlyin {search_root} "{domain}"` (결과 없으면 grep fallback)
      - Other / fallback: `grep -rl "{domain}" {search_root} --include="*.md"`
    - Comma-separated domains: query each individually, merge results.
@@ -211,8 +212,10 @@ Search the entire vault by keyword and load note contents.
    - Collect matching entries as initial candidate set. If ≥ 1 match found, skip step 2 and use these candidates directly.
    - If no manifest matches, fall through to step 2.
 2. Search (exclude `.claude/`, `90_Assets/`):
-   - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
-   - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
+   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{keyword}" limit=20` and use the returned vault-relative paths as candidates.
+   - If the CLI path is unavailable, fails, times out, or returns no useful candidates, fall back:
+     - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
+     - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
 3. Sort: title match > tag match > body match > recent modification.
 4. Output preview: filename + first 2 lines + location + tags + modification date.
 5. Load full note content when user selects a number (default 10 results).
