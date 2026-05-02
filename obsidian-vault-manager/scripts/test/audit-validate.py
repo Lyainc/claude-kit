@@ -27,7 +27,7 @@ REQUIRED_FM_FIELDS = ("created", "tags", "type")
 FILENAME_PATTERN = re.compile(
     r"^(?:capture|session|project)-\d{4}-\d{2}-\d{2}(?:-[a-z0-9-]+)?(?:-v\d+)?\.md$"
 )
-NOTE_TOPIC_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*\.md$")
+NOTE_TOPIC_PATTERN = re.compile(r"^[a-zA-Z0-9][a-zA-Z0-9-]*\.md$")
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 
 
@@ -44,8 +44,9 @@ def parse_frontmatter(content: str) -> Optional[dict]:
     for line in body.split("\n"):
         if not line.strip():
             continue
-        if line.startswith("  - ") or line.startswith("- "):
-            item = line.strip().lstrip("- ").strip().strip("\"'")
+        stripped = line.lstrip()
+        if stripped.startswith("- "):
+            item = stripped[2:].strip().strip("\"'")
             if current_key and current_list is not None:
                 current_list.append(item)
                 result[current_key] = current_list
@@ -143,9 +144,11 @@ def collect(vault: Path) -> dict:
             also = fm.get("also_related_projects", [])
             if isinstance(also, str):
                 also = [also] if also else []
+            elif not isinstance(also, list):
+                also = []
             note_projects[str(rel)] = {
                 "promoted_to_project": promoted if promoted else None,
-                "also_related_projects": also if isinstance(also, list) else [],
+                "also_related_projects": also,
             }
 
     return {
