@@ -100,7 +100,7 @@ The detection script also finds pre-existing issues from the base fixture. These
 | E2 `missing_required_fields` | 10 | 5 |
 | E3 `filename_convention_violation` | 10 | 5 |
 | E4 `broken_wikilink` (source files) | 18 | 5 |
-| E5 `orphan_note` | 245 | 5 |
+| E5 `orphan_note` | 245 (includes 5 E9 cross-fire) | 5 |
 | E6 `broken_project_to_note` | 5 | 5 |
 | E7 `missing_back_reference` | 5 | 5 |
 | E8 `broken_note_to_project` | 5 | 5 |
