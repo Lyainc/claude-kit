@@ -31,6 +31,9 @@ local/
 # Claude Code local settings (user-specific, not shared)
 .claude/
 
+# Gemini CLI local state/temp files
+.gemini/
+
 # OMC / OMX runtime state (local-only, regenerable)
 .omc/
 .omx/
