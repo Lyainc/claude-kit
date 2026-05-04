@@ -39,7 +39,13 @@ Before drafting the note, follow `../../reference/obsidian-format.md` for Obsidi
    - If `10_MOC/{domain}.md` exists → add backlink
    - If not → create a new domain MOC, then add a link in `Home.md` as well (requires user confirmation)
    - If the topic spans multiple domains → link to all relevant MOCs
-6. **Output result**: Created file path + list of updated MOCs + any project links established
+6. **Update project back-references** (only when Step 3 produced project selections):
+   - For each selected project name, locate `~/vault/20_Projects/{name}/_index.md`.
+   - If `_index.md` is missing for a selected project, log a warning and continue (do not fail note creation).
+   - Read the existing frontmatter. Append `30_Notes/{topic}.md` to the `related_notes` array using Edit (idempotent — skip if already present). If the `related_notes` field is absent, add it.
+   - Never overwrite the entire `_index.md`; modify only the `related_notes` field within the frontmatter block. Follow the project skill's append-only convention.
+   - This step ensures bidirectional link integrity, preventing W2 vault-audit `missing_forward_reference` (E8) from firing on the new note.
+7. **Output result**: Created file path + list of updated MOCs + project links established + project `_index.md` files updated
 
 ## Optional Note Fields
 
