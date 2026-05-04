@@ -57,6 +57,7 @@
 | `daily` | `daily-2026-04-12.md` | `00_Inbox/` |
 | `note` | `{topic}.md` (날짜 없음) | `30_Notes/` |
 | `project` | `_index.md` (고정) | `20_Projects/{name}/` |
+| `plan` | `plan-2026-04-12-{topic}.md` | `20_Projects/{name}/` |
 
 - topic은 kebab-case, 2-3 단어
 - 동일 날짜 중복: `-v2`, `-v3` 순으로 증분
@@ -68,7 +69,7 @@
 ---
 created: YYYY-MM-DD                       # 필수: 모든 파일
 tags: [{type}, {domain/project}]          # 필수: 파일 유형 + 도메인/프로젝트
-type: session | capture | daily | note | project  # 필수: 파일 유형 식별자
+type: session | capture | daily | note | project | plan  # 필수: 파일 유형 식별자
 status: active | archived                # 조건부: session(handoff 모드), project에서만
 ---
 ```

@@ -70,6 +70,20 @@ The agent uses **AskUserQuestion** at every discrete choice: type/mode selection
 "plan 파일 만들어줘"
 ```
 
+## Handoff Term Convention
+
+`handoff` has a single canonical meaning in vault-bridge: **a session-note mode** (one of `record` / `handoff` / `quick`). All other historical usages are deprecated.
+
+| Context | Allowed? | Replacement |
+|---------|----------|-------------|
+| session-note mode (`record` / `handoff` / `quick`) | **Allowed (canonical)** | — |
+| Standalone `handoff-*.md` filename | **Forbidden (legacy only)** | Use `session-*.md` |
+| Redundant tag `tags: [session, handoff, ...]` | **Forbidden** | Omit `handoff` — session mode already conveys it |
+| thinking-tools stage-to-stage data contract | **Domain prefix required** | Use `inter-stage handoff` or `stage-transition` |
+| "Project-level handover document" | **Forbidden** | Write `plan-YYYY-MM-DD-{topic}.md`, then reference it from a session-note in handoff mode |
+
+vault-searcher Mode 1 no longer matches the legacy `handoff-*.md` / `*-handoff.md` patterns (removed in v1.7.x). Existing legacy files have been renamed or absorbed.
+
 ## Optional Obsidian CLI integration
 
 When `obsidian` is installed, registered in `PATH`, and the Obsidian app is running, vault-searcher may use `obsidian search query="..."` for indexed keyword searches. This is an optimization only: manifest-first loading and filesystem fallback remain the correctness path, and `.vault-link` scoped searches must preserve their project boundary.

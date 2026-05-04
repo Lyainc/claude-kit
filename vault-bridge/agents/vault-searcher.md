@@ -156,9 +156,9 @@ Find and load the most recent active session note or handoff to restore session 
 **Triggers**: "load handoff", "resume last session", "what was I working on?", "{project} status", "이전 세션", "세션 복원"
 
 **Procedure**:
-1. Search for session/handoff files (both patterns for backward compatibility):
-   - With project name: `~/vault/20_Projects/{name}/session-*.md` + `~/vault/20_Projects/{name}/handoff-*.md`
-   - Without: `~/vault/20_Projects/*/session-*.md` + `~/vault/20_Projects/*/handoff-*.md` + `~/vault/00_Inbox/session-*.md` + `~/vault/00_Inbox/*-handoff.md`
+1. Search for session files:
+   - With project name: `~/vault/20_Projects/{name}/session-*.md`
+   - Without: `~/vault/20_Projects/*/session-*.md` + `~/vault/00_Inbox/session-*.md`
 2. Filter by frontmatter `status: active`.
 3. Sort by date descending. Select the most recent.
 4. If multiple projects have active session notes, show list and ask user to choose.
@@ -276,8 +276,8 @@ Create a new vault file recording current session work or an artifact (capture, 
 7. **Gather related files**: Collect file paths mentioned in conversation.
    - Supplement with `find ~/vault -mmin -{hours × 60} -type f -not -path '*/\.*'` if insufficient (default: `--hours 1` = 60min).
 
-8. **Check existing session note** (session type only): Search for previous `status: active` session note or handoff in the same project/domain.
-   - Search patterns: `session-*.md` and `handoff-*.md` (backward compatibility).
+8. **Check existing session note** (session type only): Search for previous `status: active` session note in the same project/domain.
+   - Search pattern: `session-*.md`.
    - If found: cross-reference "next steps" with current session work. Carry over incomplete items.
    - Suggest to user: "이전 active session note를 archived로 변경할까요?" (vault-searcher는 기존 파일을 수정할 수 없으므로, obsidian-vault-manager의 vault-file-organizer에게 위임하거나 사용자가 직접 변경).
 

@@ -109,6 +109,7 @@ Files written to `~/vault/` by OVM or vault-bridge follow a unified convention.
 | `capture` | `capture-2026-04-12-api-changes.md` | `00_Inbox/` |
 | `note` | `{topic}.md` (no date) | `30_Notes/` |
 | `project` | `_index.md` (fixed) | `20_Projects/{name}/` |
+| `plan` | `plan-2026-04-12-{topic}.md` | `20_Projects/{name}/` |
 
 Same-date collisions: `-v2`, `-v3` increment.
 
@@ -116,8 +117,8 @@ Same-date collisions: `-v2`, `-v3` increment.
 ```yaml
 created: YYYY-MM-DD            # required, all files
 tags: [{type}, {domain}]       # required
-type: session|capture|note|project  # required
-status: active|archived        # conditional (session-handoff, project)
+type: session|capture|note|project|plan  # required
+status: active|archived        # conditional (session-handoff, project, plan)
 ```
 
 ## Session-Note Hooks (vault-bridge)
