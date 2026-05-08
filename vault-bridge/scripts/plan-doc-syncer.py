@@ -83,8 +83,12 @@ def _resolve_effective_patterns(vault_link: dict) -> tuple[list[str], list[str]]
         extra_include = [extra_include]
     if isinstance(extra_exclude, str):
         extra_exclude = [extra_exclude]
-    include = list(DEFAULT_INCLUDE_PATTERNS) + [p for p in extra_include if p not in DEFAULT_INCLUDE_PATTERNS]
-    exclude = list(DEFAULT_EXCLUDE_PATTERNS) + [p for p in extra_exclude if p not in DEFAULT_EXCLUDE_PATTERNS]
+    # Append user patterns; final dedup happens at scan time via the candidate set.
+    # No string-equality dedup against DEFAULT — user-supplied near-duplicates are
+    # benign (cost: one extra glob walk) and dedup() would silently drop semantically
+    # different overlaps the user expected to take effect.
+    include = list(DEFAULT_INCLUDE_PATTERNS) + list(extra_include)
+    exclude = list(DEFAULT_EXCLUDE_PATTERNS) + list(extra_exclude)
     return include, exclude
 
 
@@ -103,14 +107,55 @@ def _glob_pattern(project_root: Path, pattern: str) -> list[Path]:
     return [p for p in project_root.glob(pattern) if p.is_file()]
 
 
+def _glob_to_regex(pattern: str) -> str:
+    """
+    Convert a glob pattern to a regex string. Supports `**` for any-depth
+    cross-segment match (including zero segments) and `*`/`?` for
+    single-segment wildcards. Useful for exclude patterns where fnmatch's
+    inability to honour `/` boundaries is a footgun.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(pattern):
+        ch = pattern[i]
+        if pattern[i:i + 3] == "**/":
+            out.append("(?:.*/)?")  # zero or more dir segments
+            i += 3
+            continue
+        if pattern[i:i + 2] == "**":
+            out.append(".*")
+            i += 2
+            continue
+        if ch == "*":
+            out.append("[^/]*")
+        elif ch == "?":
+            out.append("[^/]")
+        else:
+            out.append(re.escape(ch))
+        i += 1
+    return "^" + "".join(out) + "$"
+
+
 def _matches_exclude(rel_path: str, exclude_patterns: list[str]) -> bool:
-    """Return True if rel_path matches any exclude pattern (directory prefix or fnmatch)."""
+    """
+    Return True if rel_path matches any exclude pattern.
+
+    Three matching modes per pattern:
+    - Directory prefix (`path/to/dir/`): substring match anywhere in the path
+    - `**` glob: cross-segment regex match
+    - Plain glob (`*`, `?`): fnmatch on basename or full relative path
+    """
     name = Path(rel_path).name
     for excl in exclude_patterns:
         if excl.endswith("/"):
             if rel_path.startswith(excl) or f"/{excl}" in f"/{rel_path}":
                 return True
-        elif fnmatch.fnmatch(name, excl) or fnmatch.fnmatch(rel_path, excl):
+            continue
+        if "**" in excl:
+            if re.match(_glob_to_regex(excl), rel_path):
+                return True
+            continue
+        if fnmatch.fnmatch(name, excl) or fnmatch.fnmatch(rel_path, excl):
             return True
     return False
 
@@ -121,14 +166,22 @@ def _discover_candidates(project_root: Path, vault_link: dict) -> list[str]:
     patterns and vault-native paths. Returns sorted project-root-relative paths.
     """
     include, exclude = _resolve_effective_patterns(vault_link)
+    debug = os.environ.get("VAULT_BRIDGE_DEBUG") == "1"
+    project_root_resolved = project_root.resolve()
     found: set[str] = set()
     for pattern in include:
         for f in _glob_pattern(project_root, pattern):
             try:
-                rel = str(f.resolve().relative_to(project_root.resolve()))
+                rel = str(f.resolve().relative_to(project_root_resolved))
             except ValueError:
+                # File or its symlink target lies outside project_root after
+                # resolution — skip silently, log only when debug requested.
+                if debug:
+                    print(f"plan-doc-syncer: skip {f} (outside project_root after resolve)", file=sys.stderr)
                 continue
             if _is_vault_native(f):
+                if debug:
+                    print(f"plan-doc-syncer: skip {f} (vault-native)", file=sys.stderr)
                 continue
             if _matches_exclude(rel, exclude):
                 continue
@@ -205,21 +258,18 @@ def _parse_frontmatter(text: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def _load_vault_link(vault_link_path: Path) -> dict:
-    """Parse .vault-link YAML (simple key: value, no nested structures needed)."""
+    """
+    Parse .vault-link YAML.
+
+    Supports both flow arrays (`key: [a, b]`) and block lists
+    (`key:\\n  - a\\n  - b`). Delegates to `_parse_frontmatter` so the
+    list-aware logic powers both frontmatter and .vault-link uniformly.
+    """
     if not vault_link_path.exists():
         return {}
     text = vault_link_path.read_text(encoding="utf-8")
-    result = {}
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if ":" in line:
-            idx = line.index(":")
-            key = line[:idx].strip()
-            value = line[idx + 1:].strip()
-            result[key] = _parse_scalar(value) if value else None
-    return result
+    # Wrap body as a frontmatter block so the same list-aware parser applies.
+    return _parse_frontmatter(f"---\n{text.rstrip()}\n---\n") or {}
 
 
 # ---------------------------------------------------------------------------
@@ -713,7 +763,18 @@ def main() -> None:
     # --discover short-circuit: emit candidate paths and exit
     if args.discover:
         project_root = Path(args.discover).expanduser().resolve()
-        vault_link_path = Path(args.vault_link).expanduser() if args.vault_link else project_root / ".vault-link"
+        if args.vault_link:
+            vault_link_path = Path(args.vault_link).expanduser()
+            if not vault_link_path.is_absolute():
+                vault_link_path = (project_root / vault_link_path).resolve()
+        else:
+            vault_link_path = project_root / ".vault-link"
+        if not vault_link_path.exists():
+            print(
+                f"plan-doc-syncer: warning — no .vault-link at {vault_link_path}; "
+                "using DEFAULT include/exclude patterns only",
+                file=sys.stderr,
+            )
         vault_link = _load_vault_link(vault_link_path)
         for rel in _discover_candidates(project_root, vault_link):
             print(rel)

@@ -30,17 +30,35 @@ if [ ! -f "$vault_link_file" ]; then
   exit 0
 fi
 
-# Layer 1 opt-in gate: auto_capture: true in .vault-link
-auto_capture_l1=$(grep -E '^auto_capture\s*:' "$vault_link_file" 2>/dev/null \
-  | sed 's/.*:\s*//' | tr -d '[:space:]' || echo "false")
+# Helpers — keep YAML scalar handling consistent with the Python syncer
+# (lax boolean: true|yes|1; preserve internal whitespace, trim edges only).
+_yaml_value() {
+  grep -E "^${2}[[:space:]]*:" "$1" 2>/dev/null \
+    | head -1 \
+    | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*$//'
+}
+_is_truthy() {
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    true|yes|1) return 0;;
+    *) return 1;;
+  esac
+}
 
-if [ "$auto_capture_l1" != "true" ]; then
+# Layer 1 opt-in gate
+_is_truthy "$(_yaml_value "$vault_link_file" auto_capture)" || exit 0
+
+# Extract + sanitize vault_path. Reject empty values and ".." traversal up
+# front — the value flows into a filesystem path next. Note: ANSI-C quoting
+# ($'\n', $'\0') in case patterns false-matches under Bash 3.2 + set -euo
+# pipefail (Apple's stock bash), so keep patterns to plain glob; grep above
+# already collapses any embedded newline since it reads line by line.
+vault_path="$(_yaml_value "$vault_link_file" vault_path)"
+if [ -z "$vault_path" ]; then
   exit 0
 fi
-
-# Layer 2 opt-in gate: auto_capture: true in _index.md
-vault_path=$(grep -E '^vault_path\s*:' "$vault_link_file" 2>/dev/null \
-  | sed 's/.*:\s*//' | tr -d '[:space:]' || echo "")
+case "$vault_path" in
+  *..*) exit 0;;
+esac
 
 vault_root="${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}"
 index_file="${vault_root}/${vault_path}/_index.md"
@@ -49,12 +67,8 @@ if [ ! -f "$index_file" ]; then
   exit 0
 fi
 
-auto_capture_l2=$(grep -E '^auto_capture\s*:' "$index_file" 2>/dev/null \
-  | sed 's/.*:\s*//' | tr -d '[:space:]' || echo "false")
-
-if [ "$auto_capture_l2" != "true" ]; then
-  exit 0
-fi
+# Layer 2 opt-in gate
+_is_truthy "$(_yaml_value "$index_file" auto_capture)" || exit 0
 
 # Session-level 1-ask guard: track whether we already fired this session.
 # Uses a per-session temp dir (same pattern as other vault-bridge hooks).

@@ -201,7 +201,29 @@ autosync_paths_exclude:             # optional v1.1; extra exclude patterns merg
   - notes/specs/draft-*.md
 ```
 
-`autosync_paths_include` / `autosync_paths_exclude` are appended to spec §3.2 default patterns. To suppress a default include, add a counter-pattern via `autosync_paths_exclude`. Both fields are optional and ignored when absent — full backward compat with v1 schemas (`vault_path` only).
+`autosync_paths_include` / `autosync_paths_exclude` are appended to spec §3.2 default patterns; both are optional and the file remains fully backward-compat with v1 (`vault_path` only).
+
+**Accepted list forms** — both work:
+
+```yaml
+autosync_paths_include:        # block list (preferred for readability)
+  - notes/specs/*.md
+  - adrs/**/*.md
+
+autosync_paths_include: [notes/specs/*.md, adrs/**/*.md]   # flow array
+```
+
+**Exclude pattern semantics**:
+
+| Form | Match scope | Example |
+|------|-------------|---------|
+| `path/to/dir/` (trailing `/`) | Substring match anywhere in the path | `node_modules/`, `vendor/` |
+| `**` glob | Cross-segment regex (zero or more dirs) | `proposals/**/draft-*.md` |
+| Plain glob (`*`, `?`) | fnmatch on basename or full relative path | `*.tmp.md`, `CHANGELOG.md` |
+
+To suppress a default include, write an exclude that covers it (e.g. `docs/discussions/**/*.md` blocks the default `docs/discussions/**/*.md` include for that project).
+
+**Lax boolean** — `auto_capture` accepts `true`, `yes`, `1` (case-insensitive). The hook (bash) and the syncer (Python) treat them identically.
 
 **`.vault-link.local`** (gitignore this file):
 

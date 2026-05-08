@@ -42,9 +42,12 @@ Before drafting the note, follow `../../reference/obsidian-format.md` for Obsidi
 6. **Update project back-references** (only when Step 3 produced project selections):
    - For each selected project name, locate `~/vault/20_Projects/{name}/_index.md`.
    - If `_index.md` is missing for a selected project, log a warning and continue (do not fail note creation).
-   - Read the existing frontmatter. Append `30_Notes/{topic}.md` to the `related_notes` array using Edit (idempotent — skip if already present). If the `related_notes` field is absent, add it.
-   - Never overwrite the entire `_index.md`; modify only the `related_notes` field within the frontmatter block. Follow the project skill's append-only convention.
-   - This step ensures bidirectional link integrity, preventing W2 vault-audit `missing_forward_reference` (E8) from firing on the new note.
+   - **Reference format**: append `30_Notes/{topic}.md` (relative path from vault root, no quotes, no wikilink). This matches the convention used by the `project` skill Mode B and lets vault-audit cross-check both directions.
+   - **YAML safety**: if `{topic}` contains any of `:` `[` `]` `#` `'` `"` `,` (YAML-reserved in flow context), abort Step 6 for that project, log a warning naming the unsafe topic, and instruct the user to update `_index.md` manually. The note file itself is still created.
+   - **Idempotent check**: read the current `related_notes` array. Skip if `30_Notes/{topic}.md` is already present (string equality on the relative path). Different forms — absolute path, wikilink `[[30_Notes/{topic}]]`, `./{topic}.md` — are NOT considered equivalent and will be added; vault-audit surfaces such duplicates if they accumulate.
+   - **Append form**: if `related_notes` is absent, add it as a flow array on a new line: `related_notes: [30_Notes/{topic}.md]`. If present in flow form `[a, b]`, insert before the closing `]`. If present in block form (`- a` / `- b` lines), append a new `- 30_Notes/{topic}.md` line preserving indentation. Use the Edit tool — never Write the whole `_index.md`.
+   - **Concurrency**: this skill assumes serial execution per vault. Two concurrent note creations targeting the same project may produce a lost update; vault-audit `missing_forward_reference` (E8) surfaces it on next run. No locking is performed here.
+   - In the common (serial) case, this step prevents W2 vault-audit `missing_forward_reference` (E8) from firing on the new note.
 7. **Output result**: Created file path + list of updated MOCs + project links established + project `_index.md` files updated
 
 ## Optional Note Fields
