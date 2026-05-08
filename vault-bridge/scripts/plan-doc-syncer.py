@@ -29,6 +29,7 @@ Exit codes:
 """
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -63,6 +64,76 @@ DEFAULT_EXCLUDE_PATTERNS = [
     "CHANGELOG.md",
     "README.md",
 ]
+
+
+def _resolve_effective_patterns(vault_link: dict) -> tuple[list[str], list[str]]:
+    """
+    Merge DEFAULT patterns with .vault-link override fields.
+
+    Override schema (flat, v1.1 micro-bump — backward compat with v1):
+      autosync_paths_include: [pattern1, pattern2, ...]
+      autosync_paths_exclude: [pattern1, pattern2, ...]
+
+    Policy: append. User-provided patterns extend defaults; to suppress a
+    default include, add a counter-pattern via autosync_paths_exclude.
+    """
+    extra_include = vault_link.get("autosync_paths_include") or []
+    extra_exclude = vault_link.get("autosync_paths_exclude") or []
+    if isinstance(extra_include, str):
+        extra_include = [extra_include]
+    if isinstance(extra_exclude, str):
+        extra_exclude = [extra_exclude]
+    include = list(DEFAULT_INCLUDE_PATTERNS) + [p for p in extra_include if p not in DEFAULT_INCLUDE_PATTERNS]
+    exclude = list(DEFAULT_EXCLUDE_PATTERNS) + [p for p in extra_exclude if p not in DEFAULT_EXCLUDE_PATTERNS]
+    return include, exclude
+
+
+def _glob_pattern(project_root: Path, pattern: str) -> list[Path]:
+    """Resolve a glob pattern relative to project_root, supporting `**` and direct paths."""
+    if not pattern:
+        return []
+    if "**" in pattern:
+        base, tail = pattern.split("**", 1)
+        base = base.rstrip("/")
+        tail = tail.lstrip("/") or "*"
+        base_path = project_root / base if base else project_root
+        if not base_path.exists() or not base_path.is_dir():
+            return []
+        return [p for p in base_path.rglob(tail) if p.is_file()]
+    return [p for p in project_root.glob(pattern) if p.is_file()]
+
+
+def _matches_exclude(rel_path: str, exclude_patterns: list[str]) -> bool:
+    """Return True if rel_path matches any exclude pattern (directory prefix or fnmatch)."""
+    name = Path(rel_path).name
+    for excl in exclude_patterns:
+        if excl.endswith("/"):
+            if rel_path.startswith(excl) or f"/{excl}" in f"/{rel_path}":
+                return True
+        elif fnmatch.fnmatch(name, excl) or fnmatch.fnmatch(rel_path, excl):
+            return True
+    return False
+
+
+def _discover_candidates(project_root: Path, vault_link: dict) -> list[str]:
+    """
+    Scan project_root using effective include patterns; filter out exclude
+    patterns and vault-native paths. Returns sorted project-root-relative paths.
+    """
+    include, exclude = _resolve_effective_patterns(vault_link)
+    found: set[str] = set()
+    for pattern in include:
+        for f in _glob_pattern(project_root, pattern):
+            try:
+                rel = str(f.resolve().relative_to(project_root.resolve()))
+            except ValueError:
+                continue
+            if _is_vault_native(f):
+                continue
+            if _matches_exclude(rel, exclude):
+                continue
+            found.add(rel)
+    return sorted(found)
 
 # Vault-native plan paths — never autosync these (§9.5 boundary)
 VAULT_NATIVE_PATTERN = re.compile(r"(~/vault/|/Users/[^/]+/vault/|/home/[^/]+/vault/)", re.IGNORECASE)
@@ -587,7 +658,7 @@ def sync(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync external plan doc to vault snapshot")
-    parser.add_argument("--source", required=True, help="Source file path")
+    parser.add_argument("--source", help="Source file path (required unless --get-paths)")
     parser.add_argument(
         "--vault-root",
         default=str(Path("~/vault").expanduser()),
@@ -616,8 +687,40 @@ def main() -> None:
         default=False,
         help="Skip 2-layer opt-in gate (for explicit /save-plan-doc path)",
     )
+    parser.add_argument(
+        "--get-paths",
+        action="store_true",
+        default=False,
+        help="Print effective include/exclude patterns (DEFAULT + .vault-link override) as JSON and exit.",
+    )
+    parser.add_argument(
+        "--discover",
+        metavar="PROJECT_ROOT",
+        default=None,
+        help="Scan PROJECT_ROOT and emit candidate plan-doc paths (one per line, project-root-relative).",
+    )
 
     args = parser.parse_args()
+
+    # --get-paths short-circuit: emit effective patterns and exit
+    if args.get_paths:
+        vault_link_path = Path(args.vault_link).expanduser() if args.vault_link else Path.cwd() / ".vault-link"
+        vault_link = _load_vault_link(vault_link_path)
+        include, exclude = _resolve_effective_patterns(vault_link)
+        print(json.dumps({"include": include, "exclude": exclude}, ensure_ascii=False))
+        sys.exit(0)
+
+    # --discover short-circuit: emit candidate paths and exit
+    if args.discover:
+        project_root = Path(args.discover).expanduser().resolve()
+        vault_link_path = Path(args.vault_link).expanduser() if args.vault_link else project_root / ".vault-link"
+        vault_link = _load_vault_link(vault_link_path)
+        for rel in _discover_candidates(project_root, vault_link):
+            print(rel)
+        sys.exit(0)
+
+    if not args.source:
+        parser.error("--source is required (omit only with --get-paths or --discover)")
 
     # VAULT_BRIDGE_DISABLE check
     if os.environ.get("VAULT_BRIDGE_DISABLE") == "1":

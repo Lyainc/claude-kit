@@ -193,7 +193,15 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 ```yaml
 version: 1                          # optional; v1 assumed if absent
 vault_path: 20_Projects/my-project  # required; relative to vault root
+auto_capture: true                  # optional; W8 plan-doc autosync gate (default: false)
+autosync_paths_include:             # optional v1.1; extra plan-doc patterns merged with defaults
+  - notes/specs/*.md
+  - adrs/**/*.md
+autosync_paths_exclude:             # optional v1.1; extra exclude patterns merged with defaults
+  - notes/specs/draft-*.md
 ```
+
+`autosync_paths_include` / `autosync_paths_exclude` are appended to spec §3.2 default patterns. To suppress a default include, add a counter-pattern via `autosync_paths_exclude`. Both fields are optional and ignored when absent — full backward compat with v1 schemas (`vault_path` only).
 
 **`.vault-link.local`** (gitignore this file):
 

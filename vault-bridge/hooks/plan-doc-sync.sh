@@ -72,68 +72,13 @@ if [ -f "$asked_flag" ]; then
   exit 0
 fi
 
-# Default include patterns (spec §3.2)
-# Scan for matching .md files under the project root.
-candidates=()
-
-# docs/discussions/**/*.md
-if [ -d "${project_root}/docs/discussions" ]; then
-  while IFS= read -r -d '' f; do
-    candidates+=("${f#${project_root}/}")
-  done < <(find "${project_root}/docs/discussions" -name "*.md" -print0 2>/dev/null)
-fi
-
-# docs/design/**/*.md
-if [ -d "${project_root}/docs/design" ]; then
-  while IFS= read -r -d '' f; do
-    candidates+=("${f#${project_root}/}")
-  done < <(find "${project_root}/docs/design" -name "*.md" -print0 2>/dev/null)
-fi
-
-# docs/plans/**/*.md
-if [ -d "${project_root}/docs/plans" ]; then
-  while IFS= read -r -d '' f; do
-    candidates+=("${f#${project_root}/}")
-  done < <(find "${project_root}/docs/plans" -name "*.md" -print0 2>/dev/null)
-fi
-
-# .omc/plans/*.md
-if [ -d "${project_root}/.omc/plans" ]; then
-  while IFS= read -r -d '' f; do
-    candidates+=("${f#${project_root}/}")
-  done < <(find "${project_root}/.omc/plans" -maxdepth 1 -name "*.md" -print0 2>/dev/null)
-fi
-
-# Root-level PLAN.md, DESIGN.md, RFC-*.md
-for root_file in PLAN.md DESIGN.md; do
-  if [ -f "${project_root}/${root_file}" ]; then
-    candidates+=("$root_file")
-  fi
-done
-# RFC-*.md at root
-while IFS= read -r -d '' f; do
-  candidates+=("${f#${project_root}/}")
-done < <(find "${project_root}" -maxdepth 1 -name "RFC-*.md" -print0 2>/dev/null)
-
-# Filter: exclude vault-native paths and standard excludes
+# Discover candidates via syncer (handles default + .vault-link override + vault-native + excludes)
+# Spec §3.2 default patterns + .vault-link autosync_paths_include/exclude (v1.1) merged inside syncer.
+syncer="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/scripts/plan-doc-syncer.py"
 filtered=()
-for f in "${candidates[@]}"; do
-  # Skip if path is inside vault (vault-native boundary §9.5)
-  abs_path="${project_root}/${f}"
-  if [[ "$abs_path" == *"/vault/"* ]]; then
-    continue
-  fi
-  # Skip standard excludes
-  skip=0
-  for excl in node_modules/ dist/ build/ .git/ CHANGELOG.md README.md; do
-    if [[ "$f" == *"$excl"* ]]; then
-      skip=1
-      break
-    fi
-  done
-  [ "$skip" -eq 1 ] && continue
-  filtered+=("$f")
-done
+while IFS= read -r line; do
+  [ -n "$line" ] && filtered+=("$line")
+done < <(python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>/dev/null)
 
 # If no candidates, nothing to suggest
 if [ "${#filtered[@]}" -eq 0 ]; then
@@ -158,6 +103,6 @@ fi
 count="${#filtered[@]}"
 msg="세션 중 plan/design 문서 ${count}개 감지됨 (vault autosync 활성화됨).\n\n${file_list}\nvault 프로젝트(${vault_path})에 스냅샷 저장: \`/save-plan-doc\` 실행."
 
-printf '%s' "$msg" | jq -Rncs '{systemMessage: .}'
+printf '%s' "$msg" | jq -Rsc '{systemMessage: .}'
 
 exit 0
