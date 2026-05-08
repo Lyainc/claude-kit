@@ -28,7 +28,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 ## `_index.md` 스키마 (W7)
 
-### 최소 템플릿 (생성 시 5필드 필수)
+### 최소 템플릿 (생성 시 6필드 필수)
 
 ```yaml
 ---
@@ -37,6 +37,7 @@ tags: [project, {name}]
 type: project
 status: active
 domain: [{domain}]
+auto_capture: false  # 생성 시 AskUserQuestion으로 묻고 명시 기입 (기본 No)
 ---
 ```
 
@@ -51,7 +52,6 @@ related_notes:
   - 30_Notes/{topic-a}.md
 related_plans:
   - 20_Projects/{name}/plan-YYYY-MM-DD-{topic}.md
-auto_capture: false
 ```
 
 전체 필드 사전 및 Dataview 쿼리는 [reference/note-project-binding.md](reference/note-project-binding.md) 참조.
@@ -70,7 +70,7 @@ auto_capture: false
 /project api-gateway --promote-from 30_Notes/api-redesign.md
 ```
 
-- `20_Projects/api-gateway/_index.md` 생성 (최소 5필드 + `absorbs`)
+- `20_Projects/api-gateway/_index.md` 생성 (최소 6필드 + `absorbs`)
 - `30_Notes/api-redesign.md` frontmatter에 `promoted_to_project: api-gateway` 추가
 - `Home.md` Active Projects 섹션 업데이트
 
