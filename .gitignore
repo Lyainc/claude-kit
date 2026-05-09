@@ -38,17 +38,11 @@ local/
 .omc/
 .omx/
 
-# Codex / OMX project surfaces:
-# - keep shareable prompts, agents, and non-system skills
-# - ignore local credentials, history, caches, logs, sqlite state, plugin cache, and generated system skills
-.codex/*
-!.codex/agents/
-!.codex/agents/**
-!.codex/prompts/
-!.codex/prompts/**
-!.codex/skills/
-!.codex/skills/**
-.codex/skills/.system/
+# Codex / OMX project surfaces (local-only, not shared via this repo)
+.codex/
+
+# Gemini CLI integration metadata (local-only)
+GEMINI.md
 
 # Graphify output (regenerable analysis artifacts, any depth)
 graphify-out/
