@@ -121,8 +121,11 @@ def _glob_to_regex(pattern: str) -> str:
     """
     Convert a glob pattern to a regex string. Supports `**` for any-depth
     cross-segment match (including zero segments) and `*`/`?` for
-    single-segment wildcards. Useful for exclude patterns where fnmatch's
-    inability to honour `/` boundaries is a footgun.
+    single-segment wildcards.
+
+    Note: behaviour with multiple `**` segments is undefined and best-effort
+    on the exclude path. The include path (`_glob_pattern`) explicitly rejects
+    such patterns up front because pathlib.rglob cannot interpret them.
     """
     out: list[str] = []
     i = 0
@@ -286,6 +289,10 @@ def _load_vault_link(vault_link_path: Path) -> dict:
     Supports both flow arrays (`key: [a, b]`) and block lists
     (`key:\\n  - a\\n  - b`). Delegates to `_parse_frontmatter` so the
     list-aware logic powers both frontmatter and .vault-link uniformly.
+
+    Edge case: `.vault-link` with literal `---` delimiters in the body would
+    only have the first block parsed (rest silently dropped). Spec assumes
+    `.vault-link` is a flat key:value file with no `---` markers.
     """
     if not vault_link_path.exists():
         return {}

@@ -241,7 +241,7 @@ Create a new vault file recording current session work or an artifact (capture, 
 
    | mode | EN tokens | KR tokens |
    |---|---|---|
-   | record | record, log, archive | 기록, 정리, 회고, 마무리 |
+   | record | record, log, archive | 기록, 정리, 회고 |
    | handoff | handoff, continue, resume | 인수인계, 이어서, 다음 세션 |
    | quick | quick, brief, summary | 간단히, 짧게, 빠르게, 요약 |
 

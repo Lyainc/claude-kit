@@ -33,7 +33,12 @@ fi
 # Scope: match keys inside the first --- frontmatter block if present,
 # otherwise match anywhere (handles flat .vault-link files). Strips surrounding
 # quotes so `key: "true"` parses the same as bare scalars.
+# Precondition: $2 must be a plain identifier — awk regex metacharacters in the
+# key would silently misbehave. Caller-side guard rejects anything else.
 _yaml_value() {
+  case "$2" in
+    ''|*[!a-zA-Z0-9_]*) printf '%s\n' "_yaml_value: invalid key '$2'" >&2; return 1;;
+  esac
   awk -v key="$2" '
     BEGIN { in_fm=0; saw_fm=0 }
     /^---[[:space:]]*$/ {
@@ -147,6 +152,8 @@ fi
 count="${#filtered[@]}"
 msg="세션 중 plan/design 문서 ${count}개 감지됨 (vault autosync 활성화됨).\n\n${file_list}\nvault 프로젝트(${vault_path})에 스냅샷 저장: \`/save-plan-doc\` 실행."
 
+# jq -Rsc: read entire raw stdin as a single string. NOT -Rncs — the -n flag
+# would suppress input and silently emit `null`, breaking the systemMessage.
 printf '%s' "$msg" | jq -Rsc '{systemMessage: .}'
 
 exit 0
