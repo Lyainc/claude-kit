@@ -15,6 +15,12 @@ Parse `$ARGUMENTS` to detect options:
 
 ---
 
+## Format Reference
+
+When generating `_index.md` content, frontmatter, or internal vault links, follow `../../reference/obsidian-format.md`. Prefer wikilinks for vault-internal references, keep `_index.md` properties flat YAML, and quote wikilinks inside YAML values.
+
+---
+
 ## Mode A: Plain Project Creation
 
 Arguments: `{name}` (no flags)
@@ -24,9 +30,19 @@ Arguments: `{name}` (no flags)
 1. **Check for duplicates**: Verify whether `~/vault/20_Projects/{name}/` already exists.
    - If it exists, notify the user and stop.
 2. **Show plan**: Present the `_index.md` that will be created and ask for confirmation.
-3. **Create directory + `_index.md`**: `~/vault/20_Projects/{name}/_index.md`
+3. **Ask about `auto_capture` opt-in** (one-time, before creation): use **AskUserQuestion** to ask whether to enable plan-doc autosync (Layer 2 of vault-bridge's 2-layer gate). Default is **No**.
 
-   Minimum 5-field template:
+   > **`auto_capture` 옵트인** — 이 프로젝트에서 작성한 외부 plan/design 문서(`docs/plans/`, `PLAN.md`, `RFC-*.md` 등)를 vault에 자동 스냅샷할까요?
+   >
+   > 이 설정은 vault-bridge의 `/save-plan-doc` 명령과 SessionEnd 자동 제안에 사용됩니다. 나중에 `/project {name} --enrich auto_capture=true|false`로 변경 가능합니다.
+
+   Options:
+   - 아니요 (기본) — `auto_capture: false`로 명시 기입
+   - 네 — `auto_capture: true`로 명시 기입
+
+4. **Create directory + `_index.md`**: `~/vault/20_Projects/{name}/_index.md`
+
+   Minimum 6-field template (5 required + auto_capture):
    ```markdown
    ---
    created: YYYY-MM-DD
@@ -34,6 +50,7 @@ Arguments: `{name}` (no flags)
    type: project
    status: active
    domain: [{inferred-domain}]
+   auto_capture: {user-choice}
    ---
    # {Project Name}
    ## Overview
@@ -44,9 +61,10 @@ Arguments: `{name}` (no flags)
 
    - Infer `domain` from the project name (same domain inference rules as the `note` skill).
    - If domain cannot be inferred, ask the user via AskUserQuestion before creating.
+   - `auto_capture`: write the boolean value chosen in Step 3 (default `false`).
 
-4. **Update `Home.md`**: Add `[[20_Projects/{name}/_index|{Project Name}]]` to the "Active Projects" section.
-5. **Output result**: Created path and frontmatter summary.
+5. **Update `Home.md`**: Add `[[20_Projects/{name}/_index|{Project Name}]]` to the "Active Projects" section.
+6. **Output result**: Created path and frontmatter summary.
 
 ---
 
@@ -68,7 +86,9 @@ Promote an existing note at `~/vault/{note-path}` into a new project.
 
 3. **Show plan**: Present all changes that will be made (new `_index.md`, note frontmatter diff) and ask for confirmation.
 
-4. **Execute (all steps or none — abort on any failure)**:
+4. **Ask about `auto_capture` opt-in** (same as Mode A Step 3): use **AskUserQuestion** with default `No`. The chosen boolean is written into the new `_index.md` frontmatter at Step 5.
+
+5. **Execute (all steps or none — abort on any failure)**:
 
    **Step 1 — Create `_index.md`**:
    ```markdown
@@ -78,6 +98,7 @@ Promote an existing note at `~/vault/{note-path}` into a new project.
    type: project
    status: active
    domain: [{domain-from-note-or-inferred}]
+   auto_capture: {user-choice}
    absorbs:
      - {note-path}
    ---
@@ -100,7 +121,7 @@ Promote an existing note at `~/vault/{note-path}` into a new project.
    **Step 3 — Update `Home.md`**:
    - Add `[[20_Projects/{name}/_index|{Project Name}]]` to the "Active Projects" section (reuse existing logic).
 
-5. **Output result**: Confirm all 3 steps completed. Show the note frontmatter diff and the created `_index.md` frontmatter.
+6. **Output result**: Confirm all 3 steps completed. Show the note frontmatter diff and the created `_index.md` frontmatter.
 
 ### YAML Frontmatter Merge — Implementation Notes
 
@@ -153,7 +174,7 @@ Add or update an optional enrichment field in an existing project's `_index.md`.
 | `vault_link_source` | abs-path | `/Users/x/dev/prj/foo` |
 | `related_notes` | array[path] | `30_Notes/oauth.md` (appended to array) |
 | `related_plans` | array[path] | `20_Projects/foo/plan-2026-04-16-api.md` (appended) |
-| `auto_capture` | bool | `true` |
+| `auto_capture` | bool | `true` (set/replace — required field since Mode A/B Step 3 writes it at creation) |
 
 ### Procedure
 
@@ -168,9 +189,11 @@ Add or update an optional enrichment field in an existing project's `_index.md`.
 
 ## Backward Compatibility
 
-Existing `_index.md` files with fewer than 5 required fields are **not automatically modified**. If an existing project is opened and the `_index.md` is missing required fields (`domain`, `status`, `type`), provide a migration guide:
+Existing `_index.md` files are **not automatically modified**. If an existing project is opened and the `_index.md` is missing required fields (`domain`, `status`, `type`), provide a migration guide:
 
-> "이 프로젝트의 `_index.md`가 최소 스키마(5필드: created, tags, type, status, domain)를 충족하지 않습니다. `/project {name} --enrich` 로 필드를 추가하거나 직접 수정하세요."
+> "이 프로젝트의 `_index.md`에 필수 필드(`created`, `tags`, `type`, `status`, `domain`)가 빠져 있을 수 있습니다. `/project {name} --enrich`로 추가하거나 직접 수정하세요. `auto_capture`는 옵트인 필드이므로 필요할 때만 추가하면 됩니다."
+
+`auto_capture` absent in pre-existing files is interpreted as `false` (vault-bridge SessionEnd hook and `/save-plan-doc` both treat absent as opt-out). Migration is not required for plan-doc autosync to remain off; users only need to add it explicitly to opt **in**.
 
 Do NOT auto-fix existing files.
 
@@ -178,15 +201,16 @@ Do NOT auto-fix existing files.
 
 ## _index.md Schema Reference
 
-### Minimum (required at creation)
+### Minimum schema at creation (5 required + 1 opt-in)
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `created` | date | `YYYY-MM-DD` |
-| `tags` | array | must include `project` and `{name}` |
-| `type` | enum | always `project` |
-| `status` | enum | `active \| paused \| completed \| archived` |
-| `domain` | array | inferred domain slugs |
+| `created` | date | required — `YYYY-MM-DD` |
+| `tags` | array | required — must include `project` and `{name}` |
+| `type` | enum | required — always `project` |
+| `status` | enum | required — `active \| paused \| completed \| archived` |
+| `domain` | array | required — inferred domain slugs |
+| `auto_capture` | bool | opt-in — asked via AskUserQuestion at creation (default `false`). W8 plan-doc autosync, Layer 2 of vault-bridge's 2-layer gate. |
 
 ### Progressive enrichment (add when needed)
 
@@ -197,7 +221,6 @@ Do NOT auto-fix existing files.
 | `absorbs` | array[path] | notes this project was promoted from |
 | `related_notes` | array[path] | notes referenced during work |
 | `related_plans` | array[path] | `plan-*.md` files inside the project |
-| `auto_capture` | bool | W8 opt-in, default `false` |
 
 ---
 

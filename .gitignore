@@ -1,10 +1,10 @@
-# macOS
+# OS metadata
 .DS_Store
 .AppleDouble
 .LSOverride
 ._*
 
-# Editor
+# Editor / IDE
 *.swp
 *.swo
 *~
@@ -18,40 +18,55 @@
 *.backup
 *.orig
 
-# Local test files
-.local/
-.test/
-
-# Logs
+# Logs and temporary files
 *.log
-
-# Temporary files
 *.tmp
 *.temp
 
-# Local customizations (not shared)
+# Local-only project customizations
 local/
+.local/
+.test/
 
 # Claude Code local settings (user-specific, not shared)
 .claude/
 
-# OMC session state (local-only, regenerable)
-.omc/
+# Gemini CLI local state/temp files
+.gemini/
 
-# Graphify output (regenerable analysis artifacts)
+# OMC / OMX runtime state (local-only, regenerable)
+.omc/
+.omx/
+
+# Codex / OMX project surfaces (local-only, not shared via this repo)
+.codex/
+
+# Gemini CLI integration metadata (local-only)
+GEMINI.md
+
+# Graphify output (regenerable analysis artifacts, any depth)
 graphify-out/
 
 # Serena IDE context provider
 .serena/
 
+# Conductor local config
+.conductor/
+
+# Vault bridge local path override (personal machine path)
+.vault-link.local
+
 # Sensitive or temporary documents (docs/ is now tracked by default)
 # Add specific files here if needed, e.g.:
 .antrophics_official_skills/
+.anthropics_official_skills/
 docs/private/
-
-# Conductor local config
-.conductor/
 
 # Python bytecode (generated when scripts are imported, e.g. during local testing)
 __pycache__/
 *.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/

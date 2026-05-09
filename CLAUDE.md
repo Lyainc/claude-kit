@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code when **developing/contributing to this repository**. Runtime behavior rules (how Claude should act when these plugins are active in external projects) live in each plugin's agent/skill `description` fields, which are the single source of truth for runtime delegation.
 
+Codex/OMX parity note: the Codex-active migration of this root guidance lives in `AGENTS.md`, with the surface-by-surface parity matrix in `docs/codex-claude-parity.md`.
+
 ## Project Overview
 
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
@@ -107,6 +109,7 @@ Files written to `~/vault/` by OVM or vault-bridge follow a unified convention.
 | `capture` | `capture-2026-04-12-api-changes.md` | `00_Inbox/` |
 | `note` | `{topic}.md` (no date) | `30_Notes/` |
 | `project` | `_index.md` (fixed) | `20_Projects/{name}/` |
+| `plan` | `plan-2026-04-12-{topic}.md` | `20_Projects/{name}/` |
 
 Same-date collisions: `-v2`, `-v3` increment.
 
@@ -114,8 +117,8 @@ Same-date collisions: `-v2`, `-v3` increment.
 ```yaml
 created: YYYY-MM-DD            # required, all files
 tags: [{type}, {domain}]       # required
-type: session|capture|note|project  # required
-status: active|archived        # conditional (session-handoff, project)
+type: session|capture|note|project|plan  # required
+status: active|archived        # conditional (session-handoff, project, plan)
 ```
 
 ## Session-Note Hooks (vault-bridge)
@@ -137,6 +140,7 @@ Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping doma
 | Domain context load | `context` skill (internal, `--exclude`/`--limit` options) | `vault-searcher` Mode 2 (external, read-only lightweight) |
 | Session record | N/A (use vault-bridge's session-note) | `vault-searcher` Mode 4: Session Note Creation (record/handoff/quick modes) |
 | Note creation logic | `note` skill owns domain determination + MOC linking | `inbox-review` delegates to `note` skill procedure |
+| Project back-reference (`_index.related_notes`) | `note` skill appends on creation (W7 invariant) | N/A |
 
 Within `thinking-tools`:
 - `diverse-sampling`: creative generation (brainstorming, alternatives)

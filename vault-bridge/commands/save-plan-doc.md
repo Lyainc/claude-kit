@@ -88,25 +88,15 @@ If both gates pass (both `auto_capture: true`), proceed without `--skip-gate-che
 
 ### Step 3 — Discover candidate files
 
-Run the plan-doc-sync detection to find candidate files:
+Run the syncer in `--discover` mode. It applies spec §3.2 default patterns merged with `.vault-link` `autosync_paths_include` / `autosync_paths_exclude` (v1.1 override), then filters out vault-native paths and standard excludes (`node_modules/`, `dist/`, `build/`, `.git/`, `CHANGELOG.md`, `README.md`):
 
 ```bash
-PROJ_ROOT="$PWD"
-found_files=()
-
-# Default include patterns (spec §3.2)
-[ -d "$PROJ_ROOT/docs/discussions" ] && find "$PROJ_ROOT/docs/discussions" -name "*.md" 2>/dev/null
-[ -d "$PROJ_ROOT/docs/design" ] && find "$PROJ_ROOT/docs/design" -name "*.md" 2>/dev/null
-[ -d "$PROJ_ROOT/docs/plans" ] && find "$PROJ_ROOT/docs/plans" -name "*.md" 2>/dev/null
-[ -d "$PROJ_ROOT/.omc/plans" ] && find "$PROJ_ROOT/.omc/plans" -maxdepth 1 -name "*.md" 2>/dev/null
-[ -f "$PROJ_ROOT/PLAN.md" ] && echo "$PROJ_ROOT/PLAN.md"
-[ -f "$PROJ_ROOT/DESIGN.md" ] && echo "$PROJ_ROOT/DESIGN.md"
-find "$PROJ_ROOT" -maxdepth 1 -name "RFC-*.md" 2>/dev/null
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan-doc-syncer.py" \
+  --discover "$PWD" \
+  --vault-link "$PWD/.vault-link"
 ```
 
-Collect the file list. Filter out:
-- Files inside `~/vault/` or any vault path (vault-native boundary)
-- `node_modules/`, `dist/`, `build/`, `.git/`, `CHANGELOG.md`, `README.md`
+Each output line is a project-root-relative candidate path. Collect into a list.
 
 If no candidates found, output and stop:
 
@@ -138,9 +128,7 @@ If the user chooses option B, ask for comma-separated file numbers (e.g. "1,3") 
 For each selected file, run:
 
 ```bash
-VAULT_LINK_FLAG=""
-# If gate was bypassed in Step 2, add --skip-gate-check
-# SKIP_GATE is set to "--skip-gate-check" or ""
+# SKIP_GATE_FLAG is set in Step 2: "--skip-gate-check" if user chose "이번만 저장", else ""
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan-doc-syncer.py" \
   --source "{file_path}" \
   --vault-root "${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}" \

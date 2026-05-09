@@ -6,7 +6,7 @@ W7 구현 기준. `_index.md` 스키마, 필드 사전, Dataview 쿼리, 양방�
 
 ## 1. `_index.md` 스키마
 
-### 최소 템플릿 (생성 시 5필드 필수)
+### 최소 템플릿 (생성 시 6필드 필수)
 
 ```yaml
 ---
@@ -15,6 +15,7 @@ tags: [project, {name}]
 type: project
 status: active
 domain: [{domain1}]
+auto_capture: false  # 생성 시 AskUserQuestion으로 묻고 명시 기입 (기본 No)
 ---
 # {Project Name}
 ## Overview
@@ -32,6 +33,7 @@ tags: [project, {name}]
 type: project
 status: active
 domain: [{domain1}, {domain2}]
+auto_capture: true
 last_session: 20_Projects/{name}/session-YYYY-MM-DD.md
 vault_link_source: /abs/path/to/code-repo
 absorbs:
@@ -41,7 +43,6 @@ related_notes:
   - 30_Notes/{topic-b}.md
 related_plans:
   - 20_Projects/{name}/plan-YYYY-MM-DD-{topic}.md
-auto_capture: false
 ---
 ```
 
@@ -78,7 +79,7 @@ auto_capture: false
 
 `/project {name} --promote-from 30_Notes/{topic}.md` 실행 시:
 
-1. `~/vault/20_Projects/{name}/_index.md` 생성 (최소 5필드 + `absorbs` 포함)
+1. `~/vault/20_Projects/{name}/_index.md` 생성 (최소 6필드 + `absorbs` 포함)
 2. `_index.absorbs`에 `30_Notes/{topic}.md` 기입
 3. 원본 note frontmatter에 `promoted_to_project: {name}` 추가 (다른 필드 보존)
 4. `_index.md` body의 "Overview" 섹션을 note의 첫 문단으로 프리필
@@ -113,6 +114,7 @@ tags: [project, api-gateway]
 type: project
 status: active
 domain: [api, architecture]
+auto_capture: false
 absorbs:
   - 30_Notes/api-redesign.md
 ---
@@ -198,7 +200,7 @@ EOF
 
 ## 6. 기존 파일 마이그레이션 가이드
 
-기존 `_index.md`가 최소 5필드를 충족하지 않는 경우, **자동 수정하지 않습니다**. 아래 방법으로 점진 마이그레이션하세요:
+기존 `_index.md`가 최소 6필드를 충족하지 않는 경우, **자동 수정하지 않습니다** (`auto_capture` absent는 `false`로 해석). 아래 방법으로 점진 마이그레이션하세요:
 
 ```bash
 # 특정 프로젝트에 domain 필드 추가

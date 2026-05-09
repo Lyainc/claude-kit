@@ -78,6 +78,8 @@ Use the following patterns as a reference when inferring domains. This is a guid
 
 ## Note Creation Rules
 
+Follow `reference/obsidian-format.md` when generating note bodies, frontmatter, internal links, callouts, task lists, and comments. Use wikilinks for vault-internal references and Markdown links for external URLs.
+
 1. All new notes → `30_Notes/{topic-in-kebab-case}.md` (flat)
 2. If the filename already exists: ask the user to choose between overwrite / rename / merge.
 3. Always include frontmatter:
@@ -109,17 +111,17 @@ MOC updates are considered approved together with note creation/move confirmatio
 
 ## Project Rules
 
-- New project → create `20_Projects/{project-name}/_index.md` using the **minimum 5-field schema**: `created`, `tags` (must include `project`), `type: project`, `status: active`, `domain: [...]`
+- New project → create `20_Projects/{project-name}/_index.md` using the **minimum 6-field schema**: `created`, `tags` (must include `project`), `type: project`, `status: active`, `domain: [...]`, `auto_capture: false|true` (asked at creation, default `false`)
 - Add a link in the "Active Projects" section of `Home.md`
 - On completion → move to `50_Archive/`, remove link from `Home.md`
 - MOC links of related `30_Notes/` notes are preserved on archive (the notes themselves are not moved)
 - To promote a note to a project: `/project {name} --promote-from 30_Notes/{topic}.md` — this sets `absorbs` in `_index.md` and `promoted_to_project` in the source note
 - To add enrichment fields to an existing project: `/project {name} --enrich {field}={value}`
-- Do NOT auto-modify existing `_index.md` files that predate the 5-field schema; provide a migration guide instead
+- Do NOT auto-modify existing `_index.md` files that predate the 6-field schema; provide a migration guide instead. `auto_capture` absent is interpreted as `false`.
 
 ### _index.md Progressive Enrichment Fields
 
-Optional fields added when needed: `last_session`, `vault_link_source`, `absorbs`, `related_notes`, `related_plans`, `auto_capture`. See `reference/note-project-binding.md` for the full field dictionary.
+Optional fields added when needed: `last_session`, `vault_link_source`, `absorbs`, `related_notes`, `related_plans`. See `reference/note-project-binding.md` for the full field dictionary. (`auto_capture` is part of the minimum 6-field schema since v0.11.0.)
 
 ## dev/ Integration
 

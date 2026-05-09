@@ -19,16 +19,16 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 | Skill | Description |
 | --- | --- |
-| `capture` | 즉시 Inbox에 메모 저장 (`/capture 내용`) |
+| `capture` | 즉시 Inbox에 메모 저장 (`/capture 내용`); URL 입력 시 Defuddle CLI가 있으면 본문 Markdown 추출 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 (`/note 주제`) |
 | `project` | 프로젝트 생성 / 노트 승격 / 필드 enrichment (`/project 이름`) |
 | `inbox-review` | Inbox 파일 일괄 정리 (분류/이동/삭제) |
-| `context` | vault 내부 도메인 맥락 로드 (Explore fork) |
-| `archive` | 완료 프로젝트 아카이브 + MOC/Home.md 정리 |
+| `context` | vault 내부 도메인 맥락 로드 (Explore fork); Obsidian CLI가 있으면 indexed search 우선 |
+| `archive` | 완료 프로젝트 아카이브 + MOC/Home.md 정리; Obsidian CLI가 있으면 property:set 우선 |
 
 ## `_index.md` 스키마 (W7)
 
-### 최소 템플릿 (생성 시 5필드 필수)
+### 최소 템플릿 (생성 시 6필드 필수)
 
 ```yaml
 ---
@@ -37,6 +37,7 @@ tags: [project, {name}]
 type: project
 status: active
 domain: [{domain}]
+auto_capture: false  # 생성 시 AskUserQuestion으로 묻고 명시 기입 (기본 No)
 ---
 ```
 
@@ -51,10 +52,15 @@ related_notes:
   - 30_Notes/{topic-a}.md
 related_plans:
   - 20_Projects/{name}/plan-YYYY-MM-DD-{topic}.md
-auto_capture: false
 ```
 
 전체 필드 사전 및 Dataview 쿼리는 [reference/note-project-binding.md](reference/note-project-binding.md) 참조.
+
+## Reference docs
+
+- [Obsidian format reference](reference/obsidian-format.md): wikilinks, embeds, callouts, comments, and YAML property conventions for generated notes.
+- [Obsidian CLI reference](reference/obsidian-cli.md): optional CLI-first patterns with raw file I/O fallback.
+- [Note-project binding reference](reference/note-project-binding.md): `_index.md` field dictionary and Dataview query examples.
 
 ## 스킬 사용 예시
 
@@ -64,7 +70,7 @@ auto_capture: false
 /project api-gateway --promote-from 30_Notes/api-redesign.md
 ```
 
-- `20_Projects/api-gateway/_index.md` 생성 (최소 5필드 + `absorbs`)
+- `20_Projects/api-gateway/_index.md` 생성 (최소 6필드 + `absorbs`)
 - `30_Notes/api-redesign.md` frontmatter에 `promoted_to_project: api-gateway` 추가
 - `Home.md` Active Projects 섹션 업데이트
 
@@ -73,6 +79,14 @@ auto_capture: false
 ```
 /project api-gateway --enrich related_notes=30_Notes/oauth.md
 ```
+
+### `capture` — URL 저장 with optional Defuddle
+
+```
+/capture https://example.com/article
+```
+
+`defuddle` CLI가 설치되어 있으면 `defuddle parse <url> --md` 결과를 Inbox 노트 본문에 함께 저장합니다. 설치되어 있지 않거나 추출에 실패하면 URL만 저장하고 capture 흐름은 계속됩니다.
 
 ### `note` — 프로젝트 연결 옵션
 

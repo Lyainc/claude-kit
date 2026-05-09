@@ -7,8 +7,8 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 | 플러그인 | 버전 | 구성 |
 |---|---|---|
 | [thinking-tools](thinking-tools/) | `1.6.1` | 스킬 7 + 에이전트 1 |
-| [obsidian-vault-manager](obsidian-vault-manager/) | `0.9.3` | 스킬 7 + 에이전트 2 + scripts (ovm-primitives) |
-| [vault-bridge](vault-bridge/) | `1.7.0` | 에이전트 1 + 훅 6 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
+| [obsidian-vault-manager](obsidian-vault-manager/) | `0.11.0` | 스킬 7 + 에이전트 2 + scripts (ovm-primitives) |
+| [vault-bridge](vault-bridge/) | `1.8.0` | 에이전트 1 + 훅 6 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
 
 ## 플러그인 목록
 
@@ -33,7 +33,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ### [obsidian-vault-manager](obsidian-vault-manager/)
 
-Obsidian vault 지식 관리 플러그인. 2개 에이전트 + 6개 스킬.
+Obsidian vault 지식 관리 플러그인. 2개 에이전트 + 7개 스킬.
 
 ```bash
 claude plugin install obsidian-vault-manager@Lyainc-claude-kit
@@ -43,12 +43,13 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | --- | --- |
 | `vault-knowledge-manager` (agent) | 메인 에이전트 — 노트 생성, MOC 관리, 프로젝트 추적 |
 | `vault-file-organizer` (agent) | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
-| `capture` | 즉시 Inbox에 메모 저장 |
-| `note` | 새 노트 생성 + MOC 연결 |
-| `project` | 프로젝트 디렉토리 생성 |
+| `capture` | 즉시 Inbox에 메모 저장 + URL Defuddle 추출 옵션 |
+| `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 |
+| `project` | 프로젝트 생성 / 노트 승격 / 필드 enrichment |
 | `inbox-review` | Inbox 파일 일괄 정리 |
-| `context` | vault 내부 도메인 맥락 로드 (Explore fork) |
+| `context` | vault 내부 도메인 맥락 로드 (Explore fork, CLI fallback) |
 | `archive` | 프로젝트 아카이브 + MOC 정리 |
+| `vault-audit` | vault 구조 무결성 감사 (9-error taxonomy) |
 
 ### [vault-bridge](vault-bridge/)
 
@@ -62,7 +63,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 | Component | Description |
 | --- | --- |
-| `vault-searcher` (agent) | 4-mode I/O: (1) Session Restore, (2) Domain Context Load, (3) Keyword Search, (4) Vault Write — session + artifact (record/handoff/quick). **vault의 단일 쓰기 진입점** |
+| `vault-searcher` (agent) | 4-mode I/O: (1) Session Restore, (2) Domain Context Load, (3) Keyword Search (optional Obsidian CLI acceleration), (4) Vault Write — session + artifact (record/handoff/quick). **vault의 단일 쓰기 진입점** |
 | Stop hook | 매 턴 실행 (결정형 셸). 세션 종료 신호(`세션 끝`, `wrap up` 등) 감지 시 `/save-session` 제안 `systemMessage` 방출 |
 | SessionEnd hook | 세션 종료 시 silent 안전망 — meaningful work(파일 수정/볼트 읽기/결정 기록/코드 실행/리서치 중 하나 + 3턴 이상) 감지 시 자동 quick-save |
 | `/save-session` | 사용자가 명시적으로 호출하는 슬래시 커맨드 — vault-searcher Mode 4 전체 플로우 진입 |

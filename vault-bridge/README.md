@@ -41,7 +41,7 @@ Load MOC and related notes for a specific domain. Lightweight read-only version 
 
 ### 3. Keyword Search
 
-Search the entire vault by keyword.
+Search the entire vault by keyword. If Obsidian CLI is available and responsive, vault-searcher may use `obsidian search` as an indexed search path before falling back to manifest/mdfind/grep behavior.
 
 ```
 "JWT 인증 설계 결정 기록 있어?"
@@ -69,6 +69,32 @@ The agent uses **AskUserQuestion** at every discrete choice: type/mode selection
 "capture 저장해줘"
 "plan 파일 만들어줘"
 ```
+
+## Handoff Term Convention
+
+`handoff` has a single canonical meaning in vault-bridge: **a session-note mode** (one of `record` / `handoff` / `quick`). All other historical usages are deprecated.
+
+| Context | Allowed? | Replacement |
+|---------|----------|-------------|
+| session-note mode (`record` / `handoff` / `quick`) | **Allowed (canonical)** | — |
+| Standalone `handoff-*.md` filename | **Forbidden (legacy only)** | Use `session-*.md` |
+| Redundant tag `tags: [session, handoff, ...]` | **Forbidden** | Omit `handoff` — session mode already conveys it |
+| thinking-tools stage-to-stage data contract | **Domain prefix required** | Use `inter-stage handoff` or `stage-transition` |
+| "Project-level handover document" | **Forbidden** | Write `plan-YYYY-MM-DD-{topic}.md`, then reference it from a session-note in handoff mode |
+
+vault-searcher Mode 1 no longer matches the legacy `handoff-*.md` / `*-handoff.md` patterns (removed in v1.7.x). Existing legacy files have been renamed or absorbed.
+
+**Migration for vaults that still contain `handoff-*.md` files** — Mode 1 will not surface these files. Three options:
+
+1. **Rename** to `session-YYYY-MM-DD[-topic].md` (preferred — restores Mode 1 discovery and matches the canonical naming).
+2. **Convert** to a `plan-YYYY-MM-DD-{topic}.md` if the file is closer to a project-level design doc than a session record.
+3. **Leave as-is** if the file is purely historical reference and you no longer need it surfaced. Tag-based search (`tags: [session]`) and direct path access still work.
+
+Pure rename is safe: vault-bridge does not read filename for semantics — `type:` in frontmatter is the source of truth.
+
+## Optional Obsidian CLI integration
+
+When `obsidian` is installed, registered in `PATH`, and the Obsidian app is running, vault-searcher may use `obsidian search query="..."` for indexed keyword searches. This is an optimization only: manifest-first loading and filesystem fallback remain the correctness path, and `.vault-link` scoped searches must preserve their project boundary.
 
 ## Vault Manifest
 
@@ -175,7 +201,39 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 ```yaml
 version: 1                          # optional; v1 assumed if absent
 vault_path: 20_Projects/my-project  # required; relative to vault root
+auto_capture: true                  # optional; W8 plan-doc autosync gate (default: false)
+autosync_paths_include:             # optional v1.1; extra plan-doc patterns merged with defaults
+  - notes/specs/*.md
+  - adrs/**/*.md
+autosync_paths_exclude:             # optional v1.1; extra exclude patterns merged with defaults
+  - notes/specs/draft-*.md
 ```
+
+`autosync_paths_include` / `autosync_paths_exclude` are appended to spec §3.2 default patterns; both are optional and the file remains fully backward-compat with v1 (`vault_path` only).
+
+**Format constraint** — `.vault-link` and `.vault-link.local` are flat key:value YAML files. Do **not** wrap the body with `---` frontmatter delimiters; the parser treats the whole file as a single key:value scope and silently drops fields below the first `---` if any are present. The syncer emits a warning to stderr when it sees `---` in a `.vault-link` body.
+
+**Accepted list forms** — both work:
+
+```yaml
+autosync_paths_include:        # block list (preferred for readability)
+  - notes/specs/*.md
+  - adrs/**/*.md
+
+autosync_paths_include: [notes/specs/*.md, adrs/**/*.md]   # flow array
+```
+
+**Exclude pattern semantics**:
+
+| Form | Match scope | Example |
+|------|-------------|---------|
+| `path/to/dir/` (trailing `/`) | Substring match anywhere in the path | `node_modules/`, `vendor/` |
+| `**` glob | Cross-segment regex (zero or more dirs) | `proposals/**/draft-*.md` |
+| Plain glob (`*`, `?`) | fnmatch on basename or full relative path | `*.tmp.md`, `CHANGELOG.md` |
+
+To suppress a default include, write an exclude that covers it (e.g. `docs/discussions/**/*.md` blocks the default `docs/discussions/**/*.md` include for that project).
+
+**Lax boolean** — `auto_capture` accepts `true`, `yes`, `1` (case-insensitive). The hook (bash) and the syncer (Python) treat them identically.
 
 **`.vault-link.local`** (gitignore this file):
 

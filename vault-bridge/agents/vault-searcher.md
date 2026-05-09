@@ -156,9 +156,9 @@ Find and load the most recent active session note or handoff to restore session 
 **Triggers**: "load handoff", "resume last session", "what was I working on?", "{project} status", "이전 세션", "세션 복원"
 
 **Procedure**:
-1. Search for session/handoff files (both patterns for backward compatibility):
-   - With project name: `~/vault/20_Projects/{name}/session-*.md` + `~/vault/20_Projects/{name}/handoff-*.md`
-   - Without: `~/vault/20_Projects/*/session-*.md` + `~/vault/20_Projects/*/handoff-*.md` + `~/vault/00_Inbox/session-*.md` + `~/vault/00_Inbox/*-handoff.md`
+1. Search for session files:
+   - With project name: `~/vault/20_Projects/{name}/session-*.md`
+   - Without: `~/vault/20_Projects/*/session-*.md` + `~/vault/00_Inbox/session-*.md`
 2. Filter by frontmatter `status: active`.
 3. Sort by date descending. Select the most recent.
 4. If multiple projects have active session notes, show list and ask user to choose.
@@ -191,7 +191,8 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search)
    - No pointer or resolution failed → `search_root = ~/vault/` (full-vault search, existing behavior)
 2. Read `{search_root}/10_MOC/{domain}.md` (or search within `search_root` for a matching MOC file).
-   - If no MOC found, search adaptively within `search_root`:
+   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree (the CLI supports `path=<folder>` natively — no need to fall back for scope reasons alone).
+   - If no MOC found, or if the CLI path is unavailable/fails/times out, search adaptively within `search_root`:
      - macOS (`uname -s` = `Darwin`): `mdfind -onlyin {search_root} "{domain}"` (결과 없으면 grep fallback)
      - Other / fallback: `grep -rl "{domain}" {search_root} --include="*.md"`
    - Comma-separated domains: query each individually, merge results.
@@ -211,8 +212,10 @@ Search the entire vault by keyword and load note contents.
    - Collect matching entries as initial candidate set. If ≥ 1 match found, skip step 2 and use these candidates directly.
    - If no manifest matches, fall through to step 2.
 2. Search (exclude `.claude/`, `90_Assets/`):
-   - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
-   - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
+   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{keyword}" limit=20` and use the returned vault-relative paths as candidates.
+   - If the CLI path is unavailable, fails, times out, or returns no useful candidates, fall back:
+     - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
+     - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
 3. Sort: title match > tag match > body match > recent modification.
 4. Output preview: filename + first 2 lines + location + tags + modification date.
 5. Load full note content when user selects a number (default 10 results).
@@ -231,12 +234,26 @@ Create a new vault file recording current session work or an artifact (capture, 
    - **capture**: quick note, snippet, or reference captured mid-session
    - **plan**: forward-looking plan document for a workstream or feature
 
-2. **Select mode** (AskUserQuestion — session type only):
-   For `type: session`, ask the user which format to use:
-   - **record**: 작업 기록 — no continuation work, past-focused summary only
-   - **handoff**: 인수인계 — continuation work exists, includes next steps and blockers
+2. **Select mode** (Tier routing — session type only):
+   For `type: session`, route to one of three modes via the synonym dictionary. For `capture` / `plan`, skip mode selection (single format).
+
+   **Synonym dictionary** (case-insensitive, bounded — 4–5 tokens per row):
+
+   | mode | EN tokens | KR tokens |
+   |---|---|---|
+   | record | record, log, archive | 기록, 정리, 회고 |
+   | handoff | handoff, continue, resume | 인수인계, 이어서, 다음 세션 |
+   | quick | quick, brief, summary | 간단히, 짧게, 빠르게, 요약 |
+
+   **Tier rules**:
+   - **Tier 1 (Strong)** — trigger matches tokens from exactly one row → pre-select that mode, skip AskUserQuestion, output one-line confirmation `→ {mode} 모드`.
+   - **Tier 2 (Inferred)** — no token match → AskUserQuestion with default inferred from context (next-step or blocker mentions → handoff; conversation under ~5 turns → quick; else → record).
+   - **Tier 3 (Ambiguous)** — tokens from two or more rows match → AskUserQuestion with three equal options, no default.
+
+   Mode descriptions for AskUserQuestion (Tier 2/3):
+   - **record**: 작업 기록 — past-focused summary only
+   - **handoff**: 인수인계 — continuation work, next steps, blockers
    - **quick**: 간단히 — minimal summary (Summary + Related Files, plus Next Steps if handoff)
-   For `type: capture` or `type: plan`, skip mode selection (single format).
 
 3. **Generate frontmatter** (rule-based):
    Auto-generate frontmatter before drafting body:
@@ -273,8 +290,8 @@ Create a new vault file recording current session work or an artifact (capture, 
 7. **Gather related files**: Collect file paths mentioned in conversation.
    - Supplement with `find ~/vault -mmin -{hours × 60} -type f -not -path '*/\.*'` if insufficient (default: `--hours 1` = 60min).
 
-8. **Check existing session note** (session type only): Search for previous `status: active` session note or handoff in the same project/domain.
-   - Search patterns: `session-*.md` and `handoff-*.md` (backward compatibility).
+8. **Check existing session note** (session type only): Search for previous `status: active` session note in the same project/domain.
+   - Search pattern: `session-*.md`.
    - If found: cross-reference "next steps" with current session work. Carry over incomplete items.
    - Suggest to user: "이전 active session note를 archived로 변경할까요?" (vault-searcher는 기존 파일을 수정할 수 없으므로, obsidian-vault-manager의 vault-file-organizer에게 위임하거나 사용자가 직접 변경).
 

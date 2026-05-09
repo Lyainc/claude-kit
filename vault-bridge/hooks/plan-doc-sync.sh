@@ -30,31 +30,82 @@ if [ ! -f "$vault_link_file" ]; then
   exit 0
 fi
 
-# Layer 1 opt-in gate: auto_capture: true in .vault-link
-auto_capture_l1=$(grep -E '^auto_capture\s*:' "$vault_link_file" 2>/dev/null \
-  | sed 's/.*:\s*//' | tr -d '[:space:]' || echo "false")
+# Scope: match keys inside the first --- frontmatter block if present,
+# otherwise match anywhere (handles flat .vault-link files). Strips surrounding
+# quotes so `key: "true"` parses the same as bare scalars.
+# Precondition: $2 must be a plain identifier — awk regex metacharacters in the
+# key would silently misbehave. Caller-side guard rejects anything else.
+_yaml_value() {
+  case "$2" in
+    ''|*[!a-zA-Z0-9_]*) printf '%s\n' "_yaml_value: invalid key '$2'" >&2; return 1;;
+  esac
+  awk -v key="$2" '
+    BEGIN { in_fm=0; saw_fm=0 }
+    /^---[[:space:]]*$/ {
+      if (saw_fm == 0) { saw_fm=1; in_fm=1; next }
+      else if (in_fm) { exit }
+    }
+    saw_fm == 0 || in_fm {
+      if (match($0, "^" key "[[:space:]]*:[[:space:]]*")) {
+        val = substr($0, RSTART + RLENGTH)
+        sub(/[[:space:]]+$/, "", val)
+        if (val ~ /^".*"$/ || val ~ /^\047.*\047$/) {
+          val = substr(val, 2, length(val) - 2)
+        }
+        print val
+        exit
+      }
+    }
+  ' "$1" 2>/dev/null
+}
+_is_truthy() {
+  case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
+    true|yes|1) return 0;;
+    *) return 1;;
+  esac
+}
 
-if [ "$auto_capture_l1" != "true" ]; then
+# Layer 1 opt-in gate
+_is_truthy "$(_yaml_value "$vault_link_file" auto_capture)" || exit 0
+
+# Extract + sanitize vault_path. Reject empty values and ".." traversal up
+# front — the value flows into a filesystem path next. Note: ANSI-C quoting
+# ($'\n', $'\0') in case patterns false-matches under Bash 3.2 + set -euo
+# pipefail (Apple's stock bash), so keep patterns to plain glob; grep above
+# already collapses any embedded newline since it reads line by line.
+vault_path="$(_yaml_value "$vault_link_file" vault_path)"
+if [ -z "$vault_path" ]; then
   exit 0
 fi
-
-# Layer 2 opt-in gate: auto_capture: true in _index.md
-vault_path=$(grep -E '^vault_path\s*:' "$vault_link_file" 2>/dev/null \
-  | sed 's/.*:\s*//' | tr -d '[:space:]' || echo "")
+# Syntactic pre-screen — rejects literal `..` and absolute paths fast.
+# This is NOT the security boundary; the symlink-aware realpath containment
+# check below (lines 91-96) is the actual defense against vault escape.
+case "$vault_path" in
+  *..*|/*) exit 0;;
+esac
 
 vault_root="${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}"
 index_file="${vault_root}/${vault_path}/_index.md"
+
+# Symlink-aware containment check: resolve both vault_root and the candidate
+# directory, then verify the candidate stays within vault_root. Defends against
+# `vault_path` like `legit/inner` where `legit` is a symlink to `../../etc`.
+if ! python3 - "$vault_root" "${vault_root}/${vault_path}" <<'PY' 2>/dev/null
+import os, sys
+root = os.path.realpath(sys.argv[1])
+cand = os.path.realpath(sys.argv[2])
+sys.exit(0 if cand == root or cand.startswith(root + os.sep) else 1)
+PY
+then
+  exit 0
+fi
 
 if [ ! -f "$index_file" ]; then
   exit 0
 fi
 
-auto_capture_l2=$(grep -E '^auto_capture\s*:' "$index_file" 2>/dev/null \
-  | sed 's/.*:\s*//' | tr -d '[:space:]' || echo "false")
-
-if [ "$auto_capture_l2" != "true" ]; then
-  exit 0
-fi
+# Layer 2 opt-in gate
+_is_truthy "$(_yaml_value "$index_file" auto_capture)" || exit 0
 
 # Session-level 1-ask guard: track whether we already fired this session.
 # Uses a per-session temp dir (same pattern as other vault-bridge hooks).
@@ -72,68 +123,13 @@ if [ -f "$asked_flag" ]; then
   exit 0
 fi
 
-# Default include patterns (spec §3.2)
-# Scan for matching .md files under the project root.
-candidates=()
-
-# docs/discussions/**/*.md
-if [ -d "${project_root}/docs/discussions" ]; then
-  while IFS= read -r -d '' f; do
-    candidates+=("${f#${project_root}/}")
-  done < <(find "${project_root}/docs/discussions" -name "*.md" -print0 2>/dev/null)
-fi
-
-# docs/design/**/*.md
-if [ -d "${project_root}/docs/design" ]; then
-  while IFS= read -r -d '' f; do
-    candidates+=("${f#${project_root}/}")
-  done < <(find "${project_root}/docs/design" -name "*.md" -print0 2>/dev/null)
-fi
-
-# docs/plans/**/*.md
-if [ -d "${project_root}/docs/plans" ]; then
-  while IFS= read -r -d '' f; do
-    candidates+=("${f#${project_root}/}")
-  done < <(find "${project_root}/docs/plans" -name "*.md" -print0 2>/dev/null)
-fi
-
-# .omc/plans/*.md
-if [ -d "${project_root}/.omc/plans" ]; then
-  while IFS= read -r -d '' f; do
-    candidates+=("${f#${project_root}/}")
-  done < <(find "${project_root}/.omc/plans" -maxdepth 1 -name "*.md" -print0 2>/dev/null)
-fi
-
-# Root-level PLAN.md, DESIGN.md, RFC-*.md
-for root_file in PLAN.md DESIGN.md; do
-  if [ -f "${project_root}/${root_file}" ]; then
-    candidates+=("$root_file")
-  fi
-done
-# RFC-*.md at root
-while IFS= read -r -d '' f; do
-  candidates+=("${f#${project_root}/}")
-done < <(find "${project_root}" -maxdepth 1 -name "RFC-*.md" -print0 2>/dev/null)
-
-# Filter: exclude vault-native paths and standard excludes
+# Discover candidates via syncer (handles default + .vault-link override + vault-native + excludes)
+# Spec §3.2 default patterns + .vault-link autosync_paths_include/exclude (v1.1) merged inside syncer.
+syncer="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/scripts/plan-doc-syncer.py"
 filtered=()
-for f in "${candidates[@]}"; do
-  # Skip if path is inside vault (vault-native boundary §9.5)
-  abs_path="${project_root}/${f}"
-  if [[ "$abs_path" == *"/vault/"* ]]; then
-    continue
-  fi
-  # Skip standard excludes
-  skip=0
-  for excl in node_modules/ dist/ build/ .git/ CHANGELOG.md README.md; do
-    if [[ "$f" == *"$excl"* ]]; then
-      skip=1
-      break
-    fi
-  done
-  [ "$skip" -eq 1 ] && continue
-  filtered+=("$f")
-done
+while IFS= read -r line; do
+  [ -n "$line" ] && filtered+=("$line")
+done < <(python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>/dev/null)
 
 # If no candidates, nothing to suggest
 if [ "${#filtered[@]}" -eq 0 ]; then
@@ -158,6 +154,8 @@ fi
 count="${#filtered[@]}"
 msg="세션 중 plan/design 문서 ${count}개 감지됨 (vault autosync 활성화됨).\n\n${file_list}\nvault 프로젝트(${vault_path})에 스냅샷 저장: \`/save-plan-doc\` 실행."
 
-printf '%s' "$msg" | jq -Rncs '{systemMessage: .}'
+# jq -Rsc: read entire raw stdin as a single string. NOT -Rncs — the -n flag
+# would suppress input and silently emit `null`, breaking the systemMessage.
+printf '%s' "$msg" | jq -Rsc '{systemMessage: .}'
 
 exit 0

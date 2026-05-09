@@ -50,7 +50,7 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 
 **Input**: User's analysis target
 **Output**: Discovery Report with prioritized findings (Critical/Important/Nice-to-have)
-**Handoff**: Critical and Important findings become expert-panel topics
+**Inter-stage handoff**: Critical and Important findings become expert-panel topics
 
 - If `--quick` flag: use `--quick` mode (5-7 questions)
 - User may stop pipeline here via checkpoint confirmation
@@ -59,7 +59,7 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 
 **Input**: Critical/Important findings from Stage 1
 **Output**: SUMMARY.md with consensus items, dissenting views, action items
-**Handoff**: Consensus items + action items become doc-concretize input
+**Inter-stage handoff**: Consensus items + action items become doc-concretize input
 
 - Expert panel composition auto-derived from finding domains
 - If findings span 1-2 domains → 3 experts
@@ -70,7 +70,7 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 
 **Input**: Expert panel consensus + action items + original target context
 **Output**: Structured document covering analysis results
-**Handoff**: Generated document passed to doc-polish
+**Inter-stage handoff**: Generated document passed to doc-polish
 
 - If `--quick` flag and document < 2000 chars: use Quick Mode
 - Document structure follows expert panel topic organization
@@ -116,7 +116,7 @@ Users can run subset pipelines:
 
 ## Inter-Skill Data Flow
 
-Each stage produces a conceptual handoff (managed as natural language internally, not literal JSON):
+Each stage produces a conceptual inter-stage handoff (managed as natural language internally, not literal JSON):
 
 ```json
 // Conceptual schema — not a literal output format

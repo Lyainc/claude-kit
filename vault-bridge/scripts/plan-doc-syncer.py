@@ -5,12 +5,14 @@ Copies an external plan/design document into the bound vault project as a snapsh
 
 Usage:
   python3 plan-doc-syncer.py \\
-    --source PATH        Source file path (absolute or relative to CWD)
+    --source PATH        Source file path (required unless --get-paths or --discover)
     [--vault-root PATH]  Vault root (default: ~/vault)
     [--vault-link PATH]  .vault-link file (default: CWD/.vault-link)
     [--dry-run]          Report only; do not write (default: True)
     [--enforce]          Actually write the snapshot (disables dry-run)
     [--skip-gate-check]  Skip 2-layer opt-in gate (for /save-plan-doc explicit path)
+    [--get-paths]        Emit effective include/exclude patterns as JSON and exit
+    [--discover ROOT]    Scan ROOT and emit candidate plan-doc paths, one per line
 
 Stdout (always JSON):
   {
@@ -29,6 +31,7 @@ Exit codes:
 """
 
 import argparse
+import fnmatch
 import hashlib
 import json
 import os
@@ -64,6 +67,154 @@ DEFAULT_EXCLUDE_PATTERNS = [
     "README.md",
 ]
 
+
+def _resolve_effective_patterns(vault_link: dict) -> tuple[list[str], list[str]]:
+    """
+    Merge DEFAULT patterns with .vault-link override fields.
+
+    Override schema (flat, v1.1 micro-bump — backward compat with v1):
+      autosync_paths_include: [pattern1, pattern2, ...]
+      autosync_paths_exclude: [pattern1, pattern2, ...]
+
+    Policy: append. User-provided patterns extend defaults; to suppress a
+    default include, add a counter-pattern via autosync_paths_exclude.
+    """
+    extra_include = vault_link.get("autosync_paths_include") or []
+    extra_exclude = vault_link.get("autosync_paths_exclude") or []
+    if isinstance(extra_include, str):
+        extra_include = [extra_include]
+    if isinstance(extra_exclude, str):
+        extra_exclude = [extra_exclude]
+    # Append user patterns; final dedup happens at scan time via the candidate set.
+    # No string-equality dedup against DEFAULT — user-supplied near-duplicates are
+    # benign (cost: one extra glob walk) and dedup() would silently drop semantically
+    # different overlaps the user expected to take effect.
+    include = list(DEFAULT_INCLUDE_PATTERNS) + list(extra_include)
+    exclude = list(DEFAULT_EXCLUDE_PATTERNS) + list(extra_exclude)
+    return include, exclude
+
+
+def _glob_pattern(project_root: Path, pattern: str) -> list[Path]:
+    """Resolve a glob pattern relative to project_root, supporting `**` and direct paths."""
+    if not pattern:
+        return []
+    if "**" in pattern:
+        base, tail = pattern.split("**", 1)
+        if "**" in tail:
+            # pathlib.rglob does not interpret `**` inside its argument, so a
+            # multi-`**` pattern would silently return zero matches. Reject
+            # loudly instead. Use single `**` per pattern, or split into two.
+            print(
+                f"plan-doc-syncer: warning — pattern {pattern!r} contains multiple '**' "
+                "segments; skipping (use a single '**' or list patterns separately)",
+                file=sys.stderr,
+            )
+            return []
+        base = base.rstrip("/")
+        tail = tail.lstrip("/") or "*"
+        base_path = project_root / base if base else project_root
+        if not base_path.exists() or not base_path.is_dir():
+            return []
+        return [p for p in base_path.rglob(tail) if p.is_file()]
+    return [p for p in project_root.glob(pattern) if p.is_file()]
+
+
+def _glob_to_regex(pattern: str) -> str:
+    """
+    Convert a glob pattern to a regex string. Supports `**` for any-depth
+    cross-segment match (including zero segments) and `*`/`?` for
+    single-segment wildcards.
+
+    Note: behaviour with multiple `**` segments is undefined and best-effort
+    on the exclude path. The include path (`_glob_pattern`) explicitly rejects
+    such patterns up front because pathlib.rglob cannot interpret them.
+    """
+    out: list[str] = []
+    i = 0
+    while i < len(pattern):
+        ch = pattern[i]
+        if pattern[i:i + 3] == "**/":
+            out.append("(?:.*/)?")  # zero or more dir segments
+            i += 3
+            continue
+        if pattern[i:i + 2] == "**":
+            out.append(".*")
+            i += 2
+            continue
+        if ch == "*":
+            out.append("[^/]*")
+        elif ch == "?":
+            out.append("[^/]")
+        else:
+            out.append(re.escape(ch))
+        i += 1
+    return "^" + "".join(out) + "$"
+
+
+def _matches_exclude(rel_path: str, exclude_patterns: list[str]) -> bool:
+    """
+    Return True if rel_path matches any exclude pattern.
+
+    Three matching modes per pattern:
+    - Directory prefix (`path/to/dir/`): substring match anywhere in the path
+    - `**` glob: cross-segment regex match
+    - Plain glob (`*`, `?`): fnmatch on basename or full relative path
+
+    Asymmetry note: include side (`_glob_pattern`) hard-rejects multi-`**`
+    patterns because pathlib.rglob cannot interpret them. Exclude side here
+    feeds them to `_glob_to_regex` as best-effort regex with undefined
+    semantics. A multi-`**` exclude may therefore silently fail to match
+    a path that the symmetric include pattern would also have skipped.
+    Trade-off: false-negatives on excludes (= wrongly including a file)
+    are recoverable via review; false-negatives on includes (= missing a
+    candidate entirely) are not. So the lenient exclude path is preferred
+    over forcing both sides to reject.
+    """
+    name = Path(rel_path).name
+    for excl in exclude_patterns:
+        if excl.endswith("/"):
+            if rel_path.startswith(excl) or f"/{excl}" in f"/{rel_path}":
+                return True
+            continue
+        if "**" in excl:
+            # Best-effort regex on exclude side; multi-`**` semantics undefined here.
+            # Include path (`_glob_pattern`) rejects multi-`**` outright — see asymmetry note in `_glob_to_regex`.
+            if re.match(_glob_to_regex(excl), rel_path):
+                return True
+            continue
+        if fnmatch.fnmatch(name, excl) or fnmatch.fnmatch(rel_path, excl):
+            return True
+    return False
+
+
+def _discover_candidates(project_root: Path, vault_link: dict) -> list[str]:
+    """
+    Scan project_root using effective include patterns; filter out exclude
+    patterns and vault-native paths. Returns sorted project-root-relative paths.
+    """
+    include, exclude = _resolve_effective_patterns(vault_link)
+    debug = os.environ.get("VAULT_BRIDGE_DEBUG") == "1"
+    project_root_resolved = project_root.resolve()
+    found: set[str] = set()
+    for pattern in include:
+        for f in _glob_pattern(project_root, pattern):
+            try:
+                rel = str(f.resolve().relative_to(project_root_resolved))
+            except ValueError:
+                # File or its symlink target lies outside project_root after
+                # resolution — skip silently, log only when debug requested.
+                if debug:
+                    print(f"plan-doc-syncer: skip {f} (outside project_root after resolve)", file=sys.stderr)
+                continue
+            if _is_vault_native(f):
+                if debug:
+                    print(f"plan-doc-syncer: skip {f} (vault-native)", file=sys.stderr)
+                continue
+            if _matches_exclude(rel, exclude):
+                continue
+            found.add(rel)
+    return sorted(found)
+
 # Vault-native plan paths — never autosync these (§9.5 boundary)
 VAULT_NATIVE_PATTERN = re.compile(r"(~/vault/|/Users/[^/]+/vault/|/home/[^/]+/vault/)", re.IGNORECASE)
 
@@ -83,6 +234,11 @@ def _parse_scalar(value: str) -> object:
     if m:
         inner = m.group(1)
         return [item.strip().strip("\"'") for item in inner.split(",") if item.strip()]
+    # Quoted scalars: strip before bool/int coercion so `"true"` → True.
+    if len(v) >= 2 and (
+        (v[0] == '"' and v[-1] == '"') or (v[0] == "'" and v[-1] == "'")
+    ):
+        v = v[1:-1]
     if v.lower() in ("true", "yes"):
         return True
     if v.lower() in ("false", "no"):
@@ -91,8 +247,6 @@ def _parse_scalar(value: str) -> object:
         return int(v)
     except ValueError:
         pass
-    if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
-        return v[1:-1]
     return v
 
 
@@ -108,8 +262,17 @@ def _parse_frontmatter(text: str) -> dict:
             item = raw_line.lstrip("- ").strip().strip("\"'")
             if current_key is not None:
                 if current_list is None:
-                    current_list = []
-                    result[current_key] = current_list
+                    # Preserve any inline scalar already stored under this key
+                    # so `key: foo\n  - bar` yields ["foo", "bar"] rather than
+                    # silently dropping the inline value.
+                    existing = result.get(current_key)
+                    if isinstance(existing, list):
+                        current_list = existing
+                    else:
+                        current_list = []
+                        if existing not in (None, ""):
+                            current_list.append(existing)
+                        result[current_key] = current_list
                 current_list.append(item)
             continue
         if ":" in raw_line:
@@ -134,21 +297,27 @@ def _parse_frontmatter(text: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def _load_vault_link(vault_link_path: Path) -> dict:
-    """Parse .vault-link YAML (simple key: value, no nested structures needed)."""
+    """
+    Parse .vault-link YAML.
+
+    Supports both flow arrays (`key: [a, b]`) and block lists
+    (`key:\\n  - a\\n  - b`). Delegates to `_parse_frontmatter` so the
+    list-aware logic powers both frontmatter and .vault-link uniformly.
+
+    Edge case: `.vault-link` with literal `---` delimiters in the body would
+    only have the first block parsed (rest silently dropped). Spec assumes
+    `.vault-link` is a flat key:value file with no `---` markers.
+    """
     if not vault_link_path.exists():
         return {}
     text = vault_link_path.read_text(encoding="utf-8")
-    result = {}
-    for line in text.splitlines():
-        line = line.strip()
-        if not line or line.startswith("#"):
-            continue
-        if ":" in line:
-            idx = line.index(":")
-            key = line[:idx].strip()
-            value = line[idx + 1:].strip()
-            result[key] = _parse_scalar(value) if value else None
-    return result
+    if "\n---" in text or text.startswith("---"):
+        sys.stderr.write(
+            f"warn: {vault_link_path} contains '---' delimiters; "
+            "fields after the first block will be silently dropped.\n"
+        )
+    # Wrap body as a frontmatter block so the same list-aware parser applies.
+    return _parse_frontmatter(f"---\n{text.rstrip()}\n---\n") or {}
 
 
 # ---------------------------------------------------------------------------
@@ -172,18 +341,22 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
       Git failure: unknown@{ISO8601}          stale_risk=True  (+ stderr captured)
     """
     ts = _iso_now()
+    source_dir = str(source_path.parent)
 
-    # Case 4: Not a git repo (.git/ absent in any ancestor)
+    # Anchor all subsequent git calls to the repo containing source_path's
+    # resolved parent. `--show-toplevel` both detects non-git and pins cwd
+    # so symlinks pointing at files in a different repo cannot leak diff
+    # state from an unrelated working tree.
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--git-dir"],
-            cwd=str(source_path.parent),
+        toplevel = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=source_dir,
             capture_output=True, text=True, timeout=5
         )
-        if result.returncode != 0:
-            # Compute sha256 of file content as stable fingerprint
+        if toplevel.returncode != 0:
             sha = hashlib.sha256(source_path.read_bytes()).hexdigest()[:10]
             return f"non-git@{sha}", True, None
+        git_cwd = toplevel.stdout.strip() or source_dir
     except Exception as exc:
         return f"unknown@{ts}", True, str(exc)
 
@@ -191,7 +364,7 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
         # Case 3: Untracked (git ls-files --error-unmatch fails)
         track_result = subprocess.run(
             ["git", "ls-files", "--error-unmatch", str(source_path)],
-            cwd=str(source_path.parent),
+            cwd=git_cwd,
             capture_output=True, text=True, timeout=5
         )
         if track_result.returncode != 0:
@@ -200,7 +373,7 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
         # Get HEAD short hash
         hash_result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(source_path.parent),
+            cwd=git_cwd,
             capture_output=True, text=True, timeout=5
         )
         if hash_result.returncode != 0:
@@ -211,13 +384,13 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
         # Case 2: Tracked but dirty (file has uncommitted changes)
         diff_result = subprocess.run(
             ["git", "diff", "--quiet", str(source_path)],
-            cwd=str(source_path.parent),
+            cwd=git_cwd,
             capture_output=True, text=True, timeout=5
         )
         # Also check staged diff
         staged_result = subprocess.run(
             ["git", "diff", "--cached", "--quiet", str(source_path)],
-            cwd=str(source_path.parent),
+            cwd=git_cwd,
             capture_output=True, text=True, timeout=5
         )
         if diff_result.returncode != 0 or staged_result.returncode != 0:
@@ -587,7 +760,7 @@ def sync(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync external plan doc to vault snapshot")
-    parser.add_argument("--source", required=True, help="Source file path")
+    parser.add_argument("--source", help="Source file path (required unless --get-paths or --discover)")
     parser.add_argument(
         "--vault-root",
         default=str(Path("~/vault").expanduser()),
@@ -616,8 +789,51 @@ def main() -> None:
         default=False,
         help="Skip 2-layer opt-in gate (for explicit /save-plan-doc path)",
     )
+    parser.add_argument(
+        "--get-paths",
+        action="store_true",
+        default=False,
+        help="Print effective include/exclude patterns (DEFAULT + .vault-link override) as JSON and exit.",
+    )
+    parser.add_argument(
+        "--discover",
+        metavar="PROJECT_ROOT",
+        default=None,
+        help="Scan PROJECT_ROOT and emit candidate plan-doc paths (one per line, project-root-relative).",
+    )
 
     args = parser.parse_args()
+
+    # --get-paths short-circuit: emit effective patterns and exit
+    if args.get_paths:
+        vault_link_path = Path(args.vault_link).expanduser() if args.vault_link else Path.cwd() / ".vault-link"
+        vault_link = _load_vault_link(vault_link_path)
+        include, exclude = _resolve_effective_patterns(vault_link)
+        print(json.dumps({"include": include, "exclude": exclude}, ensure_ascii=False))
+        sys.exit(0)
+
+    # --discover short-circuit: emit candidate paths and exit
+    if args.discover:
+        project_root = Path(args.discover).expanduser().resolve()
+        if args.vault_link:
+            vault_link_path = Path(args.vault_link).expanduser()
+            if not vault_link_path.is_absolute():
+                vault_link_path = (project_root / vault_link_path).resolve()
+        else:
+            vault_link_path = project_root / ".vault-link"
+        if not vault_link_path.exists():
+            print(
+                f"plan-doc-syncer: warning — no .vault-link at {vault_link_path}; "
+                "using DEFAULT include/exclude patterns only",
+                file=sys.stderr,
+            )
+        vault_link = _load_vault_link(vault_link_path)
+        for rel in _discover_candidates(project_root, vault_link):
+            print(rel)
+        sys.exit(0)
+
+    if not args.source:
+        parser.error("--source is required (omit only with --get-paths or --discover)")
 
     # VAULT_BRIDGE_DISABLE check
     if os.environ.get("VAULT_BRIDGE_DISABLE") == "1":
