@@ -140,6 +140,7 @@ Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping doma
 | Domain context load | `context` skill (internal, `--exclude`/`--limit` options) | `vault-searcher` Mode 2 (external, read-only lightweight) |
 | Session record | N/A (use vault-bridge's session-note) | `vault-searcher` Mode 4: Session Note Creation (record/handoff/quick modes) |
 | Note creation logic | `note` skill owns domain determination + MOC linking | `inbox-review` delegates to `note` skill procedure |
+| Project back-reference (`_index.related_notes`) | `note` skill appends on creation (W7 invariant) | N/A |
 
 Within `thinking-tools`:
 - `diverse-sampling`: creative generation (brainstorming, alternatives)

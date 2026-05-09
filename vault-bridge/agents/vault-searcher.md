@@ -234,12 +234,26 @@ Create a new vault file recording current session work or an artifact (capture, 
    - **capture**: quick note, snippet, or reference captured mid-session
    - **plan**: forward-looking plan document for a workstream or feature
 
-2. **Select mode** (AskUserQuestion — session type only):
-   For `type: session`, ask the user which format to use:
-   - **record**: 작업 기록 — no continuation work, past-focused summary only
-   - **handoff**: 인수인계 — continuation work exists, includes next steps and blockers
+2. **Select mode** (Tier routing — session type only):
+   For `type: session`, route to one of three modes via the synonym dictionary. For `capture` / `plan`, skip mode selection (single format).
+
+   **Synonym dictionary** (case-insensitive, bounded — 4–5 tokens per row):
+
+   | mode | EN tokens | KR tokens |
+   |---|---|---|
+   | record | record, log, archive | 기록, 정리, 회고, 마무리 |
+   | handoff | handoff, continue, resume | 인수인계, 이어서, 다음 세션 |
+   | quick | quick, brief, summary | 간단히, 짧게, 빠르게, 요약 |
+
+   **Tier rules**:
+   - **Tier 1 (Strong)** — trigger matches tokens from exactly one row → pre-select that mode, skip AskUserQuestion, output one-line confirmation `→ {mode} 모드`.
+   - **Tier 2 (Inferred)** — no token match → AskUserQuestion with default inferred from context (next-step or blocker mentions → handoff; conversation under ~5 turns → quick; else → record).
+   - **Tier 3 (Ambiguous)** — tokens from two or more rows match → AskUserQuestion with three equal options, no default.
+
+   Mode descriptions for AskUserQuestion (Tier 2/3):
+   - **record**: 작업 기록 — past-focused summary only
+   - **handoff**: 인수인계 — continuation work, next steps, blockers
    - **quick**: 간단히 — minimal summary (Summary + Related Files, plus Next Steps if handoff)
-   For `type: capture` or `type: plan`, skip mode selection (single format).
 
 3. **Generate frontmatter** (rule-based):
    Auto-generate frontmatter before drafting body:

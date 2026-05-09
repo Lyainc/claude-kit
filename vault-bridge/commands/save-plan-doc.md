@@ -128,9 +128,7 @@ If the user chooses option B, ask for comma-separated file numbers (e.g. "1,3") 
 For each selected file, run:
 
 ```bash
-VAULT_LINK_FLAG=""
-# If gate was bypassed in Step 2, add --skip-gate-check
-# SKIP_GATE is set to "--skip-gate-check" or ""
+# SKIP_GATE_FLAG is set in Step 2: "--skip-gate-check" if user chose "이번만 저장", else ""
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/plan-doc-syncer.py" \
   --source "{file_path}" \
   --vault-root "${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}" \

@@ -174,7 +174,7 @@ Add or update an optional enrichment field in an existing project's `_index.md`.
 | `vault_link_source` | abs-path | `/Users/x/dev/prj/foo` |
 | `related_notes` | array[path] | `30_Notes/oauth.md` (appended to array) |
 | `related_plans` | array[path] | `20_Projects/foo/plan-2026-04-16-api.md` (appended) |
-| `auto_capture` | bool | `true` |
+| `auto_capture` | bool | `true` (set/replace — required field since Mode A/B Step 3 writes it at creation) |
 
 ### Procedure
 
@@ -191,7 +191,7 @@ Add or update an optional enrichment field in an existing project's `_index.md`.
 
 Existing `_index.md` files are **not automatically modified**. If an existing project is opened and the `_index.md` is missing required fields (`domain`, `status`, `type`), provide a migration guide:
 
-> "이 프로젝트의 `_index.md`가 최소 스키마(6필드: created, tags, type, status, domain, auto_capture)를 충족하지 않습니다. `/project {name} --enrich` 로 필드를 추가하거나 직접 수정하세요."
+> "이 프로젝트의 `_index.md`에 필수 필드(`created`, `tags`, `type`, `status`, `domain`)가 빠져 있을 수 있습니다. `/project {name} --enrich`로 추가하거나 직접 수정하세요. `auto_capture`는 옵트인 필드이므로 필요할 때만 추가하면 됩니다."
 
 `auto_capture` absent in pre-existing files is interpreted as `false` (vault-bridge SessionEnd hook and `/save-plan-doc` both treat absent as opt-out). Migration is not required for plan-doc autosync to remain off; users only need to add it explicitly to opt **in**.
 
@@ -201,16 +201,16 @@ Do NOT auto-fix existing files.
 
 ## _index.md Schema Reference
 
-### Minimum (required at creation)
+### Minimum schema at creation (5 required + 1 opt-in)
 
 | Field | Type | Notes |
 |-------|------|-------|
-| `created` | date | `YYYY-MM-DD` |
-| `tags` | array | must include `project` and `{name}` |
-| `type` | enum | always `project` |
-| `status` | enum | `active \| paused \| completed \| archived` |
-| `domain` | array | inferred domain slugs |
-| `auto_capture` | bool | W8 plan-doc autosync opt-in. Asked at creation, default `false`. Layer 2 of vault-bridge's 2-layer gate. |
+| `created` | date | required — `YYYY-MM-DD` |
+| `tags` | array | required — must include `project` and `{name}` |
+| `type` | enum | required — always `project` |
+| `status` | enum | required — `active \| paused \| completed \| archived` |
+| `domain` | array | required — inferred domain slugs |
+| `auto_capture` | bool | opt-in — asked via AskUserQuestion at creation (default `false`). W8 plan-doc autosync, Layer 2 of vault-bridge's 2-layer gate. |
 
 ### Progressive enrichment (add when needed)
 
