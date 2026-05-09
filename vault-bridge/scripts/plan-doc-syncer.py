@@ -5,12 +5,14 @@ Copies an external plan/design document into the bound vault project as a snapsh
 
 Usage:
   python3 plan-doc-syncer.py \\
-    --source PATH        Source file path (absolute or relative to CWD)
+    --source PATH        Source file path (required unless --get-paths or --discover)
     [--vault-root PATH]  Vault root (default: ~/vault)
     [--vault-link PATH]  .vault-link file (default: CWD/.vault-link)
     [--dry-run]          Report only; do not write (default: True)
     [--enforce]          Actually write the snapshot (disables dry-run)
     [--skip-gate-check]  Skip 2-layer opt-in gate (for /save-plan-doc explicit path)
+    [--get-paths]        Emit effective include/exclude patterns as JSON and exit
+    [--discover ROOT]    Scan ROOT and emit candidate plan-doc paths, one per line
 
 Stdout (always JSON):
   {
@@ -165,6 +167,8 @@ def _matches_exclude(rel_path: str, exclude_patterns: list[str]) -> bool:
                 return True
             continue
         if "**" in excl:
+            # Best-effort regex on exclude side; multi-`**` semantics undefined here.
+            # Include path (`_glob_pattern`) rejects multi-`**` outright — see asymmetry note in `_glob_to_regex`.
             if re.match(_glob_to_regex(excl), rel_path):
                 return True
             continue
@@ -297,6 +301,11 @@ def _load_vault_link(vault_link_path: Path) -> dict:
     if not vault_link_path.exists():
         return {}
     text = vault_link_path.read_text(encoding="utf-8")
+    if "\n---" in text or text.startswith("---"):
+        sys.stderr.write(
+            f"warn: {vault_link_path} contains '---' delimiters; "
+            "fields after the first block will be silently dropped.\n"
+        )
     # Wrap body as a frontmatter block so the same list-aware parser applies.
     return _parse_frontmatter(f"---\n{text.rstrip()}\n---\n") or {}
 
@@ -741,7 +750,7 @@ def sync(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Sync external plan doc to vault snapshot")
-    parser.add_argument("--source", help="Source file path (required unless --get-paths)")
+    parser.add_argument("--source", help="Source file path (required unless --get-paths or --discover)")
     parser.add_argument(
         "--vault-root",
         default=str(Path("~/vault").expanduser()),
