@@ -38,6 +38,8 @@ The `${VAR:+...}` form expands to the value only when `$VAR` is non-empty, so th
 
 Suggested durations: 3s for `help` probes, 10s for `search`/`read`, 5s for `property:set`. Skip the wrapper entirely when neither helper is installed; Obsidian normally responds in milliseconds, and a hang only matters in the rare case the app is stuck.
 
+The same gate-and-prefix pattern is reusable with any variable name (`capture/SKILL.md` uses `$DEFUDDLE_TO` for the Defuddle binary). Pick a name that matches the wrapped tool rather than copying `OBSIDIAN_TO` verbatim.
+
 Rules:
 
 1. Never require the CLI for correctness.
