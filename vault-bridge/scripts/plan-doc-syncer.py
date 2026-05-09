@@ -159,6 +159,16 @@ def _matches_exclude(rel_path: str, exclude_patterns: list[str]) -> bool:
     - Directory prefix (`path/to/dir/`): substring match anywhere in the path
     - `**` glob: cross-segment regex match
     - Plain glob (`*`, `?`): fnmatch on basename or full relative path
+
+    Asymmetry note: include side (`_glob_pattern`) hard-rejects multi-`**`
+    patterns because pathlib.rglob cannot interpret them. Exclude side here
+    feeds them to `_glob_to_regex` as best-effort regex with undefined
+    semantics. A multi-`**` exclude may therefore silently fail to match
+    a path that the symmetric include pattern would also have skipped.
+    Trade-off: false-negatives on excludes (= wrongly including a file)
+    are recoverable via review; false-negatives on includes (= missing a
+    candidate entirely) are not. So the lenient exclude path is preferred
+    over forcing both sides to reject.
     """
     name = Path(rel_path).name
     for excl in exclude_patterns:

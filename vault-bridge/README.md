@@ -84,6 +84,14 @@ The agent uses **AskUserQuestion** at every discrete choice: type/mode selection
 
 vault-searcher Mode 1 no longer matches the legacy `handoff-*.md` / `*-handoff.md` patterns (removed in v1.7.x). Existing legacy files have been renamed or absorbed.
 
+**Migration for vaults that still contain `handoff-*.md` files** — Mode 1 will not surface these files. Three options:
+
+1. **Rename** to `session-YYYY-MM-DD[-topic].md` (preferred — restores Mode 1 discovery and matches the canonical naming).
+2. **Convert** to a `plan-YYYY-MM-DD-{topic}.md` if the file is closer to a project-level design doc than a session record.
+3. **Leave as-is** if the file is purely historical reference and you no longer need it surfaced. Tag-based search (`tags: [session]`) and direct path access still work.
+
+Pure rename is safe: vault-bridge does not read filename for semantics — `type:` in frontmatter is the source of truth.
+
 ## Optional Obsidian CLI integration
 
 When `obsidian` is installed, registered in `PATH`, and the Obsidian app is running, vault-searcher may use `obsidian search query="..."` for indexed keyword searches. This is an optimization only: manifest-first loading and filesystem fallback remain the correctness path, and `.vault-link` scoped searches must preserve their project boundary.
@@ -202,6 +210,8 @@ autosync_paths_exclude:             # optional v1.1; extra exclude patterns merg
 ```
 
 `autosync_paths_include` / `autosync_paths_exclude` are appended to spec §3.2 default patterns; both are optional and the file remains fully backward-compat with v1 (`vault_path` only).
+
+**Format constraint** — `.vault-link` and `.vault-link.local` are flat key:value YAML files. Do **not** wrap the body with `---` frontmatter delimiters; the parser treats the whole file as a single key:value scope and silently drops fields below the first `---` if any are present. The syncer emits a warning to stderr when it sees `---` in a `.vault-link` body.
 
 **Accepted list forms** — both work:
 

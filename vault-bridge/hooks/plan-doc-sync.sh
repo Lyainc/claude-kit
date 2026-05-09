@@ -77,7 +77,9 @@ vault_path="$(_yaml_value "$vault_link_file" vault_path)"
 if [ -z "$vault_path" ]; then
   exit 0
 fi
-# Reject literal traversal and absolute paths up front.
+# Syntactic pre-screen — rejects literal `..` and absolute paths fast.
+# This is NOT the security boundary; the symlink-aware realpath containment
+# check below (lines 91-96) is the actual defense against vault escape.
 case "$vault_path" in
   *..*|/*) exit 0;;
 esac
