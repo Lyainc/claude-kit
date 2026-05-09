@@ -1,6 +1,6 @@
 ---
 name: vault-audit
-description: "Scan the entire vault for structural defects and surface them as a triage report. Detects 8 error types: orphan notes, broken wikilinks, filename violations, missing frontmatter, and 4 note↔project bidirectional link integrity errors. Example: '/vault-audit'"
+description: "Scan the entire vault for structural defects and surface them as a triage report. Detects 9 error types (8 base + 1 derived): orphan notes, broken wikilinks, filename violations, missing frontmatter, and 5 note↔project bidirectional link integrity errors (4 base + 1 derived missing_forward_reference). Example: '/vault-audit'"
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 

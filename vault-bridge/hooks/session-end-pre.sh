@@ -74,26 +74,19 @@ plan_doc_already_asked=false
 
 # Always scan candidates so the prompt can decide whether to suggest;
 # gating happens in the prompt by combining auto_capture_l1 ∧ auto_capture_l2.
+# Discovery is delegated to plan-doc-syncer.py so .vault-link's
+# autosync_paths_include/exclude (W8 v1.1) is honored — handles default
+# patterns (docs/discussions, docs/design, docs/plans, .omc/plans, PLAN.md,
+# DESIGN.md, RFC-*.md) plus user-overridden include/exclude globs.
 candidates_json="[]"
 if [ "$auto_capture_l1" = "true" ] && [ "$auto_capture_l2" = "true" ]; then
+  syncer="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/scripts/plan-doc-syncer.py"
   found=()
-  for d in "docs/discussions" "docs/design" "docs/plans" ".omc/plans"; do
-    if [ -d "${project_root}/${d}" ]; then
-      while IFS= read -r f; do
-        [ -n "$f" ] && found+=("${f#${project_root}/}")
-      done < <(find "${project_root}/${d}" -name '*.md' 2>/dev/null | head -10)
-    fi
-  done
-  for f in "${project_root}/PLAN.md" "${project_root}/DESIGN.md"; do
-    [ -f "$f" ] && found+=("${f#${project_root}/}")
-  done
-  while IFS= read -r f; do
-    [ -n "$f" ] && found+=("${f#${project_root}/}")
-  done < <(find "${project_root}" -maxdepth 1 -name 'RFC-*.md' 2>/dev/null)
+  while IFS= read -r line; do
+    [ -n "$line" ] && found+=("$line")
+  done < <(python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>/dev/null)
 
   if [ "${#found[@]}" -gt 0 ]; then
-    # Build JSON array via python3 to escape any path that might contain
-    # quotes/backslashes safely.
     candidates_json=$(python3 -c '
 import json, sys
 print(json.dumps(sys.argv[1:]))

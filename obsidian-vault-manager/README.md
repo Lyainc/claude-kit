@@ -1,6 +1,6 @@
 # obsidian-vault-manager
 
-Claude Code용 **Obsidian vault 지식 관리 플러그인**. 2개 에이전트 + 6개 스킬로 vault를 체계적으로 관리합니다.
+Claude Code용 **Obsidian vault 지식 관리 플러그인**. 2개 에이전트 + 7개 스킬로 vault를 체계적으로 관리합니다.
 
 ## 설치
 
@@ -25,6 +25,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `inbox-review` | Inbox 파일 일괄 정리 (분류/이동/삭제) |
 | `context` | vault 내부 도메인 맥락 로드 (Explore fork); Obsidian CLI가 있으면 indexed search 우선 |
 | `archive` | 완료 프로젝트 아카이브 + MOC/Home.md 정리; Obsidian CLI가 있으면 property:set 우선 |
+| `vault-audit` | vault 구조 무결성 감사 (9-error taxonomy: orphans, broken wikilinks, filename, frontmatter, note↔project bidirectional) |
 
 ## `_index.md` 스키마 (W7)
 
