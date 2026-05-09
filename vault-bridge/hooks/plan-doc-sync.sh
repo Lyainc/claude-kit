@@ -30,12 +30,28 @@ if [ ! -f "$vault_link_file" ]; then
   exit 0
 fi
 
-# Helpers — keep YAML scalar handling consistent with the Python syncer
-# (lax boolean: true|yes|1; preserve internal whitespace, trim edges only).
+# Scope: match keys inside the first --- frontmatter block if present,
+# otherwise match anywhere (handles flat .vault-link files). Strips surrounding
+# quotes so `key: "true"` parses the same as bare scalars.
 _yaml_value() {
-  grep -E "^${2}[[:space:]]*:" "$1" 2>/dev/null \
-    | head -1 \
-    | sed -E 's/^[^:]*:[[:space:]]*//; s/[[:space:]]*$//'
+  awk -v key="$2" '
+    BEGIN { in_fm=0; saw_fm=0 }
+    /^---[[:space:]]*$/ {
+      if (saw_fm == 0) { saw_fm=1; in_fm=1; next }
+      else if (in_fm) { exit }
+    }
+    saw_fm == 0 || in_fm {
+      if (match($0, "^" key "[[:space:]]*:[[:space:]]*")) {
+        val = substr($0, RSTART + RLENGTH)
+        sub(/[[:space:]]+$/, "", val)
+        if (val ~ /^".*"$/ || val ~ /^\047.*\047$/) {
+          val = substr(val, 2, length(val) - 2)
+        }
+        print val
+        exit
+      }
+    }
+  ' "$1" 2>/dev/null
 }
 _is_truthy() {
   case "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')" in
@@ -56,12 +72,26 @@ vault_path="$(_yaml_value "$vault_link_file" vault_path)"
 if [ -z "$vault_path" ]; then
   exit 0
 fi
+# Reject literal traversal and absolute paths up front.
 case "$vault_path" in
-  *..*) exit 0;;
+  *..*|/*) exit 0;;
 esac
 
 vault_root="${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}"
 index_file="${vault_root}/${vault_path}/_index.md"
+
+# Symlink-aware containment check: resolve both vault_root and the candidate
+# directory, then verify the candidate stays within vault_root. Defends against
+# `vault_path` like `legit/inner` where `legit` is a symlink to `../../etc`.
+if ! python3 - "$vault_root" "${vault_root}/${vault_path}" <<'PY' 2>/dev/null
+import os, sys
+root = os.path.realpath(sys.argv[1])
+cand = os.path.realpath(sys.argv[2])
+sys.exit(0 if cand == root or cand.startswith(root + os.sep) else 1)
+PY
+then
+  exit 0
+fi
 
 if [ ! -f "$index_file" ]; then
   exit 0

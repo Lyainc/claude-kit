@@ -98,6 +98,16 @@ def _glob_pattern(project_root: Path, pattern: str) -> list[Path]:
         return []
     if "**" in pattern:
         base, tail = pattern.split("**", 1)
+        if "**" in tail:
+            # pathlib.rglob does not interpret `**` inside its argument, so a
+            # multi-`**` pattern would silently return zero matches. Reject
+            # loudly instead. Use single `**` per pattern, or split into two.
+            print(
+                f"plan-doc-syncer: warning — pattern {pattern!r} contains multiple '**' "
+                "segments; skipping (use a single '**' or list patterns separately)",
+                file=sys.stderr,
+            )
+            return []
         base = base.rstrip("/")
         tail = tail.lstrip("/") or "*"
         base_path = project_root / base if base else project_root
@@ -207,6 +217,11 @@ def _parse_scalar(value: str) -> object:
     if m:
         inner = m.group(1)
         return [item.strip().strip("\"'") for item in inner.split(",") if item.strip()]
+    # Quoted scalars: strip before bool/int coercion so `"true"` → True.
+    if len(v) >= 2 and (
+        (v[0] == '"' and v[-1] == '"') or (v[0] == "'" and v[-1] == "'")
+    ):
+        v = v[1:-1]
     if v.lower() in ("true", "yes"):
         return True
     if v.lower() in ("false", "no"):
@@ -215,8 +230,6 @@ def _parse_scalar(value: str) -> object:
         return int(v)
     except ValueError:
         pass
-    if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
-        return v[1:-1]
     return v
 
 
@@ -232,8 +245,17 @@ def _parse_frontmatter(text: str) -> dict:
             item = raw_line.lstrip("- ").strip().strip("\"'")
             if current_key is not None:
                 if current_list is None:
-                    current_list = []
-                    result[current_key] = current_list
+                    # Preserve any inline scalar already stored under this key
+                    # so `key: foo\n  - bar` yields ["foo", "bar"] rather than
+                    # silently dropping the inline value.
+                    existing = result.get(current_key)
+                    if isinstance(existing, list):
+                        current_list = existing
+                    else:
+                        current_list = []
+                        if existing not in (None, ""):
+                            current_list.append(existing)
+                        result[current_key] = current_list
                 current_list.append(item)
             continue
         if ":" in raw_line:
@@ -293,18 +315,22 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
       Git failure: unknown@{ISO8601}          stale_risk=True  (+ stderr captured)
     """
     ts = _iso_now()
+    source_dir = str(source_path.parent)
 
-    # Case 4: Not a git repo (.git/ absent in any ancestor)
+    # Anchor all subsequent git calls to the repo containing source_path's
+    # resolved parent. `--show-toplevel` both detects non-git and pins cwd
+    # so symlinks pointing at files in a different repo cannot leak diff
+    # state from an unrelated working tree.
     try:
-        result = subprocess.run(
-            ["git", "rev-parse", "--git-dir"],
-            cwd=str(source_path.parent),
+        toplevel = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            cwd=source_dir,
             capture_output=True, text=True, timeout=5
         )
-        if result.returncode != 0:
-            # Compute sha256 of file content as stable fingerprint
+        if toplevel.returncode != 0:
             sha = hashlib.sha256(source_path.read_bytes()).hexdigest()[:10]
             return f"non-git@{sha}", True, None
+        git_cwd = toplevel.stdout.strip() or source_dir
     except Exception as exc:
         return f"unknown@{ts}", True, str(exc)
 
@@ -312,7 +338,7 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
         # Case 3: Untracked (git ls-files --error-unmatch fails)
         track_result = subprocess.run(
             ["git", "ls-files", "--error-unmatch", str(source_path)],
-            cwd=str(source_path.parent),
+            cwd=git_cwd,
             capture_output=True, text=True, timeout=5
         )
         if track_result.returncode != 0:
@@ -321,7 +347,7 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
         # Get HEAD short hash
         hash_result = subprocess.run(
             ["git", "rev-parse", "--short", "HEAD"],
-            cwd=str(source_path.parent),
+            cwd=git_cwd,
             capture_output=True, text=True, timeout=5
         )
         if hash_result.returncode != 0:
@@ -332,13 +358,13 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
         # Case 2: Tracked but dirty (file has uncommitted changes)
         diff_result = subprocess.run(
             ["git", "diff", "--quiet", str(source_path)],
-            cwd=str(source_path.parent),
+            cwd=git_cwd,
             capture_output=True, text=True, timeout=5
         )
         # Also check staged diff
         staged_result = subprocess.run(
             ["git", "diff", "--cached", "--quiet", str(source_path)],
-            cwd=str(source_path.parent),
+            cwd=git_cwd,
             capture_output=True, text=True, timeout=5
         )
         if diff_result.returncode != 0 or staged_result.returncode != 0:

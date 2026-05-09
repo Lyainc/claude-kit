@@ -46,6 +46,12 @@ def _parse_scalar(value: str) -> object:
     if m:
         inner = m.group(1)
         return [item.strip().strip("\"'") for item in inner.split(",") if item.strip()]
+    # Quoted scalars: strip before bool/int coercion so `"true"` → True
+    # (parity with plan-doc-syncer.py _parse_scalar).
+    if len(v) >= 2 and (
+        (v[0] == '"' and v[-1] == '"') or (v[0] == "'" and v[-1] == "'")
+    ):
+        v = v[1:-1]
     # Boolean
     if v.lower() in ("true", "yes"):
         return True
@@ -56,9 +62,6 @@ def _parse_scalar(value: str) -> object:
         return int(v)
     except ValueError:
         pass
-    # Strip surrounding quotes
-    if (v.startswith('"') and v.endswith('"')) or (v.startswith("'") and v.endswith("'")):
-        return v[1:-1]
     return v
 
 
@@ -82,8 +85,16 @@ def _parse_frontmatter(text: str) -> dict:
             item = raw_line.lstrip("- ").strip().strip("\"'")
             if current_key is not None:
                 if current_list is None:
-                    current_list = []
-                    result[current_key] = current_list
+                    # Preserve any inline scalar so `key: foo\n  - bar` yields
+                    # ["foo", "bar"] (parity with plan-doc-syncer.py).
+                    existing = result.get(current_key)
+                    if isinstance(existing, list):
+                        current_list = existing
+                    else:
+                        current_list = []
+                        if existing not in (None, ""):
+                            current_list.append(existing)
+                        result[current_key] = current_list
                 current_list.append(item)
             continue
 
