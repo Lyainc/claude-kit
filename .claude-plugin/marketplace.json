@@ -69,7 +69,7 @@
     },
     {
       "name": "vault-bridge",
-      "version": "1.7.1",
+      "version": "1.8.0",
       "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, optional Obsidian CLI search acceleration, direct-access awareness, session auto-commit, write path governance, and opt-in plan-doc autosync. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. Searches notes, loads domain context, restores session context, creates session notes and artifacts with record/handoff/quick modes, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
       "author": {
         "name": "Lyainc",
