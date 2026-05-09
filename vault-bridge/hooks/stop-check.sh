@@ -9,6 +9,12 @@
 
 set -euo pipefail
 
+# Hard dependency: jq. README documents this as a Prerequisite, but tolerate a
+# missing binary by exiting silently rather than producing hook errors on every
+# Stop event under `set -e`. Mirrors the python3 graceful-exit pattern in
+# plan-doc-sync.sh.
+command -v jq >/dev/null 2>&1 || exit 0
+
 # Ensure a UTF-8 locale so Korean keywords match under grep -E even when the
 # parent shell uses a bare C/POSIX locale (otherwise multi-byte chars silently fail).
 # Probe for an installed UTF-8 locale; leave LC_ALL untouched if none found
@@ -24,7 +30,7 @@ fi
 
 payload=$(cat)
 
-transcript_path=$(printf '%s' "$payload" | jq -r '.transcript_path // empty')
+transcript_path=$(printf '%s' "$payload" | jq -r '.transcript_path // empty' 2>/dev/null || true)
 
 if [[ -z "$transcript_path" || ! -f "$transcript_path" ]]; then
   exit 0
