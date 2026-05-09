@@ -31,6 +31,22 @@ When a target note is known by path, include enough path context to disambiguate
 [[30_Notes/api-design]]
 ```
 
+### Block IDs
+
+Block IDs let you target a specific paragraph, list item, or quote with `[[Note#^block-id]]`. Append the ID with `^` at the end of the block. For list items or block quotes, place the ID on its own line.
+
+```md
+This paragraph can be linked from elsewhere. ^summary-2026-05
+
+- First item ^item-a
+- Second item
+
+> A quoted insight worth referencing.
+> ^quote-key
+```
+
+Use lowercase letters, digits, and hyphens. IDs must be unique within a note.
+
 ## Properties / YAML frontmatter
 
 Properties are YAML frontmatter fields. Keep generated properties flat, unique per note, and easy to parse.
@@ -63,6 +79,7 @@ reviewed_at: 2026-05-02T18:30:00
 | Date & time | `captured_at: 2026-05-02T18:30:00` | Use ISO-like local time unless a workflow requires UTC. |
 | Tags | <code>tags:<br>  - capture<br>  - project/foo</code> | Tags are a list. Inline YAML lists are acceptable for short existing templates. |
 | Internal link | `project: "[[Project]]"` | Quote wikilinks in YAML values. |
+| CSS classes | <code>cssclasses:<br>  - dense-tables</code> | Apply CSS classes to the note for theme-specific styling (treated as a list). |
 
 ## Tags
 
@@ -129,6 +146,62 @@ Use Obsidian comments for generator notes that should not render in Reading view
 ```
 
 Do not store sensitive information in comments; comments remain in the Markdown file.
+
+## Highlights and inline emphasis
+
+`==text==` renders as a yellow-background ==highlight== in Reading view. Useful for review markers, captured insights, or snippets you intend to revisit.
+
+Standard inline emphasis:
+
+- `*italic*` → *italic*
+- `**bold**` → **bold**
+- `~~strikethrough~~` → ~~strikethrough~~
+- `==highlight==` → ==highlight==
+- `` `inline code` `` → `inline code`
+
+## Math (LaTeX)
+
+Obsidian renders LaTeX math via MathJax.
+
+- Inline: `$E = mc^2$` renders inline with surrounding text.
+- Block: surround the expression with `$$ ... $$` on its own lines:
+
+$$
+\sum_{i=1}^{n} x_i = \mu n
+$$
+
+Avoid math in headings or property values; keep it in body prose or callouts.
+
+## Diagrams (Mermaid)
+
+Use Mermaid blocks for inline diagrams. To make a node link to another vault note, add `class NodeId internal-link` and write the node text exactly as the target note title — Obsidian resolves it as a wikilink in Reading view.
+
+```mermaid
+graph LR
+  A[Master Plan] --> B[Vault Log]
+  A --> C[OVM]
+  class A,B,C internal-link
+```
+
+Keep diagrams short — large ones hurt readability and embed performance.
+
+## Footnotes
+
+Numbered footnote with a definition placed at the bottom of the note:
+
+```md
+Markdown supports footnotes[^1].
+
+[^1]: Definition text appears at the bottom of the rendered note.
+```
+
+Inline footnote (definition right at the reference site):
+
+```md
+Inline footnote example.^[Short note inlined; rendered at the bottom.]
+```
+
+Use footnotes for citations, expanded context, or sources without breaking prose flow.
 
 ## Task lists
 
