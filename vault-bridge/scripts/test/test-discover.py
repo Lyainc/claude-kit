@@ -12,6 +12,7 @@ Run: python3 vault-bridge/scripts/test/test-discover.py
 Exit 0 on pass, 1 on fail.
 """
 
+import importlib.util
 import subprocess
 import sys
 import tempfile
@@ -19,6 +20,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 SYNCER = ROOT / "scripts" / "plan-doc-syncer.py"
+
+# Allow direct import of gate functions for unit-level coverage.
+sys.path.insert(0, str(SYNCER.parent))
+spec = importlib.util.spec_from_file_location("plan_doc_syncer", SYNCER)
+_pds = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(_pds)
 
 
 def _touch(path: Path, body: str = "# stub\n") -> None:
@@ -281,6 +288,54 @@ def case_single_scalar_override(errors: list[str]) -> None:
         _assert("PLAN.md" in got, "default-include preserved alongside scalar override", errors)
 
 
+def case_snapshot_export_l1(errors: list[str]) -> None:
+    print("\ncase: snapshot_export L1 (new key only)")
+    _assert(_pds._check_gate_l1({"snapshot_export": True}) is True,
+            "snapshot_export: true → gate passes", errors)
+    _assert(_pds._check_gate_l1({"snapshot_export": False}) is False,
+            "snapshot_export: false → gate fails (no alias fallback when explicit false)", errors)
+    _assert(_pds._check_gate_l1({}) is False,
+            "neither key present → gate fails", errors)
+
+
+def case_auto_capture_alias_warns_stderr(errors: list[str]) -> None:
+    print("\ncase: auto_capture alias emits stderr deprecation warning")
+    import io
+    import contextlib
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        vl = root / ".vault-link"
+        vl.write_text("vault_path: 20_Projects/test\nauto_capture: true\n", encoding="utf-8")
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):
+            result = _pds._load_vault_link(vl)
+        stderr_output = buf.getvalue()
+        _assert(result.get("auto_capture") is True, "alias key parsed", errors)
+        _assert("deprecated" in stderr_output and "snapshot_export" in stderr_output,
+                f"stderr contains deprecation warning (got: {stderr_output!r})", errors)
+        # Gate still passes via alias fallback.
+        _assert(_pds._check_gate_l1(result) is True,
+                "alias-only .vault-link still passes L1 gate", errors)
+
+
+def case_both_keys_present_new_wins(errors: list[str]) -> None:
+    print("\ncase: snapshot_export wins when both keys present")
+    import io
+    import contextlib
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        vl = root / ".vault-link"
+        vl.write_text("vault_path: 20_Projects/test\nsnapshot_export: false\nauto_capture: true\n", encoding="utf-8")
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf):
+            result = _pds._load_vault_link(vl)
+        stderr_output = buf.getvalue()
+        _assert(_pds._check_gate_l1(result) is False,
+                "snapshot_export: false wins over alias auto_capture: true", errors)
+        _assert("deprecated" not in stderr_output,
+                f"no deprecation warning when new key is present (got: {stderr_output!r})", errors)
+
+
 def main() -> int:
     print(f"Running --discover regression tests against: {SYNCER}")
     errors: list[str] = []
@@ -293,6 +348,9 @@ def main() -> int:
     case_malformed_vault_link(errors)
     case_quoted_and_inline_array_scalars(errors)
     case_single_scalar_override(errors)
+    case_snapshot_export_l1(errors)
+    case_auto_capture_alias_warns_stderr(errors)
+    case_both_keys_present_new_wins(errors)
     print()
     if errors:
         print(f"FAILED: {len(errors)} assertion(s) failed", file=sys.stderr)

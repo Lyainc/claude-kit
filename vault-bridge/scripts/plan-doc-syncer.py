@@ -317,7 +317,15 @@ def _load_vault_link(vault_link_path: Path) -> dict:
             "fields after the first block will be silently dropped.\n"
         )
     # Wrap body as a frontmatter block so the same list-aware parser applies.
-    return _parse_frontmatter(f"---\n{text.rstrip()}\n---\n") or {}
+    result = _parse_frontmatter(f"---\n{text.rstrip()}\n---\n") or {}
+    # Deprecation warning (호출당 1회). auto_capture는 4주 후 hard-remove 예정.
+    # Q3.1: snapshot_export가 신규 SoT 키, auto_capture는 backward-compat alias.
+    if "auto_capture" in result and "snapshot_export" not in result:
+        sys.stderr.write(
+            f"warn: {vault_link_path}: 'auto_capture' is deprecated; "
+            "rename to 'snapshot_export'. The alias will be removed in ~4 weeks.\n"
+        )
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -409,22 +417,32 @@ def _resolve_source_commit(source_path: Path) -> tuple[str, bool, str | None]:
 # ---------------------------------------------------------------------------
 
 def _check_gate_l1(vault_link: dict) -> bool:
-    """Layer 1: .vault-link auto_capture: true"""
-    val = vault_link.get("auto_capture")
-    return val is True
+    """Layer 1 — .vault-link snapshot_export (auto_capture is a 4-week deprecation alias)."""
+    primary = vault_link.get("snapshot_export")
+    if primary is True:
+        return True
+    if primary is False:
+        return False
+    # Fallback to deprecated alias (warning emitted in _load_vault_link).
+    return vault_link.get("auto_capture") is True
 
 
 def _check_gate_l2(vault_root: Path, vault_path: str) -> bool:
-    """Layer 2: _index.md auto_capture: true in bound vault project."""
+    """Layer 2 — _index.md snapshot_import (auto_capture is a 4-week deprecation alias)."""
     index_path = vault_root / vault_path / "_index.md"
     if not index_path.exists():
         return False
     try:
         text = index_path.read_text(encoding="utf-8")
         fm = _parse_frontmatter(text)
-        return fm.get("auto_capture") is True
     except OSError:
         return False
+    primary = fm.get("snapshot_import")
+    if primary is True:
+        return True
+    if primary is False:
+        return False
+    return fm.get("auto_capture") is True
 
 
 # ---------------------------------------------------------------------------
