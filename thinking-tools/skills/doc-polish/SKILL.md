@@ -2,17 +2,19 @@
 name: doc-polish
 
 description: |
-  Validate and improve existing Markdown documents through 3-layer quality analysis.
-  Acts as an Editor (not Writer) - preserves content while enhancing expression quality.
+  Validate and improve EXISTING Markdown documents through 3-layer quality analysis.
+  Acts as an Editor (not Writer) — requires an existing MD file as input;
+  preserves content while enhancing expression quality.
 
   Use when the user requests document quality check, linting, or expression improvement
-  on existing MD files.
+  on existing MD files (for creating new content from scratch, use doc-concretize).
 
-  Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, polish, lint, 교정, 검토,
+  Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, polish, lint, 교정,
   or requests: "이 문서 검사해줘", "README 다듬어줘", "품질 체크해줘",
   "polish this document", "lint my markdown".
 
-  Skip for: content creation (use doc-concretize), simple questions, non-MD files.
+  Skip for: creating new content from scratch (use doc-concretize),
+  blind-spot review of plans (use unknown-discovery), simple questions, non-MD files.
 allowed-tools: Read Edit Grep Glob
 ---
 

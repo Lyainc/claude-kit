@@ -4,6 +4,10 @@ description: |
   Thinking-tools auto-routing facilitator agent.
   Analyzes user requests to select the optimal thinking tool,
   and orchestrates inter-skill pipelines when needed.
+
+  Use when 2+ thinking-tools triggers match OR the user request is ambiguous.
+  For a single strong-signal trigger (e.g., '구체화', '검사해줘', '반증해줘'),
+  invoke the matching skill directly without facilitator routing.
 model: sonnet
 color: blue
 skills:

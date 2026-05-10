@@ -12,6 +12,9 @@ description: |
   or requests: "이 설계를 보안/성능/UX 전문가 관점에서 검토해줘", "찬반 의견 정리해줘",
   "전문가 패널로 분석해줘", "다양한 관점에서 평가해줘", "장단점을 체계적으로 분석해줘",
   "트레이드오프를 정리해줘", "이해관계자별 의견을 시뮬레이션해줘".
+
+  Skip for: 1:1 attack/rebuttal of a single claim (use adversarial-review),
+  blind-spot interview to surface unknown unknowns (use unknown-discovery).
 allowed-tools: Read Write AskUserQuestion
 ---
 
