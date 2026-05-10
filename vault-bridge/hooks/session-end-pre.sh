@@ -45,8 +45,8 @@ vault_path=""
 
 if [ -f "$vault_link_file" ]; then
   vl_present=true
-  # Anchored grep — never match `# auto_capture: true` comments.
-  if grep -qE '^auto_capture[[:space:]]*:[[:space:]]*true' "$vault_link_file" 2>/dev/null; then
+  # Anchored grep — never match `# snapshot_export: true` comments.
+  if grep -qE '^(snapshot_export|auto_capture)[[:space:]]*:[[:space:]]*true' "$vault_link_file" 2>/dev/null; then
     auto_capture_l1=true
   fi
   vault_path=$(grep -E '^vault_path[[:space:]]*:' "$vault_link_file" 2>/dev/null \
@@ -62,7 +62,7 @@ if [ -n "$vault_path" ]; then
   index_file="${vault_root}/${vault_path}/_index.md"
   if [ -f "$index_file" ]; then
     index_present=true
-    if grep -qE '^auto_capture[[:space:]]*:[[:space:]]*true' "$index_file" 2>/dev/null; then
+    if grep -qE '^(snapshot_import|auto_capture)[[:space:]]*:[[:space:]]*true' "$index_file" 2>/dev/null; then
       auto_capture_l2=true
     fi
   fi
