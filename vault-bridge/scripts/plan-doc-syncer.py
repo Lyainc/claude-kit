@@ -318,9 +318,16 @@ def _load_vault_link(vault_link_path: Path) -> dict:
         )
     # Wrap body as a frontmatter block so the same list-aware parser applies.
     result = _parse_frontmatter(f"---\n{text.rstrip()}\n---\n") or {}
-    # Deprecation warning (호출당 1회). auto_capture는 4주 후 hard-remove 예정.
-    # Q3.1: snapshot_export가 신규 SoT 키, auto_capture는 backward-compat alias.
-    if "auto_capture" in result and "snapshot_export" not in result:
+    # Deprecation warning, once per call. auto_capture is the legacy SoT key
+    # being phased out 4 weeks from Q3.1 ship; snapshot_export is the new key.
+    # session-end-pre.sh sets VAULT_BRIDGE_SUPPRESS_DEPRECATION=1 so the warning
+    # does not pollute the syncer_err log (which is interpreted as discovery_error
+    # by the prompt-side hook). Interactive callers (/save-plan-doc) keep it.
+    if (
+        "auto_capture" in result
+        and "snapshot_export" not in result
+        and os.environ.get("VAULT_BRIDGE_SUPPRESS_DEPRECATION") != "1"
+    ):
         sys.stderr.write(
             f"warn: {vault_link_path}: 'auto_capture' is deprecated; "
             "rename to 'snapshot_export'. The alias will be removed in ~4 weeks.\n"
@@ -428,14 +435,24 @@ def _check_gate_l1(vault_link: dict) -> bool:
 
 
 def _check_gate_l2(vault_root: Path, vault_path: str) -> bool:
-    """Layer 2 — _index.md snapshot_import (auto_capture is a 4-week deprecation alias)."""
+    """Layer 2 — _index.md snapshot_import (auto_capture is a 4-week deprecation alias).
+
+    Fails closed on any I/O or parse failure: a gate function must never leak
+    exceptions to the caller, so an unexpected parser error is treated as
+    "gate denied" rather than crashing /save-plan-doc.
+    """
     index_path = vault_root / vault_path / "_index.md"
     if not index_path.exists():
         return False
     try:
         text = index_path.read_text(encoding="utf-8")
-        fm = _parse_frontmatter(text)
+        fm = _parse_frontmatter(text) or {}
     except OSError:
+        return False
+    except Exception as exc:
+        sys.stderr.write(
+            f"warn: {index_path}: unexpected parse error ({exc}); gate denied.\n"
+        )
         return False
     primary = fm.get("snapshot_import")
     if primary is True:
