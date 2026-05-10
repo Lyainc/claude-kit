@@ -33,6 +33,25 @@ Parse the `.vault-link` content:
 - `vault_path`: bound vault project path (e.g. `20_Projects/claude-kit`)
 - `snapshot_export`: Layer 1 opt-in flag (default: `false` if absent). `auto_capture` is honored as a 4-week deprecation alias — the syncer emits a stderr warning when only the alias is present.
 
+### Step 1.5 — Declare intent
+
+Before discovering candidates, ask the user to declare why they are saving now. The same `/save-plan-doc` command serves two opposite intents — committing to current work, or deferring to a later session — and the downstream ExitPlanMode recommendation differs accordingly.
+
+Use **AskUserQuestion**:
+
+> plan을 vault에 저장하시겠어요? 어떤 의도인지 알려주시면 ExitPlanMode 추천이 달라져요.
+
+Options:
+- 지금 작업 — 저장하고 진행 — vault에 스냅샷 + ExitPlanMode에서 진행 선택을 추천해요.
+- 다음 세션으로 — 저장만 하고 종료 — vault에 스냅샷 + ExitPlanMode에서 거절(다음 세션 재개)을 추천해요.
+- 취소 — 저장하지 않고 종료해요.
+
+Persist the choice as `intent ∈ {now, defer, cancel}` for Step 6.
+
+If the user chooses 취소, stop immediately. Otherwise continue to Step 1.7.
+
+When plan mode is not active in the calling context, the ExitPlanMode recommendation is moot — the question is still safe to ask, the user simply receives no follow-up action. No separate branching is needed.
+
 ### Step 1.7 — Pre-discover for impact preview
 
 Run `--discover --summary` once before the gate prompt so AskUserQuestion can show the candidate count and the category breakdown when noise is high:
@@ -176,6 +195,12 @@ Where `{per_file_results}` lists each file with status:
 **If vault has uncommitted changes after saving:**
 
 > vault에 미커밋 변경이 생겼어요. `/vault-commit`으로 커밋할 수 있어요.
+
+**Intent-aware closing line** (append after the success block, depending on Step 1.5's `intent`):
+
+- `intent == now` → `> 저장 완료. 이어서 ExitPlanMode에서 "진행"을 선택해 주세요.`
+- `intent == defer` → `> 저장 완료. 이어서 ExitPlanMode에서 "거절"을 선택하면 다음 세션에서 재개할 수 있어요.`
+- (plan mode가 비활성이면 위 줄은 안내일 뿐 실제 ExitPlanMode 단계가 없어요 — 무해.)
 
 ## Rules
 
