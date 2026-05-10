@@ -19,13 +19,7 @@
     "moc",
     "archive",
     "project-binding",
-    "schema",
-    "primitives",
-    "audit-state",
     "vault-audit",
-    "integrity",
-    "obsidian-format",
-    "defuddle",
-    "obsidian-cli"
+    "integrity"
   ]
 }

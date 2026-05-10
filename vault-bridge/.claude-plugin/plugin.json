@@ -19,17 +19,9 @@
     "hooks",
     "vault-link",
     "project-binding",
-    "manifest",
-    "token-optimization",
-    "guard",
-    "access-awareness",
     "git-commit",
-    "auto-commit",
-    "write-guard",
-    "naming-convention",
     "plan-doc-autosync",
     "save-plan-doc",
-    "snapshot",
     "obsidian-cli"
   ],
   "hooks": {
