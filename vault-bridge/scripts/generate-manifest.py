@@ -24,7 +24,7 @@ import time
 from pathlib import Path
 
 SCHEMA_VERSION = 1
-SUMMARY_MAX_CHARS = 200
+SUMMARY_MAX_CHARS = 400
 EXCLUDED_DIRS = {".vault-bridge", ".claude", "90_Assets", ".git"}
 
 
@@ -137,20 +137,78 @@ def _extract_title(text: str, fallback: str) -> str:
     return fallback
 
 
+_HR_LINES = {"---", "***", "___"}
+_CALLOUT_HEADER_RE = re.compile(r"^>\s*\[![A-Za-z]+\][^\n]*$")
+_LIST_ITEM_RE = re.compile(r"^([-*+]\s|\d+[.)]\s)")
+
+
+def _is_prose_skipline(stripped: str) -> bool:
+    """
+    True for markup that should not start a summary paragraph.
+
+    Skipped: headings (#), horizontal rules, list/task items, callout headers
+    (`> [!type] ...`).
+    Allowed: regular blockquote content (`> ...`) — Obsidian callouts are
+    structurally a blockquote and often contain the most informative copy
+    for held/draft files.
+    """
+    if not stripped:
+        return False
+    if stripped.startswith("#") or stripped in _HR_LINES:
+        return True
+    if _LIST_ITEM_RE.match(stripped):
+        return True
+    if _CALLOUT_HEADER_RE.match(stripped):
+        return True
+    return False
+
+
+def _strip_blockquote_marker(stripped: str) -> str:
+    """Strip leading `>` (and optional space) used by Obsidian callouts."""
+    if stripped.startswith(">"):
+        return stripped[1:].lstrip()
+    return stripped
+
+
 def _extract_summary(text: str) -> str:
-    """Return first non-empty paragraph after frontmatter, max SUMMARY_MAX_CHARS."""
+    """
+    Return the first prose paragraph after frontmatter, capped at SUMMARY_MAX_CHARS.
+
+    Skips leading non-prose markup (headings, horizontal rules, list items,
+    callout headers, fenced code blocks) so the summary reflects actual body
+    content rather than the H1 echo. Callout body lines are kept (with `>`
+    stripped) because they carry meaningful copy in held/draft notes.
+    This is what vault-searcher uses to triage notes without opening them.
+    """
     body = _strip_frontmatter(text)
     paragraph_lines: list[str] = []
     in_paragraph = False
+    in_fence = False
 
     for line in body.splitlines():
         stripped = line.strip()
+
+        # Track ``` / ~~~ fenced code blocks; never include their contents.
+        if stripped.startswith("```") or stripped.startswith("~~~"):
+            if in_paragraph:
+                break
+            in_fence = not in_fence
+            continue
+        if in_fence:
+            continue
+
         if stripped == "":
             if in_paragraph:
                 break
-        else:
-            in_paragraph = True
-            paragraph_lines.append(stripped)
+            continue
+
+        if _is_prose_skipline(stripped):
+            if in_paragraph:
+                break
+            continue
+
+        in_paragraph = True
+        paragraph_lines.append(_strip_blockquote_marker(stripped))
 
     summary = " ".join(paragraph_lines).strip()
     if len(summary) > SUMMARY_MAX_CHARS:
