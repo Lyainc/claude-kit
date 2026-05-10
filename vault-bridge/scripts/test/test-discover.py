@@ -227,6 +227,60 @@ def case_malformed_vault_link(errors: list[str]) -> None:
         _assert("PLAN.md" in set(lines), "default-include still works after malformed override", errors)
 
 
+def case_quoted_and_inline_array_scalars(errors: list[str]) -> None:
+    """
+    Parse correctness for `_parse_scalar` / `_FLOW_ARRAY_RE`: quoted scalars
+    must have surrounding quotes stripped, and inline flow arrays must
+    decompose into individual patterns. Replaces the parser-correctness
+    surface that the deleted test-yaml-value.sh covered indirectly.
+    """
+    print("\ncase: quoted / inline-array override scalars")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _touch(root / "PLAN.md")
+        _touch(root / "alpha.md")
+        _touch(root / "beta.md")
+        _touch(root / "specs" / "auth.md")
+        # `autosync_paths_include` mixes a flow array of quoted+unquoted items
+        # plus a single block-list quoted entry. All four files must surface.
+        (root / ".vault-link").write_text(
+            'vault_path: 20_Projects/test\n'
+            'autosync_paths_include: [alpha.md, "beta.md"]\n'
+            'autosync_paths_exclude:\n'
+            '  - "PLAN.md"\n',
+            encoding="utf-8",
+        )
+        rc, lines, stderr = _run_discover(root)
+        _assert(rc == 0, "exit 0", errors)
+        got = set(lines)
+        _assert("alpha.md" in got, "unquoted inline-array element matched", errors)
+        _assert("beta.md" in got, "quoted inline-array element matched (quotes stripped)", errors)
+        _assert("PLAN.md" not in got, "quoted exclude pattern strips quotes and suppresses default", errors)
+
+
+def case_single_scalar_override(errors: list[str]) -> None:
+    """
+    `_resolve_effective_patterns` coerces a bare-string override into a
+    single-element list. Without that branch a user writing
+    `autosync_paths_include: foo.md` would silently get zero matches.
+    """
+    print("\ncase: single-scalar override coerced to list")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _touch(root / "PLAN.md")
+        _touch(root / "single-target.md")
+        (root / ".vault-link").write_text(
+            "vault_path: 20_Projects/test\n"
+            "autosync_paths_include: single-target.md\n",
+            encoding="utf-8",
+        )
+        rc, lines, stderr = _run_discover(root)
+        _assert(rc == 0, "exit 0", errors)
+        got = set(lines)
+        _assert("single-target.md" in got, "bare-string include coerced to list and matched", errors)
+        _assert("PLAN.md" in got, "default-include preserved alongside scalar override", errors)
+
+
 def main() -> int:
     print(f"Running --discover regression tests against: {SYNCER}")
     errors: list[str] = []
@@ -237,6 +291,8 @@ def main() -> int:
     case_no_dup_on_overlapping_patterns(errors)
     case_traversal_pattern_blocked(errors)
     case_malformed_vault_link(errors)
+    case_quoted_and_inline_array_scalars(errors)
+    case_single_scalar_override(errors)
     print()
     if errors:
         print(f"FAILED: {len(errors)} assertion(s) failed", file=sys.stderr)

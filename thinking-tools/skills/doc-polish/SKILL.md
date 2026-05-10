@@ -7,7 +7,7 @@ description: |
   preserves content while enhancing expression quality.
 
   Use when the user requests document quality check, linting, or expression improvement
-  on existing MD files.
+  on existing MD files (for creating new content from scratch, use doc-concretize).
 
   Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, polish, lint, 교정,
   or requests: "이 문서 검사해줘", "README 다듬어줘", "품질 체크해줘",
