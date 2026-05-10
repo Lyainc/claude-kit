@@ -439,7 +439,15 @@ def case_recent_zero_candidates(errors: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         (root / ".vault-link").write_text("vault_path: 20_Projects/test\n", encoding="utf-8")
-        _touch(root / "PLAN.md")
+        target = root / "PLAN.md"
+        _touch(target)
+        # Explicitly backdate mtime by 2 s to defeat 1-second mtime precision on
+        # coarse filesystems (FAT, some CI mounts). Without this the file's mtime
+        # can equal cutoff when --recent 0 evaluates `mtime < cutoff`, causing
+        # intermittent failures because the strict-less comparison passes the file
+        # through.
+        past_ts = time.time() - 2
+        os.utime(target, (past_ts, past_ts))
         proc = subprocess.run(
             [sys.executable, str(SYNCER), "--discover", str(root), "--recent", "0"],
             capture_output=True, text=True, cwd=str(root),
@@ -447,6 +455,26 @@ def case_recent_zero_candidates(errors: list[str]) -> None:
         lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
         _assert(proc.returncode == 0, "exit 0", errors)
         _assert(lines == [], f"--recent 0 emits no candidates (got: {lines})", errors)
+
+
+def case_recent_and_summary_require_discover(errors: list[str]) -> None:
+    """`--recent` / `--summary` without `--discover` must parser.error, not silently ignore.
+
+    Pairing the discovery-only flags with `--source` was almost certainly a typo
+    and the prior silent ignore made the mistake invisible.
+    """
+    print("\ncase: --recent / --summary without --discover are rejected")
+    with tempfile.TemporaryDirectory() as tmp:
+        src = Path(tmp) / "src.md"
+        src.write_text("# stub\n", encoding="utf-8")
+        for flag in (["--recent", "24"], ["--summary"]):
+            proc = subprocess.run(
+                [sys.executable, str(SYNCER), "--source", str(src), *flag],
+                capture_output=True, text=True,
+            )
+            _assert(proc.returncode != 0, f"non-zero exit for {flag}", errors)
+            _assert("require --discover" in proc.stderr,
+                    f"stderr explains the rejection ({flag}): {proc.stderr!r}", errors)
 
 
 def case_threshold_metadata_in_output(errors: list[str]) -> None:
@@ -507,6 +535,7 @@ def main() -> int:
     case_deprecation_suppressed_by_env(errors)
     case_recent_filter_hours(errors)
     case_recent_zero_candidates(errors)
+    case_recent_and_summary_require_discover(errors)
     case_threshold_metadata_in_output(errors)
     print()
     if errors:
