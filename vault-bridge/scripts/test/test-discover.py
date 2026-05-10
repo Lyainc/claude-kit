@@ -19,6 +19,7 @@ import os
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -410,6 +411,83 @@ def case_deprecation_suppressed_by_env(errors: list[str]) -> None:
                 "alias-only .vault-link still passes L1 gate when warning is suppressed", errors)
 
 
+def case_recent_filter_hours(errors: list[str]) -> None:
+    print("\ncase: --recent filter (hours)")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".vault-link").write_text("vault_path: 20_Projects/test\n", encoding="utf-8")
+        recent_file = root / "docs" / "plans" / "fresh.md"
+        old_file = root / "docs" / "plans" / "stale.md"
+        _touch(recent_file)
+        _touch(old_file)
+        # Set old_file mtime to 100 hours ago.
+        old_ts = time.time() - (100 * 3600)
+        os.utime(old_file, (old_ts, old_ts))
+        # --recent 24 should keep fresh.md, drop stale.md.
+        proc = subprocess.run(
+            [sys.executable, str(SYNCER), "--discover", str(root), "--recent", "24"],
+            capture_output=True, text=True, cwd=str(root),
+        )
+        lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert("docs/plans/fresh.md" in lines, "recent file kept", errors)
+        _assert("docs/plans/stale.md" not in lines, "100h-old file filtered out", errors)
+
+
+def case_recent_zero_candidates(errors: list[str]) -> None:
+    print("\ncase: --recent 0 → zero candidates (cutoff = now)")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".vault-link").write_text("vault_path: 20_Projects/test\n", encoding="utf-8")
+        _touch(root / "PLAN.md")
+        proc = subprocess.run(
+            [sys.executable, str(SYNCER), "--discover", str(root), "--recent", "0"],
+            capture_output=True, text=True, cwd=str(root),
+        )
+        lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(lines == [], f"--recent 0 emits no candidates (got: {lines})", errors)
+
+
+def case_threshold_metadata_in_output(errors: list[str]) -> None:
+    print("\ncase: --summary emits category breakdown above threshold")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".vault-link").write_text("vault_path: 20_Projects/test\n", encoding="utf-8")
+        # Create 12 candidates spread across two categories — threshold default 10.
+        for i in range(7):
+            _touch(root / "docs" / "discussions" / f"topic-{i}.md")
+        for i in range(5):
+            _touch(root / "docs" / "design" / f"feature-{i}.md")
+        # With --summary and 12 >= threshold 10, stderr should include JSON.
+        proc = subprocess.run(
+            [sys.executable, str(SYNCER), "--discover", str(root), "--summary"],
+            capture_output=True, text=True, cwd=str(root),
+        )
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(proc.stderr.strip() != "", "stderr non-empty when count >= threshold", errors)
+        try:
+            import json as _json
+            summary = _json.loads(proc.stderr.strip().splitlines()[-1])
+            _assert(summary.get("count") == 12, f"count=12 (got: {summary.get('count')})", errors)
+            _assert(summary.get("threshold") == 10, f"threshold=10 (got: {summary.get('threshold')})", errors)
+            _assert(isinstance(summary.get("categories"), dict) and len(summary["categories"]) >= 1,
+                    "categories dict non-empty", errors)
+        except (ValueError, IndexError) as exc:
+            _assert(False, f"stderr summary not valid JSON: {exc}", errors)
+        # Below-threshold case: --summary with <10 candidates → stderr empty for summary.
+        for i in range(7):
+            (root / "docs" / "discussions" / f"topic-{i}.md").unlink()
+        proc2 = subprocess.run(
+            [sys.executable, str(SYNCER), "--discover", str(root), "--summary"],
+            capture_output=True, text=True, cwd=str(root),
+        )
+        _assert(proc2.returncode == 0, "exit 0 (below threshold)", errors)
+        # 5 candidates < 10 threshold, stderr should NOT contain summary JSON.
+        _assert("count" not in proc2.stderr,
+                f"no summary emitted below threshold (got stderr: {proc2.stderr!r})", errors)
+
+
 def main() -> int:
     print(f"Running --discover regression tests against: {SYNCER}")
     errors: list[str] = []
@@ -427,6 +505,9 @@ def main() -> int:
     case_both_keys_present_new_wins(errors)
     case_snapshot_import_l2(errors)
     case_deprecation_suppressed_by_env(errors)
+    case_recent_filter_hours(errors)
+    case_recent_zero_candidates(errors)
+    case_threshold_metadata_in_output(errors)
     print()
     if errors:
         print(f"FAILED: {len(errors)} assertion(s) failed", file=sys.stderr)
