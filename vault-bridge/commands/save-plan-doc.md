@@ -112,7 +112,7 @@ Use **AskUserQuestion**:
 > 이 권한은 vault 오너만 변경할 수 있어요. 본인이 vault 오너라면 다음 명령으로 켤 수 있어요:
 >
 > ```
-> /project {project_name} --enrich auto_capture=true
+> /project {project_name} --enrich snapshot_import=true
 > ```
 >
 > (vault 오너가 아닌 경우 우회 저장한 스냅샷은 vault 오너 정책에 따라 나중에 정리될 수 있어요.)
@@ -130,7 +130,7 @@ If both gates pass (both `snapshot_export` and `snapshot_import` true, or via al
 
 ### Step 3 — Use Step 1.7's discovery result
 
-The candidate list and optional category breakdown are already in memory from Step 1.7 — do not re-run `--discover`. If no candidates were found there, output and stop:
+The candidate list and optional category breakdown are already in memory from Step 1.7 — do not re-run `--discover` here. (Step 4's "최근 24시간만" option is the one explicit re-run, scoped to the `--recent` filter.) If no candidates were found in Step 1.7, output and stop:
 
 > 현재 프로젝트에서 저장할 plan/design 문서를 찾지 못했어요.
 > 대상 경로: `docs/discussions/`, `docs/design/`, `docs/plans/`, `.omc/plans/`, `PLAN.md`, `DESIGN.md`, `RFC-*.md`
@@ -146,7 +146,7 @@ Use **AskUserQuestion** to show the discovered files and ask which to save:
 >
 > 저장 방식을 선택하세요:
 
-If count >= threshold, prefer the category summary (from Step 1.7) over the full numbered list to keep the prompt readable. Offer "전체 저장" / "최근 N시간만 (--recent)" / "목록에서 선택" / "취소" in that case.
+If count >= threshold, prefer the category summary (from Step 1.7) over the full numbered list to keep the prompt readable. Add the "최근 24시간만" filter option in that case.
 
 Options (default):
 - 전체 저장 (모두 {N}개)
@@ -154,7 +154,7 @@ Options (default):
 - 취소
 
 Optional 4th option when count >= threshold:
-- 최근 24시간만 ({M}개) — 이 옵션 선택 시 Step 1.7을 `--recent 24`로 재실행하여 후보 좁힘.
+- 최근 24시간만 — 이 옵션 선택 시 syncer를 `--recent 24`로 재실행하여 후보를 좁힌 뒤, 좁혀진 결과를 다시 Step 4의 prompt로 보여줘요. 좁혀진 후보 수는 재실행 후에야 알 수 있어요.
 
 If the user chooses "목록에서 선택", ask for comma-separated file numbers (e.g. "1,3") in the next turn.
 
