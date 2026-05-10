@@ -187,15 +187,23 @@ def _matches_exclude(rel_path: str, exclude_patterns: list[str]) -> bool:
     return False
 
 
-def _discover_candidates(project_root: Path, vault_link: dict) -> list[str]:
+def _discover_candidates(
+    project_root: Path,
+    vault_link: dict,
+    recent_hours: int | None = None,
+) -> list[str]:
     """
     Scan project_root using effective include patterns; filter out exclude
     patterns and vault-native paths. Returns sorted project-root-relative paths.
+
+    If recent_hours is given, only files whose mtime is within the last N hours
+    are included. recent_hours=0 → cutoff equals now → all files filtered out.
     """
     include, exclude = _resolve_effective_patterns(vault_link)
     debug = os.environ.get("VAULT_BRIDGE_DEBUG") == "1"
     project_root_resolved = project_root.resolve()
     found: set[str] = set()
+    cutoff = time.time() - (recent_hours * 3600) if recent_hours is not None else None
     for pattern in include:
         for f in _glob_pattern(project_root, pattern):
             try:
@@ -212,8 +220,36 @@ def _discover_candidates(project_root: Path, vault_link: dict) -> list[str]:
                 continue
             if _matches_exclude(rel, exclude):
                 continue
+            if cutoff is not None:
+                try:
+                    mtime = f.stat().st_mtime
+                except OSError:
+                    continue
+                if mtime < cutoff:
+                    continue
             found.add(rel)
     return sorted(found)
+
+
+def _summarize_categories(paths: list[str], depth: int = 3) -> dict[str, int]:
+    """
+    Group discovery output by leading path prefix for noise diagnostics.
+    `depth` controls how many leading segments form the bucket key:
+      - 'docs/discussions/20260413_topic/file.md' with depth=3 → bucket
+        'docs/discussions/20260413_topic'.
+      - Files with fewer segments fall into a 'TOP_LEVEL' bucket.
+    Returns a dict sorted by count descending, then key ascending.
+    """
+    buckets: dict[str, int] = {}
+    for p in paths:
+        parts = p.split("/")
+        if len(parts) <= 1:
+            key = "TOP_LEVEL"
+        else:
+            key = "/".join(parts[: min(depth, len(parts) - 1)]) + "/"
+        buckets[key] = buckets.get(key, 0) + 1
+    # Sort by count desc, then by key asc for stable output.
+    return dict(sorted(buckets.items(), key=lambda kv: (-kv[1], kv[0])))
 
 # Vault-native plan paths — never autosync these (§9.5 boundary)
 VAULT_NATIVE_PATTERN = re.compile(r"(~/vault/|/Users/[^/]+/vault/|/home/[^/]+/vault/)", re.IGNORECASE)
@@ -819,8 +855,33 @@ def main() -> None:
         default=None,
         help="Scan PROJECT_ROOT and emit candidate plan-doc paths (one per line, project-root-relative).",
     )
+    parser.add_argument(
+        "--recent",
+        metavar="HOURS",
+        default=None,
+        help="With --discover: only emit candidates whose mtime is within last N hours (e.g. --recent 60).",
+    )
+    parser.add_argument(
+        "--summary",
+        action="store_true",
+        default=False,
+        help="With --discover: emit category-breakdown JSON to stderr when candidate count >= VAULT_BRIDGE_DISCOVER_WARN_THRESHOLD (default 10).",
+    )
 
     args = parser.parse_args()
+
+    recent_hours: int | None = None
+    if args.recent is not None:
+        # Accept "60" or "60h" suffix tolerantly.
+        raw = args.recent.strip().lower()
+        if raw.endswith("h"):
+            raw = raw[:-1]
+        try:
+            recent_hours = int(raw)
+        except ValueError:
+            parser.error(f"--recent must be an integer (hours), got: {args.recent!r}")
+        if recent_hours < 0:
+            parser.error(f"--recent must be >= 0, got: {recent_hours}")
 
     # --get-paths short-circuit: emit effective patterns and exit
     if args.get_paths:
@@ -846,8 +907,21 @@ def main() -> None:
                 file=sys.stderr,
             )
         vault_link = _load_vault_link(vault_link_path)
-        for rel in _discover_candidates(project_root, vault_link):
+        rels = _discover_candidates(project_root, vault_link, recent_hours=recent_hours)
+        for rel in rels:
             print(rel)
+        if args.summary:
+            try:
+                threshold = int(os.environ.get("VAULT_BRIDGE_DISCOVER_WARN_THRESHOLD", "10"))
+            except ValueError:
+                threshold = 10
+            if len(rels) >= threshold:
+                summary = {
+                    "count": len(rels),
+                    "threshold": threshold,
+                    "categories": _summarize_categories(rels),
+                }
+                sys.stderr.write(json.dumps(summary, ensure_ascii=False) + "\n")
         sys.exit(0)
 
     if not args.source:
