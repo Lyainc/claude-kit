@@ -8,9 +8,9 @@ Codex/OMX parity note: the Codex-active migration of this root guidance lives in
 
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
 
-- **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 6개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 6개 (capture, note, project, inbox-review, context, archive)
-- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 서빙 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 2개 (Stop, SessionEnd). vault 검색 + session-note 4-mode 생성 + 세션 생명주기 안전망.
+- **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 7개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain, adversarial-review + thinking-facilitator agent)
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 7개 (capture, note, project, inbox-review, context, archive, vault-audit) + reference docs (`reference/vault-audit-rules.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
+- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 5종 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 5개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) + Python scripts (`generate-manifest.py`, `plan-doc-syncer.py`). vault 검색 + session-note 4-mode 생성 + 세션 생명주기 안전망 + 외부 plan-doc 자동 캡처.
 
 ## Git Conventions
 
@@ -47,12 +47,21 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/
-│   └── agents/
+│   ├── skills/                          # 7개 스킬 (vault-audit 포함)
+│   ├── agents/                          # 2개 에이전트
+│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, note-project-binding.md
+│   └── scripts/                         # ovm-primitives.sh, audit-validate.py, gen-fixture.sh
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
-│   └── agents/                          # 에이전트 디렉토리 (vault-searcher)
+│   ├── agents/                          # vault-searcher (haiku, 4 modes)
+│   ├── commands/                        # 5개 슬래시 커맨드 정의
+│   ├── hooks/                           # 5개 hook handler (stop-check, session-end-pre, session-start-manifest, pre-access-guard, pre-write-guard)
+│   └── scripts/                         # generate-manifest.py, plan-doc-syncer.py + tests/
+├── docs/
+│   ├── design/                          # 설계 문서
+│   └── discussions/                     # 의사결정 토론 transcripts (`YYYYMMDD_topic/`)
 ├── CLAUDE.md
+├── AGENTS.md                            # Codex/OMX parity (canonical: CLAUDE.md, mirror: AGENTS.md)
 └── README.md
 ```
 
@@ -121,15 +130,27 @@ type: session|capture|note|project|plan  # required
 status: active|archived        # conditional (session-handoff, project, plan)
 ```
 
-## Session-Note Hooks (vault-bridge)
+## vault-bridge Hooks & Commands
 
-vault-bridge registers two hooks plus one slash command for the session-note workflow:
+vault-bridge registers 5 hook handlers + 5 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
 
-- **Stop** (`hooks/stop-check.sh`, deterministic shell script): per-turn. Reads transcript JSONL, regex-matches the last user text against closing keywords (`세션 끝`, `마무리`, `wrap up`, `end session`, etc.), and emits a `systemMessage` suggesting `/save-session` only on match. **No LLM call** → no per-turn cost and no infinite-loop risk (the prior prompt-based hook caused a loop because every LLM response, even "(silent pass-through)", re-fired the Stop hook).
-- **SessionEnd** (chained `hooks/session-end-pre.sh` → prompt): session close. The shell pre-hook collects deterministic state (vault-link gate flags, plan-doc candidates, counters) and writes a JSON file under `/tmp/vault-bridge-session-${SID}/`; the prompt then reads the JSON, decides whether work was meaningful, and writes the safety-net session-note. Shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery. No user interaction (session already closing).
-- **`/save-session`** (slash command): explicit user trigger to invoke vault-searcher Mode 4 with full mode selection (record/handoff/quick).
+**Hooks**:
 
-The split (deterministic Stop + prompt SessionEnd + explicit slash command) ensures: zero per-turn LLM cost, no loops, safety-net auto-save on `/exit`, and a clear user-driven path for full session notes.
+- **Stop** (`hooks/stop-check.sh`, deterministic): per-turn. Reads transcript JSONL, regex-matches the last user text against closing keywords (`세션 끝`, `마무리`, `wrap up`, `end session`, etc.), and emits a `systemMessage` suggesting `/save-session` only on match. **No LLM call** → no per-turn cost, no infinite-loop risk (the prior prompt-based hook looped because every response — even "(silent pass-through)" — re-fired the Stop hook).
+- **SessionEnd** (chained `hooks/session-end-pre.sh` → prompt): session close. Shell pre-hook collects deterministic state (vault-link gate flags, plan-doc candidates, direct-access counter) and writes JSON to `/tmp/vault-bridge-session-${SID}/session-end-state.json`; prompt then reads it via `jq`, decides whether work was meaningful, writes the safety-net session-note. Pre-hook uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` doesn't break `.vault-link` discovery. The prompt body is compressed (~1000 chars) to keep token overhead minimal.
+- **SessionStart** (`hooks/session-start-manifest.sh`, deterministic): incremental manifest refresh — checks staleness and updates `~/vault/.vault-bridge/manifest.json` only for changed files (background, never blocks session start).
+- **PreToolUse Read|Grep|Glob** (`hooks/pre-access-guard.sh`, deterministic): emits `systemMessage` warning when `~/vault/` is accessed directly; counts direct-access events for the SessionEnd summary. Soft warning, never blocks.
+- **PreToolUse Write|Edit** (`hooks/pre-write-guard.sh`, deterministic): validates filename conventions when writing to `~/vault/`. log-only by default; `VAULT_BRIDGE_STRICT_NAMING=1` blocks on violation.
+
+**Slash commands** (`commands/*.md`):
+
+- **`/save-session`**: explicit trigger for vault-searcher Mode 4 (record/handoff/quick mode selection).
+- **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault location.
+- **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).
+- **`/vault-commit`**: commits uncommitted vault changes with user-approved message.
+- **`/save-plan-doc`**: snapshots external `docs/discussions/`, `docs/design/`, `docs/plans/` markdown into the bound vault project. 2-layer opt-in gate (`.vault-link` + vault `_index.md` `auto_capture: true`).
+
+The split (deterministic Stop + 2-step SessionEnd + explicit slash commands) ensures zero per-turn LLM cost, no loops, safety-net auto-save on `/exit`, and a clear user-driven path for full session notes and plan-doc snapshots.
 
 ## Cross-Plugin MECE Boundaries
 
