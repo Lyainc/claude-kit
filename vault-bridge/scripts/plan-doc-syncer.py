@@ -887,6 +887,12 @@ def main() -> None:
 
     args = parser.parse_args()
 
+    # Reject --recent / --summary without --discover instead of silently ignoring.
+    # The flags only mean something during discovery; pairing them with --source
+    # was almost certainly a typo and the silent ignore would mask the mistake.
+    if (args.recent is not None or args.summary) and not args.discover:
+        parser.error("--recent and --summary require --discover")
+
     recent_hours: int | None = None
     if args.recent is not None:
         # Accept "60" or "60h" suffix tolerantly.
