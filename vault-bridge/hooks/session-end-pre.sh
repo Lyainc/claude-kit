@@ -79,12 +79,30 @@ plan_doc_already_asked=false
 # patterns (docs/discussions, docs/design, docs/plans, .omc/plans, PLAN.md,
 # DESIGN.md, RFC-*.md) plus user-overridden include/exclude globs.
 candidates_json="[]"
+discovery_error=""
 if [ "$auto_capture_l1" = "true" ] && [ "$auto_capture_l2" = "true" ]; then
   syncer="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/scripts/plan-doc-syncer.py"
+  # Capture syncer stderr to state_dir so a crash leaves a forensic artifact
+  # instead of degrading silently to candidates=[]. The empty-log cleanup keeps
+  # clean runs free of clutter; a non-empty log surfaces in state.discovery_error
+  # so the prompt-side hook can tell a real "no candidates" from a discovery crash.
+  syncer_err="${state_dir}/plan-doc-syncer-err.log"
+  # Command substitution (not process substitution) so $? reflects the
+  # syncer's actual exit code — `done < <(cmd)` would lose it.
+  syncer_out=$(python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>"$syncer_err")
+  syncer_rc=$?
   found=()
   while IFS= read -r line; do
     [ -n "$line" ] && found+=("$line")
-  done < <(python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>/dev/null)
+  done <<< "$syncer_out"
+  if [ -s "$syncer_err" ]; then
+    discovery_error=$(head -c 500 "$syncer_err" | tr '\n' ' ')
+  else
+    rm -f "$syncer_err"
+  fi
+  if [ "$syncer_rc" -ne 0 ] && [ -z "$discovery_error" ]; then
+    discovery_error="syncer exited rc=${syncer_rc} with empty stderr"
+  fi
 
   if [ "${#found[@]}" -gt 0 ]; then
     candidates_json=$(python3 -c '
@@ -121,6 +139,7 @@ INDEX_PRESENT="$index_present" \
 AUTO_CAPTURE_L2="$auto_capture_l2" \
 PLAN_DOC_ALREADY_ASKED="$plan_doc_already_asked" \
 CANDIDATES_JSON="$candidates_json" \
+DISCOVERY_ERROR="$discovery_error" \
 DIRECT_ACCESS_COUNT="$direct_access_count" \
 python3 - <<'PY' > "$state_file"
 import json, os
@@ -156,6 +175,7 @@ state = {
         "auto_capture_active": auto_l1 and auto_l2,
         "already_asked": b("PLAN_DOC_ALREADY_ASKED"),
         "candidates": candidates,
+        "discovery_error": s("DISCOVERY_ERROR") or None,
     },
     "direct_access_count": int(os.environ.get("DIRECT_ACCESS_COUNT", "0") or 0),
 }
