@@ -89,7 +89,10 @@ if [ "$auto_capture_l1" = "true" ] && [ "$auto_capture_l2" = "true" ]; then
   syncer_err="${state_dir}/plan-doc-syncer-err.log"
   # Command substitution (not process substitution) so $? reflects the
   # syncer's actual exit code — `done < <(cmd)` would lose it.
-  syncer_out=$(python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>"$syncer_err")
+  # VAULT_BRIDGE_SUPPRESS_DEPRECATION=1 silences the auto_capture deprecation
+  # warning here so it does not pollute syncer_err and get misclassified as
+  # discovery_error. Interactive callers (/save-plan-doc) leave it unset.
+  syncer_out=$(VAULT_BRIDGE_SUPPRESS_DEPRECATION=1 python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>"$syncer_err")
   syncer_rc=$?
   found=()
   while IFS= read -r line; do

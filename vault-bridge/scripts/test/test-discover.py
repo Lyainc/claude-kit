@@ -12,7 +12,10 @@ Run: python3 vault-bridge/scripts/test/test-discover.py
 Exit 0 on pass, 1 on fail.
 """
 
+import contextlib
 import importlib.util
+import io
+import os
 import subprocess
 import sys
 import tempfile
@@ -300,8 +303,6 @@ def case_snapshot_export_l1(errors: list[str]) -> None:
 
 def case_auto_capture_alias_warns_stderr(errors: list[str]) -> None:
     print("\ncase: auto_capture alias emits stderr deprecation warning")
-    import io
-    import contextlib
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         vl = root / ".vault-link"
@@ -320,8 +321,6 @@ def case_auto_capture_alias_warns_stderr(errors: list[str]) -> None:
 
 def case_both_keys_present_new_wins(errors: list[str]) -> None:
     print("\ncase: snapshot_export wins when both keys present")
-    import io
-    import contextlib
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         vl = root / ".vault-link"
@@ -334,6 +333,81 @@ def case_both_keys_present_new_wins(errors: list[str]) -> None:
                 "snapshot_export: false wins over alias auto_capture: true", errors)
         _assert("deprecated" not in stderr_output,
                 f"no deprecation warning when new key is present (got: {stderr_output!r})", errors)
+
+
+def case_snapshot_import_l2(errors: list[str]) -> None:
+    """Layer 2 gate symmetry — `_check_gate_l2` honors `snapshot_import` over alias.
+
+    Companion to `case_snapshot_export_l1`. Closes the L2/L1 coverage asymmetry
+    flagged on PR #64 and pins the fail-closed behavior of the broadened
+    exception handler in `_check_gate_l2`.
+    """
+    print("\ncase: snapshot_import L2 (new key only)")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp) / "vault"
+        project = "20_Projects/test"
+        index_dir = vault_root / project
+        index_dir.mkdir(parents=True)
+        index = index_dir / "_index.md"
+
+        index.write_text(
+            "---\nsnapshot_import: true\ntitle: Test\n---\n# Body\n",
+            encoding="utf-8",
+        )
+        _assert(_pds._check_gate_l2(vault_root, project) is True,
+                "snapshot_import: true → gate passes", errors)
+
+        index.write_text(
+            "---\nsnapshot_import: false\nauto_capture: true\n---\n",
+            encoding="utf-8",
+        )
+        _assert(_pds._check_gate_l2(vault_root, project) is False,
+                "snapshot_import: false wins over alias auto_capture: true", errors)
+
+        index.write_text(
+            "---\nauto_capture: true\n---\n",
+            encoding="utf-8",
+        )
+        _assert(_pds._check_gate_l2(vault_root, project) is True,
+                "alias auto_capture: true (no new key) → gate passes via fallback", errors)
+
+        # Missing _index.md → gate fails.
+        index.unlink()
+        _assert(_pds._check_gate_l2(vault_root, project) is False,
+                "missing _index.md → gate fails", errors)
+
+
+def case_deprecation_suppressed_by_env(errors: list[str]) -> None:
+    """`VAULT_BRIDGE_SUPPRESS_DEPRECATION=1` silences the alias warning.
+
+    session-end-pre.sh sets this env var before invoking the syncer so the
+    deprecation notice doesn't pollute syncer_err and get reclassified as
+    discovery_error. This pins that suppression contract.
+    """
+    print("\ncase: VAULT_BRIDGE_SUPPRESS_DEPRECATION=1 silences alias warning")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        vl = root / ".vault-link"
+        vl.write_text("vault_path: 20_Projects/test\nauto_capture: true\n", encoding="utf-8")
+
+        prev = os.environ.get("VAULT_BRIDGE_SUPPRESS_DEPRECATION")
+        os.environ["VAULT_BRIDGE_SUPPRESS_DEPRECATION"] = "1"
+        try:
+            buf = io.StringIO()
+            with contextlib.redirect_stderr(buf):
+                result = _pds._load_vault_link(vl)
+            stderr_output = buf.getvalue()
+        finally:
+            if prev is None:
+                os.environ.pop("VAULT_BRIDGE_SUPPRESS_DEPRECATION", None)
+            else:
+                os.environ["VAULT_BRIDGE_SUPPRESS_DEPRECATION"] = prev
+
+        _assert(result.get("auto_capture") is True, "alias key still parsed under suppression", errors)
+        _assert("deprecated" not in stderr_output,
+                f"deprecation warning suppressed when env var is 1 (got: {stderr_output!r})", errors)
+        _assert(_pds._check_gate_l1(result) is True,
+                "alias-only .vault-link still passes L1 gate when warning is suppressed", errors)
 
 
 def main() -> int:
@@ -351,6 +425,8 @@ def main() -> int:
     case_snapshot_export_l1(errors)
     case_auto_capture_alias_warns_stderr(errors)
     case_both_keys_present_new_wins(errors)
+    case_snapshot_import_l2(errors)
+    case_deprecation_suppressed_by_env(errors)
     print()
     if errors:
         print(f"FAILED: {len(errors)} assertion(s) failed", file=sys.stderr)
