@@ -5,6 +5,8 @@
 # inside ~/vault/, emits a systemMessage suggesting vault-searcher instead.
 # Never blocks (exit 0 always). No LLM call — deterministic <50ms.
 #
+# Runtime requirements: bash, jq, python3 (for portable path resolution).
+#
 # Environment variables:
 #   VAULT_BRIDGE_DISABLE=1        — skip entirely (kill switch)
 #   VAULT_BRIDGE_VAULT_ROOT=PATH  — override default ~/vault
@@ -102,6 +104,14 @@ printf '%d' "$new_count" > "$counter_file" 2>/dev/null || true
 # Append to debug log (timestamp + tool + path)
 printf '%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$tool_name" "$abs_path" \
   >> "$log_file" 2>/dev/null || true
+
+# Cap systemMessage emission to milestones (1, 5, 10).
+# Counter and log continue every call (telemetry); only the user-facing
+# notice is gated to avoid hot-path spam in vault-heavy sessions.
+case "$new_count" in
+  1|5|10) ;;
+  *) exit 0 ;;
+esac
 
 # Emit systemMessage (JSON to stdout)
 # Shorten displayed path relative to vault root for readability
