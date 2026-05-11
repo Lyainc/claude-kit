@@ -18,6 +18,15 @@ Codex/OMX parity note: the Codex-active migration of this root guidance lives in
 - **PR descriptions**: Korean
 - **Branches**: `feature/`, `fix/`, `docs/`, `refactor/` prefixes
 
+## PR Workflow
+
+- **Merge strategy**: rebase merge by default (atomic commits preserved, linear history). `--merge` only when an explicit merge commit is needed.
+- **Chained PRs** (child PR base = parent's feature branch):
+  - Before merging parent with `--delete-branch`: update child's base to `main` first (`gh pr edit <child> --base main`). GitHub auto-closes PRs whose base branch is deleted, and closed PRs cannot have their base changed — recreate the PR instead.
+  - After parent rebase-merges, child branch likely has SHAs that diverged from main (rebase merge rewrites them). Rebase locally with `git rebase --onto origin/main <old-parent-tip>` to drop the now-duplicate commits, then `git push --force-with-lease`.
+- **WIP across rebases**: stash unrelated WIP (`.gitignore`, `AGENTS.md`, untracked files etc.) with `git stash push -u -m <msg> -- <paths>` before rebasing, restore after. Rebasing with a dirty tree fails.
+- **PR descriptions**: Korean. Reference the master plan or vault spec when applicable so the trail stays searchable.
+
 ## Language Policy
 
 All plugins (thinking-tools, obsidian-vault-manager, vault-bridge) follow a unified policy:
@@ -85,6 +94,13 @@ python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
 
+# vault-bridge gate + discover unit tests
+python3 vault-bridge/scripts/test/test-discover.py
+# Expected: OK: all cases passed (currently 18 cases)
+
+# Shell hook syntax check
+bash -n vault-bridge/hooks/*.sh
+
 # vault-audit DoD 측정 (mechanical reference impl)
 rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
@@ -148,7 +164,7 @@ vault-bridge registers 5 hook handlers + 5 slash commands. All hooks are **deter
 - **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault location.
 - **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).
 - **`/vault-commit`**: commits uncommitted vault changes with user-approved message.
-- **`/save-plan-doc`**: snapshots external `docs/discussions/`, `docs/design/`, `docs/plans/` markdown into the bound vault project. 2-layer opt-in gate (`.vault-link` + vault `_index.md` `auto_capture: true`).
+- **`/save-plan-doc`**: snapshots external `docs/discussions/`, `docs/design/`, `docs/plans/` markdown into the bound vault project. 2-layer opt-in gate — L1 `snapshot_export: true` in `.vault-link` (project owner), L2 `snapshot_import: true` in vault `_index.md` (vault owner, managed via OVM `/project --enrich`). `auto_capture` remains as a 4-week deprecation alias for both layers; `VAULT_BRIDGE_SUPPRESS_DEPRECATION=1` silences the stderr warning for non-interactive callers (set by `session-end-pre.sh` so the deprecation notice doesn't pollute `discovery_error`).
 
 The split (deterministic Stop + 2-step SessionEnd + explicit slash commands) ensures zero per-turn LLM cost, no loops, safety-net auto-save on `/exit`, and a clear user-driven path for full session notes and plan-doc snapshots.
 
