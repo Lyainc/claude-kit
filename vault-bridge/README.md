@@ -376,8 +376,8 @@ Direct file access skips the manifest-first approach that delivers [97% token sa
 ### Soft enforcement philosophy
 
 - **Never blocks**: `exit 0` always. User workflow is never interrupted.
-- **Informs only**: a `systemMessage` is injected into Claude's context suggesting vault-searcher as the more efficient path.
-- **Counts silently**: each direct access increments a session counter at `/tmp/vault-bridge-session-{session_id}/direct-access-count`.
+- **Informs at milestones**: a `systemMessage` is injected into Claude's context on the 1st, 5th, and 10th direct access of the session, suggesting vault-searcher as the more efficient path. Subsequent accesses still increment the counter but emit no notice — keeps hot-path sessions quiet while preserving telemetry.
+- **Counts silently**: each direct access increments a session counter at `/tmp/vault-bridge-session-{session_id}/direct-access-count` (every call, not just milestones).
 - **Reports at session end**: the SessionEnd hook reads the counter and appends a one-line note to the auto-saved session note.
 
 ### Counter file structure
