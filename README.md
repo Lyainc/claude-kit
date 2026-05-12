@@ -8,7 +8,7 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 |---|---|---|
 | [thinking-tools](thinking-tools/) | `1.6.3` | 스킬 7 + 에이전트 1 |
 | [obsidian-vault-manager](obsidian-vault-manager/) | `0.11.2` | 스킬 7 + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
-| [vault-bridge](vault-bridge/) | `1.8.3` | 에이전트 1 + 훅 6 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
+| [vault-bridge](vault-bridge/) | `1.9.0` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
 
 ## 플러그인 목록
 
@@ -63,11 +63,11 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 | Component | Description |
 | --- | --- |
-| `vault-searcher` (agent) | 4-mode I/O: (1) Session Restore, (2) Domain Context Load, (3) Keyword Search (optional Obsidian CLI acceleration), (4) Vault Write — session + artifact (record/handoff/quick). **vault의 단일 쓰기 진입점** |
+| `vault-searcher` (agent) | 3-mode read/search I/O: (1) Session Restore, (2) Domain Context Load, (3) Keyword Search (optional Obsidian CLI acceleration). **Read-only since v1.9.0** — vault writes route through slash commands (`/save-session`, `/save-plan-doc`, `/vault-commit`) executed in main context. |
 | Stop hook | 매 턴 실행 (결정형 셸). 세션 종료 신호(`세션 끝`, `wrap up` 등) 감지 시 `/save-session` 제안 `systemMessage` 방출 |
 | SessionEnd hook | 세션 종료 시 silent 안전망 — meaningful work(파일 수정/볼트 읽기/결정 기록/코드 실행/리서치 중 하나 + 3턴 이상) 감지 시 자동 quick-save |
-| `/save-session` | 사용자가 명시적으로 호출하는 슬래시 커맨드 — vault-searcher Mode 4 전체 플로우 진입 |
-| `/vault-link` | 현재 디렉토리에 `.vault-link` 포인터 파일 생성 — 코드 리포를 특정 vault 프로젝트에 바인딩. Mode 2 검색 스코프 제한 + Mode 4 저장 경로 자동 결정 |
+| `/save-session` | 사용자가 명시적으로 호출하는 슬래시 커맨드 — record/handoff/quick 3-mode 세션 노트 작성을 main context에서 inline 실행 |
+| `/vault-link` | 현재 디렉토리에 `.vault-link` 포인터 파일 생성 — 코드 리포를 특정 vault 프로젝트에 바인딩. 검색 스코프 제한 + `/save-session` 저장 경로 자동 결정 |
 | `/vault-manifest-refresh` | vault manifest 강제 재생성 — `~/vault/.vault-bridge/manifest.json` 갱신. 토큰 절감 효과: 도메인 컨텍스트 로드 시 ~97% 절감 |
 | `/vault-commit` | vault git 리포의 미커밋 변경사항 commit — 변경 요약 표시, 커밋 메시지 자동 생성, 사용자 승인 후 실행 |
 | `/save-plan-doc` | 외부 프로젝트의 plan/design/RFC 문서를 바인딩된 vault 프로젝트에 스냅샷으로 저장 — 2-layer opt-in gate(`.vault-link` + `_index.md`의 `auto_capture: true`), 5-case source_commit fallback, 본문 기준 중복 제거 |
@@ -75,7 +75,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 | PreToolUse hook (Read\|Grep\|Glob) | `Read`/`Grep`/`Glob`으로 `~/vault/` 직접 접근 감지 → vault-searcher 사용 권장 `systemMessage` 방출 (soft warning, 차단 없음). 세션 직접 접근 횟수 카운팅 → SessionEnd 요약에 포함 |
 | PreToolUse hook (Write\|Edit) | `Write`/`Edit`으로 `~/vault/` 쓰기 시 파일명 컨벤션 검증 → 위반 시 `systemMessage` 경고 (log-only 기본). `VAULT_BRIDGE_STRICT_NAMING=1` 시 차단 (exit 2) |
 
-자세한 4-mode 동작, `.vault-link` 포인터 파일 컨벤션은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
+자세한 3-mode 동작, `.vault-link` 포인터 파일 컨벤션, Write Role 정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
 
 ## 마이그레이션
 
@@ -106,13 +106,13 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ### `/wrapup` 스킬 제거 (obsidian-vault-manager v0.4.0)
 
-**Breaking change**: obsidian-vault-manager의 `/wrapup` 스킬이 제거되고, 세션 기록은 `vault-bridge` 플러그인의 `vault-searcher` 에이전트 Mode 4 (Session Note Creation)로 일원화되었습니다.
+**Breaking change**: obsidian-vault-manager의 `/wrapup` 스킬이 제거되고, 세션 기록은 `vault-bridge` 플러그인의 `/save-session` 슬래시 커맨드로 일원화되었습니다 (v1.0.0에서는 `vault-searcher` 에이전트 Mode 4에 위임했고, v1.9.0부터는 `/save-session`이 main context에서 inline 실행).
 
 | 기존 `/wrapup` 사용 | 신규 사용 |
 |---|---|
-| `/wrapup` | "세션 정리해줘" / "세션 노트 만들어줘" — vault-searcher가 자동 소환되어 Mode 4 실행 |
-| `/wrapup --hours 3` | Mode 4 프로시저가 대화 컨텍스트 + 최근 변경 파일(`find -mmin`)을 수집. 범위는 세션 내용 기반으로 자동 판단. |
-| `/wrapup --no-save` | Mode 4 Step 6의 AskUserQuestion에서 `[취소]` 선택 |
+| `/wrapup` | `/save-session` 또는 "세션 정리해줘" / "세션 노트 만들어줘" — record/handoff/quick 3-mode 라우팅 후 inline 실행 |
+| `/wrapup --hours 3` | `/save-session` 프로시저가 대화 컨텍스트 + 최근 변경 파일(`find -mmin`)을 수집. 범위는 세션 내용 기반으로 자동 판단 |
+| `/wrapup --no-save` | `/save-session` Step 10의 AskUserQuestion에서 `[취소]` 선택 |
 | 자동 저장 (세션 종료 시) | SessionEnd hook이 meaningful work 감지 시 자동 quick-save (`session-YYYY-MM-DD.md`, `tags: [session, auto-saved]`) |
 
 **기존 파일 처리**:

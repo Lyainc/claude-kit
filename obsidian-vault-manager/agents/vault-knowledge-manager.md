@@ -1,6 +1,6 @@
 ---
 name: vault-knowledge-manager
-description: "Obsidian vault knowledge base manager. Handles note creation, MOC management, project tracking, inbox review, and project archiving. Example: 'create a new note', 'organize project', 'update MOC'. For session recording (handoff / record / quick session notes) use vault-bridge's vault-searcher (Mode 4) instead — this agent does not manage session lifecycle."
+description: "Obsidian vault knowledge base manager. Handles note creation, MOC management, project tracking, inbox review, and project archiving. Example: 'create a new note', 'organize project', 'update MOC'. For session recording (handoff / record / quick session notes) use vault-bridge's `/save-session` slash command instead — this agent does not manage session lifecycle."
 model: sonnet
 color: purple
 memory: project

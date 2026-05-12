@@ -14,7 +14,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 | Agent | Model | Description |
 | --- | --- | --- |
-| `vault-searcher` | Haiku | Vault I/O agent — search notes, load domain context, restore session, create session notes and artifacts (single vault write entry point) |
+| `vault-searcher` | Haiku | Vault read/search agent (read-only since v1.9.0) — search notes, load domain context, restore session context |
 
 ## Modes
 
@@ -48,9 +48,9 @@ Search the entire vault by keyword. If Obsidian CLI is available and responsive,
 "이전에 정리한 배포 파이프라인 문서"
 ```
 
-### 4. Vault Write (session + artifact)
+## Write Workflow (since v1.9.0)
 
-Create a new vault file — session notes, captures, or plan documents. vault-searcher is the **single entry point** for all vault writes; the main agent must never write to `~/vault/` directly. Three session modes:
+vault-searcher is read-only. All vault writes route through user-initiated slash commands executed inline in main context. The session-note flow (`/save-session`) supports three modes:
 
 | Mode | When to use | Sections |
 |------|------------|----------|
@@ -58,16 +58,17 @@ Create a new vault file — session notes, captures, or plan documents. vault-se
 | `handoff` | Next session will continue this work | All sections + Next Steps, In Progress, Blockers |
 | `quick` | Minimal capture | Summary, Related Files (+ Next Steps if handoff) |
 
-The agent uses **AskUserQuestion** at every discrete choice: type/mode selection, path confirmation, same-date collision resolution, and final save confirmation. Free-form content (edit instructions) uses plain text.
+For captures and plan documents, use `/save-plan-doc`. For committing vault changes to git, use `/vault-commit`.
+
+Use `/save-session` to trigger session note creation from the main context. The command handles type/mode selection, path confirmation, same-date collision resolution, and final save confirmation inline.
 
 ```
+/save-session
 "세션 정리해줘"
 "작업 기록 남겨줘"
 "session note 생성"
 "세션 노트 --quick"
 "세션 저장 --hours 3"
-"capture 저장해줘"
-"plan 파일 만들어줘"
 ```
 
 ## Handoff Term Convention
@@ -192,7 +193,7 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 
 ## Vault-Project Link
 
-`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes Mode 2 searches and determines the Mode 4 save path automatically — zero user intervention required.
+`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) searches and determines the `/save-session` / `/save-plan-doc` save path automatically — zero user intervention required.
 
 ### Schema
 
@@ -245,14 +246,15 @@ vault_root: /Users/me/work-vault    # optional; overrides default ~/vault/
 
 vault-searcher walks upward from CWD (git-style) until it finds `.vault-link`. The first file found is used. If `.vault-link.local` exists at the same level, its `vault_root` overrides the default `~/vault/`.
 
-### Effect on Modes
+### Effect on vault-searcher modes and slash commands
 
-| Mode | Without `.vault-link` | With `.vault-link` |
-|------|-----------------------|--------------------|
-| **2. Domain Context Load** | Searches all of `~/vault/` | Searches only `{vault_root}/{vault_path}/` |
-| **4. Session Note Creation** | Saves to `~/vault/00_Inbox/` | Saves to `{vault_root}/{vault_path}/` |
+| Surface | Without `.vault-link` | With `.vault-link` |
+|---------|-----------------------|--------------------|
+| **vault-searcher Mode 2 (Domain Context Load)** | Searches all of `~/vault/` | Searches only `{vault_root}/{vault_path}/` |
+| **`/save-session`** | Saves to `~/vault/00_Inbox/` | Saves to `{vault_root}/{vault_path}/` |
+| **`/save-plan-doc`** | Cannot run (requires `.vault-link`) | Saves snapshots to `{vault_root}/{vault_path}/` |
 
-Modes 1 and 3 are unaffected.
+vault-searcher Modes 1 and 3 (Session Restore, Keyword Search) are unaffected by `.vault-link` scope.
 
 ### Recovery
 
@@ -274,7 +276,7 @@ Set `VAULT_BRIDGE_DISABLE=1` to skip `.vault-link` discovery entirely (useful in
 
 ## Write Role Contract
 
-vault-bridge v1.5.0 formalizes vault-searcher as the **single entry point** for all vault writes from external projects.
+vault-bridge v1.5.0 introduced vault write governance; v1.9.0 narrows vault-searcher to read-only and restricts vault writes to slash commands executed in the main context (see [Write Role Policy](#write-role-policy) below).
 
 ### Permitted writes
 
@@ -295,11 +297,11 @@ vault-bridge v1.5.0 formalizes vault-searcher as the **single entry point** for 
 
 ### Same-date collision handling
 
-If `session-2026-04-18.md` already exists, vault-searcher tries `-v2`, `-v3`, … up to `-v9`. A collision `AskUserQuestion` is shown before creating `-v2` or higher. The existing file is never touched.
+If `session-2026-04-18.md` already exists, `/save-session` tries `-v2`, `-v3`, … up to `-v9`. A collision confirmation is shown before creating `-v2` or higher. The existing file is never touched.
 
 ## Structured Error Protocol
 
-When a vault write fails or is forbidden, vault-searcher returns a structured error block to the calling context. The main agent reads this and decides how to respond.
+When a vault write fails or is forbidden, `/save-session` (or another vault-write slash command) emits a structured error block to the user. Since v1.9.0 the block originates from the slash command running in main context — vault-searcher itself no longer writes and therefore no longer issues these errors.
 
 ```
 <vault-bridge-error>
@@ -354,6 +356,26 @@ VAULT_BRIDGE_STRICT_NAMING=1 claude
 
 `VAULT_BRIDGE_DISABLE=1` suppresses the pre-write-guard entirely (same kill switch as other vault-bridge hooks).
 
+## Write Role Policy
+
+vault-bridge v1.9.0 adds an explicit Write Role Policy enforced by `hooks/pre-write-guard.sh`. Vault writes must originate from the main context (user-initiated slash commands). Subagent vault writes — identified by a non-empty agent identifier in the `PreToolUse` payload — are blocked or warned depending on the `VAULT_BRIDGE_WRITE_CONTRACT` environment variable.
+
+| Mode | Behavior | When |
+|------|----------|------|
+| `warn` (default) | Injects a `systemMessage` warning; write is allowed to proceed | Default |
+| `enforce` | Blocks the write (`exit 2`) — subagent vault writes are rejected | `VAULT_BRIDGE_WRITE_CONTRACT=enforce` |
+| `off` | No check performed | `VAULT_BRIDGE_WRITE_CONTRACT=off` |
+
+```bash
+# Block all subagent vault writes
+VAULT_BRIDGE_WRITE_CONTRACT=enforce claude
+
+# Disable the policy check entirely
+VAULT_BRIDGE_WRITE_CONTRACT=off claude
+```
+
+**Exempt paths**: `50_Archive/` is excluded from the Write Role Policy (OVM territory). Naming convention enforcement via `VAULT_BRIDGE_STRICT_NAMING` is independent of this policy and applies regardless of agent vs. main-context origin.
+
 ## Relationship with obsidian-vault-manager
 
 | Aspect | vault-bridge | obsidian-vault-manager |
@@ -407,8 +429,8 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup
 - **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects all deterministic state — `.vault-link` presence + Layer 1 `auto_capture`, `_index.md` Layer 2 `auto_capture`, plan-doc candidates, direct-access counter, plan-doc-asked flag — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
-- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates filenames when writing to `~/vault/`; emits a `systemMessage` warning on convention violation; log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
-- **`/save-session` command**: explicit user trigger that delegates to vault-searcher Mode 4 with full mode selection (record/handoff/quick)
+- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). `50_Archive/` is exempt (OVM territory). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
+- **`/save-session` command**: explicit user trigger for inline session note creation (main context) with full mode selection (record/handoff/quick)
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
 ## Session Auto-Commit
@@ -458,7 +480,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks or commit suggestions fir
 
 | Command | Description |
 |---------|-------------|
-| `/save-session` | Delegate to vault-searcher Mode 4 — full session note creation with mode selection (record/handoff/quick) |
+| `/save-session` | Inline session note creation in main context — mode selection (record/handoff/quick), path confirmation, collision resolution |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |
@@ -477,7 +499,7 @@ claude plugin uninstall vault-reader
 claude plugin install vault-bridge@Lyainc-claude-kit
 ```
 
-Behavior and trigger phrases are unchanged. The `vault-searcher` agent keeps the same 4 modes (restore, domain context, keyword search, session-note creation), the Stop hook still watches for closing keywords, and `/save-session` works identically.
+Behavior and trigger phrases are unchanged at the v1.0.0 migration boundary. The `vault-searcher` agent kept the same 4 modes (restore, domain context, keyword search, session-note creation) through v1.8.x; v1.9.0 narrowed it to 3 read-only modes (write operations moved into the `/save-session` slash command — same UX, executed inline in main context).
 
 If you reference the agent by qualified name in prompts or scripts, update `vault-reader:vault-searcher` → `vault-bridge:vault-searcher`.
 
