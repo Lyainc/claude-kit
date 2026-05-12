@@ -10,7 +10,7 @@ Codex/OMX parity note: the Codex-active migration of this root guidance lives in
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 7개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain, adversarial-review + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 7개 (capture, note, project, inbox-review, context, archive, vault-audit) + reference docs (`reference/vault-audit-rules.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
-- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 5종 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 5개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) + Python scripts (`generate-manifest.py`, `plan-doc-syncer.py`). vault 검색 + session-note 4-mode 생성 + 세션 생명주기 안전망 + 외부 plan-doc 자동 캡처.
+- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 5종 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 5개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) + Python scripts (`generate-manifest.py`, `plan-doc-syncer.py`). vault 검색 + slash command 기반 session-note/capture/plan 작성 + 세션 생명주기 안전망 + 외부 plan-doc 자동 캡처.
 
 ## Git Conventions
 
@@ -62,7 +62,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── scripts/                         # ovm-primitives.sh, audit-validate.py, gen-fixture.sh
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
-│   ├── agents/                          # vault-searcher (haiku, 4 modes)
+│   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
 │   ├── commands/                        # 5개 슬래시 커맨드 정의
 │   ├── hooks/                           # 5개 hook handler (stop-check, session-end-pre, session-start-manifest, pre-access-guard, pre-write-guard)
 │   └── scripts/                         # generate-manifest.py, plan-doc-syncer.py + tests/
@@ -155,12 +155,12 @@ vault-bridge registers 5 hook handlers + 5 slash commands. All hooks are **deter
 - **Stop** (`hooks/stop-check.sh`, deterministic): per-turn. Reads transcript JSONL, regex-matches the last user text against closing keywords (`세션 끝`, `마무리`, `wrap up`, `end session`, etc.), and emits a `systemMessage` suggesting `/save-session` only on match. **No LLM call** → no per-turn cost, no infinite-loop risk (the prior prompt-based hook looped because every response — even "(silent pass-through)" — re-fired the Stop hook).
 - **SessionEnd** (chained `hooks/session-end-pre.sh` → prompt): session close. Shell pre-hook collects deterministic state (vault-link gate flags, plan-doc candidates, direct-access counter) and writes JSON to `/tmp/vault-bridge-session-${SID}/session-end-state.json`; prompt then reads it via `jq`, decides whether work was meaningful, writes the safety-net session-note. Pre-hook uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` doesn't break `.vault-link` discovery. The prompt body is compressed (~1000 chars) to keep token overhead minimal.
 - **SessionStart** (`hooks/session-start-manifest.sh`, deterministic): incremental manifest refresh — checks staleness and updates `~/vault/.vault-bridge/manifest.json` only for changed files (background, never blocks session start).
-- **PreToolUse Read|Grep|Glob** (`hooks/pre-access-guard.sh`, deterministic): emits `systemMessage` warning when `~/vault/` is accessed directly; counts direct-access events for the SessionEnd summary. Soft warning, never blocks.
-- **PreToolUse Write|Edit** (`hooks/pre-write-guard.sh`, deterministic): validates filename conventions when writing to `~/vault/`. log-only by default; `VAULT_BRIDGE_STRICT_NAMING=1` blocks on violation.
+- **PreToolUse Read|Grep|Glob** (`hooks/pre-access-guard.sh`, deterministic): emits `systemMessage` warning when `~/vault/` is accessed directly; counts direct-access events for the SessionEnd summary. Soft warning, never blocks. As of v1.9.0, this hook exempts vault-searcher's own reads to avoid the self-reference loop that previously caused haiku to misinterpret its own warning as a denial.
+- **PreToolUse Write|Edit** (`hooks/pre-write-guard.sh`, deterministic): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). `50_Archive/` is exempt (OVM territory). Naming convention is log-only by default; `VAULT_BRIDGE_STRICT_NAMING=1` blocks on violation.
 
 **Slash commands** (`commands/*.md`):
 
-- **`/save-session`**: explicit trigger for vault-searcher Mode 4 (record/handoff/quick mode selection).
+- **`/save-session`**: executes the session-note recipe inline in main context (record/handoff/quick mode selection). As of v1.9.0, no longer delegates to vault-searcher — vault writes are user-initiated slash commands only.
 - **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault location.
 - **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).
 - **`/vault-commit`**: commits uncommitted vault changes with user-approved message.
@@ -175,7 +175,7 @@ Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping doma
 | Area | obsidian-vault-manager | vault-bridge |
 |------|----------------------|--------------|
 | Domain context load | `context` skill (internal, `--exclude`/`--limit` options) | `vault-searcher` Mode 2 (external, read-only lightweight) |
-| Session record | N/A (use vault-bridge's session-note) | `vault-searcher` Mode 4: Session Note Creation (record/handoff/quick modes) |
+| Session record | N/A (use vault-bridge's session-note) | `/save-session` slash command (inline in main context — record/handoff/quick modes) |
 | Note creation logic | `note` skill owns domain determination + MOC linking | `inbox-review` delegates to `note` skill procedure |
 | Project back-reference (`_index.related_notes`) | `note` skill appends on creation (W7 invariant) | N/A |
 
