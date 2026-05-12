@@ -72,8 +72,40 @@ case "$abs_path" in
     ;;
 esac
 
-# Derive relative path from vault root
+# Derive relative path + top-level directory from vault root
 rel_path="${abs_path#"$vault_abs"/}"
+top_dir=$(printf '%s' "$rel_path" | cut -d'/' -f1)
+
+# ---------------------------------------------------------------------------
+# Write Role Contract enforcement
+# Policy: vault writes must originate from main context (user-initiated slash
+# commands). Subagent vault writes are out of policy.
+# Modes: warn (default — log + systemMessage, allow), enforce (deny), off (skip).
+# 50_Archive/ is an OVM territory — exempt regardless of mode.
+# ---------------------------------------------------------------------------
+contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-warn}"
+
+if [ "$contract_mode" != "off" ]; then
+  agent_id=$(printf '%s' "$payload" | jq -r '
+    .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
+  ' 2>/dev/null || true)
+
+  if [ -n "$agent_id" ] && [ "$top_dir" != "50_Archive" ]; then
+    contract_msg="Vault writes must be user-initiated slash commands (/save-session, /save-plan-doc, /vault-commit). Subagent ($agent_id) vault write blocked. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
+
+    if [ "$contract_mode" = "enforce" ]; then
+      jq -nc --arg reason "$contract_msg" \
+        '{permissionDecision:"deny", permissionDecisionReason:$reason}'
+      exit 0
+    else
+      # warn mode: log + systemMessage, fall through to filename validation
+      printf '[vault-bridge pre-write-guard] CONTRACT WARNING: %s\n' "$contract_msg" >&2
+      jq -nc --arg msg "$contract_msg" \
+        '{systemMessage: ("vault-bridge contract: " + $msg + " Set VAULT_BRIDGE_WRITE_CONTRACT=enforce to block, =off to disable.")}'
+      # do not exit — continue to filename validation below
+    fi
+  fi
+fi
 
 # Extract filename (basename)
 filename=$(basename "$abs_path")
@@ -95,13 +127,8 @@ case "$lower_filename" in
     ;;
 esac
 
-# ---------------------------------------------------------------------------
-# Determine which top-level directory this path belongs to
-# ---------------------------------------------------------------------------
-top_dir=$(printf '%s' "$rel_path" | cut -d'/' -f1)
-
-# Regex patterns per directory
-# Using python3 for regex matching (consistent with other vault-bridge hooks)
+# Regex patterns per directory — python3 handles POSIX ERE consistently across
+# macOS BSD grep and GNU grep.
 validate_pattern() {
   local fname="$1"
   local pattern="$2"
