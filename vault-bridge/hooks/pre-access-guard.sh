@@ -21,6 +21,19 @@ fi
 # Read the PreToolUse JSON payload from stdin
 payload=$(cat)
 
+# Subagent self-exemption — vault-searcher's own vault reads must not trigger
+# a "use vault-searcher" warning (self-reference creates a feedback loop where
+# the haiku model interprets its own systemMessage as a denial).
+agent_id=$(printf '%s' "$payload" | jq -r '
+  .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
+' 2>/dev/null || true)
+
+case "$agent_id" in
+  *vault-searcher*)
+    exit 0
+    ;;
+esac
+
 # Extract tool_name
 tool_name=$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || true)
 
