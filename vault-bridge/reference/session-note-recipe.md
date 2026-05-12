@@ -1,6 +1,8 @@
 # Vault Write Recipe — Session Note, Capture, Plan
 
-Detailed procedure for `vault-searcher` Mode 4 (Vault Write). The agent body in [`../agents/vault-searcher.md`](../agents/vault-searcher.md) only carries the entry point; the full procedure, templates, and rules live here.
+Detailed procedure executed inline by the `/save-session` slash command (main context). Originally housed in `vault-searcher` Mode 4 — moved here when vault writes were narrowed to user-initiated slash commands only (2026-05-12).
+
+The entry point is [`../commands/save-session.md`](../commands/save-session.md); the full procedure, templates, and rules live here.
 
 **Scope**: artifact types `session` (with three modes: record / handoff / quick), `capture`, `plan`.
 
@@ -70,7 +72,7 @@ Pattern: `{type}-YYYY-MM-DD[-{topic-kebab}][-vN].md`
 
 - `topic-kebab`: lowercase, hyphenated, derived from main subject (omit for plain session/capture)
 - Collision check: if base name exists, try `-v2`, `-v3`, … up to `-v9`.
-- If all suffixes taken: return `name_collision` structured error and stop.
+- If all suffixes taken: report a `name_collision` error inline and stop.
 - **Collision AskUserQuestion** (when `-v2` or higher is needed):
   - Option A: create `{filename}-vN.md` as proposed
   - Option B: cancel
@@ -89,7 +91,7 @@ Search for previous `status: active` session note in the same project/domain.
 
 - Search pattern: `session-*.md`.
 - If found: cross-reference "next steps" with current session work. Carry over incomplete items.
-- Suggest to user: "이전 active session note를 archived로 변경할까요?" (vault-searcher는 기존 파일을 수정할 수 없으므로, obsidian-vault-manager의 vault-file-organizer에게 위임하거나 사용자가 직접 변경).
+- Suggest to user: "이전 active session note를 archived로 변경할까요?" (/save-session는 기존 파일을 수정할 수 없으므로, 사용자에게 직접 변경하거나 obsidian-vault-manager의 vault-file-organizer에게 위임할지 안내).
 
 ### 9. Show draft
 
@@ -106,7 +108,7 @@ Ask: "이 내용으로 저장할까요?"
 ### 11. Write
 
 - Write to `{save_dir}/{filename}` using Write tool (new file only — never Edit).
-- If Write fails: return appropriate `<vault-bridge-error>` structured error (see Write Role Contract in `agents/vault-searcher.md`).
+- On write failure, report the error inline to the user in this structured form: `kind` (permission/path_invalid/convention_violation/name_collision/disabled), `path`, `detail`, `suggestion`. Never silently swallow.
 
 ## Templates
 
@@ -172,7 +174,7 @@ type: session
 - Omit Blockers/Warnings section if none exist.
 - In `record` mode, omit In Progress, Blockers, Next Steps sections entirely.
 - In `record` mode, omit the `status` field from frontmatter.
-- On any write failure, return the structured `<vault-bridge-error>` format (see Write Role Contract in `agents/vault-searcher.md`). Never silently swallow errors.
+- On any write failure, report the error inline to the user in this structured form: `kind` (permission/path_invalid/convention_violation/name_collision/disabled), `path`, `detail`, `suggestion`. Never silently swallow errors.
 
 ## Options
 
