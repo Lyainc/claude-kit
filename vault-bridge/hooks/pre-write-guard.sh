@@ -102,7 +102,7 @@ top_dir=$(printf '%s' "$rel_path" | cut -d'/' -f1)
 # Modes: warn (default — log + systemMessage, allow), enforce (deny), off (skip).
 # 50_Archive/ is an OVM territory — exempt regardless of mode.
 # ---------------------------------------------------------------------------
-contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-warn}"
+contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-enforce}"
 
 if [ "$contract_mode" != "off" ]; then
   agent_id=$(printf '%s' "$payload" | jq -r '
