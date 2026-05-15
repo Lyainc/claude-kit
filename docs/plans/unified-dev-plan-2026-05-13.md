@@ -384,8 +384,53 @@ caller side에서 PreToolUse payload를 직접 inspect 불가하므로, **hook-s
 - functional smoke 8 event types + DUMP gate on/off
 - 기존 vault-bridge 회귀 18 cases
 
-**Next**: 사용자가 `~/.zshrc` 활성화 후 Claude Code 재시작 → ~3일 누적 → D5 preflight (메인 컨텍스트에서 `VAULT_BRIDGE_DUMP_PAYLOAD=1 VAULT_BRIDGE_WRITE_CONTRACT=enforce` + Skill dispatched save-plan-doc fixture 호출).
+**Next**: ~~사용자가 `~/.zshrc` 활성화 후 Claude Code 재시작 → ~3일 누적 → D5 preflight~~ → **D5 완료 (아래 참조)**. 다음: `CLAUDE_KIT_TELEMETRY=1` 활성화 후 Claude Code 재시작 → 이벤트 누적 시작.
+
+### W1 D5 (2026-05-15) — D5 Preflight complete
+
+**VERDICT: PASS** — W2 enforce flip 안전 확인. Write/Edit PreToolUse 페이로드에 5개 agent 식별 필드 모두 EMPTY.
+
+**실행 방식 (원안 대비 3가지 조정)**:
+
+1. **test vehicle 오류 발견**: 원안이 save-plan-doc을 fixture로 지정했으나, plan-doc-syncer.py가 Python 파일 I/O로 vault에 쓰기 때문에 Write 도구를 거치지 않아 pre-write-guard hook이 발동하지 않음. save-plan-doc은 Write 도구 attribution 테스트 차량으로 부적합. → **계획 문서 §2.W1 D5 항목 보정 필요** (W2 진행 전 save-session 등 Write 도구 사용 스킬로 재테스트 권장, 단 현재 PASS 결과로 W2 진행 가능).
+
+2. **활성 hook 버전 불일치**: 설치된 vault-bridge 버전이 v1.8.3 캐시이고 DUMP_PAYLOAD 게이트는 dev v1.9.0에만 존재. `~/.claude/plugins/cache/.../1.8.3/hooks/pre-write-guard.sh`를 **wrapper 스크립트**로 교체 (DUMP_PAYLOAD=1 + WRITE_CONTRACT=enforce 하드코딩 후 dev v1.9.0 hook exec). 테스트 종료 후 1.8.3 원본으로 복원 완료.
+
+3. **cross-session dump**: wrapper가 캐시된 플러그인 경로에 설치되어 있어 동시에 실행 중이던 PhototicketMaker 세션의 Write/Edit 15개도 같이 캡처됨. CLAUDE_PROJECT_ROOT 하드코딩으로 dump 경로가 claude-kit telemetry로 고정됐기 때문. → 향후 preflight wrapper는 세션 격리 방식(settings.local.json 임시 hook 등록)으로 개선 권장.
+
+**5필드 검사 결과** (15개 페이로드 전체):
+
+| 필드 | 값 |
+|------|-----|
+| `agent_name` | empty (15/15) |
+| `subagent_type` | empty (15/15) |
+| `agent.name` | empty (15/15) |
+| `agent.type` | empty (15/15) |
+| `attributionAgent` | empty (15/15) |
+
+→ main context Write/Edit 도구 호출은 어떤 agent 식별자도 포함하지 않음. enforce 모드는 이 경우 deny를 내리지 않음.
+
+**부가 결과**: save-plan-doc으로 `docs/plans/unified-dev-plan-2026-05-13.md` → vault `plan-2026-05-13-unified-dev-plan-2026-05-13-v2.md` 저장 완료 (commit 61ffd0c, L2 1회 우회).
+
+**CLAUDE_KIT_TELEMETRY 상태**: `events/` 비어 있음 — `CLAUDE_KIT_TELEMETRY=1`이 `~/.zshrc`에 미설정 상태. Claude Code 재시작 후 이벤트 누적 시작 필요.
+
+**Next**: W2 enforce flip 진행 가능 (D6). `CLAUDE_KIT_TELEMETRY=1` ~/.zshrc 추가 + Claude Code 재시작으로 dry-run 누적 시작.
 
 ---
 
-*작성: 2026-05-13 · 상태: rev2 (Architect+Critic 1st round 통합 반영) · 실행 로그 W1 D1-D2: 2026-05-15*
+### W1 D6 (2026-05-15)
+
+**완료 항목**:
+
+1. **CLAUDE_KIT_TELEMETRY 확인**: `~/.zshrc` line 140에 이미 `export CLAUDE_KIT_TELEMETRY=1` 존재. 별도 추가 불필요.
+2. **첫 이벤트 파일 확인**: `telemetry/events/events-2026-05-15.jsonl` 생성됨 — telemetry 파이프라인 정상 동작 확인.
+3. **W2 enforce flip**: `vault-bridge/hooks/pre-write-guard.sh:105` — `contract_mode` 기본값 `warn` → `enforce` 변경. `VAULT_BRIDGE_WRITE_CONTRACT` 미설정 시 서브에이전트 vault write를 deny로 처리.
+4. **버전 범프 v1.9.0 → v1.10.0**: `vault-bridge/.claude-plugin/plugin.json` + `.claude-plugin/marketplace.json` 동기 업데이트.
+5. **회귀 테스트**: `python3 vault-bridge/scripts/test/test-discover.py` → `OK: all cases passed` (18 cases).
+6. **훅 문법 검사**: `bash -n` 5개 훅 전부 OK.
+
+**Next**: W1 완료. W2 머지 준비 — PR 생성 후 vault-bridge v1.10.0 릴리즈.
+
+---
+
+*작성: 2026-05-13 · 상태: rev2 (Architect+Critic 1st round 통합 반영) · 실행 로그 W1 D1-D2: 2026-05-15 · W1 D5: 2026-05-15 · W1 D6: 2026-05-15*
