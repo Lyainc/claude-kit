@@ -39,13 +39,17 @@ local/
 .omx/
 
 # Codex / OMX project surfaces (local-only, not shared via this repo)
-.codex/
 
 # Gemini CLI integration metadata (local-only)
 GEMINI.md
 
 # Graphify output (regenerable analysis artifacts, any depth)
 graphify-out/
+
+# Telemetry — events are local dogfooding data; config/scripts stay tracked.
+telemetry/events/
+telemetry/preflight-d5-payloads.jsonl
+telemetry/*.local.json
 
 # Serena IDE context provider
 .serena/
@@ -70,3 +74,11 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
+.codex/*
+!.codex/agents/
+!.codex/agents/**
+!.codex/skills/
+!.codex/skills/**
+.codex/skills/.system/**
+!.codex/prompts/
+!.codex/prompts/**
