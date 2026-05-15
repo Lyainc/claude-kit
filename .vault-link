@@ -1,0 +1,3 @@
+version: 1
+vault_path: 20_Projects/claude-kit
+auto_capture: true
