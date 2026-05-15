@@ -141,6 +141,7 @@ caller side에서 PreToolUse payload를 직접 inspect 불가하므로, **hook-s
 **Priority**: P0 (사용자 가치: dead exit 해결)
 **Owner**: thinking-tools plugin
 **예상 작업량**: ~8h
+**Status**: ✅ Implementation complete (2026-05-16, commit `acd1fbc`). P0+P1 단일 커밋. ai-slop-cleaner + simplify pass 적용 완료. **Deviations**: (a) `save-plan-doc` 라우팅 → `save-session plan` argument override (in-memory 결과 전달 / `.omc/` 의존 회피), (b) `duration_seconds` 메타데이터 제거 (LLM 컨텍스트에 wall-clock 측정 수단 없음), (c) collision check (시나리오 W) **미구현** — Week 2 acceptance test 단계로 이월.
 
 **Scope**:
 - 3-option → 5-option checkpoint (deepen 추가)
@@ -215,7 +216,7 @@ caller side에서 PreToolUse payload를 직접 inspect 불가하므로, **hook-s
 
 ### Week 1 (telemetry MVP + preflight + 병렬 착수)
 - **D1-D2**: W1 MVP (8 항목 체크리스트). Phase 2 portability 검증 (`${CLAUDE_PLUGIN_ROOT}` 호환 경로).
-- **D3**: W3 코드 착수 (warn 모드 의존, W1 D5 결과 대기 불요)
+- **D3**: W3 코드 착수 (warn 모드 의존, W1 D5 결과 대기 불요) — ✅ 완료 (commit `acd1fbc`, 2026-05-16)
 - **D3**: W4 P0 결정 (플러그인 이름, AskUserQuestion 제약 검증) + 스캐폴드 시작
 - **D5**: **W1 D5 Preflight** (Critical) — Skill-dispatched Write에서 enforce 안전 확인
   - pass: W2 enforce flip 진행 가능 (D6 머지)
@@ -277,10 +278,10 @@ caller side에서 PreToolUse payload를 직접 inspect 불가하므로, **hook-s
 - **W2**:
   - enforce 머지 후 7일 transcript 검색에서 `CONTRACT WARNING` deny 0건
   - `direct-access-log` sampling 50건 중 vault-searcher 외부 정당한 read만 존재
-- **W3**:
+- **W3** (구현: ✅ commit `acd1fbc` 2026-05-16, 검증: 대기):
   - 6개 manual test scenarios 모두 PASS (thought-chain-checkpoint-vault-integration.md §5.1)
-  - 시나리오 W collision check: 동일 경로 동시 write fixture에서 `-v2` suffix 적용 확인
-  - vault 저장 문서 frontmatter에 `thought_chain:` block 검증
+  - 시나리오 W collision check: 동일 경로 동시 write fixture에서 `-v2` suffix 적용 확인 — 구현 미포함, Week 2 검증 단계에서 추가
+  - vault 저장 문서 frontmatter에 `thought_chain:` block 검증 — `save-session` invocation context 자연어 의존 동작 manual 검증 필요
 - **W4**:
   - 첫 SessionStart 안내 노출 + `/welcome` 실행 + state.json 정상 누적 (`pagesViewed` 길이 > 0)
   - `CLAUDE_KIT_WELCOME_DISABLE=1` 설정 시 SessionStart 안내 + `/welcome` 모두 silent exit
