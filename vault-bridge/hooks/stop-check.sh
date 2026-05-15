@@ -68,6 +68,7 @@ if printf '%s' "$last_user_text" | grep -qiE \
   # Additional vault dirty check (only when vault-bridge is not disabled).
   # Deterministic shell only — no LLM call. Uses head -1 so it exits as soon as
   # one dirty line is found, keeping latency well under the existing <50ms budget.
+  _dirty=""
   if [ "${VAULT_BRIDGE_DISABLE:-0}" != "1" ]; then
     _vault_root="${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}"
     if git -C "$_vault_root" rev-parse --git-dir >/dev/null 2>&1; then
@@ -78,7 +79,11 @@ if printf '%s' "$last_user_text" | grep -qiE \
     fi
   fi
 
-  jq -nc --arg m "$msg" '{systemMessage: $m}'
+  if [ -n "$_dirty" ]; then
+    jq -nc --arg m "$msg" '{systemMessage: $m, terminalSequence: ""}'
+  else
+    jq -nc --arg m "$msg" '{systemMessage: $m}'
+  fi
 fi
 
 exit 0
