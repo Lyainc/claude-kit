@@ -187,6 +187,10 @@ LINE="$(
 [ -n "$LINE" ] || exit 0
 
 # --- 8. Single-write append (sub-PIPE_BUF, atomic by POSIX O_APPEND) -------
+# PIPE_BUF safety: skip writes that approach the POSIX atomic-append guarantee.
+# Threshold mirrors validate-schema.py PIPE_BUF_WARN_BYTES (3500). If meta ever
+# balloons a line past this, drop the event silently rather than tear writes.
+[ "${#LINE}" -lt 3500 ] || exit 0
 printf '%s\n' "$LINE" >> "$LOG_FILE" 2>/dev/null
 
 exit 0

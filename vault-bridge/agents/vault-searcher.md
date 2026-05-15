@@ -18,22 +18,8 @@ At session start and before entering Mode 2, check for a `.vault-link` pointer f
 
 **Kill switch**: if the environment variable `VAULT_BRIDGE_DISABLE=1` is set, skip discovery entirely and behave as if no `.vault-link` exists (full-vault scope).
 
-**Discovery procedure** (run once per session; cache result):
+**Discovery procedure** (run once per session; cache result) — walk upward from CWD looking for `.vault-link`, capturing `.vault-link.local` at the same level if present:
 
-```
-# Pseudo-code — execute via Bash
-function discover_vault_link(cwd):
-    dir = cwd
-    while dir != "/":
-        if file_exists(dir + "/.vault-link"):
-            link_file = dir + "/.vault-link"
-            local_file = dir + "/.vault-link.local"   # may or may not exist
-            return (link_file, local_file if file_exists(local_file) else None)
-        dir = parent(dir)
-    return (None, None)
-```
-
-**Shell implementation**:
 ```bash
 # Check kill switch
 [ "${VAULT_BRIDGE_DISABLE}" = "1" ] && echo "disabled" && exit 0

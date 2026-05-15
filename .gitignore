@@ -48,7 +48,6 @@ graphify-out/
 
 # Telemetry — events are local dogfooding data; config/scripts stay tracked.
 telemetry/events/
-telemetry/preflight-d5-payloads.jsonl
 telemetry/*.local.json
 
 # Serena IDE context provider
