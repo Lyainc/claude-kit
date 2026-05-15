@@ -44,6 +44,8 @@ def main() -> int:
 
     ngrams: Counter = Counter()
     for seq in sessions.values():
+        if len(seq) < args.n:
+            continue
         for i in range(len(seq) - args.n + 1):
             ngrams[tuple(seq[i:i + args.n])] += 1
 

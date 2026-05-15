@@ -55,7 +55,6 @@ python3 telemetry/scripts/sequence.py --n=2 --top=20
 | `scripts/report.py` | yes | Top events, outcome distribution. |
 | `scripts/sequence.py` | yes | Session-scoped n-gram extraction. |
 | `events/events-*.jsonl` | **no** | Your local event log (gitignored). |
-| `preflight-d5-payloads.jsonl` | **no** | W1 D5 preflight dump (gitignored). |
 
 ## Event schema (v1)
 
@@ -171,12 +170,9 @@ echo '{"session_id":"x","cwd":"/y","tool_input":{"skill":"vault-bridge:save-sess
 cat telemetry/events/events-$(date -u +%F).jsonl | jq -c .
 ```
 
-## W1 D5 preflight dump
+## History — VAULT_BRIDGE_DUMP_PAYLOAD (removed)
 
-When `VAULT_BRIDGE_DUMP_PAYLOAD=1` is set, `vault-bridge/hooks/pre-write-guard.sh`
-appends the full PreToolUse payload to `telemetry/preflight-d5-payloads.jsonl`
-before its existing enforcement logic. This is the visibility hook for the
-W2 enforce-flip safety check. Unset the env after the preflight session.
+The `VAULT_BRIDGE_DUMP_PAYLOAD=1` env-var gate in `vault-bridge/hooks/pre-write-guard.sh` was a single-purpose instrument used during W1 D5 to verify that main-context `Write` payloads carry no agent identifier before flipping `VAULT_BRIDGE_WRITE_CONTRACT` default `warn→enforce`. The flip shipped in vault-bridge v1.10.0 (2026-05-15); the gate was removed in the follow-up cleanup. Trail: `docs/discussions/20260512_telemetry-instrumentation/plan.md` + `docs/plans/unified-dev-plan-2026-05-13.md` §rev3.
 
 ## Phase Gate (W4 D28)
 

@@ -60,6 +60,7 @@ def _date_from_filename(p: Path):
     try:
         return datetime.strptime(stem[len("events-"):], "%Y-%m-%d").date()
     except ValueError:
+        print(f"warning: skipping malformed event filename {p.name}", file=sys.stderr)
         return datetime.min.date()
 
 

@@ -98,8 +98,18 @@ find obsidian-vault-manager/skills -name "SKILL.md" | sort
 python3 vault-bridge/scripts/test/test-discover.py
 # Expected: OK: all cases passed (currently 18 cases)
 
+# vault-bridge pre-write-guard regression (Write Role Contract + naming)
+python3 vault-bridge/scripts/test/test-pre-write-guard.py
+
+# vault-bridge pre-access-guard regression (vault-searcher self-exemption + counter)
+python3 vault-bridge/scripts/test/test-pre-access-guard.py
+
+# telemetry schema self-test
+python3 telemetry/scripts/validate-schema.py --self-test
+
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
+bash -n telemetry/event-logger.sh
 
 # vault-audit DoD 측정 (mechanical reference impl)
 rm -rf /tmp/ovm-fixture-audit-recheck

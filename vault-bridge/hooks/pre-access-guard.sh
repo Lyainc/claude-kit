@@ -118,9 +118,11 @@ printf '%d' "$new_count" > "$counter_file" 2>/dev/null || true
 printf '%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$tool_name" "$abs_path" \
   >> "$log_file" 2>/dev/null || true
 
-# Cap systemMessage emission to milestones (1, 5, 10).
-# Counter and log continue every call (telemetry); only the user-facing
-# notice is gated to avoid hot-path spam in vault-heavy sessions.
+# Cap systemMessage emission to fire-once at milestones N=1, 5, 10.
+# After N=10 the user has been notified enough — staying silent thereafter
+# is intentional (not a missing modulo). Counter and log continue every call
+# (telemetry); only the user-facing notice is gated to avoid hot-path spam
+# in vault-heavy sessions.
 case "$new_count" in
   1|5|10) ;;
   *) exit 0 ;;
