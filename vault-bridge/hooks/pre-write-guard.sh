@@ -36,6 +36,25 @@ case "$tool_name" in
   *) exit 0 ;;
 esac
 
+# ---------------------------------------------------------------------------
+# W1 D5 preflight payload dump (rev3 Architect 2nd round N2)
+# When VAULT_BRIDGE_DUMP_PAYLOAD=1, append the full payload to telemetry's
+# preflight log BEFORE existing enforcement runs. Single entry point — the
+# enforcement logic below executes unchanged. Used to verify whether a
+# Skill-dispatched Write surfaces an agent identifier in the PreToolUse
+# payload, which determines whether W2 enforce flip is safe.
+#
+# The dump target lives in claude-kit/telemetry/ (gitignored). We locate the
+# claude-kit checkout via CLAUDE_PROJECT_ROOT (Phase 1 portability) and only
+# write if that directory exists.
+# ---------------------------------------------------------------------------
+if [ "${VAULT_BRIDGE_DUMP_PAYLOAD:-}" = "1" ]; then
+  dump_root="${CLAUDE_PROJECT_ROOT:-$PWD}/telemetry"
+  if [ -d "$dump_root" ]; then
+    printf '%s\n' "$payload" >> "$dump_root/preflight-d5-payloads.jsonl" 2>/dev/null
+  fi
+fi
+
 # Determine vault root (absolute)
 VAULT_ROOT="${VAULT_BRIDGE_VAULT_ROOT:-${HOME}/vault}"
 
