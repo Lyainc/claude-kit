@@ -39,6 +39,10 @@ These features would have to be duplicated inside the facilitator if thought-cha
 2. **Partial pipelines** — `--skip discovery` (already have findings from elsewhere), `--start concretize` (already debated, just document). Makes the pipeline resumable across sessions or after manual work.
 3. **Inter-stage handoff contract** — Discovery's Critical/Important findings become panel topics; panel consensus becomes concretize input. That data flow is a first-class concern here, not buried in agent branches.
 
+## Checkpoint UX is opt-out, not mandatory
+
+The checkpoint UX (feature 1 above) can be bypassed with `--autopilot`, which runs the full 4-stage pipeline unattended. This is a deliberate power-user escape hatch, not a contradiction of the rationale: the default (no `--autopilot`) path still preserves the user-confirmation invariant that justifies thought-chain's existence. `--autopilot` reduces thought-chain to a 4-skill macro, and that trade-off is acceptable when the user explicitly opts in.
+
 ## When it would earn removal
 
 Delete thought-chain when **both** are true:
