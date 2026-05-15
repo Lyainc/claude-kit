@@ -363,4 +363,29 @@ caller side에서 PreToolUse payload를 직접 inspect 불가하므로, **hook-s
 
 ---
 
-*작성: 2026-05-13 · 상태: rev2 (Architect+Critic 1st round 통합 반영, Critic 재평가 대기)*
+## 12. Execution Log
+
+### W1 D1-D2 (2026-05-15) — Telemetry MVP complete
+
+코드/구성 항목 8개 전부 완료, 드라이런 1개 항목 진행 중 (Claude Code 재시작 + 누적).
+
+원안 대비 의사결정 변경 3건 (상세는 `docs/discussions/20260512_telemetry-instrumentation/plan.md` §W1 구현 노트):
+- **Lock 전략**: `flock` → lockless POSIX O_APPEND 채택. macOS 기본 toolchain에 `flock` 부재 + 라인 < PIPE_BUF로 atomicity 보장. `validate-schema.py`에 3500B size guard.
+- **plugin-map 보강**: skill 19 entries + agent 4 entries (`vault-searcher`, `vault-knowledge-manager`, `vault-file-organizer`, `thinking-facilitator`). agent_spawn 이벤트도 동일 lookup 사용.
+- **측정 범위 = Option A (project-local)**: hook은 `.claude/settings.local.json`에만 등록. claude-kit repo cwd에서 시작한 세션에서만 발동. discussion §2.1 "외부 plugin 비교군화" 의도와 부분 어긋나지만 plan 충실 + Phase 2 옵트인 UX와 분리 명확. global 이전은 W2~W4 사이 필요 시 hook 블록 복사 1분 작업.
+
+**rev3 D5 preflight 지원** (`vault-bridge/hooks/pre-write-guard.sh`): `VAULT_BRIDGE_DUMP_PAYLOAD=1` 게이트 추가. 활성 시 payload를 `telemetry/preflight-d5-payloads.jsonl`에 append 후 기존 enforcement 로직 fall-through. 단일 진입점 유지.
+
+검증 (전부 PASS):
+- JSON valid (settings.local.json, plugin-map.json)
+- Python compile (3 scripts)
+- Bash syntax (event-logger.sh, pre-write-guard.sh)
+- `validate-schema.py --self-test`: 10 expected errors detected
+- functional smoke 8 event types + DUMP gate on/off
+- 기존 vault-bridge 회귀 18 cases
+
+**Next**: 사용자가 `~/.zshrc` 활성화 후 Claude Code 재시작 → ~3일 누적 → D5 preflight (메인 컨텍스트에서 `VAULT_BRIDGE_DUMP_PAYLOAD=1 VAULT_BRIDGE_WRITE_CONTRACT=enforce` + Skill dispatched save-plan-doc fixture 호출).
+
+---
+
+*작성: 2026-05-13 · 상태: rev2 (Architect+Critic 1st round 통합 반영) · 실행 로그 W1 D1-D2: 2026-05-15*
