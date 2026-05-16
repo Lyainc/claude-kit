@@ -15,6 +15,7 @@ description: |
 
   Skip for: creating new content from scratch (use doc-concretize),
   blind-spot review of plans (use unknown-discovery), simple questions, non-MD files.
+model: sonnet
 allowed-tools: Read Edit Grep Glob
 ---
 

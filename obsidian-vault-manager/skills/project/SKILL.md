@@ -1,6 +1,7 @@
 ---
 name: project
 description: "Create a new project, promote a note to a project, or enrich an existing project's _index.md. Example: '/project api-gateway', '/project api-gateway --promote-from 30_Notes/api-design.md', '/project api-gateway --enrich related_notes=30_Notes/oauth.md'"
+model: sonnet
 allowed-tools: Read Write Edit Bash Glob
 ---
 

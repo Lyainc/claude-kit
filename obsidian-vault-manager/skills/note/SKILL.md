@@ -1,6 +1,7 @@
 ---
 name: note
 description: "Create a new note and link it to the relevant MOC. Examples: '/note kubernetes networking basics' or '/note oauth flow' (offers to link to active projects)"
+model: sonnet
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
