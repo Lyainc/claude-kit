@@ -56,7 +56,8 @@ telemetry/*.local.json
 # Conductor local config
 .conductor/
 
-# Vault bridge local path override (personal machine path)
+# Vault bridge local path pointers (personal machine paths, not shared)
+.vault-link
 .vault-link.local
 
 # Sensitive or temporary documents (docs/ is now tracked by default)
