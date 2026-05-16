@@ -64,7 +64,7 @@ def case_default_patterns_only(errors: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         # Default-include matches:
-        _touch(root / "docs" / "discussions" / "topic-a.md")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "analysis.md")
         _touch(root / "docs" / "design" / "feature-x.md")
         _touch(root / "docs" / "plans" / "rollout.md")
         _touch(root / ".omc" / "plans" / "spike.md")
@@ -84,7 +84,7 @@ def case_default_patterns_only(errors: list[str]) -> None:
         _assert(rc == 0, "exit 0", errors)
 
         expected = {
-            "docs/discussions/topic-a.md",
+            "docs/discussions/20260419_topic/analysis.md",
             "docs/design/feature-x.md",
             "docs/plans/rollout.md",
             ".omc/plans/spike.md",
@@ -130,20 +130,20 @@ def case_override_exclude_suppresses_default(errors: list[str]) -> None:
     print("\ncase: override exclude suppresses default")
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
-        _touch(root / "docs" / "discussions" / "keep.md")
-        _touch(root / "docs" / "discussions" / "draft-suppress.md")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "keep.md")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "draft-suppress.md")
         (root / ".vault-link").write_text(
             "vault_path: 20_Projects/test\n"
             "autosync_paths_exclude:\n"
-            "  - docs/discussions/draft-*.md\n",
+            "  - docs/discussions/*/draft-*.md\n",
             encoding="utf-8",
         )
 
         rc, lines, stderr = _run_discover(root)
         _assert(rc == 0, "exit 0", errors)
         got = set(lines)
-        _assert("docs/discussions/keep.md" in got, "non-matching default-include kept", errors)
-        _assert("docs/discussions/draft-suppress.md" not in got, "exclude pattern suppresses default", errors)
+        _assert("docs/discussions/20260419_topic/keep.md" in got, "non-matching default-include kept", errors)
+        _assert("docs/discussions/20260419_topic/draft-suppress.md" not in got, "exclude pattern suppresses default", errors)
 
 
 def case_no_candidates(errors: list[str]) -> None:
@@ -484,7 +484,7 @@ def case_threshold_metadata_in_output(errors: list[str]) -> None:
         (root / ".vault-link").write_text("vault_path: 20_Projects/test\n", encoding="utf-8")
         # Create 12 candidates spread across two categories — threshold default 10.
         for i in range(7):
-            _touch(root / "docs" / "discussions" / f"topic-{i}.md")
+            _touch(root / "docs" / "discussions" / f"20260419_topic-{i}" / "design.md")
         for i in range(5):
             _touch(root / "docs" / "design" / f"feature-{i}.md")
         # With --summary and 12 >= threshold 10, stderr should include JSON.
@@ -505,7 +505,7 @@ def case_threshold_metadata_in_output(errors: list[str]) -> None:
             _assert(False, f"stderr summary not valid JSON: {exc}", errors)
         # Below-threshold case: --summary with <10 candidates → stderr empty for summary.
         for i in range(7):
-            (root / "docs" / "discussions" / f"topic-{i}.md").unlink()
+            (root / "docs" / "discussions" / f"20260419_topic-{i}" / "design.md").unlink()
         proc2 = subprocess.run(
             [sys.executable, str(SYNCER), "--discover", str(root), "--summary"],
             capture_output=True, text=True, cwd=str(root),
@@ -514,6 +514,43 @@ def case_threshold_metadata_in_output(errors: list[str]) -> None:
         # 5 candidates < 10 threshold, stderr should NOT contain summary JSON.
         _assert("count" not in proc2.stderr,
                 f"no summary emitted below threshold (got stderr: {proc2.stderr!r})", errors)
+
+
+def case_summary_unresolved_excluded(errors: list[str]) -> None:
+    """SUMMARY.md and UNRESOLVED.md inside discussions topics are excluded by DEFAULT_EXCLUDE_PATTERNS."""
+    print("\ncase: SUMMARY.md and UNRESOLVED.md excluded")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".vault-link").write_text("vault_path: 20_Projects/test\n", encoding="utf-8")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "analysis.md")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "SUMMARY.md")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "UNRESOLVED.md")
+        rc, lines, stderr = _run_discover(root)
+        got = set(lines)
+        _assert(rc == 0, "exit 0", errors)
+        _assert("docs/discussions/20260419_topic/analysis.md" in got, "design doc included", errors)
+        _assert("docs/discussions/20260419_topic/SUMMARY.md" not in got, "SUMMARY.md excluded by DEFAULT_EXCLUDE", errors)
+        _assert("docs/discussions/20260419_topic/UNRESOLVED.md" not in got, "UNRESOLVED.md excluded by DEFAULT_EXCLUDE", errors)
+
+
+def case_transcripts_not_captured(errors: list[str]) -> None:
+    """Transcript files at depth 5 (inside transcripts/ subdir) are not captured by */*.md pattern."""
+    print("\ncase: transcripts/ subdir not captured")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".vault-link").write_text("vault_path: 20_Projects/test\n", encoding="utf-8")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "design.md")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "transcripts" / "01_intro.md")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "transcripts" / "02_analysis.md")
+        rc, lines, stderr = _run_discover(root)
+        got = set(lines)
+        _assert(rc == 0, "exit 0", errors)
+        _assert("docs/discussions/20260419_topic/design.md" in got, "design doc included", errors)
+        _assert(
+            not any("transcripts/" in ln for ln in got),
+            f"no transcript files captured (got: {got})",
+            errors,
+        )
 
 
 def main() -> int:
@@ -536,6 +573,8 @@ def main() -> int:
     case_recent_filter_hours(errors)
     case_recent_zero_candidates(errors)
     case_recent_and_summary_require_discover(errors)
+    case_summary_unresolved_excluded(errors)
+    case_transcripts_not_captured(errors)
     case_threshold_metadata_in_output(errors)
     print()
     if errors:
