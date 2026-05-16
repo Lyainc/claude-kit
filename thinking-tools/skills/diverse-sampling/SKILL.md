@@ -13,6 +13,7 @@ description: |
   or explicitly: "/diverse-sampling", "VS 기법으로", "verbalized sampling으로".
 
   Skip for: factual questions, code debugging, single correct answer tasks, precise calculations.
+model: sonnet
 allowed-tools: AskUserQuestion
 ---
 

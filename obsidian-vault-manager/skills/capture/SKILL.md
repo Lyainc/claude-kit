@@ -1,6 +1,7 @@
 ---
 name: capture
 description: "Quick memo capture. Saves immediately to Inbox and outputs file path only. Example: '/capture API changes from today's meeting'"
+model: haiku
 allowed-tools: Read Write Bash
 ---
 

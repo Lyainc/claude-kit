@@ -1,6 +1,7 @@
 ---
 name: inbox-review
 description: "Organize Inbox notes using a 4-phase pipeline (SCAN→PROPOSE→CONFIRM→EXECUTE). Token-efficient: shell primitives handle scanning, LLM only touches ambiguous items. Example: '/inbox-review'"
+model: sonnet
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 

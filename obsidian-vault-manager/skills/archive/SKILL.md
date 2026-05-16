@@ -1,6 +1,7 @@
 ---
 name: archive
 description: "Archive a project and clean up related MOC/Home.md. Example: '/archive api-gateway'"
+model: sonnet
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
 
