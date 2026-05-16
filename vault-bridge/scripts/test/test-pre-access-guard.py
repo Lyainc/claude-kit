@@ -175,7 +175,7 @@ def case_main_context_first_access(errors: list[str], vault_dir: str) -> None:
     payload = _vault_read_payload(os.path.join(vault_dir, "note.md"))
     rc, out, _ = _run_hook(payload, env={"CLAUDE_SESSION_ID": sid}, vault_root=vault_dir)
     _assert(rc == 0, "exit 0", errors)
-    _assert("Direct vault access detected" in out, f"systemMessage emitted (got: {out!r})", errors)
+    _assert("[VAULT_BRIDGE POLICY]" in out, f"systemMessage starts with VAULT_BRIDGE POLICY (got: {out!r})", errors)
     # Counter file should contain 1
     counter_file = f"/tmp/vault-bridge-session-{sid}/direct-access-count"
     count_val = ""
@@ -196,7 +196,7 @@ def case_other_subagent(errors: list[str], vault_dir: str) -> None:
     )
     rc, out, _ = _run_hook(payload, env={"CLAUDE_SESSION_ID": sid}, vault_root=vault_dir)
     _assert(rc == 0, "exit 0", errors)
-    _assert("Direct vault access detected" in out, f"systemMessage emitted for non-exempt agent (got: {out!r})", errors)
+    _assert("[VAULT_BRIDGE POLICY]" in out, f"systemMessage starts with VAULT_BRIDGE POLICY for non-exempt agent (got: {out!r})", errors)
     _cleanup_session(sid)
 
 

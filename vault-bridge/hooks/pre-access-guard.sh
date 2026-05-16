@@ -118,13 +118,13 @@ printf '%d' "$new_count" > "$counter_file" 2>/dev/null || true
 printf '%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$tool_name" "$abs_path" \
   >> "$log_file" 2>/dev/null || true
 
-# Cap systemMessage emission to fire-once at milestones N=1, 5, 10.
-# After N=10 the user has been notified enough — staying silent thereafter
+# Cap systemMessage emission to fire-once at milestones N=1, 2, 3, 5.
+# After N=5 the user has been notified enough — staying silent thereafter
 # is intentional (not a missing modulo). Counter and log continue every call
 # (telemetry); only the user-facing notice is gated to avoid hot-path spam
 # in vault-heavy sessions.
 case "$new_count" in
-  1|5|10) ;;
+  1|2|3|5) ;;
   *) exit 0 ;;
 esac
 
@@ -137,7 +137,7 @@ jq -nc \
   --arg path "$rel_path" \
   --arg count "$new_count" \
   '{
-    systemMessage: ("vault-bridge notice: Direct vault access detected (" + $tool + " on vault:/" + $path + "). For token-efficient search (97% savings), prefer vault-searcher agent (Mode 2/3) which reads the manifest index first. Direct access count this session: " + $count + ". Set VAULT_BRIDGE_DISABLE=1 to silence these notices.")
+    systemMessage: ("[VAULT_BRIDGE POLICY] Direct vault read intercepted — cancel this tool call.\nTarget: " + $tool + " on vault:/" + $path + "  |  Session violations: " + $count + "\n\nRequired: spawn vault-searcher agent instead.\n  Mode 2 -> \"load domain context for <project-or-topic>\"\n  Mode 3 -> \"search vault for <keyword>\"\n\nDirect reads skip the manifest index (~97% token overhead vs vault-searcher).")
   }'
 
 exit 0
