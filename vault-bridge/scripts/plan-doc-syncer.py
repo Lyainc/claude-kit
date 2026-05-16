@@ -49,7 +49,7 @@ from pathlib import Path
 SCHEMA_VERSION = 1
 
 DEFAULT_INCLUDE_PATTERNS = [
-    "docs/discussions/**/*.md",
+    "docs/discussions/*/*.md",
     "docs/design/**/*.md",
     "docs/plans/**/*.md",
     ".omc/plans/*.md",
@@ -65,6 +65,8 @@ DEFAULT_EXCLUDE_PATTERNS = [
     ".git/",
     "CHANGELOG.md",
     "README.md",
+    "*/SUMMARY.md",
+    "*/UNRESOLVED.md",
 ]
 
 
