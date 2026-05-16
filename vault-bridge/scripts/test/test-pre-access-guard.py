@@ -203,6 +203,37 @@ def case_other_subagent(errors: list[str], vault_dir: str) -> None:
     _cleanup_session(sid)
 
 
+def case_milestone_escalation(errors: list[str], vault_dir: str) -> None:
+    """N=2 and N=3 both emit systemMessage; N=4 is intentionally silent."""
+    print("\ncase: milestone_escalation")
+    sid = "test-pre-access-milestone"
+    _cleanup_session(sid)
+    payload = _vault_read_payload(os.path.join(vault_dir, "note.md"))
+    env = {"CLAUDE_SESSION_ID": sid}
+
+    # N=1
+    _, out1, _ = _run_hook(payload, env=env, vault_root=vault_dir)
+    _assert("[VAULT_BRIDGE POLICY]" in out1, "N=1 emits policy message", errors)
+
+    # N=2
+    _, out2, _ = _run_hook(payload, env=env, vault_root=vault_dir)
+    _assert("[VAULT_BRIDGE POLICY]" in out2, "N=2 emits policy message", errors)
+
+    # N=3
+    _, out3, _ = _run_hook(payload, env=env, vault_root=vault_dir)
+    _assert("[VAULT_BRIDGE POLICY]" in out3, "N=3 emits policy message", errors)
+
+    # N=4 — intentionally skipped
+    _, out4, _ = _run_hook(payload, env=env, vault_root=vault_dir)
+    _assert(out4.strip() == "", f"N=4 silent (intentional skip, got: {out4!r})", errors)
+
+    # N=5 — final reminder
+    _, out5, _ = _run_hook(payload, env=env, vault_root=vault_dir)
+    _assert("[VAULT_BRIDGE POLICY]" in out5, "N=5 emits final reminder", errors)
+
+    _cleanup_session(sid)
+
+
 def case_kill_switch(errors: list[str], vault_dir: str) -> None:
     """VAULT_BRIDGE_DISABLE=1 → exit 0, stdout empty even with vault-searcher identifier."""
     print("\ncase: kill_switch")
@@ -266,6 +297,7 @@ def main() -> int:
         case_vault_searcher_attribution(errors, vault_dir)
         case_main_context_first_access(errors, vault_dir)
         case_other_subagent(errors, vault_dir)
+        case_milestone_escalation(errors, vault_dir)
         case_kill_switch(errors, vault_dir)
         case_non_vault_path(errors, vault_dir)
 
