@@ -230,7 +230,7 @@ vault `_index.md`의 `snapshot_import: true`가 필요해요.
 
 `--auto-vault plan`:
 - End-of-pipeline auto-answers "Plan doc로 vault에 저장".
-- If gate closed at end (vault_linked=false or gate check fails): fall back to terminal output + single warning line: `"(vault 게이트가 닫혀 있어 터미널 출력으로 대체했어요)"`
+- If gate closed at end (vault_linked=false OR snapshot_export=false OR gate check fails): fall back to terminal output + single warning line: `"(vault 게이트가 닫혀 있어 터미널 출력으로 대체했어요)"`
 
 `--auto-vault session`:
 - End-of-pipeline auto-answers "Session note로 vault에 저장".
