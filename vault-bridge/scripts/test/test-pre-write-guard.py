@@ -79,15 +79,16 @@ def case_main_context_inbox_write(errors: list[str], vault_root: str) -> None:
     _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
 
 
-def case_subagent_warn_default(errors: list[str], vault_root: str) -> None:
-    """subagent_type present + no VAULT_BRIDGE_WRITE_CONTRACT → warn mode."""
-    print("\ncase: subagent_warn_default")
+def case_subagent_enforce_default(errors: list[str], vault_root: str) -> None:
+    """subagent_type present + no VAULT_BRIDGE_WRITE_CONTRACT → enforce (actual default at line 86)."""
+    # TODO: pre-write-guard.sh:86 default=enforce vs 주석/docs warn 불일치 — 별도 PR로 추적
+    print("\ncase: subagent_enforce_default")
     path = f"{vault_root}/00_Inbox/session-2026-05-12.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="vault-searcher")
     proc = _run(payload, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
-    _assert("CONTRACT WARNING" in proc.stderr,
-            f"stderr contains CONTRACT WARNING (got: {proc.stderr!r})", errors)
+    _assert('"permissionDecision":"deny"' in proc.stdout.replace(" ", ""),
+            f"stdout contains permissionDecision:deny (got: {proc.stdout!r})", errors)
     _assert("systemMessage" in proc.stdout and "vault-bridge contract" in proc.stdout,
             f"stdout contains systemMessage with vault-bridge contract (got: {proc.stdout!r})", errors)
 
@@ -221,7 +222,7 @@ def main() -> int:
             Path(vault_root, d).mkdir(parents=True, exist_ok=True)
 
         case_main_context_inbox_write(errors, vault_root)
-        case_subagent_warn_default(errors, vault_root)
+        case_subagent_enforce_default(errors, vault_root)
         case_subagent_warn_explicit(errors, vault_root)
         case_subagent_enforce(errors, vault_root)
         case_subagent_off(errors, vault_root)
