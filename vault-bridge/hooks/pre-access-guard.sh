@@ -119,6 +119,9 @@ printf '%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$tool_name" "$abs_path" 
   >> "$log_file" 2>/dev/null || true
 
 # Cap systemMessage emission to fire-once at milestones N=1, 2, 3, 5.
+# Pattern: 1-2-3 rapid early escalation; 5 is a final reminder.
+# N=4 is intentionally skipped — the burst window (1-3) covers session start,
+# and 5 acts as a deliberate last notice before silence.
 # After N=5 the user has been notified enough — staying silent thereafter
 # is intentional (not a missing modulo). Counter and log continue every call
 # (telemetry); only the user-facing notice is gated to avoid hot-path spam
