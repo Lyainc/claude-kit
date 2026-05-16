@@ -176,6 +176,9 @@ def case_main_context_first_access(errors: list[str], vault_dir: str) -> None:
     rc, out, _ = _run_hook(payload, env={"CLAUDE_SESSION_ID": sid}, vault_root=vault_dir)
     _assert(rc == 0, "exit 0", errors)
     _assert("[VAULT_BRIDGE POLICY]" in out, f"systemMessage starts with VAULT_BRIDGE POLICY (got: {out!r})", errors)
+    _assert("vault-searcher" in out, f"systemMessage mentions vault-searcher (got: {out!r})", errors)
+    _assert("Mode 2" in out, f"systemMessage includes Mode 2 example (got: {out!r})", errors)
+    _assert("Mode 3" in out, f"systemMessage includes Mode 3 example (got: {out!r})", errors)
     # Counter file should contain 1
     counter_file = f"/tmp/vault-bridge-session-{sid}/direct-access-count"
     count_val = ""
