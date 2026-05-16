@@ -65,8 +65,8 @@ DEFAULT_EXCLUDE_PATTERNS = [
     ".git/",
     "CHANGELOG.md",
     "README.md",
-    "*/SUMMARY.md",
-    "*/UNRESOLVED.md",
+    "docs/discussions/*/SUMMARY.md",
+    "docs/discussions/*/UNRESOLVED.md",
 ]
 
 
