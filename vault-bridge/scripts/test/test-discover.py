@@ -553,6 +553,21 @@ def case_transcripts_not_captured(errors: list[str]) -> None:
         )
 
 
+def case_flat_discussions_not_captured(errors: list[str]) -> None:
+    """Files directly under docs/discussions/ (depth-2) are not matched by */*.md pattern."""
+    print("\ncase: flat docs/discussions/ file not captured")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        (root / ".vault-link").write_text("vault_path: 20_Projects/test\n", encoding="utf-8")
+        _touch(root / "docs" / "discussions" / "flat-design.md")
+        _touch(root / "docs" / "discussions" / "20260419_topic" / "design.md")
+        rc, lines, stderr = _run_discover(root)
+        got = set(lines)
+        _assert(rc == 0, "exit 0", errors)
+        _assert("docs/discussions/flat-design.md" not in got, "flat discussions file not captured (depth-2)", errors)
+        _assert("docs/discussions/20260419_topic/design.md" in got, "topic subdir file still captured (depth-3)", errors)
+
+
 def main() -> int:
     print(f"Running --discover regression tests against: {SYNCER}")
     errors: list[str] = []
@@ -573,6 +588,7 @@ def main() -> int:
     case_recent_filter_hours(errors)
     case_recent_zero_candidates(errors)
     case_recent_and_summary_require_discover(errors)
+    case_flat_discussions_not_captured(errors)
     case_summary_unresolved_excluded(errors)
     case_transcripts_not_captured(errors)
     case_threshold_metadata_in_output(errors)
