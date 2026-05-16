@@ -54,7 +54,7 @@ claude-kit의 14개 스킬은 모델 지정이 없어 호출 세션 모델(주�
 | inbox-review | obsidian-vault-manager | sonnet | 4단계 분류 파이프라인 + AskUserQuestion |
 | archive | obsidian-vault-manager | sonnet | Home.md·MOC 구조 편집 |
 | doc-polish | thinking-tools | sonnet | 3-layer 교정 (Editor 역할) |
-| diverse-sampling | thinking-tools | sonnet | VS 기법 다양성 생성 |
+| diverse-sampling | thinking-tools | sonnet | VS 기법이 구조화 프롬프트로 다양성을 확보 — sonnet 적정, opus 비용 불요 |
 | doc-concretize | thinking-tools | opus (미추가) | 재귀적 심층 작성 |
 | expert-panel | thinking-tools | opus (미추가) | 변증법적 심층 추론 |
 | unknown-discovery | thinking-tools | opus (미추가) | 소크라테스식 심층 인터뷰 |
@@ -68,22 +68,24 @@ claude-kit의 14개 스킬은 모델 지정이 없어 호출 세션 모델(주�
 
 **메타데이터**: `claude-kit/CLAUDE.md`의 "SKILL.md Frontmatter" 섹션에 `model:` 필드 설명 추가; `obsidian-vault-manager`·`thinking-tools` plugin.json version bump + marketplace.json 동기화
 
-## Phase 2 — facilitator (별도 게이트, 본 범위 제외)
+## Phase 2 — facilitator (테스트 완료 — 미진행)
 
-`thinking-tools/agents/thinking-facilitator.md`는 에이전트이므로 frontmatter `model:`이 이미 존재(`sonnet`). 2026-04-16 패널이 haiku 다운그레이드를 조건부 승인했다.
+`thinking-tools/agents/thinking-facilitator.md`는 에이전트이므로 frontmatter `model:`이 이미 존재(`sonnet`). 2026-04-16 패널이 haiku 다운그레이드를 조건부 승인했고, 게이트는 경계케이스 10개 라우팅 정확도 ≥95%였다.
 
-- 변경: `model: sonnet` → `model: haiku`
-- 게이트: `20260517_model-routing-redesign/UNRESOLVED.md` Issue 3의 경계케이스 10개 라우팅 테스트 ≥95%
-- 게이트 통과 시에만 진행. 실패 시 1줄 롤백.
+**테스트 결과 (2026-05-17)**: 10개 경계케이스 블라인드 라우팅 — haiku 7/10 (70%), sonnet 9/10 (90%). haiku는 게이트(95%)에 크게 미달했고, 부정형 무시(Case 8 — "전문가 토론 말고"를 무시하고 expert-panel 라우팅)·신호 오분류(Case 4 — unknown-discovery를 doc-polish로) 같은 결정적 오답을 냈다.
+
+**판정**: facilitator는 `model: sonnet` 유지. haiku 다운그레이드 미진행, Phase 2 종료. 상세는 `20260517_model-routing-redesign/UNRESOLVED.md` Issue 3. 부수 발견(facilitator decision tree의 expert-panel↔thought-chain 미구분)은 같은 문서 Issue 5.
 
 ## 하지 않는 것
 
 - **fork PoC / fork-worthiness 분석** — `model:` 필드가 답이므로 불필요
 - **벤치마크·telemetry 스키마 변경** — 변경이 1줄 + 자동 복귀라 위험도가 낮음. telemetry는 기존대로 빈도만 수동 관찰
 - **vault-knowledge-manager 다운그레이드** — 2026-04-16 패널이 "조용한 실패" 리스크로 보류. 새 근거 없으면 유지
-- **context 스킬** — 이미 fork, 패널이 유지 결정
+- **context 스킬** — `context: fork`(agent: Explore)로 이미 forked 실행. 공식 문서상 forked 스킬의 실행 모델은 `agent` 타입이 결정하므로 스킬 레벨 `model:` 티어링이 그대로 적용되지 않는다. 2026-04-16 패널의 fork 유지 결정과도 일관 — 본 범위에서 제외, 필요 시 별도 재검토.
 
 ## 검증
+
+**`model:` 필드 동작 전제**: SKILL.md frontmatter의 `model:` 필드는 Claude Code 공식 문서(`code.claude.com/docs/en/skills.md`, Frontmatter reference)에 명시돼 있으며 2026-05-17 WebFetch로 verbatim 확인했다. 단 — 인라인 모델 오버라이드의 *런타임 동작*(실제로 해당 모델로 실행되고 턴 종료 시 세션 모델로 복귀하는지)은 기계적으로 검증되지 않았다. 아래 검증 1~4는 frontmatter 유효성·기능 회귀 부재까지만 보장한다. 런타임 라우팅은 사용 중 관찰로 확인할 사안이다.
 
 1. 기능 회귀 0 (기준: 기능 회귀 0 / 표현 회귀 허용) — 8개 스킬 각 1회 실행하여 정상 동작 확인. vault-audit는 `audit-validate.py --dod`로 9개 에러 타입 탐지 확인
 2. JSON 유효성 — plugin.json ×2 + marketplace.json
