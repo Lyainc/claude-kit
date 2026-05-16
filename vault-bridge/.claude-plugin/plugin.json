@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.sh"],
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.sh",
             "timeout": 5
           }
         ]
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-end-pre.sh"],
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-end-pre.sh",
             "timeout": 5
           },
           {
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/session-start-manifest.sh"],
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start-manifest.sh",
             "timeout": 5
           }
         ]
@@ -73,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/pre-access-guard.sh"],
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-access-guard.sh",
             "timeout": 3
           }
         ]
@@ -83,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "args": ["${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-guard.sh"],
+            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-guard.sh",
             "timeout": 3
           }
         ]
