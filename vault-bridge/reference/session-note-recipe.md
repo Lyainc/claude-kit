@@ -4,7 +4,7 @@ Detailed procedure executed inline by the `/save-session` slash command (main co
 
 The entry point is [`../commands/save-session.md`](../commands/save-session.md); the full procedure, templates, and rules live here.
 
-**Scope**: artifact types `session` (with three modes: record / handoff / quick), `capture`, `plan`.
+**Scope**: artifact types `session` (with two modes: record / quick), `capture`, `plan`.
 
 **User language**: All user-facing output (AskUserQuestion labels, draft content, error suggestions) MUST be in Korean.
 
@@ -20,27 +20,25 @@ Scan the input context to determine artifact `type`:
 
 ### 2. Select mode (Tier routing — `session` type only)
 
-For `type: session`, route to one of three modes via the synonym dictionary. For `capture` / `plan`, skip mode selection (single format).
+For `type: session`, route to one of two modes via the synonym dictionary. For `capture` / `plan`, skip mode selection (single format).
 
 **Synonym dictionary** (case-insensitive, bounded — 4–5 tokens per row):
 
 | mode | EN tokens | KR tokens |
 |---|---|---|
 | record | record, log, archive | 기록, 정리, 회고 |
-| handoff | handoff, continue, resume | 인수인계, 이어서, 다음 세션 |
 | quick | quick, brief, summary | 간단히, 짧게, 빠르게, 요약 |
 
 **Tier rules**:
 
 - **Tier 1 (Strong)** — trigger matches tokens from exactly one row → pre-select that mode, skip AskUserQuestion, output one-line confirmation `→ {mode} 모드`.
-- **Tier 2 (Inferred)** — no token match → AskUserQuestion with default inferred from context (next-step or blocker mentions → handoff; conversation under ~5 turns → quick; else → record).
-- **Tier 3 (Ambiguous)** — tokens from two or more rows match → AskUserQuestion with three equal options, no default.
+- **Tier 2 (Inferred)** — no token match → AskUserQuestion with default inferred from context (conversation under ~5 turns → quick; else → record).
+- **Tier 3 (Ambiguous)** — tokens from both rows match → AskUserQuestion with two equal options, no default.
 
 Mode descriptions for AskUserQuestion (Tier 2/3):
 
 - **record** — 작업 기록 — past-focused summary only
-- **handoff** — 인수인계 — continuation work, next steps, blockers
-- **quick** — 간단히 — minimal summary (Summary + Related Files, plus Next Steps if handoff)
+- **quick** — 간단히 — minimal summary (Summary + Related Files)
 
 ### 3. Generate frontmatter (rule-based)
 
@@ -49,7 +47,7 @@ Auto-generate frontmatter before drafting body:
 - `created: YYYY-MM-DD` (today's date)
 - `tags: [{type}, ...domain_tags]` (derive domain tags from conversation context)
 - `type: {classified}` (session / capture / plan)
-- `status: active` — required for `session` (handoff mode) and `plan`; omit for `record` session and `capture`
+- `status: active` — required for `plan`; omit for `session` and `capture`
 
 ### 4. Determine save path
 
@@ -112,14 +110,13 @@ Ask: "이 내용으로 저장할까요?"
 
 ## Templates
 
-### Session note — record / handoff
+### Session note — record
 
 ```markdown
 ---
 created: YYYY-MM-DD
 tags: [session, {project-or-domain}]
 type: session
-status: active                 # handoff mode only; omit for record mode
 ---
 # Session Note — {title} (YYYY-MM-DD)
 
@@ -128,15 +125,6 @@ status: active                 # handoff mode only; omit for record mode
 
 ## Done This Session
 - {completed work}
-
-## In Progress                  # handoff mode only
-- [ ] {incomplete work — specify how far it got}
-
-## Blockers / Warnings          # handoff mode only; omit if none
-- {constraints, issues, dependencies}
-
-## Next Steps                   # handoff mode only
-1. {specific, actionable item}
 
 ## Related Files
 - [[path/to/file]] — {role/change}
@@ -158,9 +146,6 @@ type: session
 ## Summary
 {2-3 line summary}
 
-## Next Steps                   # only if handoff-type quick
-1. {actionable item}
-
 ## Related Files
 - [[path/to/file]] — {role/change}
 ```
@@ -169,11 +154,8 @@ type: session
 
 - Confirm with user before saving (AskUserQuestion). Never auto-save.
 - All discrete choices (mode, path, filename collision, save confirmation) MUST use AskUserQuestion. Free-form content (edit instructions, extra sections) uses plain text.
-- "Next Steps" must be specific and actionable (e.g., "Add session validation to POST /api/bookings" not "Implement API").
 - Ask user for supplementary info if conversation context is insufficient.
-- Omit Blockers/Warnings section if none exist.
-- In `record` mode, omit In Progress, Blockers, Next Steps sections entirely.
-- In `record` mode, omit the `status` field from frontmatter.
+- Omit the `status` field from frontmatter (record and quick modes do not use it).
 - On any write failure, report the error inline to the user in this structured form: `kind` (permission/path_invalid/convention_violation/name_collision/disabled), `path`, `detail`, `suggestion`. Never silently swallow errors.
 
 ## Options
@@ -181,5 +163,5 @@ type: session
 | Option | Description | Default |
 |--------|-------------|---------|
 | `{project-name}` | Link to project (`20_Projects/` subdirectory) | auto-detect |
-| `--quick` | Brief version (Summary + Related Files + optional Next Steps) | false |
+| `--quick` | Brief version (Summary + Related Files) | false |
 | `--hours N` | File change search range (integer 1-24, invalid → warning + default) | 1 hour |

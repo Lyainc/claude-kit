@@ -16,6 +16,37 @@ if [ "${VAULT_BRIDGE_DISABLE:-}" = "1" ]; then
   exit 0
 fi
 
+# Resume handoff injection: surface a prior session's resume.md to the *model*
+# via additionalContext — systemMessage would reach only the user. The python3
+# guard leaves the file intact when no interpreter is available, rather than
+# consuming an undelivered handoff note.
+_PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
+_RESUME_FILE="$_PROJECT_ROOT/.claude-kit/vault-bridge/resume.md"
+if [ -f "$_RESUME_FILE" ] && command -v python3 >/dev/null 2>&1; then
+  python3 - "$_RESUME_FILE" <<'PYEOF'
+import sys, json
+try:
+    content = open(sys.argv[1]).read().strip()
+    lines = content.split('\n')
+    if lines and lines[0].strip() == '---':
+        for i, line in enumerate(lines[1:], 1):
+            if line.strip() == '---':
+                content = '\n'.join(lines[i + 1:]).strip()
+                break
+    if content:
+        msg = '이전 세션의 인수인계 메모입니다:\n\n' + content
+        print(json.dumps({
+            'hookSpecificOutput': {
+                'hookEventName': 'SessionStart',
+                'additionalContext': msg,
+            }
+        }))
+except Exception:
+    pass
+PYEOF
+  rm -f "$_RESUME_FILE"
+fi
+
 # Determine vault root
 VAULT_ROOT="${VAULT_BRIDGE_VAULT_ROOT:-${HOME}/vault}"
 

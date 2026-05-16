@@ -60,6 +60,9 @@ telemetry/*.local.json
 .vault-link
 .vault-link.local
 
+# Vault bridge session handoff scratch (ephemeral resume.md, consumed on next SessionStart)
+.claude-kit/
+
 # Sensitive or temporary documents (docs/ is now tracked by default)
 # Add specific files here if needed, e.g.:
 .antrophics_official_skills/

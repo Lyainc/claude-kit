@@ -202,6 +202,45 @@ Where `{per_file_results}` lists each file with status:
 - `intent == defer` → `> 저장 완료. 이어서 ExitPlanMode에서 "거절"을 선택하면 다음 세션에서 재개할 수 있어요.`
 - (plan mode가 비활성이면 위 줄은 안내일 뿐 실제 ExitPlanMode 단계가 없어요 — 무해.)
 
+**`intent == defer` → auto-generate resume.md:**
+
+When `intent == defer` AND at least one file was saved successfully, generate a `resume.md` so the next session starts with context:
+
+1. Derive `project_name` from `vault_path` last segment (e.g., `claude-kit` from `20_Projects/claude-kit`). Use `basename "${CLAUDE_PROJECT_ROOT:-$PWD}"` if no vault_path.
+
+2. Build content — use the first successfully saved file's vault filename as the plan reference:
+
+   ```markdown
+   ---
+   created: {YYYY-MM-DD}
+   type: resume
+   project: {project_name}
+   ---
+
+   {project_name} 작업 이어받아줘.
+   구현 플랜: {vault_path}/{first_saved_filename}
+   ```
+
+3. Create directory and write. Use `${CLAUDE_PROJECT_ROOT:-$PWD}` (not bare `$PWD`) so the write path matches the SessionStart hook's read path even after a session-internal `cd`:
+
+   ```bash
+   mkdir -p "${CLAUDE_PROJECT_ROOT:-$PWD}/.claude-kit/vault-bridge"
+   ```
+
+   Write to `${CLAUDE_PROJECT_ROOT:-$PWD}/.claude-kit/vault-bridge/resume.md` using the Write tool.
+
+4. Ensure `.claude-kit/` is gitignored:
+
+   ```bash
+   grep -qF '.claude-kit' "${CLAUDE_PROJECT_ROOT:-$PWD}/.gitignore" 2>/dev/null \
+     || printf '\n.claude-kit/\n' >> "${CLAUDE_PROJECT_ROOT:-$PWD}/.gitignore"
+   ```
+
+5. Append to output:
+
+   > resume.md 생성 완료: `.claude-kit/vault-bridge/resume.md`
+   > 다음 세션 시작 시 자동으로 인수인계 내용이 안내돼요.
+
 ## Rules
 
 - NEVER write to vault without explicit user approval (Step 4 AskUserQuestion).

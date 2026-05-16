@@ -1,5 +1,5 @@
 ---
-description: Create a session note recording the current session's work — record / handoff / quick modes
+description: Create a session note recording the current session's work — record / quick modes
 allowed-tools: Read, Write, Bash, AskUserQuestion
 ---
 
@@ -23,17 +23,29 @@ If the value is `1`, output the following and stop:
 
 ---
 
+## Step 0.5 — Handoff redirect check
+
+Check whether `$ARGUMENTS` contains any handoff-mode token (case-insensitive):
+`handoff`, `continue`, `resume`, `인수인계`, `이어서`, `다음 세션`
+
+If any token matches, output the following and stop:
+
+> `/save-session`은 더 이상 handoff 모드를 지원하지 않아요.
+> 대신 `/handoff`를 사용해 주세요 — 복붙 한 줄 / 복붙 요약 / resume.md 저장 중 하나를 선택할 수 있어요.
+
+---
+
 ## Step 1 — Load the recipe
 
 Read `vault-bridge/reference/session-note-recipe.md` (resolve relative to `${CLAUDE_PROJECT_ROOT:-$PWD}`; walk upward if not found) and follow its 11-step procedure inline. The recipe is the single source of truth for:
 
 - `.vault-link` discovery + path resolution (recovery, graceful fallback)
 - artifact type classification (`session` / `capture` / `plan`) with skim rules
-- session mode tier routing (record / handoff / quick) — synonym dictionary, Tier 1/2/3 rules, AskUserQuestion prompts
+- session mode tier routing (record / quick) — synonym dictionary, Tier 1/2/3 rules, AskUserQuestion prompts
 - frontmatter auto-generation
 - save path determination (`.vault-link` first, then explicit argument / auto-detect, then Inbox fallback) + path-conflict dialog
 - filename pattern `{type}-YYYY-MM-DD[-topic][-vN].md` + collision walk + AskUserQuestion
-- record / handoff / quick body templates
+- record / quick body templates
 - related-files gathering (`--hours N` window)
 - existing-active-note carry-over logic
 - write + structured inline error reporting
@@ -49,7 +61,6 @@ When invoked through this slash command:
 - All discrete choices (mode, path conflict, filename collision, save confirmation) MUST use AskUserQuestion. Free-form content (edit instructions) uses plain text response.
 - Write tool only — new files only. Never Edit, never overwrite existing vault files.
 - On any write failure, report the recipe §11 structured inline error: `kind` ∈ `permission | path_invalid | convention_violation | name_collision | disabled`, plus `path`, `detail`, `suggestion`. Never silently swallow errors.
-- "Next Steps" entries must be specific and actionable.
 - `VAULT_BRIDGE_DISABLE=1` always wins — Step 0 short-circuits before the recipe is read.
 
 After a successful save:
@@ -65,7 +76,7 @@ After a successful save:
 | Argument | Description | Default |
 |---|---|---|
 | `$ARGUMENTS` contains `capture` / `plan` | Override `type` (skips mode tier routing) | `type: session` |
-| Mode tokens (`record`, `handoff`, `quick`, `기록`, `인수인계`, `간단히`, …) | Tier 1 strong match → pre-select mode (see recipe §2) | Tier 2/3 → AskUserQuestion |
+| Mode tokens (`record`, `quick`, `기록`, `간단히`, …) | Tier 1 strong match → pre-select mode (see recipe §2) | Tier 2/3 → AskUserQuestion |
 | `--hours N` (integer 1–24) | File-change search window for Related Files | 1 hour |
 | `{project-name}` | Link to `~/vault/20_Projects/{name}/` | auto-detect from `.vault-link` |
 

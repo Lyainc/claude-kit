@@ -50,15 +50,14 @@ Search the entire vault by keyword. If Obsidian CLI is available and responsive,
 
 ## Write Workflow (since v1.9.0)
 
-vault-searcher is read-only. All vault writes route through user-initiated slash commands executed inline in main context. The session-note flow (`/save-session`) supports three modes:
+vault-searcher is read-only. All vault writes route through user-initiated slash commands executed inline in main context. The session-note flow (`/save-session`) supports two modes:
 
 | Mode | When to use | Sections |
 |------|------------|----------|
-| `record` | No continuation work — past summary only | Summary, Done, Related Files, Reference Context |
-| `handoff` | Next session will continue this work | All sections + Next Steps, In Progress, Blockers |
-| `quick` | Minimal capture | Summary, Related Files (+ Next Steps if handoff) |
+| `record` | Past summary of completed work | Summary, Done, Related Files, Reference Context |
+| `quick` | Minimal capture | Summary, Related Files |
 
-For captures and plan documents, use `/save-plan-doc`. For committing vault changes to git, use `/vault-commit`.
+For captures and plan documents, use `/save-plan-doc`. For committing vault changes to git, use `/vault-commit`. To hand work off to the next session, use `/handoff` (see [Session Handoff](#session-handoff)).
 
 Use `/save-session` to trigger session note creation from the main context. The command handles type/mode selection, path confirmation, same-date collision resolution, and final save confirmation inline.
 
@@ -71,17 +70,39 @@ Use `/save-session` to trigger session note creation from the main context. The 
 "세션 저장 --hours 3"
 ```
 
+## Session Handoff
+
+`/handoff` (vault-bridge v1.11.0) generates a continuation handoff for the next session — distinct from `/save-session`, which records a past-tense session note into the vault. `/handoff` summarizes the current work state and delivers it in one of three forms:
+
+| Option | Delivery | Use when |
+|--------|----------|----------|
+| 복붙 한 줄 | One-line prompt printed to the terminal | Quick continuation, paste into the next session |
+| 복붙 요약 | Structured summary printed to the terminal | Richer context, paste into the next session |
+| 파일 저장 | `resume.md` written to `.claude-kit/vault-bridge/` | Hands off automatically — no copy-paste |
+
+`/save-plan-doc` run with the "다음 세션으로" (defer) intent also writes a `resume.md`.
+
+### resume.md auto-pickup
+
+When a `resume.md` is written under the project root (`.claude-kit/vault-bridge/resume.md`), the **SessionStart hook** detects it on the next session, injects its body into the model context via `additionalContext`, then deletes the file (single-use). The `.claude-kit/` directory is ephemeral — keep it gitignored.
+
+```
+/handoff
+"다음 세션 인수인계"
+"이어서 작업할 수 있게 정리해줘"
+```
+
 ## Handoff Term Convention
 
-`handoff` has a single canonical meaning in vault-bridge: **a session-note mode** (one of `record` / `handoff` / `quick`). All other historical usages are deprecated.
+`handoff` has a single canonical meaning in vault-bridge: **the `/handoff` command** that generates a next-session continuation handoff (see [Session Handoff](#session-handoff)). All other historical usages are deprecated.
 
 | Context | Allowed? | Replacement |
 |---------|----------|-------------|
-| session-note mode (`record` / `handoff` / `quick`) | **Allowed (canonical)** | — |
+| `/handoff` command (next-session continuation) | **Allowed (canonical)** | — |
 | Standalone `handoff-*.md` filename | **Forbidden (legacy only)** | Use `session-*.md` |
-| Redundant tag `tags: [session, handoff, ...]` | **Forbidden** | Omit `handoff` — session mode already conveys it |
+| Redundant tag `tags: [session, handoff, ...]` | **Forbidden** | Omit `handoff` — `type:` already conveys artifact role |
 | thinking-tools stage-to-stage data contract | **Domain prefix required** | Use `inter-stage handoff` or `stage-transition` |
-| "Project-level handover document" | **Forbidden** | Write `plan-YYYY-MM-DD-{topic}.md`, then reference it from a session-note in handoff mode |
+| "Project-level handover document" | **Forbidden** | Write `plan-YYYY-MM-DD-{topic}.md`, then run `/handoff` to point the next session at it |
 
 vault-searcher Mode 1 no longer matches the legacy `handoff-*.md` / `*-handoff.md` patterns (removed in v1.7.x). Existing legacy files have been renamed or absorbed.
 
@@ -423,14 +444,15 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 ## Notes
 
 - Filename: `session-YYYY-MM-DD.md` (type-first convention)
-- Frontmatter: `created`, `tags: [session, {project}]`, `type: session`, `status: active` (handoff mode only)
+- Frontmatter: `created`, `tags: [session, {project}]`, `type: session` (no `status` field — `status: active` applies to `plan` artifacts only)
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **Stop hook** (deterministic shell script `hooks/stop-check.sh`): silently checks the user's last message for session-closing keywords; injects a one-line `systemMessage` suggesting `/save-session` only when a closing signal is detected. No LLM call → no per-turn cost, no infinite-loop risk
-- **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup
+- **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background; also detects `.claude-kit/vault-bridge/resume.md`, injects its body into the model context via `additionalContext`, and consumes (deletes) the file. Never blocks session startup
 - **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects all deterministic state — `.vault-link` presence + Layer 1 `auto_capture`, `_index.md` Layer 2 `auto_capture`, plan-doc candidates, direct-access counter, plan-doc-asked flag — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). `50_Archive/` is exempt (OVM territory). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
-- **`/save-session` command**: explicit user trigger for inline session note creation (main context) with full mode selection (record/handoff/quick)
+- **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/quick)
+- **`/handoff` command**: generates a next-session continuation handoff (one-liner / summary / `resume.md` file) — main-context user trigger
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
 ## Session Auto-Commit
@@ -480,7 +502,9 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks or commit suggestions fir
 
 | Command | Description |
 |---------|-------------|
-| `/save-session` | Inline session note creation in main context — mode selection (record/handoff/quick), path confirmation, collision resolution |
+| `/save-session` | Inline session note creation in main context — mode selection (record/quick), path confirmation, collision resolution |
+| `/handoff` | Generate a next-session continuation handoff — one-line prompt, summary, or `resume.md` file |
+| `/save-plan-doc` | Snapshot external plan/design docs into the bound vault project — 2-layer opt-in gate |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |
