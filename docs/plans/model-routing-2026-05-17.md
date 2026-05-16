@@ -1,0 +1,91 @@
+---
+created: 2026-05-17
+tags: [plan, claude-kit, model-routing, cost-optimization]
+type: plan
+status: active
+related:
+  - docs/discussions/20260416_cost-optimization-panel/SUMMARY.md
+  - docs/discussions/20260517_model-routing-redesign/SUMMARY.md
+---
+
+# Model Routing — claude-kit 스킬 모델 티어링
+
+## 목적
+
+claude-kit의 14개 스킬은 모델 지정이 없어 호출 세션 모델(주로 Opus)을 상속한다. mechanical한 스킬(capture 등)까지 Opus로 실행되는 것은 토큰 낭비다. 각 스킬이 요구하는 추론 깊이에 맞춰 모델 티어를 지정한다.
+
+## 계보
+
+| 단계 | 산출물 | 결과 |
+|------|--------|------|
+| 2026-04-16 | `20260416_cost-optimization-panel` | facilitator haiku 조건부 승인, vault-knowledge-manager 보류, context fork 유지 |
+| 2026-05-10 | `plan-2026-05-10-skill-model-routing.md` (vault) | `context: fork + agent:` 위임 방식 — 의존성 이슈 6개로 백지화 |
+| 2026-05-17 | `20260517_model-routing-redesign` expert-panel | fork-worthiness 2트랙 설계 — 전제 오류로 폐기 |
+| 2026-05-17 | **본 문서** | `model:` frontmatter 직접 지정으로 확정 |
+
+## 폐기 사유 — fork 기반 설계
+
+2026-05-10 plan과 2026-05-17 expert-panel은 모두 **"SKILL.md에는 `model:` 필드가 없으므로, 스킬을 싼 모델로 실행하려면 싼 모델 에이전트로 `context: fork`하는 수밖에 없다"**는 전제 위에 세워졌다.
+
+이 전제는 거짓이다. Claude Code 공식 문서(`https://code.claude.com/docs/en/skills.md`, "Frontmatter reference")가 SKILL.md frontmatter의 `model:` 필드를 명시한다:
+
+> `model` — Model to use when this skill is active. The override applies for the rest of the current turn and is not saved to settings; the session model resumes on your next prompt. Accepts the same values as `/model`, or `inherit` to keep the active model.
+
+따라서 fork PoC, fork-worthiness 분석, cross-plugin path BLOCKER, 측정 인프라가 전부 불필요하다.
+
+## 메커니즘
+
+- SKILL.md frontmatter에 `model:` 키 한 줄 추가
+- `context: fork` 없이 메인 컨텍스트에서 해당 모델로 인라인 실행, 턴 종료 시 세션 모델로 자동 복귀
+- 플러그인 스킬에도 동일 적용 (문서 "Where skills live" 표)
+- 값: `haiku` / `sonnet` / `opus` 별칭 또는 `inherit`
+- 가역적: 변경이 1줄이고 턴 단위 자동 복귀라 롤백은 라인 삭제
+
+## 티어 배정
+
+`model:`을 명시 추가하는 것은 haiku·sonnet 티어뿐. opus 티어는 필드 미추가(= 세션 모델 inherit) — sonnet 기본 사용자에게 Opus를 강제하지 않기 위함.
+
+| 스킬 | 플러그인 | 티어 | 근거 |
+|------|---------|------|------|
+| capture | obsidian-vault-manager | haiku | 즉시 저장 + 경로 출력, 판단 없음 |
+| vault-audit | obsidian-vault-manager | haiku | SCAN/CLASSIFY가 LLM=0·rule-based |
+| note | obsidian-vault-manager | sonnet | 도메인 분류 + MOC 링킹 (조용한 실패 리스크) |
+| project | obsidian-vault-manager | sonnet | 프로젝트 구조화·승격 판단 |
+| inbox-review | obsidian-vault-manager | sonnet | 4단계 분류 파이프라인 + AskUserQuestion |
+| archive | obsidian-vault-manager | sonnet | Home.md·MOC 구조 편집 |
+| doc-polish | thinking-tools | sonnet | 3-layer 교정 (Editor 역할) |
+| diverse-sampling | thinking-tools | sonnet | VS 기법 다양성 생성 |
+| doc-concretize | thinking-tools | opus (미추가) | 재귀적 심층 작성 |
+| expert-panel | thinking-tools | opus (미추가) | 변증법적 심층 추론 |
+| unknown-discovery | thinking-tools | opus (미추가) | 소크라테스식 심층 인터뷰 |
+| thought-chain | thinking-tools | opus (미추가) | 파이프라인 오케스트레이션 + 단계 간 종합 |
+| adversarial-review | thinking-tools | opus (미추가) | 1:1 공격·방어 심층 추론 |
+| context | obsidian-vault-manager | 변경 없음 | 이미 `context: fork` — 2026-04-16 패널이 fork 유지 결정 |
+
+## 변경 범위
+
+**스킬 frontmatter (8개)**: capture·vault-audit → `model: haiku`; note·project·inbox-review·archive·doc-polish·diverse-sampling → `model: sonnet`
+
+**메타데이터**: `claude-kit/CLAUDE.md`의 "SKILL.md Frontmatter" 섹션에 `model:` 필드 설명 추가; `obsidian-vault-manager`·`thinking-tools` plugin.json version bump + marketplace.json 동기화
+
+## Phase 2 — facilitator (별도 게이트, 본 범위 제외)
+
+`thinking-tools/agents/thinking-facilitator.md`는 에이전트이므로 frontmatter `model:`이 이미 존재(`sonnet`). 2026-04-16 패널이 haiku 다운그레이드를 조건부 승인했다.
+
+- 변경: `model: sonnet` → `model: haiku`
+- 게이트: `20260517_model-routing-redesign/UNRESOLVED.md` Issue 3의 경계케이스 10개 라우팅 테스트 ≥95%
+- 게이트 통과 시에만 진행. 실패 시 1줄 롤백.
+
+## 하지 않는 것
+
+- **fork PoC / fork-worthiness 분석** — `model:` 필드가 답이므로 불필요
+- **벤치마크·telemetry 스키마 변경** — 변경이 1줄 + 자동 복귀라 위험도가 낮음. telemetry는 기존대로 빈도만 수동 관찰
+- **vault-knowledge-manager 다운그레이드** — 2026-04-16 패널이 "조용한 실패" 리스크로 보류. 새 근거 없으면 유지
+- **context 스킬** — 이미 fork, 패널이 유지 결정
+
+## 검증
+
+1. 기능 회귀 0 (기준: 기능 회귀 0 / 표현 회귀 허용) — 8개 스킬 각 1회 실행하여 정상 동작 확인. vault-audit는 `audit-validate.py --dod`로 9개 에러 타입 탐지 확인
+2. JSON 유효성 — plugin.json ×2 + marketplace.json
+3. 플러그인 회귀 — CLAUDE.md Validation 섹션 테스트 스크립트
+4. telemetry 수동 관찰 — `report.py --top=10` 스킬 호출 분포
