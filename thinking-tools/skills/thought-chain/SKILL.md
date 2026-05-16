@@ -136,7 +136,7 @@ If `--autopilot` is active, skip this section and auto-select "다음 단계로"
 |--------|----------|
 | 다음 단계로 | Pass current output to next stage. |
 | {deepen label} | Re-invoke current stage with prior output + deepen instruction. Increment `deepen_counts[stage]`. |
-| 재실행 | Discard current stage output. Re-run stage from clean state with original input. |
+| 재실행 | Discard current stage output. Re-run stage from clean state with original input. 재실행 선택 시 해당 stage의 deepen_counts는 0으로 초기화. |
 | 멈추고 vault 저장 | Stop pipeline. Run mid-stop polish if before Stage 4. Trigger vault destination question. |
 | 그냥 멈춤 | Stop pipeline. Print current output to terminal. No vault write. |
 
@@ -219,6 +219,8 @@ vault `_index.md`의 `snapshot_import: true`가 필요해요.
 - "터미널만" → print full polished document to terminal.
 - "종료" → no output, exit cleanly.
 
+**Frontmatter injection**: save-session 호출 시 문서 본문 맨 앞에 YAML frontmatter 블록 전체(--- 구분자 포함)를 직접 작성해서 넘길 것. save-session은 이를 그대로 파일 frontmatter로 사용함.
+
 ## Autopilot Flag
 
 `--autopilot` skips all checkpoints:
@@ -232,7 +234,7 @@ vault `_index.md`의 `snapshot_import: true`가 필요해요.
 
 `--auto-vault session`:
 - End-of-pipeline auto-answers "Session note로 vault에 저장".
-- If `vault_linked = false`: fall back to terminal with warning.
+- If `vault_linked = false`: fall back to terminal with warning. `"(vault 게이트가 닫혀 있어 터미널 출력으로 대체했어요)"` (plan과 동일 문구 사용)
 
 ## Metadata Aggregation
 
