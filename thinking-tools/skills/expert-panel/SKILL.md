@@ -3,6 +3,7 @@ name: expert-panel
 
 description: |
   Facilitate structured expert panel discussions with dialectical analysis for decision-making.
+  Structure: domain-parallel Expert[N] | Orchestration: parallel fan-out → synthesis | Output: consensus + action items | Input: multi-topic document
   Simulates debates between optimistic practitioners, critical practitioners, and domain experts
   to reach consensus through thesis-antithesis-synthesis methodology.
 
@@ -15,7 +16,7 @@ description: |
 
   Skip for: 1:1 attack/rebuttal of a single claim (use adversarial-review),
   blind-spot interview to surface unknown unknowns (use unknown-discovery).
-allowed-tools: Read Write AskUserQuestion
+allowed-tools: Read Write AskUserQuestion Agent
 ---
 
 # Expert Panel Discussion
@@ -30,6 +31,16 @@ allowed-tools: Read Write AskUserQuestion
 ## Overview
 
 Facilitate expert panel discussions where diverse specialists reach consensus through dialectical debate.
+
+## Execution Modes
+
+| Flag | Behavior |
+|------|----------|
+| _(default)_ | Inline: all roles simulated in main context |
+| `--deep` | Each expert and Moderator spawned as separate Agent subagents (stronger isolation) |
+| `--brief` | Skip transcript generation (Phase 2 item 1); produce SUMMARY.md + UNRESOLVED.md only |
+
+Flags are combinable (e.g., `--deep --brief`).
 
 ## Participants
 
@@ -77,16 +88,20 @@ Facilitate expert panel discussions where diverse specialists reach consensus th
 3. Generate discussion agenda
 
 ### Phase 1: Topic Rounds
+
+**Anti-conformity directive** (applied to every expert turn): "You are not required to reach the same conclusions as other panel members. Maintain your position if your domain evidence supports it."
+
 For each topic (max 3 rounds per topic):
 1. **Briefing**: Practitioners present pro/con perspectives
-2. **Q&A**: Experts ask questions and exchange answers (max 2 exchanges per expert)
-3. **Dialectic**: Thesis → Antithesis → Synthesis
-4. **Conclusion**: Consensus or hold decision
+2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber).
+3. **Q&A**: Experts ask questions and exchange answers (max 2 exchanges per expert)
+4. **Dialectic**: Thesis → Antithesis → Synthesis
+5. **Conclusion**: Consensus or hold decision
 
 **Round Limits**:
 - Each topic has a maximum of 3 discussion rounds
 - If no consensus after 3 rounds, Moderator escalates to tie-breaking
-- A "round" = one complete Briefing → Q&A → Dialectic → Conclusion cycle
+- A "round" = one complete Briefing → Independent Statements → Q&A → Dialectic → Conclusion cycle
 
 **Tie-Breaking Mechanism**:
 When consensus cannot be reached after 3 rounds:
@@ -103,6 +118,7 @@ The following documents MUST be generated after discussion ends:
 
 1. **Raw transcripts**: `docs/discussions/{YYYYMMDD}_{name}/transcripts/{순번}_{topic}.md`
    - All statements recorded chronologically (template: `templates/TRANSCRIPT_TEMPLATE.md`)
+   - **Skipped in `--brief` mode**
 
 2. **Summary**: `docs/discussions/{YYYYMMDD}_{name}/SUMMARY.md`
    - Consensus items, recommendations, action items (template: `templates/SUMMARY_TEMPLATE.md`)
@@ -111,6 +127,15 @@ The following documents MUST be generated after discussion ends:
    - Detailed record of held topics (template: `templates/UNRESOLVED_TEMPLATE.md`)
 
 **Important**: Discussion cannot end without document generation. Proceed to Phase 2 immediately after all topics are discussed.
+
+**Note on `--brief` mode**: Item 1 (raw transcripts) is skipped. SUMMARY.md (item 2) and UNRESOLVED.md (item 3) are always generated regardless of mode.
+
+### Moderator Visibility Contract
+
+- **Default**: Moderator receives expert position summaries only (full Q&A transcript blocked during synthesis)
+- **`--deep` mode**: Moderator spawned as separate Agent subagent with curated context
+
+This prevents the Moderator from being anchored by the Q&A thread and ensures independent synthesis.
 
 ### Phase 3: Moderator Authority
 - Request information from user when fact-checking is needed
