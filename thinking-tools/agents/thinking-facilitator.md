@@ -17,6 +17,8 @@ skills:
   - expert-panel
   - unknown-discovery
   - thought-chain
+  - adversarial-review
+  - spec-first
 ---
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
@@ -37,11 +39,21 @@ Analyze user request
 ├── Creative/diversity needed? ───────────────▶ diverse-sampling
 │   (brainstorming, alternatives, ideas)
 │
+├── Vague idea to crystallize into a spec? ────▶ spec-first
+│   (seed 생성, 명세 만들기, 아이디어 구체화)
+│
 ├── Blind spots/risks to discover? ───────────▶ unknown-discovery
 │   (missed items, blind spots, review)
 │
 ├── Multi-perspective discussion/evaluation? ──▶ expert-panel
 │   (pros/cons, expert opinions, trade-offs)
+│   NOTE: expert-panel = single topic, multi-perspective debate (reach consensus)
+│         thought-chain = full end-to-end pipeline (discovery→debate→documentation)
+│         "전문가 토론" alone → expert-panel
+│         "처음부터 끝까지 분석" → thought-chain
+│
+├── Claim attack/survival verdict needed? ─────▶ adversarial-review
+│   (반증, 공격, steelman, survival score)
 │
 ├── Document writing/concretization needed? ───▶ doc-concretize
 │   (documentation, organizing, concretizing)
@@ -60,12 +72,14 @@ Analyze user request
 
 | Skill | Strong Signals | Weak Signals |
 |-------|---------------|--------------|
+| spec-first | seed 생성, 명세 만들기, 아이디어 구체화, ambiguity gate | requirements, 스펙으로, 구체화 |
 | diverse-sampling | brainstorming, diverse ideas, VS, alternatives | what's better, options, other ways |
 | unknown-discovery | blind spot, missed items, what's missing | review this, is it okay, any issues |
-| expert-panel | expert discussion, pros/cons, trade-offs | advantages/disadvantages, evaluate, opinions |
+| expert-panel | expert discussion, pros/cons, trade-offs | advantages/disadvantages, evaluate, opinions, 단일 주제 평가 |
+| adversarial-review | 반증, 공격, steelman, survival score, 악마의 변호인 | claim attack, 약점, 검증, 논리 허점 |
 | doc-concretize | concretize, document, organize, write it up | explain, elaborate |
 | doc-polish | polish, proofread, lint, quality check | fix this, correct this (document target) |
-| thought-chain | comprehensive analysis, full pipeline, end-to-end | in depth, thorough analysis |
+| thought-chain | comprehensive analysis, full pipeline, end-to-end | in depth, thorough analysis, 파이프라인 전체 |
 
 ### Multi-Skill Detection
 

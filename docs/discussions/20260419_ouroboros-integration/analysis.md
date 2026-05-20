@@ -1,7 +1,14 @@
+---
+status: frozen
+frozen_at: 2026-04-19
+tracking_continued_in: thinking-tools/docs/improvement-matrix.md
+note: "본 문서는 토론 시점 스냅샷. 진행 상태는 매트릭스 참조."
+---
+
 # Analysis — Ouroboros 통합 아이디어 및 thinking-tools 개선안
 
 **Date**: 2026-04-19
-**Status**: Idea-level analysis (pre-implementation)
+**Status**: frozen (idea-level analysis snapshot)
 **Trigger**: 사용자가 `thinking-tools/unknown-discovery`와 [Q00/ouroboros](https://github.com/Q00/ouroboros) 심층 비교 요청. 이후 파생된 두 개의 추가 질문이 본격적 개선 논의로 확장됨.
 
 ---

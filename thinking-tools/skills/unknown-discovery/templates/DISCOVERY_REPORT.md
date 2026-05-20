@@ -1,3 +1,36 @@
+---
+# Output conforms to thinking-tools/reference/common-schema.md
+skill: unknown-discovery
+schema_version: 1
+version: <skill-version>
+generated: <ISO-date>
+input:
+  target: <name>
+  options: []
+output:
+  type: report
+  structure: templates/DISCOVERY_REPORT.md
+
+# unknown-discovery extensions
+domain: <tech|biz|creative>
+maturity: <idea|plan|execution>
+depth: <weighted_avg_pct>
+questions: <count>
+findings_count:
+  critical: <N>
+  important: <N>
+  nice_to_have: <N>
+findings:
+  - id: f1
+    priority: critical|important|nice-to-have
+    category: assumption|blindspot|trade-off|edge-case|dependency
+    title: <short title>
+    impact: <1-5>
+    likelihood: <1-5>
+    rationale: <one sentence>
+    action: <recommended action>
+---
+
 # Unknown Unknowns Discovery Report
 
 **대상**: [분석 대상명]

@@ -45,25 +45,47 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 ## Pipeline Stages
 
 ```
-┌─────────────────┐     ┌──────────────┐     ┌────────────────┐     ┌────────────┐
-│ unknown-discovery│ ──▶ │ expert-panel │ ──▶ │ doc-concretize │ ──▶ │ doc-polish │
-│  Blind Spot Scan │     │ Expert Debate│     │  Documentation │     │  Quality QA│
-└─────────────────┘     └──────────────┘     └────────────────┘     └────────────┘
-      Stage 1                Stage 2              Stage 3              Stage 4
+┌──────────────────┐   ┌──────────────────┐   ┌──────────────┐   ┌────────────────┐   ┌────────────┐
+│ unknown-discovery │──▶│adversarial-review│──▶│ expert-panel │──▶│ doc-concretize │──▶│ doc-polish │
+│  Blind Spot Scan  │   │  Claim Attack    │   │ Expert Debate│   │  Documentation │   │  Quality QA│
+└──────────────────┘   └──────────────────┘   └──────────────┘   └────────────────┘   └────────────┘
+       Stage 1                Stage 2               Stage 3            Stage 4             Stage 5
 ```
 
 ### Stage 1: Discovery (`unknown-discovery`)
 
 **Input**: User's analysis target
 **Output**: Discovery Report with prioritized findings (Critical/Important/Nice-to-have)
-**Inter-stage handoff**: Critical and Important findings become expert-panel topics
+**Inter-stage handoff**: Critical findings → Stage 2 claims list; Important findings → Stage 3 topics
 
 - If `--quick` flag: use `--quick` mode (5-7 questions)
 - User may stop pipeline here via checkpoint
 
-### Stage 2: Expert Debate (`expert-panel`)
+**Stage 1 empty guard**: If Stage 1 yields zero Critical findings, Stage 2 is auto-skipped.
+Stage 2 only accepts Critical findings as claims (see Stage 2 Input contract below),
+so Important findings cannot substitute.
+```
+Critical 발견이 없어 Stage 2 (Adversarial Review)를 건너뜁니다.
+→ 다음으로 어떻게 진행할까요?
+1. 계속 (Stage 3: Expert Panel로)
+2. 멈추고 vault 저장
+3. 그냥 멈춤
+```
 
-**Input**: Critical/Important findings from Stage 1
+### Stage 2: Adversarial Review (`adversarial-review`)
+
+**Input**: Critical findings from Stage 1 → converted to claims list
+**Output**: Adversarial Review Report (survived/collapsed/pending per claim)
+**Inter-stage handoff**: survived + pending claims become expert-panel topics; collapsed claims noted as resolved
+
+- Each Critical finding becomes one claim (title as claim statement)
+- Run with default mode (no `--quick`); Steelman each claim before attacking
+- `--skip adversarial-review` flag: skip this stage entirely, pass Critical findings directly to Stage 3
+- User may stop pipeline here via checkpoint
+
+### Stage 3: Expert Debate (`expert-panel`)
+
+**Input**: survived + pending claims from Stage 2 (or Critical/Important findings if Stage 2 skipped)
 **Output**: SUMMARY.md with consensus items, dissenting views, action items
 **Inter-stage handoff**: Consensus items + action items become doc-concretize input
 
@@ -72,7 +94,7 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 - If findings span 3+ domains → 5 experts (capped at 7)
 - User may stop pipeline here via checkpoint
 
-### Stage 3: Documentation (`doc-concretize`)
+### Stage 4: Documentation (`doc-concretize`)
 
 **Input**: Expert panel consensus + action items + original target context
 **Output**: Structured document covering analysis results
@@ -81,9 +103,9 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 - If `--quick` flag and document < 2000 chars: use Quick Mode
 - Document structure follows expert panel topic organization
 
-### Stage 4: Quality Assurance (`doc-polish`)
+### Stage 5: Quality Assurance (`doc-polish`)
 
-**Input**: Document from Stage 3
+**Input**: Document from Stage 4
 **Output**: Polished document with quality report
 **Final**: Pipeline complete
 
@@ -126,6 +148,7 @@ If `--autopilot` is active, skip this section and auto-select "다음 단계로"
 | Stage | Label |
 |-------|-------|
 | unknown-discovery | 더 인터뷰 |
+| adversarial-review | 더 공격 |
 | expert-panel | 더 토론 |
 | doc-concretize | 더 구체화 |
 | doc-polish | 더 다듬기 |
@@ -175,9 +198,10 @@ When "멈추고 vault 저장" is selected before Stage 4 completes:
 | Stop point | Action |
 |------------|--------|
 | After Stage 1 | Package discovery findings as a markdown document → invoke `doc-polish` via Skill |
-| After Stage 2 | Package consensus + dissents as a markdown document → invoke `doc-polish` via Skill |
-| After Stage 3 | Invoke `doc-polish` on the concretized document via Skill |
-| After Stage 4 | Save directly (already polished) |
+| After Stage 2 | Package adversarial review report as a markdown document → invoke `doc-polish` via Skill |
+| After Stage 3 | Package consensus + dissents as a markdown document → invoke `doc-polish` via Skill |
+| After Stage 4 | Invoke `doc-polish` on the concretized document via Skill |
+| After Stage 5 | Save directly (already polished) |
 
 **Invariant**: vault never receives a non-polished artifact.
 
@@ -254,9 +278,10 @@ Track throughout the pipeline. Include in vault save frontmatter when writing to
 
 ```yaml
 thought_chain:
-  stages_run: [discovery, panel, concretize, polish]
+  stages_run: [discovery, adversarial-review, panel, concretize, polish]
   deepen_counts:
     discovery: 2
+    adversarial-review: 0
     panel: 1
     concretize: 0
     polish: 0
@@ -270,14 +295,27 @@ Users can run subset pipelines:
 
 | Command | Pipeline |
 |---------|----------|
-| `--skip discovery` | expert-panel → doc-concretize → doc-polish |
-| `--skip panel` | unknown-discovery → doc-concretize → doc-polish |
+| `--skip adversarial-review` | unknown-discovery → expert-panel → doc-concretize → doc-polish |
+| `--skip panel` | unknown-discovery → adversarial-review → doc-concretize → doc-polish |
+| `--start adversarial-review` | adversarial-review → expert-panel → doc-concretize → doc-polish (requires existing Critical claims) |
+| `--start panel` | expert-panel → doc-concretize → doc-polish (requires existing findings) |
 | `--start concretize` | doc-concretize → doc-polish (requires existing input) |
 | `--start polish` | doc-polish only (requires existing document) |
 
-**Alias mapping**: `discovery` = unknown-discovery, `panel` = expert-panel, `concretize` = doc-concretize, `polish` = doc-polish
+`--skip discovery` is not supported: adversarial-review consumes Critical findings
+produced by discovery, so the chain has no claim source without it. To enter at
+adversarial-review with pre-existing claims, use `--start adversarial-review`.
 
-**Validation**: Invalid stage name in `--skip`/`--start` → warn "Unknown stage: {name}. Valid: discovery, panel, concretize, polish." and ignore the flag.
+**Fallback input contracts (when an upstream stage is skipped)**:
+
+| Downstream stage | Normal input | Fallback input when prior stage skipped |
+|------------------|-------------|----------------------------------------|
+| doc-concretize (with `--skip panel`) | panel consensus + action items | adversarial-review report: survived claims → consensus, pending claims → open items, collapsed claims → "considered alternatives" |
+| expert-panel (with `--skip adversarial-review`) | survived + pending claims from Stage 2 | discovery findings directly (Critical → topics, Important → secondary topics) |
+
+**Alias mapping**: `discovery` = unknown-discovery, `adversarial-review` = adversarial-review, `panel` = expert-panel, `concretize` = doc-concretize, `polish` = doc-polish
+
+**Validation**: Invalid stage name in `--skip`/`--start` → warn "Unknown stage: {name}. Valid: discovery, adversarial-review, panel, concretize, polish." and ignore the flag.
 
 ## Inter-Skill Data Flow
 
@@ -322,14 +360,14 @@ Each stage uses its own skill's tool set internally. Vault writes are delegated 
 {polished document content}
 
 ───
-*Thought Chain 완료 · 4단계 파이프라인*
+*Thought Chain 완료 · 5단계 파이프라인*
 ```
 
 When the user picks a vault save destination, `save-session` handles file creation. The polished document is passed as the body, and the `thought_chain:` frontmatter metadata block is included in the invocation context for embedding in the saved file.
 
 ## References
 
-- **Pipeline skills**: [unknown-discovery](../unknown-discovery/SKILL.md), [expert-panel](../expert-panel/SKILL.md), [doc-concretize](../doc-concretize/SKILL.md), [doc-polish](../doc-polish/SKILL.md)
+- **Pipeline skills**: [unknown-discovery](../unknown-discovery/SKILL.md), [adversarial-review](../adversarial-review/SKILL.md), [expert-panel](../expert-panel/SKILL.md), [doc-concretize](../doc-concretize/SKILL.md), [doc-polish](../doc-polish/SKILL.md)
 - **Vault save command**: [save-session](../../../vault-bridge/commands/save-session.md) (routed for both plan and session destinations; `plan` argument overrides type)
 - **Related skill**: [diverse-sampling](../diverse-sampling/SKILL.md) (not in pipeline, but can feed options into expert-panel)
 - **Design**: [thought-chain-checkpoint-vault-integration.md](../../../docs/design/thought-chain-checkpoint-vault-integration.md)
@@ -342,13 +380,15 @@ User: "새 결제 시스템 도입안을 종합 분석해줘"
 → Gate Check: .vault-link 상태 확인 (silent)
 → Stage 1 (Discovery): 블라인드스팟 인터뷰 → Critical 2건, Important 4건
 → Checkpoint: "다음으로 어떻게 진행할까요?" → 다음 단계로
-→ Stage 2 (Expert Panel): 보안/성능/UX 전문가 토론 → 합의 3건, 보류 1건
+→ Stage 2 (Adversarial Review): Critical 2건 claim 변환 → 공격·방어 → survived 1건, pending 1건
+→ Checkpoint: "다음으로 어떻게 진행할까요?" → 다음 단계로
+→ Stage 3 (Expert Panel): 보안/성능/UX 전문가 토론 → 합의 3건, 보류 1건
 → Checkpoint: "다음으로 어떻게 진행할까요?" → 더 토론 → 심화 후 → 다음 단계로
-→ Stage 3 (Doc-Concretize): 분석 결과 문서화 (4개 섹션)
-→ Stage 4 (Doc-Polish): 품질 검사 + 자동 수정 (score: 91)
+→ Stage 4 (Doc-Concretize): 분석 결과 문서화 (4개 섹션)
+→ Stage 5 (Doc-Polish): 품질 검사 + 자동 수정 (score: 91)
 → Vault Destination: "Plan doc로 vault에 저장" → save-session plan 호출
 → Output: vault에 plan-YYYY-MM-DD-결제시스템-도입안.md 저장
 
 ───
-*Thought Chain 완료 · 4단계 파이프라인 (panel 1회 심화)*
+*Thought Chain 완료 · 5단계 파이프라인 (panel 1회 심화)*
 ```
