@@ -306,6 +306,13 @@ Users can run subset pipelines:
 produced by discovery, so the chain has no claim source without it. To enter at
 adversarial-review with pre-existing claims, use `--start adversarial-review`.
 
+**Fallback input contracts (when an upstream stage is skipped)**:
+
+| Downstream stage | Normal input | Fallback input when prior stage skipped |
+|------------------|-------------|----------------------------------------|
+| doc-concretize (with `--skip panel`) | panel consensus + action items | adversarial-review report: survived claims → consensus, pending claims → open items, collapsed claims → "considered alternatives" |
+| expert-panel (with `--skip adversarial-review`) | survived + pending claims from Stage 2 | discovery findings directly (Critical → topics, Important → secondary topics) |
+
 **Alias mapping**: `discovery` = unknown-discovery, `adversarial-review` = adversarial-review, `panel` = expert-panel, `concretize` = doc-concretize, `polish` = doc-polish
 
 **Validation**: Invalid stage name in `--skip`/`--start` → warn "Unknown stage: {name}. Valid: discovery, adversarial-review, panel, concretize, polish." and ignore the flag.

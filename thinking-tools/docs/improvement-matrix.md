@@ -63,9 +63,9 @@ D는 M의 구체 인스턴스이거나 직접 활용 작업. 중복 아닌 의�
 |----|------|------|--------|----------|--------|------------|-------|
 | M1 | 페르소나 라이브러리 | 재사용 가능 전문가 페르소나 풀 정의 — expert-panel·adversarial-review 공유 사용, temperature variation으로 진짜 다양성 확보 | open | P2 | W8 | D4, D5 | sub-agent spawn 플랫폼 지원 전제 |
 | M2 | 발산 전략 승격 | diverse-sampling을 단순 대안 생성에서 tournament·mutation 기반 창의적 탐색으로 — Ouroboros Contrarian 패턴 도입 | open | P2 | — | D1 | D1a(중복필터), D1b(tournament) |
-| M3 | 비-코딩 영역 | Biz/Creative 도메인에서 질문 패턴·채점 루브릭 전문화 — 현재 Tech 편향 | open | P3 | — | B(spec-first) | spec-first A4 템플릿이 진입점 |
+| M3 | 비-코딩 영역 | Biz/Creative 도메인에서 질문 패턴·채점 루브릭 전문화 — 현재 Tech 편향 | in-progress | P3 | — | B(spec-first) | spec-first Biz/Creative question banks shipped (PR #78); 채점 루브릭 도메인 전문화는 다음 단계 |
 | M4 | 투명성 기능화 | STATE 블록·채점 근거를 사용자 가시 출력으로 표준화 — `--show-scores` 모드, diff-preview 등 | open | P2 | W3 | D2, D3 | doc-polish D3a(diff-preview), doc-concretize D2a |
-| M5 | facilitator 오케스트레이터화 | thinking-facilitator가 복합 의도를 감지해 멀티-스킬 파이프라인을 자동 구성 — "대안 생성 후 공격" → diverse-sampling + adversarial-review 자동 체인 | open | P2 | — | D6 | D6a 완료 후 착수 |
+| M5 | facilitator 오케스트레이터화 | thinking-facilitator가 복합 의도를 감지해 멀티-스킬 파이프라인을 자동 구성 — "대안 생성 후 공격" → diverse-sampling + adversarial-review 자동 체인 | open | P2 | — | D6 | D6 registration step done (PR #78 — facilitator routes spec-first + adversarial-review); 자동 체이닝 로직 미구현 |
 
 ---
 

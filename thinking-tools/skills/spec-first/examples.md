@@ -68,9 +68,10 @@ Goal clarity: 0.90 (G2 Y로 전환 → 4/4 = 1.0 → cap 0.90)
 **Phase 3 — Seed 생성** (`docs/specs/task-cli-tool.yaml`):
 
 ```yaml
-<!-- Output conforms to thinking-tools/reference/common-schema.md -->
 ---
+# Output conforms to thinking-tools/reference/common-schema.md
 skill: spec-first
+schema_version: 1
 version: 0.1.0
 generated: 2026-05-19
 input:
@@ -125,11 +126,12 @@ context:
 ambiguity:
   overall: 0.10
   gate_passed: true
-  breakdown:
-    goal: 0.90
-    constraint: 0.90
-    success: 0.90
-    context: null
+
+clarity_breakdown:    # per-dimension CLARITY score
+  goal: 0.90
+  constraint: 0.90
+  success: 0.90
+  context: null
 
 metadata:
   interview_rounds: 4

@@ -2,7 +2,14 @@
 
 ## Usage
 
-Save this during Phase 1 when the user requests session persistence ("저장해줘", "나중에 이어하자").
+Save trigger is **user-initiated only**. Write this file when the user explicitly
+asks to pause and resume later (Korean: "저장해줘", "나중에 이어하자", "여기까지 저장";
+English: "save state", "pause and resume later").
+
+The Phase 1 loop does NOT proactively persist state — the in-memory STATE block
+(emitted after every round) is the canonical run-time checkpoint. File persistence
+exists for cross-session continuity only.
+
 Restore by reading this file at the start of a new session.
 
 ## STATE Block Format

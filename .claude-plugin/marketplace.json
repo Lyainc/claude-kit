@@ -29,9 +29,7 @@
         "thought-chain",
         "thinking-facilitator",
         "adversarial-review",
-        "spec-first",
-        "seed",
-        "ambiguity-gate"
+        "spec-first"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",

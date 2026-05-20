@@ -1,6 +1,7 @@
-<!-- Output conforms to thinking-tools/reference/common-schema.md -->
 ---
+# Output conforms to thinking-tools/reference/common-schema.md
 skill: unknown-discovery
+schema_version: 1
 version: <skill-version>
 generated: <ISO-date>
 input:
