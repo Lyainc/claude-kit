@@ -93,7 +93,7 @@ Flags are combinable (e.g., `--deep --brief`).
 
 For each topic (max 3 rounds per topic):
 1. **Briefing**: Practitioners present pro/con perspectives
-2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber).
+2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber). In default (inline) mode this is best-effort via prompt contract; `--deep` enforces it mechanically via subagent context boundaries.
 3. **Q&A**: Experts ask questions and exchange answers (max 2 exchanges per expert)
 4. **Dialectic**: Thesis → Antithesis → Synthesis
 5. **Conclusion**: Consensus or hold decision
@@ -133,7 +133,7 @@ The following documents MUST be generated after discussion ends:
 ### Moderator Visibility Contract
 
 - **Default**: Moderator receives expert position summaries only (full Q&A transcript blocked during synthesis)
-- **`--deep` mode**: Moderator spawned as separate Agent subagent with curated context
+- **`--deep` mode**: Moderator spawned as separate Agent subagent; pass expert position summaries only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
 
 This prevents the Moderator from being anchored by the Q&A thread and ensures independent synthesis.
 

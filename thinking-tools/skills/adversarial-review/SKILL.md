@@ -53,7 +53,7 @@ The skill does NOT seek consensus — it seeks to break claims and measure how w
 | `--brief` | Skip full report; output verdict-only summary |
 | `--quick` | Skip Steelman; run 2 attack rounds per claim (pre-existing flag) |
 
-Flags are combinable (e.g., `--auto --deep`).
+Flags are combinable. `--auto --deep`: Defender Agent subagent and Judge Agent subagent are both active simultaneously.
 
 ## Prerequisites
 
@@ -87,8 +87,8 @@ Cycle through 4 attack vectors in order. Each round:
 - **Defender** (user or `--auto` agent) receives: claim text + steelman + current round attack only
 - **Judge** receives: current round attack + defense only (full conversation history blocked by default)
 
-In `--deep` mode, Judge is spawned as a separate Agent subagent for the strongest isolation.
-In default mode, visibility is enforced by prompt contract (no tool isolation).
+In `--deep` mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
+In default mode, visibility is best-effort (prompt contract only — the LLM shares full conversation history across personas; `--deep` provides mechanical isolation via subagent context boundaries).
 
 1. **Attacker** persona presents the attack
 2. **AskUserQuestion** collects user defense (always show "skip this claim" as an option); in `--auto` mode, Agent generates Defender response
