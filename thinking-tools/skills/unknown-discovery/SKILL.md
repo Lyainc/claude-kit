@@ -151,7 +151,7 @@ Round N | [Edge Cases:35%] ← 최저 영역 타겟팅 | Depth: 52%
 ### Phase 3: Documentation & Bridge
 <!-- Active during Phase 3 only -->
 
-1. Discovery Report 생성 (템플릿: [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md))
+1. Discovery Report 생성 (템플릿: [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md)) — YAML frontmatter 블록 선행 작성 후 서사체 본문 작성. frontmatter 누락 시: YAML 블록을 별도 출력하고 "보고서 앞에 붙이세요" 안내.
 2. Exploration Depth 요약 포함
 3. 권장 액션 아이템 도출
 4. 인터뷰 메타데이터 기록

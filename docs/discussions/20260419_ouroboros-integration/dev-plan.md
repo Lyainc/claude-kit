@@ -1,9 +1,30 @@
+---
+status: frozen
+frozen_at: 2026-04-19
+tracking_continued_in: thinking-tools/docs/improvement-matrix.md
+note: "본 문서는 토론 시점 스냅샷. 진행 상태는 매트릭스 참조."
+---
+
 # Development Plan — Ouroboros 통합 + thinking-tools 개선
 
 **Date**: 2026-04-19
 **Based on**: [`analysis.md`](./analysis.md)
-**Status**: Draft (pending review)
+**Status**: frozen
 **Target**: thinking-tools plugin (`thinking-tools/`)
+
+## Scope Note (frozen)
+
+본 dev-plan은 **Ouroboros 통합 작업 한정** (Phase A-E). thinking-tools 전반의
+구조적 개선(W1-W8 약점, M1-M5 차별화 전략)은 `thinking-tools/docs/improvement-matrix.md` 참조.
+
+### Phase D ↔ Matrix M 매핑
+
+| dev-plan Phase D | matrix M |
+|------------------|----------|
+| D1 diverse-sampling 개선 | M2 발산 전략 승격 (부분) |
+| D4 expert-panel sub-agent | M1 페르소나 라이브러리 (의존) |
+| D5 adversarial-review Judge 분리 | (별도 수렴) |
+| D6 facilitator 등록 fix | M5 facilitator 오케스트레이터화 (전제) |
 
 ---
 
