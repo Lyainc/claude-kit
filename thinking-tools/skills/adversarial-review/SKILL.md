@@ -2,7 +2,8 @@
 name: adversarial-review
 
 description: |
-  Stress-test claims and arguments through structured adversarial attack rounds with quantified Survival Score.
+  Stress-test claims through structured adversarial battle rounds with quantified Survival Score.
+  Structure: binary Attacker↔Defender | Orchestration: sequential battle rounds | Output: survived/collapsed/pending verdict | Input: one or more claims
   Runs 1:1 attacker-vs-defender battle across 4 vectors (logical integrity, evidence, counter-scenario, scope boundary)
   and produces a final per-claim verdict (survived / collapsed / pending).
 
@@ -17,7 +18,7 @@ description: |
 
   Skip for: consensus-building, multi-stakeholder alignment (use expert-panel), or blind-spot discovery interviews (use unknown-discovery).
 
-allowed-tools: AskUserQuestion Read Write
+allowed-tools: AskUserQuestion Read Write Agent
 ---
 
 # Adversarial Review
@@ -42,11 +43,22 @@ The skill does NOT seek consensus — it seeks to break claims and measure how w
 | `unknown-discovery` | Socratic blind-spot interview | Find what the user doesn't know they're missing |
 | `adversarial-review` | 1:1 adversarial battle | Break claims, measure survival, produce verdict |
 
+## Execution Modes
+
+| Flag | Behavior |
+|------|----------|
+| _(default)_ | Interactive: AskUserQuestion collects user defense each round |
+| `--auto` | Automated: Agent generates Defender response instead of prompting the user |
+| `--deep` | Judge spawned as a separate Agent subagent (stronger isolation) |
+| `--brief` | Skip full report; output verdict-only summary |
+| `--quick` | Skip Steelman; run 2 attack rounds per claim (pre-existing flag) |
+
+Flags are combinable. `--auto --deep`: Defender Agent subagent and Judge Agent subagent are both active simultaneously.
+
 ## Prerequisites
 
 - One or more claims / propositions / theses to test
 - (Optional) Supporting evidence or context the user provides
-- (Optional) `--quick` flag: skip Steelman, run 2 attack rounds per claim, produce abbreviated verdict
 
 ## Core Workflow
 
@@ -70,9 +82,17 @@ Before attacking, build the strongest possible version of the claim.
 
 Cycle through 4 attack vectors in order. Each round:
 
+**Role Visibility Contract** (information asymmetry by design):
+- **Attacker** receives: claim text + steelman only (no defense history, no prior round results)
+- **Defender** (user or `--auto` agent) receives: claim text + steelman + current round attack only
+- **Judge** receives: current round attack + defense only (full conversation history blocked by default)
+
+In `--deep` mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
+In default mode, visibility is best-effort (prompt contract only — the LLM shares full conversation history across personas; `--deep` provides mechanical isolation via subagent context boundaries).
+
 1. **Attacker** persona presents the attack
-2. **AskUserQuestion** collects user defense (always show "skip this claim" as an option)
-3. **Judge** persona (independent of Attacker) evaluates defense using 3-element rubric
+2. **AskUserQuestion** collects user defense (always show "skip this claim" as an option); in `--auto` mode, Agent generates Defender response
+3. **Judge** persona evaluates defense
 4. Update Survival Score and output STATE block
 
 **Attack Vector Rotation**:
@@ -160,7 +180,7 @@ Concretely: at round 3 with score 58%, none of #1–#5 fire, Soft Round Checkpoi
 - `collapsed`: Weighted Score ≤ 25% at termination, or user skipped claim
 - `pending`: Score 26–59% at termination (inconclusive)
 
-**Final Report** (Markdown):
+**Final Report** (Markdown) — **skipped in `--brief` mode** (verdict-only summary instead, see below):
 
 ```markdown
 ## Adversarial Review Report
@@ -206,6 +226,14 @@ Concretely: at round 3 with score 58%, none of #1–#5 fire, Soft Round Checkpoi
 ```
 
 **Export option**: After report generation, offer to save via Write tool to `docs/adversarial-review/{date}-{topic}.md`.
+
+**Note on `--brief` mode**: Skip the full Final Report. Output a verdict-only summary:
+
+| Claim | Verdict | Weighted Score |
+|-------|---------|----------------|
+| {claim text} | survived / collapsed / pending | {score}% |
+
+**Recommendations**: {action items for collapsed/pending claims}
 
 ## STATE Block Contract
 
