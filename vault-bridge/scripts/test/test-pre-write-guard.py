@@ -35,7 +35,8 @@ def _run(payload: dict, env_overrides: dict | None = None, vault_root: str | Non
     env = os.environ.copy()
     # Always unset the env vars under test so each case is hermetic
     for key in ("VAULT_BRIDGE_DISABLE", "VAULT_BRIDGE_STRICT_NAMING",
-                "VAULT_BRIDGE_WRITE_CONTRACT", "VAULT_BRIDGE_VAULT_ROOT"):
+                "VAULT_BRIDGE_WRITE_CONTRACT", "VAULT_BRIDGE_VAULT_ROOT",
+                "VAULT_BRIDGE_VAULT_PATH"):
         env.pop(key, None)
     if vault_root is not None:
         env["VAULT_BRIDGE_VAULT_ROOT"] = vault_root
