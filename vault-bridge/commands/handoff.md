@@ -2,6 +2,7 @@
 description: Generate a handoff prompt for the next session — paste-ready one-liner, formatted summary, or saved as resume.md
 allowed-tools: Read, Write, Bash, AskUserQuestion
 argument-hint: "[--paste|--save|--summary]"
+disable-model-invocation: true
 ---
 
 # /handoff

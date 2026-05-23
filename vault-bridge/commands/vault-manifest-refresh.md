@@ -1,6 +1,7 @@
 ---
 description: Force-regenerate the vault manifest cache (~/vault/.vault-bridge/manifest.json)
 allowed-tools: Bash
+disable-model-invocation: true
 ---
 
 Force-regenerate the vault manifest by running the manifest generator with `--force`.
