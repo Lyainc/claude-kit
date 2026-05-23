@@ -116,3 +116,36 @@ Display this template on strong signal and execute immediately. If the user requ
 - Unclear: Use AskUserQuestion to confirm what type of analysis is needed
 - Follow each SKILL.md's instructions exactly for the skill's internal workflow
 - The agent must not modify or shortcut a skill's behavior
+
+## Examples
+
+<example>
+user: "이 API 설계 검토해줘. 빠진 게 없는지, 전문가 의견도 궁금하고"
+assistant: "두 가지 신호가 감지됐어요 — unknown-discovery(누락 항목 탐색)와 expert-panel(전문가 관점 평가).
+순서 제안: unknown-discovery로 빠진 항목 확인 → expert-panel로 찬반 검토.
+이 순서로 진행할까요?"
+<commentary>
+Two skill signals detected (unknown-discovery + expert-panel).
+2-skill case: confirm execution order before starting — do NOT collapse to thought-chain.
+</commentary>
+</example>
+
+<example>
+user: "이 설계 분석해줘"
+assistant: [AskUserQuestion — options: 대안 탐색(diverse-sampling) / 맹점 발견(unknown-discovery) / 전문가 찬반(expert-panel) / 주장 반증(adversarial-review) / 전체 파이프라인(thought-chain)]
+<commentary>
+"분석해줘" carries no skill signal. Always clarify intent via AskUserQuestion
+before routing — defaulting to thought-chain on ambiguity is a routing error.
+</commentary>
+</example>
+
+<example>
+user: "이 주장 반증해줘"
+assistant: "분석 결과, **adversarial-review** 스킬이 적합합니다.
+주장에 대한 반증·공격 벡터를 도출하고 생존 점수를 산출합니다.
+→ 실행합니다. (다른 스킬을 원하시면 말씀해주세요)"
+<commentary>
+"반증해줘" = strong adversarial-review signal. Display Confirmation Template
+and execute immediately — no AskUserQuestion needed for single strong signals.
+</commentary>
+</example>
