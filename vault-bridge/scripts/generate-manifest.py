@@ -28,6 +28,17 @@ SUMMARY_MAX_CHARS = 400
 EXCLUDED_DIRS = {".vault-bridge", ".claude", "90_Assets", ".git"}
 
 
+def _default_vault_root() -> str:
+    """Resolve the default vault root with 3-level priority:
+    1. VAULT_BRIDGE_VAULT_ROOT  — explicit env override (CI / runtime)
+    2. VAULT_BRIDGE_VAULT_PATH  — userConfig value injected by Claude Code
+    3. ~/vault                  — built-in default
+    """
+    raw = os.environ.get("VAULT_BRIDGE_VAULT_ROOT") or \
+          os.environ.get("VAULT_BRIDGE_VAULT_PATH", "")
+    return str(Path(raw).expanduser()) if raw else str(Path.home() / "vault")
+
+
 # ---------------------------------------------------------------------------
 # Frontmatter parser (no external deps — regex + manual line parsing)
 # ---------------------------------------------------------------------------
@@ -398,8 +409,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="Generate vault manifest JSON")
     parser.add_argument(
         "--vault-root",
-        default=str(Path("~/vault").expanduser()),
-        help="Path to vault root (default: ~/vault)",
+        default=_default_vault_root(),
+        help="Path to vault root (default: VAULT_BRIDGE_VAULT_ROOT > VAULT_BRIDGE_VAULT_PATH > ~/vault)",
     )
     parser.add_argument(
         "--force",

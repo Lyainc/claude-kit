@@ -13,7 +13,8 @@
 # Environment variables:
 #   VAULT_BRIDGE_DISABLE=1          — skip entirely (kill switch)
 #   VAULT_BRIDGE_STRICT_NAMING=1    — enable blocking mode (default: log-only)
-#   VAULT_BRIDGE_VAULT_ROOT=PATH    — override default ~/vault
+#   VAULT_BRIDGE_VAULT_ROOT=PATH    — explicit env override (highest priority)
+#   VAULT_BRIDGE_VAULT_PATH=PATH    — userConfig vault path (set by Claude Code plugin settings)
 #
 # Performance target: <50ms
 
@@ -36,8 +37,12 @@ case "$tool_name" in
   *) exit 0 ;;
 esac
 
-# Determine vault root (absolute)
-VAULT_ROOT="${VAULT_BRIDGE_VAULT_ROOT:-${HOME}/vault}"
+# Resolve vault root: VAULT_BRIDGE_VAULT_ROOT (env override) >
+# VAULT_BRIDGE_VAULT_PATH (userConfig, set by Claude Code) > $HOME/vault (default).
+_raw_vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
+[ -z "$_raw_vr" ] && _raw_vr="${HOME}/vault"
+VAULT_ROOT="${_raw_vr/#\~/$HOME}"
+unset _raw_vr
 
 # Vault must exist; CI/remote environments without vault → silent exit
 if [ ! -d "$VAULT_ROOT" ]; then

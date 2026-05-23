@@ -35,7 +35,12 @@ state_file="${state_dir}/session-end-state.json"
 # so a session-internal `cd` doesn't break .vault-link discovery.
 project_root="${CLAUDE_PROJECT_ROOT:-$(pwd)}"
 
-vault_root="${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}"
+# Resolve vault root: VAULT_BRIDGE_VAULT_ROOT (env override) >
+# VAULT_BRIDGE_VAULT_PATH (userConfig, set by Claude Code) > $HOME/vault (default).
+_raw_vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
+[ -z "$_raw_vr" ] && _raw_vr="${HOME}/vault"
+vault_root="${_raw_vr/#\~/$HOME}"
+unset _raw_vr
 vault_link_file="${project_root}/.vault-link"
 
 # ── Layer 1: .vault-link presence + auto_capture flag ─────────────────────────

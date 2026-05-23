@@ -70,7 +70,11 @@ if printf '%s' "$last_user_text" | grep -qiE \
   # one dirty line is found, keeping latency well under the existing <50ms budget.
   _dirty=""
   if [ "${VAULT_BRIDGE_DISABLE:-0}" != "1" ]; then
-    _vault_root="${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}"
+    # Resolve vault root: env override > userConfig (VAULT_BRIDGE_VAULT_PATH) > default
+    _raw_vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
+    [ -z "$_raw_vr" ] && _raw_vr="${HOME}/vault"
+    _vault_root="${_raw_vr/#\~/$HOME}"
+    unset _raw_vr
     if git -C "$_vault_root" rev-parse --git-dir >/dev/null 2>&1; then
       _dirty=$(git -C "$_vault_root" status --porcelain 2>/dev/null | head -1)
       if [ -n "$_dirty" ]; then
