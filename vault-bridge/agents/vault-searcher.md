@@ -141,6 +141,18 @@ Search the entire vault by keyword and load note contents.
 ## Examples
 
 <example>
+user: "지난 세션 이어서 해줘"
+assistant: ".vault-link 확인 → 20_Projects/claude-kit 스코프.
+session-2026-05-23.md (status: active) 발견.
+현재 상태: Stage 3 PR-C 진행 중 | 다음 단계: Stage 4/5 병렬 착수 | 블로커: 없음"
+<commentary>
+Session Restore (Mode 1): .vault-link scopes to bound project directory.
+Filters by status: active, sorts by date descending, outputs key context only.
+No full-vault scan — targeted read via .vault-link project scope.
+</commentary>
+</example>
+
+<example>
 user: "예전에 쓴 GraphQL federation 관련 노트 있어?"
 assistant: "vault에서 'GraphQL federation' 검색할게요."
 [manifest pre-filter → 2건 히트 → 파일 읽기]
