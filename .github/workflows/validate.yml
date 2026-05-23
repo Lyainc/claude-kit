@@ -12,6 +12,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
       - name: Validate JSON manifests
         run: |
           python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
@@ -31,3 +35,9 @@ jobs:
           python3 vault-bridge/scripts/test/test-pre-write-guard.py
           python3 vault-bridge/scripts/test/test-pre-access-guard.py
           echo "vault-bridge tests OK"
+
+      - name: Check telemetry scripts
+        run: |
+          bash -n telemetry/event-logger.sh
+          python3 telemetry/scripts/validate-schema.py --self-test
+          echo "Telemetry checks OK"

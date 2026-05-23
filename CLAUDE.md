@@ -16,7 +16,7 @@ Codex/OMX parity note: the Codex-active migration of this root guidance lives in
 
 - **Commits**: English, Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`)
 - **PR descriptions**: Korean
-- **Branches**: `feature/`, `fix/`, `docs/`, `refactor/` prefixes
+- **Branches**: `feat/`, `fix/`, `docs/`, `refactor/` prefixes
 
 ## PR Workflow
 
