@@ -466,7 +466,7 @@ When vault-bridge writes session notes, captures, or plan files to a git-tracked
 ### `/vault-commit` flow
 
 1. Check `VAULT_BRIDGE_DISABLE=1` — skip with notice if set
-2. Resolve vault root: `VAULT_BRIDGE_VAULT_ROOT` > `~/vault`
+2. Resolve vault root: `VAULT_BRIDGE_VAULT_ROOT` > `VAULT_BRIDGE_VAULT_PATH` (userConfig) > `~/vault`
 3. Verify vault is a git repository (`git rev-parse --git-dir`) — stop with notice if not
 4. Run `git status --porcelain` — stop with "nothing to commit" if clean
 5. Analyze changed files: count by type (`session`, `capture`, `note`, `plan`, `project`); collect project names from `20_Projects/{name}/`
@@ -509,9 +509,33 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks or commit suggestions fir
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |
 
+## Configuration
+
+vault-bridge exposes a `userConfig` field in `plugin.json` so you can set your vault location once in Claude Code's plugin settings:
+
+| Key | Type | Default | Description |
+|-----|------|---------|-------------|
+| `vault_path` | string | `~/vault` | Absolute path to your Obsidian vault root. Exposed to hooks as `VAULT_BRIDGE_VAULT_PATH`. |
+
+**Vault root resolution priority** (highest → lowest):
+
+1. `VAULT_BRIDGE_VAULT_ROOT` env var — explicit runtime override (CI/scripts)
+2. `VAULT_BRIDGE_VAULT_PATH` env var — set from `userConfig.vault_path` by Claude Code
+3. `~/vault` — built-in default
+
+Tilde (`~`) in either env var is expanded to `$HOME` automatically.
+
+```bash
+# Temporary override for a single session
+VAULT_BRIDGE_VAULT_ROOT=/Volumes/Shared/vault claude
+
+# Or set via plugin settings (persists across sessions):
+# claude plugin config vault-bridge vault_path /Volumes/Shared/vault
+```
+
 ## Prerequisites
 
-- `~/vault/` must contain an Obsidian vault
+- An Obsidian vault at your configured vault path (default `~/vault/`)
 - [`jq`](https://jqlang.github.io/jq/) on PATH (used by the Stop hook to parse the transcript JSONL)
 
 ## Migration from vault-reader
