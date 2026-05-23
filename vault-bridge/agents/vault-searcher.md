@@ -143,8 +143,8 @@ Search the entire vault by keyword and load note contents.
 <example>
 user: "지난 세션 이어서 해줘"
 assistant: ".vault-link 확인 → 20_Projects/claude-kit 스코프.
-session-2026-05-23.md (status: active) 발견.
-현재 상태: Stage 3 PR-C 진행 중 | 다음 단계: Stage 4/5 병렬 착수 | 블로커: 없음"
+session-2026-04-10.md (status: active) 발견.
+현재 상태: API 설계 리뷰 진행 중 | 다음 단계: PR #42 머지 후 배포 | 블로커: 없음"
 <commentary>
 Session Restore (Mode 1): .vault-link scopes to bound project directory.
 Filters by status: active, sorts by date descending, outputs key context only.
