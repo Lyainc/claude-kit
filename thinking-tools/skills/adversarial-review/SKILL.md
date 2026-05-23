@@ -51,7 +51,7 @@ The skill does NOT seek consensus — it seeks to break claims and measure how w
 | `--auto` | Automated: Agent generates Defender response instead of prompting the user |
 | `--deep` | Judge spawned as a separate Agent subagent (stronger isolation) |
 | `--brief` | Skip full report; output verdict-only summary |
-| `--quick` | Skip Steelman; run 2 attack rounds per claim (pre-existing flag) |
+| `--quick` | Skip Steelman; run 2 attack rounds per claim |
 
 Flags are combinable. `--auto --deep`: Defender Agent subagent and Judge Agent subagent are both active simultaneously.
 
@@ -88,7 +88,7 @@ Cycle through 4 attack vectors in order. Each round:
 - **Judge** receives: current round attack + defense only (full conversation history blocked by default)
 
 In `--deep` mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
-In default mode, visibility is best-effort (prompt contract only — the LLM shares full conversation history across personas; `--deep` provides mechanical isolation via subagent context boundaries).
+In default mode, visibility is best-effort (prompt contract only; `--deep` provides mechanical isolation via subagent context boundaries).
 
 1. **Attacker** persona presents the attack
 2. **AskUserQuestion** collects user defense (always show "skip this claim" as an option); in `--auto` mode, Agent generates Defender response
@@ -104,36 +104,10 @@ In default mode, visibility is best-effort (prompt contract only — the LLM sha
 | Counter-scenario | 10x scale / worst-case / external-change collapse test | Counter-resilience (weight 0.25) |
 | Scope Boundary | Generalization limits, exception domains, boundary conditions | Scope Robustness (weight 0.20) |
 
-**Attack Templates**:
+Per-vector template text: [reference/patterns.md](reference/patterns.md#attack-templates)
 
-```
-[Logical Integrity]
-"이 주장은 '{premise}'에서 '{conclusion}'을 도출합니다.
-그런데 {gap/fallacy}가 있어 추론이 성립하지 않습니다. 왜냐하면 {reason}."
-
-[Evidence Attack]
-"제시된 증거 '{evidence}'는 {충분하지 않다/대표적이지 않다/신뢰성이 낮다}.
-{counter_evidence_or_missing_data}를 고려하면 주장이 흔들립니다."
-
-[Counter-scenario]
-"'{scenario}' 상황(예: 10배 규모/최악의 경우/외부 환경 변화)에서
-이 주장은 {어떻게 붕괴하는지}. 이 반례를 어떻게 방어하시겠습니까?"
-
-[Scope Boundary]
-"이 주장은 '{domain}'에서는 성립하지만 '{exception_domain}'에서는 성립하지 않습니다.
-일반화의 한계를 어떻게 설명하시겠습니까?"
-```
-
-**Judge Rubric** (3 elements, per round):
-1. **Relevance**: Does the defense address the specific attack vector? (0–10)
-2. **Substance**: Does the defense provide new evidence, logic, or reframing? (0–10)
-3. **Completeness**: Does the defense fully resolve the attack or leave residuals? (0–10)
-
-Judge scores each element and maps total (0–30) to dimension score delta:
-- 25–30: +15% to dimension score
-- 18–24: +8%
-- 10–17: no change
-- 0–9: -10% to dimension score
+**Judge Rubric** (3 elements per round): Relevance (0–10), Substance (0–10), Completeness (0–10).
+Score delta: 25–30 → +15%, 18–24 → +8%, 10–17 → 0%, 0–9 → −10% per dimension.
 
 ### Survival Score
 
@@ -143,9 +117,7 @@ Weighted average of 4 dimension scores (each 0–100%):
 Survival Score = (Logical Integrity × 0.30) + (Evidence × 0.25) + (Counter-resilience × 0.25) + (Scope Robustness × 0.20)
 ```
 
-- All dimensions start at 50% (neutral baseline)
-- Score updates after every Judge evaluation
-- Display as `Weighted Score: {value}%` in STATE block
+All dimensions start at 50%. Score updates after every Judge evaluation. Display as `Weighted Score: {value}%` in STATE block.
 
 ### Termination Conditions
 
@@ -159,19 +131,8 @@ Survival Score = (Logical Integrity × 0.30) + (Evidence × 0.25) + (Counter-res
 | Saturation | 3 consecutive short + repetitive + evasive defenses | Depth warning + confirm |
 | Explicit Done | "충분해", "그만", "done", "stop", "enough" | Proceed to Phase 2 |
 
-**Steelman v2** (Vulnerability path): If triggered, rebuild Steelman once with the attack history as context, then resume Phase 1 from the failed dimension. Maximum 1 rebuild per claim.
-
-**Priority order when multiple conditions fire in the same round** (highest first; the first match wins, do not evaluate lower-priority conditions):
-
-1. **Explicit Done** — user override beats every internal heuristic.
-2. **Vulnerability Detected** — score ≤ 25% (2 consecutive). Forcing this over the Round Limit ensures the user sees the 3-choice prompt before Phase 2 is forced.
-3. **Round Limit** — 5 rounds reached. Hard cap; nothing below this row can override it.
-4. **Survival Gate** — score ≥ 60% with 3+ post-gate rounds. Only meaningful when Round Limit is not yet reached.
-5. **Saturation** — 3 consecutive low-quality defenses. Warns then confirms; user can override.
-6. **Attack Exhaustion** — ≥ 3 of 4 vectors stalled. Proposes early termination but does not force it.
-7. **Soft Round Checkpoint** — 3 rounds completed without higher-priority termination. Asks the user; default is to continue.
-
-Concretely: at round 3 with score 58%, none of #1–#5 fire, Soft Round Checkpoint (#7) wins → ask user. At round 5 with score 22%, Vulnerability Detected (#2) wins over Round Limit (#3). At round 5 with score 70% and post-gate=3, Round Limit (#3) wins over Survival Gate (#4) → force Phase 2 (the score still becomes the "survived" verdict via §Phase 2).
+Priority order (first match wins): Explicit Done > Vulnerability Detected > Round Limit > Survival Gate > Saturation > Attack Exhaustion > Soft Checkpoint.
+Steelman v2 rules and priority examples: [reference/patterns.md](reference/patterns.md#termination-priority-order)
 
 ### Phase 2: Verdict and Export
 
@@ -180,60 +141,8 @@ Concretely: at round 3 with score 58%, none of #1–#5 fire, Soft Round Checkpoi
 - `collapsed`: Weighted Score ≤ 25% at termination, or user skipped claim
 - `pending`: Score 26–59% at termination (inconclusive)
 
-**Final Report** (Markdown) — **skipped in `--brief` mode** (verdict-only summary instead, see below):
-
-```markdown
-## Adversarial Review Report
-
-**Date**: {date}
-**Claims tested**: {N}
-
----
-
-### Claim {idx}: {claim text}
-
-**Steelman**: {steelman version used}
-
-**Attack History**:
-| Round | Vector | Attack Summary | Defense Summary | Score Delta |
-|-------|--------|---------------|-----------------|-------------|
-| 1 | Logical Integrity | ... | ... | +8% |
-...
-
-**Final Scores**:
-- Logical Integrity: {score}% (×0.30)
-- Evidence: {score}% (×0.25)
-- Counter-resilience: {score}% (×0.25)
-- Scope Robustness: {score}% (×0.20)
-- **Weighted Score**: {score}%
-
-**Verdict**: survived | collapsed | pending
-
-**Key vulnerabilities identified**: {list}
-**Surviving strengths**: {list}
-
----
-
-### Overall Summary
-
-| Claim | Verdict | Weighted Score |
-|-------|---------|----------------|
-| {claim 1} | survived | 72% |
-| {claim 2} | collapsed | 18% |
-...
-
-**Recommendations**: {action items based on collapsed/pending claims}
-```
-
-**Export option**: After report generation, offer to save via Write tool to `docs/adversarial-review/{date}-{topic}.md`.
-
-**Note on `--brief` mode**: Skip the full Final Report. Output a verdict-only summary:
-
-| Claim | Verdict | Weighted Score |
-|-------|---------|----------------|
-| {claim text} | survived / collapsed / pending | {score}% |
-
-**Recommendations**: {action items for collapsed/pending claims}
+Full report template and `--brief` format: [reference/patterns.md](reference/patterns.md#final-report-template)
+**Export option**: After report, offer to save via Write tool to `docs/adversarial-review/{date}-{topic}.md`.
 
 ## STATE Block Contract
 
@@ -250,28 +159,15 @@ Verdict-so-far: [claim1:survived|collapsed|pending] [claim2:...] ...
 <!-- /STATE -->
 ```
 
-**Compaction restoration rules**:
-- Restore all dimension scores and round counters from STATE block
-- If STATE block is missing scores (legacy), default all dimensions to 50%
-- Resume from the round indicated; do not re-run completed rounds
+Compaction: restore all dimension scores and round counters; default missing scores to 50%; resume from indicated round.
 
 ## Output Format
 
 ### Output Integrity Principle
 
-**Presentation Layer** (Unicode/ASCII decorative elements allowed):
-- Footer separators (`───`)
-- Metadata tables
-- Progress/status indicators (STATE blocks)
-
-**Content Layer** (Unicode/ASCII decorative elements prohibited):
-- Attack and defense text
-- Judge evaluations
-- Report body
-
-**Exceptions**:
-- Original source already contains special characters
-- User explicitly requests emoji/special characters
+**Presentation Layer** (Unicode/ASCII decorative elements allowed): footer separators (`───`), metadata tables, STATE blocks.
+**Content Layer** (Unicode/ASCII decorative elements prohibited): attack/defense text, Judge evaluations, report body.
+**Exceptions**: original source contains special characters; user explicitly requests emoji/special characters.
 
 ### Persona Labels (English)
 
@@ -281,39 +177,13 @@ Verdict-so-far: [claim1:survived|collapsed|pending] [claim2:...] ...
 | Attacker | Presents adversarial attacks in Phase 1 |
 | Judge | Independent evaluation of defense quality |
 
-### Round Display Format
+Round header: `[Round {r}/5 — {Vector}] Claim {idx}/{N} | Weighted Score: {score}%`.
+Full round display format with Judge scoring line: [reference/patterns.md](reference/patterns.md#round-display-format)
 
-```
-[Round {r}/5 — {Vector}] Claim {idx}/{N} | Weighted Score: {score}%
+## Additional Resources
 
-**[Attacker]**: {attack text}
-
----
-```
-
-After user defense:
-
-```
-**[Judge — {Vector}]**: Relevance {r}/10 · Substance {s}/10 · Completeness {c}/10 → Score delta: {delta}
-
-<!-- STATE:CHECKPOINT -->
-...
-<!-- /STATE -->
-```
-
-## Quick Start
-
-```
-User: "마이크로서비스가 모놀리식보다 항상 낫다는 주장을 검증해줘"
-
-→ Phase 0: Steelman 3개 후보 생성 → 사용자가 최강판 선택
-→ Phase 1 Round 1 [Logical Integrity]: "항상"이라는 보편 주장의 논리적 비약 공격
-→ Phase 1 Round 2 [Evidence Attack]: 반례 증거 (Majestic Monolith 사례) 제시
-→ Phase 1 Round 3 [Counter-scenario]: 소규모 팀/초기 스타트업 시나리오에서 붕괴 테스트
-→ Soft Checkpoint: 계속 여부 확인
-→ Phase 1 Round 4 [Scope Boundary]: "항상"→"규모 X 이상의 팀에서는" 경계 제안
-→ Phase 2: Verdict "pending" (Score 48%) — "항상"을 "특정 조건에서"로 수정 권고
-```
+- [Attack patterns, templates & report formats](reference/patterns.md)
+- [Session example (Phase 0 → Phase 1 → Phase 2)](examples/sample.md)
 
 ## Korean I/O Directive
 
