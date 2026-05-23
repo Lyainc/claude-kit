@@ -1,6 +1,7 @@
 ---
 description: Commit uncommitted vault changes to git — shows diff summary, generates a commit message, and requires user approval before committing
 allowed-tools: Bash AskUserQuestion
+disable-model-invocation: true
 ---
 
 Commit uncommitted changes in the vault git repository with user approval.
