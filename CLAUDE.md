@@ -63,7 +63,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
-│   ├── commands/                        # 5개 슬래시 커맨드 정의
+│   ├── commands/                        # 6개 슬래시 커맨드 정의
 │   ├── hooks/                           # 5개 hook handler (stop-check, session-end-pre, session-start-manifest, pre-access-guard, pre-write-guard)
 │   └── scripts/                         # generate-manifest.py, plan-doc-syncer.py + tests/
 ├── docs/
@@ -162,7 +162,7 @@ status: active|archived        # conditional (session-handoff, project, plan)
 
 ## vault-bridge Hooks & Commands
 
-vault-bridge registers 5 hook handlers + 5 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
+vault-bridge registers 5 hook handlers + 6 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
 
 **Hooks**:
 
@@ -179,6 +179,7 @@ vault-bridge registers 5 hook handlers + 5 slash commands. All hooks are **deter
 - **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).
 - **`/vault-commit`**: commits uncommitted vault changes with user-approved message.
 - **`/save-plan-doc`**: snapshots external `docs/discussions/`, `docs/design/`, `docs/plans/` markdown into the bound vault project. 2-layer opt-in gate — L1 `snapshot_export: true` in `.vault-link` (project owner), L2 `snapshot_import: true` in vault `_index.md` (vault owner, managed via OVM `/project --enrich`). `auto_capture` remains as a 4-week deprecation alias for both layers; `VAULT_BRIDGE_SUPPRESS_DEPRECATION=1` silences the stderr warning for non-interactive callers (set by `session-end-pre.sh` so the deprecation notice doesn't pollute `discovery_error`).
+- **`/handoff`**: generates a continuation prompt for the next session — paste-ready one-liner, structured summary, or saved as `.claude-kit/vault-bridge/resume.md`. Does not write to vault paths; resume.md is a local gitignored file only.
 
 The split (deterministic Stop + 2-step SessionEnd + explicit slash commands) ensures zero per-turn LLM cost, no loops, safety-net auto-save on `/exit`, and a clear user-driven path for full session notes and plan-doc snapshots.
 
