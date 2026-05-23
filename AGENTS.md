@@ -71,7 +71,7 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 
 - `thinking-tools/`: thinking skills plugin with skills for diverse sampling, document concretization/polish, expert panels, unknown discovery, thought chains, adversarial review, plus the `thinking-facilitator` agent.
 - `obsidian-vault-manager/`: Obsidian vault knowledge-management plugin with vault/project/note/inbox/archive/audit skills and vault organization agents.
-- `vault-bridge/`: Obsidian vault I/O bridge with the `vault-searcher` agent (read-only since v1.9.0), slash-command style workflows, hook scripts, slash command based session-note/capture/plan creation, manifest caching, vault write governance (VAULT_BRIDGE_WRITE_CONTRACT), and plan-doc sync.
+- `vault-bridge/`: Obsidian vault I/O bridge with the `vault-searcher` agent (read-only since v1.9.0), slash-command style workflows, hook scripts, slash command based session-note/capture/plan creation, manifest caching, vault write governance (VAULT_BRIDGE_WRITE_CONTRACT), plan-doc sync, and portable vault location via `userConfig.vault_path` / `VAULT_BRIDGE_VAULT_PATH` (v1.13.0+).
 
 ### Repository conventions
 
@@ -101,7 +101,7 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 
 ### Vault file conventions
 
-Files written to `~/vault/` by `obsidian-vault-manager` or `vault-bridge` follow type-first names:
+Files written to the configured vault root (default `~/vault/`) by `obsidian-vault-manager` or `vault-bridge` follow type-first names:
 
 | Type | Example | Path |
 | --- | --- | --- |

@@ -164,12 +164,17 @@ status: active|archived        # conditional (session-handoff, project, plan)
 
 vault-bridge registers 5 hook handlers + 6 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
 
+**Vault root configuration** (all hooks + Python scripts share the same 3-level priority):
+1. `VAULT_BRIDGE_VAULT_ROOT` env var — explicit runtime override (CI/scripts, highest priority)
+2. `VAULT_BRIDGE_VAULT_PATH` env var — set from `userConfig.vault_path` in plugin settings
+3. `~/vault` — built-in default. Tilde in either var is expanded to `$HOME`.
+
 **Hooks**:
 
 - **Stop** (`hooks/stop-check.sh`, deterministic): per-turn. Reads transcript JSONL, regex-matches the last user text against closing keywords (`세션 끝`, `마무리`, `wrap up`, `end session`, etc.), and emits a `systemMessage` suggesting `/save-session` only on match. **No LLM call** → no per-turn cost, no infinite-loop risk (the prior prompt-based hook looped because every response — even "(silent pass-through)" — re-fired the Stop hook).
 - **SessionEnd** (chained `hooks/session-end-pre.sh` → prompt): session close. Shell pre-hook collects deterministic state (vault-link gate flags, plan-doc candidates, direct-access counter) and writes JSON to `/tmp/vault-bridge-session-${SID}/session-end-state.json`; prompt then reads it via `jq`, decides whether work was meaningful, writes the safety-net session-note. Pre-hook uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` doesn't break `.vault-link` discovery. The prompt body is compressed (~1000 chars) to keep token overhead minimal.
-- **SessionStart** (`hooks/session-start-manifest.sh`, deterministic): incremental manifest refresh — checks staleness and updates `~/vault/.vault-bridge/manifest.json` only for changed files (background, never blocks session start).
-- **PreToolUse Read|Grep|Glob** (`hooks/pre-access-guard.sh`, deterministic): emits `systemMessage` warning when `~/vault/` is accessed directly; counts direct-access events for the SessionEnd summary. Soft warning, never blocks. As of v1.9.0, this hook exempts vault-searcher's own reads to avoid the self-reference loop that previously caused haiku to misinterpret its own warning as a denial.
+- **SessionStart** (`hooks/session-start-manifest.sh`, deterministic): incremental manifest refresh — checks staleness and updates `{vault_root}/.vault-bridge/manifest.json` only for changed files (background, never blocks session start).
+- **PreToolUse Read|Grep|Glob** (`hooks/pre-access-guard.sh`, deterministic): emits `systemMessage` warning when the configured vault root is accessed directly; counts direct-access events for the SessionEnd summary. Soft warning, never blocks. As of v1.9.0, this hook exempts vault-searcher's own reads to avoid the self-reference loop that previously caused haiku to misinterpret its own warning as a denial.
 - **PreToolUse Write|Edit** (`hooks/pre-write-guard.sh`, deterministic): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). `50_Archive/` is exempt (OVM territory). Naming convention is log-only by default; `VAULT_BRIDGE_STRICT_NAMING=1` blocks on violation.
 
 **Slash commands** (`commands/*.md`):
