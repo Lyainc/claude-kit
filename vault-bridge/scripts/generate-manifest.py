@@ -33,6 +33,8 @@ def _default_vault_root() -> str:
     1. VAULT_BRIDGE_VAULT_ROOT  — explicit env override (CI / runtime)
     2. VAULT_BRIDGE_VAULT_PATH  — userConfig value injected by Claude Code
     3. ~/vault                  — built-in default
+
+    NOTE: keep in sync with plan-doc-syncer.py:_default_vault_root().
     """
     raw = os.environ.get("VAULT_BRIDGE_VAULT_ROOT") or \
           os.environ.get("VAULT_BRIDGE_VAULT_PATH", "")

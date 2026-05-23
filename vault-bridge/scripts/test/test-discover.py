@@ -37,6 +37,19 @@ def _touch(path: Path, body: str = "# stub\n") -> None:
     path.write_text(body, encoding="utf-8")
 
 
+def _hermetic_env() -> dict:
+    """Return a copy of os.environ with vault-path vars stripped.
+
+    Prevents a developer's VAULT_BRIDGE_VAULT_ROOT / VAULT_BRIDGE_VAULT_PATH
+    from leaking into subprocess calls and producing false passes or failures
+    (plan-doc-syncer._default_vault_root() reads both vars).
+    """
+    env = os.environ.copy()
+    for key in ("VAULT_BRIDGE_VAULT_ROOT", "VAULT_BRIDGE_VAULT_PATH"):
+        env.pop(key, None)
+    return env
+
+
 def _run_discover(project_root: Path) -> tuple[int, list[str], str]:
     """Run --discover and return (returncode, stdout_lines, stderr)."""
     proc = subprocess.run(
@@ -44,6 +57,7 @@ def _run_discover(project_root: Path) -> tuple[int, list[str], str]:
         capture_output=True,
         text=True,
         cwd=str(project_root),
+        env=_hermetic_env(),
     )
     lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
     return proc.returncode, lines, proc.stderr
@@ -426,7 +440,7 @@ def case_recent_filter_hours(errors: list[str]) -> None:
         # --recent 24 should keep fresh.md, drop stale.md.
         proc = subprocess.run(
             [sys.executable, str(SYNCER), "--discover", str(root), "--recent", "24"],
-            capture_output=True, text=True, cwd=str(root),
+            capture_output=True, text=True, cwd=str(root), env=_hermetic_env(),
         )
         lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
         _assert(proc.returncode == 0, "exit 0", errors)
@@ -450,7 +464,7 @@ def case_recent_zero_candidates(errors: list[str]) -> None:
         os.utime(target, (past_ts, past_ts))
         proc = subprocess.run(
             [sys.executable, str(SYNCER), "--discover", str(root), "--recent", "0"],
-            capture_output=True, text=True, cwd=str(root),
+            capture_output=True, text=True, cwd=str(root), env=_hermetic_env(),
         )
         lines = [ln for ln in proc.stdout.splitlines() if ln.strip()]
         _assert(proc.returncode == 0, "exit 0", errors)
@@ -470,7 +484,7 @@ def case_recent_and_summary_require_discover(errors: list[str]) -> None:
         for flag in (["--recent", "24"], ["--summary"]):
             proc = subprocess.run(
                 [sys.executable, str(SYNCER), "--source", str(src), *flag],
-                capture_output=True, text=True,
+                capture_output=True, text=True, env=_hermetic_env(),
             )
             _assert(proc.returncode != 0, f"non-zero exit for {flag}", errors)
             _assert("require --discover" in proc.stderr,
@@ -490,7 +504,7 @@ def case_threshold_metadata_in_output(errors: list[str]) -> None:
         # With --summary and 12 >= threshold 10, stderr should include JSON.
         proc = subprocess.run(
             [sys.executable, str(SYNCER), "--discover", str(root), "--summary"],
-            capture_output=True, text=True, cwd=str(root),
+            capture_output=True, text=True, cwd=str(root), env=_hermetic_env(),
         )
         _assert(proc.returncode == 0, "exit 0", errors)
         _assert(proc.stderr.strip() != "", "stderr non-empty when count >= threshold", errors)
@@ -508,7 +522,7 @@ def case_threshold_metadata_in_output(errors: list[str]) -> None:
             (root / "docs" / "discussions" / f"20260419_topic-{i}" / "design.md").unlink()
         proc2 = subprocess.run(
             [sys.executable, str(SYNCER), "--discover", str(root), "--summary"],
-            capture_output=True, text=True, cwd=str(root),
+            capture_output=True, text=True, cwd=str(root), env=_hermetic_env(),
         )
         _assert(proc2.returncode == 0, "exit 0 (below threshold)", errors)
         # 5 candidates < 10 threshold, stderr should NOT contain summary JSON.
