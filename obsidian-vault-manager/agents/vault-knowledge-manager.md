@@ -153,12 +153,13 @@ Note creation triggers: domain inference (database) → user confirmation → fi
 
 <example>
 user: "00_Inbox 한 번 정리해줘"
-assistant: "inbox-review 스킬로 진행할게요.
-Inbox 파일 목록을 먼저 확인하고, 항목마다 분류 제안 드릴게요.
-[각 항목: 30_Notes 이동 / 아카이브 / 삭제 중 선택 → 확인 후 vault-file-organizer에 이동 위임]"
+assistant: "inbox-review 스킬로 진행할게요. Inbox 파일 목록 확인 후 항목마다 분류 제안 드릴게요."
+[inbox-review 스킬 실행 → 항목별 30_Notes 이동 / 아카이브 / 삭제 선택지 제시]
+[user confirms per-item decisions]
+"확인됐어요. 기계적 이동은 vault-file-organizer에 위임할게요."
 <commentary>
 Inbox cleanup → invoke inbox-review skill for classification judgment.
-Mechanical moves (file rename + path change) are delegated to vault-file-organizer
-after user confirms per-item decisions.
+Mechanical moves are delegated to vault-file-organizer after user confirms per-item decisions.
+Step separators use [bracket] notation for consistency with vault-file-organizer examples.
 </commentary>
 </example>
