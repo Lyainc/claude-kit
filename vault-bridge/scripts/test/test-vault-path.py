@@ -18,6 +18,7 @@ Run: python3 vault-bridge/scripts/test/test-vault-path.py
 Exit 0 on pass, 1 on fail.
 """
 
+import datetime
 import json
 import os
 import subprocess
@@ -135,13 +136,15 @@ def case_vault_root_overrides_vault_path(errors: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Case 3: Neither env var set, vault dir absent → silent exit
+# Case 3: Vault dir absent → silent exit
 # ---------------------------------------------------------------------------
 
-def case_no_env_vars_absent_vault(errors: list[str]) -> None:
-    """When no env vars are set and the default vault dir does not exist,
-    hooks must exit silently (exit 0, empty stdout)."""
-    print("\ncase: no_env_vars_absent_vault")
+def case_absent_vault_exits_silently(errors: list[str]) -> None:
+    """Hooks must exit silently (exit 0, empty stdout) when the resolved vault
+    root directory does not exist.  Tested via VAULT_BRIDGE_VAULT_ROOT pointing
+    at a nonexistent path — the same fast-exit guard applies regardless of
+    which priority level supplies the path."""
+    print("\ncase: absent_vault_exits_silently")
     nonexistent = "/tmp/__vault_bridge_nonexistent_vault_test__"
     rc, out, _ = _run_hook(
         ACCESS_HOOK,
@@ -184,7 +187,8 @@ def case_write_guard_vault_path(errors: list[str]) -> None:
     print("\ncase: write_guard_vault_path")
     with tempfile.TemporaryDirectory() as custom_vault:
         # Valid name → no naming violation
-        valid_path = f"{custom_vault}/00_Inbox/session-2026-05-23.md"
+        today = datetime.date.today().isoformat()
+        valid_path = f"{custom_vault}/00_Inbox/session-{today}.md"
         rc, out, _ = _run_hook(
             WRITE_HOOK,
             _write_payload(valid_path),
@@ -273,7 +277,7 @@ def main() -> None:
 
     case_vault_path_intercepts_reads(errors)
     case_vault_root_overrides_vault_path(errors)
-    case_no_env_vars_absent_vault(errors)
+    case_absent_vault_exits_silently(errors)
     case_tilde_expansion(errors)
     case_write_guard_vault_path(errors)
     case_python_default_vault_root(errors)
