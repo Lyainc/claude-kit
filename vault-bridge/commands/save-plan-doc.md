@@ -1,6 +1,7 @@
 ---
 description: Save external plan/design documents from the current project as vault snapshots — supports single file or batch, with 2-layer opt-in gate and dedup protection
 allowed-tools: Read, Write, Bash, AskUserQuestion
+argument-hint: "[file ...]"
 ---
 
 Save one or more external plan/design documents from the current project into the bound vault project as snapshots.

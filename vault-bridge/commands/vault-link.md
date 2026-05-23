@@ -1,6 +1,7 @@
 ---
 description: Create or update a .vault-link pointer file that binds the current code repository to a specific vault project
 allowed-tools: Read, Write, Bash, Glob
+argument-hint: "[project-name]"
 ---
 
 Create a `.vault-link` pointer file in the current working directory (CWD), binding this repository to a specific `~/vault/20_Projects/` project.

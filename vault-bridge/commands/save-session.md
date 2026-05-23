@@ -1,6 +1,7 @@
 ---
 description: Create a session note recording the current session's work — record / quick modes
 allowed-tools: Read, Write, Bash, AskUserQuestion
+argument-hint: "[--record|--quick]"
 ---
 
 # /save-session
