@@ -1,0 +1,33 @@
+name: Plugin Validation
+
+on:
+  push:
+    branches: [main, "fix/**", "feat/**", "refactor/**", "docs/**"]
+  pull_request:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate JSON manifests
+        run: |
+          python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
+          python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
+          python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
+          python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
+          echo "All JSON manifests valid"
+
+      - name: Check shell hook syntax
+        run: |
+          bash -n vault-bridge/hooks/*.sh
+          echo "Hook syntax OK"
+
+      - name: Run vault-bridge unit tests
+        run: |
+          python3 vault-bridge/scripts/test/test-discover.py
+          python3 vault-bridge/scripts/test/test-pre-write-guard.py
+          python3 vault-bridge/scripts/test/test-pre-access-guard.py
+          echo "vault-bridge tests OK"
