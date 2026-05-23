@@ -1,6 +1,6 @@
 {
   "name": "vault-bridge",
-  "version": "1.11.2",
+  "version": "1.11.3",
   "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, optional Obsidian CLI search acceleration, direct-access awareness, session auto-commit, write path governance, opt-in plan-doc autosync, and session handoff. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /handoff + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. vault-searcher acts as read/search agent only (read-only since v1.9.0). Vault writes are restricted to slash commands executed in main context; subagent vault writes are policy-blocked via VAULT_BRIDGE_WRITE_CONTRACT. Searches notes, loads domain context, restores session context, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
   "author": {
     "name": "Lyainc",
@@ -33,7 +33,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/stop-check.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/stop-check.sh",
             "timeout": 5
           }
         ]
@@ -45,7 +45,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-end-pre.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-end-pre.sh",
             "timeout": 5
           },
           {
@@ -61,7 +61,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/session-start-manifest.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-manifest.sh",
             "timeout": 5
           }
         ]
@@ -73,7 +73,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-access-guard.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre-access-guard.sh",
             "timeout": 3
           }
         ]
@@ -83,7 +83,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PLUGIN_ROOT}/hooks/pre-write-guard.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/pre-write-guard.sh",
             "timeout": 3
           }
         ]
