@@ -50,7 +50,7 @@ def _run_hook(
     merged_env = os.environ.copy()
     # Hermetic: strip env vars under test so a developer's shell can't leak in
     # (e.g. an exported VAULT_BRIDGE_DISABLE=1 would silently pass every case).
-    for key in ("VAULT_BRIDGE_DISABLE", "VAULT_BRIDGE_VAULT_ROOT"):
+    for key in ("VAULT_BRIDGE_DISABLE", "VAULT_BRIDGE_VAULT_ROOT", "VAULT_BRIDGE_VAULT_PATH"):
         merged_env.pop(key, None)
     if vault_root is not None:
         merged_env["VAULT_BRIDGE_VAULT_ROOT"] = vault_root
