@@ -136,3 +136,29 @@ Optional fields added when needed: `last_session`, `vault_link_source`, `absorbs
 - After MOC updates, validate link integrity.
 - On failure, provide a clear error report with resolution steps.
 - Track the list of files created/modified during the session.
+
+## Examples
+
+<example>
+user: "Redis 캐싱 패턴에 대한 노트 만들어줘"
+assistant: "'redis-caching-patterns.md'를 30_Notes/에 생성할게요.
+도메인은 'database'로 추론돼요 — 맞나요?
+확인되면: 노트 생성 → 10_MOC/database.md에 백링크 추가 → 활성 프로젝트 관련성 확인 순으로 진행해요."
+<commentary>
+Note creation triggers: domain inference (database) → user confirmation → file write
+→ MOC backlink (approved together with note creation per MOC Update Policy)
+→ active project scan for also_related_projects.
+</commentary>
+</example>
+
+<example>
+user: "00_Inbox 한 번 정리해줘"
+assistant: "inbox-review 스킬로 진행할게요.
+Inbox 파일 목록을 먼저 확인하고, 항목마다 분류 제안 드릴게요.
+[각 항목: 30_Notes 이동 / 아카이브 / 삭제 중 선택 → 확인 후 vault-file-organizer에 이동 위임]"
+<commentary>
+Inbox cleanup → invoke inbox-review skill for classification judgment.
+Mechanical moves (file rename + path change) are delegated to vault-file-organizer
+after user confirms per-item decisions.
+</commentary>
+</example>

@@ -79,3 +79,29 @@ When invoked by a parent agent with the `--dry-run` option:
   [Dry-Run] 총 2건의 작업이 대기 중입니다. 실행할까요?
   ```
 - Switch to actual execution after user confirmation
+
+## Examples
+
+<example>
+user: [from parent: move "2025-03-15 - API Design Notes.md" from 00_Inbox to 30_Notes]
+assistant: "[Dry-Run] 이름변경 예정: 2025-03-15 - API Design Notes.md → note-2025-03-15-api-design-notes.md
+[Dry-Run] 이동 예정: 00_Inbox/ → 30_Notes/
+실행할까요?"
+[user confirms]
+"이름변경: 2025-03-15 - API Design Notes.md → note-2025-03-15-api-design-notes.md ✓
+이동: 00_Inbox/ → 30_Notes/ ✓"
+<commentary>
+Kebab-case normalization + type-first date convention applied on rename.
+Dry-run output shown before execution — always. Parent agent handles MOC update.
+</commentary>
+</example>
+
+<example>
+user: [from parent: classify this note and decide which domain folder it belongs to]
+assistant: "도메인 분류는 제 역할 밖이에요 — vault-knowledge-manager가 담당해요.
+이동 대상 경로가 확정되면 파일 이동만 수행할 수 있어요. 경로를 알려주세요."
+<commentary>
+Domain classification = judgment call → refuse, redirect to vault-knowledge-manager.
+vault-file-organizer only executes path-confirmed mechanical operations.
+</commentary>
+</example>
