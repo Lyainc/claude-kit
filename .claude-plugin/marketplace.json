@@ -12,7 +12,7 @@
   "plugins": [
     {
       "name": "thinking-tools",
-      "version": "1.9.0",
+      "version": "1.9.1",
       "description": "Claude Code thinking skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, blind spot detection, thought chain orchestration, adversarial claim review, spec-first idea crystallization, and thinking facilitator agent.",
       "author": {
         "name": "Lyainc",
@@ -38,7 +38,7 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.12.0",
+      "version": "0.12.1",
       "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review (4-phase pipeline with ≥3x token reduction), project archiving, note↔project bidirectional binding, Obsidian-native formatting guidance, optional Defuddle URL extraction for captures, optional Obsidian CLI acceleration, and vault-audit (9-error-type structural integrity scan with ≥93% detection / <10% FP against fixture), plus reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
       "author": {
         "name": "Lyainc",
@@ -64,7 +64,7 @@
     },
     {
       "name": "vault-bridge",
-      "version": "1.12.0",
+      "version": "1.12.1",
       "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, optional Obsidian CLI search acceleration, direct-access awareness, session auto-commit, write path governance, opt-in plan-doc autosync, and session handoff. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /handoff + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. vault-searcher acts as read/search agent only (read-only since v1.9.0). Vault writes are restricted to slash commands executed in main context; subagent vault writes are policy-blocked via VAULT_BRIDGE_WRITE_CONTRACT. Searches notes, loads domain context, restores session context, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
       "author": {
         "name": "Lyainc",
