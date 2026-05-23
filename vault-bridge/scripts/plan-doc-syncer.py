@@ -70,6 +70,17 @@ DEFAULT_EXCLUDE_PATTERNS = [
 ]
 
 
+def _default_vault_root() -> str:
+    """Resolve the default vault root with 3-level priority:
+    1. VAULT_BRIDGE_VAULT_ROOT  — explicit env override (CI / runtime)
+    2. VAULT_BRIDGE_VAULT_PATH  — userConfig value injected by Claude Code
+    3. ~/vault                  — built-in default
+    """
+    raw = os.environ.get("VAULT_BRIDGE_VAULT_ROOT") or \
+          os.environ.get("VAULT_BRIDGE_VAULT_PATH", "")
+    return str(Path(raw).expanduser()) if raw else str(Path.home() / "vault")
+
+
 def _resolve_effective_patterns(vault_link: dict) -> tuple[list[str], list[str]]:
     """
     Merge DEFAULT patterns with .vault-link override fields.
@@ -504,13 +515,17 @@ def _check_gate_l2(vault_root: Path, vault_path: str) -> bool:
 # Vault-native boundary check (§9.5 / spec §1 boundary enforcement)
 # ---------------------------------------------------------------------------
 
-def _is_vault_native(source_path: Path) -> bool:
-    """Return True if source path is inside a vault directory — must skip."""
+def _is_vault_native(source_path: Path, vault_root: Path | None = None) -> bool:
+    """Return True if source path is inside a vault directory — must skip.
+
+    vault_root: configured vault root (explicit arg wins; falls back to
+    _default_vault_root() so VAULT_BRIDGE_VAULT_ROOT / VAULT_BRIDGE_VAULT_PATH
+    are honoured even when called from _discover_candidates without an explicit root).
+    """
     abs_str = str(source_path.resolve())
-    home = str(Path.home())
-    vault_abs = str(Path(home) / "vault")
-    # Match ~/vault/ or any /Users/*/vault/ pattern
-    if abs_str.startswith(vault_abs + os.sep) or abs_str.startswith(vault_abs + "/"):
+    effective_root = vault_root or Path(_default_vault_root())
+    vault_abs = str(effective_root.resolve())
+    if abs_str.startswith(vault_abs + os.sep) or abs_str == vault_abs:
         return True
     if VAULT_NATIVE_PATTERN.search(abs_str):
         return True
@@ -710,8 +725,8 @@ def sync(
         "gate_l2": None,
     }
 
-    # Vault-native boundary check
-    if _is_vault_native(source_path):
+    # Vault-native boundary check (use the caller-provided vault_root so custom paths work)
+    if _is_vault_native(source_path, vault_root):
         result["status"] = "skip"
         result["reason"] = "vault-native path — autosync out of scope (spec §9.5)"
         return result
@@ -836,8 +851,8 @@ def main() -> None:
     parser.add_argument("--source", help="Source file path (required unless --get-paths or --discover)")
     parser.add_argument(
         "--vault-root",
-        default=str(Path("~/vault").expanduser()),
-        help="Vault root (default: ~/vault)",
+        default=_default_vault_root(),
+        help="Vault root (default: VAULT_BRIDGE_VAULT_ROOT > VAULT_BRIDGE_VAULT_PATH > ~/vault)",
     )
     parser.add_argument(
         "--vault-link",
