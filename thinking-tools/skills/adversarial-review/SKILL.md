@@ -91,7 +91,7 @@ Cycle through 4 attack vectors in order. Each round:
 - **Judge** receives: current round attack + defense only (full conversation history blocked by default)
 
 In `--deep` mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
-In default mode, visibility is best-effort (prompt contract only; `--deep` provides mechanical isolation via subagent context boundaries).
+In default mode, visibility is best-effort (prompt contract only — the LLM shares full conversation history across personas; `--deep` provides mechanical isolation via subagent context boundaries).
 
 1. **Attacker** persona presents the attack
 2. **AskUserQuestion** collects user defense (always show "skip this claim" as an option); in `--auto` mode, Agent generates Defender response

@@ -144,10 +144,10 @@ If `--autopilot` is active, skip this section and auto-select "다음 단계로"
 | 다음 단계로 | Pass current output to next stage |
 | {deepen label} | Re-invoke current stage with prior output + deepen instruction; increment `deepen_counts[stage]` |
 | 재실행 | Discard current output; re-run from clean state with original input; reset `deepen_counts[stage]` to 0 |
-| 멈추고 vault 저장 | Stop pipeline; run mid-stop polish if before Stage 3; trigger vault destination question |
+| 멈추고 vault 저장 | Stop pipeline; run mid-stop polish if before Stage 4; trigger vault destination question |
 | 그냥 멈춤 | Stop pipeline; print current output; no vault write |
 
-**After Stage 3 (end-of-pipeline)**: trigger vault destination question directly (no checkpoint).
+**After Stage 4 (end-of-pipeline)**: trigger vault destination question directly (no checkpoint).
 
 ## Deepen Mechanics
 
@@ -166,7 +166,7 @@ Friction prompt text and per-stage deepen prompts: [reference.md](reference.md),
 
 ## Mid-Stop Polish Guarantee
 
-When "멈추고 vault 저장" is selected before Stage 3 completes:
+When "멈추고 vault 저장" is selected before Stage 4 completes:
 
 | Stop point | Action |
 |------------|--------|
@@ -179,7 +179,7 @@ When "멈추고 vault 저장" is selected before Stage 3 completes:
 
 ## Vault Destination Question
 
-Triggered after "멈추고 vault 저장" (post mini-polish) or after Stage 3 completes.
+Triggered after "멈추고 vault 저장" (post mini-polish) or after Stage 4 completes.
 Routes: "Plan doc" → `save-session plan`; "Session note" → `save-session` (record mode); "터미널만" → terminal print; "종료" → exit.
 Option visibility depends on vault gate state (`vault_linked`, `snapshot_export`, `import_allowed`).
 Full option list, visibility rules, routing details, frontmatter injection:
@@ -188,7 +188,7 @@ Full option list, visibility rules, routing details, frontmatter injection:
 ## Autopilot Flag
 
 `--autopilot` skips all checkpoints (auto-selects "다음 단계로"). No deepen, no re-run.
-After Stage 3: end-state follows `--auto-vault` value if set; otherwise "터미널만".
+After Stage 4: end-state follows `--auto-vault` value if set; otherwise "터미널만".
 
 `--auto-vault plan`: auto-answers "Plan doc로 vault에 저장". Falls back to terminal with
 `"(vault 게이트가 닫혀 있어 터미널 출력으로 대체했어요)"` if gate closed.
