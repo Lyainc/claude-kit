@@ -25,7 +25,7 @@ Forcing past the cap (option 1) is allowed but requires explicit selection. Afte
 
 ## Vault Destination Question
 
-Triggered after "멈추고 vault 저장" (post mini-polish) or after Stage 3 completes.
+Triggered after "멈추고 vault 저장" (post mini-polish) or after Stage 4 completes.
 If `--autopilot` with `--auto-vault` is active, skip and route per the flag value.
 
 **Option visibility rules** (based on gate state from Pre-Pipeline Gate Check):
@@ -111,7 +111,7 @@ thought_chain:
 | Downstream stage | Normal input | Fallback input when prior stage skipped |
 |------------------|-------------|----------------------------------------|
 | doc-concretize (with `--skip panel`) | panel consensus + action items | discovery findings directly: Critical → primary sections, Important → secondary, Nice-to-have → "considered alternatives" |
-| expert-panel (with `--start panel`) | discovery findings | user-provided topics list (free-form, no Stage 1 metadata) |
+| expert-panel (with `--skip discovery` or `--start panel`) | discovery findings | user-provided topics list (free-form, no Stage 1 metadata). `--skip discovery` is treated identically to `--start panel` for input handling. |
 
 **Alias mapping**: `discovery` = unknown-discovery, `panel` = expert-panel, `concretize` = doc-concretize, `polish` = doc-polish.
 
