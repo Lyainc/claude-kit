@@ -22,14 +22,14 @@ User: "마이크로서비스가 모놀리식보다 항상 낫다는 주장을 �
    Steelman이 이미 주장의 보편성을 포기한 것 아닌가요?"
    [User defense]: "원래 주장이 과장이라는 걸 인정해요. 실제로는 조건부로 더 낫다는 거예요."
    [Judge — Logical Integrity]: Relevance 9/10 · Substance 7/10 · Completeness 6/10 → Score delta: +8%
-   Weighted Score: 54% (Logical Integrity: 58%)
+   Weighted Score: 52.4% (Logical Integrity: 58%)
 
 → Phase 1 Round 2 [Evidence Attack]:
    [Attacker]: "마이크로서비스 전환 실패 사례(예: Majestic Monolith 논문, Segment의 마이크로서비스→모놀리식 회귀)가 존재합니다.
    제시된 Netflix/Amazon 사례는 수백 명 이상의 전담 인프라팀이 있는 조직으로, 대부분의 팀에 적용하기엔 선택 편향이 있어요."
    [User defense]: "맞아요. 그래서 팀 규모 조건이 필요한 거예요. 소규모 팀엔 맞지 않죠."
    [Judge — Evidence Attack]: Relevance 8/10 · Substance 6/10 · Completeness 5/10 → Score delta: +8%
-   Weighted Score: 56% (Evidence: 58%)
+   Weighted Score: 54.4% (Evidence: 58%)
 
 → Soft Round Checkpoint (3 rounds 완료 아직 아님, Round 2 종료 — 계속 진행)
 
@@ -39,7 +39,7 @@ User: "마이크로서비스가 모놀리식보다 항상 낫다는 주장을 �
    비즈니스 속도를 심각하게 저하시킵니다. 이 시나리오에서 주장이 어떻게 성립하나요?"
    [User defense]: "5인 팀에서는 모놀리식이 낫죠. 그래서 '팀 규모 조건'을 달았어요."
    [Judge — Counter-scenario]: Relevance 7/10 · Substance 5/10 · Completeness 4/10 → Score delta: 0%
-   Weighted Score: 53% (Counter-resilience: 50%)
+   Weighted Score: 54.4% (Counter-resilience: 50%, delta 0 — defense did not move the dimension)
 
 → Soft Round Checkpoint: "계속할까요?" → 계속
 
@@ -50,11 +50,11 @@ User: "마이크로서비스가 모놀리식보다 항상 낫다는 주장을 �
    주장의 범위가 실제 선택지를 포괄하지 못합니다."
    [User defense]: "그 부분은 제가 단순화했네요. 중간 아키텍처까지 포함하면 주장이 더 복잡해져요."
    [Judge — Scope Boundary]: Relevance 8/10 · Substance 4/10 · Completeness 3/10 → Score delta: 0%
-   Weighted Score: 51% (Scope Robustness: 50%)
+   Weighted Score: 54.4% (Scope Robustness: 50%, delta 0 — defense did not move the dimension)
 
 → Phase 2: Verdict
    Final Scores: Logical Integrity 58% · Evidence 58% · Counter-resilience 50% · Scope Robustness 50%
-   Weighted Score: 54% → Verdict: pending (26–59%)
+   Weighted Score: 54.4% → Verdict: pending (26–59%)
 
    Key vulnerabilities:
    - "항상"이라는 보편성 주장은 Steelman 단계에서 이미 조건부로 후퇴

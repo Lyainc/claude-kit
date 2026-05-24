@@ -23,6 +23,8 @@ allowed-tools: Skill Read AskUserQuestion
 
 Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 
+> **Reference files (load on demand)**: [reference.md](reference.md) (per-stage deepen prompts) · [reference/pipeline-examples.md](reference/pipeline-examples.md) (partial pipeline, vault destination question, metadata schema, output formats, quick start). Read these explicitly when the corresponding section is reached; they are not auto-loaded with SKILL.md.
+
 ## Language Behavior
 
 - **Instructions**: English (optimized for LLM parsing)

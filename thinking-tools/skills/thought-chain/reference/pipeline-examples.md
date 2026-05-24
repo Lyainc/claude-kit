@@ -196,7 +196,7 @@ User: "새 결제 시스템 도입안을 종합 분석해줘"
 
 ## Note on Claim Validation
 
-The previous 5-stage variant (PR #78, 2026-05-20) embedded `adversarial-review` as Stage 2. This was reverted in feat/stage4-pd (2026-05-25) per the vault decision recorded in `plan-2026-05-23-thought-chain-checkpoint-vault-integration.md` (status: 4-stage fixed).
+The previous 5-stage variant (PR #78, 2026-05-20) embedded `adversarial-review` as Stage 2. This was reverted in feat/stage4-pd (2026-05-25); the full decision record is in [docs/discussions/20260525_thought-chain-pipeline-decision/SUMMARY.md](../../../../docs/discussions/20260525_thought-chain-pipeline-decision/SUMMARY.md) (status: 4-stage fixed).
 
 For claim validation needs in an analysis flow:
 - Run `unknown-discovery` first to surface findings

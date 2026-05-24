@@ -24,6 +24,8 @@ allowed-tools: AskUserQuestion Read Write Agent
 
 # Adversarial Review
 
+> **Reference files (load on demand)**: [reference/patterns.md](reference/patterns.md) (attack templates, judge score mapping, termination priority, report formats, round display) · [examples/sample.md](examples/sample.md) (full Phase 0 → Phase 1 → Phase 2 session example). Read these explicitly when the corresponding section is reached; they are not auto-loaded with SKILL.md.
+
 ## Language Behavior
 
 - **Instructions**: English (optimized for LLM parsing)
