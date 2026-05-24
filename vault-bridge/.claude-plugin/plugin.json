@@ -28,6 +28,7 @@
   ],
   "userConfig": {
     "vault_path": {
+      "title": "Vault Path",
       "type": "string",
       "default": "~/vault",
       "description": "Absolute path to your Obsidian vault root (e.g. ~/vault or /Users/me/my-vault). Exposed to hooks as VAULT_BRIDGE_VAULT_PATH. Use VAULT_BRIDGE_VAULT_ROOT env var to override at runtime."
