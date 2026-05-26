@@ -16,7 +16,16 @@ Five error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `asse
 
 **Rule**: `has_frontmatter == true` AND `missing_required` is non-empty
 **Source**: `frontmatter_records`
-**Reports**: which fields are missing (`created`, `tags`, `type`).
+**Reports**: which fields are missing.
+
+**Required fields**:
+
+| Scope | Fields |
+|-------|--------|
+| All types (universal) | `created`, `tags`, `type` |
+| `type: note` and `type: decision` only | `status` (v4 §3.3 status machine) |
+
+`status` is optional for `capture`, `session`, and `plan` — omitting it for those types is not an E2 violation.
 
 ## E3 — `filename_convention_violation` [Warning]
 

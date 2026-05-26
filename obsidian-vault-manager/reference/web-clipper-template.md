@@ -48,14 +48,14 @@ Obsidian Web Clipper 브라우저 확장으로 웹 페이지를 vault v4 형식�
       "type": "text"
     }
   ],
-  "noteNameFormat": "capture-{{date:YYYY-MM-DD}}-{{title|lower|truncate:40}}",
+  "noteNameFormat": "capture-{{date:YYYY-MM-DD}}-{{title|lower|replace: :-|truncate:40}}",
   "path": "inbox"
 }
 ```
 
 ## 생성되는 노트 예시
 
-파일: `inbox/capture-2026-05-26-how llms work from scratch.md`
+파일: `inbox/capture-2026-05-26-how-llms-work-from-scratch.md`
 
 ```yaml
 ---
@@ -73,7 +73,7 @@ title: How LLMs Work From Scratch
 ```
 
 > [!tip] 파일명 슬러그
-> `noteNameFormat`의 `{{title|lower|truncate:40}}`는 소문자 변환 후 40자 제한을 적용합니다. 공백이 그대로 남으므로 Obsidian에서는 정상 동작하지만 파일시스템에 따라 공백이 보기 불편할 수 있어요. 공백 제거가 필요하면 파일명을 직접 편집하거나 아래 커스터마이즈 팁을 참고하세요.
+> `|replace: :-` 필터가 공백을 하이픈으로 치환해 kebab-case 파일명을 생성합니다. Web Clipper **0.9.0 이상** 필요. 구버전이면 `"capture-{{date:YYYY-MM-DD}}-{{title|lower|truncate:40}}"` 단순형으로 변경하세요 (공백이 파일명에 그대로 남음).
 
 ## 주요 설정 설명
 
@@ -116,4 +116,6 @@ title: How LLMs Work From Scratch
 
 ## 버전 호환
 
-`{{title|lower|truncate:40}}` 필터는 Obsidian Web Clipper **0.9.0 이상**에서 동작합니다. 구버전이면 `noteNameFormat`을 `"capture-{{date:YYYY-MM-DD}}-{{title}}"` 단순형으로 변경하세요.
+`|replace: :-` 필터(공백→하이픈)와 `|lower|truncate:40` 필터는 Obsidian Web Clipper **0.9.0 이상**에서 동작합니다. 구버전이면 `noteNameFormat`을 `"capture-{{date:YYYY-MM-DD}}-{{title}}"` 단순형으로 변경하세요.
+
+`tags` 프로퍼티는 `multitext` 타입으로 설정 시 Obsidian이 YAML 리스트(`tags:\n  - capture\n  - web`)로 자동 변환합니다. 문자열로 출력된다면 Web Clipper 버전을 업그레이드하세요.

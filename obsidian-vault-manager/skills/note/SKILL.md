@@ -26,13 +26,15 @@ Before drafting the note, follow `../../reference/obsidian-format.md` for Obsidi
    - `type: decision` → `~/vault/notes/decision-YYYY-MM-DD-{topic-in-kebab-case}.md` (type-first, dated)
    - **Filename collision** (exact same stem already exists): append `-v2`, `-v3` etc. automatically — no AskUserQuestion. This is a mechanical uniqueness guarantee, not a content check.
 
-3. **Check for content duplicates**: `ls ~/vault/notes/ 2>/dev/null | grep -i {keyword}`
+3. **Check for content duplicates**: `find ~/vault/notes -name '*.md' 2>/dev/null | xargs -I{} basename {} .md | grep -i {keyword}`
    - This is a *content similarity* check, distinct from the filename collision in Step 2.
    - If a note with a semantically similar topic already exists, notify the user and ask: overwrite / rename / merge.
 
-4. **Show plan**: Present the target filename and frontmatter to the user. Ask for confirmation before writing.
+4. **Directory validation**: If `~/vault/notes/` does not exist, create it: `mkdir -p ~/vault/notes/`. This guard runs before any write attempt.
 
-5. **Create file** (after user confirmation):
+5. **Show plan**: Present the target filename and frontmatter to the user. Ask for confirmation before writing.
+
+6. **Create file** (after user confirmation):
    ```yaml
    ---
    created: YYYY-MM-DD
@@ -46,8 +48,6 @@ Before drafting the note, follow `../../reference/obsidian-format.md` for Obsidi
    - `## 선택지` — options considered
    - `## 결정` — chosen option
    - `## 근거` — reasoning
-
-6. **Directory validation**: If `~/vault/notes/` does not exist, create it: `mkdir -p ~/vault/notes/`.
 
 7. **Output result**: Created file path. No follow-up questions.
 
