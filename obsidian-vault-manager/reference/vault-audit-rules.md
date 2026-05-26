@@ -4,7 +4,25 @@ Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/
 
 Five error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
 
-> **v4 note**: E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the vault layout. PR 4 (`/audit` Phase 1) will add manifest-level metadata checks as replacements.
+> **v4 note**: E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the vault layout. PR 4 (`/audit` Phase 1 expansion) adds: (a) P0–P2 priority mapping per error type, and (b) display-only manifest summary (`file_count` + `generated_at`) from `.vault-bridge/manifest.json` when present. Manifest-level *seeded* checks (e.g., stale manifest as an Info finding) remain deferred to PR 5+.
+
+## Priority Mapping
+
+Every finding carries a `priority` field independent of severity. Priority drives REPORT grouping; severity drives semantic labeling.
+
+| Code | Priority | Rationale |
+|------|----------|-----------|
+| E1   | P0       | Frontmatter absent → file is invisible to type opt-in (v4 §2.2); blocks all downstream tooling. |
+| E2   | P0       | Required fields missing → status machine and type routing break. |
+| E3   | P0       | v3-style filename → convention violation that blocks future automated routing. |
+| E4   | P0       | Broken wikilink → navigation hazard with Critical severity (data graph integrity). |
+| E5   | P2       | Orphan note → quality signal, not integrity risk. |
+
+> **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
+> **P1 reserved**: Step 2 "정체" (stagnation: inbox raw age, draft staleness) — implemented in a future PR.
+> **P2 = quality**: E5 orphan notes are structural quality signals, not integrity defects.
+
+The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
 ## E1 — `missing_frontmatter` [Critical]
 
@@ -72,3 +90,14 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields with inferred values |
 
 Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links), E4 (requires human decision on rename/delete), E5 (content value judgment).
+
+## Manifest Summary (display-only)
+
+The audit REPORT header shows manifest metadata when `.vault-bridge/manifest.json` exists at the vault root:
+
+- `file_count` — number of files indexed by vault-bridge
+- `generated_at` — ISO timestamp of last manifest refresh
+
+Absence is non-fatal: the header shows `매니페스트: 없음 (vault-bridge 미설치)`. No finding is emitted for missing or stale manifest in PR 4.
+
+> **Not Step 0**: v4 §6.1 Step 0 describes manifest compute (`references_in/out`, `access_count`, `promotion_candidate`). That write-side Step 0 is deferred to PR 5+. PR 4 only reads `file_count` and `generated_at` from the vault-bridge-generated manifest for display purposes.

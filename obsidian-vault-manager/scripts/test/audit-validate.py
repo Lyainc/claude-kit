@@ -30,6 +30,16 @@ from typing import Optional
 REQUIRED_FM_FIELDS = ("created", "tags", "type")
 # status required for note/decision only (v4 §3.3 status machine)
 STATUS_REQUIRED_TYPES = frozenset({"note", "decision"})
+# Priority mapping per error type (v4 §6.1). P0 = 무결성 (integrity), P2 = quality.
+# P1 is reserved for stagnation checks (Step 2, future PR).
+# This constant is the executable oracle; keep in sync with SKILL.md error-type table.
+PRIORITY_BY_TYPE = {
+    "E1_missing_frontmatter": "P0",
+    "E2_missing_required_fields": "P0",
+    "E3_filename_convention_violation": "P0",
+    "E4_broken_wikilink": "P0",
+    "E5_orphan_note": "P2",
+}
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 
 
@@ -148,7 +158,12 @@ def classify(bundle: dict) -> dict:
     findings: list = []
 
     def add(etype: str, rel: str, detail: str = "") -> None:
-        findings.append({"type": etype, "path": rel, "detail": detail})
+        findings.append({
+            "type": etype,
+            "priority": PRIORITY_BY_TYPE.get(etype, "P3"),
+            "path": rel,
+            "detail": detail,
+        })
 
     # E1 + E2: frontmatter presence and required fields
     # (dotfiles already excluded in collect())
@@ -186,7 +201,10 @@ def classify(bundle: dict) -> dict:
     return {"counts": counts, "findings": findings, "total": len(findings)}
 
 
-# DoD seed prefixes: (field_to_check, prefix_in_that_field)
+# DoD seed prefixes: (field_to_check, prefix_in_that_field).
+# Detection uses `if prefix in candidate` (substring containment, not startswith).
+# E2 seeds: both "audit-e2-missing-fields-XXX" and "audit-e2-status-missing-XXX"
+# match the "audit-e2-" prefix via containment → seeded_detected.E2 expects 10.
 SEED_PREFIXES = {
     "E1_missing_frontmatter": ("path", "audit-e1-"),
     "E2_missing_required_fields": ("path", "audit-e2-"),
@@ -199,8 +217,28 @@ SEED_PREFIXES = {
 def dod_report(findings: list) -> dict:
     detected: dict = {k: 0 for k in SEED_PREFIXES}
     fp_clean: dict = {k: 0 for k in SEED_PREFIXES}
+    priority_counts: dict = {"P0": 0, "P1": 0, "P2": 0, "P3": 0}
+    findings_missing_priority: int = 0
+    priority_mismatches: list = []
+
     for f in findings:
         etype = f["type"]
+        prio = f.get("priority")
+        if prio in priority_counts:
+            priority_counts[prio] += 1
+        else:
+            findings_missing_priority += 1
+
+        # Drift detector: verify each seeded finding has the expected priority.
+        expected_prio = PRIORITY_BY_TYPE.get(etype)
+        if expected_prio is not None and prio != expected_prio:
+            priority_mismatches.append({
+                "type": etype,
+                "path": f.get("path", ""),
+                "expected": expected_prio,
+                "got": prio,
+            })
+
         marker = SEED_PREFIXES.get(etype)
         if marker is None:
             continue
@@ -210,7 +248,29 @@ def dod_report(findings: list) -> dict:
             detected[etype] += 1
         elif "audit-clean-" in (f.get("path") or ""):
             fp_clean[etype] += 1
-    return {"seeded_detected": detected, "fp_on_clean": fp_clean}
+
+    return {
+        "seeded_detected": detected,
+        "fp_on_clean": fp_clean,
+        "priority_counts": priority_counts,
+        "findings_missing_priority": findings_missing_priority,
+        "priority_mismatches": priority_mismatches,
+    }
+
+
+def read_manifest_summary(vault: Path) -> Optional[dict]:
+    """Read .vault-bridge/manifest.json if present. Returns {file_count, generated_at} or None."""
+    path = vault / ".vault-bridge" / "manifest.json"
+    if not path.is_file():
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return None
+    return {
+        "file_count": data.get("file_count"),
+        "generated_at": data.get("generated_at"),
+    }
 
 
 def main() -> int:
@@ -229,10 +289,12 @@ def main() -> int:
     bundle = collect(vault)
     result = classify(bundle)
 
+    manifest = read_manifest_summary(vault)
     output: dict = {
         "vault": str(vault),
         "total_findings": result["total"],
         "counts": dict(sorted(result["counts"].items())),
+        "manifest": manifest,
     }
     if args.dod:
         output["dod"] = dod_report(result["findings"])

@@ -123,7 +123,11 @@ OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
 python3 obsidian-vault-manager/scripts/test/audit-validate.py \
   /tmp/ovm-fixture-audit-recheck --dod
-# Expected: dod.seeded_detected per type = 5; dod.fp_on_clean per type = 0
+# Expected (PR 4+):
+#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:5}  (E2 has 10: 5 base + 5 status-missing)
+#   dod.fp_on_clean per type = 0
+#   dod.findings_missing_priority = 0
+#   dod.priority_mismatches = []
 ```
 
 ## SKILL.md Frontmatter

@@ -71,6 +71,12 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    find ~/vault -name '*.md' -not -path '*/.*'
    ```
 
+8. Read manifest summary (display only — no classification impact):
+   ```bash
+   cat ~/vault/.vault-bridge/manifest.json 2>/dev/null
+   ```
+   Extract `file_count` and `generated_at` if the file exists and is valid JSON. If absent or unparseable, set `manifest_summary` to null. This is NOT Step 0 (which computes `references_in/out`, `access_count`, `promotion_candidate` — deferred to PR 5+).
+
 **Outputs**: An in-memory scan bundle:
 ```
 {
@@ -78,6 +84,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
   filename_records[],      // from scan-filename
   wikilinks_by_file{},     // source_path → links[]
   inbound_links{}          // target_stem → source_paths[]
+  manifest_summary{}       // {file_count, generated_at} or null
 }
 ```
 
@@ -93,13 +100,15 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Error types** (5 types, v4). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
 
-| Code | Type | Severity | Source | Auto-fix |
-|---|---|---|---|---|
-| E1 | `missing_frontmatter` | Critical | `frontmatter_records` | — |
-| E2 | `missing_required_fields` | Critical | `frontmatter_records` | ✓ (add inferred values) |
-| E3 | `filename_convention_violation` | Warning | `filename_records` | — |
-| E4 | `broken_wikilink` | Critical | `wikilinks_by_file` | — |
-| E5 | `orphan_note` | Warning | `inbound_links` | — |
+| Code | Type | Severity | Priority | Source | Auto-fix |
+|---|---|---|---|---|---|
+| E1 | `missing_frontmatter` | Critical | P0 | `frontmatter_records` | — |
+| E2 | `missing_required_fields` | Critical | P0 | `frontmatter_records` | ✓ (add inferred values) |
+| E3 | `filename_convention_violation` | Warning | P0 | `filename_records` | — |
+| E4 | `broken_wikilink` | Critical | P0 | `wikilinks_by_file` | — |
+| E5 | `orphan_note` | Warning | P2 | `inbound_links` | — |
+
+> **Priority mapping** (v4 §6.1 Step 1): E1–E4 = P0 (무결성/integrity). E5 = P2 (quality signal). P1 is reserved for Step 2 stagnation checks (inbox raw age, draft staleness) — not implemented in this PR.
 
 **E3 v4 convention** (files in `notes/` only; `inbox/` and `assets/` are exempt):
 - VIOLATION: filename starts with `\d{4}-\d{2}-` (v3 date-first pattern, e.g. `2026-04-topic.md`)
@@ -114,6 +123,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
   {
     "error_type": "broken_wikilink",
     "severity": "Critical|Warning|Info",
+    "priority": "P0|P2",
     "path": "relpath",
     "detail": "human-readable context",
     "auto_fix_eligible": true|false
@@ -127,7 +137,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 ## Phase 3 — REPORT
 
-**Purpose**: Group findings by severity and display a structured triage report in Korean.
+**Purpose**: Group findings by priority (P0 first, then P2) and display a structured triage report in Korean.
 
 **Inputs**: Findings list from CLASSIFY.
 
@@ -139,36 +149,46 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 볼트 감사 완료
 ──────────────────────────────────────────
 볼트 상태: N 노트 / clean X · dirty Y · untracked Z
+매니페스트: F 파일 · 갱신 YYYY-MM-DDTHH:MM  (없음: vault-bridge 미설치)
 
-발견된 이슈: K건 (Critical C · Warning W · Info I)
+발견된 이슈: K건 (P0 a건 · P2 b건)
 ──────────────────────────────────────────
 
-[Critical] missing_frontmatter — 3건
+[P0 / Critical] missing_frontmatter — 3건
   • notes/no-frontmatter-001.md
       상세: frontmatter 없음
   • ...
 
-[Critical] broken_wikilink — 5건
+[P0 / Critical] missing_required_fields — 10건
+  • notes/missing-fields-001.md
+      상세: 누락 필드 tags,type
+  • notes/draft-note-without-status.md
+      상세: 누락 필드 status (type:note은 status 필수, v4 §3.3)
+  • ...
+
+[P0 / Critical] broken_wikilink — 5건
   • notes/broken-links-001.md
       상세: [[totally-nonexistent-note-1]] → 대상 없음
   • ...
 
-[Warning] orphan_note — 10건
-  • notes/orphan-001.md
-      상세: 인바운드 링크 없음
-  • ...
-
-[Warning] filename_convention_violation — 5건
+[P0 / Warning] filename_convention_violation — 5건
   • notes/2026-04-bad-name-001.md
       상세: v3 날짜 우선 파일명 — {type}-YYYY-MM-DD-{slug}.md 또는 {slug}.md로 변경 필요
   • ...
 
+[P2 / Warning] orphan_note — 10건
+  • notes/orphan-001.md
+      상세: 인바운드 링크 없음
+  • ...
+
 ──────────────────────────────────────────
-자동 수정 가능: F건 (frontmatter 필드 추가)
+자동 수정 가능: F건 (missing_required_fields — frontmatter 필드 추가)
 수동 처리 필요: M건 (broken wikilinks, orphan notes, filename violations)
 ```
 
 If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
+
+> **P0 우선 출력**: P0 항목이 존재하면 P2보다 먼저 출력합니다. "사용자 확인 게이트"(다음 단계 진행 여부 확인)는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다. E3/E4는 P0이지만 자동 수정 대상이 아니므로 게이트 없이 표시만 합니다.
 
 **Termination condition**: Report displayed. Proceed to OPTIONAL-FIX if auto-fixable items exist and user has not already opted out. Otherwise exit after marking clean.
 
