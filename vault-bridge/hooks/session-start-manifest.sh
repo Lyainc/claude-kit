@@ -28,25 +28,81 @@ if [ -f "$_RESUME_FILE" ] && command -v python3 >/dev/null 2>&1; then
 import sys, json, os
 try:
     resume_path = sys.argv[1]
-    content = open(resume_path).read().strip()
-    lines = content.split('\n')
+    raw = open(resume_path).read().strip()
+    if not raw:
+        sys.exit(0)
+    lines = raw.split('\n')
+
+    # Strip YAML frontmatter; collect project_name from it
+    project_name = None
+    body_start = 0
     if lines and lines[0].strip() == '---':
         for i, line in enumerate(lines[1:], 1):
             if line.strip() == '---':
-                content = '\n'.join(lines[i + 1:]).strip()
+                body_start = i + 1
                 break
-    if content:
-        model_ctx = '이전 세션의 인수인계 메모입니다:\n\n' + content
-        user_msg = '[세션 복원] 이전 세션 인수인계:\n\n' + content
-        print(json.dumps({
-            'systemMessage': user_msg,
-            'hookSpecificOutput': {
-                'hookEventName': 'SessionStart',
-                'additionalContext': model_ctx,
-            }
-        }))
-        prev_path = resume_path[:-3] + '.prev.md'
-        os.replace(resume_path, prev_path)  # atomic rename; .prev kept as one-level backup
+            if line.startswith('project:'):
+                project_name = line.split(':', 1)[1].strip()
+    body_lines = lines[body_start:]
+    body = '\n'.join(body_lines).strip()
+
+    if not body:
+        sys.exit(0)
+
+    # Extract one-liner from "## 한 줄 재개 프롬프트" section
+    # (supports both plain-text and fenced-code-block forms)
+    one_liner = None
+    in_section = False
+    for line in body_lines:
+        if '한 줄 재개 프롬프트' in line and line.strip().startswith('#'):
+            in_section = True
+            continue
+        if in_section:
+            s = line.strip()
+            if s.startswith('#'):
+                break                    # next section reached
+            if s in ('```', '~~~'):
+                continue
+            if s:
+                one_liner = s
+                break
+
+    # Extract brief topic from "**작업 주제**:" line
+    topic = None
+    for line in body_lines:
+        if '작업 주제' in line and ':' in line:
+            topic = line.split(':', 1)[1].strip().strip('*').strip()
+            if len(topic) > 80:
+                topic = topic[:77] + '...'
+            break
+
+    # Header: one-liner if parsed, else generic marker. Verbose line carries
+    # project/topic context separately to avoid duplicating either.
+    if one_liner:
+        header = '[세션 복원] ' + one_liner
+    else:
+        header = '[세션 복원] 이전 세션 인수인계 (상세: "handoff 보여줘")'
+
+    verbose_parts = []
+    if project_name:
+        verbose_parts.append('프로젝트: ' + project_name)
+    if topic:
+        verbose_parts.append('작업: ' + topic)
+
+    user_msg = header
+    if verbose_parts:
+        user_msg += '\n' + '  |  '.join(verbose_parts)
+
+    model_ctx = '이전 세션의 인수인계 메모입니다:\n\n' + body
+    print(json.dumps({
+        'systemMessage': user_msg,
+        'hookSpecificOutput': {
+            'hookEventName': 'SessionStart',
+            'additionalContext': model_ctx,
+        }
+    }))
+    prev_path = resume_path[:-3] + '.prev.md'
+    os.replace(resume_path, prev_path)  # atomic rename; .prev kept as one-level backup
 except Exception:
     pass  # leave resume_path intact so next session can retry
 PYEOF

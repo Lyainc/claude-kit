@@ -114,7 +114,7 @@ Present as:
 
 ### Option C: 파일 저장
 
-Build `resume.md`: the **Option B summary body**, prefixed with YAML frontmatter:
+Build `resume.md`: a **compact one-liner section** followed by the Option B summary body, prefixed with YAML frontmatter:
 
 ```markdown
 ---
@@ -123,8 +123,16 @@ type: resume
 project: {project_name}
 ---
 
+## 한 줄 재개 프롬프트
+
+```
+{one-line prompt from Option A}
+```
+
 {Option B summary body}
 ```
+
+The `## 한 줄 재개 프롬프트` section is parsed by the SessionStart hook to show a compact resume notification — the one-liner is displayed to the user, the full summary is passed to the model as context only.
 
 Create directory and write file:
 
