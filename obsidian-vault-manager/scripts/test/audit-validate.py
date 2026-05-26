@@ -24,14 +24,19 @@ import json
 import os
 import re
 import sys
+from datetime import date
 from pathlib import Path
 from typing import Optional
 
 REQUIRED_FM_FIELDS = ("created", "tags", "type")
 # status required for note/decision only (v4 §3.3 status machine)
 STATUS_REQUIRED_TYPES = frozenset({"note", "decision"})
-# Priority mapping per error type (v4 §6.1). P0 = 무결성 (integrity), P2 = quality.
-# P1 is reserved for stagnation checks (Step 2, future PR).
+# Stagnation thresholds (v4 §6.1 Step 2).
+STALE_INBOX_DAYS = 14
+STALE_DRAFT_DAYS = 30
+# Inbox files with explicit non-raw status (e.g., session→active) are exempt from E6.
+INBOX_RAW_STATUSES = frozenset({"", "raw"})
+# Priority mapping per error type (v4 §6.1). P0 = 무결성, P1 = 정체, P2 = quality.
 # This constant is the executable oracle; keep in sync with SKILL.md error-type table.
 PRIORITY_BY_TYPE = {
     "E1_missing_frontmatter": "P0",
@@ -39,6 +44,8 @@ PRIORITY_BY_TYPE = {
     "E3_filename_convention_violation": "P0",
     "E4_broken_wikilink": "P0",
     "E5_orphan_note": "P2",
+    "E6_stale_inbox": "P1",
+    "E7_stale_draft": "P1",
 }
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 
@@ -154,8 +161,22 @@ def collect(vault: Path) -> dict:
     }
 
 
+def parse_created_date(value) -> Optional[date]:
+    """Parse YYYY-MM-DD string into a date. Returns None on any parse failure."""
+    if not isinstance(value, str):
+        return None
+    m = re.match(r"^(\d{4})-(\d{2})-(\d{2})$", value.strip())
+    if not m:
+        return None
+    try:
+        return date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+    except ValueError:
+        return None
+
+
 def classify(bundle: dict) -> dict:
     findings: list = []
+    today = date.today()
 
     def add(etype: str, rel: str, detail: str = "") -> None:
         findings.append({
@@ -195,6 +216,35 @@ def classify(bundle: dict) -> dict:
         if not sources:
             add("E5_orphan_note", rec["rel"])
 
+    # E6 + E7: stagnation (v4 §6.1 Step 2). Uses frontmatter `created:` —
+    # mtime is unreliable across git clones.
+    for rec in bundle["fm_records"]:
+        rel_path = Path(rec["rel"])
+        fm = rec.get("fm") or {}
+        if not rel_path.parts:
+            continue
+        top = rel_path.parts[0]
+        created = parse_created_date(fm.get("created"))
+        if created is None:
+            continue
+        age_days = (today - created).days
+        raw_status = fm.get("status")
+        # Non-string status (e.g., list from `status: [raw]` YAML) is treated
+        # as absent — the audit's job is to flag malformed status via E1/E2.
+        status = raw_status.strip() if isinstance(raw_status, str) else ""
+
+        # E6: stale_inbox — inbox/ files still raw (or unstatused) past threshold
+        if top == "inbox":
+            if status in INBOX_RAW_STATUSES and age_days > STALE_INBOX_DAYS:
+                add("E6_stale_inbox", rec["rel"],
+                    f"age {age_days}d > {STALE_INBOX_DAYS}d (status:{status or 'none'}, created {fm.get('created')})")
+
+        # E7: stale_draft — notes/ draft notes past threshold (skip _index.md, like E5)
+        if top == "notes" and rel_path.name != "_index.md":
+            if status == "draft" and age_days > STALE_DRAFT_DAYS:
+                add("E7_stale_draft", rec["rel"],
+                    f"age {age_days}d > {STALE_DRAFT_DAYS}d (status:draft, created {fm.get('created')})")
+
     counts: dict = {}
     for f in findings:
         counts[f["type"]] = counts.get(f["type"], 0) + 1
@@ -211,6 +261,8 @@ SEED_PREFIXES = {
     "E3_filename_convention_violation": ("path", "audit-e3-"),
     "E4_broken_wikilink": ("path", "audit-e4-"),
     "E5_orphan_note": ("path", "audit-e5-"),
+    "E6_stale_inbox": ("path", "audit-e6-"),
+    "E7_stale_draft": ("path", "audit-e7-"),
 }
 
 

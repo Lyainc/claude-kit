@@ -346,6 +346,46 @@ This note exists but nothing links to it.
 EOF
   done
 
+  # ── E6: stale_inbox (5 files) ─────────────────────────────────────────────────
+  # Inbox captures still raw with very old `created:` dates.
+  # `created: 2020-01-01` ensures age > STALE_INBOX_DAYS (14) regardless of when
+  # the audit runs. type:session would be exempt via status:active — we use
+  # type:capture + status:raw to deliberately trigger E6.
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/inbox/audit-e6-stale-capture-$(printf '%03d' $i).md" <<EOF
+---
+created: 2020-01-01
+tags: [capture, inbox]
+type: capture
+status: raw
+---
+
+# Audit E6 Stale Capture ${i}
+
+Inbox capture left raw since 2020 — should trigger E6_stale_inbox.
+EOF
+  done
+
+  # ── E7: stale_draft (5 files) ─────────────────────────────────────────────────
+  # Draft notes in notes/ with very old `created:` dates. Ring-linked so they
+  # don't also trip E5 orphan detection (each note links to the next, 5→1).
+  for i in $(seq 1 5); do
+    next=$(( (i % 5) + 1 ))
+    link_target="audit-e7-stale-draft-$(printf '%03d' $next)"
+    write_file "$FIXTURE_DIR/notes/audit-e7-stale-draft-$(printf '%03d' $i).md" <<EOF
+---
+created: 2020-01-01
+tags: [note]
+type: note
+status: draft
+---
+
+# Audit E7 Stale Draft ${i}
+
+Draft since 2020 — should trigger E7_stale_draft. Links to [[${link_target}]].
+EOF
+  done
+
   # ── 200 extra clean notes for FP measurement ─────────────────────────────────
   # These have fully valid frontmatter and filenames; none should be flagged.
   # Linking strategy: note i links to note i+1 (mod 200), forming a ring so
@@ -368,13 +408,15 @@ Clean note for FP measurement. Links to [[${link_target}]].
 EOF
   done
 
-  log "  Audit error fixtures (v4, E1-E5 only):"
+  log "  Audit error fixtures (v4, E1-E7):"
   log "    E1 missing_frontmatter              : 5 files"
   log "    E2 missing_required_fields          : 10 files (5 base + 5 status-missing)"
   log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix)"
   log "    E4 broken_wikilink                  : 5 files"
   log "    E5 orphan_note                      : 5 files"
-  log "    Total seeded errors                 : 30"
+  log "    E6 stale_inbox                      : 5 files (inbox raw, created 2020)"
+  log "    E7 stale_draft                      : 5 files (notes draft, created 2020, ring-linked)"
+  log "    Total seeded errors                 : 40"
   log "    Extra clean notes (FP base)         : 200"
   log ""
 fi
