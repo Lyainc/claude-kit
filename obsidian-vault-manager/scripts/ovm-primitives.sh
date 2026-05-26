@@ -101,7 +101,7 @@ target_dir = sys.argv[1]
 records = []
 required_fields = {'created', 'tags', 'type'}
 # status required for note/decision types only (v4 §3.3 status machine)
-type_conditional = {'note': {'status'}, 'decision': {'status'}}
+STATUS_REQUIRED_TYPES = frozenset({'note', 'decision'})
 
 for root, dirs, files in os.walk(target_dir):
     # Skip hidden dirs
@@ -120,7 +120,7 @@ for root, dirs, files in os.walk(target_dir):
 
         fm = parse_frontmatter(content)
         note_type = fm.get('type', '')
-        all_required = required_fields | type_conditional.get(note_type, set())
+        all_required = required_fields | ({'status'} if note_type in STATUS_REQUIRED_TYPES else set())
         missing = sorted(all_required - set(fm.keys()))
         stat = os.stat(fpath)
 
