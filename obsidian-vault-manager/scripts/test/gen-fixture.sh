@@ -273,6 +273,23 @@ Has created but missing tags and type.
 EOF
   done
 
+  # ── E2-status: missing status for status-required types (5 files) ──────────────
+  # Files with full base frontmatter (created+tags+type:note) but missing `status`.
+  # Trigger: STATUS_REQUIRED_TYPES = {note, decision} (v4 §3.3) fires E2 for these.
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/notes/audit-e2-status-missing-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+---
+
+# Audit E2 Status-Missing Note ${i}
+
+Has created/tags/type but missing required \`status\` for type:note (v4 §3.3).
+EOF
+  done
+
   # ── E3: filename_convention_violation (5 files) ───────────────────────────────
   # Notes with v3-style date-first prefix (violates v4 notes/ naming rule).
   for i in $(seq 1 5); do
@@ -348,11 +365,11 @@ EOF
 
   log "  Audit error fixtures (v4, E1-E5 only):"
   log "    E1 missing_frontmatter              : 5 files"
-  log "    E2 missing_required_fields          : 5 files"
+  log "    E2 missing_required_fields          : 10 files (5 base + 5 status-missing)"
   log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix)"
   log "    E4 broken_wikilink                  : 5 files"
   log "    E5 orphan_note                      : 5 files"
-  log "    Total seeded errors                 : 25"
+  log "    Total seeded errors                 : 30"
   log "    Extra clean notes (FP base)         : 200"
   log ""
 fi
