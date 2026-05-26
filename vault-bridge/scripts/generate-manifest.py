@@ -23,9 +23,9 @@ import sys
 import time
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2  # v2: type opt-in (v4 §2.2); v1 manifests invalidated on first run.
 SUMMARY_MAX_CHARS = 400
-EXCLUDED_DIRS = {".vault-bridge", ".claude", "90_Assets", ".git"}
+EXCLUDED_DIRS = {".vault-bridge", ".claude", "assets", ".git"}
 
 
 def _default_vault_root() -> str:
@@ -328,7 +328,10 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
         files_list = []
         for rel, abs_path in sorted(md_files.items()):
             try:
-                files_list.append(_build_entry(rel, abs_path, vault_root))
+                entry = _build_entry(rel, abs_path, vault_root)
+                if entry["type"] == "unknown":
+                    continue  # type opt-in (v4 §2.2)
+                files_list.append(entry)
             except Exception as exc:
                 print(f"WARNING: skipping {rel}: {exc}", file=sys.stderr)
 
@@ -359,15 +362,18 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
                 continue
 
             if rel in existing_by_path and file_mtime <= manifest_mtime:
-                # Unchanged — reuse existing entry
-                new_files_list.append(existing_by_path[rel])
+                existing_entry = existing_by_path[rel]
+                if existing_entry.get("type", "unknown") == "unknown":
+                    continue  # safety net for manually-edited v2 manifests
+                new_files_list.append(existing_entry)
             else:
-                # New or modified
                 try:
-                    new_files_list.append(_build_entry(rel, abs_path, vault_root))
+                    entry = _build_entry(rel, abs_path, vault_root)
+                    if entry["type"] == "unknown":
+                        continue  # type opt-in (v4 §2.2)
+                    new_files_list.append(entry)
                     if rel in existing_by_path:
                         updated_count += 1
-                    # else: new file (counted in processed_count below)
                 except Exception as exc:
                     print(f"WARNING: skipping {rel}: {exc}", file=sys.stderr)
 
