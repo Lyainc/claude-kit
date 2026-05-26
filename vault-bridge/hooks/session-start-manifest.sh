@@ -45,9 +45,25 @@ try:
                 'additionalContext': model_ctx,
             }
         }))
-        os.remove(resume_path)  # consume after stdout write; on crash before harness reads, next session retries
+        prev_path = resume_path[:-3] + '.prev.md'
+        os.replace(resume_path, prev_path)  # atomic rename; .prev kept as one-level backup
 except Exception:
     pass  # leave resume_path intact so next session can retry
+PYEOF
+fi
+
+# Recovery hint: resume.md consumed in a short/accidental session → .prev.md survives as backup
+_PREV_FILE="${_RESUME_FILE%.md}.prev.md"
+if [ ! -f "$_RESUME_FILE" ] && [ -f "$_PREV_FILE" ] && command -v python3 >/dev/null 2>&1; then
+  python3 - "$_PREV_FILE" <<'PYEOF'
+import sys, json
+try:
+    prev = sys.argv[1]
+    restored = prev[:-8] + '.md'  # .prev.md → .md
+    msg = '[resume 백업 감지] 직전 세션 resume가 짧은 세션으로 소비됐을 수 있어요.\n복구하려면: mv ' + prev + ' ' + restored
+    print(json.dumps({'systemMessage': msg}))
+except Exception:
+    pass
 PYEOF
 fi
 
