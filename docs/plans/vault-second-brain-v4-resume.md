@@ -40,11 +40,21 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 - `vault-bridge/commands/save-session.md`, `save-plan-doc.md`: 저장 경로 갱신
 - 회귀 테스트: `vault-bridge/scripts/test/*` 갱신 (`test-pre-write-guard.py` 등)
 
-### PR 2 — OVM 7 → 3 스킬 정리 (PR 1 후)
+### PR 2 — OVM 7 → 3 스킬 정리 (PR 1 후) ✅ 완료
 
-**제거**: `project/`, `inbox-review/`, `context/`, `archive/`, `vault-audit/` (audit으로 흡수 또는 리네임), `decide` (없었음, 신규 X)
-**유지·강화**: `capture/`, `note/`, `audit/` (신규 또는 vault-audit 리네임)
-**갱신**: `agents/vault-knowledge-manager.md` skills 필드, `plugin.json`·`marketplace.json` keywords·version 동기화
+**제거됨**: `project/`, `inbox-review/`, `context/`, `archive/`, `vault-audit/`
+**유지·갱신**: `capture/` (inbox/ 경로), `note/` (notes/ 경로 + decision type + status machine), `audit/` (vault-audit 리네임, E1-E5 only)
+**갱신**: `agents/vault-knowledge-manager.md` 3-skill, `vault-file-organizer.md` v4 경로, `plugin.json`·`marketplace.json` v0.13.0
+
+**설계 대비 달라진 결정 (의도적)**:
+- **decision type**: PR 2에서 `note` 스킬에 `--type decision` 플래그로 구현 (원래 미정이었던 부분 선결)
+  - `notes/decision-YYYY-MM-DD-{slug}.md` 패턴; 4섹션 body 템플릿 (문제/선택지/결정/근거)
+- **E6-E9 영구 제거**: vault-audit의 project-binding 검사(E6/E7/E8/derived)는 20_Projects/ 폴더가 v4에서 사라지므로 audit에 이월 없이 제거. PR 4에서 manifest-level 검사로 대체 예정
+- **E3 regex**: `^\d{4}-\d{2}-` (year-month prefix 감지). 원래 `YYYY-MM-DD` full date를 가정했으나 fixture 파일명이 `2026-04-` 형식이었음. 더 관대한 패턴이 정확함
+- **vault-file-organizer.md** v4 경로 업데이트 (PR 2 원래 스펙 밖이었으나 필요해서 포함)
+- **vault-audit-rules.md**: E6-E9 섹션 제거, E3/E5 v4 경로 갱신
+- **vault-audit error-taxonomy.md, measurement.md 삭제**: v3-only 참조 문서, v4에서 불필요
+- **DoD 기준 갱신**: 9 타입(E1-E9) → 5 타입(E1-E5). 각 타입 seeded_detected=5, fp_on_clean=0 달성
 
 ### PR 3 — Capture 강화 + Web Clipper 템플릿 (PR 2 후)
 
@@ -104,7 +114,7 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 
 1. **이 문서 + 두 설계 문서 읽기** (위 §필수 선행 읽기)
 2. `git log -10` + `git status`로 현재 상태 파악
-3. **PR 1부터 시작** — `vault-bridge/hooks/pre-write-guard.sh`의 패턴 갱신이 가장 작은 단위
+3. **PR 3 시작** — `obsidian-vault-manager/skills/capture/SKILL.md` capture 강화 + Web Clipper 템플릿 신규
 4. 변경 후 즉시 회귀 테스트 + 커밋
 5. PR 단위 push, 다음 PR로 이동
 
