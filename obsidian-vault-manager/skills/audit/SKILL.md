@@ -124,7 +124,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 - E6 trigger: `path` startswith `inbox/`, `fm.status` ∈ {`""`, `raw`, missing}, age in days from `fm.created` > 14.
 - E7 trigger: `path` startswith `notes/`, `fm.status == "draft"`, age in days from `fm.created` > 30.
 - Age is computed against `date.today()` using the `YYYY-MM-DD` value parsed from `fm.created`. Files with malformed or missing `created:` are skipped (E1/E2 catch them).
-- Thresholds (`STALE_INBOX_DAYS=14`, `STALE_DRAFT_DAYS=30`) are constants in `audit-validate.py`; edit there if changing.
+- Thresholds (`STALE_INBOX_DAYS=14`, `STALE_DRAFT_DAYS=30`) are canonical constants in `audit-validate.py`. To change them, update the constant in `audit-validate.py`, this SKILL.md's E6/E7 rows + triggers, and the matching values in `reference/vault-audit-rules.md`.
 
 **Output**: Findings list:
 ```

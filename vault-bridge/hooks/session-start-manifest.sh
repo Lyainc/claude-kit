@@ -30,7 +30,7 @@ try:
     resume_path = sys.argv[1]
     raw = open(resume_path).read().strip()
     if not raw:
-        sys.exit(0)
+        sys.exit(0)  # empty resume.md — leave intact so a future write can replace it
     lines = raw.split('\n')
 
     # Strip YAML frontmatter; collect project_name from it
@@ -47,7 +47,7 @@ try:
     body = '\n'.join(body_lines).strip()
 
     if not body:
-        sys.exit(0)
+        sys.exit(0)  # frontmatter only, no body — leave file intact, retry next session
 
     # Extract one-liner from "## 한 줄 재개 프롬프트" section
     # (supports both plain-text and fenced-code-block forms)

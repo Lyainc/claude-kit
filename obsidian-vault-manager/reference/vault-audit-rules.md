@@ -93,8 +93,9 @@ for each file in notes/ (recursive):
 
 ```
 for each record in frontmatter_records where path startswith "inbox/":
-  if fm.status not in {"", "raw", None}: skip            # explicit non-raw → exempt
-  if parse(fm.created) is None: skip                     # malformed → E1/E2 territory
+  status = normalize(fm.status)            # non-string or missing → ""
+  if status not in {"", "raw"}: skip       # explicit non-raw → exempt
+  if parse(fm.created) is None: skip       # malformed → E1/E2 territory
   age_days = today - parse(fm.created)
   if age_days > STALE_INBOX_DAYS: → stale_inbox
 ```
