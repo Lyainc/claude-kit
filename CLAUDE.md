@@ -9,7 +9,7 @@ Codex/OMX parity note: the Codex-active migration of this root guidance lives in
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 7개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain, adversarial-review + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 7개 (capture, note, project, inbox-review, context, archive, vault-audit) + reference docs (`reference/vault-audit-rules.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 3개 (capture, note, audit) + reference docs (`reference/vault-audit-rules.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
 - **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 5종 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 6개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) + Python scripts (`generate-manifest.py`, `plan-doc-syncer.py`). vault 검색 + slash command 기반 session-note/capture/plan 작성 + 세션 생명주기 안전망 + 외부 plan-doc 자동 캡처.
 
 ## Git Conventions
@@ -56,9 +56,9 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                          # 7개 스킬 (vault-audit 포함)
+│   ├── skills/                          # 3개 스킬 (capture, note, audit)
 │   ├── agents/                          # 2개 에이전트
-│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, note-project-binding.md
+│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md
 │   └── scripts/                         # ovm-primitives.sh, audit-validate.py, gen-fixture.sh
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
@@ -203,10 +203,9 @@ Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping doma
 
 | Area | obsidian-vault-manager | vault-bridge |
 |------|----------------------|--------------|
-| Domain context load | `context` skill (internal, `--exclude`/`--limit` options) | `vault-searcher` Mode 2 (external, read-only lightweight) |
+| Note creation | `note` skill (evergreen notes + decision records, `notes/`) | N/A |
 | Session record | N/A (use vault-bridge's session-note) | `/save-session` slash command (inline in main context — record/handoff/quick modes) |
-| Note creation logic | `note` skill owns domain determination + MOC linking | `inbox-review` delegates to `note` skill procedure |
-| Project back-reference (`_index.related_notes`) | `note` skill appends on creation (W7 invariant) | N/A |
+| Domain context search | `vault-knowledge-manager` (direct mdfind/grep, OVM-internal) | `vault-searcher` Mode 2 (external, read-only lightweight) |
 
 Within `thinking-tools`:
 - `diverse-sampling`: creative generation (brainstorming, alternatives)

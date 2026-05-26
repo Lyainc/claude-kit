@@ -24,10 +24,11 @@ Before drafting the note, follow `../../reference/obsidian-format.md` for Obsidi
 2. **Determine target filename**:
    - `type: note` → `~/vault/notes/{topic-in-kebab-case}.md` (no date prefix — evergreen slug)
    - `type: decision` → `~/vault/notes/decision-YYYY-MM-DD-{topic-in-kebab-case}.md` (type-first, dated)
-   - Same-date collision: append `-v2`, `-v3` etc. (no AskUserQuestion).
+   - **Filename collision** (exact same stem already exists): append `-v2`, `-v3` etc. automatically — no AskUserQuestion. This is a mechanical uniqueness guarantee, not a content check.
 
-3. **Check for duplicates**: `ls ~/vault/notes/ 2>/dev/null | grep -i {keyword}`
-   - If an identical or similar note exists, notify the user and ask: overwrite / rename / merge.
+3. **Check for content duplicates**: `ls ~/vault/notes/ 2>/dev/null | grep -i {keyword}`
+   - This is a *content similarity* check, distinct from the filename collision in Step 2.
+   - If a note with a semantically similar topic already exists, notify the user and ask: overwrite / rename / merge.
 
 4. **Show plan**: Present the target filename and frontmatter to the user. Ask for confirmation before writing.
 

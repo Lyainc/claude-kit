@@ -43,6 +43,7 @@ You handle mechanical file operations: moving and renaming files.
    - e.g., `My File Name.md` → `my-file-name.md`
    - e.g., `2025-01-15 - API.md` → `capture-2025-01-15-api.md`
    - e.g., `2025-01-15-daily.md` → `capture-2025-01-15-daily.md`
+   - **Note**: `{type}` (capture, note, decision, etc.) is determined by the parent agent before calling this skill. This skill does not infer type from file content — it applies only the target filename provided.
 3. Execute the rename
 4. Output rename log: `이름변경: {old} → {new}`
 
