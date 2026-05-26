@@ -25,9 +25,10 @@ _PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
 _RESUME_FILE="$_PROJECT_ROOT/.claude-kit/vault-bridge/resume.md"
 if [ -f "$_RESUME_FILE" ] && command -v python3 >/dev/null 2>&1; then
   python3 - "$_RESUME_FILE" <<'PYEOF'
-import sys, json
+import sys, json, os
 try:
-    content = open(sys.argv[1]).read().strip()
+    resume_path = sys.argv[1]
+    content = open(resume_path).read().strip()
     lines = content.split('\n')
     if lines and lines[0].strip() == '---':
         for i, line in enumerate(lines[1:], 1):
@@ -44,10 +45,10 @@ try:
                 'additionalContext': model_ctx,
             }
         }))
+        os.remove(resume_path)  # consume only after successful delivery
 except Exception:
-    pass
+    pass  # leave resume_path intact so next session can retry
 PYEOF
-  rm -f "$_RESUME_FILE"
 fi
 
 # Resolve vault root: VAULT_BRIDGE_VAULT_ROOT (env override) >

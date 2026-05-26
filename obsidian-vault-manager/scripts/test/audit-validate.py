@@ -28,6 +28,11 @@ from pathlib import Path
 from typing import Optional
 
 REQUIRED_FM_FIELDS = ("created", "tags", "type")
+# Fields required only for specific types (v4 §3.3 status machine)
+TYPE_CONDITIONAL_FIELDS: dict = {
+    "note": ("status",),
+    "decision": ("status",),
+}
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 
 
@@ -118,6 +123,10 @@ def collect(vault: Path) -> dict:
         missing_required: list = []
         if has_fm:
             for f in REQUIRED_FM_FIELDS:
+                if f not in fm or fm[f] in (None, ""):
+                    missing_required.append(f)
+            # Type-conditional: status required for note/decision (v4 §3.3)
+            for f in TYPE_CONDITIONAL_FIELDS.get(fm.get("type", ""), ()):
                 if f not in fm or fm[f] in (None, ""):
                     missing_required.append(f)
         fm_records.append(

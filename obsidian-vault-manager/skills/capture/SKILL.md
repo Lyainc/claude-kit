@@ -46,7 +46,8 @@ When `$ARGUMENTS` starts with `http://` or `https://`:
 
 If Defuddle succeeded (`$DEFUDDLE_RC == 0`):
 - Extract first H1: `TITLE=$(printf '%s' "$DEFUDDLE_OUT" | grep -m1 '^# ' | sed 's/^# //')`.
-- Build `{slug}`: lowercase the title, replace spaces with hyphens, strip characters outside `[a-z0-9-]`, take the first 5 words (split on `-`).
+- Escape YAML double quotes: `TITLE=$(printf '%s' "$TITLE" | sed 's/"/\\"/g')`.
+- Build `{slug}`: lowercase the title, replace spaces with hyphens, strip characters outside `[a-z0-9-]`, take the first 5 words (split on `-`). If the resulting slug is empty or fewer than 2 characters (e.g. non-ASCII title fully stripped), fall back to URL-path derivation and leave `$TITLE` empty.
 - If no H1 found: derive `{slug}` from the last 2–3 path segments of `$URL`; leave `$TITLE` empty.
 
 If Defuddle is missing, exits non-zero, or times out (exit 124):

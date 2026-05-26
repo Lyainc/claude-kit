@@ -109,6 +109,8 @@ def parse_frontmatter(content):
 target_dir = sys.argv[1]
 records = []
 required_fields = {'created', 'tags', 'type'}
+# status required for note/decision types only (v4 §3.3 status machine)
+type_conditional = {'note': {'status'}, 'decision': {'status'}}
 
 for root, dirs, files in os.walk(target_dir):
     # Skip hidden dirs
@@ -126,7 +128,9 @@ for root, dirs, files in os.walk(target_dir):
             continue
 
         fm = parse_frontmatter(content)
-        missing = sorted(required_fields - set(fm.keys()))
+        note_type = fm.get('type', '')
+        all_required = required_fields | type_conditional.get(note_type, set())
+        missing = sorted(all_required - set(fm.keys()))
         stat = os.stat(fpath)
 
         records.append({
