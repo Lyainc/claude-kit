@@ -7,13 +7,13 @@ allowed-tools: Read Write Bash
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
 
-Immediately save the content of `$ARGUMENTS` to `~/vault/inbox/`.
+Save the content of `$ARGUMENTS` to `~/vault/inbox/` immediately, without confirmation.
 
 ## Rules
 
-Before writing the note body or frontmatter, follow `../../reference/obsidian-format.md` for Obsidian-native wikilinks, callouts, comments, and YAML property formatting when those constructs are relevant.
+When formatting the body or frontmatter, follow `../../reference/obsidian-format.md` for Obsidian-native wikilinks, callouts, comments, and YAML properties.
 
-1. Filename: `capture-YYYY-MM-DD-{slug}.md` where `{slug}` is 2–4 kebab-case words derived from the topic or extracted title.
+1. Filename: `capture-YYYY-MM-DD-{slug}.md`. `{slug}` is 2–4 kebab-case words from the topic or extracted title.
 2. Frontmatter (text capture):
    ```yaml
    ---
@@ -24,11 +24,11 @@ Before writing the note body or frontmatter, follow `../../reference/obsidian-fo
    type: capture
    ---
    ```
-3. Write the content of `$ARGUMENTS` in the body.
-   - If `$ARGUMENTS` starts with `http://` or `https://`, treat it as a URL capture — follow the **URL Capture** section below instead.
-4. **Directory validation**: If `~/vault/inbox/` does not exist, create it automatically (`mkdir -p`).
-5. **Duplicate detection**: If a file with the same date and slug already exists, append `-v2`, `-v3`, etc.
-6. **Save immediately without confirmation.** This is the core behavior of this skill.
+3. Write `$ARGUMENTS` as the body.
+   - If `$ARGUMENTS` starts with `http://` or `https://`, follow the **URL Capture** section instead.
+4. **Directory validation**: Create `~/vault/inbox/` with `mkdir -p` if missing.
+5. **Duplicate detection**: If a file with the same date and slug exists, append `-v2`, `-v3`, etc.
+6. **Save immediately without confirmation.** This is the core behavior.
 7. Output only the saved file path. No follow-up questions.
 
 ## URL Capture
@@ -47,10 +47,10 @@ When `$ARGUMENTS` starts with `http://` or `https://`:
 If Defuddle succeeded (`$DEFUDDLE_RC == 0`):
 - Extract first H1: `TITLE=$(printf '%s' "$DEFUDDLE_OUT" | grep -m1 '^# ' | sed 's/^# //')`.
 - Escape YAML double quotes: `TITLE=$(printf '%s' "$TITLE" | sed 's/"/\\"/g')`.
-- Build `{slug}`: lowercase the title, replace spaces with hyphens, strip characters outside `[a-z0-9-]`, take the first 5 words (split on `-`). If the resulting slug is empty or fewer than 2 characters (e.g. non-ASCII title fully stripped), fall back to URL-path derivation and leave `$TITLE` empty.
+- Build `{slug}`: lowercase the title, replace spaces with hyphens, strip characters outside `[a-z0-9-]`, take the first 5 words (split on `-`). If the slug is empty or shorter than 2 characters (e.g. non-ASCII title fully stripped), fall back to URL-path derivation and leave `$TITLE` empty.
 - If no H1 found: derive `{slug}` from the last 2–3 path segments of `$URL`; leave `$TITLE` empty.
 
-If Defuddle is missing, exits non-zero, or times out (exit 124):
+If Defuddle is missing, fails, or times out (exit 124):
 - Derive `{slug}` from the URL path. Leave `$TITLE` empty.
 - Do not install anything. Jump to Step 4 (bare URL body).
 

@@ -4,7 +4,7 @@ Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/
 
 Five error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
 
-> **v4 note**: E6–E9 (project-binding checks) were removed in v4 because the `20_Projects/` folder is no longer part of the vault layout. PR 4 (`/audit` Phase 1) will add manifest-level metadata checks as replacements.
+> **v4 note**: E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the vault layout. PR 4 (`/audit` Phase 1) will add manifest-level metadata checks as replacements.
 
 ## E1 — `missing_frontmatter` [Critical]
 
