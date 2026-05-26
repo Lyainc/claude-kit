@@ -107,6 +107,9 @@ python3 vault-bridge/scripts/test/test-pre-write-guard.py
 # vault-bridge pre-access-guard regression (vault-searcher self-exemption + counter)
 python3 vault-bridge/scripts/test/test-pre-access-guard.py
 
+# vault-bridge manifest type opt-in regression (v4 §2.2)
+python3 vault-bridge/scripts/test/test-manifest-type-optin.py
+
 # telemetry schema self-test
 python3 telemetry/scripts/validate-schema.py --self-test
 

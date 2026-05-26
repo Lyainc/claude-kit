@@ -168,6 +168,26 @@ def case_notes_violation(errors: list[str], vault_root: str) -> None:
     _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
 
 
+def case_notes_decision_dated(errors: list[str], vault_root: str) -> None:
+    """notes/decision-YYYY-MM-DD-{slug}.md (v4 §3.6) matches the loose kebab pattern."""
+    print("\ncase: notes_decision_dated")
+    path = f"{vault_root}/notes/decision-2026-05-26-architecture-choice.md"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_notes_plan_dated(errors: list[str], vault_root: str) -> None:
+    """notes/plan-YYYY-MM-DD-{slug}.md (v4 §3.6) matches the loose kebab pattern."""
+    print("\ncase: notes_plan_dated")
+    path = f"{vault_root}/notes/plan-2026-05-26-pr1-rollout.md"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
 def case_filename_violation_warn_mode(errors: list[str], vault_root: str) -> None:
     """Subagent + bad filename + warn → both CONTRACT WARNING and NAMING VIOLATION in stderr."""
     print("\ncase: filename_violation_warn_mode")
@@ -260,6 +280,8 @@ def main() -> int:
         case_notes_valid_filename(errors, vault_root)
         case_notes_subfolder_valid(errors, vault_root)
         case_notes_violation(errors, vault_root)
+        case_notes_decision_dated(errors, vault_root)
+        case_notes_plan_dated(errors, vault_root)
         case_filename_violation_warn_mode(errors, vault_root)
         case_filename_violation_strict_naming(errors, vault_root)
         case_subagent_filename_violation_enforce(errors, vault_root)
