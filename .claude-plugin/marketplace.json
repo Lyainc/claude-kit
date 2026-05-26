@@ -38,8 +38,8 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.13.0",
-      "description": "Obsidian vault knowledge management plugin (v4): three-skill layout (capture / note / audit) for a minimal second-brain workflow. capture saves raw input to inbox/, note creates evergreen notes and decision records in notes/, audit scans for 5 structural error types (E1-E5). Two agents: vault-knowledge-manager (orchestrator) and vault-file-organizer (mechanical moves). type-optin: only files with a type: field are managed. Reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
+      "version": "0.14.0",
+      "description": "Obsidian vault knowledge management plugin (v4): three-skill layout (capture / note / audit) for a minimal second-brain workflow. capture saves raw input to inbox/ with URL metadata enrichment (source/url/title via Defuddle title extraction). note creates evergreen notes and decision records in notes/. audit scans for 5 structural error types (E1-E5). Two agents: vault-knowledge-manager (orchestrator) and vault-file-organizer (mechanical moves). type-optin: only files with a type: field are managed. Reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking. Includes web-clipper-template reference for Obsidian Web Clipper integration.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -64,8 +64,8 @@
     },
     {
       "name": "vault-bridge",
-      "version": "1.13.0",
-      "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, optional Obsidian CLI search acceleration, direct-access awareness, session auto-commit, write path governance, opt-in plan-doc autosync, and session handoff. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /handoff + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. vault-searcher acts as read/search agent only (read-only since v1.9.0). Vault writes are restricted to slash commands executed in main context; subagent vault writes are policy-blocked via VAULT_BRIDGE_WRITE_CONTRACT. Searches notes, loads domain context, restores session context, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
+      "version": "1.14.0",
+      "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, optional Obsidian CLI search acceleration, direct-access awareness, session auto-commit, write path governance, opt-in plan-doc autosync, and session handoff with terminal-visible resume on session restore. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /handoff + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. vault-searcher acts as read/search agent only (read-only since v1.9.0). Vault writes are restricted to slash commands executed in main context; subagent vault writes are policy-blocked via VAULT_BRIDGE_WRITE_CONTRACT. Searches notes, loads domain context, restores session context, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"

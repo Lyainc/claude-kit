@@ -35,11 +35,13 @@ try:
                 content = '\n'.join(lines[i + 1:]).strip()
                 break
     if content:
-        msg = '이전 세션의 인수인계 메모입니다:\n\n' + content
+        model_ctx = '이전 세션의 인수인계 메모입니다:\n\n' + content
+        user_msg  = '[세션 복원] 이전 세션 인수인계:\n\n' + content
         print(json.dumps({
+            'systemMessage': user_msg,
             'hookSpecificOutput': {
                 'hookEventName': 'SessionStart',
-                'additionalContext': msg,
+                'additionalContext': model_ctx,
             }
         }))
 except Exception:
