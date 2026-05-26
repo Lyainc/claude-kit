@@ -20,19 +20,14 @@ log() { echo "$*" >&2; }
 # Validate that a path is under VAULT_ROOT and contains no traversal
 validate_vault_path() {
   local p="$1"
-  # Expand ~ if present
   p="${p/#\~/$HOME}"
-  # Resolve to absolute
-  local real
-  real="$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$p" 2>/dev/null)" || die "Cannot resolve path: $p"
-  local vault_real
-  vault_real="$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$VAULT_ROOT" 2>/dev/null)" || die "Cannot resolve VAULT_ROOT"
-  # Check no .. traversal in original
   if [[ "$p" == *".."* ]]; then
     die "Path traversal detected: $p"
   fi
-  # Check prefix — require exact match or trailing-slash boundary
-  # to avoid matching sibling dirs like /vault2/ when VAULT_ROOT=/vault.
+  local real vault_real
+  real="$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$p" 2>/dev/null)" || die "Cannot resolve path: $p"
+  vault_real="$(python3 -c "import os,sys; print(os.path.realpath(sys.argv[1]))" "$VAULT_ROOT" 2>/dev/null)" || die "Cannot resolve VAULT_ROOT"
+  # Require exact match or trailing-slash boundary so /vault2/ doesn't match VAULT_ROOT=/vault.
   if [[ "$real" != "$vault_real" && "$real" != "$vault_real"/* ]]; then
     die "Path '$real' is not under VAULT_ROOT '$vault_real'"
   fi
@@ -72,18 +67,16 @@ def parse_frontmatter(content):
     current_list = None
 
     for line in fm_lines:
-        # Skip blank lines
         if not line.strip():
             continue
-        # List item continuation (any indent level)
         stripped = line.lstrip()
+        # List item continuation (any indent level)
         if stripped.startswith('- '):
             item = stripped[2:].strip().strip('"\'')
             if current_key and current_list is not None:
                 current_list.append(item)
                 result[current_key] = current_list
             continue
-        # Key: value line
         m = re.match(r'^(\w[\w\-_]*)\s*:\s*(.*)', line)
         if m:
             current_key = m.group(1)
@@ -92,13 +85,11 @@ def parse_frontmatter(content):
                 current_list = []
                 result[current_key] = current_list
             elif val.startswith('[') and val.endswith(']'):
-                # inline list
                 inner = val[1:-1]
                 items = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
                 result[current_key] = items
                 current_list = None
             else:
-                # scalar — strip quotes
                 result[current_key] = val.strip('"\'')
                 current_list = None
         else:

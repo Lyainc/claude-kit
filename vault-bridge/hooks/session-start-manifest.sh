@@ -72,13 +72,11 @@ if [ ! -f "$GENERATOR" ]; then
   exit 0
 fi
 
-# Run generator in background with a 10-second timeout guard.
-# The generator itself is fast (incremental mtime checks), but we cap wall time
-# to avoid blocking on very large vaults or slow filesystems.
-# We discard stdout/stderr — stats are not needed here.
+# Run generator in background with a 10s wall-time cap to handle large vaults
+# or slow filesystems. The generator itself is fast (incremental mtime checks).
+# Discard stdout/stderr — stats are not needed here.
 (
-  timeout 10 python3 "$GENERATOR" --vault-root "$VAULT_ROOT" \
-    >/dev/null 2>/dev/null
+  timeout 10 python3 "$GENERATOR" --vault-root "$VAULT_ROOT" >/dev/null 2>&1
 ) &
 
 exit 0

@@ -17,22 +17,22 @@ Parse `$ARGUMENTS`:
 
 ## Procedure
 
-Before drafting the note, follow `../../reference/obsidian-format.md` for Obsidian-native wikilinks, callouts, task lists, comments, and YAML property formatting. Prefer wikilinks for internal vault references and Markdown links for external URLs.
+When drafting the note, follow `../../reference/obsidian-format.md` for Obsidian-native wikilinks, callouts, task lists, comments, and YAML properties. Prefer wikilinks for internal vault references and Markdown links for external URLs.
 
-1. **Parse type and topic**: Extract `--type {type}` flag (default: `note`). Strip the flag from the topic text. Valid types: `note`, `decision`.
+1. **Parse type and topic**: Extract the `--type {type}` flag (default: `note`) and strip it from the topic text. Valid types: `note`, `decision`.
 
 2. **Determine target filename**:
    - `type: note` → `~/vault/notes/{topic-in-kebab-case}.md` (no date prefix — evergreen slug)
    - `type: decision` → `~/vault/notes/decision-YYYY-MM-DD-{topic-in-kebab-case}.md` (type-first, dated)
-   - **Filename collision** (exact same stem already exists): append `-v2`, `-v3` etc. automatically — no AskUserQuestion. This is a mechanical uniqueness guarantee, not a content check.
+   - **Filename collision** (exact same stem exists): append `-v2`, `-v3`, etc. automatically — no AskUserQuestion. This is a mechanical uniqueness guarantee, not a content check.
 
 3. **Check for content duplicates**: `find ~/vault/notes -name '*.md' 2>/dev/null | xargs -I{} basename {} .md | grep -i {keyword}`
-   - This is a *content similarity* check, distinct from the filename collision in Step 2.
-   - If a note with a semantically similar topic already exists, notify the user and ask: overwrite / rename / merge.
+   - This is a *content similarity* check, separate from the filename collision in Step 2.
+   - If a semantically similar note exists, notify the user and ask: overwrite / rename / merge.
 
-4. **Directory validation**: If `~/vault/notes/` does not exist, create it: `mkdir -p ~/vault/notes/`. This guard runs before any write attempt.
+4. **Directory validation**: Run `mkdir -p ~/vault/notes/` before any write attempt to guard against a missing directory.
 
-5. **Show plan**: Present the target filename and frontmatter to the user. Ask for confirmation before writing.
+5. **Show plan**: Present the target filename and frontmatter, then wait for user confirmation before writing.
 
 6. **Create file** (after user confirmation):
    ```yaml

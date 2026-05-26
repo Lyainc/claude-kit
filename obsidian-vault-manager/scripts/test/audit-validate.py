@@ -77,23 +77,16 @@ def filename_conforms(rel: Path) -> bool:
     v4 filename convention check.
 
     - inbox/ and assets/ are exempt (raw input / attachments)
-    - notes/ (any depth): VIOLATION if filename starts with YYYY-MM-DD (v3 date-first)
+    - notes/ (any depth): VIOLATION if filename starts with YYYY-MM- (v3 date-first)
     - _index.md is always valid
     """
-    name = rel.name
-    if name == "_index.md":
+    if rel.name == "_index.md":
         return True
-    parts = rel.parts
-    # inbox/ and assets/ are exempt — any filename accepted
-    if parts[0] in ("inbox", "assets"):
+    top = rel.parts[0]
+    if top in ("inbox", "assets"):
         return True
-    # notes/ (any depth): date-first prefix is a v3 violation
-    # Matches YYYY-MM- or YYYY-MM-DD- (both are date-first, v3 style)
-    if parts[0] == "notes":
-        if re.match(r"^\d{4}-\d{2}-", name):
-            return False
-        return True
-    # All other paths: exempt
+    if top == "notes":
+        return not re.match(r"^\d{4}-\d{2}-", rel.name)
     return True
 
 
@@ -160,16 +153,10 @@ def classify(bundle: dict) -> dict:
     # E1 + E2: frontmatter presence and required fields
     # (dotfiles already excluded in collect())
     for rec in bundle["fm_records"]:
-        rel = rec["rel"]
         if not rec["has_fm"]:
-            add("E1_missing_frontmatter", rel)
-            continue
-        if rec["missing_required"]:
-            add(
-                "E2_missing_required_fields",
-                rel,
-                ",".join(rec["missing_required"]),
-            )
+            add("E1_missing_frontmatter", rec["rel"])
+        elif rec["missing_required"]:
+            add("E2_missing_required_fields", rec["rel"], ",".join(rec["missing_required"]))
 
     # E3: filename convention violation (v4: date-first prefix in notes/)
     for rec in bundle["fm_records"]:
@@ -186,9 +173,7 @@ def classify(bundle: dict) -> dict:
     # E5: orphan notes in notes/ (any depth)
     for rec in bundle["fm_records"]:
         rel_path = Path(rec["rel"])
-        if rel_path.name == "_index.md":
-            continue
-        if rel_path.parts[0] != "notes":
+        if rel_path.name == "_index.md" or rel_path.parts[0] != "notes":
             continue
         stem = rel_path.stem.lower()
         sources = [s for s in bundle["inbound"].get(stem, []) if s != rec["rel"]]
