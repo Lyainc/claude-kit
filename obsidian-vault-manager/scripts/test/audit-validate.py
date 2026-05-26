@@ -28,11 +28,8 @@ from pathlib import Path
 from typing import Optional
 
 REQUIRED_FM_FIELDS = ("created", "tags", "type")
-# Fields required only for specific types (v4 §3.3 status machine)
-TYPE_CONDITIONAL_FIELDS: dict = {
-    "note": ("status",),
-    "decision": ("status",),
-}
+# status required for note/decision only (v4 §3.3 status machine)
+STATUS_REQUIRED_TYPES = frozenset({"note", "decision"})
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 
 
@@ -125,10 +122,11 @@ def collect(vault: Path) -> dict:
             for f in REQUIRED_FM_FIELDS:
                 if f not in fm or fm[f] in (None, ""):
                     missing_required.append(f)
-            # Type-conditional: status required for note/decision (v4 §3.3)
-            for f in TYPE_CONDITIONAL_FIELDS.get(fm.get("type", ""), ()):
-                if f not in fm or fm[f] in (None, ""):
-                    missing_required.append(f)
+            # status required for note/decision (v4 §3.3)
+            if fm.get("type") in STATUS_REQUIRED_TYPES and (
+                "status" not in fm or fm["status"] in (None, "")
+            ):
+                missing_required.append("status")
         fm_records.append(
             {
                 "rel": str(rel),
@@ -160,10 +158,9 @@ def classify(bundle: dict) -> dict:
         findings.append({"type": etype, "path": rel, "detail": detail})
 
     # E1 + E2: frontmatter presence and required fields
+    # (dotfiles already excluded in collect())
     for rec in bundle["fm_records"]:
         rel = rec["rel"]
-        if Path(rel).parts[0].startswith("."):
-            continue
         if not rec["has_fm"]:
             add("E1_missing_frontmatter", rel)
             continue
@@ -245,7 +242,6 @@ def main() -> int:
         return 1
 
     bundle = collect(vault)
-    bundle["vault"] = vault
     result = classify(bundle)
 
     output: dict = {
