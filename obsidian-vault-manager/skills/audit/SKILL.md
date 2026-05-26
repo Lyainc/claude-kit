@@ -99,7 +99,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (5 types, v4). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
+**Error types** (7 types, v4). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
@@ -108,8 +108,10 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | E3 | `filename_convention_violation` | Warning | P0 | `filename_records` | — |
 | E4 | `broken_wikilink` | Critical | P0 | `wikilinks_by_file` | — |
 | E5 | `orphan_note` | Warning | P2 | `inbound_links` | — |
+| E6 | `stale_inbox` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
+| E7 | `stale_draft` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
 
-> **Priority mapping** (v4 §6.1 Step 1): E1–E4 = P0 (무결성/integrity). E5 = P2 (quality signal). P1 is reserved for Step 2 stagnation checks (inbox raw age, draft staleness) — not implemented in this PR.
+> **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6–E7 = P1 (정체/stagnation). E5 = P2 (quality signal).
 
 **E3 v4 convention** (files in `notes/` only; `inbox/` and `assets/` are exempt):
 - VIOLATION: filename starts with `\d{4}-\d{2}-` (v3 date-first pattern, e.g. `2026-04-topic.md`)
@@ -118,13 +120,19 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **E5 orphan scope**: files in `notes/` (any depth) with zero inbound wikilinks. Files in `inbox/` and `assets/` are exempt.
 
+**E6/E7 stagnation** (uses already-scanned `fm.created` and `fm.status` — no extra primitive needed):
+- E6 trigger: `path` startswith `inbox/`, `fm.status` ∈ {`""`, `raw`, missing}, age in days from `fm.created` > 14.
+- E7 trigger: `path` startswith `notes/`, `fm.status == "draft"`, age in days from `fm.created` > 30.
+- Age is computed against `date.today()` using the `YYYY-MM-DD` value parsed from `fm.created`. Files with malformed or missing `created:` are skipped (E1/E2 catch them).
+- Thresholds (`STALE_INBOX_DAYS=14`, `STALE_DRAFT_DAYS=30`) are constants in `audit-validate.py`; edit there if changing.
+
 **Output**: Findings list:
 ```
 [
   {
     "error_type": "broken_wikilink",
     "severity": "Critical|Warning|Info",
-    "priority": "P0|P2",
+    "priority": "P0|P1|P2",
     "path": "relpath",
     "detail": "human-readable context",
     "auto_fix_eligible": true|false
@@ -138,7 +146,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 ## Phase 3 — REPORT
 
-**Purpose**: Group findings by priority (P0 first, then P2) and display a structured triage report in Korean.
+**Purpose**: Group findings by priority (P0 → P1 → P2) and display a structured triage report in Korean.
 
 **Inputs**: Findings list from CLASSIFY.
 
@@ -152,7 +160,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 볼트 상태: N 노트 / clean X · dirty Y · untracked Z
 매니페스트: F 파일 · 갱신 YYYY-MM-DDTHH:MM  (없음: vault-bridge 미설치)
 
-발견된 이슈: K건 (P0 a건 · P2 b건)
+발견된 이슈: K건 (P0 a건 · P1 b건 · P2 c건)
 ──────────────────────────────────────────
 
 [P0 / Critical] missing_frontmatter — 3건
@@ -177,6 +185,16 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
       상세: v3 날짜 우선 파일명 — {type}-YYYY-MM-DD-{slug}.md 또는 {slug}.md로 변경 필요
   • ...
 
+[P1 / Warning] stale_inbox — 7건
+  • inbox/capture-2026-03-15-old-topic.md
+      상세: age 73d > 14d (status:raw, created 2026-03-15)
+  • ...
+
+[P1 / Warning] stale_draft — 2건
+  • notes/half-written-idea.md
+      상세: age 45d > 30d (status:draft, created 2026-04-12)
+  • ...
+
 [P2 / Warning] orphan_note — 10건
   • notes/orphan-001.md
       상세: 인바운드 링크 없음
@@ -184,12 +202,12 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 ──────────────────────────────────────────
 자동 수정 가능: F건 (missing_required_fields — frontmatter 필드 추가)
-수동 처리 필요: M건 (broken wikilinks, orphan notes, filename violations)
+수동 처리 필요: M건 (broken wikilinks, orphan notes, filename violations, stale inbox/draft)
 ```
 
 If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
-> **P0 우선 출력**: P0 항목이 존재하면 P2보다 먼저 출력합니다. P0 내 정렬: Critical severity(E1, E2, E4) → Warning severity(E3) 순. 동일 severity 내에서는 error type 코드(E1→E2→E3→…) 순. P2 내 정렬: error type 알파벳 순(현재 E5만 해당). "사용자 확인 게이트"(다음 단계 진행 여부 확인)는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다. E3/E4는 P0이지만 자동 수정 대상이 아니므로 게이트 없이 표시만 합니다.
+> **우선순위 출력 순서**: P0 → P1 → P2. 각 priority 내 정렬: Critical severity 먼저, 그 다음 Warning. 동일 severity 내에서는 error type 코드 순 (E1→E2→E3→E4 / E6→E7 / E5). "사용자 확인 게이트"는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다 — 그 외 항목은 표시만 합니다. E6/E7는 의미적 판단(처리/promote/archive)이 필요해 auto-fix 대상이 아닙니다.
 
 **Termination condition**: Report displayed. Proceed to OPTIONAL-FIX if auto-fixable items exist and user has not already opted out. Otherwise exit after marking clean.
 
