@@ -76,6 +76,9 @@ def case_schema_version_bump_invalidates_v1(errors: list[str]) -> None:
 
         _make_note(vault_path / "notes" / "real.md", "type: note\ntags: []")
 
+        # No --force: the schema_version mismatch (1 vs 2) must trigger a full
+        # rebuild via _load_existing_manifest returning None. This is the path
+        # under test — adding --force would bypass it.
         proc = subprocess.run(
             ["python3", str(SCRIPT), "--vault-root", str(vault), "--out", str(out)],
             capture_output=True, text=True,
