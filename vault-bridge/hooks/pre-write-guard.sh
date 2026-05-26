@@ -152,10 +152,10 @@ expected_pattern=""
 
 case "$top_dir" in
   inbox)
-    # capture and session notes: type-YYYY-MM-DD[-slug][-vN].md  (v4 §3.6)
+    # capture and session notes only (v4 §3.6). plan/decision/note live in notes/.
     expected_pattern='^(capture|session)-[0-9]{4}-[0-9]{2}-[0-9]{2}(-[a-z0-9-]+)?(-v[0-9]+)?\.md$'
     if ! validate_pattern "$filename" "$expected_pattern"; then
-      violation="inbox/ filenames must match: {type}-YYYY-MM-DD[-slug][-vN].md  (type ∈ capture|session)"
+      violation="inbox/ filenames must match: {type}-YYYY-MM-DD[-slug][-vN].md  (type ∈ capture|session — plan/decision/note belong in notes/)"
     fi
     ;;
   notes)
