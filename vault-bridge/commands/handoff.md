@@ -32,7 +32,7 @@ If the value is `1`, output the following and stop:
 ```
 
 Parse if found:
-- `vault_path` (e.g., `20_Projects/claude-kit`)
+- `vault_path` (e.g., `notes/claude-kit`)
 - `project_name`: last path segment of `vault_path`
 
 If `NOT_FOUND`, derive `project_name` from `basename "${CLAUDE_PROJECT_ROOT:-$PWD}"`.

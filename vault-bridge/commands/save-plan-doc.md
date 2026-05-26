@@ -32,7 +32,7 @@ If the output is `NOT_FOUND`, output the following and stop:
 > `.vault-link` 파일이 없어요. 먼저 `/vault-link`를 실행해 이 프로젝트를 vault 프로젝트에 연결해 주세요.
 
 Parse the `.vault-link` content:
-- `vault_path`: bound vault project path (e.g. `20_Projects/claude-kit`)
+- `vault_path`: bound vault project path (e.g. `notes/claude-kit`)
 - `snapshot_export`: Layer 1 opt-in flag (default: `false` if absent). `auto_capture` is honored as a 4-week deprecation alias — the syncer emits a stderr warning when only the alias is present.
 
 ### Step 1.5 — Declare intent
@@ -209,7 +209,7 @@ Where `{per_file_results}` lists each file with status:
 
 When `intent == defer` AND at least one file was saved successfully, generate a `resume.md` so the next session starts with context:
 
-1. Derive `project_name` from `vault_path` last segment (e.g., `claude-kit` from `20_Projects/claude-kit`). Use `basename "${CLAUDE_PROJECT_ROOT:-$PWD}"` if no vault_path.
+1. Derive `project_name` from `vault_path` last segment (e.g., `claude-kit` from `notes/claude-kit`). Use `basename "${CLAUDE_PROJECT_ROOT:-$PWD}"` if no vault_path.
 
 2. Build content — use the first successfully saved file's vault filename as the plan reference:
 
@@ -253,6 +253,6 @@ When `intent == defer` AND at least one file was saved successfully, generate a 
 - Atomic writes are handled by the syncer script (`.tmp` → `rename`).
 - If `source_stale_risk: true` appears in syncer output, include a stale warning in the report.
 - Do not push vault git changes — only write files. Use `/vault-commit` for git.
-- Vault-native plan files (`~/vault/20_Projects/*/plan-*.md`) are out of scope — skip silently.
+- Vault-native plan files (`~/vault/notes/*/plan-*.md`) are out of scope — skip silently.
 - Maximum one AskUserQuestion per gate layer per invocation. Do not re-ask after user decision.
 - `auto_capture` (`.vault-link` and `_index.md`) is a 4-week deprecation alias for `snapshot_export` / `snapshot_import`. New configurations should use the new keys.

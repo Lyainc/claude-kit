@@ -80,6 +80,6 @@ After a successful save:
 | `$ARGUMENTS` contains `capture` / `plan` | Override `type` (skips mode tier routing) | `type: session` |
 | Mode tokens (`record`, `quick`, `기록`, `간단히`, …) | Tier 1 strong match → pre-select mode (see recipe §2) | Tier 2/3 → AskUserQuestion |
 | `--hours N` (integer 1–24) | File-change search window for Related Files | 1 hour |
-| `{project-name}` | Link to `~/vault/20_Projects/{name}/` | auto-detect from `.vault-link` |
+| `{project-name}` | Link to `~/vault/notes/{name}/` | auto-detect from `.vault-link` |
 
 Mode rules, synonym dictionary, and the full procedure live in the recipe — do not re-implement here.

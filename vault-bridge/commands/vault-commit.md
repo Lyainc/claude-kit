@@ -57,10 +57,10 @@ Parse the porcelain output to determine:
 **File type counts** — for each changed file, determine its type using this priority order:
 1. Read its frontmatter `type` field if accessible (e.g., `session`, `capture`, `note`, `plan`, `project`)
 2. Fall back to filename prefix: files matching `session-*` → `session`, `capture-*` → `capture`, `plan-*` → `plan`, `project-*` or `_index.md` → `project`
-3. Files under `20_Projects/*/` that don't match the above → `note`
+3. Files under `notes/*/` that don't match the above → `note`
 4. Anything else → `file`
 
-**Project names** — collect unique directory names immediately under `20_Projects/` that contain changed files.
+**Project names** — collect unique directory names immediately under `notes/` that contain changed files.
 
 **Auto commit message** — construct using this logic:
 
