@@ -27,7 +27,7 @@ v4 filename rules per folder:
 
 | Folder | Convention | Example violation |
 |--------|-----------|-------------------|
-| `notes/` | `{slug}.md` (no date prefix) — or `{type}-YYYY-MM-DD-{slug}.md` for dated types (`decision`, `plan`) | `2026-04-bad-name.md` (v3 date-first) |
+| `notes/` | `{slug}.md` (no date prefix) — or `{type}-YYYY-MM-DD-{slug}.md` for dated types (`decision`, `plan`) | `2026-04-bad-name.md` (`\d{4}-\d{2}-` date-first, v3 style) |
 | `inbox/` | Exempt — raw input zone; any filename accepted | — |
 | `assets/` | Exempt — attachments; any filename accepted | — |
 
@@ -38,7 +38,7 @@ v4 filename rules per folder:
 ```
 for each file in notes/ (recursive):
   if file.name == "_index.md": skip
-  if file.name matches /^\d{4}-\d{2}-\d{2}/: → filename_convention_violation
+  if file.name matches /^\d{4}-\d{2}-/: → filename_convention_violation
   # date-first prefix is a v3 artifact; v4 requires type-first or no-date slugs
 ```
 

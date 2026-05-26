@@ -102,7 +102,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | E5 | `orphan_note` | Warning | `inbound_links` | — |
 
 **E3 v4 convention** (files in `notes/` only; `inbox/` and `assets/` are exempt):
-- VIOLATION: filename starts with `YYYY-MM-DD` (v3 date-first pattern)
+- VIOLATION: filename starts with `\d{4}-\d{2}-` (v3 date-first pattern, e.g. `2026-04-topic.md`)
 - OK: `{slug}.md` (no date), `decision-YYYY-MM-DD-{slug}.md`, `plan-YYYY-MM-DD-{slug}.md` (type-first)
 - Guard: `_index.md` is always valid; skip.
 
