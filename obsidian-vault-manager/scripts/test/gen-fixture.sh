@@ -7,6 +7,11 @@
 #                         Also adds 200 extra clean notes for FP measurement.
 #
 # v4 layout: inbox/ + notes/ + assets/ (no 00_Inbox, 20_Projects, 30_Notes)
+#
+# Fixture naming convention (IMPORTANT):
+#   Seeded error files: "audit-eN-*.md" (e1–e5); clean files: "audit-clean-*.md".
+#   The DoD validator uses substring containment ("audit-eN-" in path) —
+#   a clean fixture with an "audit-eN-" prefix will count as a false detection.
 
 set -euo pipefail
 

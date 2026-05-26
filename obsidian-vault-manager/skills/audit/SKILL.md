@@ -73,8 +73,9 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 8. Read manifest summary (display only — no classification impact):
    ```bash
-   cat ~/vault/.vault-bridge/manifest.json 2>/dev/null
+   cat "$VAULT_ROOT/.vault-bridge/manifest.json" 2>/dev/null
    ```
+   Use the resolved `$VAULT_ROOT` from Steps 4–7 (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`), not a hardcoded path.
    Extract `file_count` and `generated_at` if the file exists and is valid JSON. If absent or unparseable, set `manifest_summary` to null. This is NOT Step 0 (which computes `references_in/out`, `access_count`, `promotion_candidate` — deferred to PR 5+).
 
 **Outputs**: An in-memory scan bundle:
@@ -84,7 +85,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
   filename_records[],      // from scan-filename
   wikilinks_by_file{},     // source_path → links[]
   inbound_links{}          // target_stem → source_paths[]
-  manifest_summary{}       // {file_count, generated_at} or null
+  manifest_summary?        // {file_count, generated_at} or null
 }
 ```
 
@@ -188,7 +189,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
-> **P0 우선 출력**: P0 항목이 존재하면 P2보다 먼저 출력합니다. "사용자 확인 게이트"(다음 단계 진행 여부 확인)는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다. E3/E4는 P0이지만 자동 수정 대상이 아니므로 게이트 없이 표시만 합니다.
+> **P0 우선 출력**: P0 항목이 존재하면 P2보다 먼저 출력합니다. P0 내 정렬: Critical severity(E1, E2, E4) → Warning severity(E3) 순. 동일 severity 내에서는 error type 코드(E1→E2→E3→…) 순. P2 내 정렬: error type 알파벳 순(현재 E5만 해당). "사용자 확인 게이트"(다음 단계 진행 여부 확인)는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다. E3/E4는 P0이지만 자동 수정 대상이 아니므로 게이트 없이 표시만 합니다.
 
 **Termination condition**: Report displayed. Proceed to OPTIONAL-FIX if auto-fixable items exist and user has not already opted out. Otherwise exit after marking clean.
 

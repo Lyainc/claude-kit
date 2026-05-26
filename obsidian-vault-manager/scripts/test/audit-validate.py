@@ -160,7 +160,7 @@ def classify(bundle: dict) -> dict:
     def add(etype: str, rel: str, detail: str = "") -> None:
         findings.append({
             "type": etype,
-            "priority": PRIORITY_BY_TYPE.get(etype, "P3"),
+            "priority": PRIORITY_BY_TYPE.get(etype, "P_UNKNOWN"),
             "path": rel,
             "detail": detail,
         })
@@ -217,7 +217,7 @@ SEED_PREFIXES = {
 def dod_report(findings: list) -> dict:
     detected: dict = {k: 0 for k in SEED_PREFIXES}
     fp_clean: dict = {k: 0 for k in SEED_PREFIXES}
-    priority_counts: dict = {"P0": 0, "P1": 0, "P2": 0, "P3": 0}
+    priority_counts: dict = {"P0": 0, "P1": 0, "P2": 0}
     findings_missing_priority: int = 0
     priority_mismatches: list = []
 
