@@ -38,8 +38,8 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.12.1",
-      "description": "Obsidian vault knowledge management plugin: agents and skills for note creation, MOC management, project tracking, inbox review (4-phase pipeline with ≥3x token reduction), project archiving, note↔project bidirectional binding, Obsidian-native formatting guidance, optional Defuddle URL extraction for captures, optional Obsidian CLI acceleration, and vault-audit (9-error-type structural integrity scan with ≥93% detection / <10% FP against fixture), plus reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
+      "version": "0.13.0",
+      "description": "Obsidian vault knowledge management plugin (v4): three-skill layout (capture / note / audit) for a minimal second-brain workflow. capture saves raw input to inbox/, note creates evergreen notes and decision records in notes/, audit scans for 5 structural error types (E1-E5). Two agents: vault-knowledge-manager (orchestrator) and vault-file-organizer (mechanical moves). type-optin: only files with a type: field are managed. Reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -51,11 +51,11 @@
         "agents",
         "skills",
         "note-taking",
-        "moc",
-        "archive",
-        "project-binding",
-        "vault-audit",
-        "integrity"
+        "audit",
+        "decision",
+        "status-machine",
+        "type-optin",
+        "second-brain"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
