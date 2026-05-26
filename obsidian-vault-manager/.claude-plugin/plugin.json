@@ -1,7 +1,7 @@
 {
   "name": "obsidian-vault-manager",
-  "version": "0.13.0",
-  "description": "Obsidian vault knowledge management plugin (v4): three-skill layout (capture / note / audit) for a minimal second-brain workflow. capture saves raw input to inbox/, note creates evergreen notes and decision records in notes/, audit scans for 5 structural error types (E1-E5). Two agents: vault-knowledge-manager (orchestrator) and vault-file-organizer (mechanical moves). type-optin: only files with a type: field are managed. Reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking.",
+  "version": "0.14.0",
+  "description": "Obsidian vault knowledge management plugin (v4): three-skill layout (capture / note / audit) for a minimal second-brain workflow. capture saves raw input to inbox/ with URL metadata enrichment (source/url/title via Defuddle title extraction). note creates evergreen notes and decision records in notes/. audit scans for 5 structural error types (E1-E5). Two agents: vault-knowledge-manager (orchestrator) and vault-file-organizer (mechanical moves). type-optin: only files with a type: field are managed. Reusable shell primitives (ovm-primitives.sh) for frontmatter scanning, wikilink extraction, and audit-state tracking. Includes web-clipper-template reference for Obsidian Web Clipper integration.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -20,6 +20,8 @@
     "decision",
     "status-machine",
     "type-optin",
-    "second-brain"
+    "second-brain",
+    "web-clipper",
+    "url-metadata"
   ]
 }
