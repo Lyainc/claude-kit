@@ -89,7 +89,7 @@ def case_vault_path_intercepts_reads(errors: list[str]) -> None:
     """Hook must warn when reading inside VAULT_BRIDGE_VAULT_PATH directory."""
     print("\ncase: vault_path_intercepts_reads")
     with tempfile.TemporaryDirectory() as custom_vault:
-        target = f"{custom_vault}/30_Notes/my-note.md"
+        target = f"{custom_vault}/notes/my-note.md"
         rc, out, _ = _run_hook(ACCESS_HOOK, _read_payload(target), vault_path=custom_vault)
         _assert(rc == 0, "exit 0 (never blocks)", errors)
         _assert(
@@ -111,7 +111,7 @@ def case_vault_root_overrides_vault_path(errors: list[str]) -> None:
         tempfile.TemporaryDirectory() as path_vault,   # userConfig value
     ):
         # Read targets the root_vault (override); path_vault is ignored
-        target_in_root = f"{root_vault}/30_Notes/note.md"
+        target_in_root = f"{root_vault}/notes/note.md"
         rc, out, _ = _run_hook(
             ACCESS_HOOK,
             _read_payload(target_in_root),
@@ -123,7 +123,7 @@ def case_vault_root_overrides_vault_path(errors: list[str]) -> None:
                 "intercept fires for VAULT_ROOT path (not PATH path)", errors)
 
         # Read targets the path_vault; should NOT intercept (root_vault wins)
-        target_in_path = f"{path_vault}/30_Notes/note.md"
+        target_in_path = f"{path_vault}/notes/note.md"
         rc2, out2, _ = _run_hook(
             ACCESS_HOOK,
             _read_payload(target_in_path),
@@ -167,7 +167,7 @@ def case_tilde_expansion(errors: list[str]) -> None:
     with tempfile.TemporaryDirectory(dir=home, prefix=".vb-test-") as tmp:
         rel = Path(tmp).relative_to(home)
         tilde_path = f"~/{rel}"
-        target = f"{tmp}/30_Notes/note.md"
+        target = f"{tmp}/notes/note.md"
         rc, out, _ = _run_hook(
             ACCESS_HOOK,
             _read_payload(target),
@@ -186,9 +186,9 @@ def case_write_guard_vault_path(errors: list[str]) -> None:
     """pre-write-guard must enforce naming rules inside custom VAULT_BRIDGE_VAULT_PATH."""
     print("\ncase: write_guard_vault_path")
     with tempfile.TemporaryDirectory() as custom_vault:
-        # Valid name → no naming violation
+        # Valid name → no naming violation (v4: inbox/ pattern)
         today = datetime.date.today().isoformat()
-        valid_path = f"{custom_vault}/00_Inbox/session-{today}.md"
+        valid_path = f"{custom_vault}/inbox/session-{today}.md"
         rc, out, _ = _run_hook(
             WRITE_HOOK,
             _write_payload(valid_path),
@@ -200,8 +200,8 @@ def case_write_guard_vault_path(errors: list[str]) -> None:
         _assert("NAMING VIOLATION" not in out,
                 "no naming violation for valid session filename", errors)
 
-        # Invalid name → naming warning emitted
-        bad_path = f"{custom_vault}/00_Inbox/random-name.md"
+        # Invalid name → naming warning emitted (inbox/ pattern mismatch)
+        bad_path = f"{custom_vault}/inbox/random-name.md"
         rc2, out2, _ = _run_hook(
             WRITE_HOOK,
             _write_payload(bad_path),

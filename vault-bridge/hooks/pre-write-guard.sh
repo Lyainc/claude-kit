@@ -86,7 +86,7 @@ top_dir=$(printf '%s' "$rel_path" | cut -d'/' -f1)
 # Policy: vault writes must originate from main context (user-initiated slash
 # commands). Subagent vault writes are out of policy.
 # Modes: warn (default — log + systemMessage, allow), enforce (deny), off (skip).
-# 50_Archive/ is an OVM territory — exempt regardless of mode.
+# assets/ is a passthrough — no contract check (automated tools may write attachments).
 # ---------------------------------------------------------------------------
 contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-enforce}"
 
@@ -95,7 +95,7 @@ if [ "$contract_mode" != "off" ]; then
     .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
   ' 2>/dev/null || true)
 
-  if [ -n "$agent_id" ] && [ "$top_dir" != "50_Archive" ]; then
+  if [ -n "$agent_id" ] && [ "$top_dir" != "assets" ]; then
     contract_msg="Vault writes must be user-initiated slash commands (/save-session, /save-plan-doc, /vault-commit). Subagent ($agent_id) vault write blocked. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
 
     if [ "$contract_mode" = "enforce" ]; then
@@ -151,32 +151,22 @@ violation=""
 expected_pattern=""
 
 case "$top_dir" in
-  00_Inbox)
-    expected_pattern='^(session|capture|plan)-[0-9]{4}-[0-9]{2}-[0-9]{2}(-[a-z0-9-]+)?(-v[0-9]+)?\.md$'
+  inbox)
+    # capture and session notes: type-YYYY-MM-DD[-slug][-vN].md  (v4 §3.6)
+    expected_pattern='^(capture|session)-[0-9]{4}-[0-9]{2}-[0-9]{2}(-[a-z0-9-]+)?(-v[0-9]+)?\.md$'
     if ! validate_pattern "$filename" "$expected_pattern"; then
-      violation="00_Inbox/ filenames must match: {type}-YYYY-MM-DD[-topic][-vN].md  (type ∈ session|capture|plan)"
+      violation="inbox/ filenames must match: {type}-YYYY-MM-DD[-slug][-vN].md  (type ∈ capture|session)"
     fi
     ;;
-  30_Notes)
-    expected_pattern='^[a-z0-9-]+\.md$'
+  notes)
+    # Intentionally loose kebab-case — preserves user freedom (v4 §3.1); OVM `note` enforces prefix convention.
+    expected_pattern='^[a-z0-9][a-z0-9-]*(-v[0-9]+)?\.md$'
     if ! validate_pattern "$filename" "$expected_pattern"; then
-      violation="30_Notes/ filenames must match: {lowercase-kebab}.md  (no date prefix allowed)"
+      violation="notes/ filenames must match: {lowercase-kebab}[-vN].md"
     fi
     ;;
-  20_Projects)
-    # _index.md is already caught by whitelist above; check for project-scoped files
-    expected_pattern='^(session|plan|capture)-[0-9]{4}-[0-9]{2}-[0-9]{2}(-[a-z0-9-]+)?(-v[0-9]+)?\.md$'
-    if ! validate_pattern "$filename" "$expected_pattern"; then
-      violation="20_Projects/{name}/ filenames must be _index.md or match: {type}-YYYY-MM-DD[-topic][-vN].md  (type ∈ session|plan|capture)"
-    fi
-    ;;
-  50_Archive)
-    # Archive: allow all filenames; log-only warning for awareness
-    violation="50_Archive/ write detected — ensure this is an intentional archive operation (original filename preserved)"
-    ;;
-  10_MOC)
-    # MOC-*.md caught by whitelist; anything else here is unexpected
-    violation="10_MOC/ writes should use MOC-{name}.md pattern or whitelist filenames (_index.md, Home.md)"
+  assets)
+    exit 0  # attachments — no naming policy
     ;;
   *)
     # Unknown top-level dir or .vault-bridge/: no policy applied
@@ -198,7 +188,7 @@ strict="${VAULT_BRIDGE_STRICT_NAMING:-0}"
 # Always write warning to stderr
 printf '[vault-bridge pre-write-guard] NAMING VIOLATION: %s\n' "$violation" >&2
 printf '  Path: %s\n' "$rel_path" >&2
-if [ -n "$expected_pattern" ] && [ "$top_dir" != "50_Archive" ] && [ "$top_dir" != "10_MOC" ]; then
+if [ -n "$expected_pattern" ]; then
   printf '  Expected pattern: %s\n' "$expected_pattern" >&2
 fi
 
