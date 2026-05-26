@@ -99,7 +99,7 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 **Procedure** (standard, used when manifest is absent or stale):
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search)
-   - No pointer or resolution failed → `search_root = ~/vault/notes/` (v4: all content in notes/)
+   - No pointer or resolution failed → `search_root = ~/vault/notes/` (primary) + `~/vault/inbox/` (secondary — raw inputs may carry domain context before promotion)
 2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
    - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree.
    - If CLI is unavailable/fails/times out, search adaptively within `search_root`:
