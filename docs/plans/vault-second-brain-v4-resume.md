@@ -1,8 +1,33 @@
 # Vault Second Brain v4 — 세션 재개 프롬프트
 
-> 작성일: 2026-05-26
+> 작성일: 2026-05-26 · 갱신: 2026-05-27
 > 용도: 다음 세션에서 이 작업을 이어갈 때 컨텍스트 복원용
 > 사용법: 새 세션 시작 시 이 문서 내용을 그대로 프롬프트에 붙여넣거나, "@docs/plans/vault-second-brain-v4-resume.md 읽고 작업 이어가자"로 호출
+
+---
+
+## 진행 요약 (2026-05-27 갱신)
+
+| PR | 항목 | 실제 PR | 상태 |
+|---|---|---|---|
+| PR 1 | vault-bridge 폴더 패턴 갱신 (`inbox/notes/assets`) | #83 | ✅ 2026-05-26 |
+| PR 2 | OVM 7→3 스킬 정리 (`capture/note/audit`) | #84 | ✅ 2026-05-26 |
+| PR 3 | Capture 강화 + Web Clipper 템플릿 | #85 | ✅ 2026-05-26 |
+| **PR 4** | `/audit` Phase 1 (Steps 0-5, 분할 진행) | — | 부분 완료 |
+| ↳ 4a | Phase 1 expansion — P0/P2 priority + manifest display | #86 | ✅ 2026-05-26 |
+| ↳ 4b | Phase 2 stagnation — E6/E7 (P1) | #87 | ✅ 2026-05-27 |
+| ↳ **4c** | **Step 0 — 시스템 메타 재계산** (manifest write-side) | — | **다음 즉시** |
+| ↳ 4d | Step 3 — Promotion Candidate (P2, Step 0 의존) | — | 대기 |
+| ↳ 4e | Step 4 — Git 활동 요약 (P3, 독립) | — | 대기 |
+| PR 5 | `/vault-commit` 메시지 컨벤션 자동화 | — | 미완 (독립, 병렬 가능) |
+| PR 6 | 마이그레이션 dogfood | — | 대기 (audit 완료 후) |
+| PR 7 | README + onboarding v4 반영 | — | 마지막 |
+
+**즉시 다음**: **PR 4c (Step 0 메타 재계산)** — `references_in/out`, `access_count`, `promotion_candidate`를 `manifest.json`에 작성. PR 4d (Promotion Candidate)의 의존성이므로 leverage 큼.
+
+**병렬 가능**: PR 5 (`vault-commit` 컨벤션)는 audit과 독립 — 다른 세션에서 동시 진행 가능.
+
+**Deferred**: Step 5 (Phase 2 패턴 추출)는 decision 노트 데이터 축적(3-6개월) 후 활성화.
 
 ---
 
@@ -28,7 +53,7 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 
 ## 구현 PR 시리즈
 
-### PR 1 — vault-bridge 폴더 패턴 갱신 (의존성 없음, 시작점)
+### PR 1 — vault-bridge 폴더 패턴 갱신 (#83, ✅ 2026-05-26)
 
 **파일**:
 - `vault-bridge/hooks/pre-write-guard.sh`: `00_Inbox` → `inbox`, `30_Notes` → `notes`, `90_Assets` → `assets`. 20_Projects·10_MOC·40_Resources·50_Archive 패턴 제거. type 없는 노트 통과.
@@ -40,7 +65,7 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 - `vault-bridge/commands/save-session.md`, `save-plan-doc.md`: 저장 경로 갱신
 - 회귀 테스트: `vault-bridge/scripts/test/*` 갱신 (`test-pre-write-guard.py` 등)
 
-### PR 2 — OVM 7 → 3 스킬 정리 (PR 1 후) ✅ 완료
+### PR 2 — OVM 7 → 3 스킬 정리 (#84, ✅ 2026-05-26)
 
 **제거됨**: `project/`, `inbox-review/`, `context/`, `archive/`, `vault-audit/`
 **유지·갱신**: `capture/` (inbox/ 경로), `note/` (notes/ 경로 + decision type + status machine), `audit/` (vault-audit 리네임, E1-E5 only)
@@ -56,7 +81,7 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 - **vault-audit error-taxonomy.md, measurement.md 삭제**: v3-only 참조 문서, v4에서 불필요
 - **DoD 기준 갱신**: 9 타입(E1-E9) → 5 타입(E1-E5). 각 타입 seeded_detected=5, fp_on_clean=0 달성
 
-### PR 3 — Capture 강화 + Web Clipper 템플릿 (PR 2 후)
+### PR 3 — Capture 강화 + Web Clipper 템플릿 (#85, ✅ 2026-05-26)
 
 - `obsidian-vault-manager/skills/capture/SKILL.md`:
   - 다중 URL 병렬 defuddle: `/capture url1 url2 url3`
@@ -64,21 +89,52 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
   - type 전이 (capture → note) 명세 (설계 §5.2)
 - `obsidian-vault-manager/reference/web-clipper-template.md` 신규 (설계 §5.1)
 
-### PR 4 — `/audit` Phase 1 (PR 2 후)
+### PR 4 — `/audit` Phase 1 (sub-PR로 분할 진행)
 
-- `obsidian-vault-manager/skills/audit/SKILL.md`:
-  - Step 0 (메타 재계산) ~ Step 5 (Phase 2 비활성) 구현
-  - 환경변수 임계값 5개: `VAULT_AUDIT_INBOX_RAW_THRESHOLD` 등
-  - 출력 우선순위 P0~P3, 카테고리 접힘 기본
-  - git log 활동 요약 (설계 §4.1, §6.1)
+원래 단일 PR로 계획됐으나 v4 §6.1 Step 별 점진 검증이 안전해 sub-PR로 분할. 4a/4b 완료, 4c~4e 미완.
 
-### PR 5 — `/vault-commit` 메시지 컨벤션 (PR 1 후, 병렬 가능)
+**PR 4a — Phase 1 expansion** (#86, ✅ 2026-05-26)
+- P0/P2 priority mapping + manifest summary (read-only `file_count` + `generated_at`)
+- `PRIORITY_BY_TYPE` drift detector (`priority_mismatches` DoD 필드)
+- E2 status-missing sub-fixture (10 = 5 base + 5 status-missing)
+
+**PR 4b — Phase 2 stagnation** (#87, ✅ 2026-05-27)
+- E6 `stale_inbox` (P1, inbox raw + created > 14d, type:session 자동 제외)
+- E7 `stale_draft` (P1, notes draft + created > 30d, `_index.md` skip)
+- `parse_created_date()` + 13-case 단위 테스트
+- handoff SessionStart UX (resume.md compact display) — 같은 PR에 묶었으나 향후엔 분리
+
+**PR 4c — Step 0: 시스템 메타 재계산** (다음 즉시, PR 4d의 의존)
+- `vault-bridge/scripts/generate-manifest.py` write-side 확장:
+  - `references_in` (해당 노트로 들어오는 wikilink 수)
+  - `references_out` (해당 노트가 내보내는 wikilink 수)
+  - `access_count` (`git log --follow` 기반 빈도)
+  - `promotion_candidate` (Step 3에서 사용할 플래그)
+- audit이 read-side에서 활용 — 현재 4a는 `file_count` + `generated_at`만 표시
+- DoD: manifest 필드 정확성 + 대규모 vault 성능 (incremental update 유지)
+
+**PR 4d — Step 3: Promotion Candidate** (PR 4c 의존, P2)
+- 트리거: `references_in >= 3` 또는 `access_count >= 5` 노트 (`VAULT_AUDIT_PROMOTION_REFS=3`, `VAULT_AUDIT_PROMOTION_ACCESS=5` 환경변수)
+- 스코프: `type: note` 또는 `type: decision`만 (§3.3 승격 자격)
+- 새 에러 코드(예: E8) 또는 별도 카테고리로 audit-validate.py에 추가
+- 출력: 파일명 + 신호값 → 사용자가 수동으로 frontmatter `status: evergreen` 편집
+- Fixture: high-ref/high-access 시드 + ring-link 패턴 활용
+
+**PR 4e — Step 4: Git 활동 요약** (독립, 작은 작업, P3)
+- 지난 7일 vault 활동: commit 수, 추가/수정/archive 파일 카운트
+- `git log --since="1 week ago" -- $VAULT_ROOT` 기반
+- audit REPORT 헤더에 1-2줄 요약 추가 (정체/promotion 섹션과 분리)
+- 의존 없음 — 4c/4d 진행과 병렬 가능
+
+**Step 5 (Phase 2 패턴 추출)** — 데이터 축적 3-6개월 후 deferred. decision 노트가 임계 N 도달 시 활성. 현재 단계에선 비활성 유지.
+
+### PR 5 — `/vault-commit` 메시지 컨벤션 (PR 1 후, 병렬 가능, ⏳)
 
 - `vault-bridge/commands/vault-commit.md`:
   - status 전이 감지 → 자동 commit message
   - 형식: `note(promote): {file} {raw→draft}`, `decision(create): {file} - {problem}` 등 (설계 §4.2)
 
-### PR 6 — 마이그레이션 dogfood (PR 1-5 후)
+### PR 6 — 마이그레이션 dogfood (PR 1-5 후, ⏳)
 
 - 우리 vault에 `docs/plans/vault-second-brain-v4-migration.md` 절차 실행
 - `v4-migration-snapshot` git tag 필수
@@ -86,7 +142,7 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 - 결과·발견된 이슈는 capture 또는 decision 노트로 vault에 기록
 - 발견된 문제는 PR 1-5 핫픽스
 
-### PR 7 — README + onboarding (마지막)
+### PR 7 — README + onboarding (마지막, ⏳)
 
 - claude-kit 루트 README v4 반영
 - OVM README 신규 (3 스킬 워크플로우)
@@ -113,10 +169,17 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 ## 첫 액션 (세션 시작 시)
 
 1. **이 문서 + 두 설계 문서 읽기** (위 §필수 선행 읽기)
-2. `git log -10` + `git status`로 현재 상태 파악
-3. **PR 3 시작** — `obsidian-vault-manager/skills/capture/SKILL.md` capture 강화 + Web Clipper 템플릿 신규
-4. 변경 후 즉시 회귀 테스트 + 커밋
+2. `git log -10` + `git status`로 현재 상태 파악 (PR #87까지 머지된 상태인지 확인)
+3. **PR 4c 시작** — Step 0 시스템 메타 재계산:
+   - `vault-bridge/scripts/generate-manifest.py`에 `references_in/out`, `access_count`, `promotion_candidate` 계산 추가
+   - 현재 `file_count` + `generated_at`만 manifest에 있는 상태 (PR 4a read-only display 한정)
+   - PR 4d (Promotion Candidate)의 차단 의존성이라 우선 진행 권고
+4. 변경 후 즉시 회귀 테스트 + 커밋 (`vault-bridge/scripts/test/test-manifest-type-optin.py` 외)
 5. PR 단위 push, 다음 PR로 이동
+
+**병렬 작업자 권고**: PR 5 (`/vault-commit` 컨벤션)는 audit과 독립이라 다른 세션에서 동시 진행 가능 — 설계 §4.2 참조.
+
+**과거 PR 분할 결정 기록**: PR 4를 sub-PR (4a~4e)로 분할한 것은 의도된 결정. 단일 큰 PR로 묶으면 회귀 추적이 어렵고 검증 단위가 모호해져요. Step 별 DoD를 명확히 떨어뜨려 진행하세요.
 
 ## 컨텍스트 압축 대비
 
