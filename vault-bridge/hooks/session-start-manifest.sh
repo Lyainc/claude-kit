@@ -61,8 +61,8 @@ try:
             s = line.strip()
             if s.startswith('#'):
                 break                    # next section reached
-            if s in ('```', '~~~'):
-                continue
+            if s.startswith('```') or s.startswith('~~~'):
+                continue              # bare and language-tagged fences both skipped
             if s:
                 one_liner = s
                 break
