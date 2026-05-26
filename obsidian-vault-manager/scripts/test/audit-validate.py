@@ -233,14 +233,12 @@ def classify(bundle: dict) -> dict:
         # as absent — the audit's job is to flag malformed status via E1/E2.
         status = raw_status.strip() if isinstance(raw_status, str) else ""
 
-        # E6: stale_inbox — inbox/ files still raw (or unstatused) past threshold
+        # E6/E7 are mutually exclusive (top folder is a single value).
         if top == "inbox":
             if status in INBOX_RAW_STATUSES and age_days > STALE_INBOX_DAYS:
                 add("E6_stale_inbox", rec["rel"],
                     f"age {age_days}d > {STALE_INBOX_DAYS}d (status:{status or 'none'}, created {fm.get('created')})")
-
-        # E7: stale_draft — notes/ draft notes past threshold (skip _index.md, like E5)
-        if top == "notes" and rel_path.name != "_index.md":
+        elif top == "notes" and rel_path.name != "_index.md":
             if status == "draft" and age_days > STALE_DRAFT_DAYS:
                 add("E7_stale_draft", rec["rel"],
                     f"age {age_days}d > {STALE_DRAFT_DAYS}d (status:draft, created {fm.get('created')})")

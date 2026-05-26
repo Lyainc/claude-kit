@@ -117,6 +117,10 @@ python3 telemetry/scripts/validate-schema.py --self-test
 bash -n vault-bridge/hooks/*.sh
 bash -n telemetry/event-logger.sh
 
+# parse_created_date unit test (audit-validate Phase 2 helper)
+python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
+# Expected: OK: all 13 cases passed
+
 # vault-audit DoD 측정 (mechanical reference impl)
 rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
