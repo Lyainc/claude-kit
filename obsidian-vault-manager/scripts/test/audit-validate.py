@@ -265,7 +265,7 @@ def read_manifest_summary(vault: Path) -> Optional[dict]:
         return None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError):
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return None
     return {
         "file_count": data.get("file_count"),
