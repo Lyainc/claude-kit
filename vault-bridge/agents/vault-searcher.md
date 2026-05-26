@@ -37,14 +37,14 @@ done
 ```
 
 **Parsing the pointer**:
-- Read `.vault-link` as YAML. Required field: `vault_path` (relative path from vault root, e.g. `20_Projects/claude-kit`). Optional field: `version` (default 1 if absent).
+- Read `.vault-link` as YAML. Required field: `vault_path` (relative path from vault root, e.g. `notes/claude-kit`). Optional field: `version` (default 1 if absent).
 - If `.vault-link.local` exists at the same level or below: read `vault_root` field (overrides default `~/vault/`). Otherwise use `~/vault/`.
 
 **Recovery (path resolution failure)**:
 - Construct full path: `{vault_root}/{vault_path}`.
 - Check if that directory exists via Bash: `[ -d "{full_path}" ]`.
 - If directory does NOT exist:
-  1. Scan `{vault_root}/20_Projects/` for subdirectory names.
+  1. Scan `{vault_root}/notes/` for subdirectory names.
   2. Compute edit distance between `vault_path`'s leaf segment and each candidate.
   3. Collect candidates with edit distance ≤ 2.
   4. If 1+ candidates found: use AskUserQuestion to present them and ask user to confirm correct path or proceed with full-vault scope.
@@ -53,7 +53,7 @@ done
 
 ## Vault Layout
 
-Vault root: `~/vault/` — dirs: `00_Inbox`, `10_MOC` (Home.md), `20_Projects`, `30_Notes`, `40_Resources`, `50_Archive`, `90_Assets`
+Vault root: `~/vault/` — dirs: `inbox` (raw input), `notes` (all content; free sub-folders), `assets` (attachments)
 
 ## Modes
 
@@ -67,8 +67,8 @@ Find and load the most recent active session note or handoff to restore session 
 
 **Procedure**:
 1. Search for session files:
-   - With project name: `~/vault/20_Projects/{name}/session-*.md`
-   - Without: `~/vault/20_Projects/*/session-*.md` + `~/vault/00_Inbox/session-*.md`
+   - With `.vault-link` found (project scope): `{vault_root}/{vault_path}/session-*.md`
+   - Without pointer: `~/vault/inbox/session-*.md` (canonical) + `~/vault/notes/*/session-*.md` (legacy / user-moved)
 2. Filter by frontmatter `status: active`.
 3. Sort by date descending. Select the most recent.
 4. If multiple projects have active session notes, show list and ask user to choose.
@@ -99,14 +99,14 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 **Procedure** (standard, used when manifest is absent or stale):
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search)
-   - No pointer or resolution failed → `search_root = ~/vault/` (full-vault search, existing behavior)
-2. Read `{search_root}/10_MOC/{domain}.md` (or search within `search_root` for a matching MOC file).
-   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree (the CLI supports `path=<folder>` natively — no need to fall back for scope reasons alone).
-   - If no MOC found, or if the CLI path is unavailable/fails/times out, search adaptively within `search_root`:
+   - No pointer or resolution failed → `search_root = ~/vault/notes/` (v4: all content in notes/)
+2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
+   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree.
+   - If CLI is unavailable/fails/times out, search adaptively within `search_root`:
      - macOS (`uname -s` = `Darwin`): `mdfind -onlyin {search_root} "{domain}"` (결과 없으면 grep fallback)
      - Other / fallback: `grep -rl "{domain}" {search_root} --include="*.md"`
    - Comma-separated domains: query each individually, merge results.
-3. Collect titles and tags from MOC-linked notes.
+3. Collect titles and tags from matched notes.
 4. If `status: active` handoff exists for the domain, show as "In Progress" priority section.
 5. Show recent notes first (default 20).
 
@@ -121,7 +121,7 @@ Search the entire vault by keyword and load note contents.
    - Match `{keyword}` against each entry's `title` and `summary` fields (case-insensitive substring).
    - Collect matching entries as initial candidate set. If ≥ 1 match found, skip step 2 and use these candidates directly.
    - If no manifest matches, fall through to step 2.
-2. Search (exclude `.claude/`, `90_Assets/`):
+2. Search (exclude `.claude/`, `assets/`):
    - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{keyword}" limit=20` and use the returned vault-relative paths as candidates.
    - If the CLI path is unavailable, fails, times out, or returns no useful candidates, fall back:
      - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
@@ -142,7 +142,7 @@ Search the entire vault by keyword and load note contents.
 
 <example>
 user: "지난 세션 이어서 해줘"
-assistant: ".vault-link 확인 → 20_Projects/claude-kit 스코프.
+assistant: ".vault-link 확인 → notes/claude-kit 스코프.
 session-2026-04-10.md (status: active) 발견.
 현재 상태: API 설계 리뷰 진행 중 | 다음 단계: PR #42 머지 후 배포 | 블로커: 없음"
 <commentary>
@@ -156,8 +156,8 @@ No full-vault scan — targeted read via .vault-link project scope.
 user: "예전에 쓴 GraphQL federation 관련 노트 있어?"
 assistant: "vault에서 'GraphQL federation' 검색할게요."
 [manifest pre-filter → 2건 히트 → 파일 읽기]
-"1. graphql-federation-basics.md (30_Notes) — 2025-02-10
-2. api-gateway-design.md (30_Notes) — 2025-01-28
+"1. graphql-federation-basics.md (notes) — 2025-02-10
+2. api-gateway-design.md (notes) — 2025-01-28
 어떤 파일 열어드릴까요?"
 <commentary>
 Keyword search (Mode 3): manifest pre-filter first, then adaptive grep fallback.
@@ -167,7 +167,7 @@ Results as numbered list — full content loads only on user selection.
 
 <example>
 user: "kubernetes 관련 vault 컨텍스트 불러와줘"
-assistant: ".vault-link 확인 → 20_Projects/my-service 스코프 발견.
+assistant: ".vault-link 확인 → notes/my-service 스코프 발견.
 manifest.json kubernetes 태그 필터링 → 4건 (active session note 1 + notes 3).
 [파일 로드 후 현재 진행 상황 요약 출력]"
 <commentary>
