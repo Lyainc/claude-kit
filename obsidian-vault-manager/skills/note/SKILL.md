@@ -26,7 +26,7 @@ When drafting the note, follow `../../reference/obsidian-format.md` for Obsidian
    - `type: decision` → `~/vault/notes/decision-YYYY-MM-DD-{topic-in-kebab-case}.md` (type-first, dated)
    - **Filename collision** (exact same stem exists): append `-v2`, `-v3`, etc. automatically — no AskUserQuestion. This is a mechanical uniqueness guarantee, not a content check.
 
-3. **Check for content duplicates**: `find ~/vault/notes -name '*.md' 2>/dev/null | xargs -I{} basename {} .md | grep -i {keyword}`
+3. **Check for content duplicates**: `find ~/vault/notes -name '*.md' -exec basename {} .md \; 2>/dev/null | grep -i {keyword}`
    - This is a *content similarity* check, separate from the filename collision in Step 2.
    - If a semantically similar note exists, notify the user and ask: overwrite / rename / merge.
 

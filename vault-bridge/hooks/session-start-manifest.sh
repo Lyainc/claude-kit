@@ -37,7 +37,7 @@ try:
                 break
     if content:
         model_ctx = '이전 세션의 인수인계 메모입니다:\n\n' + content
-        user_msg  = '[세션 복원] 이전 세션 인수인계:\n\n' + content
+        user_msg = '[세션 복원] 이전 세션 인수인계:\n\n' + content
         print(json.dumps({
             'systemMessage': user_msg,
             'hookSpecificOutput': {
@@ -45,7 +45,7 @@ try:
                 'additionalContext': model_ctx,
             }
         }))
-        os.remove(resume_path)  # consume only after successful delivery
+        os.remove(resume_path)  # consume after stdout write; on crash before harness reads, next session retries
 except Exception:
     pass  # leave resume_path intact so next session can retry
 PYEOF
