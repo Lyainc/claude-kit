@@ -55,7 +55,7 @@ Auto-generate frontmatter before drafting body:
   - `.vault-link` found, path resolves, AND `type ∈ {session, plan}` → `save_dir = {vault_root}/{vault_path}/` (project-scoped). Skip Step B.
   - `type = capture` OR no pointer OR resolution failed → Step B.
 - **Step B — explicit argument or auto-detect** (only `capture` and `session` may fall through to `inbox/` per v4 §3.6):
-  - **`type = plan`** and Step A failed → `save_dir = ~/vault/notes/`. Skip the inbox fallback below — plans never go in inbox (pre-write-guard rejects them).
+  - **`type = plan`** and Step A failed → `save_dir = ~/vault/notes/`. Skip the inbox fallback below — plans should not land in inbox (pre-write-guard warns by default, blocks in strict mode).
   - If `$ARGUMENTS` contains a project name, check `~/vault/notes/{name}/` existence.
     - Exists: `save_dir = ~/vault/notes/{name}/`
     - Not found: confirm with user to save to Inbox (`save_dir = ~/vault/inbox/`)
