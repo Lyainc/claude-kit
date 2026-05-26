@@ -138,27 +138,33 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 
 ## Vault File Conventions
 
-Files written to `~/vault/` by OVM or vault-bridge follow a unified convention.
+Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (vault second brain v4 — see `docs/design/vault-second-brain-v4.md`).
 
-**Filename**: `{type}-YYYY-MM-DD[-{topic}][-vN].md` (type-first)
+**Folder layout** (v4 §3.1): three top-level folders only — `inbox/` (raw input), `notes/` (all content; free sub-folders allowed), `assets/` (attachments).
+
+**Filename pattern** (v4 §3.6): `{type}-YYYY-MM-DD[-{topic}][-vN].md` for dated types, `{slug}.md` for evergreen notes.
 
 | Type | Example | Path |
 |------|---------|------|
-| `session` | `session-2026-04-12.md` | `00_Inbox/` or `20_Projects/{name}/` |
-| `capture` | `capture-2026-04-12-api-changes.md` | `00_Inbox/` |
-| `note` | `{topic}.md` (no date) | `30_Notes/` |
-| `project` | `_index.md` (fixed) | `20_Projects/{name}/` |
-| `plan` | `plan-2026-04-12-{topic}.md` | `20_Projects/{name}/` |
+| `session` | `session-2026-04-12.md` | `inbox/` |
+| `capture` | `capture-2026-04-12-api-changes.md` | `inbox/` |
+| `note` | `{topic}.md` (no date) | `notes/` |
+| `decision` | `decision-2026-04-12-{topic}.md` | `notes/` |
+| `plan` | `plan-2026-04-12-{topic}.md` | `notes/{project}/` (linked via `.vault-link`) |
 
 Same-date collisions: `-v2`, `-v3` increment.
 
 **Frontmatter standard**:
 ```yaml
-created: YYYY-MM-DD            # required, all files
-tags: [{type}, {domain}]       # required
-type: session|capture|note|project|plan  # required
-status: active|archived        # conditional (session-handoff, project, plan)
+created: YYYY-MM-DD                            # required, all files
+tags: [{type}, {domain}]                       # required
+type: capture|note|decision|session|plan       # required — type opt-in (v4 §2.2): files without `type:` are invisible to claude-kit
+status: raw|draft|evergreen|archived           # required for note/decision (status machine, v4 §3.3); session/capture/plan: optional
+source: web-clipper|manual|...                 # capture only, optional
+url: ...                                       # capture only, optional
 ```
+
+**type opt-in** (v4 §2.2): a `type:` field is the marker that opts a note into claude-kit's management. Files without it remain invisible — users keep diary, book notes, free folders untouched.
 
 ## vault-bridge Hooks & Commands
 
