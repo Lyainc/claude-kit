@@ -55,10 +55,10 @@ Auto-generate frontmatter before drafting body:
   - `.vault-link` found, path resolves, AND `type ∈ {session, plan}` → `save_dir = {vault_root}/{vault_path}/` (project-scoped). Skip Step B.
   - `type = capture` OR no pointer OR resolution failed → Step B.
 - **Step B — explicit argument or auto-detect**:
-  - If `$ARGUMENTS` contains a project name, check `~/vault/20_Projects/{name}/` existence.
-    - Exists: `save_dir = ~/vault/20_Projects/{name}/`
-    - Not found: confirm with user to save to Inbox (`save_dir = ~/vault/00_Inbox/`)
-  - No arguments: auto-detect from session topics. Default to `~/vault/00_Inbox/`.
+  - If `$ARGUMENTS` contains a project name, check `~/vault/notes/{name}/` existence.
+    - Exists: `save_dir = ~/vault/notes/{name}/`
+    - Not found: confirm with user to save to Inbox (`save_dir = ~/vault/inbox/`)
+  - No arguments: auto-detect from session topics. Default to `~/vault/inbox/`.
 - **Path conflict** (AskUserQuestion if `.vault-link` path differs from auto-detected):
   - Option A: use suggested path
   - Option B: specify a different path
@@ -162,6 +162,6 @@ type: session
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `{project-name}` | Link to project (`20_Projects/` subdirectory) | auto-detect |
+| `{project-name}` | Link to project (`notes/` subdirectory) | auto-detect |
 | `--quick` | Brief version (Summary + Related Files) | false |
 | `--hours N` | File change search range (integer 1-24, invalid → warning + default) | 1 hour |

@@ -5,7 +5,7 @@ argument-hint: "[project-name]"
 disable-model-invocation: true
 ---
 
-Create a `.vault-link` pointer file in the current working directory (CWD), binding this repository to a specific `~/vault/20_Projects/` project.
+Create a `.vault-link` pointer file in the current working directory (CWD), binding this repository to a specific `~/vault/notes/` project sub-folder.
 
 **User language: Korean.** All user-facing output MUST be in Korean.
 
@@ -32,14 +32,14 @@ If the user chooses 취소, stop without changes.
 ### Step 2 — Scan available vault projects
 
 ```bash
-ls -1 ~/vault/20_Projects/ 2>/dev/null
+ls -1 ~/vault/notes/ 2>/dev/null
 ```
 
-Collect the list of subdirectory names under `~/vault/20_Projects/`. Present them to the user as a numbered list.
+Collect the list of subdirectory names under `~/vault/notes/`. Present them to the user as a numbered list.
 
 Use AskUserQuestion:
 
-> `~/vault/20_Projects/` 하위 프로젝트 목록입니다:
+> `~/vault/notes/` 하위 프로젝트 목록입니다:
 >
 > 1. {project-a}
 > 2. {project-b}
@@ -52,20 +52,20 @@ Use AskUserQuestion:
 
 If the user selects 신규: output the following message and stop:
 
-> 신규 프로젝트를 생성하려면 `obsidian-vault-manager`의 `/project` 스킬을 먼저 실행하세요.
+> 신규 프로젝트를 생성하려면 `~/vault/notes/{name}/` 디렉토리를 만들거나, `obsidian-vault-manager`의 `/note` 스킬로 notes/ 하위에 먼저 폴더를 생성하세요.
 > 프로젝트 디렉토리가 생성된 후 다시 `/vault-link`를 실행하면 연결할 수 있습니다.
 
 If the user selects 취소: stop without changes.
 
 ### Step 3 — Write `.vault-link`
 
-Construct the `vault_path` value as `20_Projects/{selected-project-name}`.
+Construct the `vault_path` value as `notes/{selected-project-name}`.
 
 Write the following content to `{CWD}/.vault-link`:
 
 ```yaml
 version: 1
-vault_path: 20_Projects/{selected-project-name}
+vault_path: notes/{selected-project-name}
 ```
 
 Use the Write tool. Do not overwrite other files.
@@ -76,7 +76,7 @@ After writing, output:
 
 > `.vault-link` 파일을 생성했습니다:
 > ```
-> vault_path: 20_Projects/{selected-project-name}
+> vault_path: notes/{selected-project-name}
 > ```
 > vault root가 `~/vault/`가 아닌 경우(예: 팀 공유 vault 또는 별도 경로), `.vault-link.local` 파일을 만들어 `vault_root`를 지정할 수 있습니다.
 >
@@ -109,5 +109,5 @@ After writing, output:
 - Write `.vault-link` to CWD only. Never write to parent directories or inside `~/vault/`.
 - `.gitignore` is modified only after explicit user confirmation in Step 5; never write without the AskUserQuestion answer.
 - Never auto-call OVM skills or create vault project directories.
-- If `~/vault/20_Projects/` does not exist or is empty, inform the user and stop:
-  > `~/vault/20_Projects/` 디렉토리가 없거나 비어 있습니다. `obsidian-vault-manager`의 `/project` 스킬로 프로젝트를 먼저 생성해 주세요.
+- If `~/vault/notes/` does not exist or is empty, inform the user and stop:
+  > `~/vault/notes/` 디렉토리가 없거나 비어 있습니다. `mkdir -p ~/vault/notes/{project-name}`으로 먼저 프로젝트 폴더를 만들어 주세요.
