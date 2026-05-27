@@ -134,7 +134,7 @@ python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
 python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
 # Expected: OK: all cases passed (7 cases)
 python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
-# Expected: OK: all 7 cases passed
+# Expected: OK: all 8 cases passed
 
 # DoD fixture (gen-fixture.sh now generates manifest + patches E8 access-target internally)
 rm -rf /tmp/ovm-fixture-audit-recheck

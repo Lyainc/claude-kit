@@ -482,7 +482,9 @@ EOF
   _REPO_ROOT="$(cd "${_FIXTURE_SCRIPT_DIR}/../../.." && pwd)"
   _GENERATOR="${_REPO_ROOT}/vault-bridge/scripts/generate-manifest.py"
   if [ -f "$_GENERATOR" ] && command -v python3 >/dev/null 2>&1; then
-    python3 "$_GENERATOR" --vault-root "$FIXTURE_DIR" --force >/dev/null 2>&1
+    # stderr surfaced (not redirected to /dev/null) so generator failures
+    # are debuggable; only the noisy success stats go to /dev/null.
+    python3 "$_GENERATOR" --vault-root "$FIXTURE_DIR" --force >/dev/null
     python3 - "$FIXTURE_DIR" <<'PYEOF'
 import sys, json
 from pathlib import Path
