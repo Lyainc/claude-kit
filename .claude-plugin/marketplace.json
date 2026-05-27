@@ -12,8 +12,8 @@
   "plugins": [
     {
       "name": "thinking-tools",
-      "version": "1.9.2",
-      "description": "Claude Code thinking skills plugin: expert panel discussions, document concretization, document polish, diverse sampling, blind spot detection, thought chain orchestration, adversarial claim review, spec-first idea crystallization, and thinking facilitator agent.",
+      "version": "1.9.3",
+      "description": "Claude Code thinking-tools plugin: 8 skills for structured reasoning, debate, document polish, blind-spot detection, and idea crystallization, plus a thinking-facilitator agent.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -64,8 +64,8 @@
     },
     {
       "name": "vault-bridge",
-      "version": "1.16.0",
-      "description": "Obsidian vault ↔ external project bridge plugin with vault manifest caching, optional Obsidian CLI search acceleration, direct-access awareness, session auto-commit, write path governance, opt-in plan-doc autosync, and session handoff with terminal-visible resume on session restore. Agent (vault-searcher, haiku) + Stop/SessionEnd/SessionStart/PreToolUse hooks + /save-session + /handoff + /vault-manifest-refresh + /vault-commit + /save-plan-doc commands + .vault-link pointer-based project binding. vault-searcher acts as read/search agent only (read-only since v1.9.0). Vault writes are restricted to slash commands executed in main context; subagent vault writes are policy-blocked via VAULT_BRIDGE_WRITE_CONTRACT. Searches notes, loads domain context, restores session context, enforces file naming conventions, commits vault changes with user approval, and snapshots external plan/design docs into the bound vault project behind a 2-layer opt-in gate.",
+      "version": "1.16.1",
+      "description": "Obsidian vault ↔ project bridge for Claude Code: manifest cache, read-only vault-searcher agent (haiku), Stop/SessionEnd/SessionStart/PreToolUse hooks, and slash commands (/save-session, /vault-link, /vault-commit, /save-plan-doc, /handoff, /vault-manifest-refresh) with .vault-link project binding and write-role contract.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
