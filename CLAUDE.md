@@ -121,6 +121,10 @@ bash -n telemetry/event-logger.sh
 python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
 # Expected: OK: all 13 cases passed
 
+# read_manifest_summary schema_version gate (None vs 0 semantics)
+python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
+# Expected: OK: all cases passed (7 cases)
+
 # vault-audit DoD 측정 (mechanical reference impl)
 rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
