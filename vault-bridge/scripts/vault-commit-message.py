@@ -113,10 +113,7 @@ def _msg_for_added(vault_root: str, rel_path: str) -> str:
         return f"session: {stem} (new)"
     elif ftype == "capture":
         return f"capture: {stem} (new)"
-    elif ftype is not None:
-        return f"vault: add {Path(rel_path).name}"
-    else:
-        return f"vault: add {Path(rel_path).name}"
+    return f"vault: add {Path(rel_path).name}"
 
 
 def _msg_for_modified(vault_root: str, rel_path: str) -> str:
@@ -189,17 +186,14 @@ def _parse_diff_lines(lines: list[str]) -> list[str]:
 
         status = parts[0].strip()
 
-        if status == "A" and len(parts) >= 2:
+        if status == "A":
             messages.append(_msg_for_added(vault_root, parts[1]))
-        elif status == "M" and len(parts) >= 2:
+        elif status == "M":
             messages.append(_msg_for_modified(vault_root, parts[1]))
-        elif status == "D" and len(parts) >= 2:
+        elif status == "D":
             messages.append(_msg_for_deleted(parts[1]))
         elif (status.startswith("R") or status.startswith("C")) and len(parts) >= 3:
             messages.append(_msg_for_renamed(parts[1], parts[2]))
-        else:
-            # Unknown status or malformed — skip
-            pass
 
     return messages
 
