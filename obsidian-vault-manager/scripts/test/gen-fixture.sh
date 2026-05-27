@@ -386,6 +386,72 @@ Draft since 2020 — should trigger E7_stale_draft. Links to [[${link_target}]].
 EOF
   done
 
+  # ── E8: promotion_candidate (2 seeded targets + ring-linker helpers) ──────────
+  # audit-e8-promotion-target: 3 ring-linker notes create references_in=3 →
+  #   generate-manifest.py computes promotion_candidate=True naturally.
+  # audit-e8-access-target: manifest patch below sets access_count=5 + promotion_candidate=True.
+  # Ring-linker files have no "audit-e8-" prefix so they are not counted as E8 seeds.
+  write_file "$FIXTURE_DIR/notes/audit-e8-promotion-target.md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: raw
+---
+
+# Audit E8 Promotion Target
+
+High-reference note — should be flagged as promotion candidate when refs_in≥3.
+
+Links to [[audit-e8-access-target]] and [[audit-clean-no-promotion]] for graph connectivity.
+EOF
+
+  write_file "$FIXTURE_DIR/notes/audit-e8-access-target.md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: raw
+---
+
+# Audit E8 Access Target
+
+High-access note — should be flagged as promotion candidate when access_count≥5.
+access_count is patched to 5 in the manifest after generation (git-free simulation).
+EOF
+
+  for i in 1 2 3; do
+    next=$(( (i % 3) + 1 ))
+    write_file "$FIXTURE_DIR/notes/promotion-ring-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: raw
+---
+
+# Promotion Ring Note ${i}
+
+Links to [[audit-e8-promotion-target]] and [[promotion-ring-$(printf '%03d' $next)]] (ring to avoid orphan).
+EOF
+  done
+
+  # FP clean: note that should NOT be promoted (low refs, low access).
+  # Uses audit-clean- prefix so it's included in fp_on_clean E8 measurement.
+  write_file "$FIXTURE_DIR/notes/audit-clean-no-promotion.md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: raw
+---
+
+# Audit Clean No Promotion
+
+Clean note for E8 FP measurement — below promotion threshold (refs_in=1, access=0).
+Links to [[promotion-ring-001]] for graph connectivity.
+EOF
+
   # ── 200 extra clean notes for FP measurement ─────────────────────────────────
   # These have fully valid frontmatter and filenames; none should be flagged.
   # Linking strategy: note i links to note i+1 (mod 200), forming a ring so
@@ -408,7 +474,45 @@ Clean note for FP measurement. Links to [[${link_target}]].
 EOF
   done
 
-  log "  Audit error fixtures (v4, E1-E7):"
+  # ── generate manifest + patch access_count for E8 detection ──────────────────
+  # generate-manifest.py computes references_in=3 for audit-e8-promotion-target
+  # (from 3 ring-linker files) → promotion_candidate=True naturally.
+  # audit-e8-access-target needs access_count=5 patched (no git history in fixture).
+  _FIXTURE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+  _REPO_ROOT="$(cd "${_FIXTURE_SCRIPT_DIR}/../../.." && pwd)"
+  _GENERATOR="${_REPO_ROOT}/vault-bridge/scripts/generate-manifest.py"
+  if [ -f "$_GENERATOR" ] && command -v python3 >/dev/null 2>&1; then
+    python3 "$_GENERATOR" --vault-root "$FIXTURE_DIR" --force >/dev/null 2>&1
+    python3 - "$FIXTURE_DIR" <<'PYEOF'
+import sys, json
+from pathlib import Path
+
+vault = Path(sys.argv[1])
+manifest_path = vault / ".vault-bridge" / "manifest.json"
+if not manifest_path.is_file():
+    print("WARNING: manifest not found, skipping access-target patch", file=sys.stderr)
+    sys.exit(0)
+
+data = json.loads(manifest_path.read_text(encoding="utf-8"))
+patched = False
+for f in data.get("files") or []:
+    if "audit-e8-access-target" in (f.get("path") or ""):
+        f["access_count"] = 5
+        f["promotion_candidate"] = True
+        patched = True
+        break
+
+if patched:
+    manifest_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
+    print("Patched access_count=5, promotion_candidate=True for audit-e8-access-target", file=sys.stderr)
+else:
+    print("WARNING: audit-e8-access-target not found in manifest", file=sys.stderr)
+PYEOF
+  else
+    log "WARNING: generate-manifest.py not found at $_GENERATOR — E8 manifest skipped"
+  fi
+
+  log "  Audit error fixtures (v4, E1-E8):"
   log "    E1 missing_frontmatter              : 5 files"
   log "    E2 missing_required_fields          : 10 files (5 base + 5 status-missing)"
   log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix)"
@@ -416,8 +520,9 @@ EOF
   log "    E5 orphan_note                      : 5 files"
   log "    E6 stale_inbox                      : 5 files (inbox raw, created 2020)"
   log "    E7 stale_draft                      : 5 files (notes draft, created 2020, ring-linked)"
-  log "    Total seeded errors                 : 40"
-  log "    Extra clean notes (FP base)         : 200"
+  log "    E8 promotion_candidate              : 2 files (refs×3 + access×5 via manifest patch)"
+  log "    Total seeded errors                 : 42"
+  log "    Extra clean notes (FP base)         : 200 + audit-clean-no-promotion"
   log ""
 fi
 
