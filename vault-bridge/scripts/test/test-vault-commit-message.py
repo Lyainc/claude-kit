@@ -161,6 +161,23 @@ def case_modify_body_only(errors: list[str]) -> None:
         _assert(out.startswith("note(update):"), f"starts with note(update): (got: {out!r})", errors)
 
 
+def case_modify_decision_body(errors: list[str]) -> None:
+    """Modified decision file with no status change → message starts with 'decision(update):'"""
+    print("\ncase: modify_decision_body")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        rel = "notes/arch-choice.md"
+        _write_note(vault_root, rel, "decision", "draft", body="# old rationale\n")
+        _commit_file(str(vault_root), rel, "add arch-choice")
+        _write_note(vault_root, rel, "decision", "draft", body="# updated rationale\n")
+        diff = ["M\t" + rel]
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out.startswith("decision(update):"), f"starts with decision(update): (got: {out!r})", errors)
+
+
 def case_multi_file_decision_plus_note(errors: list[str]) -> None:
     """Multi-file (decision + note update) → title is decision line, body has bullet"""
     print("\ncase: multi_file_decision_plus_note")
@@ -231,6 +248,7 @@ def main() -> int:
     case_modify_raw_to_draft(errors)
     case_modify_draft_to_evergreen(errors)
     case_modify_body_only(errors)
+    case_modify_decision_body(errors)
     case_multi_file_decision_plus_note(errors)
     case_no_staged_files(errors)
     case_untyped_file(errors)
