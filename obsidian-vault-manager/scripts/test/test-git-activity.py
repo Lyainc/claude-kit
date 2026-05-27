@@ -112,11 +112,6 @@ def main() -> int:
             os.environ["PATH"] = orig_path
 
     print()
-    n_cases = 4 + 5 + 5 + 1  # labels above
-    n_checks = len(errors) + sum(
-        1 for line in open(__file__) if line.strip().startswith("check(")
-    )
-    # Just count the check() calls in this file for the summary line
     total = sum(1 for line in open(__file__) if line.strip().startswith("check("))
     if errors:
         print(f"FAIL: {len(errors)}/{total} cases failed")
