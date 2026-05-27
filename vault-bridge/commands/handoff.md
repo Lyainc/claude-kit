@@ -27,15 +27,19 @@ If the value is `1`, output the following and stop:
 
 ## Step 1 — Read project context
 
+Extract the project name only. Do NOT expose or retain the vault path as a variable.
+
 ```bash
-[ -f "${CLAUDE_PROJECT_ROOT:-$PWD}/.vault-link" ] && cat "${CLAUDE_PROJECT_ROOT:-$PWD}/.vault-link" || echo "NOT_FOUND"
+_vl="${CLAUDE_PROJECT_ROOT:-$PWD}/.vault-link"
+if [ -f "$_vl" ]; then
+  _vp=$(grep '^vault_path:' "$_vl" 2>/dev/null | head -1 | sed 's/vault_path:[[:space:]]*//')
+  PROJECT_NAME="${_vp##*/}"
+fi
+[ -z "${PROJECT_NAME:-}" ] && PROJECT_NAME=$(basename "${CLAUDE_PROJECT_ROOT:-$PWD}")
+echo "PROJECT_NAME=$PROJECT_NAME"
 ```
 
-Parse if found:
-- `vault_path` (e.g., `notes/claude-kit`)
-- `project_name`: last path segment of `vault_path`
-
-If `NOT_FOUND`, derive `project_name` from `basename "${CLAUDE_PROJECT_ROOT:-$PWD}"`.
+Use the printed `PROJECT_NAME` value in the handoff output. Discard all other parsed values — the vault path is NOT used in this command.
 
 ---
 
@@ -134,13 +138,15 @@ project: {project_name}
 
 The `## 한 줄 재개 프롬프트` section is parsed by the SessionStart hook to show a compact resume notification — the one-liner is displayed to the user, the full summary is passed to the model as context only.
 
-Create directory and write file:
+Resolve the canonical write destination:
 
 ```bash
-mkdir -p "${CLAUDE_PROJECT_ROOT:-$PWD}/.claude-kit/vault-bridge"
+RESUME_PATH=$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/resolve-resume-path.sh")
 ```
 
-Write to `${CLAUDE_PROJECT_ROOT:-$PWD}/.claude-kit/vault-bridge/resume.md` using the Write tool.
+If this command fails (non-zero exit), stop immediately — output the stderr error to the user and do NOT write to any fallback path.
+
+Use the Write tool with `file_path` set to **exactly** `$RESUME_PATH` (the value echoed by the script above). Do NOT recompute the path or substitute a different destination.
 
 Ensure `.claude-kit/` is gitignored:
 
@@ -159,7 +165,7 @@ Output:
 
 ## Rules
 
-- Never write to vault paths directly. `resume.md` is a local project file only.
+- `resume.md` MUST be written to the path echoed by `resolve-resume-path.sh` and nowhere else. Never substitute a vault path or any other destination.
 - The `.claude-kit/vault-bridge/` directory is ephemeral and gitignored — do not commit it.
 - Always generate a continuation summary even if context is sparse; state uncertainty explicitly rather than omitting sections.
 - "다음 단계" items must be specific and actionable (e.g., "POST /api/bookings에 세션 검증 추가" not "API 구현").
