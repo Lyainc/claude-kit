@@ -122,10 +122,15 @@ git -C "{vault_root}" commit -m "{custom_msg}"
 
 **Option C — "커밋 안 함 (건너뛰기)"** (index 2):
 
-Output:
-> 커밋을 건너뛰었습니다. 변경사항은 그대로 유지됩니다.
+Un-stage the changes that Step 4a staged for preview:
+```bash
+git -C "{vault_root}" reset HEAD
+```
 
-Stop. Do not run any git commands.
+Output:
+> 커밋을 건너뛰었습니다. Step 4a에서 스테이징한 변경사항은 해제됐어요. 작업 트리는 그대로 유지됩니다.
+
+Stop. Do not run any other git commands.
 
 ### Step 7 — Report result
 
