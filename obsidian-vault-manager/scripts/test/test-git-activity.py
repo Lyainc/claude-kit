@@ -111,6 +111,42 @@ def main() -> int:
         finally:
             os.environ["PATH"] = orig_path
 
+    # ── case 5: VAULT_AUDIT_ACTIVITY_DAYS env var override ───────────────────
+    print("case 5: VAULT_AUDIT_ACTIVITY_DAYS env var override")
+    with tempfile.TemporaryDirectory() as tmp:
+        _setup_git_repo(tmp)
+        f = Path(tmp) / "note.md"
+        f.write_text("content")
+        _git(["add", "note.md"], tmp)
+        _git(["commit", "-m", "initial"], tmp)
+        os.environ["VAULT_AUDIT_ACTIVITY_DAYS"] = "30"
+        try:
+            days = av._env_int("VAULT_AUDIT_ACTIVITY_DAYS", 7)
+            result = _git_activity_summary(Path(tmp), days=days)
+            check("env var override → result is dict", isinstance(result, dict), True)
+            if result:
+                check("env var override → days == 30", result["days"], 30)
+        finally:
+            del os.environ["VAULT_AUDIT_ACTIVITY_DAYS"]
+
+    # ── case 6: git rename detection ─────────────────────────────────────────
+    print("case 6: git rename")
+    with tempfile.TemporaryDirectory() as tmp:
+        _setup_git_repo(tmp)
+        f1 = Path(tmp) / "a.md"
+        f1.write_text("content")
+        _git(["add", "a.md"], tmp)
+        _git(["commit", "-m", "add a"], tmp)
+        _git(["mv", "a.md", "b.md"], tmp)
+        _git(["commit", "-m", "rename a to b"], tmp)
+        result = _git_activity_summary(Path(tmp))
+        check("rename → result is dict", result is not None, True)
+        if result:
+            check("rename → commits == 2", result["commits"], 2)
+            # rename may show as R (modified) or A+D depending on git config — accept both
+            total_changes = result["added"] + result["modified"] + result["deleted"]
+            check("rename → total file changes >= 1", total_changes >= 1, True)
+
     print()
     total = sum(1 for line in open(__file__) if line.strip().startswith("check("))
     if errors:

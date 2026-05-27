@@ -393,8 +393,10 @@ def _env_int(name: str, default: int) -> int:
 
 
 def _git_activity_summary(vault: Path, days: int = 7) -> Optional[dict]:
-    """Return git activity stats for the vault over the last N days, or None on any failure."""
-    days = _env_int("VAULT_AUDIT_ACTIVITY_DAYS", days)
+    """Return git activity stats for the vault over the last N days, or None on any failure.
+
+    Caller is responsible for resolving any env var override (e.g., VAULT_AUDIT_ACTIVITY_DAYS).
+    """
     since = f"{days} days ago"
     try:
         # Count commits
@@ -404,7 +406,7 @@ def _git_activity_summary(vault: Path, days: int = 7) -> Optional[dict]:
         )
         if r_commits.returncode != 0:
             return None
-        commits = len([l for l in r_commits.stdout.splitlines() if l.strip()])
+        commits = len([line for line in r_commits.stdout.splitlines() if line.strip()])
 
         # Count file-level changes
         r_files = subprocess.run(
@@ -455,7 +457,8 @@ def main() -> int:
     result = classify(bundle)
 
     manifest = read_manifest_summary(vault)
-    git_activity = _git_activity_summary(vault)
+    activity_days = _env_int("VAULT_AUDIT_ACTIVITY_DAYS", 7)
+    git_activity = _git_activity_summary(vault, days=activity_days)
     output: dict = {
         "vault": str(vault),
         "total_findings": result["total"],

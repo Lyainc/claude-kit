@@ -161,7 +161,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 볼트 상태: N 노트 / clean X · dirty Y · untracked Z
 매니페스트: F 파일 · 갱신 YYYY-MM-DDTHH:MM  (없음: vault-bridge 미설치)
 promotion_candidate 계산 완료: N개 후보  (없음: manifest v3 미만 / vault-bridge 미설치)
-최근 7일 활동: 12 commits · +5 added · 23 modified · 1 deleted
+최근 7일 활동: 12 commits · 5 added · 23 modified · 1 deleted
 
 발견된 이슈: K건 (P0 a건 · P1 b건 · P2 c건)
 ──────────────────────────────────────────
@@ -218,6 +218,7 @@ promotion_candidate 계산 완료: N개 후보  (없음: manifest v3 미만 / va
 If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
 > **git 활동 줄**: `commits == 0`이거나 vault가 git 저장소가 아닌 경우 해당 줄을 출력하지 않습니다.
+- The 7-day window can be overridden via `VAULT_AUDIT_ACTIVITY_DAYS` env var.
 
 > **우선순위 출력 순서**: P0 → P1 → P2. 각 priority 내 정렬: Critical severity 먼저, 그 다음 Warning, Info 순. 동일 severity 내에서는 error type 코드 순 (E1→E2→E3→E4 / E6→E7 / E5→E8). "사용자 확인 게이트"는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다 — 그 외 항목은 표시만 합니다. E6/E7/E8은 의미적 판단(처리/promote/archive)이 필요해 auto-fix 대상이 아닙니다.
 
