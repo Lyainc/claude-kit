@@ -50,34 +50,31 @@ If the output is empty, output the following and stop:
 
 Collect the full list of changed files from the porcelain output.
 
-### Step 4 — Analyze changes and generate commit message
+### Step 4 — Stage all changes and generate commit message
 
-Parse the porcelain output to determine:
+#### Step 4a — Stage all changes
 
-**File type counts** — for each changed file, determine its type using this priority order:
-1. Read its frontmatter `type` field if accessible (e.g., `session`, `capture`, `note`, `plan`, `project`)
-2. Fall back to filename prefix: files matching `session-*` → `session`, `capture-*` → `capture`, `plan-*` → `plan`, `project-*` or `_index.md` → `project`
-3. Files under `notes/*/` that don't match the above → `note`
-4. Anything else → `file`
+```bash
+git -C "{vault_root}" add -A
+```
 
-**Project names** — collect unique directory names immediately under `notes/` that contain changed files.
+#### Step 4b — Get staged diff for message generation
 
-**Auto commit message** — construct using this logic:
+```bash
+git -C "{vault_root}" diff --cached --name-status
+```
 
-- Today's date in `YYYY-MM-DD` format (from `date +%F`)
-- If project names were found: `"vault session {date}: {type_summary} in {projects}"`
-- Otherwise: `"vault session {date}: {type_summary}"`
+Capture the output as `{diff_output}`.
 
-Where `{type_summary}` is built from non-zero type counts:
-- Single type, single file: `"1 {type}-note"` (e.g., `"1 session-note"`)
-- Single type, multiple files: `"{N} {type}s"` (e.g., `"2 plans"`)
-- Multiple types: `"{N} {type1}s, {M} {type2}s"` (e.g., `"2 plans, 1 note"`)
-- Fallback when type is unclear for all files: `"{total} files"`
+#### Step 4c — Generate commit message via helper
 
-Examples:
-- `"vault session 2026-04-18: 1 session-note"`
-- `"vault session 2026-04-18: 2 plans, 1 note in claude-kit"`
-- `"vault session 2026-04-18: 3 files"`
+```bash
+python3 vault-bridge/scripts/vault-commit-message.py "{vault_root}" <<'EOF'
+{diff_output}
+EOF
+```
+
+Capture the output as `{auto_msg}`. If the command fails or returns empty output, fall back to `"vault: update notes"`.
 
 ### Step 5 — Present summary and ask for approval
 
@@ -109,7 +106,7 @@ Where `{file_list}` lists each file on its own line with a status prefix (`수�
 
 Run:
 ```bash
-git -C "{vault_root}" add -A && git -C "{vault_root}" commit -m "{auto_msg}"
+git -C "{vault_root}" commit -m "{auto_msg}"
 ```
 
 **Option B — "메시지 직접 입력 후 커밋"** (index 1):
@@ -120,7 +117,7 @@ Do NOT call AskUserQuestion (it does not support freeform text). Instead, output
 
 On the next turn, treat the user's reply as `{custom_msg}` (single-line, trimmed). If the reply is empty or only whitespace, fall back to the auto-generated message. Then run:
 ```bash
-git -C "{vault_root}" add -A && git -C "{vault_root}" commit -m "{custom_msg}"
+git -C "{vault_root}" commit -m "{custom_msg}"
 ```
 
 **Option C — "커밋 안 함 (건너뛰기)"** (index 2):
@@ -149,8 +146,9 @@ Output the stderr content and:
 
 ## Rules
 
-- NEVER run `git add` or `git commit` without explicit user approval in Step 5.
-- NEVER leave a partial state: if `git add -A` succeeds but `commit` fails, report the failure clearly.
+- NEVER run `git commit` without explicit user approval in Step 5.
+- Step 4a runs `git add -A` before generating the diff — this is staging-for-preview only. The commit itself requires user approval.
+- NEVER leave a partial state: if `commit` fails, report the failure clearly.
 - Respect `VAULT_BRIDGE_DISABLE=1` (Step 0).
 - Handle git errors gracefully: permission errors, detached HEAD, locked index — report stderr verbatim.
 - This command only commits. It does not push. Never run `git push`.
