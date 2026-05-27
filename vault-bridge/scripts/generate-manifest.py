@@ -3,6 +3,13 @@
 Vault Manifest Generator — vault-bridge W10 Phase A
 Generates ~/vault/.vault-bridge/manifest.json from vault .md files.
 
+Note on references_in vs references_out:
+  references_in is per-source-file (a note linking [[X]] three times counts
+  once for X, and self-links are excluded), while references_out is per
+  occurrence (every wikilink in the source counts, no dedup). The asymmetry
+  exists because in measures cross-note weight for promotion thresholds,
+  while out is a raw outbound link density signal.
+
 Usage:
   python3 generate-manifest.py [--vault-root PATH] [--force] [--out PATH]
 
@@ -33,9 +40,27 @@ SCHEMA_VERSION = 3
 SUMMARY_MAX_CHARS = 400
 EXCLUDED_DIRS = {".vault-bridge", ".claude", "assets", ".git"}
 
+def _env_int(name: str, default: int) -> int:
+    """Read an int from env with fallback on missing/invalid values.
+    A typo'd override (e.g. `VAULT_AUDIT_PROMOTION_REFS=abc`) must not crash
+    module import — the manifest generator runs in hot paths (session-start).
+    """
+    raw = os.environ.get(name)
+    if raw is None:
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        print(
+            f"WARNING: invalid int for {name}={raw!r}; falling back to {default}",
+            file=sys.stderr,
+        )
+        return default
+
+
 # Promotion candidate thresholds (env-overridable)
-PROMOTION_REFS_THRESHOLD = int(os.environ.get("VAULT_AUDIT_PROMOTION_REFS", "3"))
-PROMOTION_ACCESS_THRESHOLD = int(os.environ.get("VAULT_AUDIT_PROMOTION_ACCESS", "5"))
+PROMOTION_REFS_THRESHOLD = _env_int("VAULT_AUDIT_PROMOTION_REFS", 3)
+PROMOTION_ACCESS_THRESHOLD = _env_int("VAULT_AUDIT_PROMOTION_ACCESS", 5)
 
 
 def _default_vault_root() -> str:
