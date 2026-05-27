@@ -153,6 +153,7 @@ Output the stderr content and:
 
 - NEVER run `git commit` without explicit user approval in Step 5.
 - Step 4a runs `git add -A` before generating the diff — this is staging-for-preview only. The commit itself requires user approval.
+- If the command is interrupted after Step 4a (timeout, crash, context limit) before Step 6 cleanup runs, the vault git index is left staged. Restore with `git -C {vault_root} reset HEAD`.
 - NEVER leave a partial state: if `commit` fails, report the failure clearly.
 - Respect `VAULT_BRIDGE_DISABLE=1` (Step 0).
 - Handle git errors gracefully: permission errors, detached HEAD, locked index — report stderr verbatim.

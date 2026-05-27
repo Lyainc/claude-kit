@@ -124,11 +124,15 @@ def _msg_for_added(vault_root: str, rel_path: str) -> str:
     return f"vault: add {Path(rel_path).name}"
 
 
-def _type_prefix(new_type: str | None) -> str:
-    """Map frontmatter type to commit message prefix."""
+def _type_prefix(new_type: str | None) -> str | None:
+    """Map frontmatter type to commit message prefix.
+
+    Returns None for types without a meaningful promote/archive semantic
+    (session/capture/unknown) — caller should fall back to a generic vault label.
+    """
     if new_type in ("decision", "plan", "note"):
         return new_type
-    return "note"  # fallback for unknown types
+    return None
 
 
 def _msg_for_modified(vault_root: str, rel_path: str) -> str:
@@ -152,18 +156,19 @@ def _msg_for_modified(vault_root: str, rel_path: str) -> str:
 
     prefix = _type_prefix(new_type)
 
-    # Status transition detection
-    if old_status is not None and new_status is not None and old_status != new_status:
-        if new_status == "archived":
+    # Status transitions only apply to types with promote/archive semantics.
+    if prefix is not None:
+        if old_status is not None and new_status is not None and old_status != new_status:
+            if new_status == "archived":
+                return f"{prefix}(archive): {stem}"
+            elif old_status == "raw" and new_status == "draft":
+                return f"{prefix}(promote): {stem} {{raw→draft}}"
+            elif old_status == "draft" and new_status == "evergreen":
+                return f"{prefix}(promote): {stem} {{draft→evergreen}}"
+            else:
+                return f"{prefix}(promote): {stem} {{{old_status}→{new_status}}}"
+        elif new_status == "archived" and old_status != "archived":
             return f"{prefix}(archive): {stem}"
-        elif old_status == "raw" and new_status == "draft":
-            return f"{prefix}(promote): {stem} {{raw→draft}}"
-        elif old_status == "draft" and new_status == "evergreen":
-            return f"{prefix}(promote): {stem} {{draft→evergreen}}"
-        else:
-            return f"{prefix}(promote): {stem} {{{old_status}→{new_status}}}"
-    elif new_status == "archived" and old_status != "archived":
-        return f"{prefix}(archive): {stem}"
 
     # Content change without status change
     if new_type in ("note", "decision", "plan"):
