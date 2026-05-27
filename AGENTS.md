@@ -133,6 +133,9 @@ OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
 python3 obsidian-vault-manager/scripts/test/audit-validate.py \
   /tmp/ovm-fixture-audit-recheck --dod
+
+# Lock the audit-validate.read_manifest_summary schema_version gate
+python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
 ```
 
 ### Git and release notes
