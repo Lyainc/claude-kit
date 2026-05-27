@@ -52,7 +52,7 @@ def case_type_optin_filter(errors: list[str]) -> None:
             errors.append("untyped note not filtered")
 
 
-def case_schema_version_bump_invalidates_v1(errors: list[str]) -> None:
+def case_schema_version_inplace_upgrade_v1(errors: list[str]) -> None:
     """A pre-seeded v1 manifest is upgraded in-place to the current schema version.
 
     v3 behaviour: _load_existing_manifest accepts any schema_version (in-place
@@ -110,7 +110,7 @@ def case_schema_version_bump_invalidates_v1(errors: list[str]) -> None:
 def main() -> int:
     errors: list[str] = []
     case_type_optin_filter(errors)
-    case_schema_version_bump_invalidates_v1(errors)
+    case_schema_version_inplace_upgrade_v1(errors)
     print()
     if errors:
         print(f"FAILED: {len(errors)} assertion(s) failed", file=sys.stderr)

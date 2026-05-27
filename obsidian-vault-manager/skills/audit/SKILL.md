@@ -159,7 +159,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 ──────────────────────────────────────────
 볼트 상태: N 노트 / clean X · dirty Y · untracked Z
 매니페스트: F 파일 · 갱신 YYYY-MM-DDTHH:MM  (없음: vault-bridge 미설치)
-promotion_candidate 계산 완료: N개 후보
+promotion_candidate 계산 완료: N개 후보  (없음: manifest v3 미만 / vault-bridge 미설치)
 
 발견된 이슈: K건 (P0 a건 · P1 b건 · P2 c건)
 ──────────────────────────────────────────
