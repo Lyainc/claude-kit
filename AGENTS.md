@@ -128,14 +128,25 @@ find obsidian-vault-manager/skills -name "SKILL.md" | sort
 For `vault-audit` definition-of-done checks:
 
 ```bash
+# Unit regressions
+python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
+# Expected: OK: all 13 cases passed
+python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
+# Expected: OK: all cases passed (7 cases)
+python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
+# Expected: OK: all 6 cases passed
+
+# DoD fixture (gen-fixture.sh now generates manifest + patches E8 access-target internally)
 rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
 python3 obsidian-vault-manager/scripts/test/audit-validate.py \
   /tmp/ovm-fixture-audit-recheck --dod
-
-# Lock the audit-validate.read_manifest_summary schema_version gate
-python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
+# Expected (PR 4d+):
+#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:5, E6:5, E7:5, E8:2}
+#   dod.fp_on_clean per type = 0
+#   dod.findings_missing_priority = 0
+#   dod.priority_mismatches = []
 ```
 
 ### Git and release notes
