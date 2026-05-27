@@ -29,7 +29,6 @@ _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 collect = _mod.collect
 classify = _mod.classify
-_promotion_candidates_from_manifest = _mod._promotion_candidates_from_manifest
 
 
 def _make_vault(tmp: Path) -> None:
@@ -194,6 +193,32 @@ def test_access_count_trigger() -> None:
     print("PASS test_access_count_trigger")
 
 
+# ── Test 7: multiple True entries → one E8 finding per entry ─────────────────
+
+def test_multiple_candidates_each_become_finding() -> None:
+    with tempfile.TemporaryDirectory() as tmp_str:
+        vault = Path(tmp_str)
+        _make_vault(vault)
+        _note(vault, "candidate-a")
+        _note(vault, "candidate-b")
+        _note(vault, "candidate-c")
+        _write_manifest(vault, [
+            {"path": "notes/candidate-a.md", "type": "note",
+             "references_in": 3, "access_count": 0, "promotion_candidate": True},
+            {"path": "notes/candidate-b.md", "type": "note",
+             "references_in": 0, "access_count": 5, "promotion_candidate": True},
+            {"path": "notes/candidate-c.md", "type": "decision",
+             "references_in": 4, "access_count": 8, "promotion_candidate": True},
+        ])
+        bundle = collect(vault)
+        result = classify(bundle)
+        e8 = [f for f in result["findings"] if f["type"] == "E8_promotion_candidate"]
+        assert len(e8) == 3, f"expected 3 E8 findings, got {len(e8)}"
+        paths = {f["path"] for f in e8}
+        assert paths == {"notes/candidate-a.md", "notes/candidate-b.md", "notes/candidate-c.md"}
+    print("PASS test_multiple_candidates_each_become_finding")
+
+
 if __name__ == "__main__":
     test_promotion_candidate_generates_finding()
     test_below_threshold_no_finding()
@@ -201,4 +226,5 @@ if __name__ == "__main__":
     test_no_manifest_no_crash()
     test_non_note_type_not_surfaced()
     test_access_count_trigger()
-    print("\nOK: all 6 cases passed")
+    test_multiple_candidates_each_become_finding()
+    print("\nOK: all 7 cases passed")
