@@ -53,16 +53,21 @@ def case_type_optin_filter(errors: list[str]) -> None:
 
 
 def case_schema_version_bump_invalidates_v1(errors: list[str]) -> None:
-    """A pre-seeded v1 manifest is invalidated and rebuilt under v2 with type filter."""
+    """A pre-seeded v1 manifest is upgraded in-place to the current schema version.
+
+    v3 behaviour: _load_existing_manifest accepts any schema_version (in-place
+    upgrade). Orphan entries (files not on disk) are still dropped because the
+    incremental update loop only includes paths present in md_files.
+    """
     print("\ncase: schema_version_bump_invalidates_v1")
     with tempfile.TemporaryDirectory() as vault:
         vault_path = Path(vault)
         out = vault_path / ".vault-bridge" / "manifest.json"
         out.parent.mkdir(parents=True, exist_ok=True)
 
-        # Seed a v1-style manifest containing a fabricated entry for an untyped file.
-        # Under v2 the file no longer exists physically; the entry must be removed
-        # because the v1 manifest fails the schema check and triggers a full rescan.
+        # Seed a v1-style manifest containing a fabricated entry for an orphan file
+        # that does not exist on disk. The orphan must be dropped during the
+        # incremental update because it's absent from md_files.
         out.write_text(json.dumps({
             "generated_at": "2025-01-01T00:00:00+00:00",
             "vault_root": str(vault),
@@ -76,24 +81,23 @@ def case_schema_version_bump_invalidates_v1(errors: list[str]) -> None:
 
         _make_note(vault_path / "notes" / "real.md", "type: note\ntags: []")
 
-        # No --force: the schema_version mismatch (1 vs 2) must trigger a full
-        # rebuild via _load_existing_manifest returning None. This is the path
-        # under test — adding --force would bypass it.
+        # No --force: in-place upgrade path (v1 manifest loaded, incremental update).
         proc = subprocess.run(
             ["python3", str(SCRIPT), "--vault-root", str(vault), "--out", str(out)],
             capture_output=True, text=True,
         )
         if proc.returncode != 0:
             print(f"  FAIL generator returned {proc.returncode}: {proc.stderr}", file=sys.stderr)
-            errors.append("generator nonzero exit on v1 invalidation")
+            errors.append("generator nonzero exit on v1 upgrade")
             return
 
         manifest = json.loads(out.read_text(encoding="utf-8"))
-        if manifest.get("schema_version") == 2:
-            print("  ok   manifest rebuilt with schema_version=2")
+        current_schema = 3  # SCHEMA_VERSION as of PR 4c
+        if manifest.get("schema_version") == current_schema:
+            print(f"  ok   manifest upgraded to schema_version={current_schema}")
         else:
-            print(f"  FAIL schema_version not bumped (got {manifest.get('schema_version')})", file=sys.stderr)
-            errors.append("schema_version not bumped after v1 invalidation")
+            print(f"  FAIL unexpected schema_version (got {manifest.get('schema_version')}, want {current_schema})", file=sys.stderr)
+            errors.append("schema_version mismatch after v1 upgrade")
 
         paths = {entry["path"] for entry in manifest.get("files", [])}
         if "legacy/orphan.md" not in paths:
