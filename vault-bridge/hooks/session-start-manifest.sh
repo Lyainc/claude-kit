@@ -23,6 +23,7 @@ fi
 # consuming an undelivered handoff note.
 _PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
 _RESUME_FILE="$_PROJECT_ROOT/.claude-kit/vault-bridge/resume.md"
+_resume_consumed=false
 if [ -f "$_RESUME_FILE" ] && command -v python3 >/dev/null 2>&1; then
   python3 - "$_RESUME_FILE" <<'PYEOF'
 import sys, json, os
@@ -49,23 +50,27 @@ try:
     if not body:
         sys.exit(0)  # frontmatter only, no body — leave file intact, retry next session
 
-    # Extract one-liner from "## 한 줄 재개 프롬프트" section
-    # (supports both plain-text and fenced-code-block forms)
+    # Extract one-liner from "## 한 줄 재개 프롬프트" section (standard /handoff format),
+    # or fall back to "## 한 줄 목표" section (manual handoff format).
+    # Supports both plain-text and fenced-code-block forms.
     one_liner = None
-    in_section = False
-    for line in body_lines:
-        if '한 줄 재개 프롬프트' in line and line.strip().startswith('#'):
-            in_section = True
-            continue
-        if in_section:
-            s = line.strip()
-            if s.startswith('#'):
-                break                    # next section reached
-            if s.startswith('```') or s.startswith('~~~'):
-                continue              # bare and language-tagged fences both skipped
-            if s:
-                one_liner = s
-                break
+    for section_marker in ('한 줄 재개 프롬프트', '한 줄 목표'):
+        in_section = False
+        for line in body_lines:
+            if section_marker in line and line.strip().startswith('#'):
+                in_section = True
+                continue
+            if in_section:
+                s = line.strip()
+                if s.startswith('#'):
+                    break
+                if s.startswith('```') or s.startswith('~~~'):
+                    continue
+                if s:
+                    one_liner = s
+                    break
+        if one_liner:
+            break
 
     # Extract brief topic from "**작업 주제**:" line
     topic = None
@@ -106,11 +111,14 @@ try:
 except Exception:
     pass  # leave resume_path intact so next session can retry
 PYEOF
+  _resume_consumed=true
 fi
 
-# Recovery hint: resume.md consumed in a short/accidental session → .prev.md survives as backup
+# Recovery hint: resume.md consumed in a short/accidental session → .prev.md survives as backup.
+# Guard with _resume_consumed: after a successful rename resume.md→.prev.md above, both
+# conditions (no resume.md + prev.md exists) would be true — causing a spurious backup warning.
 _PREV_FILE="${_RESUME_FILE%.md}.prev.md"
-if [ ! -f "$_RESUME_FILE" ] && [ -f "$_PREV_FILE" ] && command -v python3 >/dev/null 2>&1; then
+if [ "$_resume_consumed" = false ] && [ ! -f "$_RESUME_FILE" ] && [ -f "$_PREV_FILE" ] && command -v python3 >/dev/null 2>&1; then
   python3 - "$_PREV_FILE" <<'PYEOF'
 import sys, json
 try:
