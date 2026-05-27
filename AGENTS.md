@@ -132,7 +132,7 @@ For `vault-audit` definition-of-done checks:
 python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
 # Expected: OK: all 13 cases passed
 python3 obsidian-vault-manager/scripts/test/test-git-activity.py
-# Expected: OK: all 13 cases passed
+# Expected: OK: all 18 cases passed
 python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
 # Expected: OK: all cases passed (7 cases)
 python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py

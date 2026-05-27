@@ -123,7 +123,7 @@ python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
 
 # git activity summary unit test
 python3 obsidian-vault-manager/scripts/test/test-git-activity.py
-# Expected: OK: all 13 cases passed
+# Expected: OK: all 18 cases passed
 
 # read_manifest_summary schema_version gate (None vs 0 semantics)
 python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
