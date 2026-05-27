@@ -111,7 +111,10 @@ try:
 except Exception:
     pass  # leave resume_path intact so next session can retry
 PYEOF
-  _resume_consumed=true
+  # Flag reflects actual file state: True iff Python's os.replace() ran successfully
+  # (resume.md renamed away). Early-bail paths inside Python keep the file present,
+  # so this check stays accurate without depending on the script's exit code.
+  [ ! -f "$_RESUME_FILE" ] && _resume_consumed=true
 fi
 
 # Recovery hint: resume.md consumed in a short/accidental session → .prev.md survives as backup.
