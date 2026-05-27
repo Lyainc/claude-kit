@@ -127,7 +127,7 @@ python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
 
 # E8 promotion candidate finding regression
 python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
-# Expected: OK: all 6 cases passed
+# Expected: OK: all 7 cases passed
 
 # vault-audit DoD 측정 (mechanical reference impl)
 # gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py
