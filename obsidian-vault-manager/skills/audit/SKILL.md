@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan vault for structural defects (E1–E8: frontmatter, wikilinks, orphans, stale files, promotion candidates) and surface a prioritized triage report. Example: '/audit'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 8 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3), broken wikilinks (E4), orphan notes (E5), stale inbox (E6), stale draft (E7), and promotion candidates (E8). Example: '/audit'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
