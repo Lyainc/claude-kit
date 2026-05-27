@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 5 error types: missing frontmatter, missing required fields, filename convention violations, broken wikilinks, and orphan notes. Example: '/audit'"
+description: "Scan vault for structural defects (E1–E8: frontmatter, wikilinks, orphans, stale files, promotion candidates) and surface a prioritized triage report. Example: '/audit'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
@@ -71,12 +71,12 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    find ~/vault -name '*.md' -not -path '*/.*'
    ```
 
-8. Read manifest summary (display only — no classification impact):
+8. Read manifest summary (used for REPORT header and E8 classification):
    ```bash
    cat "$VAULT_ROOT/.vault-bridge/manifest.json" 2>/dev/null
    ```
    Use the resolved `$VAULT_ROOT` from Steps 4–7 (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`), not a hardcoded path.
-   Extract `file_count` and `generated_at` if the file exists and is valid JSON. If absent or unparseable, set `manifest_summary` to null. This is NOT Step 0 (which computes `references_in/out`, `access_count`, `promotion_candidate` — deferred to PR 5+).
+   Extract `file_count`, `generated_at`, `schema_version`, and `files[]` if the file exists and is valid JSON. If absent or unparseable, set `manifest_summary` to null. For `schema_version ≥ 3`, entries with `promotion_candidate: true` are passed to CLASSIFY to generate E8 findings.
 
 **Outputs**: An in-memory scan bundle:
 ```
@@ -110,8 +110,9 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | E5 | `orphan_note` | Warning | P2 | `inbound_links` | — |
 | E6 | `stale_inbox` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
 | E7 | `stale_draft` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
+| E8 | `promotion_candidate` | Info | P2 | `manifest.json` (`promotion_candidate: true`) | — |
 
-> **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6–E7 = P1 (정체/stagnation). E5 = P2 (quality signal).
+> **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6–E7 = P1 (정체/stagnation). E5, E8 = P2 (quality signal).
 
 **E3 v4 convention** (files in `notes/` only; `inbox/` and `assets/` are exempt):
 - VIOLATION: filename starts with `\d{4}-\d{2}-` (v3 date-first pattern, e.g. `2026-04-topic.md`)
@@ -201,14 +202,21 @@ promotion_candidate 계산 완료: N개 후보  (없음: manifest v3 미만 / va
       상세: 인바운드 링크 없음
   • ...
 
+[P2 / Info] promotion_candidate — 3건
+  • notes/high-ref-note.md
+      상세: refs_in=5, access=2 (manual: status→evergreen)
+  • notes/frequent-note.md
+      상세: refs_in=1, access=7 (manual: status→evergreen)
+  • ...
+
 ──────────────────────────────────────────
 자동 수정 가능: F건 (missing_required_fields — frontmatter 필드 추가)
-수동 처리 필요: M건 (broken wikilinks, orphan notes, filename violations, stale inbox/draft)
+수동 처리 필요: M건 (broken wikilinks, orphan notes, filename violations, stale inbox/draft, promotion candidates)
 ```
 
 If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
-> **우선순위 출력 순서**: P0 → P1 → P2. 각 priority 내 정렬: Critical severity 먼저, 그 다음 Warning. 동일 severity 내에서는 error type 코드 순 (E1→E2→E3→E4 / E6→E7 / E5). "사용자 확인 게이트"는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다 — 그 외 항목은 표시만 합니다. E6/E7는 의미적 판단(처리/promote/archive)이 필요해 auto-fix 대상이 아닙니다.
+> **우선순위 출력 순서**: P0 → P1 → P2. 각 priority 내 정렬: Critical severity 먼저, 그 다음 Warning, Info 순. 동일 severity 내에서는 error type 코드 순 (E1→E2→E3→E4 / E6→E7 / E5→E8). "사용자 확인 게이트"는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다 — 그 외 항목은 표시만 합니다. E6/E7/E8은 의미적 판단(처리/promote/archive)이 필요해 auto-fix 대상이 아닙니다.
 
 **Termination condition**: Report displayed. Proceed to OPTIONAL-FIX if auto-fixable items exist and user has not already opted out. Otherwise exit after marking clean.
 

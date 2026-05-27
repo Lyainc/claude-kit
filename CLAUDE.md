@@ -125,15 +125,22 @@ python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
 python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
 # Expected: OK: all cases passed (7 cases)
 
+# E8 promotion candidate finding regression
+python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
+# Expected: OK: all 6 cases passed
+
 # vault-audit DoD 측정 (mechanical reference impl)
+# gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py
+# and patches access_count=5 for the E8 access-target seed.
 rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
 python3 obsidian-vault-manager/scripts/test/audit-validate.py \
   /tmp/ovm-fixture-audit-recheck --dod
-# Expected (PR 5+, Phase 2):
-#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:5, E6:5, E7:5}
-#     (E2 has 10: 5 base + 5 status-missing; E6=stale_inbox; E7=stale_draft)
+# Expected (PR 4d+):
+#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:5, E6:5, E7:5, E8:2}
+#     (E2 has 10: 5 base + 5 status-missing; E6=stale_inbox; E7=stale_draft;
+#      E8 has 2: promotion-target via refs_in=3, access-target via manifest patch)
 #   dod.fp_on_clean per type = 0
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []

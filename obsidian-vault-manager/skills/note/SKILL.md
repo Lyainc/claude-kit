@@ -1,6 +1,6 @@
 ---
 name: note
-description: "Create a new note (evergreen knowledge unit) or decision record in ~/vault/notes/. Examples: '/note kubernetes networking basics', '/note --type decision use-rust-over-go'"
+description: "Create an evergreen note or decision record in ~/vault/notes/. Example: '/note {topic}' or '/note --type decision {topic}'"
 model: sonnet
 allowed-tools: Read Write Bash Glob
 ---

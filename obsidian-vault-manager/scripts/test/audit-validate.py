@@ -46,6 +46,7 @@ PRIORITY_BY_TYPE = {
     "E5_orphan_note": "P2",
     "E6_stale_inbox": "P1",
     "E7_stale_draft": "P1",
+    "E8_promotion_candidate": "P2",
 }
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 
@@ -174,6 +175,33 @@ def parse_created_date(value) -> Optional[date]:
         return None
 
 
+def _promotion_candidates_from_manifest(vault: Path) -> list:
+    """Return manifest entries with promotion_candidate=True for E8 classification.
+
+    Silently skips pre-v3 manifests (schema_version gate introduced in PR 4c).
+    Each result carries refs_in and access_count for detail construction.
+    """
+    path = vault / ".vault-bridge" / "manifest.json"
+    if not path.is_file():
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
+        return []
+    schema_version = data.get("schema_version", 1)
+    if not (isinstance(schema_version, int) and schema_version >= 3):
+        return []
+    results = []
+    for f in data.get("files") or []:
+        if f.get("promotion_candidate") is True:
+            results.append({
+                "rel": f.get("path", ""),
+                "refs_in": f.get("references_in", 0),
+                "access_count": f.get("access_count", 0),
+            })
+    return results
+
+
 def classify(bundle: dict) -> dict:
     findings: list = []
     today = date.today()
@@ -243,6 +271,15 @@ def classify(bundle: dict) -> dict:
                 add("E7_stale_draft", rec["rel"],
                     f"age {age_days}d > {STALE_DRAFT_DAYS}d (status:draft, created {fm.get('created')})")
 
+    # E8: promotion candidates from manifest (schema_version ≥ 3 only).
+    # note/decision files that meet refs_in or access_count thresholds —
+    # surfaced so the user can manually upgrade status to evergreen.
+    for cand in _promotion_candidates_from_manifest(bundle["vault"]):
+        r = cand["refs_in"]
+        a = cand["access_count"]
+        add("E8_promotion_candidate", cand["rel"],
+            f"refs_in={r}, access={a} (manual: status→evergreen)")
+
     counts: dict = {}
     for f in findings:
         counts[f["type"]] = counts.get(f["type"], 0) + 1
@@ -261,6 +298,7 @@ SEED_PREFIXES = {
     "E5_orphan_note": ("path", "audit-e5-"),
     "E6_stale_inbox": ("path", "audit-e6-"),
     "E7_stale_draft": ("path", "audit-e7-"),
+    "E8_promotion_candidate": ("path", "audit-e8-"),
 }
 
 
