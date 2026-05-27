@@ -16,6 +16,7 @@ Exit codes:
 """
 
 import argparse
+import datetime
 import json
 import os
 import re
@@ -554,7 +555,6 @@ def _compute_promotion_candidate(
 
 def _iso_now() -> str:
     """Return current local time as ISO 8601 string with UTC offset."""
-    import datetime
     now = datetime.datetime.now(datetime.timezone.utc).astimezone()
     return now.isoformat(timespec="seconds")
 
