@@ -69,7 +69,7 @@ Capture the output as `{diff_output}`.
 #### Step 4c — Generate commit message via helper
 
 ```bash
-python3 vault-bridge/scripts/vault-commit-message.py "{vault_root}" <<'EOF'
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/vault-commit-message.py" "{vault_root}" <<'EOF'
 {diff_output}
 EOF
 ```

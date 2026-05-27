@@ -1,6 +1,6 @@
 {
   "name": "vault-bridge",
-  "version": "1.17.0",
+  "version": "1.17.1",
   "description": "Obsidian vault ↔ project bridge for Claude Code: manifest cache, read-only vault-searcher agent (haiku), Stop/SessionEnd/SessionStart/PreToolUse hooks, and slash commands (/save-session, /vault-link, /vault-commit, /save-plan-doc, /handoff, /vault-manifest-refresh) with .vault-link project binding and write-role contract.",
   "author": {
     "name": "Lyainc",
