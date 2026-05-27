@@ -101,10 +101,7 @@ try:
     model_ctx = '이전 세션의 인수인계 메모입니다:\n\n' + body
     print(json.dumps({
         'systemMessage': user_msg,
-        'hookSpecificOutput': {
-            'hookEventName': 'SessionStart',
-            'additionalContext': model_ctx,
-        }
+        'additionalContext': model_ctx,
     }))
     prev_path = resume_path[:-3] + '.prev.md'
     os.replace(resume_path, prev_path)  # atomic rename; .prev kept as one-level backup
@@ -128,7 +125,21 @@ try:
     prev = sys.argv[1]
     restored = prev[:-8] + '.md'  # .prev.md → .md
     msg = '[resume 백업 감지] 직전 세션 resume가 짧은 세션으로 소비됐을 수 있어요.\n복구하려면: mv ' + prev + ' ' + restored
-    print(json.dumps({'systemMessage': msg}))
+
+    raw = open(prev).read().strip()
+    lines = raw.split('\n')
+    body_start = 0
+    if lines and lines[0].strip() == '---':
+        for i, line in enumerate(lines[1:], 1):
+            if line.strip() == '---':
+                body_start = i + 1
+                break
+    body = '\n'.join(lines[body_start:]).strip()
+
+    out = {'systemMessage': msg}
+    if body:
+        out['additionalContext'] = '이전 세션의 인수인계 메모입니다 (백업):\n\n' + body
+    print(json.dumps(out))
 except Exception:
     pass
 PYEOF
