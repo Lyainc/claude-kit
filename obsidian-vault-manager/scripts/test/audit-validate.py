@@ -193,12 +193,18 @@ def _promotion_candidates_from_manifest(vault: Path) -> list:
         return []
     results = []
     for f in data.get("files") or []:
-        if f.get("promotion_candidate") is True:
-            results.append({
-                "rel": f.get("path", ""),
-                "refs_in": f.get("references_in", 0),
-                "access_count": f.get("access_count", 0),
-            })
+        if f.get("promotion_candidate") is not True:
+            continue
+        rel = f.get("path", "")
+        # Skip stale manifest entries: file deleted since last manifest refresh
+        # would otherwise surface as a phantom E8 finding.
+        if not rel or not (vault / rel).is_file():
+            continue
+        results.append({
+            "rel": rel,
+            "refs_in": f.get("references_in", 0),
+            "access_count": f.get("access_count", 0),
+        })
     return results
 
 

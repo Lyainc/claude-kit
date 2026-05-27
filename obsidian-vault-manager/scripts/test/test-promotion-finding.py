@@ -219,6 +219,30 @@ def test_multiple_candidates_each_become_finding() -> None:
     print("PASS test_multiple_candidates_each_become_finding")
 
 
+# ── Test 8: phantom entry — manifest lists file but disk no longer has it ────
+
+def test_phantom_manifest_entry_not_surfaced() -> None:
+    """Manifest stale after file deletion → entry should not become an E8 finding."""
+    with tempfile.TemporaryDirectory() as tmp_str:
+        vault = Path(tmp_str)
+        _make_vault(vault)
+        # Real note that still exists
+        _note(vault, "real-candidate")
+        # Manifest references a file that was deleted (never created on disk)
+        _write_manifest(vault, [
+            {"path": "notes/real-candidate.md", "type": "note",
+             "references_in": 3, "access_count": 0, "promotion_candidate": True},
+            {"path": "notes/deleted-but-in-manifest.md", "type": "note",
+             "references_in": 3, "access_count": 0, "promotion_candidate": True},
+        ])
+        bundle = collect(vault)
+        result = classify(bundle)
+        e8 = [f for f in result["findings"] if f["type"] == "E8_promotion_candidate"]
+        assert len(e8) == 1, f"expected 1 E8 (real only), got {len(e8)}"
+        assert "real-candidate" in e8[0]["path"]
+    print("PASS test_phantom_manifest_entry_not_surfaced")
+
+
 if __name__ == "__main__":
     test_promotion_candidate_generates_finding()
     test_below_threshold_no_finding()
@@ -227,4 +251,5 @@ if __name__ == "__main__":
     test_non_note_type_not_surfaced()
     test_access_count_trigger()
     test_multiple_candidates_each_become_finding()
-    print("\nOK: all 7 cases passed")
+    test_phantom_manifest_entry_not_surfaced()
+    print("\nOK: all 8 cases passed")
