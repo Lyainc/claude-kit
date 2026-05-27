@@ -263,6 +263,24 @@ def case_modify_decision_promote(errors: list[str]) -> None:
         _assert("draft→evergreen" in out, f"contains draft→evergreen (got: {out!r})", errors)
 
 
+def case_modify_session_with_status_change(errors: list[str]) -> None:
+    """Session file with status change must NOT be labeled note(promote)."""
+    print("\ncase: modify_session_with_status_change")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        rel = "inbox/session-2026-05-28.md"
+        _write_note(vault_root, rel, "session", "raw")
+        _commit_file(str(vault_root), rel, "add session")
+        _write_note(vault_root, rel, "session", "draft")
+        diff = ["M\t" + rel]
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(not out.startswith("note("), f"must NOT be mislabeled as note (got: {out!r})", errors)
+        _assert(out.startswith("vault: update"), f"starts with vault: update (got: {out!r})", errors)
+
+
 def case_delete_file(errors: list[str]) -> None:
     """Deleted file → 'vault: delete {filename}'"""
     print("\ncase: delete_file")
@@ -320,6 +338,7 @@ def main() -> int:
     case_untyped_file(errors)
     case_new_plan(errors)
     case_modify_decision_promote(errors)
+    case_modify_session_with_status_change(errors)
     case_delete_file(errors)
     case_rename_file(errors)
 
