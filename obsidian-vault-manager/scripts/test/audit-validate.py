@@ -23,6 +23,7 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 from datetime import date
 from pathlib import Path
@@ -384,6 +385,59 @@ def read_manifest_summary(vault: Path) -> Optional[dict]:
     }
 
 
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ[name])
+    except (KeyError, ValueError):
+        return default
+
+
+def _git_activity_summary(vault: Path, days: int = 7) -> Optional[dict]:
+    """Return git activity stats for the vault over the last N days, or None on any failure."""
+    days = _env_int("VAULT_AUDIT_ACTIVITY_DAYS", days)
+    since = f"{days} days ago"
+    try:
+        # Count commits
+        r_commits = subprocess.run(
+            ["git", "-C", str(vault), "log", f"--since={since}", "--oneline"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r_commits.returncode != 0:
+            return None
+        commits = len([l for l in r_commits.stdout.splitlines() if l.strip()])
+
+        # Count file-level changes
+        r_files = subprocess.run(
+            ["git", "-C", str(vault), "log", f"--since={since}",
+             "--pretty=format:", "--name-status"],
+            capture_output=True, text=True, timeout=10,
+        )
+        if r_files.returncode != 0:
+            return None
+
+        added = modified = deleted = 0
+        for line in r_files.stdout.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            status = line[0].upper()
+            if status == "A":
+                added += 1
+            elif status == "M":
+                modified += 1
+            elif status == "D":
+                deleted += 1
+            elif status in ("R", "C"):
+                modified += 1
+
+        return {"days": days, "commits": commits, "added": added,
+                "modified": modified, "deleted": deleted}
+    except FileNotFoundError:
+        return None  # git not in PATH
+    except Exception:
+        return None
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("vault")
@@ -401,11 +455,13 @@ def main() -> int:
     result = classify(bundle)
 
     manifest = read_manifest_summary(vault)
+    git_activity = _git_activity_summary(vault)
     output: dict = {
         "vault": str(vault),
         "total_findings": result["total"],
         "counts": dict(sorted(result["counts"].items())),
         "manifest": manifest,
+        "git_activity": git_activity,
     }
     if args.dod:
         output["dod"] = dod_report(result["findings"])
