@@ -68,20 +68,6 @@ status: evergreen
 {body}
 """
 
-FRONTMATTER_DECISION = """\
----
-created: 2026-01-01
-tags: [decision]
-type: decision
-status: evergreen
----
-
-# {title}
-
-{body}
-"""
-
-
 print("=== test-manifest-promotion.py ===")
 print()
 
