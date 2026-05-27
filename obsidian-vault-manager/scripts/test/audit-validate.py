@@ -311,9 +311,9 @@ def dod_report(findings: list) -> dict:
 def read_manifest_summary(vault: Path) -> Optional[dict]:
     """Read .vault-bridge/manifest.json if present.
 
-    Returns summary dict or None. Handles both v2 manifests (no PR-4c fields)
-    and v3+ manifests (with references_in/out, access_count, promotion_candidate).
-    Missing v3 fields fall back to None for backward compatibility.
+    Returns summary dict or None. promotion_candidate_count is None for
+    pre-v3 manifests (field not available), and an integer (possibly 0) for
+    v3+ manifests so callers can distinguish "unavailable" from "no candidates".
     """
     path = vault / ".vault-bridge" / "manifest.json"
     if not path.is_file():
@@ -323,18 +323,20 @@ def read_manifest_summary(vault: Path) -> Optional[dict]:
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return None
 
-    # Compute promotion_candidate count from files array (null-safe)
-    files = data.get("files") or []
-    promotion_count = sum(
-        1 for f in files if f.get("promotion_candidate") is True
-    )
+    schema_version = data.get("schema_version", 1)
+    if isinstance(schema_version, int) and schema_version >= 3:
+        files = data.get("files") or []
+        promotion_count: Optional[int] = sum(
+            1 for f in files if f.get("promotion_candidate") is True
+        )
+    else:
+        promotion_count = None
 
     return {
         "file_count": data.get("file_count"),
         "generated_at": data.get("generated_at"),
         "schema_version": data.get("schema_version"),
-        # PR 4c fields — None when manifest predates v3
-        "promotion_candidate_count": promotion_count if files else None,
+        "promotion_candidate_count": promotion_count,
     }
 
 

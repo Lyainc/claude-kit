@@ -92,7 +92,7 @@ def case_schema_version_bump_invalidates_v1(errors: list[str]) -> None:
             return
 
         manifest = json.loads(out.read_text(encoding="utf-8"))
-        current_schema = 3  # SCHEMA_VERSION as of PR 4c
+        current_schema = 3  # mirrors SCHEMA_VERSION in generate-manifest.py
         if manifest.get("schema_version") == current_schema:
             print(f"  ok   manifest upgraded to schema_version={current_schema}")
         else:

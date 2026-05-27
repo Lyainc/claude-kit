@@ -19,12 +19,16 @@ import argparse
 import json
 import os
 import re
+import subprocess
 import sys
 import time
 from pathlib import Path
 
-SCHEMA_VERSION = 3  # v3: references_in/out, access_count, promotion_candidate (PR 4c).
-                    # v2→v3: in-place upgrade — existing entries preserved, new fields patched.
+SCHEMA_VERSION = 3
+# Schema bumps are handled via in-place upgrade in _load_existing_manifest:
+# existing entries are preserved and missing fields are patched by _enrich.
+# Future breaking changes to entry structure (not just additive fields) must
+# either restore version-based invalidation for that bump or require --force.
 SUMMARY_MAX_CHARS = 400
 EXCLUDED_DIRS = {".vault-bridge", ".claude", "assets", ".git"}
 
@@ -332,16 +336,16 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
             continue
         md_files[rel] = abs_path
 
-    # --- PR 4c: global meta computations (always run, not incremental) ---
-    # references_in/out are global metrics that must be recomputed each run
-    # (a new file may link to any existing file).  access_count uses a single
-    # git log call to keep total overhead low.
+    # Global metrics must be recomputed every run, not incrementally: a single
+    # new file may add inbound links to any existing entry, so we cannot trust
+    # cached references_in/out. access_count batches into one git log call to
+    # keep total overhead low even on large vaults.
     inbound_counts, outbound_counts = _build_wikilink_index(md_files)
     is_git = _is_git_repo(vault_root)
     access_counts = _compute_all_access_counts(vault_root, is_git)
 
     def _enrich(entry: dict, rel: str) -> dict:
-        """Patch PR-4c meta fields into entry (mutates + returns entry)."""
+        """Patch global meta fields into entry (mutates + returns entry)."""
         stem = Path(rel).stem
         ref_in = inbound_counts.get(stem, 0)
         ref_out = outbound_counts.get(rel, 0)
@@ -381,8 +385,9 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
         processed_count = len(files_list)
     else:
         # Incremental update: compare mtimes.
-        # For in-place upgrade (old schema_version): unchanged entries are kept
-        # but always enriched with the new PR-4c fields (_enrich patches them).
+        # In-place upgrade (older schema_version): unchanged entries are kept
+        # and always re-enriched, because global meta fields depend on the
+        # whole vault rather than the single file's mtime.
         manifest_mtime = _manifest_mtime(out_path)
 
         existing_by_path: dict[str, dict] = {e["path"]: e for e in existing.get("files", [])}
@@ -442,7 +447,7 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# PR 4c — Wikilink index, git access count, promotion candidate
+# Global meta: wikilink index, git access count, promotion candidate
 # ---------------------------------------------------------------------------
 
 def _build_wikilink_index(
@@ -451,10 +456,12 @@ def _build_wikilink_index(
     """
     Scan all vault .md files and build two counters:
       - inbound:  stem -> count of OTHER files that contain [[stem]] (references_in)
-      - outbound: rel_path -> count of outbound wikilinks in that file (references_out)
+      - outbound: rel_path -> count of outbound wikilink occurrences (references_out)
 
-    Wikilink resolution follows Obsidian's default: match by stem only
-    (filename without extension), ignoring sub-path qualifiers.
+    Inbound is per-source-file: three [[X]] mentions in one note count as one
+    inbound reference for X, and self-links (a note linking to its own stem)
+    are excluded so promotion_candidate thresholds reflect real cross-note
+    weight rather than internal repetition.
     """
     inbound: dict[str, int] = {}
     outbound: dict[str, int] = {}
@@ -469,9 +476,13 @@ def _build_wikilink_index(
         links = _WIKILINK_RE.findall(text)
         outbound[rel] = len(links)
 
+        own_stem = Path(rel).stem
+        seen: set[str] = set()
         for raw in links:
-            # Take the stem of the target (last path component without extension)
             stem = Path(raw.strip()).stem
+            if stem == own_stem or stem in seen:
+                continue
+            seen.add(stem)
             inbound[stem] = inbound.get(stem, 0) + 1
 
     return inbound, outbound
@@ -479,7 +490,6 @@ def _build_wikilink_index(
 
 def _is_git_repo(vault_root: Path) -> bool:
     """Return True if vault_root is inside a git repository."""
-    import subprocess
     try:
         result = subprocess.run(
             ["git", "-C", str(vault_root), "rev-parse", "--git-dir"],
@@ -498,7 +508,6 @@ def _compute_all_access_counts(vault_root: Path, is_git: bool) -> dict[str, int]
     """
     if not is_git:
         return {}
-    import subprocess
     try:
         result = subprocess.run(
             [
@@ -515,6 +524,12 @@ def _compute_all_access_counts(vault_root: Path, is_git: bool) -> dict[str, int]
             if line:
                 counts[line] = counts.get(line, 0) + 1
         return counts
+    except subprocess.TimeoutExpired:
+        print(
+            "WARNING: git log timed out after 30s — access_count defaulted to 0",
+            file=sys.stderr,
+        )
+        return {}
     except Exception:
         return {}
 
