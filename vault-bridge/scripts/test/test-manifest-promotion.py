@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """
-test-manifest-promotion.py — Unit tests for generate-manifest.py PR 4c fields.
+test-manifest-promotion.py — Unit tests for generate-manifest.py global
+meta fields (references_in/out, access_count, promotion_candidate).
 
 Tests references_in, references_out, access_count, and promotion_candidate
 using an in-memory fixture vault (no real ~/vault reads).
@@ -257,7 +258,7 @@ ok("plan type → None (not eligible)",
 
 print()
 
-# ── Case 8: in-place upgrade — old manifest (no PR-4c fields) ────────────
+# ── Case 8: in-place upgrade — pre-v3 manifest (no global meta fields) ───
 print("Case 8: in-place upgrade — old v2 manifest gets new fields patched")
 
 with tempfile.TemporaryDirectory() as tmp:
@@ -267,7 +268,7 @@ with tempfile.TemporaryDirectory() as tmp:
     ))
 
     out = vault / ".vault-bridge" / "manifest.json"
-    # Simulate an old v2 manifest (no PR-4c fields)
+    # Simulate a pre-v3 manifest (no global meta fields)
     old_manifest = {
         "generated_at": "2026-01-01T00:00:00+00:00",
         "vault_root": str(vault),
@@ -280,7 +281,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 "tags": ["note"],
                 "title": "Existing Note",
                 "summary": "Already in manifest.",
-                "mtime": 0,  # force old mtime so file appears unchanged
+                "mtime": 0,  # entry mtime is informational; incremental check uses filesystem stat (see os.utime below)
                 "size_bytes": 100,
             }
         ],
@@ -308,6 +309,42 @@ with tempfile.TemporaryDirectory() as tmp:
     ok("schema_version updated to 3",
        manifest.get("schema_version") == 3,
        f"got {manifest.get('schema_version')}")
+
+print()
+
+# ── Case 9: wikilink dedup — self-link excluded, repeats count once ─────
+print("Case 9: wikilink dedup (self-link excluded, repeated mentions count once)")
+
+with tempfile.TemporaryDirectory() as tmp:
+    vault = Path(tmp)
+    # Target gets three mentions from a single linker plus one self-link.
+    make_note(vault, "notes/target.md", FRONTMATTER_NOTE.format(
+        title="Target",
+        body="Self-link should not count: [[target]].",
+    ))
+    make_note(vault, "notes/spammy-linker.md", FRONTMATTER_NOTE.format(
+        title="Spammy Linker",
+        body="See [[target]] and again [[target]] and [[target]] once more.",
+    ))
+
+    out = vault / ".vault-bridge" / "manifest.json"
+    manifest, _ = generate(vault, out, force=True)
+
+    target = next((f for f in manifest["files"] if f["path"] == "notes/target.md"), None)
+    ok("target found in manifest", target is not None)
+    if target:
+        ok("references_in = 1 (3 mentions in 1 file collapse, self-link excluded)",
+           target["references_in"] == 1,
+           f"got {target['references_in']}")
+        ok("promotion_candidate False (refs below threshold)",
+           target["promotion_candidate"] is False,
+           f"got {target['promotion_candidate']}")
+
+    linker = next((f for f in manifest["files"] if "spammy-linker" in f["path"]), None)
+    if linker:
+        ok("references_out counts every occurrence (3)",
+           linker["references_out"] == 3,
+           f"got {linker['references_out']}")
 
 print()
 
