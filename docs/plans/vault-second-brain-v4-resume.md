@@ -1,12 +1,12 @@
 # Vault Second Brain v4 — 세션 재개 프롬프트
 
-> 작성일: 2026-05-26 · 갱신: 2026-05-27
+> 작성일: 2026-05-26 · 갱신: 2026-05-28
 > 용도: 다음 세션에서 이 작업을 이어갈 때 컨텍스트 복원용
 > 사용법: 새 세션 시작 시 이 문서 내용을 그대로 프롬프트에 붙여넣거나, "@docs/plans/vault-second-brain-v4-resume.md 읽고 작업 이어가자"로 호출
 
 ---
 
-## 진행 요약 (2026-05-27 갱신)
+## 진행 요약 (2026-05-28 갱신)
 
 | PR | 항목 | 실제 PR | 상태 |
 |---|---|---|---|
@@ -104,21 +104,23 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 - `parse_created_date()` + 13-case 단위 테스트
 - handoff SessionStart UX (resume.md compact display) — 같은 PR에 묶었으나 향후엔 분리
 
-**PR 4c — Step 0: 시스템 메타 재계산** (다음 즉시, PR 4d의 의존)
+**PR 4c — Step 0: 시스템 메타 재계산** (#89, ✅ 2026-05-28)
 - `vault-bridge/scripts/generate-manifest.py` write-side 확장:
   - `references_in` (해당 노트로 들어오는 wikilink 수)
   - `references_out` (해당 노트가 내보내는 wikilink 수)
   - `access_count` (`git log --follow` 기반 빈도)
   - `promotion_candidate` (Step 3에서 사용할 플래그)
-- audit이 read-side에서 활용 — 현재 4a는 `file_count` + `generated_at`만 표시
-- DoD: manifest 필드 정확성 + 대규모 vault 성능 (incremental update 유지)
+- SCHEMA_VERSION=3 (pre-v3 manifests gracefully skipped by audit-validate)
+- audit이 read-side에서 활용 — `read_manifest_summary`가 `promotion_candidate_count` 집계
+- env vars: `VAULT_AUDIT_PROMOTION_REFS=3`, `VAULT_AUDIT_PROMOTION_ACCESS=5`
 
-**PR 4d — Step 3: Promotion Candidate** (PR 4c 의존, P2)
-- 트리거: `references_in >= 3` 또는 `access_count >= 5` 노트 (`VAULT_AUDIT_PROMOTION_REFS=3`, `VAULT_AUDIT_PROMOTION_ACCESS=5` 환경변수)
-- 스코프: `type: note` 또는 `type: decision`만 (§3.3 승격 자격)
-- 새 에러 코드(예: E8) 또는 별도 카테고리로 audit-validate.py에 추가
-- 출력: 파일명 + 신호값 → 사용자가 수동으로 frontmatter `status: evergreen` 편집
-- Fixture: high-ref/high-access 시드 + ring-link 패턴 활용
+**PR 4d — Step 3: Promotion Candidate** (#90, ✅ 2026-05-28)
+- 트리거: PR 4c가 manifest에 심은 `promotion_candidate: true` 엔트리를 audit-validate가 소비
+- 스코프: `type: note` 또는 `type: decision`만 (§3.3 승격 자격, manifest가 이 필터 적용)
+- `E8_promotion_candidate` (P2/Info) finding 추가 — `_promotion_candidates_from_manifest()` 헬퍼
+- 출력: `refs_in={r}, access={a} (manual: status→evergreen)` 상세
+- Phantom 가드: 매니페스트 stale 엔트리(파일 삭제됨) skip
+- Fixture: ring-linker 3개 + access-target manifest patch → DoD `E8:2` / `fp:0`
 
 **PR 4e — Step 4: Git 활동 요약** (독립, 작은 작업, P3)
 - 지난 7일 vault 활동: commit 수, 추가/수정/archive 파일 카운트
@@ -169,15 +171,15 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 ## 첫 액션 (세션 시작 시)
 
 1. **이 문서 + 두 설계 문서 읽기** (위 §필수 선행 읽기)
-2. `git log -10` + `git status`로 현재 상태 파악 (PR #87까지 머지된 상태인지 확인)
-3. **PR 4c 시작** — Step 0 시스템 메타 재계산:
-   - `vault-bridge/scripts/generate-manifest.py`에 `references_in/out`, `access_count`, `promotion_candidate` 계산 추가
-   - 현재 `file_count` + `generated_at`만 manifest에 있는 상태 (PR 4a read-only display 한정)
-   - PR 4d (Promotion Candidate)의 차단 의존성이라 우선 진행 권고
-4. 변경 후 즉시 회귀 테스트 + 커밋 (`vault-bridge/scripts/test/test-manifest-type-optin.py` 외)
+2. `git log -10` + `git status`로 현재 상태 파악 (PR #90까지 머지된 상태인지 확인)
+3. **다음 PR 선택** — 셋 다 독립이라 순서 자유:
+   - **PR 4e** (Git 활동 요약, P3): audit REPORT 헤더에 지난 7일 commit/추가/수정 카운트 추가. 가장 작음.
+   - **PR 5** (`/vault-commit` 컨벤션, P2): status 전이 감지 → 자동 commit message. 설계 §4.2 참조.
+   - **PR 6** (마이그레이션 dogfood) 는 PR 4e + 5 후 진행 (작은 PR 먼저 모아두는 게 안전).
+4. 변경 후 즉시 회귀 테스트 + 커밋 (CLAUDE.md §Validation 참조)
 5. PR 단위 push, 다음 PR로 이동
 
-**병렬 작업자 권고**: PR 5 (`/vault-commit` 컨벤션)는 audit과 독립이라 다른 세션에서 동시 진행 가능 — 설계 §4.2 참조.
+**병렬 권고**: PR 4e와 PR 5는 서로 독립 — 다른 세션·브랜치에서 동시 진행 가능.
 
 **과거 PR 분할 결정 기록**: PR 4를 sub-PR (4a~4e)로 분할한 것은 의도된 결정. 단일 큰 PR로 묶으면 회귀 추적이 어렵고 검증 단위가 모호해져요. Step 별 DoD를 명확히 떨어뜨려 진행하세요.
 
