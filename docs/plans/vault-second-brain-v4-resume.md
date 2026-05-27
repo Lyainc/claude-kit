@@ -16,14 +16,14 @@
 | **PR 4** | `/audit` Phase 1 (Steps 0-5, 분할 진행) | — | 부분 완료 |
 | ↳ 4a | Phase 1 expansion — P0/P2 priority + manifest display | #86 | ✅ 2026-05-26 |
 | ↳ 4b | Phase 2 stagnation — E6/E7 (P1) | #87 | ✅ 2026-05-27 |
-| ↳ **4c** | **Step 0 — 시스템 메타 재계산** (manifest write-side) | — | **다음 즉시** |
+| ↳ 4c | Step 0 — 시스템 메타 재계산 (manifest write-side) | #89 | ✅ 2026-05-28 |
 | ↳ 4d | Step 3 — Promotion Candidate (P2, Step 0 의존) | — | 대기 |
 | ↳ 4e | Step 4 — Git 활동 요약 (P3, 독립) | — | 대기 |
 | PR 5 | `/vault-commit` 메시지 컨벤션 자동화 | — | 미완 (독립, 병렬 가능) |
 | PR 6 | 마이그레이션 dogfood | — | 대기 (audit 완료 후) |
 | PR 7 | README + onboarding v4 반영 | — | 마지막 |
 
-**즉시 다음**: **PR 4c (Step 0 메타 재계산)** — `references_in/out`, `access_count`, `promotion_candidate`를 `manifest.json`에 작성. PR 4d (Promotion Candidate)의 의존성이므로 leverage 큼.
+**즉시 다음**: **PR 4d (Promotion Candidate)** — PR 4c 완료로 차단 해제. `promotion_candidate` 플래그를 audit 섹션에 노출 (E8 또는 별도 카테고리).
 
 **병렬 가능**: PR 5 (`vault-commit` 컨벤션)는 audit과 독립 — 다른 세션에서 동시 진행 가능.
 

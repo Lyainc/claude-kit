@@ -23,9 +23,14 @@ import sys
 import time
 from pathlib import Path
 
-SCHEMA_VERSION = 2  # v2: type opt-in (v4 §2.2); v1 manifests invalidated on first run.
+SCHEMA_VERSION = 3  # v3: references_in/out, access_count, promotion_candidate (PR 4c).
+                    # v2→v3: in-place upgrade — existing entries preserved, new fields patched.
 SUMMARY_MAX_CHARS = 400
 EXCLUDED_DIRS = {".vault-bridge", ".claude", "assets", ".git"}
+
+# Promotion candidate thresholds (env-overridable)
+PROMOTION_REFS_THRESHOLD = int(os.environ.get("VAULT_AUDIT_PROMOTION_REFS", "3"))
+PROMOTION_ACCESS_THRESHOLD = int(os.environ.get("VAULT_AUDIT_PROMOTION_ACCESS", "5"))
 
 
 def _default_vault_root() -> str:
@@ -47,6 +52,7 @@ def _default_vault_root() -> str:
 
 _FM_BLOCK_RE = re.compile(r"^---\s*\n(.*?)\n---\s*\n", re.DOTALL)
 _FLOW_ARRAY_RE = re.compile(r"^\[([^\]]*)\]$")
+_WIKILINK_RE = re.compile(r"\[\[([^\]|#\n]+)(?:[|#][^\]]*)?]]")
 
 
 def _parse_scalar(value: str) -> object:
@@ -277,14 +283,19 @@ def _build_entry(rel_path: str, abs_path: Path, vault_root: Path) -> dict:
 # ---------------------------------------------------------------------------
 
 def _load_existing_manifest(out_path: Path) -> dict | None:
-    """Load existing manifest JSON; return None if absent or corrupt."""
+    """Load existing manifest JSON; return None if absent or corrupt.
+
+    v3 in-place upgrade: accepts manifests with older schema_version instead of
+    triggering a full invalidation. Missing new fields (references_in, references_out,
+    access_count, promotion_candidate) are patched by generate() after loading.
+    """
     if not out_path.exists():
         return None
     try:
         data = json.loads(out_path.read_text(encoding="utf-8"))
-        if data.get("schema_version") != SCHEMA_VERSION:
-            return None
-        return data
+        if "files" not in data:
+            return None  # corrupt structure — trigger full scan
+        return data  # accept any schema_version; generate() patches missing fields
     except (json.JSONDecodeError, OSError):
         return None
 
@@ -321,6 +332,28 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
             continue
         md_files[rel] = abs_path
 
+    # --- PR 4c: global meta computations (always run, not incremental) ---
+    # references_in/out are global metrics that must be recomputed each run
+    # (a new file may link to any existing file).  access_count uses a single
+    # git log call to keep total overhead low.
+    inbound_counts, outbound_counts = _build_wikilink_index(md_files)
+    is_git = _is_git_repo(vault_root)
+    access_counts = _compute_all_access_counts(vault_root, is_git)
+
+    def _enrich(entry: dict, rel: str) -> dict:
+        """Patch PR-4c meta fields into entry (mutates + returns entry)."""
+        stem = Path(rel).stem
+        ref_in = inbound_counts.get(stem, 0)
+        ref_out = outbound_counts.get(rel, 0)
+        acc = access_counts.get(rel, 0)
+        entry["references_in"] = ref_in
+        entry["references_out"] = ref_out
+        entry["access_count"] = acc
+        entry["promotion_candidate"] = _compute_promotion_candidate(
+            entry.get("type", "unknown"), ref_in, acc
+        )
+        return entry
+
     existing = None if force else _load_existing_manifest(out_path)
 
     if existing is None:
@@ -331,6 +364,7 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
                 entry = _build_entry(rel, abs_path, vault_root)
                 if entry["type"] == "unknown":
                     continue  # type opt-in (v4 §2.2)
+                _enrich(entry, rel)
                 files_list.append(entry)
             except Exception as exc:
                 print(f"WARNING: skipping {rel}: {exc}", file=sys.stderr)
@@ -346,7 +380,9 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
         removed_count = 0
         processed_count = len(files_list)
     else:
-        # Incremental update: compare mtimes
+        # Incremental update: compare mtimes.
+        # For in-place upgrade (old schema_version): unchanged entries are kept
+        # but always enriched with the new PR-4c fields (_enrich patches them).
         manifest_mtime = _manifest_mtime(out_path)
 
         existing_by_path: dict[str, dict] = {e["path"]: e for e in existing.get("files", [])}
@@ -364,13 +400,16 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
             if rel in existing_by_path and file_mtime <= manifest_mtime:
                 existing_entry = existing_by_path[rel]
                 if existing_entry.get("type", "unknown") == "unknown":
-                    continue  # safety net for manually-edited v2 manifests
+                    continue  # safety net for manually-edited older manifests
+                # Always enrich — references_in is global and must be refreshed
+                _enrich(existing_entry, rel)
                 new_files_list.append(existing_entry)
             else:
                 try:
                     entry = _build_entry(rel, abs_path, vault_root)
                     if entry["type"] == "unknown":
                         continue  # type opt-in (v4 §2.2)
+                    _enrich(entry, rel)
                     new_files_list.append(entry)
                     if rel in existing_by_path:
                         updated_count += 1
@@ -400,6 +439,102 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
         "removed": removed_count,
         "elapsed_ms": elapsed_ms,
     }
+
+
+# ---------------------------------------------------------------------------
+# PR 4c — Wikilink index, git access count, promotion candidate
+# ---------------------------------------------------------------------------
+
+def _build_wikilink_index(
+    md_files: dict[str, Path],
+) -> tuple[dict[str, int], dict[str, int]]:
+    """
+    Scan all vault .md files and build two counters:
+      - inbound:  stem -> count of OTHER files that contain [[stem]] (references_in)
+      - outbound: rel_path -> count of outbound wikilinks in that file (references_out)
+
+    Wikilink resolution follows Obsidian's default: match by stem only
+    (filename without extension), ignoring sub-path qualifiers.
+    """
+    inbound: dict[str, int] = {}
+    outbound: dict[str, int] = {}
+
+    for rel, abs_path in md_files.items():
+        try:
+            text = abs_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            outbound[rel] = 0
+            continue
+
+        links = _WIKILINK_RE.findall(text)
+        outbound[rel] = len(links)
+
+        for raw in links:
+            # Take the stem of the target (last path component without extension)
+            stem = Path(raw.strip()).stem
+            inbound[stem] = inbound.get(stem, 0) + 1
+
+    return inbound, outbound
+
+
+def _is_git_repo(vault_root: Path) -> bool:
+    """Return True if vault_root is inside a git repository."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ["git", "-C", str(vault_root), "rev-parse", "--git-dir"],
+            capture_output=True,
+            timeout=5,
+        )
+        return result.returncode == 0
+    except Exception:
+        return False
+
+
+def _compute_all_access_counts(vault_root: Path, is_git: bool) -> dict[str, int]:
+    """
+    Run a single `git log` to count 7-day commit touches per file.
+    Returns rel_path -> touch_count (empty dict for non-git vaults or on error).
+    """
+    if not is_git:
+        return {}
+    import subprocess
+    try:
+        result = subprocess.run(
+            [
+                "git", "-C", str(vault_root), "log",
+                "--since=7 days ago", "--name-only", "--pretty=format:",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        counts: dict[str, int] = {}
+        for line in result.stdout.splitlines():
+            line = line.strip()
+            if line:
+                counts[line] = counts.get(line, 0) + 1
+        return counts
+    except Exception:
+        return {}
+
+
+def _compute_promotion_candidate(
+    entry_type: str, references_in: int, access_count: int
+) -> bool | None:
+    """
+    Compute the promotion_candidate flag.
+
+    Only `note` and `decision` types are eligible. inbox/ files and all other
+    types return None (not applicable).
+
+    Thresholds (env-overridable):
+      VAULT_AUDIT_PROMOTION_REFS   (default 3) — inbound link threshold
+      VAULT_AUDIT_PROMOTION_ACCESS (default 5) — git 7-day access threshold
+    """
+    if entry_type not in ("note", "decision"):
+        return None
+    return references_in >= PROMOTION_REFS_THRESHOLD or access_count >= PROMOTION_ACCESS_THRESHOLD
 
 
 def _iso_now() -> str:
