@@ -155,7 +155,7 @@ def _msg_for_modified(vault_root: str, rel_path: str) -> str:
     if new_type == "note":
         return f"note(update): {stem}"
     elif new_type == "decision":
-        return f"note(update): {stem}"
+        return f"decision(update): {stem}"
     else:
         return f"vault: update {Path(rel_path).name}"
 
