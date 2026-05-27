@@ -230,6 +230,72 @@ def case_untyped_file(errors: list[str]) -> None:
         _assert(out.startswith("vault: add"), f"starts with vault: add (got: {out!r})", errors)
 
 
+def case_new_plan(errors: list[str]) -> None:
+    """New plan file → 'plan(create): {stem}'"""
+    print("\ncase: new_plan")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        rel = "notes/plan-2026-05-28-api.md"
+        _write_note(vault_root, rel, "plan", "raw")
+        diff = ["A\t" + rel]
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out.startswith("plan(create):"), f"starts with plan(create): (got: {out!r})", errors)
+
+
+def case_modify_decision_promote(errors: list[str]) -> None:
+    """Modified decision with status transition → 'decision(promote):' not 'note(promote):'"""
+    print("\ncase: modify_decision_promote")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        rel = "notes/decision-2026-05-28-x.md"
+        _write_note(vault_root, rel, "decision", "draft")
+        _commit_file(str(vault_root), rel, "add decision draft")
+        _write_note(vault_root, rel, "decision", "evergreen")
+        diff = ["M\t" + rel]
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out.startswith("decision(promote):"), f"starts with decision(promote): (got: {out!r})", errors)
+        _assert("draft→evergreen" in out, f"contains draft→evergreen (got: {out!r})", errors)
+
+
+def case_delete_file(errors: list[str]) -> None:
+    """Deleted file → 'vault: delete {filename}'"""
+    print("\ncase: delete_file")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        rel = "notes/old.md"
+        _write_note(vault_root, rel, "note", "evergreen")
+        _commit_file(str(vault_root), rel, "add old")
+        # Simulate deletion in the diff line (don't actually need the file removed for the test)
+        diff = ["D\t" + rel]
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out.startswith("vault: delete"), f"starts with vault: delete (got: {out!r})", errors)
+        _assert("old.md" in out, f"filename in message (got: {out!r})", errors)
+
+
+def case_rename_file(errors: list[str]) -> None:
+    """Renamed file → 'vault: rename {old} → {new}'"""
+    print("\ncase: rename_file")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        # Diff line format: R100\told\tnew (tab-separated)
+        diff = ["R100\tnotes/old-name.md\tnotes/new-name.md"]
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out.startswith("vault: rename"), f"starts with vault: rename (got: {out!r})", errors)
+        _assert("old-name" in out and "new-name" in out, f"both stems in message (got: {out!r})", errors)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -252,6 +318,10 @@ def main() -> int:
     case_multi_file_decision_plus_note(errors)
     case_no_staged_files(errors)
     case_untyped_file(errors)
+    case_new_plan(errors)
+    case_modify_decision_promote(errors)
+    case_delete_file(errors)
+    case_rename_file(errors)
 
     print()
     if errors:

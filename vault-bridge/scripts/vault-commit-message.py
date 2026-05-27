@@ -68,7 +68,7 @@ def _git_show(vault_root: str, rel_path: str) -> str | None:
 
 _IMPORTANCE = {
     "decision": 0,
-    "promote": 1,
+    "plan": 1,
     "note": 2,
     "session": 3,
     "capture": 4,
@@ -77,6 +77,12 @@ _IMPORTANCE = {
 
 
 def _importance(msg: str) -> int:
+    # Status transitions (promote/archive) are highest priority within their type
+    # — surface them as the title in multi-file commits.
+    if "(promote)" in msg:
+        return -2  # higher than any type
+    if "(archive)" in msg:
+        return -1
     for key, rank in _IMPORTANCE.items():
         if msg.startswith(f"{key}(") or msg.startswith(f"{key}:"):
             return rank
@@ -102,6 +108,8 @@ def _msg_for_added(vault_root: str, rel_path: str) -> str:
 
     if ftype == "decision":
         return f"decision(create): {stem}"
+    elif ftype == "plan":
+        return f"plan(create): {stem}"
     elif ftype == "note":
         if status in ("raw", "draft", None):
             return f"note(draft): {stem} (new)"
@@ -114,6 +122,13 @@ def _msg_for_added(vault_root: str, rel_path: str) -> str:
     elif ftype == "capture":
         return f"capture: {stem} (new)"
     return f"vault: add {Path(rel_path).name}"
+
+
+def _type_prefix(new_type: str | None) -> str:
+    """Map frontmatter type to commit message prefix."""
+    if new_type in ("decision", "plan", "note"):
+        return new_type
+    return "note"  # fallback for unknown types
 
 
 def _msg_for_modified(vault_root: str, rel_path: str) -> str:
@@ -135,24 +150,24 @@ def _msg_for_modified(vault_root: str, rel_path: str) -> str:
     new_status = _extract_frontmatter_field(new_content, "status")
     old_status = _extract_frontmatter_field(old_content, "status") if old_content else None
 
+    prefix = _type_prefix(new_type)
+
     # Status transition detection
     if old_status is not None and new_status is not None and old_status != new_status:
         if new_status == "archived":
-            return f"note(archive): {stem}"
+            return f"{prefix}(archive): {stem}"
         elif old_status == "raw" and new_status == "draft":
-            return f"note(promote): {stem} {{raw→draft}}"
+            return f"{prefix}(promote): {stem} {{raw→draft}}"
         elif old_status == "draft" and new_status == "evergreen":
-            return f"note(promote): {stem} {{draft→evergreen}}"
+            return f"{prefix}(promote): {stem} {{draft→evergreen}}"
         else:
-            return f"note(promote): {stem} {{{old_status}→{new_status}}}"
+            return f"{prefix}(promote): {stem} {{{old_status}→{new_status}}}"
     elif new_status == "archived" and old_status != "archived":
-        return f"note(archive): {stem}"
+        return f"{prefix}(archive): {stem}"
 
     # Content change without status change
-    if new_type == "note":
-        return f"note(update): {stem}"
-    elif new_type == "decision":
-        return f"decision(update): {stem}"
+    if new_type in ("note", "decision", "plan"):
+        return f"{new_type}(update): {stem}"
     else:
         return f"vault: update {Path(rel_path).name}"
 
@@ -171,10 +186,9 @@ def _msg_for_renamed(old_path: str, new_path: str) -> str:
 # Main
 # ---------------------------------------------------------------------------
 
-def _parse_diff_lines(lines: list[str]) -> list[str]:
+def _parse_diff_lines(lines: list[str], vault_root: str) -> list[str]:
     """Parse git diff --cached --name-status lines into per-file messages."""
     messages: list[str] = []
-    vault_root = sys.argv[1] if len(sys.argv) > 1 else "."
 
     for line in lines:
         line = line.rstrip("\n")
@@ -215,8 +229,9 @@ def _synthesize(messages: list[str]) -> str:
 
 
 def main() -> int:
+    vault_root = sys.argv[1] if len(sys.argv) > 1 else "."
     stdin_lines = sys.stdin.readlines()
-    messages = _parse_diff_lines(stdin_lines)
+    messages = _parse_diff_lines(stdin_lines, vault_root)
     print(_synthesize(messages))
     return 0
 
