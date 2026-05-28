@@ -151,8 +151,10 @@ def process_project_dir(proj_dir, log):
             log.write(f"CONFLICT: {idx} → {dst} (이미 존재, skip — 수동 처리)\n")
         else:
             shutil.move(idx, dst)
-    # b. type 있는 다른 .md 파일만 이동
+    # b. type 있는 다른 .md 파일만 이동 (_index.md 제외 — 위에서 이미 처리됨)
     for f in os.listdir(proj_dir):
+        if f == "_index.md":
+            continue  # 첫 번째 단계에서 처리 시도됨 (성공/충돌 무관) — 재처리 금지
         full = os.path.join(proj_dir, f)
         if not os.path.isfile(full) or not f.endswith(".md"):
             continue
