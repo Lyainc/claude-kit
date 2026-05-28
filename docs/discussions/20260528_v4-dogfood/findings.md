@@ -134,7 +134,7 @@ DoD fixture:
 
 ## 7. 후속 조치 항목
 
-- [ ] **GAP-01 수정**: `docs/plans/vault-second-brain-v4-migration.md` Python script `_index.md` skip 로직 추가
+- [x] **GAP-01 수정**: `docs/plans/vault-second-brain-v4-migration.md` Python script `_index.md` skip 로직 추가 (커밋 `fa5f07d`)
 - [ ] **vault 정리 (선택)**: `notes/claude-kit.md` (MOC) vs `notes/claude-kit-project.md` (project index) 통합 여부 사용자 결정
 - [ ] **PhototicketMaker 잔여**: `20_Projects/PhototicketMaker/session-2026-05-27-phase-c-f-complete.md` — type 없어서 원위치 유지됨. 사용자 직접 type 추가 후 이동 결정
 - [ ] **50_Archive 딥러닝**: 하위폴더 수동 검토 후 처리 결정
