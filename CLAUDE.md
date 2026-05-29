@@ -147,7 +147,7 @@ python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
 python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
 # Expected: OK: all 8 cases passed
 
-# vault-audit DoD 측정 (mechanical reference impl)
+# audit DoD 측정 (mechanical reference impl)
 # gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py
 # and patches access_count=5 for the E8 access-target seed.
 rm -rf /tmp/ovm-fixture-audit-recheck

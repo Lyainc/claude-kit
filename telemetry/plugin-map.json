@@ -17,7 +17,7 @@
 
   "capture": "obsidian-vault-manager",
   "note": "obsidian-vault-manager",
-  "vault-audit": "obsidian-vault-manager",
+  "audit": "obsidian-vault-manager",
   "vault-knowledge-manager": "obsidian-vault-manager",
   "vault-file-organizer": "obsidian-vault-manager"
 }
