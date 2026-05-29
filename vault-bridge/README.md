@@ -32,7 +32,7 @@ Load the most recent active session note to restore session context.
 
 ### 2. Domain Context Load
 
-Load MOC and related notes for a specific domain. Lightweight read-only version for external projects. For advanced filtering (`--exclude`, `--limit`), use `obsidian-vault-manager`'s `context` skill instead.
+Load MOC and related notes for a specific domain. Lightweight read-only version for external projects. For domain context within vault management sessions, use `obsidian-vault-manager`'s `vault-knowledge-manager` agent (OVM-internal, direct mdfind/grep) instead.
 
 ```
 "vault에서 kubernetes 관련 노트 찾아줘"
@@ -289,7 +289,7 @@ Create or update `.vault-link` in the current directory:
 /vault-link
 ```
 
-The command scans `~/vault/20_Projects/` and presents a selection list. For new projects, it directs you to `obsidian-vault-manager`'s `/project` skill first. It never auto-modifies `.gitignore` — only suggests adding `.vault-link.local` to it.
+The command scans `~/vault/20_Projects/` and presents a selection list. For new projects, create the vault project via `obsidian-vault-manager`'s `vault-knowledge-manager` agent first, then run `/vault-link` to bind it. It never auto-modifies `.gitignore` — only suggests adding `.vault-link.local` to it.
 
 ### Kill switch
 

@@ -7,7 +7,7 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 | 플러그인 | 버전 | 구성 |
 |---|---|---|
 | [thinking-tools](thinking-tools/) | `1.6.3` | 스킬 7 + 에이전트 1 |
-| [obsidian-vault-manager](obsidian-vault-manager/) | `0.11.2` | 스킬 7 + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
+| [obsidian-vault-manager](obsidian-vault-manager/) | `0.11.2` | 스킬 3 + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
 | [vault-bridge](vault-bridge/) | `1.9.0` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
 
 ## 플러그인 목록
@@ -45,10 +45,6 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `vault-file-organizer` (agent) | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
 | `capture` | 즉시 Inbox에 메모 저장 + URL Defuddle 추출 옵션 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 |
-| `project` | 프로젝트 생성 / 노트 승격 / 필드 enrichment |
-| `inbox-review` | Inbox 파일 일괄 정리 |
-| `context` | vault 내부 도메인 맥락 로드 (Explore fork, CLI fallback) |
-| `archive` | 프로젝트 아카이브 + MOC 정리 |
 | `vault-audit` | vault 구조 무결성 감사 (9-error taxonomy) |
 
 ### [vault-bridge](vault-bridge/)

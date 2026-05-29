@@ -21,10 +21,6 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | --- | --- |
 | `capture` | 즉시 Inbox에 메모 저장 (`/capture 내용`); URL 입력 시 Defuddle CLI가 있으면 본문 Markdown 추출 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 (`/note 주제`) |
-| `project` | 프로젝트 생성 / 노트 승격 / 필드 enrichment (`/project 이름`) |
-| `inbox-review` | Inbox 파일 일괄 정리 (분류/이동/삭제) |
-| `context` | vault 내부 도메인 맥락 로드 (Explore fork); Obsidian CLI가 있으면 indexed search 우선 |
-| `archive` | 완료 프로젝트 아카이브 + MOC/Home.md 정리; Obsidian CLI가 있으면 property:set 우선 |
 | `vault-audit` | vault 구조 무결성 감사 (9-error taxonomy: orphans, broken wikilinks, filename, frontmatter, note↔project bidirectional) |
 
 ## `_index.md` 스키마 (W7)
@@ -110,7 +106,7 @@ note 생성 시 `~/vault/20_Projects/` 를 스캔하여 관련 프로젝트가 �
 | --- | --- | --- |
 | 사용 맥락 | vault 관리 세션 내부 | 외부 프로젝트에서 vault 접근 |
 | 쓰기 범위 | 노트/MOC/프로젝트 전체 생성·수정·삭제 | 새 session-note 생성만 가능 |
-| `context` vs `vault-searcher` | MOC 기반 도메인 로드 + `--exclude`/`--limit` 옵션 | MOC 기반 도메인 로드 (읽기 전용, 외부 접근용) |
+| 도메인 컨텍스트 로드 | `vault-knowledge-manager` 에이전트 (OVM 내부, mdfind/grep 직접 접근) | `vault-searcher` Mode 2 (읽기 전용, 외부 접근용) |
 | 세션 기록 | 해당 없음 (vault-bridge의 session-note 사용) | session-note 생성 (과거 기록 + 미래 계획 통합) |
 
 ## 사전 요구사항
