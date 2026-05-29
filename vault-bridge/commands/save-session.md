@@ -9,6 +9,8 @@ disable-model-invocation: true
 
 Create a new vault session note for the current session. The full procedure lives in `vault-bridge/reference/session-note-recipe.md` — this file is the slash-command entry point and contract surface.
 
+<!-- TODO(T1.7 audit): vault_path is RISKY here — it is resolved from .vault-link via session-note-recipe.md and used as the single source of truth for the session note save directory (recipe §save-path-determination step). The Write tool destination for the session note file flows through this vault_path resolution. Follow-up: broader audit plan. -->
+
 **User language: Korean.** All user-facing output MUST be in Korean.
 
 ---
