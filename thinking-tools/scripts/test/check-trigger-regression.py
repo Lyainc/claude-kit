@@ -47,6 +47,7 @@ def _git(*args: str) -> subprocess.CompletedProcess:
         ["git", "-C", str(_REPO_ROOT), *args],
         capture_output=True,
         text=True,
+        timeout=30,
     )
 
 
@@ -56,7 +57,7 @@ _CONNECTOR_RE = re.compile(r"\bor (?:requests|explicitly|mentions):")
 _NON_TRIGGER_PREFIXES = ("Routing:", "Skip for:", "Use when", "Structure:")
 
 
-def extract_triggers(skill_text: str) -> set[str]:
+def extract_triggers(skill_text: str, label: str = "") -> set[str]:
     """Pull the set of trigger phrases out of a SKILL.md's description block.
 
     Returns normalized phrases (quotes/trailing punctuation stripped). Routing
@@ -77,6 +78,12 @@ def extract_triggers(skill_text: str) -> set[str]:
         r"description:\s*\|\n(.*?)(?=\n[a-zA-Z_-]+:\s|\Z)", frontmatter, re.DOTALL
     )
     if not desc_match:
+        if label:
+            print(
+                f"  WARNING: {label}: no `description: |` block-scalar found — "
+                f"triggers not extracted (folded/quoted style?)",
+                file=sys.stderr,
+            )
         return set()
     description = desc_match.group(1)
 
@@ -91,7 +98,7 @@ def extract_triggers(skill_text: str) -> set[str]:
     blob = _CONNECTOR_RE.sub(",", trig_match.group(1))
     triggers = set()
     for raw in blob.split(","):
-        token = raw.strip().strip(".").strip().strip('"').strip()
+        token = raw.strip('". \t')
         # Drop stray guidance fragments and single-char noise.
         if not token or len(token) < 2:
             continue
@@ -160,7 +167,7 @@ def compare(base_ref: str, head_ref: str | None) -> int:
             print(f"  {path}: REMOVED FILE (skill deleted)")
             total_removed += 1
             continue
-        removed = extract_triggers(base_text) - extract_triggers(head_text)
+        removed = extract_triggers(base_text, path) - extract_triggers(head_text, path)
         if removed:
             skill = path.split("/")[-2]
             print(f"  [{skill}] {len(removed)} trigger(s) dropped:")
