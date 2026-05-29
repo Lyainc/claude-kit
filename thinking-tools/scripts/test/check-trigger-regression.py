@@ -27,6 +27,8 @@ Examples:
     python3 thinking-tools/scripts/test/check-trigger-regression.py HEAD~3 HEAD
 """
 
+from __future__ import annotations
+
 import re
 import subprocess
 import sys
@@ -80,6 +82,15 @@ def extract_triggers(skill_text: str) -> set[str]:
     return triggers
 
 
+def _ref_exists(ref: str) -> bool:
+    """True if `ref` resolves to a commit in this repo."""
+    return subprocess.run(
+        ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
+        capture_output=True,
+        text=True,
+    ).returncode == 0
+
+
 def _git_show(ref: str, path: str) -> str | None:
     """Return file contents at a git ref, or None if the path is absent there."""
     result = subprocess.run(
@@ -107,6 +118,11 @@ def _list_skill_paths(ref: str | None) -> list[str]:
         text=True,
     )
     if result.returncode != 0:
+        print(
+            f"WARNING: `git ls-tree {ref}` failed; falling back to disk glob. "
+            f"stderr: {result.stderr.strip()}",
+            file=sys.stderr,
+        )
         return sorted(str(p) for p in Path().glob(SKILL_GLOB))
     pat = re.compile(r"^thinking-tools/skills/[^/]+/SKILL\.md$")
     return sorted(line for line in result.stdout.splitlines() if pat.match(line))
@@ -114,6 +130,12 @@ def _list_skill_paths(ref: str | None) -> list[str]:
 
 def compare(base_ref: str, head_ref: str | None) -> int:
     """Report triggers present at base_ref but missing at head_ref/working tree."""
+    if not _ref_exists(base_ref):
+        print(f"ERROR: base ref '{base_ref}' not found in this repo.", file=sys.stderr)
+        return 2
+    if head_ref is not None and not _ref_exists(head_ref):
+        print(f"ERROR: head ref '{head_ref}' not found in this repo.", file=sys.stderr)
+        return 2
     paths = _list_skill_paths(base_ref) or _list_skill_paths(None)
     total_removed = 0
     print(f"Trigger regression check: {base_ref} -> {head_ref or 'working tree'}\n")
