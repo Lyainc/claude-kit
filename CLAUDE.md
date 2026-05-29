@@ -117,6 +117,16 @@ python3 vault-bridge/scripts/test/test-vault-commit-message.py
 # telemetry schema self-test
 python3 telemetry/scripts/validate-schema.py --self-test
 
+# thinking-tools trigger-regression check (run after editing any SKILL.md description)
+# Self-test the extractor:
+python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
+# Expected: OK: all 9 self-test cases passed
+# Diff trigger sets between a base ref and the working tree (exit 1 = removals found):
+python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main
+# A char-count check does NOT catch dropped triggers; ALWAYS run this when slimming
+# descriptions. Removals are reported (not hard-gated) — reviewer decides if intentional.
+# Restore any CLAUDE.md-mandated trigger (e.g. expert-panel "다양한 관점에서 평가해줘").
+
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
 bash -n telemetry/event-logger.sh
