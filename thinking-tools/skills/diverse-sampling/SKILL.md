@@ -161,17 +161,11 @@ A classic writing reference that evokes craftsmanship.
 *{k}개 대안 중 가장 선호되는 옵션*
 ```
 
-## Model Capabilities
+## Structured Output Handling
 
-### Extended Thinking (Opus)
-- 구조화 데이터 처리를 thinking 단계에서 수행
-- 출력에는 변환된 자연어만 포함
-- 확률 calibration 더 정확
-
-### Standard Mode (Sonnet)
-- 명시적 지시로 구조화 데이터 은닉
-- "NEVER output XML/JSON to user" 강조
-- 파싱 실패 시 즉시 fallback
+Regardless of model: structured data (XML/JSON `<response>` blocks with `<text>` and `<probability>`) is internal processing only.
+- Never expose raw XML/JSON to the user — emit converted natural language only.
+- On parse failure, apply the Fallback Mechanism below.
 
 ## Fallback Mechanism
 
