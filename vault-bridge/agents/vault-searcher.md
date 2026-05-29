@@ -187,14 +187,14 @@ vault-searcher never writes; all vault writes are user-initiated slash commands 
 </example>
 
 <example>
-user: "예전에 API 설계 관련해서 썼던 게 있었던 것 같은데 찾아줘"
-assistant: [Mode 1 Session Restore — searches inbox/session-*.md filtered by status: active.
-Sorts by date descending. Returns most recent match with key context:
-current status, next steps, blockers. If no active session note found, reports that
-and offers to run a keyword search (Mode 3) across all vault notes instead.]
+user: "어제 하던 작업 이어서 할래, 세션 컨텍스트 불러와줘"
+assistant: [Mode 1 Session Restore — searches inbox/session-*.md (and .vault-link project path if
+present) filtered by status: active. Sorts by date descending, returns the most recent active
+session with key context: current status, next steps, blockers. Read-only.]
 <commentary>
-"예전에 썼던" + topic hint → Mode 1 session restore first.
-Scoped to inbox/ (and .vault-link project path if pointer exists).
+"이어서" / "세션 컨텍스트 불러와" → Mode 1 session restore: load the latest active session note.
+Distinct from Mode 3 — Mode 1 targets the most recent in-progress session, NOT a topic keyword.
+A topic-scoped request ("API 설계 관련 예전 기록 찾아줘") routes to Mode 3 instead.
 Read-only: no files written or modified.
 </commentary>
 </example>
