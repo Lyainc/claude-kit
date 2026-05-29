@@ -5,14 +5,8 @@ description: |
   Generate diverse responses using Verbalized Sampling (VS) technique to overcome mode collapse.
   Produces multiple alternative outputs with probability distribution, then selects based on strategy.
 
-  Use when creative diversity is needed: brainstorming, ideation, alternative solutions,
-  creative writing, synthetic data generation, or exploring multiple perspectives.
-
-  Trigger when user mentions: 다양한 아이디어, 브레인스토밍, 대안 제시, 창의적 답변,
-  diverse ideas, brainstorming, alternatives, multiple options,
-  or explicitly: "/diverse-sampling", "VS 기법으로", "verbalized sampling으로".
-
-  Skip for: factual questions, code debugging, single correct answer tasks, precise calculations.
+  Trigger when user mentions: 다양한 아이디어, 브레인스토밍, 대안 제시, 창의적 답변, VS 기법으로,
+  diverse ideas, brainstorming, alternatives, verbalized sampling.
 model: sonnet
 allowed-tools: AskUserQuestion
 ---

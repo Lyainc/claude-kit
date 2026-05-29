@@ -4,14 +4,8 @@ description: |
   Crystallize vague ideas into machine-readable Seed specs via Socratic interview
   and Ambiguity gating. Vendor-neutral Ouroboros-style workflow.
 
-  Use when you have a vague idea or requirement that needs to be clarified and
-  structured before implementation. Produces a YAML Seed spec file.
-
-  Trigger when user mentions: spec-first, seed 생성, 명세 만들기, requirements crystallize,
-  모호한 아이디어 구체화, ambiguity gate, 아이디어를 스펙으로, 요구사항 명확화, 아이디어 구체화.
-
-  Skip for: reviewing existing plans (use unknown-discovery), brainstorming alternatives
-  (use diverse-sampling), attacking a specific claim (use adversarial-review).
+  Trigger when user mentions: spec-first, 명세 만들기, 아이디어를 스펙으로, 요구사항 명확화, 아이디어 구체화,
+  seed 생성, ambiguity gate, requirements crystallize.
 allowed-tools: AskUserQuestion Read Write Glob Skill
 model: sonnet
 ---
