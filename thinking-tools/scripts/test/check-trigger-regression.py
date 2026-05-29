@@ -36,6 +36,20 @@ from pathlib import Path
 
 SKILL_GLOB = "thinking-tools/skills/*/SKILL.md"
 
+# Repo root resolved relative to this file (test/ -> scripts/ -> thinking-tools/ -> root),
+# so the script behaves identically regardless of the caller's CWD.
+_REPO_ROOT = Path(__file__).resolve().parents[3]
+
+
+def _git(*args: str) -> subprocess.CompletedProcess:
+    """Run a git command anchored at the repo root (CWD-independent)."""
+    return subprocess.run(
+        ["git", "-C", str(_REPO_ROOT), *args],
+        capture_output=True,
+        text=True,
+    )
+
+
 # Connector phrases that introduce more triggers but are not triggers themselves.
 _CONNECTOR_RE = re.compile(r"\bor (?:requests|explicitly|mentions):")
 # Lines inside the description that are guidance, not triggers.
@@ -48,6 +62,11 @@ def extract_triggers(skill_text: str) -> set[str]:
     Returns normalized phrases (quotes/trailing punctuation stripped). Routing
     and Skip-for guidance lines are excluded — only the "Trigger when user
     mentions:" enumeration is parsed.
+
+    NOTE: Only handles `description: |` block-scalar style (every current
+    thinking-tools skill uses it). Folded (>) or quoted single-line
+    descriptions return an empty set silently — extend the regex if a skill
+    ever switches style, otherwise its triggers would be invisible here.
     """
     fm_match = re.match(r"^---\n(.*?)\n---", skill_text, re.DOTALL)
     if not fm_match:
@@ -84,46 +103,39 @@ def extract_triggers(skill_text: str) -> set[str]:
 
 def _ref_exists(ref: str) -> bool:
     """True if `ref` resolves to a commit in this repo."""
-    return subprocess.run(
-        ["git", "rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}"],
-        capture_output=True,
-        text=True,
-    ).returncode == 0
+    return _git("rev-parse", "--verify", "--quiet", f"{ref}^{{commit}}").returncode == 0
 
 
 def _git_show(ref: str, path: str) -> str | None:
     """Return file contents at a git ref, or None if the path is absent there."""
-    result = subprocess.run(
-        ["git", "show", f"{ref}:{path}"],
-        capture_output=True,
-        text=True,
-    )
+    result = _git("show", f"{ref}:{path}")
     if result.returncode != 0:
         return None
     return result.stdout
 
 
 def _read_working_tree(path: str) -> str | None:
-    p = Path(path)
+    p = _REPO_ROOT / path
     return p.read_text(encoding="utf-8") if p.is_file() else None
+
+
+def _disk_glob() -> list[str]:
+    """Skill paths globbed from disk, returned repo-relative (CWD-independent)."""
+    return sorted(str(p.relative_to(_REPO_ROOT)) for p in _REPO_ROOT.glob(SKILL_GLOB))
 
 
 def _list_skill_paths(ref: str | None) -> list[str]:
     """Skill paths tracked at a ref (or globbed from disk when ref is None)."""
     if ref is None:
-        return sorted(str(p) for p in Path().glob(SKILL_GLOB))
-    result = subprocess.run(
-        ["git", "ls-tree", "-r", "--name-only", ref],
-        capture_output=True,
-        text=True,
-    )
+        return _disk_glob()
+    result = _git("ls-tree", "-r", "--name-only", ref)
     if result.returncode != 0:
         print(
             f"WARNING: `git ls-tree {ref}` failed; falling back to disk glob. "
             f"stderr: {result.stderr.strip()}",
             file=sys.stderr,
         )
-        return sorted(str(p) for p in Path().glob(SKILL_GLOB))
+        return _disk_glob()
     pat = re.compile(r"^thinking-tools/skills/[^/]+/SKILL\.md$")
     return sorted(line for line in result.stdout.splitlines() if pat.match(line))
 
