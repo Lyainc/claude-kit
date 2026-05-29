@@ -17,13 +17,13 @@
 | ↳ 4a | Phase 1 expansion — P0/P2 priority + manifest display | #86 | ✅ 2026-05-26 |
 | ↳ 4b | Phase 2 stagnation — E6/E7 (P1) | #87 | ✅ 2026-05-27 |
 | ↳ 4c | Step 0 — 시스템 메타 재계산 (manifest write-side) | #89 | ✅ 2026-05-28 |
-| ↳ 4d | Step 3 — Promotion Candidate (P2, Step 0 의존) | — | ✅ 2026-05-28 |
-| ↳ 4e | Step 4 — Git 활동 요약 (P3, 독립) | — | 대기 |
-| PR 5 | `/vault-commit` 메시지 컨벤션 자동화 | — | 미완 (독립, 병렬 가능) |
-| PR 6 | 마이그레이션 dogfood | — | 대기 (audit 완료 후) |
-| PR 7 | README + onboarding v4 반영 | — | 마지막 |
+| ↳ 4d | Step 3 — Promotion Candidate (P2, Step 0 의존) | #90 | ✅ 2026-05-28 |
+| ↳ 4e | Step 4 — Git 활동 요약 (P3, 독립) | #91 | ✅ 2026-05-29 |
+| PR 5 | `/vault-commit` 메시지 컨벤션 자동화 | #92 | ✅ 2026-05-29 |
+| PR 6 | 마이그레이션 dogfood | — | ✅ 2026-05-29 (완료 — 잔여 폴더 2개: type 없는 파일 원위치 유지) |
+| PR 7 | README + onboarding v4 반영 | — | 진행 중 |
 
-**즉시 다음**: **PR 4e (Git 활동 요약)** 또는 **PR 5 (`/vault-commit` 컨벤션)** — 둘 다 독립, 병렬 진행 가능.
+**즉시 다음**: **PR 7 (README + onboarding v4 반영)** — PR 1-6 모두 완료, 마지막 문서화 단계.
 
 **병렬 가능**: PR 5 (`vault-commit` 컨벤션)는 audit과 독립 — 다른 세션에서 동시 진행 가능.
 

@@ -138,7 +138,7 @@ Without a manifest, loading vault context requires reading 20+ files at ~50 KB e
   "file_count": 142,
   "files": [
     {
-      "path": "20_Projects/claude-kit/plan-2026-04-18-vault-bridge-value-prop.md",
+      "path": "notes/claude-kit/plan-2026-04-18-vault-bridge-value-prop.md",
       "type": "plan",
       "status": "active",
       "workstream": "W10",
@@ -222,7 +222,7 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 
 ```yaml
 version: 1                          # optional; v1 assumed if absent
-vault_path: 20_Projects/my-project  # required; relative to vault root
+vault_path: notes/my-project  # required; relative to vault root
 auto_capture: true                  # optional; W8 plan-doc autosync gate (default: false)
 autosync_paths_include:             # optional v1.1; extra plan-doc patterns merged with defaults
   - notes/specs/*.md
@@ -272,14 +272,14 @@ vault-searcher walks upward from CWD (git-style) until it finds `.vault-link`. T
 | Surface | Without `.vault-link` | With `.vault-link` |
 |---------|-----------------------|--------------------|
 | **vault-searcher Mode 2 (Domain Context Load)** | Searches all of `~/vault/` | Searches only `{vault_root}/{vault_path}/` |
-| **`/save-session`** | Saves to `~/vault/00_Inbox/` | Saves to `{vault_root}/{vault_path}/` |
+| **`/save-session`** | Saves to `~/vault/inbox/` | Saves to `{vault_root}/{vault_path}/` |
 | **`/save-plan-doc`** | Cannot run (requires `.vault-link`) | Saves snapshots to `{vault_root}/{vault_path}/` |
 
 vault-searcher Modes 1 and 3 (Session Restore, Keyword Search) are unaffected by `.vault-link` scope.
 
 ### Recovery
 
-If the `vault_path` directory does not exist, vault-searcher checks `20_Projects/` for candidates with edit distance ≤ 2 and asks the user to confirm. If no candidates are found, it falls back silently to full-vault scope and Inbox save target.
+If the `vault_path` directory does not exist, vault-searcher checks `notes/` for candidates with edit distance ≤ 2 and asks the user to confirm. If no candidates are found, it falls back silently to full-vault scope and inbox save target.
 
 ### `/vault-link` command
 
@@ -289,7 +289,7 @@ Create or update `.vault-link` in the current directory:
 /vault-link
 ```
 
-The command scans `~/vault/20_Projects/` and presents a selection list. For new projects, create the vault project via `obsidian-vault-manager`'s `vault-knowledge-manager` agent first, then run `/vault-link` to bind it. It never auto-modifies `.gitignore` — only suggests adding `.vault-link.local` to it.
+The command scans `~/vault/notes/` and presents a selection list. For new projects, create the vault project note via `obsidian-vault-manager`'s `vault-knowledge-manager` agent first, then run `/vault-link` to bind it. It never auto-modifies `.gitignore` — only suggests adding `.vault-link.local` to it.
 
 ### Kill switch
 
@@ -303,18 +303,17 @@ vault-bridge v1.5.0 introduced vault write governance; v1.9.0 narrows vault-sear
 
 | Target | File types |
 |--------|-----------|
-| `00_Inbox/` | `session-*`, `capture-*`, `plan-*` (new files only) |
-| `20_Projects/{name}/` | `session-*`, `capture-*`, `plan-*` (new files only, when `.vault-link` resolves to that project) |
+| `inbox/` | `session-*`, `capture-*`, `plan-*` (new files only) |
+| `notes/{project}/` | `session-*`, `capture-*`, `plan-*` (new files only, when `.vault-link` resolves to that project) |
 
 ### Forbidden writes
 
 | Target | Reason |
 |--------|--------|
-| `30_Notes/` | Note creation is exclusively handled by obsidian-vault-manager's `note` skill |
+| `notes/` (direct note creation) | Note creation is exclusively handled by obsidian-vault-manager's `note` skill |
 | Any existing file (overwrite) | Immutable vault contract — vault-bridge never modifies existing files |
 | Any existing file (append) | Same as overwrite — existing content is never touched |
-| `50_Archive/` | Archiving belongs to obsidian-vault-manager |
-| `10_MOC/`, `Home.md`, system files | MOC management belongs to obsidian-vault-manager |
+| `assets/` | Binary asset management belongs to obsidian-vault-manager |
 
 ### Same-date collision handling
 
@@ -337,9 +336,9 @@ suggestion: {alternative action}
 
 | kind | When | Example |
 |------|------|---------|
-| `permission` | Write target is in a forbidden zone | Tried to write `30_Notes/oauth.md` directly |
+| `permission` | Write target is in a forbidden zone | Tried to write `notes/oauth.md` directly (OVM territory) |
 | `path_invalid` | `.vault-link` resolution failed completely, no fuzzy candidates | `vault_path` points to non-existent directory |
-| `convention_violation` | Filename does not conform to the required pattern for that directory | `00_Inbox/random-file.md` (missing type prefix and date) |
+| `convention_violation` | Filename does not conform to the required pattern for that directory | `inbox/random-file.md` (missing type prefix and date) |
 | `name_collision` | All `-v2` through `-v9` suffixes are already taken | `session-2026-04-18-v9.md` already exists |
 | `disabled` | `VAULT_BRIDGE_DISABLE=1` is set | Kill switch active |
 
@@ -351,15 +350,13 @@ vault-bridge v1.5.0 adds a **PreToolUse hook** (`hooks/pre-write-guard.sh`) that
 
 | Directory | Required pattern | Example |
 |-----------|-----------------|---------|
-| `00_Inbox/` | `^(session\|capture\|plan)-YYYY-MM-DD[-topic][-vN].md$` | `session-2026-04-18.md`, `capture-2026-04-18-jwt-debug.md` |
-| `30_Notes/` | `^[a-z0-9-]+\.md$` (no date prefix) | `oauth-flow.md` |
-| `20_Projects/{name}/` | `_index.md` or `^(session\|plan\|capture)-YYYY-MM-DD[-topic][-vN].md$` | `plan-2026-04-18-vault-bridge-value-prop.md` |
-| `50_Archive/` | Any filename (warning logged for awareness) | — |
-| `10_MOC/` | `MOC-*.md` pattern (whitelist only) | `MOC-api.md` |
+| `inbox/` | `^(session\|capture\|plan)-YYYY-MM-DD[-topic][-vN].md$` | `session-2026-04-18.md`, `capture-2026-04-18-jwt-debug.md` |
+| `notes/` (evergreen) | `^[a-z0-9-]+\.md$` (no date prefix) | `oauth-flow.md` |
+| `notes/{project}/` | `^(session\|plan\|capture\|decision)-YYYY-MM-DD[-topic][-vN].md$` | `plan-2026-04-18-vault-bridge-value-prop.md` |
 
 ### Whitelist — always allowed
 
-The following filenames pass unconditionally regardless of directory: `_index.md`, `Home.md`, `home.md`, `MOC-*.md` (case-insensitive `MOC` prefix).
+The following filenames pass unconditionally regardless of directory: `_index.md`, `Home.md`, `home.md`.
 
 ### Log-only vs strict mode
 
@@ -395,7 +392,7 @@ VAULT_BRIDGE_WRITE_CONTRACT=enforce claude
 VAULT_BRIDGE_WRITE_CONTRACT=off claude
 ```
 
-**Exempt paths**: `50_Archive/` is excluded from the Write Role Policy (OVM territory). Naming convention enforcement via `VAULT_BRIDGE_STRICT_NAMING` is independent of this policy and applies regardless of agent vs. main-context origin.
+**Exempt paths**: Naming convention enforcement via `VAULT_BRIDGE_STRICT_NAMING` applies regardless of agent vs. main-context origin. No top-level folder is exempt from the Write Role Policy.
 
 ## Relationship with obsidian-vault-manager
 
@@ -450,7 +447,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background; also detects `.claude-kit/vault-bridge/resume.md`, injects its body into the model context via `additionalContext`, and consumes (deletes) the file. Never blocks session startup
 - **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects all deterministic state — `.vault-link` presence + Layer 1 `auto_capture`, `_index.md` Layer 2 `auto_capture`, plan-doc candidates, direct-access counter, plan-doc-asked flag — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
-- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). `50_Archive/` is exempt (OVM territory). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
+- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/quick)
 - **`/handoff` command**: generates a next-session continuation handoff (one-liner / summary / `resume.md` file) — main-context user trigger
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
@@ -469,7 +466,7 @@ When vault-bridge writes session notes, captures, or plan files to a git-tracked
 2. Resolve vault root: `VAULT_BRIDGE_VAULT_ROOT` > `VAULT_BRIDGE_VAULT_PATH` (userConfig) > `~/vault`
 3. Verify vault is a git repository (`git rev-parse --git-dir`) — stop with notice if not
 4. Run `git status --porcelain` — stop with "nothing to commit" if clean
-5. Analyze changed files: count by type (`session`, `capture`, `note`, `plan`, `project`); collect project names from `20_Projects/{name}/`
+5. Analyze changed files: count by type (`session`, `capture`, `note`, `plan`); collect project names from `notes/{project}/`
 6. Generate auto commit message: `"vault session YYYY-MM-DD: 2 plans, 1 note in claude-kit"`
 7. **AskUserQuestion** with 3 options (approval required — no silent commit):
    - **이 메시지로 커밋**: use auto-generated message
