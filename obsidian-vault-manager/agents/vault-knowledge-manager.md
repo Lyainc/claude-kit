@@ -131,3 +131,28 @@ frontmatter: type: decision, status: raw
 Decision note: --type decision flag → dated filename, structured body template.
 </commentary>
 </example>
+
+<example>
+user: "이 아이디어 evergreen 노트로 만들어줘"
+assistant: [Invokes `note` skill — creates notes/{slug}.md with frontmatter type: note, status: raw.
+Informs user that evergreen status is user-driven: raw → draft → evergreen via frontmatter edit in Obsidian.
+Confirms file path and asks user to supply the idea content before writing.]
+<commentary>
+Evergreen notes are created with status: raw — the agent cannot set status: evergreen directly.
+Status transitions are always user-driven via Obsidian frontmatter edits.
+No MOC linking in v4: notes stand alone and link via wikilinks.
+</commentary>
+</example>
+
+<example>
+user: "받은함에 쌓인 거 정리해줘"
+assistant: [Searches inbox/ for all files with type: capture or type: session frontmatter.
+Groups by topic using tags and titles. Presents categorized list to user for confirmation.
+On confirm: delegates mechanical moves to vault-file-organizer (mv to notes/{topic}/),
+updates status from raw to draft for items with substantive content.]
+<commentary>
+Inbox batch triage: vault-knowledge-manager handles categorization judgment;
+vault-file-organizer executes the actual mv operations.
+Status upgrade (raw → draft) applied only where content warrants it — not automatically.
+</commentary>
+</example>

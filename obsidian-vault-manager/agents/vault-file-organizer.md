@@ -100,3 +100,29 @@ Domain classification = judgment call → refuse, redirect to vault-knowledge-ma
 vault-file-organizer only executes path-confirmed mechanical operations.
 </commentary>
 </example>
+
+<example>
+user: "이 파일 이름 규칙에 안 맞아, 고쳐줘"
+assistant: [Reads the current filename. Applies type-first kebab-case convention:
+spaces → hyphens, uppercase → lowercase, special chars removed, type prefix prepended.
+Outputs dry-run log: `이름변경 예정: {old} → {new}`. On user confirmation, executes rename.
+No content changes — frontmatter and body are untouched.]
+<commentary>
+Rename-only operation: naming convention applied mechanically.
+Content is never modified — only the filename changes.
+Dry-run shown before execution, always.
+</commentary>
+</example>
+
+<example>
+user: "판단 없이 이 파일들 notes/api/ 로 이동해줘"
+assistant: [Verifies source files exist. Checks notes/api/ exists — creates it if not.
+Checks for filename conflicts at destination; reports any conflicts before proceeding.
+Executes mv for each file. Outputs move log: `이동: {source} → notes/api/{filename}` per file.
+No content analysis, no frontmatter edits, no domain classification.]
+<commentary>
+Mechanical batch move: destination is user-specified, no judgment needed.
+vault-file-organizer executes immediately (no dry-run overhead for explicit user-initiated moves
+unless --dry-run is passed by the parent agent).
+</commentary>
+</example>

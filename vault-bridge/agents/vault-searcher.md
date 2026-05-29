@@ -185,3 +185,42 @@ Write request → redirect to /save-session slash command.
 vault-searcher never writes; all vault writes are user-initiated slash commands only.
 </commentary>
 </example>
+
+<example>
+user: "예전에 API 설계 관련해서 썼던 게 있었던 것 같은데 찾아줘"
+assistant: [Mode 1 Session Restore — searches inbox/session-*.md filtered by status: active.
+Sorts by date descending. Returns most recent match with key context:
+current status, next steps, blockers. If no active session note found, reports that
+and offers to run a keyword search (Mode 3) across all vault notes instead.]
+<commentary>
+"예전에 썼던" + topic hint → Mode 1 session restore first.
+Scoped to inbox/ (and .vault-link project path if pointer exists).
+Read-only: no files written or modified.
+</commentary>
+</example>
+
+<example>
+user: "프론트엔드 도메인 컨텍스트 로드해줘"
+assistant: [Mode 2 Domain Context — runs .vault-link discovery to determine search scope.
+Checks manifest.json for frontend-tagged entries; filters by type and tags.
+Sorts active notes first, then by mtime descending. Loads top ≤5 files.
+Outputs structured summary: in-progress items, key notes, relevant decisions.]
+<commentary>
+"도메인 컨텍스트" → Mode 2. Manifest-first narrows candidates before file reads.
+.vault-link scoping applied if pointer exists; falls back to notes/ full scan if not.
+</commentary>
+</example>
+
+<example>
+user: "React hooks 관련 노트 찾아줘"
+assistant: [Mode 3 Keyword Search — manifest pre-filter on title/summary for "React hooks".
+If manifest hits ≥1: uses those candidates directly, skips grep.
+If no manifest hits: mdfind -onlyin ~/vault "React hooks" (macOS) or grep fallback.
+Returns top 10 results as numbered list: filename + first 2 lines + tags + mtime.
+Reminds user: vault-searcher is read-only — to save new notes use /save-session or /note.]
+<commentary>
+Mode 3 keyword search: manifest pre-filter first, adaptive search fallback.
+Write reminder surfaced on search results — user may want to capture findings.
+Full note content loaded only when user selects a number from the results list.
+</commentary>
+</example>

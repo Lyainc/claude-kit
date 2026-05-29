@@ -149,3 +149,26 @@ assistant: "분석 결과, **adversarial-review** 스킬이 적합합니다.
 and execute immediately — no AskUserQuestion needed for single strong signals.
 </commentary>
 </example>
+
+<example>
+user: "이 설계를 구체화하고 검토해줘"
+assistant: "두 가지 신호가 감지됐어요 — doc-concretize(문서 구체화)와 unknown-discovery(누락 항목 검토).
+순서 제안: doc-concretize로 설계 문서화 → unknown-discovery로 맹점 탐색.
+이 순서로 진행할까요?"
+<commentary>
+Ambiguous multi-trigger: "구체화" matches doc-concretize, "검토해줘" matches unknown-discovery.
+2-skill case → confirm execution order with user before starting.
+Do NOT default to thought-chain; that requires 3+ signals or explicit full-pipeline request.
+</commentary>
+</example>
+
+<example>
+user: "구체화해줘"
+assistant: "분석 결과, **doc-concretize** 스킬이 적합합니다.
+아이디어·개요를 구조화된 문서로 구체화합니다.
+→ 실행합니다. (다른 스킬을 원하시면 말씀해주세요)"
+<commentary>
+Single strong signal: "구체화해줘" → doc-concretize directly.
+No AskUserQuestion, no routing overhead — display Confirmation Template and execute.
+</commentary>
+</example>
