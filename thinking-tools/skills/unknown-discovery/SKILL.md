@@ -6,8 +6,9 @@ description: |
   Systematically uncover blind spots in projects, plans, or decisions through
   Socratic questioning and adaptive follow-up.
 
-  Trigger when user mentions: 맹점, 놓친 것, 빠진 것, 심층 분석, 인터뷰해줘, 누락된 것,
-  blind spot, unknown unknown, "내가 놓치고 있는 게 뭐야?".
+  Trigger when user mentions: 맹점, 놓친 것, 빠진 것, 심층 분석, 인터뷰해줘, 누락된 것, 맹점 검토,
+  blind spot, unknown unknown, "내가 놓치고 있는 게 뭐야?", "이 기획에서 빠진 게 있을까?".
+  Routing: 1:1 주장 공격은 adversarial-review, 다관점 합의는 expert-panel.
 allowed-tools: AskUserQuestion Read Write
 ---
 

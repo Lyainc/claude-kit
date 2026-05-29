@@ -6,8 +6,9 @@ description: |
   Runs 1:1 attacker-vs-defender battle across 4 vectors and produces a per-claim verdict
   (survived / collapsed / pending). Starts with Steelman Construction before attacking.
 
-  Trigger when user mentions: 반증해줘, 주장 반박, 약점 찾아줘, 논리적 허점 찾아줘, 살아남을 수 있어?,
+  Trigger when user mentions: 반증해줘, 주장 반박, 약점 찾아줘, 논리적 허점 찾아줘, 주장 검증, 살아남을 수 있어?,
   devil's advocate, adversarial review, claim attack, survival score, steelman and attack.
+  Routing: 합의 도출·다관점은 expert-panel, 맹점 인터뷰는 unknown-discovery. Standalone — thought-chain 단계 아님.
 
 allowed-tools: AskUserQuestion Read Write Agent
 ---

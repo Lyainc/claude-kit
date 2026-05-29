@@ -6,7 +6,8 @@ description: |
   Simulates domain-specialist debates (thesis-antithesis-synthesis) and produces consensus + action items.
 
   Trigger when user mentions: 전문가 토론, 찬반 토론, 다관점 분석, 합의 도출, 트레이드오프 정리,
-  expert panel, multi-perspective review, "전문가 관점에서 검토해줘", "찬반 의견 정리해줘".
+  expert panel, multi-perspective review, "전문가 관점에서 검토해줘", "다양한 관점에서 평가해줘".
+  Routing: 1:1 단일 주장 공격은 adversarial-review, 맹점 발견 인터뷰는 unknown-discovery.
 allowed-tools: Read Write AskUserQuestion Agent
 ---
 
