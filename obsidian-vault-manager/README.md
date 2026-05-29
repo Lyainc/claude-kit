@@ -21,7 +21,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | --- | --- |
 | `capture` | 즉시 Inbox에 메모 저장 (`/capture 내용`); URL 입력 시 Defuddle CLI가 있으면 본문 Markdown 추출 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 (`/note 주제`) |
-| `audit` | vault 구조 무결성 감사 — E1-E8 오류 감지 (P0-P3 우선순위), stale 노트·promotion candidate 추적 |
+| `audit` | vault 구조 무결성 감사 — E1-E8 오류 감지 (P0-P2 우선순위), stale 노트·promotion candidate 추적 |
 
 ## v4 파일 컨벤션
 
@@ -43,7 +43,7 @@ status: raw|draft|evergreen|archived      # note/decision 필수; session/captur
 - [Obsidian format reference](reference/obsidian-format.md): wikilinks, embeds, callouts, comments, and YAML property conventions for generated notes.
 - [Obsidian CLI reference](reference/obsidian-cli.md): optional CLI-first patterns with raw file I/O fallback.
 - [Web Clipper template](reference/web-clipper-template.md): Obsidian web clipper JSON template for `capture` type notes.
-- [Vault audit rules](reference/vault-audit-rules.md): E1-E8 error taxonomy and P0-P3 priority definitions.
+- [Vault audit rules](reference/vault-audit-rules.md): E1-E8 error taxonomy and P0-P2 priority definitions.
 
 ## 스킬 사용 예시
 
@@ -71,7 +71,7 @@ status: raw|draft|evergreen|archived      # note/decision 필수; session/captur
 /audit
 ```
 
-E1-E8 오류(frontmatter 누락, stale inbox/draft, promotion candidate 등)를 P0-P3 우선순위로 정렬해 보고해요. REPORT에 지난 7일 git 활동 요약도 포함됩니다.
+E1-E8 오류(frontmatter 누락, stale inbox/draft, promotion candidate 등)를 P0-P2 우선순위로 정렬해 보고해요. REPORT에 지난 7일 git 활동 요약도 포함됩니다.
 
 ## vault-bridge와의 관계
 

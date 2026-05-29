@@ -29,6 +29,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `unknown-discovery` | 반복 인터뷰를 통한 맹점 발견 |
 | `thought-chain` | 스킬 파이프라인 오케스트레이션 |
 | `adversarial-review` | 주장 반증 테스트 + Survival Score 정량 평가 |
+| `spec-first` | 모호한 아이디어를 machine-readable Seed 스펙으로 구체화 (Socratic + ambiguity gate) |
 | `thinking-facilitator` (agent) | 요청을 분석하여 최적 스킬로 자동 라우팅 |
 
 ### [obsidian-vault-manager](obsidian-vault-manager/)
@@ -45,7 +46,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `vault-file-organizer` (agent) | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
 | `capture` | 즉시 Inbox에 메모 저장 + URL Defuddle 추출 옵션 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 |
-| `audit` | vault 구조 무결성 감사 — E1-E8 오류 감지 (P0-P3 우선순위), promotion candidate 추적 |
+| `audit` | vault 구조 무결성 감사 — E1-E8 오류 감지 (P0-P2 우선순위), promotion candidate 추적 |
 
 ### [vault-bridge](vault-bridge/)
 
