@@ -123,6 +123,9 @@ python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/nu
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
+
+# thinking-tools trigger-regression self-test (run after editing any SKILL.md description)
+python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
 ```
 
 For `audit` definition-of-done checks:
