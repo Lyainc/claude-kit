@@ -125,7 +125,7 @@ find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
 ```
 
-For `vault-audit` definition-of-done checks:
+For `audit` definition-of-done checks:
 
 ```bash
 # Unit regressions

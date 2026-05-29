@@ -45,7 +45,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `vault-file-organizer` (agent) | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
 | `capture` | 즉시 Inbox에 메모 저장 + URL Defuddle 추출 옵션 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 |
-| `vault-audit` | vault 구조 무결성 감사 (9-error taxonomy) |
+| `audit` | vault 구조 무결성 감사 (9-error taxonomy) |
 
 ### [vault-bridge](vault-bridge/)
 

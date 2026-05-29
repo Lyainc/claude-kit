@@ -12,7 +12,7 @@ obsidian-vault-manager/
 ├── skills/
 │   ├── capture/SKILL.md              # /capture — 즉시 저장
 │   ├── note/SKILL.md                 # /note — 노트 생성 + MOC 연결
-│   └── vault-audit/SKILL.md          # /vault-audit — vault 구조 무결성 감사
+│   └── audit/SKILL.md                # /audit — vault 구조 무결성 감사
 └── ARCHITECTURE.md
 ```
 
@@ -26,7 +26,7 @@ obsidian-vault-manager/
 ├── skills/
 │   ├── capture/SKILL.md
 │   ├── note/SKILL.md
-│   └── vault-audit/SKILL.md
+│   └── audit/SKILL.md
 └── agent-memory/
     └── vault-knowledge-manager/
         └── MEMORY.md

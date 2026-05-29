@@ -21,7 +21,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | --- | --- |
 | `capture` | 즉시 Inbox에 메모 저장 (`/capture 내용`); URL 입력 시 Defuddle CLI가 있으면 본문 Markdown 추출 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 (`/note 주제`) |
-| `vault-audit` | vault 구조 무결성 감사 (9-error taxonomy: orphans, broken wikilinks, filename, frontmatter, note↔project bidirectional) |
+| `audit` | vault 구조 무결성 감사 (9-error taxonomy: orphans, broken wikilinks, filename, frontmatter, note↔project bidirectional) |
 
 ## `_index.md` 스키마 (W7)
 
