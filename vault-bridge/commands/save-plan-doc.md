@@ -7,6 +7,8 @@ disable-model-invocation: true
 
 Save one or more external plan/design documents from the current project into the bound vault project as snapshots.
 
+<!-- TODO(T1.7 audit): vault_path is RISKY here — it flows directly from .vault-link into the Write tool destination '${VAULT_ROOT}/{vault_path}/' (Step 5 syncer --vault-link arg) and into resume.md write at '${CLAUDE_PROJECT_ROOT}/.claude-kit/vault-bridge/resume.md' (Step 6 intent==defer branch). The resume.md write in Step 6 uses a hardcoded .claude-kit path (safe), but the syncer destination in Step 5 uses vault_path as the write root (RISKY if vault_path is malformed or attacker-controlled). Follow-up: broader audit plan. -->
+
 **User language: Korean.** All user-facing output MUST be in Korean.
 
 ## Procedure
