@@ -37,6 +37,8 @@ local/
 # OMC / OMX runtime state (local-only, regenerable)
 .omc/
 .omx/
+# OMC skill discovery cache (e.g. .agents/skills/omc-reference/ — injected per session, not claude-kit's own)
+.agents/
 
 # Codex / OMX project surfaces (local-only, not shared via this repo)
 
