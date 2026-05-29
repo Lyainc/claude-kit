@@ -6,15 +6,15 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 
 | 플러그인 | 버전 | 구성 |
 |---|---|---|
-| [thinking-tools](thinking-tools/) | `1.6.3` | 스킬 7 + 에이전트 1 |
-| [obsidian-vault-manager](obsidian-vault-manager/) | `0.11.2` | 스킬 3 + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
-| [vault-bridge](vault-bridge/) | `1.9.0` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 5 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`) (구 `vault-reader`) |
+| [thinking-tools](thinking-tools/) | `1.10.0` | 스킬 8 + 에이전트 1 |
+| [obsidian-vault-manager](obsidian-vault-manager/) | `0.16.1` | 스킬 3 + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
+| [vault-bridge](vault-bridge/) | `1.17.3` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 6 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) (구 `vault-reader`) |
 
 ## 플러그인 목록
 
 ### [thinking-tools](thinking-tools/)
 
-분석, 문서 작성, 품질 검증을 위한 사고 도구 스킬 플러그인. 7개 스킬 + 1개 에이전트.
+분석, 문서 작성, 품질 검증을 위한 사고 도구 스킬 플러그인. 8개 스킬 + 1개 에이전트.
 
 ```bash
 claude plugin install thinking-tools@Lyainc-claude-kit
@@ -33,7 +33,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ### [obsidian-vault-manager](obsidian-vault-manager/)
 
-Obsidian vault 지식 관리 플러그인. 2개 에이전트 + 7개 스킬.
+Obsidian vault 지식 관리 플러그인 (v4). 2개 에이전트 + 3개 스킬.
 
 ```bash
 claude plugin install obsidian-vault-manager@Lyainc-claude-kit
@@ -45,7 +45,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `vault-file-organizer` (agent) | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
 | `capture` | 즉시 Inbox에 메모 저장 + URL Defuddle 추출 옵션 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 |
-| `audit` | vault 구조 무결성 감사 (9-error taxonomy) |
+| `audit` | vault 구조 무결성 감사 — E1-E8 오류 감지 (P0-P3 우선순위), promotion candidate 추적 |
 
 ### [vault-bridge](vault-bridge/)
 
@@ -72,6 +72,62 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 | PreToolUse hook (Write\|Edit) | `Write`/`Edit`으로 `~/vault/` 쓰기 시 파일명 컨벤션 검증 → 위반 시 `systemMessage` 경고 (log-only 기본). `VAULT_BRIDGE_STRICT_NAMING=1` 시 차단 (exit 2) |
 
 자세한 3-mode 동작, `.vault-link` 포인터 파일 컨벤션, Write Role 정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
+
+## 빠른 시작 (신규 사용자)
+
+5분 안에 vault second brain을 시작하는 방법이에요.
+
+### 1. vault 초기화
+
+```bash
+mkdir -p ~/vault/{inbox,notes,assets}
+cd ~/vault
+git init
+git add -A
+git commit -m "initial vault structure (v4)"
+```
+
+### 2. 플러그인 설치
+
+```bash
+# 최소 설치 (vault 브릿지 + 세션 노트)
+claude plugin install vault-bridge@Lyainc-claude-kit
+
+# vault 지식 관리 스킬까지 포함
+claude plugin install obsidian-vault-manager@Lyainc-claude-kit
+```
+
+Claude Code를 재시작하면 적용됩니다.
+
+### 3. 프로젝트와 vault 연결
+
+코드 프로젝트 루트에서:
+
+```
+/vault-link
+```
+
+`.vault-link` 파일이 생성되면 이후 `/save-session`, `/save-plan-doc`이 이 프로젝트 경로로 자동 저장됩니다.
+
+### 4. 첫 캡처
+
+```
+/capture 오늘 배운 것: Claude Code 플러그인 구조
+```
+
+`~/vault/inbox/capture-YYYY-MM-DD-{slug}.md`로 저장됩니다. URL을 전달하면 본문을 자동 추출해요 (`defuddle` 설치 시).
+
+### 5. 세션 노트 저장
+
+작업 마무리 시:
+
+```
+/save-session
+```
+
+record / handoff / quick 모드 중 선택 후 `~/vault/inbox/` 또는 연결된 프로젝트 폴더에 저장됩니다.
+
+---
 
 ## 마이그레이션
 
