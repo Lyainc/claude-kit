@@ -6,15 +6,8 @@ description: |
   through step-by-step recursive writing with verification at each step.
   Creates NEW markdown documents — for editing/improving an existing MD file, use doc-polish.
 
-  Use when the user requests documentation of abstract ideas, strategies,
-  or concepts requiring structured concretization (expected output > 800 characters).
-
-  Trigger when user mentions: 구체화, 문서화, 체계적 정리, 개념 정리, 아이디어 문서화, 전략 문서, 글로 정리,
-  or requests: "이 개념을 문서로 정리해줘", "아이디어를 체계적으로 구체화해줘",
-  "전략을 상세 문서로 작성해줘", "비전을 실행 가능한 계획으로 풀어줘".
-
-  Skip for: simple definitions, "짧게"/"간단히"/"briefly" requests, already-structured content,
-  or editing/polishing an existing markdown file (use doc-polish).
+  Trigger when user mentions: 구체화, 문서화, 체계적 정리, 아이디어 문서화, 글로 정리,
+  doc-concretize, concretize, "이 개념을 문서로 정리해줘".
 allowed-tools: Read Write AskUserQuestion WebFetch
 ---
 

@@ -3,21 +3,11 @@ name: adversarial-review
 
 description: |
   Stress-test claims through structured adversarial battle rounds with quantified Survival Score.
-  Structure: binary Attacker↔Defender | Orchestration: sequential battle rounds | Output: survived/collapsed/pending verdict | Input: one or more claims
-  Runs 1:1 attacker-vs-defender battle across 4 vectors (logical integrity, evidence, counter-scenario, scope boundary)
-  and produces a final per-claim verdict (survived / collapsed / pending).
+  Runs 1:1 attacker-vs-defender battle across 4 vectors and produces a per-claim verdict
+  (survived / collapsed / pending). Starts with Steelman Construction before attacking.
 
-  Use when validating proposals, decisions, architectural choices, or any claim that must withstand scrutiny.
-  Starts with Steelman Construction (Rapoport 3-step) before attacking.
-
-  Trigger when user mentions: 반증, 공격, 검증, 주장 반박, 약점 찾기, 1:1 debate, claim attack, adversarial, survival score,
-  steelman, 악마의 변호인, 논리 검증, 가설 테스트, 주장 검증, 논거 공격, 반론 테스트,
-  or requests: "이 주장의 약점을 찾아줘", "반증해줘", "검증해줘", "공격해봐", "살아남을 수 있어?",
-  "devil's advocate", "adversarial review해줘", "claim을 테스트해줘", "논리적 허점 찾아줘",
-  "steelman하고 공격해줘", "survival score 측정해줘".
-
-  Skip for: consensus-building, multi-stakeholder alignment (use expert-panel), or blind-spot discovery interviews (use unknown-discovery).
-  This skill is standalone — it is NOT a stage inside thought-chain pipeline.
+  Trigger when user mentions: 반증해줘, 주장 반박, 약점 찾아줘, 논리적 허점 찾아줘, 살아남을 수 있어?,
+  devil's advocate, adversarial review, claim attack, survival score, steelman and attack.
 
 allowed-tools: AskUserQuestion Read Write Agent
 ---

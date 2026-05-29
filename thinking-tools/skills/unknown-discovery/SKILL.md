@@ -6,17 +6,8 @@ description: |
   Systematically uncover blind spots in projects, plans, or decisions through
   Socratic questioning and adaptive follow-up.
 
-  Use when reviewing projects, proposals, strategies, or decisions to find
-  what the user might be missing or overlooking.
-
-  Trigger when user mentions: blind spot, unknown unknown, 맹점, 놓친 것, 빠진 것, 맹점 검토,
-  인터뷰해줘, 심층 분석, 누락된 것, 고려하지 못한 것,
-  or requests: "내가 놓치고 있는 게 뭐야?", "이 기획에서 빠진 게 있을까?",
-  "blind spot을 찾아줘", "심층 인터뷰해줘", "Unknown unknowns를 발견해줘".
-
-  Skip for: simple Q&A, factual queries, code review (delegate to a code-reviewer agent),
-  document quality review (use doc-polish), 1:1 claim attack (use adversarial-review),
-  or when user wants quick answers.
+  Trigger when user mentions: 맹점, 놓친 것, 빠진 것, 심층 분석, 인터뷰해줘, 누락된 것,
+  blind spot, unknown unknown, "내가 놓치고 있는 게 뭐야?".
 allowed-tools: AskUserQuestion Read Write
 ---
 

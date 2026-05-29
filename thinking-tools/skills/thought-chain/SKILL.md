@@ -6,16 +6,8 @@ description: |
   Chains unknown-discovery → expert-panel → doc-concretize → doc-polish
   in sequence, passing outputs between stages automatically.
 
-  Use when a topic requires end-to-end deep analysis: discover blind spots,
-  debate with experts, then produce polished documentation.
-
-  Trigger when user mentions: 종합 분석, 전체 파이프라인, 깊이 있는 분석, end-to-end 분석,
-  체계적 분석 후 문서화, 완전한 검토, full analysis pipeline,
-  or requests: "이 주제를 처음부터 끝까지 분석해줘", "블라인드스팟 찾고 전문가 토론 후 문서화해줘",
-  "종합적으로 분석하고 결과를 문서로 만들어줘".
-
-  Skip for: single-skill tasks, quick questions, already-structured analysis.
-  For claim validation (1:1 attack/rebuttal), use adversarial-review as a standalone skill.
+  Trigger when user mentions: 종합 분석, 깊이 있는 분석, 체계적 분석 후 문서화, 전체 파이프라인,
+  end-to-end 분석, full analysis pipeline, thought-chain.
 allowed-tools: Skill Read AskUserQuestion
 ---
 

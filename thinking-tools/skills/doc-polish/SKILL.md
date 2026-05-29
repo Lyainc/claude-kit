@@ -6,15 +6,8 @@ description: |
   Acts as an Editor (not Writer) — requires an existing MD file as input;
   preserves content while enhancing expression quality.
 
-  Use when the user requests document quality check, linting, or expression improvement
-  on existing MD files (for creating new content from scratch, use doc-concretize).
-
-  Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, polish, lint, 교정,
-  or requests: "이 문서 검사해줘", "README 다듬어줘", "품질 체크해줘",
-  "polish this document", "lint my markdown".
-
-  Skip for: creating new content from scratch (use doc-concretize),
-  blind-spot review of plans (use unknown-discovery), simple questions, non-MD files.
+  Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, 교정, 다듬기,
+  polish, lint, "이 문서 검사해줘", "README 다듬어줘".
 model: sonnet
 allowed-tools: Read Edit Grep Glob
 ---

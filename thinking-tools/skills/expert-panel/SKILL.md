@@ -3,19 +3,10 @@ name: expert-panel
 
 description: |
   Facilitate structured expert panel discussions with dialectical analysis for decision-making.
-  Structure: domain-parallel Expert[N] | Orchestration: parallel fan-out → synthesis | Output: consensus + action items | Input: multi-topic document
-  Simulates debates between optimistic practitioners, critical practitioners, and domain experts
-  to reach consensus through thesis-antithesis-synthesis methodology.
+  Simulates domain-specialist debates (thesis-antithesis-synthesis) and produces consensus + action items.
 
-  Use when reviewing proposals, designs, code, policies, or documents with multiple expert perspectives.
-
-  Trigger when user mentions: 전문가 토론, 패널 논의, 찬반 토론, 합의 도출, 다관점 분석, 검토 회의, 리뷰 세션,
-  or requests: "이 설계를 보안/성능/UX 전문가 관점에서 검토해줘", "찬반 의견 정리해줘",
-  "전문가 패널로 분석해줘", "다양한 관점에서 평가해줘", "장단점을 체계적으로 분석해줘",
-  "트레이드오프를 정리해줘", "이해관계자별 의견을 시뮬레이션해줘".
-
-  Skip for: 1:1 attack/rebuttal of a single claim (use adversarial-review),
-  blind-spot interview to surface unknown unknowns (use unknown-discovery).
+  Trigger when user mentions: 전문가 토론, 찬반 토론, 다관점 분석, 합의 도출, 트레이드오프 정리,
+  expert panel, multi-perspective review, "전문가 관점에서 검토해줘", "찬반 의견 정리해줘".
 allowed-tools: Read Write AskUserQuestion Agent
 ---
 
