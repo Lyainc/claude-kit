@@ -12,10 +12,7 @@ obsidian-vault-manager/
 ├── skills/
 │   ├── capture/SKILL.md              # /capture — 즉시 저장
 │   ├── note/SKILL.md                 # /note — 노트 생성 + MOC 연결
-│   ├── project/SKILL.md              # /project — 프로젝트 생성
-│   ├── inbox-review/SKILL.md         # /inbox-review — 인박스 정리
-│   ├── context/SKILL.md              # /context — 도메인 맥락 로드 (Explore fork)
-│   └── archive/SKILL.md              # /archive — 프로젝트 아카이브
+│   └── vault-audit/SKILL.md          # /vault-audit — vault 구조 무결성 감사
 └── ARCHITECTURE.md
 ```
 
@@ -29,10 +26,7 @@ obsidian-vault-manager/
 ├── skills/
 │   ├── capture/SKILL.md
 │   ├── note/SKILL.md
-│   ├── project/SKILL.md
-│   ├── inbox-review/SKILL.md
-│   ├── context/SKILL.md
-│   └── archive/SKILL.md
+│   └── vault-audit/SKILL.md
 └── agent-memory/
     └── vault-knowledge-manager/
         └── MEMORY.md
@@ -43,7 +37,7 @@ obsidian-vault-manager/
 ### 1. Agent ↔ Skill 분리 (Progressive Disclosure)
 
 **Before**: 1개 agent 파일(~300줄)에 모든 것이 포함
-**After**: agent(~90줄) + 6개 skill 파일
+**After**: agent(~90줄) + 3개 skill 파일
 
 | 항목 | 효과 |
 |------|------|
@@ -74,11 +68,9 @@ Karpathy의 핵심 인사이트: "idle tokens mean you're the bottleneck."
 | A3 | 파일명 충돌 처리 없음 | note skill에 중복 확인 + 덮어쓰기/이름변경/병합 선택 로직 추가 |
 | B4 | MOC 자동 업데이트 ↔ confirm 원칙 충돌 | "노트 생성 확인 = MOC 업데이트도 승인" 정책 명시. 새 MOC 생성은 별도 확인 |
 | B5 | mdfind macOS 의존성 | agent 본문에 macOS 전용임을 명시 |
-| B6 | /inbox-review 1건씩 질문 | 일괄 목록 표시 → 번호 선택 방식으로 변경 |
 | C7 | Memory system 이중 관리 | agent memory (`memory: project`)만 사용. 커스텀 memory system 제거 |
 | C8 | Memory types 과잉 설계 | 제거. Claude Code 내장 agent memory 시스템에 위임 |
 | D9 | description의 \\n escape | description을 한 줄로 정리 |
-| D10 | Archive 시 MOC 링크 처리 미비 | "아카이브 시 노트의 MOC 링크는 유지" 규칙 추가 |
 
 ### 4. Skill별 설계 근거
 
@@ -86,15 +78,6 @@ Karpathy의 핵심 인사이트: "idle tokens mean you're the bottleneck."
 - `disable-model-invocation` 미설정 (자연어로도 트리거 가능: "빠르게 메모해줘")
 - 유일하게 확인 없이 동작하는 skill
 - Karpathy 패턴: "spending time on things an agent can handle means adding friction"
-
-#### /context — Explore fork
-- `context: fork` + `agent: Explore` 설정
-- 읽기 전용 탐색이므로 메인 context window를 오염시키지 않음
-- Anthropic 가이드: "Explore — fast, read-only agent optimized for searching"
-
-#### /inbox-review — 일괄 처리
-- 기존: 파일마다 Move/Delete/Keep 질문 → 대화 턴 폭발
-- 개선: 전체 목록 번호 표시 → 사용자가 한 번에 지시
 
 ### 5. 제거한 것들
 

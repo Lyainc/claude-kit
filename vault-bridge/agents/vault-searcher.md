@@ -78,7 +78,7 @@ If no active session note found: output "active session note가 없습니다." a
 
 ### 2. Domain Context Load
 
-Load MOC and related notes for a specific domain. This is a lightweight, read-only version for external projects. For advanced filtering (`--exclude`, `--limit`) within vault management sessions, use `obsidian-vault-manager`'s `context` skill instead.
+Load MOC and related notes for a specific domain. This is a lightweight, read-only version for external projects. For domain context within vault management sessions, use `obsidian-vault-manager`'s `vault-knowledge-manager` agent (OVM-internal, direct mdfind/grep) instead.
 
 **Triggers**: "vault notes about {domain}", "{domain} context", "{domain} knowledge needed"
 

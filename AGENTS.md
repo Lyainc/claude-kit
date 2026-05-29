@@ -161,9 +161,9 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py \
 
 | Area | `obsidian-vault-manager` | `vault-bridge` |
 | --- | --- | --- |
-| Domain context load | `context` skill (`--exclude`/`--limit`) | `vault-searcher` Mode 2 for external read-only lightweight search |
+| Domain context load | `vault-knowledge-manager` agent (OVM-internal, direct mdfind/grep) | `vault-searcher` Mode 2 (external, read-only lightweight search) |
 | Session record | Not owned here | `/save-session` slash command (inline in main context — record/handoff/quick modes) |
-| Note creation logic | `note` skill owns domain determination and MOC linking | `inbox-review` delegates note creation procedure |
+| Note creation | `note` skill (evergreen notes + decision records, `notes/`) | N/A |
 
 Within `thinking-tools`, route creative alternative generation to `diverse-sampling` and evaluative multi-perspective review to `expert-panel`.
 
