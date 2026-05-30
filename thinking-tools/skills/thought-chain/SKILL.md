@@ -93,7 +93,7 @@ For **claim validation** (1:1 attacker-vs-defender), invoke `adversarial-review`
 **Output**: Polished document with quality report
 
 - Runs with `--fix` mode by default (auto-correct mechanical issues)
-- Reports remaining Layer 2/3 issues for user review
+- Reports remaining consistency and semantic issues for user review
 
 ## Pre-Pipeline Gate Check
 
@@ -152,7 +152,7 @@ When user picks the deepen option:
    - `unknown-discovery`: additional interview rounds on existing findings; raise depth
    - `expert-panel`: additional debate rounds; attack unresolved dissent; re-synthesize
    - `doc-concretize`: expand sections, add recursive depth one level deeper
-   - `doc-polish`: stricter Layer 2/3 quality pass
+   - `doc-polish`: stricter structural and consistency pass
 3. After deepened pass, surface the same checkpoint again.
 
 **Hard limit: 3 deepens per stage.** On the 4th attempt, show friction prompt requiring explicit confirmation.
