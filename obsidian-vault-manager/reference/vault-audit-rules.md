@@ -2,9 +2,9 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Seven error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
+Eight error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
 
-> **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduces a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extends with P1 stagnation. Manifest-level *seeded* checks (e.g., stale manifest as an Info finding) remain deferred to PR 6+.
+> **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduces a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extends with P1 stagnation. PR 4d adds **E8 `promotion_candidate`** (P2/Info), read from the vault-bridge manifest. Manifest-level *stale-manifest* checks (e.g., stale manifest as an Info finding) remain deferred to PR 6+.
 
 ## Priority Mapping
 
@@ -19,10 +19,11 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E5   | P2       | Orphan note → quality signal, not integrity risk. |
 | E6   | P1       | Stale inbox → raw input never processed; loses freshness, signals review needed. |
 | E7   | P1       | Stale draft → notes/ `status: draft` sitting too long; either promote to evergreen or archive. |
+| E8   | P2       | Promotion candidate → high inbound refs or access count; suggests manual `status: evergreen`. Manifest-sourced, never auto-fixed. |
 
 > **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
 > **P1 = 정체 (stagnation)**: E6 and E7 surface unprocessed inputs and stalled drafts — visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive).
-> **P2 = quality**: E5 orphan notes are structural quality signals, not integrity defects.
+> **P2 = quality**: E5 orphan notes and E8 promotion candidates are quality signals, not integrity defects.
 
 The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
@@ -120,6 +121,14 @@ for each record in frontmatter_records where path startswith "notes/":
 
 **Rationale**: A draft sitting beyond a month signals a decision is needed — promote to `evergreen`, move to `archived`, or delete. The audit surfaces them; the user decides.
 
+## E8 — `promotion_candidate` [Info]
+
+**Rule**: A note flagged `promotion_candidate: true` in the vault-bridge manifest (`schema_version ≥ 3`). The flag is computed by `vault-bridge/scripts/generate-manifest.py` (PR 4c), **not** by the audit CLASSIFY phase — audit consumes it as a read-side signal (no detection pseudocode here).
+**Source**: `manifest.json` `files[]` entries where `promotion_candidate == true` (set when `references_in ≥ VAULT_AUDIT_PROMOTION_REFS` (3) OR `access_count ≥ VAULT_AUDIT_PROMOTION_ACCESS` (5); `type: note` / `decision` only).
+**Guard**: Absent or `schema_version < 3` manifest → no E8 findings (graceful skip). Manifest entries whose underlying files were deleted are skipped (phantom guard).
+
+**Rationale**: A note with high inbound references or frequent access is a candidate for manual promotion to `status: evergreen`. Surfaced as Info/P2 — the user decides; never auto-fixed.
+
 ## Auto-fix eligibility
 
 Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
@@ -128,7 +137,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields with inferred values |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links), E4 (requires human decision on rename/delete), E5 (content value judgment), E6/E7 (stagnation requires semantic decision: process / promote / archive).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links), E4 (requires human decision on rename/delete), E5 (content value judgment), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision).
 
 ## Manifest Summary (display-only)
 
