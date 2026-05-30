@@ -5,10 +5,9 @@ Detailed procedures and guidelines for the 3-layer verification system.
 ## Table of Contents
 
 - [Layer 1: Mechanical Details](#layer-1-mechanical-details)
-- [Layer 2: Linguistic Details](#layer-2-linguistic-details)
+- [Layer 2: Consistency & Readability Details](#layer-2-consistency--readability-details)
 - [Layer 3: Semantic Details](#layer-3-semantic-details)
 - [Fix Mode Behavior](#fix-mode-behavior)
-- [Report Generation](#report-generation)
 - [Edge Cases](#edge-cases)
 
 ---
@@ -75,97 +74,7 @@ Using standard markdownlint configuration with these priorities:
 
 ---
 
-## Layer 2: Linguistic Details
-
-### LLM Trope Detection (6-Category)
-
-**Process**:
-
-```
-1. Load trope reference from reference/llm-expression-blacklist.md
-2. Phase A - Word scan:
-   - Magic adverbs: "quietly", "deeply", "fundamentally", etc.
-   - Delve and friends: "delve", "utilize", "leverage", "robust", etc.
-   - Grandiose nouns: "tapestry", "landscape", "paradigm", "synergy"
-   - Serves-as dodge: "serves as", "stands as" → suggest "is"/"are"
-   - Korean expressions: 기존 블랙리스트 매칭
-   - English expressions: 기존 블랙리스트 매칭
-3. Phase B - Sentence scan:
-   - Negative parallelism: "not" + em-dash + contrast clause
-   - Dramatic countdown: "Not X. Not Y. Just Z."
-   - Rhetorical Q&A: "?" followed by short answer sentence
-   - Anaphora: 3+ consecutive sentences with same starting token
-   - Tricolon: semicolon/period-separated 3+ parallel structures
-   - Worth noting: "It's worth noting", "Importantly", "Notably"
-   - Superficial analyses: trailing "-ing" constructions
-   - False ranges: "From X to Y" without spectrum data
-   - Gerund fragment litany: 3+ verb-less gerund sentences
-4. Phase C - Paragraph scan:
-   - Fragment density: 3+ consecutive <10-word paragraphs → flag
-   - Listicle-in-trench-coat: "The first/second/third" pattern
-5. Phase D - Tone scan:
-   - False suspense: "Here's the kicker/thing/catch"
-   - Patronizing analogies: "Think of it as...", "Imagine you're..."
-   - Imagine a world: "Imagine a world where..."
-   - False vulnerability: "I'll be honest...", "Can I be real?"
-   - Truth is simple: "The reality is simpler", "History is clear"
-   - Stakes inflation: "fundamentally reshape", "game-changer"
-   - Let's break down: "Let's unpack/explore/dive in"
-   - Vague attributions: "Experts argue", "Studies show"
-   - Invented concept labels: "the X paradox/trap/effect"
-6. Phase E - Formatting scan:
-   - Em-dash count: >10 per 2000 words → flag
-   - Bold-first bullet ratio: >80% bold-start items → flag
-   - Unicode decoration: →, smart quotes, • usage
-7. Phase F - Composition scan:
-   - Fractal summaries: intro/conclusion similarity per section
-   - Dead metaphor: same metaphor keyword 5+ times
-   - Historical analogy stacking: 3+ company names in sequence
-   - One-point dilution: 3+ paragraphs with high semantic overlap
-   - Content duplication: near-identical sentences/paragraphs
-   - Signposted conclusion: "In conclusion", "To sum up"
-   - Despite its challenges: problem → immediate optimism pivot
-8. Output: sorted by category, then severity, then line number
-```
-
-**Severity Levels**:
-
-| Level | Criteria | Example |
-|-------|----------|---------|
-| High | Strong AI signal even in isolation | B1 Negative Parallelism, E1 Em-Dash Addiction, D6 Stakes Inflation |
-| Medium | AI signal when clustered | B5 Tricolon Abuse, D2 Patronizing Analogies, F2 Dead Metaphor |
-| Low | AI signal only at high frequency | B7 Superficial Analyses, E3 Unicode Decoration, B8 False Ranges |
-
-### Trope Density Score
-
-**Calculation**:
-
-```
-raw_count = total tropes detected
-word_count = total words in document
-density = (raw_count / word_count) * 1000
-
-Weighted density (severity weighting):
-  weighted = sum(High × 3 + Medium × 2 + Low × 1) / word_count × 1000
-
-Thresholds:
-  Low:    < 3.0 weighted/1000 words — minimal AI signal
-  Medium: 3.0 - 6.0 — noticeable AI patterns
-  High:   > 6.0 — strong AI signal, major revision needed
-```
-
-### Clustering Detection
-
-**Algorithm**:
-
-```
-1. Sort all detected tropes by line number
-2. Sliding window: 10 lines
-3. If window contains 3+ tropes → mark as hotspot
-4. Report: line range, trope names, category mix
-5. Cross-category clusters (e.g., Word + Structure + Tone)
-   are stronger AI signals than same-category clusters
-```
+## Layer 2: Consistency & Readability Details
 
 ### Term Consistency Check
 
@@ -309,7 +218,7 @@ Line 12: Unexplained term
 | Layer | What Gets Fixed | What Gets Reported |
 |-------|-----------------|-------------------|
 | Layer 1 | Formatting, whitespace, blank lines | Broken links, missing lang tags |
-| Layer 2 | Nothing (suggestions only) | LLM expressions, inconsistencies |
+| Layer 2 | Nothing (suggestions only) | Consistency issues, readability suggestions |
 | Layer 3 | Nothing (warnings only) | Vague claims, outdated info |
 
 ### Fix Process
@@ -331,79 +240,6 @@ If user requests undo:
 1. Check for .bak file
 2. Restore original
 3. Delete .bak file
-```
-
----
-
-## Report Generation
-
-### Report Structure
-
-```markdown
-# Document Polish Report
-
-**File**: {filename}
-**Date**: {timestamp}
-**Mode**: {default|fix|report}
-
-## Executive Summary
-
-- Total issues: {count}
-- Auto-fixed: {count}
-- Manual review needed: {count}
-- Quality score: {score}/100
-
-## Layer 1: Mechanical
-
-### Fixed
-{list of auto-fixed items}
-
-### Remaining
-{list of issues needing attention}
-
-## Layer 2: Linguistic
-
-### High Priority
-{critical LLM expressions}
-
-### Medium Priority
-{consistency issues}
-
-### Low Priority
-{style suggestions}
-
-## Layer 3: Semantic
-
-### Warnings
-{vague claims, outdated info, unexplained terms}
-
-## Recommendations
-
-{prioritized action items}
-
-## Statistics
-
-- Word count: {count}
-- Sentence count: {count}
-- Average sentence length: {avg}
-- Heading count: {count}
-- Link count: {internal}/{external}
-- Code block count: {count}
-```
-
-### Quality Score Calculation
-
-```
-Base score: 100
-
-Deductions:
-- Layer 1 issue: -2 points each (max -20)
-- Layer 2 High: -5 points each (max -25)
-- Layer 2 Medium: -2 points each (max -15)
-- Layer 2 Low: -1 point each (max -10)
-- Layer 3 warning: -3 points each (max -30)
-
-Minimum score: 0
 ```
 
 ---
