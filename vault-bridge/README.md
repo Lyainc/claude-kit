@@ -223,7 +223,7 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 ```yaml
 version: 1                          # optional; v1 assumed if absent
 vault_path: notes/my-project  # required; relative to vault root
-auto_capture: true                  # optional; W8 plan-doc autosync gate (default: false)
+snapshot_export: true               # optional; plan-doc autosync gate, project-owner opt-in (default: false)
 autosync_paths_include:             # optional v1.1; extra plan-doc patterns merged with defaults
   - notes/specs/*.md
   - adrs/**/*.md
@@ -303,7 +303,7 @@ vault-bridge v1.5.0 introduced vault write governance; v1.9.0 narrows vault-sear
 
 | Target | File types |
 |--------|-----------|
-| `inbox/` | `session-*`, `capture-*`, `plan-*` (new files only) |
+| `inbox/` | `session-*`, `capture-*` (new files only) |
 | `notes/{project}/` | `session-*`, `capture-*`, `plan-*` (new files only, when `.vault-link` resolves to that project) |
 
 ### Forbidden writes
@@ -350,7 +350,7 @@ vault-bridge v1.5.0 adds a **PreToolUse hook** (`hooks/pre-write-guard.sh`) that
 
 | Directory | Required pattern | Example |
 |-----------|-----------------|---------|
-| `inbox/` | `^(session\|capture\|plan)-YYYY-MM-DD[-topic][-vN].md$` | `session-2026-04-18.md`, `capture-2026-04-18-jwt-debug.md` |
+| `inbox/` | `^(session\|capture)-YYYY-MM-DD[-topic][-vN].md$` | `session-2026-04-18.md`, `capture-2026-04-18-jwt-debug.md` |
 | `notes/` (evergreen) | `^[a-z0-9-]+\.md$` (no date prefix) | `oauth-flow.md` |
 | `notes/{project}/` | `^(session\|plan\|capture\|decision)-YYYY-MM-DD[-topic][-vN].md$` | `plan-2026-04-18-vault-bridge-value-prop.md` |
 
@@ -448,7 +448,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects all deterministic state — `.vault-link` presence + Layer 1 `auto_capture`, `_index.md` Layer 2 `auto_capture`, plan-doc candidates, direct-access counter, plan-doc-asked flag — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
-- **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/quick)
+- **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/handoff/quick)
 - **`/handoff` command**: generates a next-session continuation handoff (one-liner / summary / `resume.md` file) — main-context user trigger
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
@@ -499,7 +499,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks or commit suggestions fir
 
 | Command | Description |
 |---------|-------------|
-| `/save-session` | Inline session note creation in main context — mode selection (record/quick), path confirmation, collision resolution |
+| `/save-session` | Inline session note creation in main context — mode selection (record/handoff/quick), path confirmation, collision resolution |
 | `/handoff` | Generate a next-session continuation handoff — one-line prompt, summary, or `resume.md` file |
 | `/save-plan-doc` | Snapshot external plan/design docs into the bound vault project — 2-layer opt-in gate |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
