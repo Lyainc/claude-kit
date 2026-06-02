@@ -117,7 +117,7 @@ Tie-break: [used:{yes|no}] [margin:{n|—}]
 - `Mode` — set at Phase 0 (mode detection); read at Phase 2 item 1 (transcript skip in summary-only mode).
 - `Independent` — updated during Phase 1 Independent Statements; `k==N` means collection complete (single format; no separate "complete" token).
 - `Votes` — populated only by the Tie-Breaking Mechanism (after round 3); empty before tie-break.
-- `Topic-status` — closed enum, exactly these 6 values; no free-text.
+- `Topic-status` — closed enum, exactly these 6 values; no free-text. `tie-broken` = resolved via the Tie-Breaking Mechanism (weighted vote always yields a winner; a margin < 2 is recorded as "Conditional" in SUMMARY.md but the status stays `tie-broken`). There is no separate `deadlock` value — the vote is total, so a topic never ends unresolved.
 
 **Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
 Topic-status → `pending`; Votes → treat as no-vote / no-consensus; Independent → `0` (re-collect, preserves anti-anchoring);

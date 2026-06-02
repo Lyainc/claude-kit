@@ -39,6 +39,8 @@ model: sonnet
 
 ## Quick Mode
 
+"빠르게"/"스펙만"/"quick" activates Quick Mode **only at the start** (Phase 0). Mid-interview, these phrases are ignored — to cut an in-progress interview short, use the Early-exit triggers ("결과로", "지금 끝내줘", "이대로 진행").
+
 Compressed interview for time-constrained use:
 
 1. **Phase 0**: context analysis only (skip brownfield detection)
@@ -71,6 +73,8 @@ Quick Mode output format:
      - Brownfield confirmed → activate Context Clarity dimension (weight 0.15)
      - Greenfield → Context Clarity inactive
    - If user explicitly points to a repository root or project directory in prose (a project root, not merely a source file they want analyzed) → Read README.md, plugin.json/package.json (whichever exists) → inject summary into Phase 1 context
+     - e.g. "이 플러그인 레포에 기능 추가하려고" / "~/projects/foo 프로젝트에" → brownfield detected
+     - but "이 login.ts 동작을 명세로" → a single source file, not a repo root → greenfield default
    - If no files found → greenfield default (no question)
 3. **Maturity**: always starts at Idea level (the point of spec-first is to move from idea to spec)
 4. **Set dimension weights** (see Ambiguity Scoring below)
@@ -133,10 +137,12 @@ Gate: Ambiguity ≤ 0.2 AND all active dimensions ≥ floor AND achieved for 2 c
 Run after each interview round. Display current scores.
 
 ```
-[Gate Check]
+[Gate Check] 게이트: {all active dims ✓ → "통과 임박" | else "진행 중 — ✗ 항목 보완 필요"}
   Goal: {'✓' if ≥ floor else '✗'} | Constraint: {'✓' if ≥ floor else '✗'}
   Success: {'✓' if ≥ floor else '✗'} | Context: {'✓' if ≥ floor else '✗'} (brownfield only)
 ```
+
+The ✓/✗ per dimension is the user-facing progress signal — it shows *which* dimensions still fall short without exposing the underlying numeric scores.
 
 **Gate open**: Ambiguity ≤ 0.20 + all floors met + 2 consecutive rounds.
 **Gate closed**: continue interview. Auto-select lowest-clarity dimension.
