@@ -35,7 +35,7 @@ if [ -f "$_vl" ]; then
   _vp=$(grep '^vault_path:' "$_vl" 2>/dev/null | head -1 | sed 's/vault_path:[[:space:]]*//')
   PROJECT_NAME="${_vp##*/}"
 fi
-[ -z "${PROJECT_NAME:-}" ] && PROJECT_NAME=$(basename "${CLAUDE_PROJECT_ROOT:-$PWD}")
+if [ -z "${PROJECT_NAME:-}" ]; then PROJECT_NAME=$(basename "${CLAUDE_PROJECT_ROOT:-$PWD}"); fi
 echo "PROJECT_NAME=$PROJECT_NAME"
 ```
 
