@@ -37,7 +37,7 @@ Express pipeline behavior in natural language — no flags needed:
 ```
 ┌──────────────────┐   ┌──────────────┐   ┌────────────────┐   ┌────────────┐
 │ unknown-discovery │──▶│ expert-panel │──▶│ doc-concretize │──▶│ doc-polish │
-│  Blind Spot Scan  │   │ Expert Debate│   │  Documentation │   │  Quality QA│
+│  Blind Spot Scan  │   │ Expert Debate│   │  Documentation │   │ Structure QA│
 └──────────────────┘   └──────────────┘   └────────────────┘   └────────────┘
        Stage 1               Stage 2            Stage 3            Stage 4
 ```
@@ -82,13 +82,14 @@ For **claim validation** (1:1 attacker-vs-defender), invoke `adversarial-review`
 - If quick_mode (as detected in Prerequisites) and document < 2000 chars: use Quick Mode
 - Document structure follows expert panel topic organization
 
-### Stage 4: Quality Assurance (`doc-polish`)
+### Stage 4: Structure & Consistency QA (`doc-polish`)
 
 **Input**: Document from Stage 3
-**Output**: Polished document with quality report
+**Output**: Polished document with structural and consistency issues addressed
 
 - Invokes doc-polish with auto-fix enabled (mechanical issues corrected automatically)
-- Reports remaining consistency and semantic issues for user review
+- Reports remaining mechanical (Layer 1), consistency/readability (Layer 2), and semantic (Layer 3) issues for user review
+- Note: AI-expression removal (humanize) is a separate external step — use Humanize KR or similar after this pipeline if needed.
 
 ## Pre-Pipeline Gate Check
 

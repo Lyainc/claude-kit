@@ -65,7 +65,7 @@ When multiple conditions fire in the same round, apply the **first match** (high
 
 ## Final Report Template
 
-Used in Phase 2 (default mode). Skipped in `--brief` mode.
+Used in Phase 2 (standard mode). Skipped in summary output mode ("요약만", "간단히").
 
 ```markdown
 ## Adversarial Review Report
@@ -114,7 +114,7 @@ Used in Phase 2 (default mode). Skipped in `--brief` mode.
 
 ## Brief Mode Output Format
 
-Used instead of the full report when `--brief` flag is active:
+Used instead of the full report in summary output mode ("요약만", "간단히"):
 
 ```
 | Claim | Verdict | Weighted Score |
@@ -138,7 +138,7 @@ Output at the start of each attack round:
 ---
 ```
 
-After user defense (or `--auto` Defender response):
+After user defense (or the auto-generated Defender response in 자동 방어 mode):
 
 ```
 **[Judge — {Vector}]**: Relevance {r}/10 · Substance {s}/10 · Completeness {c}/10 → Score delta: {delta}
@@ -147,7 +147,7 @@ After user defense (or `--auto` Defender response):
 Target: {name} | Claims: {N} | Phase: 1
 Current Claim: {idx}/{N} | Round: {r}/5
 Survival: [logic:{score}%] [evidence:{score}%] [counter:{score}%] [scope:{score}%]
-Weighted Score: {weighted_avg}% | Attacks: {count} | Defenses: {success}/{total}
+Resilience: {탄탄|보통|취약} | Weighted Score: {weighted_avg}% | Attacks: {count} | Defenses: {success}/{total}
 Verdict-so-far: [claim1:survived|collapsed|pending] ...
 <!-- /STATE -->
 ```

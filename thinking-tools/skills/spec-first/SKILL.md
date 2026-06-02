@@ -33,12 +33,12 @@ model: sonnet
 ## Prerequisites
 
 - A vague idea, feature request, or requirement to crystallize
-- (Optional) `--with-repo <path>` — load repo context for brownfield detection
-- (Optional) `--refine <prev-seed-path> <feedback>` — refine an existing Seed spec
-- (Optional) `--with-ralph` — chain to OMC ralph after Seed emission
-- (Optional) `--quick` — compressed interview (3-5 questions, Goal dimension only)
+- Quick mode: include "빠르게", "스펙만", or "quick" at the start of your request (selects the compressed interview before Phase 1 begins)
+- Brownfield repo: detected automatically via Glob; name the project/repo root in prose if needed
+- Refine existing spec: say "이 스펙 다듬어줘" with the prior seed file path
+- Ralph handoff: say "ralph로 이어줘" or similar to chain to OMC at Phase 4
 
-## Quick Mode (`--quick`)
+## Quick Mode
 
 Compressed interview for time-constrained use:
 
@@ -52,13 +52,11 @@ Quick Mode output format:
 ## Quick Seed — {target}
 
 **Goal**: {statement}
-**Ambiguity**: {overall} (Goal: {goal_score})
-
 ### Constraints identified
 {list}
 
 ───
-*Quick Mode 완료 · 전체 인터뷰: `--quick` 없이 재실행*
+*Quick Mode 완료 · 전체 인터뷰로 재실행*
 ```
 
 ## Core Workflow
@@ -73,7 +71,7 @@ Quick Mode output format:
    - If ≥1 file found → AskUserQuestion: "기존 프로젝트에 추가하는 건가요, 새 프로젝트인가요?"
      - Brownfield confirmed → activate Context Clarity dimension (weight 0.15)
      - Greenfield → Context Clarity inactive
-   - If `--with-repo <path>` → Read README.md, plugin.json/package.json (whichever exists) → inject summary into Phase 1 context
+   - If user explicitly points to a repository root or project directory in prose (a project root, not merely a source file they want analyzed) → Read README.md, plugin.json/package.json (whichever exists) → inject summary into Phase 1 context
    - If no files found → greenfield default (no question)
 3. **Maturity**: always starts at Idea level (the point of spec-first is to move from idea to spec)
 4. **Set dimension weights** (see Ambiguity Scoring below)
@@ -96,10 +94,10 @@ Iterative Socratic interview to raise clarity across all active dimensions.
 
 **Round display**:
 ```
-[Round N] Dimension: {current} ({clarity}%) | Ambiguity: {overall:.2f}
+[Round N] Dimension: {current}
 ```
 
-**`--refine` mode (A3)**: If `--refine <prev-seed-path> <feedback>` flag is set:
+**Refine mode (A3)**: If user says '이 스펙 다듬어줘' with a prior seed file path:
 - Read `<prev-seed-path>` → restore dimension scores and goal/constraints/success
 - Skip Phase 0 (reuse domain, brownfield status)
 - Phase 1 starts from the dimension with the lowest clarity score
@@ -136,9 +134,9 @@ Gate: Ambiguity ≤ 0.2 AND all active dimensions ≥ floor AND achieved for 2 c
 Run after each interview round. Display current scores.
 
 ```
-[Gate Check] Ambiguity: {value:.2f} (target ≤ 0.20)
-  Goal: {score:.0%} {'✓' if ≥ floor else '✗'} | Constraint: {score:.0%} {'✓' if ≥ floor else '✗'}
-  Success: {score:.0%} {'✓' if ≥ floor else '✗'} | Context: {score:.0%} {'✓' if ≥ floor else '✗'} (brownfield only)
+[Gate Check]
+  Goal: {'✓' if ≥ floor else '✗'} | Constraint: {'✓' if ≥ floor else '✗'}
+  Success: {'✓' if ≥ floor else '✗'} | Context: {'✓' if ≥ floor else '✗'} (brownfield only)
 ```
 
 **Gate open**: Ambiguity ≤ 0.20 + all floors met + 2 consecutive rounds.
@@ -153,16 +151,16 @@ When gate opens OR user explicitly exits:
    - `{slug}` = kebab-case of target name, e.g., `task-cli-tool`
    - If file exists: append `-v2`, `-v3`
 3. Display summary and file path
-4. Offer Phase 4 only if `--with-ralph` flag is set (no environment probing)
+4. Offer Phase 4 only if user explicitly requested ralph handoff (no environment probing)
 
 **Seed spec schema**: see `templates/SEED_SPEC.yaml`
 
 ### Phase 4: Handoff (Optional, opt-in only)
 
-**Trigger**: `--with-ralph` flag MUST be set. The skill does not probe the
+**Trigger**: user explicitly requests OMC ralph handoff (e.g., 'ralph로 이어줘'). The skill does not probe the
 environment for OMC — vendor neutrality requires the chain to be explicit.
 
-If `--with-ralph` flag set:
+If ralph handoff requested:
 ```
 AskUserQuestion: "OMC ralph로 반복 실행을 이어갈까요?"
 Options:
@@ -175,10 +173,10 @@ If "네, ralph로":
 - Write to `.omc/specs/{slug}-prd.json`
 - Invoke via Skill tool: `Skill(skill="oh-my-claudecode:ralph", args="<slug>")`
 
-If `--with-ralph` absent: skip Phase 4 entirely, emit Seed only.
+If no ralph handoff requested: skip Phase 4 entirely, emit Seed only.
 
 **Vendor neutrality**: Phase 4 only fires under explicit opt-in. Without
-`--with-ralph`, the skill never references OMC and produces a portable Seed.
+a ralph handoff request, the skill never references OMC and produces a portable Seed.
 
 ## Termination Conditions
 
@@ -188,11 +186,11 @@ If `--with-ralph` absent: skip Phase 4 entirely, emit Seed only.
 | **Explicit done** | "done", "stop", "충분해", "그만", "끝" | Gate warning if not passed → Phase 3 anyway |
 | **Round limit** | 12 rounds reached | Force Phase 3 with current scores |
 | **Saturation** | 3 consecutive minimal-new-info answers | Warn + confirm continue or Phase 3 |
-| **Early exit** | "빠르게", "스펙만", "결과로" | AskUserQuestion: skip to Phase 3 now? |
+| **Early exit** | mid-interview only: "결과로", "지금 끝내줘", "이대로 진행" | AskUserQuestion: skip to Phase 3 now? |
 
 **Explicit done before gate**: display warning:
 ```
-아직 Ambiguity {value:.2f}로 게이트 기준(0.20)에 미달해요.
+아직 게이트 기준에 미달해요. (일부 항목이 ✗)
 그래도 지금 스펙을 생성할까요? (품질이 낮을 수 있어요)
 ```
 
@@ -214,11 +212,12 @@ scoring_rationale:
   success: "{last rationale}"
   context: "{last rationale or N/A}"
 <!-- /STATE -->
+<!-- Internal restoration fields: ambiguity, clarity scores, consecutive_gate — not displayed to user -->
 ```
 
 **Compaction restoration**: restore all scores and round counter from STATE block. If STATE missing (fresh session), start Phase 0.
 
-**`--refine` STATE addition**: include `refine_source: {prev-seed-path}` and `refine_feedback: "{feedback}"` in STATE block.
+**Refine mode STATE addition**: include `refine_source: {prev-seed-path}` and `refine_feedback: "{feedback}"` in STATE block.
 
 ## Output Format
 
@@ -242,7 +241,7 @@ scoring_rationale:
 ## Seed Spec 생성 완료
 
 **파일**: `docs/specs/{slug}.yaml`
-**Ambiguity**: {value:.2f} ({'게이트 통과' if gate_passed else '조기 종료'})
+**상태**: {'게이트 통과' if gate_passed else '조기 종료'}
 
 ### Goal
 {goal statement}
@@ -254,13 +253,13 @@ scoring_rationale:
 {list}
 
 ───
-*spec-first 완료 · Round {N} · Ambiguity {value:.2f}*
+*spec-first 완료 · Round {N}*
 ```
 
 ## Known Limitations
 
-- **A6 `--strict-judge`**: deferred to Phase D. LLM self-scoring of Ambiguity may be inconsistent without an independent judge. Users can override scores by providing explicit corrections during the interview.
-- **OMC handoff**: opt-in only via `--with-ralph` flag; no environment auto-detection.
+- **Strict judge mode**: deferred to Phase D. LLM self-scoring of Ambiguity may be inconsistent without an independent judge. Users can override scores by providing explicit corrections during the interview.
+- **OMC handoff**: opt-in only — user must explicitly request ralph handoff; no environment auto-detection.
 - **Seed → ralph mapping**: PRD conversion is best-effort; review `.omc/specs/{slug}-prd.json` before running.
 
 ## References

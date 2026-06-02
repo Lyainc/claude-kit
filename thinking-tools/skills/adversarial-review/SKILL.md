@@ -41,15 +41,13 @@ This skill is **standalone**, not embedded in any pipeline. `thought-chain` (4-s
 
 ## Execution Modes
 
-| Flag | Behavior |
-|------|----------|
-| _(default)_ | Interactive: AskUserQuestion collects user defense each round |
-| `--auto` | Automated: Agent generates Defender response instead of prompting the user |
-| `--deep` | Judge spawned as a separate Agent subagent (stronger isolation) |
-| `--brief` | Skip full report; output verdict-only summary |
-| `--quick` | Skip Steelman; run 2 attack rounds per claim |
+Express mode preferences in natural language — no flags needed:
+- **자동 방어** ("내가 방어 안 할게", "자동으로 돌려줘"): Agent generates Defender response instead of prompting the user
+- **격리 실행** ("엄격하게", "격리해서"): Judge spawned as a separate Agent subagent (stronger isolation)
+- **요약 출력** ("요약만"): Skip full report; output verdict-only summary
+- **빠른 모드** ("빠르게", "간단히", "quick"): Skip Steelman; run 2 attack rounds per claim
 
-Flags are combinable. `--auto --deep`: Defender Agent subagent and Judge Agent subagent are both active simultaneously.
+All combinations compose silently — e.g., "빠르게 자동으로" activates quick mode + automated defense simultaneously. The 빠른 모드 phrase set ("빠르게"/"간단히"/"quick") is shared with unknown-discovery and thought-chain.
 
 ## Prerequisites
 
@@ -80,14 +78,14 @@ Cycle through 4 attack vectors in order. Each round:
 
 **Role Visibility Contract** (information asymmetry by design):
 - **Attacker** receives: claim text + steelman only (no defense history, no prior round results)
-- **Defender** (user or `--auto` agent) receives: claim text + steelman + current round attack only
+- **Defender** (user or automated defense agent) receives: claim text + steelman + current round attack only
 - **Judge** receives: current round attack + defense only (full conversation history blocked by default)
 
-In `--deep` mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
-In default mode, visibility is best-effort (prompt contract only — the LLM shares full conversation history across personas; `--deep` provides mechanical isolation via subagent context boundaries).
+In isolated execution mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
+In standard mode, visibility is best-effort (prompt contract only — the LLM shares full conversation history across personas; isolated execution mode provides mechanical isolation via subagent context boundaries).
 
 1. **Attacker** persona presents the attack
-2. **AskUserQuestion** collects user defense (always show "skip this claim" as an option); in `--auto` mode, Agent generates Defender response
+2. **AskUserQuestion** collects user defense (always show "skip this claim" as an option); in automated defense mode, Agent generates Defender response
 3. **Judge** persona evaluates defense
 4. Update Survival Score and output STATE block
 
@@ -113,7 +111,9 @@ Weighted average of 4 dimension scores (each 0–100%):
 Survival Score = (Logical Integrity × 0.30) + (Evidence × 0.25) + (Counter-resilience × 0.25) + (Scope Robustness × 0.20)
 ```
 
-All dimensions start at 50%. Score updates after every Judge evaluation. Display as `Weighted Score: {value}%` in STATE block.
+All dimensions start at 50%. Score updates after every Judge evaluation. Display as qualitative resilience band (탄탄/보통/취약) in STATE block.
+
+Qualitative bands (mirroring verdict thresholds): **탄탄** (Survived, ≥60%) | **보통** (Pending, 26–59%) | **취약** (Collapsed, ≤25%)
 
 ### Termination Conditions
 
@@ -133,11 +133,11 @@ Steelman v2 rules and priority examples: [reference/patterns.md](reference/patte
 ### Phase 2: Verdict and Export
 
 **Per-claim verdict**:
-- `survived`: Weighted Score ≥ 60% at termination
-- `collapsed`: Weighted Score ≤ 25% at termination, or user skipped claim
-- `pending`: Score 26–59% at termination (inconclusive)
+- `survived` (탄탄): Weighted Score ≥ 60% at termination
+- `collapsed` (취약): Weighted Score ≤ 25% at termination, or user skipped claim
+- `pending` (보통): Score 26–59% at termination (inconclusive)
 
-Full report template and `--brief` format: [reference/patterns.md](reference/patterns.md#final-report-template)
+Full report template and summary output mode format: [reference/patterns.md](reference/patterns.md#final-report-template)
 **Export option**: After report, offer to save via Write tool to `docs/adversarial-review/{date}-{topic}.md`.
 
 ## STATE Block Contract
@@ -145,12 +145,14 @@ Full report template and `--brief` format: [reference/patterns.md](reference/pat
 Output a STATE block after every Judge evaluation and at every checkpoint.
 On context compaction, restore state from the most recent STATE block.
 
+**The entire STATE block is internal restoration scaffolding — never rendered to the user.** Numeric fields (dimension scores, Weighted Score) serve compaction restoration and gate logic only; user-facing output shows the qualitative Resilience label (탄탄/보통/취약), never raw percentages.
+
 ```
 <!-- STATE:CHECKPOINT -->
 Target: {name} | Claims: {N} | Phase: {0|1|2}
 Current Claim: {idx}/{N} | Round: {r}/5
 Survival: [logic:{score}%] [evidence:{score}%] [counter:{score}%] [scope:{score}%]
-Weighted Score: {weighted_avg}% | Attacks: {count} | Defenses: {success}/{total}
+Resilience: {탄탄|보통|취약} | Weighted Score: {weighted_avg}% | Attacks: {count} | Defenses: {success}/{total}
 Verdict-so-far: [claim1:survived|collapsed|pending] [claim2:...] ...
 <!-- /STATE -->
 ```
@@ -173,7 +175,7 @@ Compaction: restore all dimension scores and round counters; default missing sco
 | Attacker | Presents adversarial attacks in Phase 1 |
 | Judge | Independent evaluation of defense quality |
 
-Round header: `[Round {r}/5 — {Vector}] Claim {idx}/{N} | Weighted Score: {score}%`.
+Round header: `[Round {r}/5 — {Vector}] Claim {idx}/{N} | Resilience: {탄탄|보통|취약}`.
 Full round display format with Judge scoring line: [reference/patterns.md](reference/patterns.md#round-display-format)
 
 ## Additional Resources

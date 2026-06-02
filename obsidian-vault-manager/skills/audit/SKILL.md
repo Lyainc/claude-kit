@@ -42,11 +42,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```
    Files absent from sidecar (untracked) are treated as dirty. Files with `status: clean` are skipped unless `--force` was passed.
 
-3. Emit scan-start status line (Korean):
-   ```
-   볼트 감사 시작 중...
-   감사 대상: Y 파일 (예상 시간: ~Ns)
-   ```
+3. Emit a scan-start status line in Korean: indicate that the vault audit is starting, and report the number of files targeted along with an estimated scan time.
 
 4. Run frontmatter scan on the full vault:
    ```bash
@@ -99,7 +95,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (7 types, v4). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
+**Error types** (8 types, v4). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
@@ -114,18 +110,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 > **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6–E7 = P1 (정체/stagnation). E5, E8 = P2 (quality signal).
 
-**E3 v4 convention** (files in `notes/` only; `inbox/` and `assets/` are exempt):
-- VIOLATION: filename starts with `\d{4}-\d{2}-` (v3 date-first pattern, e.g. `2026-04-topic.md`)
-- OK: `{slug}.md` (no date), `decision-YYYY-MM-DD-{slug}.md`, `plan-YYYY-MM-DD-{slug}.md` (type-first)
-- Guard: `_index.md` is always valid; skip.
-
-**E5 orphan scope**: files in `notes/` (any depth) with zero inbound wikilinks. Files in `inbox/` and `assets/` are exempt.
-
-**E6/E7 stagnation** (uses already-scanned `fm.created` and `fm.status` — no extra primitive needed):
-- E6 trigger: `path` startswith `inbox/`, `fm.status` ∈ {`""`, `raw`, missing}, age in days from `fm.created` > 14.
-- E7 trigger: `path` startswith `notes/`, `fm.status == "draft"`, age in days from `fm.created` > 30.
-- Age is computed against `date.today()` using the `YYYY-MM-DD` value parsed from `fm.created`. Files with malformed or missing `created:` are skipped (E1/E2 catch them).
-- Thresholds (`STALE_INBOX_DAYS=14`, `STALE_DRAFT_DAYS=30`) are canonical constants in `audit-validate.py`. To change them, update the constant in `audit-validate.py`, this SKILL.md's E6/E7 rows + triggers, and the matching values in `reference/vault-audit-rules.md`.
+Detailed detection criteria for all error types: see `reference/vault-audit-rules.md` (canonical source).
 
 **Output**: Findings list:
 ```
@@ -153,69 +138,52 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Tools used**: None (output only).
 
-**Output format**:
+## REPORT Output Contract
+
+Output is grouped by priority:
+- **P0** (CRITICAL findings): Must-fix items listed first
+- **P1** (WARNING findings): Should-fix items
+- **P2** (INFO findings): Nice-to-fix items
+
+Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3→E4 within P0; E6→E7 within P1; E5→E8 within P2).
+
+Each finding line format: `[E-code/priority/severity] type — N건` header, then one bullet per file with path and one-line description.
+
+Report header: vault state summary (note count, clean/dirty/untracked), manifest info, promotion candidate count, recent git activity (omit if 0 commits or not a git repo).
+
+Footer: auto-fixable count, manual-action count.
+
+If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
+
+**Example** (representative — actual content varies by vault state):
 
 ```
 볼트 감사 완료
 ──────────────────────────────────────────
-볼트 상태: N 노트 / clean X · dirty Y · untracked Z
-매니페스트: F 파일 · 갱신 YYYY-MM-DDTHH:MM  (없음: vault-bridge 미설치)
-promotion_candidate 계산 완료: N개 후보  (없음: manifest v3 미만 / vault-bridge 미설치)
-최근 7일 활동: 12 commits · 5 added · 23 modified · 1 deleted
-
-발견된 이슈: K건 (P0 a건 · P1 b건 · P2 c건)
+볼트 상태: 42 노트 / clean 38 · dirty 3 · untracked 1
+발견된 이슈: 4건 (P0 2건 · P1 1건 · P2 1건)
 ──────────────────────────────────────────
 
-[P0 / Critical] missing_frontmatter — 3건
-  • notes/no-frontmatter-001.md
+[P0 / Critical] missing_frontmatter — 1건
+  • notes/scratch.md
       상세: frontmatter 없음
-  • ...
 
-[P0 / Critical] missing_required_fields — 10건
-  • notes/missing-fields-001.md
-      상세: 누락 필드 tags,type
-  • notes/draft-note-without-status.md
-      상세: 누락 필드 status (type:note은 status 필수, v4 §3.3)
-  • ...
-
-[P0 / Critical] broken_wikilink — 5건
-  • notes/broken-links-001.md
-      상세: [[totally-nonexistent-note-1]] → 대상 없음
-  • ...
-
-[P0 / Warning] filename_convention_violation — 5건
-  • notes/2026-04-bad-name-001.md
+[P0 / Warning] filename_convention_violation — 1건
+  • notes/2026-04-old-topic.md
       상세: v3 날짜 우선 파일명 — {type}-YYYY-MM-DD-{slug}.md 또는 {slug}.md로 변경 필요
-  • ...
 
-[P1 / Warning] stale_inbox — 7건
+[P1 / Warning] stale_inbox — 1건
   • inbox/capture-2026-03-15-old-topic.md
       상세: age 73d > 14d (status:raw, created 2026-03-15)
-  • ...
 
-[P1 / Warning] stale_draft — 2건
-  • notes/half-written-idea.md
-      상세: age 45d > 30d (status:draft, created 2026-04-12)
-  • ...
-
-[P2 / Warning] orphan_note — 10건
-  • notes/orphan-001.md
-      상세: 인바운드 링크 없음
-  • ...
-
-[P2 / Info] promotion_candidate — 3건
+[P2 / Info] promotion_candidate — 1건
   • notes/high-ref-note.md
       상세: refs_in=5, access=2 (manual: status→evergreen)
-  • notes/frequent-note.md
-      상세: refs_in=1, access=7 (manual: status→evergreen)
-  • ...
 
 ──────────────────────────────────────────
-자동 수정 가능: F건 (missing_required_fields — frontmatter 필드 추가)
-수동 처리 필요: M건 (broken wikilinks, orphan notes, filename violations, stale inbox/draft, promotion candidates)
+자동 수정 가능: 0건
+수동 처리 필요: 4건
 ```
-
-If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
 > **git 활동 줄**: `commits == 0`이거나 vault가 git 저장소가 아닌 경우 해당 줄을 출력하지 않습니다.
 - The 7-day window can be overridden via `VAULT_AUDIT_ACTIVITY_DAYS` env var.
