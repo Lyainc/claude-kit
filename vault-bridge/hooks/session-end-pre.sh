@@ -43,32 +43,32 @@ vault_root="${_raw_vr/#\~/$HOME}"
 unset _raw_vr
 vault_link_file="${project_root}/.vault-link"
 
-# ── Layer 1: .vault-link presence + auto_capture flag ─────────────────────────
+# ── Layer 1: .vault-link presence + snapshot_export flag ──────────────────────
 vl_present=false
-auto_capture_l1=false
+snapshot_export_l1=false
 vault_path=""
 
 if [ -f "$vault_link_file" ]; then
   vl_present=true
   # Anchored grep — never match `# snapshot_export: true` comments.
-  if grep -qE '^(snapshot_export|auto_capture)[[:space:]]*:[[:space:]]*true' "$vault_link_file" 2>/dev/null; then
-    auto_capture_l1=true
+  if grep -qE '^snapshot_export[[:space:]]*:[[:space:]]*true' "$vault_link_file" 2>/dev/null; then
+    snapshot_export_l1=true
   fi
   vault_path=$(grep -E '^vault_path[[:space:]]*:' "$vault_link_file" 2>/dev/null \
     | head -n1 | sed 's/.*:[[:space:]]*//' | tr -d '[:space:]' || true)
 fi
 
-# ── Layer 2: vault project _index.md auto_capture ─────────────────────────────
+# ── Layer 2: vault project _index.md snapshot_import ──────────────────────────
 index_present=false
-auto_capture_l2=false
+snapshot_import_l2=false
 index_file=""
 
 if [ -n "$vault_path" ]; then
   index_file="${vault_root}/${vault_path}/_index.md"
   if [ -f "$index_file" ]; then
     index_present=true
-    if grep -qE '^(snapshot_import|auto_capture)[[:space:]]*:[[:space:]]*true' "$index_file" 2>/dev/null; then
-      auto_capture_l2=true
+    if grep -qE '^snapshot_import[[:space:]]*:[[:space:]]*true' "$index_file" 2>/dev/null; then
+      snapshot_import_l2=true
     fi
   fi
 fi
@@ -78,14 +78,14 @@ plan_doc_already_asked=false
 [ -f "${state_dir}/plan-doc-asked" ] && plan_doc_already_asked=true
 
 # Always scan candidates so the prompt can decide whether to suggest;
-# gating happens in the prompt by combining auto_capture_l1 ∧ auto_capture_l2.
+# gating happens in the prompt by combining snapshot_export_l1 ∧ snapshot_import_l2.
 # Discovery is delegated to plan-doc-syncer.py so .vault-link's
 # autosync_paths_include/exclude (W8 v1.1) is honored — handles default
 # patterns (docs/discussions, docs/design, docs/plans, PLAN.md,
 # DESIGN.md, RFC-*.md) plus user-overridden include/exclude globs.
 candidates_json="[]"
 discovery_error=""
-if [ "$auto_capture_l1" = "true" ] && [ "$auto_capture_l2" = "true" ]; then
+if [ "$snapshot_export_l1" = "true" ] && [ "$snapshot_import_l2" = "true" ]; then
   syncer="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/scripts/plan-doc-syncer.py"
   # Capture syncer stderr to state_dir so a crash leaves a forensic artifact
   # instead of degrading silently to candidates=[]. The empty-log cleanup keeps
@@ -94,10 +94,7 @@ if [ "$auto_capture_l1" = "true" ] && [ "$auto_capture_l2" = "true" ]; then
   syncer_err="${state_dir}/plan-doc-syncer-err.log"
   # Command substitution (not process substitution) so $? reflects the
   # syncer's actual exit code — `done < <(cmd)` would lose it.
-  # VAULT_BRIDGE_SUPPRESS_DEPRECATION=1 silences the auto_capture deprecation
-  # warning here so it does not pollute syncer_err and get misclassified as
-  # discovery_error. Interactive callers (/save-plan-doc) leave it unset.
-  syncer_out=$(VAULT_BRIDGE_SUPPRESS_DEPRECATION=1 python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>"$syncer_err")
+  syncer_out=$(python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>"$syncer_err")
   syncer_rc=$?
   found=()
   while IFS= read -r line; do
@@ -140,11 +137,11 @@ SESSION_STATE_DIR="$state_dir" \
 PROJECT_ROOT="$project_root" \
 VAULT_ROOT="$vault_root" \
 VL_PRESENT="$vl_present" \
-AUTO_CAPTURE_L1="$auto_capture_l1" \
+SNAPSHOT_EXPORT_L1="$snapshot_export_l1" \
 VAULT_PATH="$vault_path" \
 INDEX_FILE="$index_file" \
 INDEX_PRESENT="$index_present" \
-AUTO_CAPTURE_L2="$auto_capture_l2" \
+SNAPSHOT_IMPORT_L2="$snapshot_import_l2" \
 PLAN_DOC_ALREADY_ASKED="$plan_doc_already_asked" \
 CANDIDATES_JSON="$candidates_json" \
 DISCOVERY_ERROR="$discovery_error" \
@@ -159,8 +156,8 @@ def s(name):
     return os.environ.get(name, "")
 
 candidates = json.loads(os.environ.get("CANDIDATES_JSON", "[]"))
-auto_l1 = b("AUTO_CAPTURE_L1")
-auto_l2 = b("AUTO_CAPTURE_L2")
+snapshot_export_l1 = b("SNAPSHOT_EXPORT_L1")
+snapshot_import_l2 = b("SNAPSHOT_IMPORT_L2")
 
 state = {
     "version": 1,
@@ -171,16 +168,16 @@ state = {
     "vault_root": s("VAULT_ROOT"),
     "vault_link": {
         "present": b("VL_PRESENT"),
-        "auto_capture_l1": auto_l1,
+        "snapshot_export_l1": snapshot_export_l1,
         "vault_path": s("VAULT_PATH"),
     },
     "vault_index": {
         "path": s("INDEX_FILE"),
         "present": b("INDEX_PRESENT"),
-        "auto_capture_l2": auto_l2,
+        "snapshot_import_l2": snapshot_import_l2,
     },
     "plan_docs": {
-        "auto_capture_active": auto_l1 and auto_l2,
+        "snapshot_gate_active": snapshot_export_l1 and snapshot_import_l2,
         "already_asked": b("PLAN_DOC_ALREADY_ASKED"),
         "candidates": candidates,
         "discovery_error": s("DISCOVERY_ERROR") or None,

@@ -255,7 +255,7 @@ autosync_paths_include: [notes/specs/*.md, adrs/**/*.md]   # flow array
 
 To suppress a default include, write an exclude that covers it (e.g. `docs/discussions/**/*.md` blocks the default `docs/discussions/**/*.md` include for that project).
 
-**Lax boolean** — `auto_capture` accepts `true`, `yes`, `1` (case-insensitive). The hook (bash) and the syncer (Python) treat them identically.
+**Lax boolean** — `snapshot_export` / `snapshot_import` accept `true`, `yes`, `1` (case-insensitive). The hook (bash) and the syncer (Python) treat them identically.
 
 **`.vault-link.local`** (gitignore this file):
 
@@ -445,7 +445,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **Stop hook** (deterministic shell script `hooks/stop-check.sh`): silently checks the user's last message for session-closing keywords; injects a one-line `systemMessage` suggesting `/save-session` only when a closing signal is detected. No LLM call → no per-turn cost, no infinite-loop risk
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background; also detects `.claude-kit/vault-bridge/resume.md`, injects its body into the model context via `additionalContext`, and consumes (deletes) the file. Never blocks session startup
-- **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects all deterministic state — `.vault-link` presence + Layer 1 `auto_capture`, `_index.md` Layer 2 `auto_capture`, plan-doc candidates, direct-access counter, plan-doc-asked flag — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
+- **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects all deterministic state — `.vault-link` presence + Layer 1 `snapshot_export`, `_index.md` Layer 2 `snapshot_import`, plan-doc candidates, direct-access counter, plan-doc-asked flag — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/handoff/quick)

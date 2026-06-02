@@ -35,7 +35,7 @@ If the output is `NOT_FOUND`, output the following and stop:
 
 Parse the `.vault-link` content:
 - `vault_path`: bound vault project path (e.g. `notes/claude-kit`)
-- `snapshot_export`: Layer 1 opt-in flag (default: `false` if absent). `auto_capture` is honored as a 4-week deprecation alias — the syncer emits a stderr warning when only the alias is present.
+- `snapshot_export`: Layer 1 opt-in flag (default: `false` if absent).
 
 ### Step 1.5 — Declare intent
 
@@ -75,7 +75,7 @@ If the user provided a specific file path as an argument to `/save-plan-doc`, sk
 
 #### Layer 1 — `.vault-link` snapshot_export
 
-If `snapshot_export` (or alias `auto_capture`) is not `true` in `.vault-link`:
+If `snapshot_export` is not `true` in `.vault-link`:
 
 Use **AskUserQuestion**:
 
@@ -107,7 +107,7 @@ VAULT_ROOT="${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}"
 cat "${VAULT_ROOT}/{vault_path}/_index.md" 2>/dev/null | head -30 || echo "NOT_FOUND"
 ```
 
-If `_index.md` is not found or `snapshot_import: true` (or alias `auto_capture: true`) is not in its frontmatter:
+If `_index.md` is not found or `snapshot_import: true` is not in its frontmatter:
 
 Use **AskUserQuestion**:
 
@@ -257,4 +257,3 @@ When `intent == defer` AND at least one file was saved successfully, generate a 
 - Do not push vault git changes — only write files. Use `/vault-commit` for git.
 - Vault-native plan files (`~/vault/notes/*/plan-*.md`) are out of scope — skip silently.
 - Maximum one AskUserQuestion per gate layer per invocation. Do not re-ask after user decision.
-- `auto_capture` (`.vault-link` and `_index.md`) is a 4-week deprecation alias for `snapshot_export` / `snapshot_import`. New configurations should use the new keys.

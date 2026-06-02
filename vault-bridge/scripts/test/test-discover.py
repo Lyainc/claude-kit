@@ -316,8 +316,8 @@ def case_snapshot_export_l1(errors: list[str]) -> None:
             "neither key present → gate fails", errors)
 
 
-def case_auto_capture_alias_warns_stderr(errors: list[str]) -> None:
-    print("\ncase: auto_capture alias emits stderr deprecation warning")
+def case_auto_capture_no_longer_recognized(errors: list[str]) -> None:
+    print("\ncase: auto_capture is no longer recognized as an alias (L1)")
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         vl = root / ".vault-link"
@@ -326,16 +326,16 @@ def case_auto_capture_alias_warns_stderr(errors: list[str]) -> None:
         with contextlib.redirect_stderr(buf):
             result = _pds._load_vault_link(vl)
         stderr_output = buf.getvalue()
-        _assert(result.get("auto_capture") is True, "alias key parsed", errors)
-        _assert("deprecated" in stderr_output and "snapshot_export" in stderr_output,
-                f"stderr contains deprecation warning (got: {stderr_output!r})", errors)
-        # Gate still passes via alias fallback.
-        _assert(_pds._check_gate_l1(result) is True,
-                "alias-only .vault-link still passes L1 gate", errors)
+        # The removed alias must not open the gate when only the legacy key is set.
+        _assert(_pds._check_gate_l1(result) is False,
+                "auto_capture-only .vault-link does NOT pass L1 gate", errors)
+        # No deprecation machinery remains, so nothing is written to stderr.
+        _assert("deprecated" not in stderr_output,
+                f"no deprecation warning is emitted (got: {stderr_output!r})", errors)
 
 
-def case_both_keys_present_new_wins(errors: list[str]) -> None:
-    print("\ncase: snapshot_export wins when both keys present")
+def case_legacy_alias_does_not_override_new_key(errors: list[str]) -> None:
+    print("\ncase: legacy auto_capture cannot override snapshot_export (L1)")
     with tempfile.TemporaryDirectory() as tmp:
         root = Path(tmp)
         vl = root / ".vault-link"
@@ -345,17 +345,18 @@ def case_both_keys_present_new_wins(errors: list[str]) -> None:
             result = _pds._load_vault_link(vl)
         stderr_output = buf.getvalue()
         _assert(_pds._check_gate_l1(result) is False,
-                "snapshot_export: false wins over alias auto_capture: true", errors)
+                "snapshot_export: false closes L1; legacy auto_capture: true is ignored", errors)
         _assert("deprecated" not in stderr_output,
-                f"no deprecation warning when new key is present (got: {stderr_output!r})", errors)
+                f"no deprecation warning is emitted (got: {stderr_output!r})", errors)
 
 
 def case_snapshot_import_l2(errors: list[str]) -> None:
-    """Layer 2 gate symmetry — `_check_gate_l2` honors `snapshot_import` over alias.
+    """Layer 2 gate — `_check_gate_l2` honors `snapshot_import` only.
 
     Companion to `case_snapshot_export_l1`. Closes the L2/L1 coverage asymmetry
     flagged on PR #64 and pins the fail-closed behavior of the broadened
-    exception handler in `_check_gate_l2`.
+    exception handler in `_check_gate_l2`. Also pins that the removed
+    `auto_capture` alias no longer opens the L2 gate.
     """
     print("\ncase: snapshot_import L2 (new key only)")
     with tempfile.TemporaryDirectory() as tmp:
@@ -377,52 +378,19 @@ def case_snapshot_import_l2(errors: list[str]) -> None:
             encoding="utf-8",
         )
         _assert(_pds._check_gate_l2(vault_root, project) is False,
-                "snapshot_import: false wins over alias auto_capture: true", errors)
+                "snapshot_import: false closes L2; legacy auto_capture: true is ignored", errors)
 
         index.write_text(
             "---\nauto_capture: true\n---\n",
             encoding="utf-8",
         )
-        _assert(_pds._check_gate_l2(vault_root, project) is True,
-                "alias auto_capture: true (no new key) → gate passes via fallback", errors)
+        _assert(_pds._check_gate_l2(vault_root, project) is False,
+                "auto_capture: true alone (no new key) does NOT open L2 gate", errors)
 
         # Missing _index.md → gate fails.
         index.unlink()
         _assert(_pds._check_gate_l2(vault_root, project) is False,
                 "missing _index.md → gate fails", errors)
-
-
-def case_deprecation_suppressed_by_env(errors: list[str]) -> None:
-    """`VAULT_BRIDGE_SUPPRESS_DEPRECATION=1` silences the alias warning.
-
-    session-end-pre.sh sets this env var before invoking the syncer so the
-    deprecation notice doesn't pollute syncer_err and get reclassified as
-    discovery_error. This pins that suppression contract.
-    """
-    print("\ncase: VAULT_BRIDGE_SUPPRESS_DEPRECATION=1 silences alias warning")
-    with tempfile.TemporaryDirectory() as tmp:
-        root = Path(tmp)
-        vl = root / ".vault-link"
-        vl.write_text("vault_path: 20_Projects/test\nauto_capture: true\n", encoding="utf-8")
-
-        prev = os.environ.get("VAULT_BRIDGE_SUPPRESS_DEPRECATION")
-        os.environ["VAULT_BRIDGE_SUPPRESS_DEPRECATION"] = "1"
-        try:
-            buf = io.StringIO()
-            with contextlib.redirect_stderr(buf):
-                result = _pds._load_vault_link(vl)
-            stderr_output = buf.getvalue()
-        finally:
-            if prev is None:
-                os.environ.pop("VAULT_BRIDGE_SUPPRESS_DEPRECATION", None)
-            else:
-                os.environ["VAULT_BRIDGE_SUPPRESS_DEPRECATION"] = prev
-
-        _assert(result.get("auto_capture") is True, "alias key still parsed under suppression", errors)
-        _assert("deprecated" not in stderr_output,
-                f"deprecation warning suppressed when env var is 1 (got: {stderr_output!r})", errors)
-        _assert(_pds._check_gate_l1(result) is True,
-                "alias-only .vault-link still passes L1 gate when warning is suppressed", errors)
 
 
 def case_recent_filter_hours(errors: list[str]) -> None:
@@ -595,10 +563,9 @@ def main() -> int:
     case_quoted_and_inline_array_scalars(errors)
     case_single_scalar_override(errors)
     case_snapshot_export_l1(errors)
-    case_auto_capture_alias_warns_stderr(errors)
-    case_both_keys_present_new_wins(errors)
+    case_auto_capture_no_longer_recognized(errors)
+    case_legacy_alias_does_not_override_new_key(errors)
     case_snapshot_import_l2(errors)
-    case_deprecation_suppressed_by_env(errors)
     case_recent_filter_hours(errors)
     case_recent_zero_candidates(errors)
     case_recent_and_summary_require_discover(errors)
