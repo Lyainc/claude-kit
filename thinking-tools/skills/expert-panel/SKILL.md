@@ -93,6 +93,36 @@ For each topic (max 3 rounds per topic):
 - If no consensus after 3 rounds, Moderator escalates to tie-breaking
 - A "round" = one complete Briefing → Independent Statements → Q&A → Dialectic → Conclusion cycle
 
+**STATE Block Contract**:
+
+Output a STATE block at the end of each topic round and at every checkpoint.
+On context compaction, restore state from the most recent STATE block.
+
+**The entire STATE block is internal restoration scaffolding — never rendered to the user.**
+Never store thesis/antithesis/synthesis prose in the block — only the closed-enum status below;
+dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). This keeps the block bounded.
+
+```
+<!-- STATE:CHECKPOINT -->
+Topic: {idx}/{total} | Phase: {0|1|2} | Round: {r}/3
+Mode: [isolated:{on|off}] [summary-only:{on|off}]
+Independent: {k}/{N}
+Topic-status: [t{n}:{pending|thesis-reached|antithesis-reached|synthesis-reached|consensus-reached|tie-broken}] ...
+Votes: [{expert}:{option}:{High|Medium|Low}] ...
+Tie-break: [used:{yes|no}] [margin:{n|—}]
+<!-- /STATE -->
+```
+
+**Field write/read points**:
+- `Mode` — set at Phase 0 (mode detection); read at Phase 2 item 1 (transcript skip in summary-only mode).
+- `Independent` — updated during Phase 1 Independent Statements; `k==N` means collection complete (single format; no separate "complete" token).
+- `Votes` — populated only by the Tie-Breaking Mechanism (after round 3); empty before tie-break.
+- `Topic-status` — closed enum, exactly these 6 values; no free-text.
+
+**Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
+Topic-status → `pending`; Votes → treat as no-vote / no-consensus; Independent → `0` (re-collect, preserves anti-anchoring);
+Mode flags → both `off` (full output — over-producing transcripts is safer than losing user content).
+
 **Tie-Breaking Mechanism**:
 When consensus cannot be reached after 3 rounds:
 1. **Weighted Vote**: Each expert votes with confidence level (High/Medium/Low)
