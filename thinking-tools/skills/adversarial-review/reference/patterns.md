@@ -117,9 +117,9 @@ Used in Phase 2 (standard mode). Skipped in summary output mode ("요약만", "�
 Used instead of the full report in summary output mode ("요약만", "간단히"):
 
 ```
-| Claim | Verdict | Weighted Score |
-|-------|---------|----------------|
-| {claim text} | survived / collapsed / pending | {score}% |
+| Claim | Verdict | Resilience |
+|-------|---------|------------|
+| {claim text} | survived / collapsed / pending | 탄탄 / 보통 / 취약 |
 
 **Recommendations**: {action items for collapsed/pending claims}
 ```
