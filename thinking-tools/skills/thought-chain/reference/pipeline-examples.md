@@ -109,14 +109,14 @@ thought_chain:
 
 | Downstream stage | Normal input | Fallback input when prior stage skipped |
 |------------------|-------------|----------------------------------------|
-| doc-concretize (with `--skip panel`) | panel consensus + action items | discovery findings directly: Critical → primary sections, Important → secondary, Nice-to-have → "considered alternatives" |
-| expert-panel (with `--skip discovery` or `--start panel`) | discovery findings | user-provided topics list (free-form, no Stage 1 metadata). `--skip discovery` is treated identically to `--start panel` for input handling. |
+| doc-concretize (when panel skipped) | panel consensus + action items | discovery findings directly: Critical → primary sections, Important → secondary, Nice-to-have → "considered alternatives" |
+| expert-panel (when discovery skipped or starting from panel) | discovery findings | user-provided topics list (free-form, no Stage 1 metadata). Skipping discovery is treated identically to starting from panel for input handling. |
 
 **Alias mapping**: `discovery` = unknown-discovery, `panel` = expert-panel, `concretize` = doc-concretize, `polish` = doc-polish.
 
 **Validation**: Unknown stage name in skip/start request → warn "Unknown stage: {name}. Valid: discovery, panel, concretize, polish." and proceed normally.
 
-**Note**: For claim validation (1:1 attack/rebuttal), `adversarial-review` is a **standalone skill outside this pipeline**. It is not a thought-chain stage and cannot be inserted via `--skip` or `--start`. Invoke it directly when needed.
+**Note**: For claim validation (1:1 attack/rebuttal), `adversarial-review` is a **standalone skill outside this pipeline**. It is not a thought-chain stage and cannot be inserted as a pipeline stage. Invoke it directly when needed.
 
 ---
 
