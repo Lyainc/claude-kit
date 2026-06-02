@@ -27,10 +27,9 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 ## Prerequisites
 
 - Analysis target (project/proposal/decision/strategy)
-
 Express pipeline behavior in natural language — no flags needed:
 - **Quick mode**: include "빠르게", "간단히", or "quick" in the request → shorter discovery + concise document
-- **Skip a stage**: "discovery 건너뛰어줘", "panel 없이" → skips the named stage
+- **Skip a stage**: "discovery 건너뛰어줘", "panel 건너뛰어줘" → skips the named stage
 - **Start from a stage**: "panel부터 시작해줘", "Stage 3부터" → begins at the named stage
 
 ## Pipeline Stages
@@ -80,7 +79,7 @@ For **claim validation** (1:1 attacker-vs-defender), invoke `adversarial-review`
 **Output**: Structured document covering analysis results
 **Inter-stage handoff**: Generated document passed to doc-polish
 
-- If quick_mode and document < 2000 chars: use Quick Mode
+- If quick_mode (as detected in Prerequisites) and document < 2000 chars: use Quick Mode
 - Document structure follows expert panel topic organization
 
 ### Stage 4: Quality Assurance (`doc-polish`)
@@ -178,12 +177,16 @@ Full option list, visibility rules, routing details, frontmatter injection:
 
 For fully unattended runs (no checkpoints), delegate to ralph or OMC autopilot.
 The pipeline itself always runs interactively so the user can deepen, re-run, or redirect at each stage.
+Invoke via `/oh-my-claudecode:ralph` or the OMC autopilot skill for checkpoint-free execution.
 
 ## Partial Pipeline
 
 Express partial pipeline intent in natural language:
 - "discovery 건너뛰어줘" / "Stage 1 없이" → skip unknown-discovery
+- "panel 건너뛰어줘" → skip expert-panel
 - "panel부터 시작해줘" / "Stage 2부터" → start from expert-panel
+- "concretize부터 시작해줘" / "Stage 3부터" → start from doc-concretize
+- "polish만" / "polish부터 시작해줘" → doc-polish only
 - Stage aliases: discovery, panel, concretize, polish
 
 Fallback input contracts and data flow details: [reference/pipeline-examples.md](reference/pipeline-examples.md#partial-pipeline-reference)
