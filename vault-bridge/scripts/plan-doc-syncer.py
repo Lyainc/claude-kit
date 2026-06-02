@@ -52,7 +52,6 @@ DEFAULT_INCLUDE_PATTERNS = [
     "docs/discussions/*/*.md",
     "docs/design/**/*.md",
     "docs/plans/**/*.md",
-    ".omc/plans/*.md",
     "PLAN.md",
     "DESIGN.md",
     "RFC-*.md",

@@ -137,7 +137,7 @@ If both gates pass (both `snapshot_export` and `snapshot_import` true, or via al
 The candidate list and optional category breakdown are already in memory from Step 1.7 — do not re-run `--discover` here. (Step 4's "최근 24시간만" option is the one explicit re-run, scoped to the `--recent` filter.) If no candidates were found in Step 1.7, output and stop:
 
 > 현재 프로젝트에서 저장할 plan/design 문서를 찾지 못했어요.
-> 대상 경로: `docs/design/`, `docs/plans/`, `.omc/plans/`, `PLAN.md`, `DESIGN.md`, `RFC-*.md`
+> 대상 경로: `docs/design/`, `docs/plans/`, `PLAN.md`, `DESIGN.md`, `RFC-*.md`
 > `docs/discussions/`는 날짜별 토픽 디렉토리 바로 아래 파일만 캡처해요 (`transcripts/`, `SUMMARY.md`, `UNRESOLVED.md` 제외). 설계 문서가 없다면 해당 파일 경로를 직접 지정해 주세요: `/save-plan-doc docs/discussions/TOPIC/design.md`
 
 ### Step 4 — Present candidates and ask for approval

@@ -49,25 +49,7 @@ For each dimension, evaluate after receiving the user's answer. Mark Y/N and wri
 
 ---
 
-## 3. Seed → OMC PRD Mapping
-
-For Phase 4 `--with-ralph` handoff: convert Seed YAML to OMC PRD format.
-
-| Seed YAML field | OMC `prd.json` field |
-|-----------------|---------------------|
-| `goal.statement` | `title` |
-| `target` (slug) | `project_name` |
-| `success_criteria[].description` | `user_stories[N].acceptance_criteria[]` |
-| `constraints[].description` | `user_stories[N].constraints[]` (append to all stories) |
-| `context.existing_stack` | `technical_context.stack` |
-| `context.dependencies` | `technical_context.dependencies` |
-| `ambiguity.overall` | `metadata.spec_confidence` (= 1 - ambiguity) |
-
-Write to `.omc/specs/{slug}-prd.json`. Review before invoking ralph.
-
----
-
-## 4. Brownfield Repo Files Detection List
+## 3. Brownfield Repo Files Detection List
 
 In order of precedence for context injection:
 
@@ -84,7 +66,7 @@ Inject as Phase 1 context prefix: "현재 프로젝트: {name} — {description}
 
 ---
 
-## 5. Dimension Weight Table
+## 4. Dimension Weight Table
 
 | Dimension | Greenfield | Brownfield | Floor |
 |-----------|-----------|-----------|-------|

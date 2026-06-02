@@ -36,7 +36,6 @@ model: sonnet
 - Quick mode: include "빠르게", "스펙만", or "quick" at the start of your request (selects the compressed interview before Phase 1 begins)
 - Brownfield repo: detected automatically via Glob; name the project/repo root in prose if needed
 - Refine existing spec: say "이 스펙 다듬어줘" with the prior seed file path
-- Ralph handoff: say "ralph로 이어줘" or similar to chain to OMC at Phase 4
 
 ## Quick Mode
 
@@ -151,32 +150,17 @@ When gate opens OR user explicitly exits:
    - `{slug}` = kebab-case of target name, e.g., `task-cli-tool`
    - If file exists: append `-v2`, `-v3`
 3. Display summary and file path
-4. Offer Phase 4 only if user explicitly requested ralph handoff (no environment probing)
+4. The Seed file is the terminal deliverable — downstream execution handoff is out of scope
 
 **Seed spec schema**: see `templates/SEED_SPEC.yaml`
 
-### Phase 4: Handoff (Optional, opt-in only)
+### Phase 4: Handoff (out of scope)
 
-**Trigger**: user explicitly requests OMC ralph handoff (e.g., 'ralph로 이어줘'). The skill does not probe the
-environment for OMC — vendor neutrality requires the chain to be explicit.
-
-If ralph handoff requested:
-```
-AskUserQuestion: "OMC ralph로 반복 실행을 이어갈까요?"
-Options:
-  1. 네, ralph로 실행
-  2. Seed 파일로만 저장하고 종료
-```
-
-If "네, ralph로":
-- Convert Seed YAML → OMC PRD format (see mapping table in `reference.md`)
-- Write to `.omc/specs/{slug}-prd.json`
-- Invoke via Skill tool: `Skill(skill="oh-my-claudecode:ralph", args="<slug>")`
-
-If no ralph handoff requested: skip Phase 4 entirely, emit Seed only.
-
-**Vendor neutrality**: Phase 4 only fires under explicit opt-in. Without
-a ralph handoff request, the skill never references OMC and produces a portable Seed.
+The Seed YAML is the terminal deliverable. spec-first crystallizes *what* to build
+(goal / constraints / success-criteria); *how* to build it — slice ordering, execution
+loop, E2E verification — belongs to whatever tool consumes the Seed. The Seed is a
+portable, vendor-neutral artifact: hand it to an agent, a build loop, or a human
+implementer. spec-first does not invoke or assume any specific execution runtime.
 
 ## Termination Conditions
 
@@ -259,8 +243,6 @@ scoring_rationale:
 ## Known Limitations
 
 - **Strict judge mode**: deferred to Phase D. LLM self-scoring of Ambiguity may be inconsistent without an independent judge. Users can override scores by providing explicit corrections during the interview.
-- **OMC handoff**: opt-in only — user must explicitly request ralph handoff; no environment auto-detection.
-- **Seed → ralph mapping**: PRD conversion is best-effort; review `.omc/specs/{slug}-prd.json` before running.
 
 ## References
 
