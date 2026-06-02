@@ -27,15 +27,11 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 ## Prerequisites
 
 - Analysis target (project/proposal/decision/strategy)
-- (Optional) `--skip {skill}` to skip specific pipeline stages
-- (Optional) `--start {skill}` to begin from a specific stage (uses existing inputs)
-- (Optional) `--quick` to use quick modes where available
-- (Optional) `--autopilot` to skip all checkpoints and run the full pipeline unattended
-- (Optional) `--auto-vault plan|session` to auto-save to vault at end (requires `--autopilot`)
 
-**Flag validation**:
-- `--auto-vault` without `--autopilot` → error: `"--auto-vault는 --autopilot과 함께만 사용할 수 있어요."`
-- Unknown `--auto-vault` value → error: `"--auto-vault 값은 plan 또는 session이어야 해요."`
+Express pipeline behavior in natural language — no flags needed:
+- **Quick mode**: include "빠르게", "간단히", or "quick" in the request → shorter discovery + concise document
+- **Skip a stage**: "discovery 건너뛰어줘", "panel 없이" → skips the named stage
+- **Start from a stage**: "panel부터 시작해줘", "Stage 3부터" → begins at the named stage
 
 ## Pipeline Stages
 
@@ -53,7 +49,7 @@ Orchestrate thinking-tools skills into an end-to-end analysis pipeline.
 **Output**: Discovery Report with prioritized findings (Critical/Important/Nice-to-have)
 **Inter-stage handoff**: Critical + Important findings → Stage 2 panel topics
 
-- If `--quick` flag: use `--quick` mode (5-7 questions)
+- If quick_mode (request includes "빠르게", "간단히", or "quick"): use quick mode (5-7 questions)
 - User may stop pipeline here via checkpoint
 
 **Stage 1 empty guard**: If Stage 1 yields zero Critical findings AND zero Important findings, Stage 2 has no panel input.
@@ -84,7 +80,7 @@ For **claim validation** (1:1 attacker-vs-defender), invoke `adversarial-review`
 **Output**: Structured document covering analysis results
 **Inter-stage handoff**: Generated document passed to doc-polish
 
-- If `--quick` flag and document < 2000 chars: use Quick Mode
+- If quick_mode and document < 2000 chars: use Quick Mode
 - Document structure follows expert panel topic organization
 
 ### Stage 4: Quality Assurance (`doc-polish`)
@@ -92,7 +88,7 @@ For **claim validation** (1:1 attacker-vs-defender), invoke `adversarial-review`
 **Input**: Document from Stage 3
 **Output**: Polished document with quality report
 
-- Runs with `--fix` mode by default (auto-correct mechanical issues)
+- Invokes doc-polish with auto-fix enabled (mechanical issues corrected automatically)
 - Reports remaining consistency and semantic issues for user review
 
 ## Pre-Pipeline Gate Check
@@ -108,7 +104,6 @@ This state is reused at every vault prompt. No upfront question.
 ## Checkpoint System
 
 After each stage, display a progress summary and confirm continuation.
-If `--autopilot` is active, skip this section and auto-select "다음 단계로".
 
 ```
 ───
@@ -179,20 +174,19 @@ Option visibility depends on vault gate state (`vault_linked`, `snapshot_export`
 Full option list, visibility rules, routing details, frontmatter injection:
 [reference/pipeline-examples.md](reference/pipeline-examples.md#vault-destination-question)
 
-## Autopilot Flag
+## Unattended Pipeline
 
-`--autopilot` skips all checkpoints (auto-selects "다음 단계로"). No deepen, no re-run.
-After Stage 4: end-state follows `--auto-vault` value if set; otherwise "터미널만".
-
-`--auto-vault plan`: auto-answers "Plan doc로 vault에 저장". Falls back to terminal with
-`"(vault 게이트가 닫혀 있어 터미널 출력으로 대체했어요)"` if gate closed.
-`--auto-vault session`: auto-answers "Session note로 vault에 저장". Same fallback if `vault_linked = false`.
+For fully unattended runs (no checkpoints), delegate to ralph or OMC autopilot.
+The pipeline itself always runs interactively so the user can deepen, re-run, or redirect at each stage.
 
 ## Partial Pipeline
 
-Use `--skip {stage}` or `--start {stage}` for subset pipelines.
-Alias mapping, fallback input contracts, validation rules:
-[reference/pipeline-examples.md](reference/pipeline-examples.md#partial-pipeline-reference)
+Express partial pipeline intent in natural language:
+- "discovery 건너뛰어줘" / "Stage 1 없이" → skip unknown-discovery
+- "panel부터 시작해줘" / "Stage 2부터" → start from expert-panel
+- Stage aliases: discovery, panel, concretize, polish
+
+Fallback input contracts and data flow details: [reference/pipeline-examples.md](reference/pipeline-examples.md#partial-pipeline-reference)
 
 ## References
 

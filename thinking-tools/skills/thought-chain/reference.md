@@ -50,8 +50,8 @@ Prior output: {polished_document}
 
 Apply a stricter quality pass.
 Goals:
-- Layer 2 (clarity): find and fix any remaining ambiguous sentences
-- Layer 3 (depth): flag sections that are asserted but not evidenced
+- Layer 2 (consistency): check term consistency, sentence length, and tone uniformity
+- Layer 3 (semantic): flag vague claims, unexplained terms, or missing context
 - Check that all action items from the expert panel appear in the document
 Report remaining issues after the pass.
 ```
@@ -90,51 +90,6 @@ Report remaining issues after the pass.
 → Plan doc / Session note options hidden; hint displayed
 → User picks "터미널만"
 → Result: 터미널에 전체 문서 출력
-```
-
----
-
-## Autopilot Flag Examples
-
-### Unattended full run, terminal output
-
-```bash
-/thought-chain --autopilot
-```
-
-Behavior: runs all 4 stages without any checkpoint prompts; prints result to terminal.
-
-### Unattended full run, plan doc save
-
-```bash
-/thought-chain --autopilot --auto-vault plan
-```
-
-Behavior: runs all 4 stages; saves result as plan doc via `save-session plan`.
-If gate closed at end: terminal output + `"(vault 게이트가 닫혀 있어 터미널 출력으로 대체했어요)"`.
-
-### Unattended full run, session note save
-
-```bash
-/thought-chain --autopilot --auto-vault session
-```
-
-Behavior: runs all 4 stages; saves result as session note via `save-session` (record mode).
-If `.vault-link` missing: terminal output + warning.
-
-### Combine with partial pipeline flags
-
-```bash
-/thought-chain --autopilot --skip discovery --auto-vault plan
-```
-
-Behavior: skips Stage 1; runs Stages 2-4 unattended; saves as plan doc.
-
-### Error case
-
-```bash
-/thought-chain --auto-vault plan
-# Error: "--auto-vault는 --autopilot과 함께만 사용할 수 있어요."
 ```
 
 ---

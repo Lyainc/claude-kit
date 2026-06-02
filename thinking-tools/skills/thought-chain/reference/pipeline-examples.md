@@ -26,7 +26,6 @@ Forcing past the cap (option 1) is allowed but requires explicit selection. Afte
 ## Vault Destination Question
 
 Triggered after "멈추고 vault 저장" (post mini-polish) or after Stage 4 completes.
-If `--autopilot` with `--auto-vault` is active, skip and route per the flag value.
 
 **Option visibility rules** (based on gate state from Pre-Pipeline Gate Check):
 
@@ -96,15 +95,15 @@ thought_chain:
 
 ## Partial Pipeline Reference
 
-**Commands**:
+**Natural language patterns**:
 
-| Command | Resulting Pipeline |
-|---------|--------------------|
-| `--skip discovery` | expert-panel → doc-concretize → doc-polish (requires existing topics/findings) |
-| `--skip panel` | unknown-discovery → doc-concretize → doc-polish (findings used directly as doc input) |
-| `--start panel` | expert-panel → doc-concretize → doc-polish (requires existing findings) |
-| `--start concretize` | doc-concretize → doc-polish (requires existing input) |
-| `--start polish` | doc-polish only (requires existing document) |
+| Natural language | Resulting Pipeline |
+|-----------------|--------------------|
+| "discovery 건너뛰어줘" / "Stage 1 없이" | expert-panel → doc-concretize → doc-polish (requires existing topics/findings) |
+| "panel 건너뛰어줘" | unknown-discovery → doc-concretize → doc-polish (findings used directly as doc input) |
+| "panel부터 시작해줘" / "Stage 2부터" | expert-panel → doc-concretize → doc-polish (requires existing findings) |
+| "concretize부터 시작해줘" / "Stage 3부터" | doc-concretize → doc-polish (requires existing input) |
+| "polish만" / "polish부터 시작해줘" | doc-polish only (requires existing document) |
 
 **Fallback input contracts** (when an upstream stage is skipped):
 
@@ -115,7 +114,7 @@ thought_chain:
 
 **Alias mapping**: `discovery` = unknown-discovery, `panel` = expert-panel, `concretize` = doc-concretize, `polish` = doc-polish.
 
-**Validation**: Invalid stage name in `--skip`/`--start` → warn "Unknown stage: {name}. Valid: discovery, panel, concretize, polish." and ignore the flag.
+**Validation**: Unknown stage name in skip/start request → warn "Unknown stage: {name}. Valid: discovery, panel, concretize, polish." and proceed normally.
 
 **Note**: For claim validation (1:1 attack/rebuttal), `adversarial-review` is a **standalone skill outside this pipeline**. It is not a thought-chain stage and cannot be inserted via `--skip` or `--start`. Invoke it directly when needed.
 
