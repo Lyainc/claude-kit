@@ -81,11 +81,11 @@ def case_default_patterns_only(errors: list[str]) -> None:
         _touch(root / "docs" / "discussions" / "20260419_topic" / "analysis.md")
         _touch(root / "docs" / "design" / "feature-x.md")
         _touch(root / "docs" / "plans" / "rollout.md")
-        _touch(root / ".omc" / "plans" / "spike.md")
         _touch(root / "PLAN.md")
         _touch(root / "DESIGN.md")
         _touch(root / "RFC-001.md")
         # Default-exclude / non-matching files:
+        _touch(root / ".omc" / "plans" / "spike.md")  # vendor-neutral: .omc no longer auto-discovered
         _touch(root / "node_modules" / "pkg" / "PLAN.md")
         _touch(root / "build" / "artifact.md")
         _touch(root / "CHANGELOG.md")
@@ -101,7 +101,6 @@ def case_default_patterns_only(errors: list[str]) -> None:
             "docs/discussions/20260419_topic/analysis.md",
             "docs/design/feature-x.md",
             "docs/plans/rollout.md",
-            ".omc/plans/spike.md",
             "PLAN.md",
             "DESIGN.md",
             "RFC-001.md",
@@ -112,6 +111,7 @@ def case_default_patterns_only(errors: list[str]) -> None:
         _assert("README.md" not in got, "README.md excluded by DEFAULT_EXCLUDE", errors)
         _assert(not any("node_modules/" in ln for ln in got), "node_modules/ excluded", errors)
         _assert(not any("build/" in ln for ln in got), "build/ excluded", errors)
+        _assert(not any(".omc/" in ln for ln in got), ".omc/ excluded (vendor-neutral)", errors)
         _assert(not any(ln.endswith("main.py") for ln in got), "non-md files not surfaced", errors)
 
 

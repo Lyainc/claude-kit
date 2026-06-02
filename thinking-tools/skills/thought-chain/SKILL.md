@@ -174,11 +174,9 @@ Option visibility depends on vault gate state (`vault_linked`, `snapshot_export`
 Full option list, visibility rules, routing details, frontmatter injection:
 [reference/pipeline-examples.md](reference/pipeline-examples.md#vault-destination-question)
 
-## Unattended Pipeline
+## Execution Model
 
-For fully unattended runs (no checkpoints), delegate to ralph or OMC autopilot.
-The pipeline itself always runs interactively so the user can deepen, re-run, or redirect at each stage.
-Invoke via `/oh-my-claudecode:ralph` or the OMC autopilot skill for checkpoint-free execution.
+The pipeline always runs interactively so the user can deepen, re-run, or redirect at each stage.
 
 ## Partial Pipeline
 

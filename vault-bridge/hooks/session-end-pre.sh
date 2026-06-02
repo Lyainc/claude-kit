@@ -81,7 +81,7 @@ plan_doc_already_asked=false
 # gating happens in the prompt by combining auto_capture_l1 ∧ auto_capture_l2.
 # Discovery is delegated to plan-doc-syncer.py so .vault-link's
 # autosync_paths_include/exclude (W8 v1.1) is honored — handles default
-# patterns (docs/discussions, docs/design, docs/plans, .omc/plans, PLAN.md,
+# patterns (docs/discussions, docs/design, docs/plans, PLAN.md,
 # DESIGN.md, RFC-*.md) plus user-overridden include/exclude globs.
 candidates_json="[]"
 discovery_error=""
