@@ -26,13 +26,11 @@ Facilitate expert panel discussions where diverse specialists reach consensus th
 
 ## Execution Modes
 
-| Flag | Behavior |
-|------|----------|
-| _(default)_ | Inline: all roles simulated in main context |
-| `--deep` | Each expert and Moderator spawned as separate Agent subagents (stronger isolation) |
-| `--brief` | Skip transcript generation (Phase 2 item 1); produce SUMMARY.md + UNRESOLVED.md only |
+Express mode preferences in natural language — no flags needed:
+- **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation)
+- **요약 출력** ("요약만", "transcript 없이"): Skip transcript generation; produce SUMMARY.md + UNRESOLVED.md only
 
-Flags are combinable (e.g., `--deep --brief`).
+All combinations compose silently.
 
 ## Participants
 
@@ -85,7 +83,7 @@ Flags are combinable (e.g., `--deep --brief`).
 
 For each topic (max 3 rounds per topic):
 1. **Briefing**: Practitioners present pro/con perspectives
-2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber). In default (inline) mode this is best-effort via prompt contract; `--deep` enforces it mechanically via subagent context boundaries.
+2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber). In default (inline) mode this is best-effort via prompt contract; isolated execution mode enforces it mechanically via subagent context boundaries.
 3. **Q&A**: Experts ask questions and exchange answers (max 2 exchanges per expert)
 4. **Dialectic**: Thesis → Antithesis → Synthesis
 5. **Conclusion**: Consensus or hold decision
@@ -110,7 +108,7 @@ The following documents MUST be generated after discussion ends:
 
 1. **Raw transcripts**: `docs/discussions/{YYYYMMDD}_{name}/transcripts/{순번}_{topic}.md`
    - All statements recorded chronologically (template: `templates/TRANSCRIPT_TEMPLATE.md`)
-   - **Skipped in `--brief` mode**
+   - **Skipped in summary output mode**
 
 2. **Summary**: `docs/discussions/{YYYYMMDD}_{name}/SUMMARY.md`
    - Consensus items, recommendations, action items (template: `templates/SUMMARY_TEMPLATE.md`)
@@ -120,12 +118,12 @@ The following documents MUST be generated after discussion ends:
 
 **Important**: Discussion cannot end without document generation. Proceed to Phase 2 immediately after all topics are discussed.
 
-**Note on `--brief` mode**: Item 1 (raw transcripts) is skipped. SUMMARY.md (item 2) and UNRESOLVED.md (item 3) are always generated regardless of mode.
+**Note on summary output mode**: Item 1 (raw transcripts) is skipped. SUMMARY.md (item 2) and UNRESOLVED.md (item 3) are always generated regardless of mode.
 
 ### Moderator Visibility Contract
 
 - **Default**: Moderator receives expert position summaries only (full Q&A transcript blocked during synthesis)
-- **`--deep` mode**: Moderator spawned as separate Agent subagent; pass expert position summaries only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
+- **Isolated execution mode**: Moderator spawned as separate Agent subagent; pass expert position summaries only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
 
 This prevents the Moderator from being anchored by the Q&A thread and ensures independent synthesis.
 

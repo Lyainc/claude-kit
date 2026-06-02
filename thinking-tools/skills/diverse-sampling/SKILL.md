@@ -26,9 +26,9 @@ Generate diverse responses using Verbalized Sampling technique to overcome LLM m
 ## Prerequisites
 
 - Creative or open-ended query requiring diverse outputs
-- (Optional) `--all` flag to show all generated responses
-- (Optional) `--best` flag to select highest probability response
-- (Optional) `--count N` to generate N responses instead of default 5 (range: 3-10)
+- "all" mode: say "전부 보여줘" or "all" to show all generated responses
+- "best" mode: say "제일 나은 것" or "best" to select highest probability response
+- Count: say "N개 만들어줘" to generate N responses (range: 3-10, clamping rules unchanged)
   - If N < 3, clamp to 3 with notice. If N > 10, clamp to 10 with notice. If non-numeric, ignore and use default 5.
 
 ## Invocation Detection
@@ -86,7 +86,7 @@ Options:
 
 1. **Apply VS Prompt Template** (see [reference.md](reference.md) for templates)
    - Inject user query into template
-   - Request k responses with probability distribution (k = `--count` value, default 5)
+   - Request k responses with probability distribution (k = count from "N개 만들어줘", default 5)
    - Specify tail sampling (probability < 0.10)
 
 2. **Generate Responses**
@@ -98,7 +98,7 @@ Options:
    - Parse probability values
    - **On parse failure → Fallback**
 
-**Quality Gate**: k valid responses parsed (k = `--count` value, default 5) → proceed to Phase 2
+**Quality Gate**: k valid responses parsed (k = count from "N개 만들어줘", default 5) → proceed to Phase 2
 
 ### Phase 2: Selection
 
@@ -107,8 +107,8 @@ Apply selection strategy based on option:
 | Option | Strategy | Description |
 |--------|----------|-------------|
 | (default) | Weighted Random | Sample from distribution proportional to probabilities |
-| `--all` | Show All | Display all 5 responses with probabilities |
-| `--best` | Highest Probability | Select response with highest probability |
+| 전부/all | Show All | Display all 5 responses with probabilities |
+| 제일 나은 것/best | Highest Probability | Select response with highest probability |
 
 **Weighted Random Sampling**:
 ```
@@ -126,10 +126,10 @@ Apply selection strategy based on option:
 커피가 숲처럼 천천히 우러나는 공간이라는 의미를 담았습니다.
 
 ───
-*{k}개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
+*{k}개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*
 ```
 
-**--all Output** (all responses):
+**"전부 보여줘" Output** (all responses):
 ```
 ## 생성된 대안들
 
@@ -145,7 +145,7 @@ Apply selection strategy based on option:
 *다양성 기법으로 {k}개 대안 생성*
 ```
 
-**--best Output**:
+**"제일 나은 것" Output**:
 ```
 **Inkwell** ★
 
@@ -235,5 +235,5 @@ Output:
 다음 단계로의 흐름을 의미
 
 ───
-*{k}개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
+*{k}개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*
 ```

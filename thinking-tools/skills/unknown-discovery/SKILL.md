@@ -35,9 +35,9 @@ Discover user's Unknown Unknowns (things they don't know they don't know) throug
 
 - Analysis target (project/proposal/decision/idea)
 - (Optional) Current assumptions or considerations
-- (Optional) `--quick` flag for Quick Discovery mode (5-7 questions, single area focus)
+- Quick Discovery mode: include '빠르게', '간단히', or 'quick' in your request
 
-## Quick Discovery Mode (`--quick`)
+## Quick Discovery Mode
 
 Compressed interview for time-constrained analysis (5-7 questions total):
 
@@ -54,7 +54,7 @@ Quick Mode output format:
 ```
 ## Quick Discovery — {target}
 
-**Area**: {targeted area} | **Questions**: {count} | **Depth**: {score}%
+**Area**: {targeted area} | **Questions**: {count} | **Status**: 충분/진행 중
 
 ### Findings
 1. [{C|I|N}] {finding}
@@ -62,7 +62,7 @@ Quick Mode output format:
 ...
 
 ───
-*Quick Discovery 완료 · 전체 분석: `--quick` 없이 재실행*
+*Quick Discovery 완료 · 전체 분석으로 재실행*
 ```
 
 ## Core Workflow
@@ -88,7 +88,7 @@ Quick Mode output format:
 
 **Round Counter Display**: Each interview round shows explicit progress:
 ```
-[Round N/~12] Area: {current_area} ({score}%) | Overall Depth: {weighted_avg}%
+[Round N] Area: {current_area}
 ```
 - Round count is approximate (soft limit 12-15, hard limit 20)
 - Display updates at every question transition
@@ -116,7 +116,7 @@ Quick Mode output format:
 **Exploration Depth Scoring**: 매 체크포인트마다 4개 영역의 탐색 깊이를 0-100%로 평가하고 가중 평균을 표시한다 (상세: [reference.md](reference.md) §6).
 
 ```
-Round N | [Edge Cases:35%] ← 최저 영역 타겟팅 | Depth: 52%
+Round N | Area: {current_area} (최저 영역 타겟팅) | 진행 중/충분
 ```
 
 **Challenge Modes**: 인터뷰 중 특정 시점에 관점 전환 질문을 삽입한다 (각 1회, 1-2Q). 상세: [reference.md](reference.md) §8.
@@ -173,6 +173,8 @@ Explicit Done 시 Depth가 65% 미만이면 경고를 표시하되, 사용자 �
 
 Output a STATE block at every checkpoint to record progress.
 On compaction, restore state from the most recent STATE block.
+
+**The entire STATE block is internal restoration scaffolding — never rendered to the user.** Numeric Depth/score fields serve compaction restoration and gate logic only; user-facing checkpoints show qualitative progress (충분/진행 중), never the raw Depth percentage.
 
 ### Legacy Format Compatibility
 
