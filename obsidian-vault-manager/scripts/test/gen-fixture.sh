@@ -329,8 +329,10 @@ Links to [[audit-ghost-target-${i}]] which does not exist.
 EOF
   done
 
-  # ── E5: orphan_note (5 files) ────────────────────────────────────────────────
-  # Clean notes that no other file links to.
+  # ── E5: orphan_note (5 files + 1 empty-tags graceful case) ────────────────────
+  # Clean notes that no other file links to. tags:[note] ensures tag-intersection
+  # candidates are non-empty (#130) — shares the [note] tag with the 200 clean
+  # notes below, so each orphan gets top-3 connection candidates.
   for i in $(seq 1 5); do
     write_file "$FIXTURE_DIR/notes/audit-e5-orphan-$(printf '%03d' $i).md" <<EOF
 ---
@@ -345,6 +347,22 @@ status: raw
 This note exists but nothing links to it.
 EOF
   done
+
+  # E5 empty-tags orphan: tags:[] → no shared tags → candidates:[] graceful path
+  # (#130: "연결 후보 없음 (공유 태그 없음)"). tags:[] does NOT trip E2 (empty list
+  # is present, just empty), so this is a pure E5 with no candidate computation.
+  write_file "$FIXTURE_DIR/notes/audit-e5-orphan-empty-tags.md" <<EOF
+---
+created: 2026-04-01
+tags: []
+type: note
+status: raw
+---
+
+# Audit E5 Orphan No Tags
+
+Orphan with empty tags — exercises the no-candidate graceful branch (#130).
+EOF
 
   # ── E6: stale_inbox (5 files) ─────────────────────────────────────────────────
   # Inbox captures still raw with very old `created:` dates.
@@ -452,6 +470,78 @@ Clean note for E8 FP measurement — below promotion threshold (refs_in=1, acces
 Links to [[promotion-ring-001]] for graph connectivity.
 EOF
 
+  # ── E10: misplaced_file (5 files) ─────────────────────────────────────────────
+  # type:session belongs in inbox/ (EXPECTED_FOLDER) but seeded in notes/.
+  # Ring-linked so they don't also trip E5 orphan detection.
+  for i in $(seq 1 5); do
+    next=$(( (i % 5) + 1 ))
+    link_target="audit-e10-misplaced-session-$(printf '%03d' $next)"
+    write_file "$FIXTURE_DIR/notes/audit-e10-misplaced-session-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [session]
+type: session
+status: active
+---
+
+# Audit E10 Misplaced Session ${i}
+
+type:session placed in notes/ instead of inbox/ — should trigger E10. Links to [[${link_target}]].
+EOF
+  done
+
+  # ── E11: unstructured_path (5 files: 2 root-direct + 3 arbitrary folder) ───────
+  # Root-direct files (no canonical top folder) and an arbitrary "20_Projects/"
+  # folder both fall outside {inbox,notes,assets}. Each carries valid frontmatter
+  # (so E1/E2 don't fire) and a self-edge wikilink to avoid noise.
+  for i in 1 2; do
+    write_file "$FIXTURE_DIR/audit-e11-root-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: raw
+---
+
+# Audit E11 Root File ${i}
+
+Root-direct file outside canonical folders — should trigger E11_unstructured_path.
+EOF
+  done
+
+  mkdir -p "$FIXTURE_DIR/20_Projects"
+  for i in 1 2 3; do
+    write_file "$FIXTURE_DIR/20_Projects/audit-e11-misplaced-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: raw
+---
+
+# Audit E11 Arbitrary Folder ${i}
+
+File in non-canonical "20_Projects/" folder — should trigger E11_unstructured_path.
+EOF
+  done
+
+  # ── E11 exempt-guard coverage (#129 Acceptance) ───────────────────────────────
+  # A root-level _index.md must NOT be flagged as E11 (EXEMPT_FILES guard).
+  # Seeded into the clean (non-error) area so fp_on_clean.E11 actually exercises
+  # the exempt path. Uses no audit-eN- prefix so it cannot count as a seed.
+  write_file "$FIXTURE_DIR/_index.md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: evergreen
+---
+
+# Vault Index
+
+Root-level vault index — must be EXEMPT from E11 (regression guard for #129).
+EOF
+
   # ── 200 extra clean notes for FP measurement ─────────────────────────────────
   # These have fully valid frontmatter and filenames; none should be flagged.
   # Linking strategy: note i links to note i+1 (mod 200), forming a ring so
@@ -514,17 +604,19 @@ PYEOF
     log "WARNING: generate-manifest.py not found at $_GENERATOR — E8 manifest skipped"
   fi
 
-  log "  Audit error fixtures (v4, E1-E8):"
+  log "  Audit error fixtures (v4, E1-E11):"
   log "    E1 missing_frontmatter              : 5 files"
   log "    E2 missing_required_fields          : 10 files (5 base + 5 status-missing)"
-  log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix)"
+  log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix; suggested_filename)"
   log "    E4 broken_wikilink                  : 5 files"
-  log "    E5 orphan_note                      : 5 files"
+  log "    E5 orphan_note                      : 6 files (5 w/ tag candidates + 1 empty-tags graceful)"
   log "    E6 stale_inbox                      : 5 files (inbox raw, created 2020)"
   log "    E7 stale_draft                      : 5 files (notes draft, created 2020, ring-linked)"
   log "    E8 promotion_candidate              : 2 files (refs×3 + access×5 via manifest patch)"
-  log "    Total seeded errors                 : 42"
-  log "    Extra clean notes (FP base)         : 200 + audit-clean-no-promotion"
+  log "    E10 misplaced_file                  : 5 files (type:session in notes/, ring-linked)"
+  log "    E11 unstructured_path               : 5 files (2 root-direct + 3 in 20_Projects/)"
+  log "    Total seeded errors                 : 53"
+  log "    Extra clean notes (FP base)         : 200 + audit-clean-no-promotion + root _index.md (E11 exempt guard)"
   log ""
 fi
 

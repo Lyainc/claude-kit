@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 8 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3), broken wikilinks (E4), orphan notes (E5), stale inbox (E6), stale draft (E7), and promotion candidates (E8). Example: '/audit'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 10 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), stale draft (E7), promotion candidates (E8), misplaced files (E10), and unstructured paths (E11). Example: '/audit'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
@@ -95,20 +95,25 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (8 types, v4). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
+**Error types** (10 types, v4). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
 | E1 | `missing_frontmatter` | Critical | P0 | `frontmatter_records` | — |
 | E2 | `missing_required_fields` | Critical | P0 | `frontmatter_records` | ✓ (add inferred values) |
-| E3 | `filename_convention_violation` | Warning | P0 | `filename_records` | — |
+| E3 | `filename_convention_violation` | Warning | P0 | `filename_records` | — (suggests `권장 파일명`) |
 | E4 | `broken_wikilink` | Critical | P0 | `wikilinks_by_file` | — |
-| E5 | `orphan_note` | Warning | P2 | `inbound_links` | — |
+| E5 | `orphan_note` | Warning | P2 | `inbound_links` | — (suggests tag-based `연결 후보`) |
 | E6 | `stale_inbox` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
 | E7 | `stale_draft` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
 | E8 | `promotion_candidate` | Info | P2 | `manifest.json` (`promotion_candidate: true`) | — |
+| E10 | `misplaced_file` | Warning | P1 | `frontmatter_records` (`type` + folder) | — (display-only) |
+| E11 | `unstructured_path` | Warning | P1 | `frontmatter_records` (path) | — (display-only) |
 
-> **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6–E7 = P1 (정체/stagnation). E5, E8 = P2 (quality signal).
+> **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6–E7, E10–E11 = P1 (정체·구조/stagnation·structure). E5, E8 = P2 (quality signal). (E9 is reserved for #119 semantic-synonym work; E10/E11 are the next structural checks per #128/#129.)
+> **E3 suggestion**: when a filename violates the v4 convention, the finding `detail` includes `권장 파일명: {name}` (note→`{slug}.md`; decision/plan→`{type}-{date}-{slug}.md`; capture/session→`{type}-{date}.md`; missing type/created→no suggestion). Rename affects inbound links → suggestion only, never auto-applied.
+> **E5 candidates**: orphan findings carry a structured `candidates: [{path, shared_tags}]` field (top-3 `notes/` files by exact tag-intersection) and a `연결 후보: [[X]] (공유 태그: a, b)` detail. Empty-tags / no-shared-tag orphans render `연결 후보 없음 (공유 태그 없음)` with `candidates: []`.
+> **E10/E11**: folder-structure checks. E10 = `type` in the wrong canonical folder (e.g., `type: session` in `notes/`). E11 = file outside `inbox/notes/assets` (arbitrary folder or root-direct; `_index.md` exempt). Both are display-only — moving a file affects inbound links.
 
 Detailed detection criteria for all error types: see `reference/vault-audit-rules.md` (canonical source).
 
@@ -145,7 +150,7 @@ Output is grouped by priority:
 - **P1** (WARNING findings): Should-fix items
 - **P2** (INFO findings): Nice-to-fix items
 
-Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3→E4 within P0; E6→E7 within P1; E5→E8 within P2).
+Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3→E4 within P0; E6→E7→E10→E11 within P1; E5→E8 within P2).
 
 Each finding line format: `[E-code/priority/severity] type — N건` header, then one bullet per file with path and one-line description.
 
@@ -188,7 +193,7 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 > **git 활동 줄**: `commits == 0`이거나 vault가 git 저장소가 아닌 경우 해당 줄을 출력하지 않습니다.
 - The 7-day window can be overridden via `VAULT_AUDIT_ACTIVITY_DAYS` env var.
 
-> **우선순위 출력 순서**: P0 → P1 → P2. 각 priority 내 정렬: Critical severity 먼저, 그 다음 Warning, Info 순. 동일 severity 내에서는 error type 코드 순 (E1→E2→E3→E4 / E6→E7 / E5→E8). "사용자 확인 게이트"는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다 — 그 외 항목은 표시만 합니다. E6/E7/E8은 의미적 판단(처리/promote/archive)이 필요해 auto-fix 대상이 아닙니다.
+> **우선순위 출력 순서**: P0 → P1 → P2. 각 priority 내 정렬: Critical severity 먼저, 그 다음 Warning, Info 순. 동일 severity 내에서는 error type 코드 순 (E1→E2→E3→E4 / E6→E7→E10→E11 / E5→E8). "사용자 확인 게이트"는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다 — 그 외 항목은 표시만 합니다. E6/E7/E8/E10/E11은 의미적 판단(처리/promote/archive/이동)이 필요해 auto-fix 대상이 아닙니다.
 
 **Termination condition**: Report displayed. Proceed to OPTIONAL-FIX if auto-fixable items exist and user has not already opted out. Otherwise exit after marking clean.
 
@@ -208,8 +213,9 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 **Auto-fix NOT eligible** (never mutate):
 - `missing_frontmatter` (E1): body structure unknown, skip.
 - `broken_wikilink` (E4): requires human decision on rename/delete.
-- `orphan_note` (E5): requires human decision on content value.
-- `filename_convention_violation` (E3): renaming affects all inbound links.
+- `orphan_note` (E5): requires human decision on content value (connection candidates are suggestions only).
+- `filename_convention_violation` (E3): renaming affects all inbound links (`권장 파일명` is a suggestion only).
+- `misplaced_file` (E10) / `unstructured_path` (E11): moving a file affects all inbound links — display-only warning, user decides the destination.
 
 **Procedure**:
 

@@ -7,7 +7,7 @@ a fixture or live vault. Outputs per-type finding counts and a flat list of
 finding records as JSON. Stdlib only.
 
 v4 layout: inbox/ + notes/ + assets/  (no 00_Inbox, 20_Projects, 30_Notes)
-Error types: E1-E5 only (E6-E9 project-binding checks removed in v4)
+Error types: E1-E8, E10, E11 (E9 reserved for tag/property vocabulary, #119)
 
 Usage:
   python3 audit-validate.py <vault_root>          # JSON summary on stdout
@@ -48,7 +48,23 @@ PRIORITY_BY_TYPE = {
     "E6_stale_inbox": "P1",
     "E7_stale_draft": "P1",
     "E8_promotion_candidate": "P2",
+    "E10_misplaced_file": "P1",
+    "E11_unstructured_path": "P1",
 }
+# E10 type↔folder placement (v4 §3.1): each managed type lives in one folder.
+EXPECTED_FOLDER = {
+    "session": "inbox",
+    "capture": "inbox",
+    "note": "notes",
+    "decision": "notes",
+    "plan": "notes",
+}
+# E11 structural layout (v4 §3.1): only these three top-level folders are canonical.
+CANONICAL_FOLDERS = {"inbox", "notes", "assets"}
+# Files exempt from E11 (vault-level index lives at the root or any folder root).
+EXEMPT_FILES = {"_index.md"}
+# E5 candidate tuning (v4 §6.1): top-N tag-intersection candidates per orphan.
+E5_CANDIDATE_TOP_N = 3
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 
 
@@ -107,6 +123,52 @@ def filename_conforms(rel: Path) -> bool:
     if top == "notes":
         return not re.match(r"^\d{4}-\d{2}-", rel.name)
     return True
+
+
+def _slug_from_filename(rel: Path) -> str:
+    """Extract the user-chosen slug from a non-conforming filename.
+
+    The filename is the source of truth for the slug (created: carries only the
+    date). Strip a leading date prefix (YYYY-MM-DD- or YYYY-MM-) and a leading
+    {type}- prefix if present, leaving the human-meaningful slug.
+    """
+    stem = rel.stem
+    # Strip leading YYYY-MM-DD- or YYYY-MM- date prefix (v3 date-first artifact).
+    stem = re.sub(r"^\d{4}-\d{2}(?:-\d{2})?-", "", stem)
+    # Strip a single leading {type}- prefix so we don't double it on rebuild.
+    stem = re.sub(r"^(?:note|decision|plan|capture|session)-", "", stem)
+    return stem
+
+
+def _compute_suggested_filename(rel: Path, fm: dict) -> Optional[str]:
+    """Compute a v4-conforming filename suggestion for an E3 violation.
+
+    note            → {slug}.md            (date prefix removed)
+    decision / plan → {type}-{YYYY-MM-DD}-{slug}.md
+    capture / session → {type}-{YYYY-MM-DD}.md
+    missing type: or created: → None       (cannot suggest; keep base message)
+    """
+    ftype = fm.get("type")
+    created = fm.get("created")
+    if not isinstance(ftype, str) or not ftype:
+        return None
+    created_d = parse_created_date(created)
+    if ftype == "note":
+        slug = _slug_from_filename(rel)
+        if not slug:
+            return None
+        return f"{slug}.md"
+    if created_d is None:
+        return None
+    date_str = created_d.isoformat()
+    if ftype in ("decision", "plan"):
+        slug = _slug_from_filename(rel)
+        if not slug:
+            return f"{ftype}-{date_str}.md"
+        return f"{ftype}-{date_str}-{slug}.md"
+    if ftype in ("capture", "session"):
+        return f"{ftype}-{date_str}.md"
+    return None
 
 
 def collect(vault: Path) -> dict:
@@ -213,13 +275,15 @@ def classify(bundle: dict) -> dict:
     findings: list = []
     today = date.today()
 
-    def add(etype: str, rel: str, detail: str = "") -> None:
-        findings.append({
+    def add(etype: str, rel: str, detail: str = "", **extra) -> None:
+        rec = {
             "type": etype,
             "priority": PRIORITY_BY_TYPE.get(etype, "P_UNKNOWN"),
             "path": rel,
             "detail": detail,
-        })
+        }
+        rec.update(extra)
+        findings.append(rec)
 
     # E1 + E2: frontmatter presence and required fields
     # (dotfiles already excluded in collect())
@@ -233,7 +297,12 @@ def classify(bundle: dict) -> dict:
     for rec in bundle["fm_records"]:
         rel_path = Path(rec["rel"])
         if not filename_conforms(rel_path):
-            add("E3_filename_convention_violation", str(rel_path))
+            fm = rec.get("fm") or {}
+            suggested = _compute_suggested_filename(rel_path, fm)
+            detail = ""
+            if suggested:
+                detail = f"권장 파일명: {suggested}"
+            add("E3_filename_convention_violation", str(rel_path), detail)
 
     # E4: broken wikilinks
     for rel, targets in bundle["wikilinks_by_file"].items():
@@ -241,15 +310,59 @@ def classify(bundle: dict) -> dict:
             if target not in bundle["all_stems"]:
                 add("E4_broken_wikilink", rel, target)
 
-    # E5: orphan notes in notes/ (any depth)
+    # E5: orphan notes in notes/ (any depth).
+    # Pre-build a notes/ tag index once (avoids O(N²) re-scan inside the loop).
+    # Index entry: (rel_str, frozenset(tags)). Only notes/ files with non-empty
+    # tags are candidate targets for connection suggestions.
+    notes_tag_index: list = []
+    for rec in bundle["fm_records"]:
+        rp = Path(rec["rel"])
+        if rp.name == "_index.md" or not rp.parts or rp.parts[0] != "notes":
+            continue
+        fm = rec.get("fm") or {}
+        raw_tags = fm.get("tags")
+        tagset = frozenset(
+            t for t in raw_tags if isinstance(t, str) and t
+        ) if isinstance(raw_tags, list) else frozenset()
+        notes_tag_index.append((rec["rel"], tagset))
+
     for rec in bundle["fm_records"]:
         rel_path = Path(rec["rel"])
         if rel_path.name == "_index.md" or rel_path.parts[0] != "notes":
             continue
         stem = rel_path.stem.lower()
         sources = [s for s in bundle["inbound"].get(stem, []) if s != rec["rel"]]
-        if not sources:
-            add("E5_orphan_note", rec["rel"])
+        if sources:
+            continue
+        # Compute tag-intersection candidates (exact match only, top-N).
+        fm = rec.get("fm") or {}
+        raw_tags = fm.get("tags")
+        orphan_tags = frozenset(
+            t for t in raw_tags if isinstance(t, str) and t
+        ) if isinstance(raw_tags, list) else frozenset()
+        candidates: list = []
+        if orphan_tags:
+            scored = []
+            for cand_rel, cand_tags in notes_tag_index:
+                if cand_rel == rec["rel"]:
+                    continue
+                shared = orphan_tags & cand_tags
+                if shared:
+                    scored.append((len(shared), cand_rel, sorted(shared)))
+            # Sort: shared count desc, then path asc.
+            scored.sort(key=lambda x: (-x[0], x[1]))
+            for _, cand_rel, shared_sorted in scored[:E5_CANDIDATE_TOP_N]:
+                candidates.append({"path": cand_rel, "shared_tags": shared_sorted})
+
+        if candidates:
+            rendered = "; ".join(
+                f"[[{Path(c['path']).stem}]] (공유 태그: {', '.join(c['shared_tags'])})"
+                for c in candidates
+            )
+            detail = f"연결 후보: {rendered}"
+        else:
+            detail = "연결 후보 없음 (공유 태그 없음)"
+        add("E5_orphan_note", rec["rel"], detail, candidates=candidates)
 
     # E6 + E7: stagnation (v4 §6.1 Step 2). Uses frontmatter `created:` —
     # mtime is unreliable across git clones.
@@ -277,6 +390,60 @@ def classify(bundle: dict) -> dict:
             if status == "draft" and age_days > STALE_DRAFT_DAYS:
                 add("E7_stale_draft", rec["rel"],
                     f"age {age_days}d > {STALE_DRAFT_DAYS}d (status:draft, created {fm.get('created')})")
+
+    # E10 + E11 prep: set of files already flagged for E1/E2 (integrity defects).
+    # Misplaced/unstructured checks skip these — fix integrity first.
+    integrity_flagged = {
+        f["path"] for f in findings
+        if f["type"] in ("E1_missing_frontmatter", "E2_missing_required_fields")
+    }
+
+    # E10: misplaced_file — type↔folder placement mismatch (v4 §3.1).
+    # Skip files with E1/E2 (no reliable type), exempt assets/ and hidden dirs.
+    for rec in bundle["fm_records"]:
+        rel_path = Path(rec["rel"])
+        if rec["rel"] in integrity_flagged:
+            continue
+        if not rel_path.parts:
+            continue
+        top = rel_path.parts[0]
+        if top.startswith(".") or top == "assets":
+            continue
+        # E11 (unstructured) owns non-canonical folders and root-direct files;
+        # type↔folder placement is only meaningful within canonical folders.
+        if "/" not in rec["rel"] or top not in CANONICAL_FOLDERS:
+            continue
+        fm = rec.get("fm") or {}
+        ftype = fm.get("type")
+        if not isinstance(ftype, str):
+            continue
+        expected = EXPECTED_FOLDER.get(ftype)
+        if expected is None:
+            continue
+        if top != expected:
+            add("E10_misplaced_file", rec["rel"],
+                f"type:{ftype} expected in {expected}/ but found in {top}/")
+
+    # E11: unstructured_path — file outside canonical top-level folders (v4 §3.1).
+    # Root-direct files are included; _index.md and hidden dirs are exempt.
+    for rec in bundle["fm_records"]:
+        rel_path = Path(rec["rel"])
+        if rel_path.name in EXEMPT_FILES:
+            continue
+        if not rel_path.parts:
+            continue
+        # Root-direct file (no folder component): top folder is the file itself.
+        if "/" not in rec["rel"]:
+            add("E11_unstructured_path", rec["rel"],
+                "root-direct file outside canonical folders (inbox/notes/assets)")
+            continue
+        top = rel_path.parts[0]
+        if top.startswith("."):
+            continue
+        if top in CANONICAL_FOLDERS:
+            continue
+        add("E11_unstructured_path", rec["rel"],
+            f"top folder '{top}/' is not canonical (inbox/notes/assets)")
 
     # E8: promotion candidates from manifest (schema_version ≥ 3 only).
     # note/decision files that meet refs_in or access_count thresholds —
@@ -306,6 +473,8 @@ SEED_PREFIXES = {
     "E6_stale_inbox": ("path", "audit-e6-"),
     "E7_stale_draft": ("path", "audit-e7-"),
     "E8_promotion_candidate": ("path", "audit-e8-"),
+    "E10_misplaced_file": ("path", "audit-e10-"),
+    "E11_unstructured_path": ("path", "audit-e11-"),
 }
 
 
@@ -315,8 +484,17 @@ def dod_report(findings: list) -> dict:
     priority_counts: dict = {"P0": 0, "P1": 0, "P2": 0}
     findings_missing_priority: int = 0
     priority_mismatches: list = []
+    # #126/#130: count display-only suggestion/candidate enrichment so the
+    # DoD report is self-contained (E2E also asserts via --findings).
+    e3_with_suggestion: int = 0
+    e5_with_candidates: int = 0
 
     for f in findings:
+        if f["type"] == "E3_filename_convention_violation" and "권장 파일명" in (f.get("detail") or ""):
+            e3_with_suggestion += 1
+        if f["type"] == "E5_orphan_note" and f.get("candidates"):
+            e5_with_candidates += 1
+
         etype = f["type"]
         prio = f.get("priority")
         if prio in priority_counts:
@@ -350,6 +528,8 @@ def dod_report(findings: list) -> dict:
         "priority_counts": priority_counts,
         "findings_missing_priority": findings_missing_priority,
         "priority_mismatches": priority_mismatches,
+        "e3_with_suggestion": e3_with_suggestion,
+        "e5_with_candidates": e5_with_candidates,
     }
 
 

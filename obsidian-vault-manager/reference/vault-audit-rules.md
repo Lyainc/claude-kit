@@ -2,7 +2,7 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Eight error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
+Ten error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
 
 > **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduces a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extends with P1 stagnation. PR 4d adds **E8 `promotion_candidate`** (P2/Info), read from the vault-bridge manifest. Manifest-level *stale-manifest* checks (e.g., stale manifest as an Info finding) remain deferred to PR 6+.
 
@@ -20,10 +20,14 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E6   | P1       | Stale inbox → raw input never processed; loses freshness, signals review needed. |
 | E7   | P1       | Stale draft → notes/ `status: draft` sitting too long; either promote to evergreen or archive. |
 | E8   | P2       | Promotion candidate → high inbound refs or access count; suggests manual `status: evergreen`. Manifest-sourced, never auto-fixed. |
+| E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
+| E11  | P1       | Unstructured path → file outside `inbox/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
 
 > **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
-> **P1 = 정체 (stagnation)**: E6 and E7 surface unprocessed inputs and stalled drafts — visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive).
+> **P1 = 정체/구조 (stagnation / structure)**: E6 and E7 surface unprocessed inputs and stalled drafts; E10 and E11 surface folder-structure drift. All are visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive / move).
 > **P2 = quality**: E5 orphan notes and E8 promotion candidates are quality signals, not integrity defects.
+
+> **Code numbering**: E9 is intentionally reserved (e.g., #119 E9c semantic-synonym work). E10/E11 are the next structural checks per #128/#129 and are deliberately not E9.
 
 The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
@@ -72,6 +76,29 @@ for each file in notes/ (recursive):
   # date-first prefix is a v3 artifact; v4 requires type-first or no-date slugs
 ```
 
+**Suggested filename** (#126, display-only): when a violation is found, compute a
+v4-conforming rename suggestion and append `권장 파일명: {name}` to the finding
+`detail`. The filename is the source of truth for the slug (`created:` carries
+only the date), so the slug is extracted from the current filename.
+
+```
+slug = stem
+  minus leading /^\d{4}-\d{2}(-\d{2})?-/    # strip date-first prefix
+  minus leading /^(note|decision|plan|capture|session)-/   # strip a type prefix
+
+suggested_filename(rel, fm):
+  type = fm.type ; created = parse(fm.created)
+  if type missing:                  → None   (keep base message; cannot suggest)
+  if type == "note":                → "{slug}.md"          (date prefix removed)
+  if created is None (non-note):     → None
+  if type in {decision, plan}:       → "{type}-{YYYY-MM-DD}-{slug}.md"
+  if type in {capture, session}:     → "{type}-{YYYY-MM-DD}.md"
+  else:                             → None
+```
+
+Rename is **never auto-applied** — it affects inbound wikilinks, so the audit
+only suggests; the user decides.
+
 ## E4 — `broken_wikilink` [Critical]
 
 **Rule**: For each `[[target]]` in a file — look up `target` stem in the vault file set. If no file exists with that stem (case-insensitive match), it is broken.
@@ -83,6 +110,30 @@ for each file in notes/ (recursive):
 **Rule**: A `.md` file in `notes/` (any depth) has zero entries in `inbound_links[stem]`.
 **Source**: `inbound_links` (built from full vault scan).
 **Guard**: `_index.md` files are never orphans. Files in `inbox/` are exempt (unprocessed captures). Files in `assets/` are exempt.
+
+**Connection candidates** (#130, display-only): for each orphan, compute the top-3
+`notes/` files sharing the most tags (exact-match intersection only — no semantic
+synonyms). Build a `notes/` tag index once before the orphan loop to avoid O(N²).
+
+```
+notes_tag_index = [(rel, frozenset(tags)) for rel in notes/ if rel != _index.md]
+
+for each orphan P:
+  orphan_tags = frozenset(P.tags)            # [] when tags empty
+  scored = [(len(orphan_tags & Q.tags), Q.rel, sorted(shared))
+            for Q in notes_tag_index if Q != P and (orphan_tags & Q.tags)]
+  scored.sort by (shared desc, path asc)
+  candidates = scored[:3]                     # [{path, shared_tags}]
+```
+
+The finding carries a **structured** `candidates: [{path, shared_tags}]` field
+(REPORT renders the `연결 후보` line from it) AND a rendered `detail`:
+
+- with candidates: `연결 후보: [[X]] (공유 태그: a, b); [[Y]] (공유 태그: a)`
+- no shared tags / empty tags: `연결 후보 없음 (공유 태그 없음)`, `candidates: []`
+
+Empty-tags orphans are handled gracefully (no candidate computation, no error).
+Linking position is the user's decision — the audit only suggests candidates.
 
 ## E6 — `stale_inbox` [Warning]
 
@@ -129,6 +180,69 @@ for each record in frontmatter_records where path startswith "notes/":
 
 **Rationale**: A note with high inbound references or frequent access is a candidate for manual promotion to `status: evergreen`. Surfaced as Info/P2 — the user decides; never auto-fixed.
 
+## E10 — `misplaced_file` [Warning]
+
+**Rule**: A file's `type` does not match the canonical folder it lives in (v4 §3.1). Each managed type belongs in exactly one top-level folder:
+
+```python
+EXPECTED_FOLDER = {
+    "session": "inbox", "capture": "inbox",
+    "note": "notes", "decision": "notes", "plan": "notes",
+}
+```
+
+**Source**: `frontmatter_records` (uses `fm.type` + top-level folder of the path).
+**Guard**:
+- Files already flagged E1/E2 are **skipped** — no reliable `type` to check until integrity is fixed.
+- `assets/` files are exempt (attachments carry no managed type).
+- Hidden top folders (`.obsidian/`, `.vault-bridge/`, `.ovm/`) are exempt.
+- Root-direct files and files in non-canonical folders are **out of scope** — those are E11's domain (type↔folder is only meaningful inside canonical folders).
+- `type` not in `EXPECTED_FOLDER` (e.g., unknown type) → skip (no expectation to compare against).
+
+**Detection pseudocode**:
+
+```
+for each record in frontmatter_records:
+  if record in E1/E2 findings: skip
+  top = path.parts[0]
+  if top startswith "." or top == "assets": skip
+  if path is root-direct or top not in {inbox,notes,assets}: skip   # E11 owns these
+  type = fm.type ; if type not str: skip
+  expected = EXPECTED_FOLDER.get(type) ; if expected is None: skip
+  if top != expected: → misplaced_file
+```
+
+**Rationale**: A `type: session` note in `notes/` (or a `type: note` in `inbox/`) breaks the folder-as-routing contract. Moving the file affects inbound wikilinks, so this is a **display-only** P1 warning — never auto-moved.
+
+## E11 — `unstructured_path` [Warning]
+
+**Rule**: A `.md` file lives outside the canonical top-level folders (v4 §3.1). Only `inbox/`, `notes/`, `assets/` are canonical; anything else (arbitrary folders, root-direct files) is structural drift.
+
+```python
+CANONICAL_FOLDERS = {"inbox", "notes", "assets"}
+EXEMPT_FILES = {"_index.md"}
+```
+
+**Source**: `frontmatter_records` (uses the path only; `collect()` already excludes hidden directories).
+**Guard**:
+- `_index.md` (any location) is exempt — vault/folder index files legitimately live at the root or any folder root.
+- Hidden top folders (`.obsidian/`, `.vault-bridge/`, `.ovm/`) are exempt (already excluded by `collect()`; the classifier re-checks `top.startswith(".")` defensively).
+- Root-direct files (`"/" not in path`) are **included** — a stray `.md` at the vault root is unstructured.
+
+**Detection pseudocode**:
+
+```
+for each record in frontmatter_records:
+  if path.name in EXEMPT_FILES: skip               # _index.md
+  if path is root-direct ("/" not in path): → unstructured_path
+  top = path.parts[0]
+  if top startswith ".": skip                       # hidden dir
+  if top in CANONICAL_FOLDERS: skip                 # inbox/notes/assets OK
+  → unstructured_path
+```
+
+**Rationale**: Files outside the three-folder layout are invisible to folder-based routing and accumulate untracked. Moving them affects inbound wikilinks, so this is a **display-only** P1 warning — the user decides where they belong. The `_index.md` exempt guard is regression-covered: the test fixture seeds a root-level `_index.md` into the clean area and asserts `fp_on_clean.E11 == 0`.
+
 ## Auto-fix eligibility
 
 Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
@@ -137,7 +251,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields with inferred values |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links), E4 (requires human decision on rename/delete), E5 (content value judgment), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination).
 
 ## Manifest Summary (display-only)
 
