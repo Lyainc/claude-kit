@@ -2,13 +2,15 @@
 created: 2026-05-17
 tags: [plan, claude-kit, model-routing, cost-optimization]
 type: plan
-status: active
+status: done
 related:
   - docs/discussions/20260416_cost-optimization-panel/SUMMARY.md
   - docs/discussions/20260517_model-routing-redesign/SUMMARY.md
 ---
 
 # Model Routing — claude-kit 스킬 모델 티어링
+
+> **상태 (2026-06-03 갱신): ✅ 완료.** `1650ee6`(2026-05-17)이 8개 스킬에 `model:` frontmatter 적용. 이후 PR #84(05-26)가 project/inbox-review/archive 3개를 삭제했으나 frontmatter가 파일과 함께 사라진 것뿐 — 계획 무효화 아님. 살아남은 유효 타깃 5개 모두 계획값 일치(capture=haiku·audit=haiku·note=sonnet·doc-polish=sonnet·diverse-sampling=sonnet, +spec-first=sonnet 보너스). facilitator haiku 다운그레이드는 테스트 후 기각(sonnet 유지)으로 Phase 2 종료. 아래는 결정 기록(보존).
 
 ## 목적
 

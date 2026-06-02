@@ -1,5 +1,7 @@
 # Vault Second Brain v4 — 세션 재개 프롬프트
 
+> **상태 (2026-06-03 갱신): ✅ PR 1-7 전부 완료** (PR 7 README = `2d66e52`). 이 resume 문서는 obsolete — 더 이상 이어받을 작업 없음. **유일한 미진행 = Step 5(Phase 2 패턴 추출)**, decision 노트 데이터 축적 후(3-6개월) 활성 예정인 deferred 항목. 아래 본문은 구현 기록(보존).
+
 > 작성일: 2026-05-26 · 갱신: 2026-05-28
 > 용도: 다음 세션에서 이 작업을 이어갈 때 컨텍스트 복원용
 > 사용법: 새 세션 시작 시 이 문서 내용을 그대로 프롬프트에 붙여넣거나, "@docs/plans/vault-second-brain-v4-resume.md 읽고 작업 이어가자"로 호출
@@ -21,11 +23,11 @@
 | ↳ 4e | Step 4 — Git 활동 요약 (P3, 독립) | #91 | ✅ 2026-05-29 |
 | PR 5 | `/vault-commit` 메시지 컨벤션 자동화 | #92 | ✅ 2026-05-29 |
 | PR 6 | 마이그레이션 dogfood | — | ✅ 2026-05-29 (완료 — 잔여 폴더 2개: type 없는 파일 원위치 유지) |
-| PR 7 | README + onboarding v4 반영 | — | 진행 중 |
+| PR 7 | README + onboarding v4 반영 | `2d66e52` | ✅ 완료 |
 
-**즉시 다음**: **PR 7 (README + onboarding v4 반영)** — PR 1-6 모두 완료, 마지막 문서화 단계.
+**즉시 다음**: 없음 — PR 1-7 전부 완료. 남은 건 Step 5(deferred, 3-6개월 후).
 
-**병렬 가능**: PR 5 (`vault-commit` 컨벤션)는 audit과 독립 — 다른 세션에서 동시 진행 가능.
+**병렬 가능**: ~~PR 5 (`vault-commit` 컨벤션)~~ — 완료됨(#92).
 
 **Deferred**: Step 5 (Phase 2 패턴 추출)는 decision 노트 데이터 축적(3-6개월) 후 활성화.
 
@@ -33,7 +35,7 @@
 
 ## 컨텍스트
 
-claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4-sidecar`)에서 vault second brain 시스템을 **v4로 단순화하는 대규모 작업** 진행 중. 설계·마이그레이션 가이드는 두 문서로 확정됨. 다음 단계는 **구현 PR 시리즈**.
+claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4-sidecar`)에서 vault second brain 시스템을 **v4로 단순화하는 대규모 작업** 완료(PR 1-7, 2026-05~06). 설계·마이그레이션 가이드는 두 문서로 확정됨.
 
 ## 필수 선행 읽기 (순서대로)
 
@@ -130,13 +132,13 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 
 **Step 5 (Phase 2 패턴 추출)** — 데이터 축적 3-6개월 후 deferred. decision 노트가 임계 N 도달 시 활성. 현재 단계에선 비활성 유지.
 
-### PR 5 — `/vault-commit` 메시지 컨벤션 (PR 1 후, 병렬 가능, ⏳)
+### PR 5 — `/vault-commit` 메시지 컨벤션 (PR 1 후, 병렬 가능, ✅)
 
 - `vault-bridge/commands/vault-commit.md`:
   - status 전이 감지 → 자동 commit message
   - 형식: `note(promote): {file} {raw→draft}`, `decision(create): {file} - {problem}` 등 (설계 §4.2)
 
-### PR 6 — 마이그레이션 dogfood (PR 1-5 후, ⏳)
+### PR 6 — 마이그레이션 dogfood (PR 1-5 후, ✅)
 
 - 우리 vault에 `docs/plans/vault-second-brain-v4-migration.md` 절차 실행
 - `v4-migration-snapshot` git tag 필수
@@ -144,7 +146,7 @@ claude-kit 프로젝트(`/Users/Lyainc/dev/prj/claude-kit`, branch: `feat/stage4
 - 결과·발견된 이슈는 capture 또는 decision 노트로 vault에 기록
 - 발견된 문제는 PR 1-5 핫픽스
 
-### PR 7 — README + onboarding (마지막, ⏳)
+### PR 7 — README + onboarding (마지막, ✅)
 
 - claude-kit 루트 README v4 반영
 - OVM README 신규 (3 스킬 워크플로우)

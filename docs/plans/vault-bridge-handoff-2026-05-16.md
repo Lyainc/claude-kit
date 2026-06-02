@@ -1,9 +1,11 @@
 # 구현 플랜: `/handoff` 커맨드 + `.claude-kit/` 통합
 
+> **상태 (2026-06-03 갱신): ✅ SHIPPED.** `/handoff` 커맨드·resume.md 생명주기(SessionStart 소비형)·`/save-session` redirect·`/save-plan-doc defer` resume 생성 전부 구현·배포됨(`vault-bridge/commands/handoff.md` 등 존재 확인). 계획상 1.11.0 범프는 이후 v2.0.0에 흡수. 아래는 구현 당시 설계 기록(보존).
+
 **작성일**: 2026-05-16  
 **버전 범프**: `1.10.0` → `1.11.0`  
 **브랜치 제안**: `feature/vault-bridge-v1.11-handoff`  
-**Status**: pending approval
+**Status**: ✅ shipped (was: pending approval) — vault-bridge v2.0.0에 흡수됨
 
 ---
 
