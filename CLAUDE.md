@@ -157,13 +157,17 @@ OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
 python3 obsidian-vault-manager/scripts/test/audit-validate.py \
   /tmp/ovm-fixture-audit-recheck --dod
-# Expected (PR 4d+):
-#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:5, E6:5, E7:5, E8:2}
-#     (E2 has 10: 5 base + 5 status-missing; E6=stale_inbox; E7=stale_draft;
-#      E8 has 2: promotion-target via refs_in=3, access-target via manifest patch)
-#   dod.fp_on_clean per type = 0
+# Expected (G8+):
+#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E10:5, E11:5}
+#     (E2 has 10: 5 base + 5 status-missing; E5 has 6: 5 w/ tag candidates +
+#      1 empty-tags graceful orphan; E6=stale_inbox; E7=stale_draft;
+#      E8 has 2: promotion-target via refs_in=3, access-target via manifest patch;
+#      E10=misplaced_file (type:session in notes/); E11=unstructured_path
+#      (2 root-direct + 3 in 20_Projects/), root _index.md exempt)
+#   dod.fp_on_clean per type = 0   (incl. E10/E11; root _index.md exercises E11 exempt guard)
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []
+#   dod.e3_with_suggestion >= 5    (E3 권장 파일명 present); dod.e5_with_candidates > 0
 # Note: dod.priority_counts is informational only (P1 includes existing
 # fixture inbox captures with old created: dates, varies by run date).
 ```
