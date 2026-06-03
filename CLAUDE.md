@@ -4,6 +4,8 @@ This file provides guidance to Claude Code when **developing/contributing to thi
 
 Codex/OMX parity note: the Codex-active migration of this root guidance lives in `AGENTS.md`, with the surface-by-surface parity matrix in `docs/codex-claude-parity.md`.
 
+Design Principles & boundary: the single source of truth for the claude-kit↔harness boundary (evolutionary boundary A), the 5-layer model, the one-way dependency rule, and the constitutional/policy rule lists is `docs/design/claude-kit-boundary.md`. Downstream specs (#100 goal-doc schema, #122 thin harness, #125 3-tier rules) reference it — they do not redefine these rules here.
+
 ## Project Overview
 
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.

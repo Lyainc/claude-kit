@@ -50,7 +50,7 @@ D는 M의 구체 인스턴스이거나 직접 활용 작업. 중복 아닌 의�
 | W2 | 게이트 수학 약함 | Depth/Ambiguity 게이트 점수를 LLM이 자가 평가 — 일관성 보장 없음, 근거 미기록 | unknown-discovery, spec-first | open | P2 | B4, A1 | — |
 | W3 | 상태 휘발성 | STATE 블록이 컨텍스트 compaction 시 손실 위험, 스킬마다 포맷 상이 | 전 스킬 | open | P1 | E3 | — |
 | W4 | 출력 조합성 | Markdown 서사체 출력 — 후속 스킬 파싱 어려움, 스킬 체이닝 비친화적 | unknown-discovery, adversarial-review | open | P2 | E2, A2(unknown) | — |
-| W5 | 실행 연계 부재 | 사고 도구가 실행 도구(OMC ralph)와 단절 — Seed → 빌드 루프 수동 이어야 | spec-first, thought-chain | open | P1 | C | — |
+| W5 | 실행 연계 = 의도된 경계 (reframed) | **약점 아님 — 경계 A의 의도된 design boundary.** leaf(사고 도구)가 harness(⑤실행)와 단방향(harness→leaf)으로만 결합하고 역방향 의존을 갖지 않는 게 규율(`docs/design/claude-kit-boundary.md` §3). Seed→빌드 연계는 harness(`/goal`·Workflow)가 leaf를 호출하는 단방향으로 성립 — leaf가 harness를 import·assume하면 오히려 CON-5 위반 | spec-first, thought-chain | reframed | P1 | C | — |
 | W6 | 진화 메커니즘 부재 | 한 번 생성한 Seed/Report가 실행 결과로 갱신되지 않음 — Ouroboros Evolve 대비 열위 | spec-first | open | P3 | C4 | — |
 | W7 | 코드베이스 블라인드 | 순수 대화 인터뷰 — 실제 repo 맥락 미반영, 추상적 blind spot만 탐지 | unknown-discovery, spec-first | open | P2 | A3(unknown), A2(spec-first) | — |
 | W8 | 페르소나 라이브러리 부재 | expert-panel·adversarial-review가 매번 페르소나를 즉석 생성 — 재현성·일관성 저하 | expert-panel, adversarial-review | open | P2 | M1 | — |
