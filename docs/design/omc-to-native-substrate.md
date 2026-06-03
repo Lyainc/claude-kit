@@ -20,7 +20,7 @@
 
 ## 1. OMC ⑤ Capability 인벤토리
 
-현재 OMC가 ⑤(실행/doing/오케스트레이션) 레이어에서 제공하는 기능을 8개 capability로 묶었어요. (출처: `omc-reference` 스킬 — Agent Catalog · Skills Registry · Tools Reference · Team Pipeline.)
+현재 OMC가 ⑤(실행/doing/오케스트레이션) 레이어에서 제공하는 기능을 8개 capability로 묶었어요. (출처: OMC 플러그인의 `skills/omc-reference/SKILL.md` — Agent Catalog · Skills Registry · Tools Reference · Team Pipeline.)
 
 | ID | Capability | OMC 구현체 | 설명 |
 |----|-----------|-----------|------|
@@ -48,10 +48,10 @@
 | **N1** | dynamic Workflow | `agent()`/`parallel()`/`pipeline()`/`phase()`/`log()`, schema 구조화 출력, worktree 격리, budget, resume, nested workflow | 동시 에이전트 cap = `min(16, cores−2)`; 총 1000 에이전트; **중첩 1단계**(workflow 안 workflow 1회); `Date.now`/`Math.random`/argless `new Date()` 사용 불가; **resume 동일 세션 한정** | `[SPEC]` (Workflow 도구 정의 — 메인 세션 도구 명세 기재값) |
 | **N2** | `/goal` | 세션 자율 진행 + 완료조건 Stop 훅 평가, 충족 시 auto-clear | **세션 싱글톤 — 1 세션 1 활성 goal, 동시 다중 goal 불가**; 완료조건이 **freeform 텍스트** — 구조화 goal-doc을 슬라이스별 스킬에 바인딩하는 파싱은 native가 안 함 | `[CONFIRMED 2026-06-03]` + `[WORKAROUND]` (OMC `ultragoal`이 durable multi-goal/ledger 영속용으로 존재 = native가 multi-goal·영속을 안 줌의 방증) |
 | **N3** | Agent / Task 도구 | 서브에이전트 spawn, `run_in_background`, `SendMessage`로 컨텍스트 이어 재호출, `agentType`(커스텀 에이전트 레지스트리), worktree 격리 | 서브에이전트 **최종 메시지는 호출자에게만** 반환(사용자 비노출) → **중간 critique 과정 관찰 불가**(INV-2 enforce 설계 제약, §4.2 참조); 새 Agent 호출은 fresh context(SendMessage만 컨텍스트 유지) | `[SPEC]` (Agent 도구 정의) |
-| **N4** | hooks | 이벤트 12종↑: PreToolUse·PermissionRequest·PostToolUse·PostToolUseFailure·Stop·SubagentStart·SubagentStop·SessionStart·SessionEnd·UserPromptSubmit·PreCompact·Notification. `systemMessage`/`additionalContext` emit, PreToolUse·PermissionRequest는 차단 가능 | 이벤트 셋은 native가 정의(플러그인이 임의 이벤트 추가 불가); PreToolUse/PermissionRequest가 **차단**은 하지만 "self-approval인지/격리됐는지" 같은 **의미 판정은 native가 안 함 — 핸들러 로직이 소유**; soft warning은 비차단 | `[CONFIRMED 2026-06-03]` (OMC `hooks.json` 11종 실측 + Notification 도구 명세; 본 세션 SubagentStart 훅 수신 확인) |
+| **N4** | hooks | 이벤트 12종(2026-06-03 확인, 플랫폼 확장 가능): PreToolUse·PermissionRequest·PostToolUse·PostToolUseFailure·Stop·SubagentStart·SubagentStop·SessionStart·SessionEnd·UserPromptSubmit·PreCompact·Notification. `systemMessage`/`additionalContext` emit, PreToolUse·PermissionRequest는 차단 가능 | 이벤트 셋은 native가 정의(플러그인이 임의 이벤트 추가 불가); PreToolUse/PermissionRequest가 **차단**은 하지만 "self-approval인지/격리됐는지" 같은 **의미 판정은 native가 안 함 — 핸들러 로직이 소유**; soft warning은 비차단 | `[CONFIRMED 2026-06-03]` (OMC `hooks.json` 11종 실측 + Notification 도구 명세; 본 세션 SubagentStart 훅 수신 확인) |
 | **N5** | Skill | 자동 검색(description 기반), `context: fork`(별도 에이전트 실행), `agent:`, `model:` 지정 | 트리거는 description 매칭 — 결정적 라우팅 아님(LLM 판단); fork 시 메인 컨텍스트 비공유 | `[SPEC]` |
 | **N6** | CronCreate / ScheduleWakeup | 스케줄·재개·self-paced 루프 | `delaySeconds` clamp `[60, 3600]`; 프롬프트 캐시 TTL 5분(300s 넘기면 캐시 미스) | `[SPEC]` (ScheduleWakeup 도구 정의) |
-| **N7** | Team 도구 | `TeamCreate`/`TeamDelete`/`SendMessage`/`Task*` — **이게 OMC team pipeline의 substrate** | 조정 오버헤드 — 독립 병렬 레인이 정당화될 때만 | `[SPEC]` |
+| **N7** | Team 도구 | `Task*`(`TaskCreate`/`TaskGet`/`TaskList`/`TaskUpdate`…) + `SendMessage` + `TeamCreate`/`TeamDelete` — native deferred 도구로 본 세션에 노출, **OMC team pipeline의 substrate** | 조정 오버헤드 — 독립 병렬 레인이 정당화될 때만; `Task*`는 상시, `Team*`/`SendMessage`는 팀 컨텍스트에서 노출(컨텍스트별 가시성 차이가 §2 티어 주의의 실례) | `[SPEC]` (Team/Task 도구 정의 — 본 세션 deferred 도구 목록 확인) |
 | **N8** | model 파라미터 / `/fast` | agent()/Task `model` 오버라이드, /fast(Opus 고속), effort 티어 | — | `[SPEC]` |
 
 > **N2 싱글톤의 함의**: native `/goal`이 세션 싱글톤이라는 건 thin 하네스가 **한 번에 goal-doc 1개**를 다룬다는 설계로 흡수돼요(§4에서 non-gap 처리). 슬라이스 fan-out은 N1 Workflow가 한 goal 안에서 처리하니까 multi-goal durability(C1의 ultragoal 부분)는 ⑤ thin 범위 밖이에요.
@@ -95,7 +95,7 @@ native `/goal`은 freeform 완료조건만 평가하고(§2 N2), 구조화 goal-
 | 의사결정 | 실행 없음 | expert-panel / adversarial-review 산출만 |
 | 문서작성 | 출력 전용 | doc-concretize / doc-polish / spec-first |
 
-> native 위임 우선: impl 등은 #133 스킬 인벤토리가 "native agents·기존 leaf로 충분한지" 먼저 판정 → 충분하면 신설 안 함. 하네스는 *바인딩 결정 로직*만 소유(`test-slice-router.py`로 hermetic 검증).
+> native 위임 우선: impl 등은 #133 스킬 인벤토리가 "native agents·기존 leaf로 충분한지" 먼저 판정 → 충분하면 신설 안 함. 하네스는 *바인딩 결정 로직*만 소유(`test-slice-router.py`로 hermetic 검증 예정 — #122 S2 산출물, 아직 미존재).
 
 ### 4.2 Gap-INV — D5 헌법 invariant enforcement
 
@@ -129,7 +129,7 @@ native hooks로 핸들러를 *작성*할 순 있어도(N4), native가 다음 의
 | (a) "4종 슬라이스 라우터" + "native(/goal·Workflow) 위임 경계 명시" | **Gap-ROUTE** (§4.1) | ✅ 1:1 |
 | (b) "D5 헌법 invariant enforcement (native가 못 채우는 gap)" | **Gap-INV** (§4.2, INV-1~5) | ✅ 1:1 |
 | (c) "D2 격리 — 단방향 enforce" | **Gap-INV / INV-5**가 흡수 (§4.2 주석) | ✅ INV-5에 포함 |
-| (c) "D2 격리 — vendor-neutrality 계약" | #99 경계 A로 단일화 → 이 문서 범위 밖 | ✅ 위임(non-gap) |
+| (c) "D2 격리 — vendor-neutrality 계약" | #99 경계 A로 단일화(#99 진행중) → 이 문서 범위 밖 | ✅ 위임(non-gap) |
 | (해당 없음) Non-gap §4.3 (durable multi-goal, 구조화 KV) | #122 scope에 없음 → 배제로 정합 보존 | ✅ |
 
 **결론**: #122 thin 3-불릿 → gap 2종(ROUTE + INV)으로 정확히 환원돼요. D2의 단방향은 INV-5에, vendor-neutrality는 #99에 귀속되니 **초과 gap 없음, 누락 gap 없음**. #122는 이 2종만 구현하고 나머지(C2·C3·C4·C5·C7 + C1/C6/C8의 native 커버분)는 native에 위임하면 돼요.
@@ -144,8 +144,8 @@ OMC는 지금 ⑤를 담당하며 정상 동작 → 전면 교체 아닌 **route
 |-------|------|------|------|------|
 | **P0** | Baseline — OMC가 ⑤ 전담 (현재) | — | 현행 동작 | (N/A) |
 | **P1** | substrate 매핑 + native 한계 실측 (이 문서) | #132 | 본 문서 Acceptance | 문서만 — 코드 영향 0 |
-| **P2** | thin 하네스 골격 — plugin 스캐폴드 + native substrate 위 `/goal` 엔진 + 4종 라우터(**Gap-ROUTE**) | #122 S1–S2 | `test-slice-router.py` 4종 케이스 | 플러그인 미설치 시 OMC 무영향 (opt-in) |
-| **P3** | invariant + 규칙 — D5 enforcement(**Gap-INV** INV-1~5) + 3-tier 병합 | #122 S4–S5, #125 | 헌법 disable 차단 테스트 + 병합 우선순위 테스트 | 훅 모드 플래그로 비활성(`WRITE_CONTRACT` 패턴) |
+| **P2** | thin 하네스 골격 — plugin 스캐폴드 + native substrate 위 `/goal` 엔진 + 4종 라우터(**Gap-ROUTE**) | #122 S1–S2 | `test-slice-router.py`(S2 산출 예정) 4종 케이스 | 플러그인 미설치 시 OMC 무영향 (opt-in) |
+| **P3** | invariant + 규칙 — D5 enforcement(**Gap-INV** INV-1~5) + 3-tier 병합(규칙 우선순위 project > user-global > default) | #122 S4–S5, #125 | 헌법 disable 차단 테스트 + 병합 우선순위 테스트 | 훅 모드 플래그로 비활성(`WRITE_CONTRACT` 패턴) |
 | **P4** | 스킬 바인딩 + 게이트 체인 — spec/impl/critique/debug/quality 바인딩, 4지점 게이트 | #133, #134 | feature-dev goal-doc 1개 e2e dogfood | 라우트를 OMC autopilot/ralph로 재지정 |
 | **P5** | retro + telemetry — 루프 닫기, 이관 parity 측정 | #123, D8 | telemetry `meta` 필드 | 스킬 제거 |
 | **P6** | OMC 표면 축소 (**조건부·가역**) — telemetry가 native+하네스 parity 입증 **AND** native invariant 지원 성숙 시에만, ⑤ 의존을 route별 감축 | (후속) | route별 parity 게이트 | route별 OMC 재지정(완전 가역) |
