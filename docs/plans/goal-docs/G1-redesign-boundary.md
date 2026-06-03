@@ -13,7 +13,9 @@ created: 2026-06-03
 
 ## 배경 / 목적
 
-claude-kit 레이어 재설계(Epic #108)의 **foundation goal**이에요. 2026-06-02 전문가 패널이 만장일치로 합의한 **경계 A** — claude-kit은 ①인지 ②결정화·출력 ③딜리버리 ④지식베이스를 소유하고, ⑤실행(doing/오케스트레이션)은 OMC(harness)가 담당한다 — 를 설계 문서에 명문화하는 게 목적이에요.
+claude-kit 레이어 재설계(Epic #108)의 **foundation goal**이에요. 2026-06-02 전문가 패널이 만장일치로 합의한 **경계 A** — claude-kit은 ①인지 ②결정화·출력 ③딜리버리 ④지식베이스를 소유하고, ⑤실행(doing/오케스트레이션)은 **현재 OMC(또는 Claude Code 네이티브)가 담당하되, native 기반 경량 하네스로 strangler 점진 이관하는 트랙을 갖는다** — 를 설계 문서에 명문화하는 게 목적이에요. ⑤는 정적 "⑤=OMC"가 아니라 진화형(**현재 OMC / 목표 native 기반 경량 하네스 / strangler 점진 이관**)으로 적어요.
+
+> 방향 근거: native-substrate 기반 경량 하네스 + strangler 점진 이관은 `docs/adversarial-review/2026-06-03-harness-ownership.md`에서 strong-form(전면 OMC 자체 대체)이 기각된 뒤 채택된 narrow path예요. 자체 빌드는 native가 강제 못 하는 invariant(헌법) enforcement에 한정돼요.
 
 지금 문제는 이거예요. OMC glue 제거(커밋 `3784031`)로 플러그인이 self-contained가 됐는데, "왜 self-contained인지", "어디까지가 claude-kit 책임인지"를 적어둔 명시 섹션이 없어요. 경계가 암묵 지식으로만 분산돼 있으면 OMC 제거 이후 규칙 drift가 나거든요. 게다가 `thinking-tools/docs/improvement-matrix.md`의 W5는 "사고 도구가 OMC ralph와 단절 = weakness"라고 적어둬서, 합의된 경계 A와 정면으로 모순돼요. 경계 A에서 이 단절은 *버그가 아니라 의도된 design boundary*거든요.
 
@@ -34,8 +36,8 @@ claude-kit 레이어 재설계(Epic #108)의 **foundation goal**이에요. 2026-
 ### A. 경계 A 명문화 (수평축 — 책임 분담)
 
 - [ ] 새 설계 문서 `docs/design/claude-kit-boundary.md`에 `## Design Principles` 섹션을 둬요. 이 섹션이 헌법/정책 목록의 **단일 출처**임을 문서 상단에 명시해요.
-- [ ] 5-레이어 모델 표를 실어요: ①인지(diverse-sampling·unknown-discovery·expert-panel·adversarial-review) ②결정화·출력(spec-first·doc-concretize·doc-polish·graphify·note·issue) ③딜리버리(vault-bridge) ④지식베이스(obsidian-vault-manager) ⑤실행(OMC 영역). claude-kit은 ①②③④만 소유, ⑤는 OMC.
-- [ ] 의존 방향 명시: "claude-kit 스킬 = OMC가 호출하는 leaf capability". (B안 — 루프 전체 흡수 — 기각 근거: OMC 중복 + 버전 동기화·유지보수 표면 폭발) 한 줄 기록.
+- [ ] 5-레이어 모델 표를 실어요: ①인지(diverse-sampling·unknown-discovery·expert-panel·adversarial-review) ②결정화·출력(spec-first·doc-concretize·doc-polish·graphify·note·issue) ③딜리버리(vault-bridge) ④지식베이스(obsidian-vault-manager) ⑤실행(**현재 OMC / 목표 native 기반 경량 하네스 / strangler 점진 이관** — 정적 "⑤=OMC" 아님). claude-kit은 ①②③④를 소유하고, ⑤는 native(/goal·Workflow)를 substrate로 한 경량 하네스로 점진 흡수.
+- [ ] 의존 방향 명시: "claude-kit 스킬 = harness(현재 OMC, 목표 native 기반 경량 하네스)가 호출하는 leaf capability". (B안 — 루프 전체를 from-scratch 자체 엔진으로 흡수 — 기각 근거: 동작 중인 OMC 전면 교체는 lock-in 실측 증거 0건이라 정당화 못 하고, native supersession 시 매몰비용. 대신 **native 위임 우선 + strangler 점진**으로 재정의.) 한 줄 기록.
 
 ### B. vault 철학 병기 (수직축 — 코멘트 1 확장분)
 

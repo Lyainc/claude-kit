@@ -13,7 +13,9 @@ created: 2026-06-03
 
 ## 배경 / 목적
 
-claude-kit 레이어 재설계(`docs/discussions/20260602_claude-kit-layer-redesign/`)의 옵션 A 합의에 따르면, claude-kit은 ①인지·②출력·③딜리버리·④지식베이스만 소유하고 ⑤실행은 지금까지 OMC가 담당했어요. D1 장기 목표는 OMC 완전 제거 후 claude-kit 자체 경량 harness로 단일화하는 거고, 이 묶음이 그 ⑤실행 레이어의 첫 구현체예요.
+claude-kit 레이어 재설계(`docs/discussions/20260602_claude-kit-layer-redesign/`)의 옵션 A 합의에 따르면, claude-kit은 ①인지·②출력·③딜리버리·④지식베이스만 소유하고 ⑤실행은 지금까지 OMC가 담당했어요. D1은 "OMC 완전 제거 + 자체 단일화"에서 **native substrate 기반 경량 하네스 + strangler 점진 대체**로 재정의됐어요(2026-06-03). Claude Code 네이티브(dynamic Workflow, /goal, agents, hooks)를 substrate로 한 thin 레이어로 OMC를 점진 흡수하고, 자체 빌드는 native가 못 채우는 gap(헌법 invariant enforcement 등)에 한정해요. native가 강해질수록 매몰비용이 아니라 수혜고, 이 묶음이 그 ⑤실행 레이어의 첫 구현체예요.
+
+> 방향 근거: 이 native-substrate 방향은 `docs/adversarial-review/2026-06-03-harness-ownership.md`에서 strong-form(전면 OMC 자체 대체 = 옵션 B)이 기각된 뒤 채택된 narrow path예요. 선행·세부는 신설 이슈로 분리돼요 — **#132**(OMC→native substrate 매핑 + strangler 경로 = #122 thin 레이어 범위 확정의 선행), **#133**(⑤ 실행 스킬 인벤토리 — spec/impl/critique 별도 + debug/quality/issue, native 우선 판정), **#134**(검증 게이트 체인 — 프리커밋/슬라이스 critique/프리푸시 quality/retro).
 
 두 이슈를 한 묶음으로 두는 응집 근거예요:
 - **#122**가 `/goal` 루프 엔진(goal-doc parse/exec, 슬라이스 진행, 훅 트리거)과 D11 4종 슬라이스→스킬 바인딩 라우터를 만들어요.
@@ -24,7 +26,7 @@ claude-kit 레이어 재설계(`docs/discussions/20260602_claude-kit-layer-redes
 
 ## 포함 이슈
 
-- **#122**: feat(workflow-harness): new plugin for layer ⑤ execution engine — ⑤실행 레이어 신규 플러그인. `/goal` 루프 엔진 + D11 4종 슬라이스 라우터 + D2 격리 + D5 헌법 시행 지점. OMC `/goal`의 claude-kit 자체 대체 엔진.
+- **#122**: feat(workflow-harness): new plugin for layer ⑤ execution engine — ⑤실행 레이어 신규 플러그인. Claude Code 네이티브(/goal·Workflow·agents·hooks)를 substrate로 한 경량 오케스트레이션 레이어. `/goal` 루프 + D11 4종 슬라이스 라우터 + D2 격리 + D5 헌법 시행 지점. **native 위임 우선** — OMC를 strangler 점진 대체하고 자체 빌드는 native가 못 채우는 gap에 한정(from-scratch 자체 엔진 아님). native가 강해질수록 매몰비용이 아니라 수혜.
 - **#125**: design: 3-tier rule system + guardrails for claude-kit — 3-tier 규칙(default/user-global/project-local) + 병합 우선순위(project>user-global>default) + 안전판 4종(확인게이트·근거첨부·stale재검토·끄기스위치). 헌법/정책 *목록*은 #99 단일 출처 참조만.
 
 ## 완료 조건 (Definition of Done)
@@ -33,7 +35,7 @@ claude-kit 레이어 재설계(`docs/discussions/20260602_claude-kit-layer-redes
 - [ ] `workflow-harness/.claude-plugin/plugin.json` 작성, `.claude-plugin/marketplace.json`에 신규 플러그인 항목 등록(`source: ./workflow-harness/`)
 - [ ] `/goal` 루프 엔진(스킬 또는 슬래시 커맨드): goal-doc parse → 슬라이스 진행 → 결과 훅 트리거 흐름 구현
 - [ ] D11 4종 슬라이스→스킬 바인딩 라우터:
-  - 기능개발 full = spec → impl(executor) → critique(code-reviewer/verifier) 전체 슬라이스
+  - 기능개발 full = spec → impl → critique 전체 슬라이스(각각 별도 스킬). impl은 native agents 위임/스킬 인벤토리(#133) 우선 판정 — native·기존 leaf로 충분하면 신설 안 함, 못 채우는 gap만 thin하게(예시 바인딩: impl=executor, critique=code-reviewer/verifier)
   - 버그수정 경량 = goal-doc 생략, debug 슬라이스 직행
   - 의사결정 = 실행 없음(expert-panel/adversarial-review 산출만)
   - 문서작성 = 출력 전용(doc-concretize/doc-polish/spec-first 바인딩)
@@ -66,7 +68,7 @@ claude-kit 레이어 재설계(`docs/discussions/20260602_claude-kit-layer-redes
 |------|--------|------|------|
 | **착수 게이트** | (a) 지금 착수 (b) G1+G2(=#99 경계, #100 goal-doc spec) 완료 후 | **(b) 게이트** | #100이 LINCHPIN. goal-doc 스키마 없이 parse/exec 구현 불가. status=gated 유지, G1·G2 머지 후 ready 전환 |
 | **`/goal` 엔진 형태** | (a) 슬래시 커맨드 (b) SKILL.md 스킬 (c) 둘 다(커맨드=엔트리, 스킬=레시피) | **(c)** | vault-bridge 패턴(`disable-model-invocation: true` 커맨드 + reference recipe) 검증됨. 커맨드가 contract surface, 스킬이 실행 본문 |
-| **parse/exec 주체** | (a) OMC `/goal`이 파싱, claude-kit은 leaf만 (b) workflow-harness가 자체 파싱·실행 | **(b)** 단 OMC 공존 허용 | #122 비고: "OMC 없이도 동작"이 D1 경유지. U-5 통합 계약 미확정이므로 OMC를 깨지 않는 범위에서 자체 엔진 추가(대체이지 제거 아님) |
+| **parse/exec 주체** | (a) Claude Code 네이티브 `/goal`·Workflow에 위임 + OMC 공존 (b) workflow-harness가 from-scratch 자체 파싱·실행 엔진 | **(a) native 위임 우선, gap만 thin하게 자체** | 단기는 네이티브 `/goal`·Workflow + OMC 공존, 장기는 native substrate 위 경량 하네스가 strangler로 점진 흡수. **native 위임 우선** — 자체 빌드는 native가 못 채우는 gap(헌법 invariant enforcement 등)에 한정. 동작 중인 OMC 전면 교체(from-scratch 엔진)는 lock-in 실측 증거 0건 + native supersession 매몰비용으로 기각(adversarial strong-form 기각). 어떤 capability를 native가 대체/위임하고 무엇이 gap인지는 #132 substrate 매핑이 선행 확정 |
 | **3-tier 병합 시점** | (a) goal-doc 파싱 단계 (b) 슬라이스 실행 직전 매번 | **(a)** | #125 본문이 "병합 지점 = goal-doc 파싱 단계"로 명시. 매 슬라이스 재병합은 비용·비결정성 증가 |
 | **user-global 규칙 읽기** | (a) harness가 직접 vault read (b) vault-searcher(haiku) 경유 | **(b)** | #125 명시 + vault-bridge pre-access-guard가 직접 접근에 warning 발생. read-only haiku 경유가 비용·정책 양쪽 부합 |
 | **헌법 끄기** | (a) 강제 불가(코드 레벨 차단) (b) 경고만 | **(a) 차단** | D5 "헌법 불변". 끄기 스위치는 user-rule(정책)에만, 헌법은 어느 tier도 override·disable 불가 |
@@ -131,6 +133,10 @@ python3 vault-bridge/scripts/test/test-discover.py 2>&1 | tail -1   # Expected: 
 - **depends_on=[G1, G2] (hard gate)**:
   - **G1(#99 경계 A + Design Principles)**: harness↔leaf 단방향 경계와 헌법/정책 *목록*의 단일 출처. S4(헌법 시행)·S5(격리)가 이 목록을 *참조*해야 하므로 G1 머지 전 착수 불가. 본 doc은 목록을 **재정의하지 않고 참조만** 해요(#125 Acceptance 강제 조항).
   - **G2(#100 goal-doc spec, LINCHPIN)**: goal-doc 스키마 + 슬라이스 바인딩 표기 + parse/exec 인터페이스. 이게 없으면 S2(엔진)·S3(tier 선언 필드 연결) 구현 불가. **status=gated** 유지, G2 머지 직후 ready 전환.
+- **신설 이슈 연계(native-substrate 방향)**:
+  - **#132 (OMC→native substrate 매핑 + strangler 경로, 선행 권장)**: 어떤 OMC capability를 native(/goal·Workflow·agents·hooks)가 대체/위임하고 무엇이 gap으로 남는지 확정해야 #122 thin 레이어(S2 엔진·S5 격리) 범위가 정해져요. native가 이미 제공하는 걸 자체 빌드하지 않도록 게이트 역할.
+  - **#133 (⑤ 실행 스킬 인벤토리)**: D11 4종 라우터의 기능개발 full = spec → impl → critique 각 단계의 구체 스킬 귀속(재사용/native위임/신설)을 확정. S2 라우터 바인딩이 이 인벤토리와 정합해야 해요.
+  - **#134 (검증 게이트 체인)**: 프리커밋 린터·슬라이스 critique·프리푸시 quality·retro 자동 게이트를 harness가 오케스트레이션. S5 격리 critique invariant가 슬라이스 게이트로 쓰여요.
 - **크로스청크 게이트**: #105(thought-chain dissolve)가 goal-doc 레시피 바인딩 표기를 확정한 뒤 harness가 그 레시피의 런타임이 됨(#122 비고). #105가 본 wave 밖이면 thought-chain 흡수는 본 doc 범위에서 제외하고, 라우터는 generic 4종 워크타입까지만 커버.
 - **착수 조건 체크리스트**: ① `docs/plans/goal-docs/G1-*.md` 머지됨 → Design Principles 목록 참조 가능 ② `docs/plans/goal-docs/G2-*.md` 머지됨 → goal-doc 스키마·tier 선언 필드명 확정 ③ 두 조건 충족 시 본 doc front-matter `status: gated → ready` 전환 후 S1 착수.
 - **leaf 무수정 불변**: 어떤 슬라이스도 thinking-tools/obsidian-vault-manager/vault-bridge 디렉토리를 수정하지 않아요. 필요하면 harness 측에서 leaf를 *호출*만 해요(단방향). 위반 시 E2E 검증 (4)에서 잡힘.

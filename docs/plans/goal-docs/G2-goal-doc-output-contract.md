@@ -22,6 +22,8 @@ created: 2026-06-03
 
 가치의 핵심은 SUMMARY.md C-5가 말하듯 **신규 스킬이 아니라 균일한 출력 어댑터 계약**이에요. net-new는 ≤2개(아마 issue-authoring 정도)로 최소화하고, 나머지는 전부 기존 자산을 *조립*하는 계약을 쓰는 거예요.
 
+parse/exec 주체 결정은 native-substrate 방향을 따라요. 단기는 Claude Code 네이티브 `/goal`·Workflow + OMC 공존, 장기는 native substrate 위 경량 하네스가 strangler로 점진 흡수예요. **native 위임 우선** — claude-kit 자체 from-scratch 실행 엔진은 native가 못 채우는 gap(헌법 invariant enforcement 등)에 한정해요. 이 방향은 `docs/adversarial-review/2026-06-03-harness-ownership.md`에서 strong-form(전면 OMC 자체 대체)이 기각된 뒤 채택된 narrow path예요.
+
 **메타 (dogfooding)**: 지금 작성 중인 이 goal-doc 자체가 #100 스키마의 첫 레퍼런스 구현이에요. 작성하면서 발견한 유용한/불필요한 필드는 #100 스펙 권고에 그대로 반영해야 해요(아래 S1 참조).
 
 ## 포함 이슈
@@ -34,8 +36,8 @@ created: 2026-06-03
 
 #100 (Acceptance: "스키마 + 바인딩 표기 + parse/exec 인터페이스 결정된 spec doc"):
 - [ ] goal-doc **스키마** spec doc 작성 — frontmatter 필드(goal_id, title, issues, wave, depends_on, recommended_model, status, created) + 본문 섹션 5종(배경/목적, 완료조건, 쟁점/트레이드오프, 슬라이스 순서, E2E 자가검증)의 의미·필수성·작성 규칙을 못박음.
-- [ ] **슬라이스→스킬 바인딩 표기법** 확정 — 각 슬라이스가 `바인딩: <skill/agent>` 형태로 실행 주체를 명시하는 표기 규칙 + 기본 바인딩(spec-impl-critique / debug 등) 정의.
-- [ ] **parse/exec 인터페이스** 결정 — 누가 goal-doc을 파싱·실행하는지(OMC `/goal` vs claude-kit) 명문화. 근거: Claude Code `/goal`은 session-scoped Stop hook이고 셸에서 mutate 불가 → 실행 주체는 in-session 액티브 에이전트, claude-kit은 goal-doc을 *생성*만 하는 leaf capability(경계 A 정합).
+- [ ] **슬라이스→스킬 바인딩 표기법** 확정 — 각 슬라이스가 `바인딩: <skill/agent>` 형태로 실행 주체를 명시하는 표기 규칙 + 기본 바인딩 정의. 기능개발 full 슬라이스는 `spec → impl → critique` 순으로 **각각 별도 스킬**(2026-06-03 결정 — 단일 "spec-impl-critique" 표기 아님). 각 단계의 구체 스킬 귀속(재사용/native위임/신설)은 ⑤ 스킬 인벤토리(#133)가 확정하므로 그 표기와 정합하게 둠.
+- [ ] **parse/exec 인터페이스** 결정 — 누가 goal-doc을 파싱·실행하는지 명문화. native-substrate 방향: 단기는 Claude Code 네이티브 `/goal`·Workflow + OMC 공존, 장기는 native substrate 위 경량 하네스가 strangler로 점진 흡수. **native 위임 우선** — 자체 빌드는 native가 못 채우는 gap에 한정. 근거: Claude Code `/goal`은 session-scoped Stop hook이고 셸에서 mutate 불가 → 실행 주체는 in-session 액티브 에이전트, claude-kit은 goal-doc을 *생성*만 하는 leaf capability(경계 A 정합).
 - [ ] 이 G2 goal-doc 자체를 dogfooding 레퍼런스로 인용하고, 작성 중 발견한 필드/패턴(예: `status: gated`의 게이트 표기, 쟁점 표의 backlog 처리)을 스펙 권고에 반영.
 
 #101 (Acceptance: "계약 doc + 포맷×동작 매트릭스 + net-new gap 목록"):
@@ -57,7 +59,7 @@ created: 2026-06-03
 
 | 쟁점 | 선택지 | 권장 | 근거 |
 |------|--------|------|------|
-| parse/exec 주체 (#100) | (a) OMC `/goal`이 파싱·실행 (b) claude-kit이 자체 실행 엔진 보유 | **(a)** | `/goal`은 session-scoped Stop hook — 셸에서 mutate 불가, 실행은 in-session 액티브 에이전트만 가능(ultragoal SKILL `Important_Limitations` 확인). 경계 A(claude-kit=leaf capability, OMC=⑤실행)와 정합. claude-kit이 실행 엔진을 가지면 OMC ⑤ 중복 + 버전 동기화 표면 폭발(C-1이 옵션 B를 기각한 바로 그 이유). |
+| parse/exec 주체 (#100) | (a) Claude Code 네이티브 `/goal`·Workflow에 위임 + OMC 공존 (b) claude-kit이 from-scratch 자체 실행 엔진 보유 | **(a) native 위임 우선, 자체 빌드는 gap 한정** | 단기는 네이티브 `/goal`·Workflow + OMC 공존, 장기는 native substrate 위 경량 하네스가 strangler로 점진 흡수. `/goal`은 session-scoped Stop hook — 셸에서 mutate 불가, 실행은 in-session 액티브 에이전트만 가능(ultragoal SKILL `Important_Limitations` 확인). 경계 A(claude-kit=leaf capability, harness=⑤실행)와 정합. **native 위임 우선** — 자체 빌드는 native가 강제 못 하는 invariant(헌법) enforcement 등 gap에 한정. 동작 중인 OMC를 from-scratch 엔진으로 전면 교체하는 건 lock-in 실측 증거 0건 + native supersession 매몰비용으로 기각(`docs/adversarial-review/2026-06-03-harness-ownership.md` strong-form 기각). |
 | 출력 레이어 물리 구조 (#101↔#102) | (a) 단일 플러그인 (b) 논리적 계약(분산) | **(b) 잠정 — #102 게이트** | graphify·OVM·spec-first가 이미 각자 플러그인. 단일 신설은 중복+이동 비용(U-2 잠정 우세=분산). G2는 "논리적 계약(어댑터 인터페이스)"을 설계하되 물리 구조 확정은 #102(G3 wave)로 넘김. **#101 Acceptance는 #102 결정 없이도 충족 가능**(계약은 구조 독립적). |
 | spec-first 명명/포지셔닝 (#111-1) | (a) build-spec로 개명 (b) 현 이름 유지 (c) goal-doc 출력 스킬로 흡수 | **결정 게이트 — #100/#102에 배정** | "spec-first"는 방법론 이름이라 동작·시점이 불명(#111-1 원문). 재설계에서 spec-first=goal-doc 출력 스킬(②). 명명 자체는 #100 포지셔닝 결정의 하류 — G2에서 "②의 goal-doc 산출 어댑터로 포지셔닝" 결정을 내리고, 물리적 개명/이동은 #102 결과에 게이트. |
 | net-new 출력 스킬 개수 (#101) | (a) 0개(전부 조립) (b) 1~2개(issue-authoring 등) | **(b) ≤2, issue-authoring 후보** | C-5 만장일치 = "신설 최소화". gh CLI 매핑이 있으나 issue 본문 *저작*(템플릿·라벨·중복검출)은 빈틈. 단 net-new는 gap이 입증될 때만 — 무근거 신설 금지. |
@@ -68,7 +70,7 @@ created: 2026-06-03
 
 1. **S1 dogfooding 스키마 추출** → 바인딩: 직접(메인 컨텍스트, 본 G2 작성 경험) | 대상 파일: (분석만, 산출은 S2) | 산출: 이 G2 goal-doc 작성 중 실제로 쓴 frontmatter 필드 + 본문 섹션 + `status: gated` 게이트 표기 + 쟁점 표의 backlog/게이트 처리 패턴의 목록 | 검증: 각 필드가 하류 실행에 실제 필요한지(없으면 정보 손실?) 자문. dogfooding이라 별도 도구 불필요.
 
-2. **S2 goal-doc 스키마 spec doc 저작** → 바인딩: doc-concretize (구조화 저작) | 대상 파일: `docs/design/goal-doc-spec.md` (신규) | 산출: frontmatter 8필드 + 본문 5섹션 스키마 정의 + 슬라이스→스킬 바인딩 표기법 + 기본 바인딩 카탈로그 + parse/exec 인터페이스(주체=OMC `/goal`, claude-kit=생성 leaf) | 검증: S1 dogfooding 필드 전부 반영됐는지 체크리스트.
+2. **S2 goal-doc 스키마 spec doc 저작** → 바인딩: doc-concretize (구조화 저작) | 대상 파일: `docs/design/goal-doc-spec.md` (신규) | 산출: frontmatter 8필드 + 본문 5섹션 스키마 정의 + 슬라이스→스킬 바인딩 표기법(spec → impl → critique 각각 별도 스킬; 귀속은 #133 인벤토리 정합) + parse/exec 인터페이스(native 위임 우선 — 네이티브 `/goal`·Workflow + OMC 공존, 점진 흡수, claude-kit=생성 leaf) | 검증: S1 dogfooding 필드 전부 반영됐는지 체크리스트.
 
 3. **S3 출력 어댑터 계약 + 매핑표 저작** → 바인딩: doc-concretize | 대상 파일: `docs/design/output-adapter-contract.md` (신규) | 산출: 균일 호출 인터페이스(intent/format/payload/destination → artifact path + status) + 포맷×동작 매트릭스(8매핑) + net-new gap 목록(≤2) | 검증: 8개 매핑이 전부 기존 자산(graphify/OVM note/spec-first/`/handoff`/`/save-session`/doc-concretize/doc-polish/gh)을 가리키는지 + gap이 ≤2개인지.
 
