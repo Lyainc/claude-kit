@@ -5,7 +5,7 @@ issues: [100, 101, 111]
 wave: 2
 depends_on: [G1]
 recommended_model: opus
-status: gated
+status: ready
 created: 2026-06-03
 ---
 
