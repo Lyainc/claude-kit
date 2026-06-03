@@ -7,6 +7,7 @@ depends_on: [G1]
 recommended_model: opus
 status: ready
 created: 2026-06-03
+work_type: doc-only
 ---
 
 # G2 — goal-doc 스펙 + 출력 어댑터 계약 + spec-first reconcile
