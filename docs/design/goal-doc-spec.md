@@ -117,7 +117,7 @@ placeholder    := "<#" issue-no ">"                       # 미확정 타겟(#13
 candidate-or   := skill-id ("|" skill-id)+ "(#" issue-no ")" # 후보 OR + 확정 이슈 — 예: executor|native(#133)
 ```
 
-> `placeholder`와 `candidate-or`는 둘 다 **INV-4 비검증 대상**이에요(타겟 resolution은 #133/라우터 런타임 책임). 파서는 슬라이스에 바인딩 *식이 존재*하는지만 봐요.
+> `placeholder`(`<#133>`)는 **후보 스킬조차 미정**(완전 TBD)일 때, `candidate-or`(`executor|native(#133)`)는 **후보는 정해졌고 확정만 #133 대기**일 때 써요. 둘 다 **INV-4 비검증 대상**이에요(타겟 resolution은 #133/라우터 런타임 책임) — 파서는 슬라이스에 바인딩 *식이 존재*하는지만 봐요.
 
 - placeholder는 **#133 인벤토리가 확정할 귀속**을 표기해요. INV-4는 구조(바인딩 존재)만 검증하고 타겟 스킬의 실재(resolution)는 검증 안 해요 — resolution 실패는 라우터 런타임 책임(#122)이지 스키마 검증 책임이 아니에요. (consensus: placeholder ↔ INV-4 충돌 없음 = survived.)
 
@@ -235,7 +235,7 @@ goal-doc 파서는 이 스키마로 다음을 **결정적 검증**해요:
 
 ### 6.3 dogfooding 표본 범위 한정 (정직성 — consensus 반영)
 
-> **false confidence 차단**: G2를 (work_type을 사후 분류하면) doc-only에 해당하는 표본이에요(doc-concretize 바인딩). 단 G2 작성 시점엔 `work_type` 필드 자체가 없었어요 — 코퍼스 12종(G1~G12) 전부 work_type 미보유(이 필드는 consensus 게이트가 신설). 그 **부재**가 §1.2 결함을 dogfooding만으로 못 잡은 직접 증거예요. 따라서 G2 dogfooding이 *직접* 검증하는 건 **doc-only류 워크타입의 스키마 적합성**까지고, 가장 복잡한 **feature-full**(spec→impl→critique 3단계 + 산출 패싱) 워크타입의 e2e 검증은 **#122 P4의 "feature-dev goal-doc 1개 e2e dogfood"**(`omc-to-native-substrate.md` §5 P4)로 명시 이관해요. G1/G6 등이 executor 바인딩으로 부분 표본을 주지만 그건 별도 청크 작성이지 G2 dogfooding이 아니에요. §1.2 work_type 결함이 doc-only류 표본 자가검증만으로는 안 잡히고 consensus 게이트에서 잡힌 게 이 한정의 증거예요.
+> **false confidence 차단**: G2를 (work_type을 사후 분류하면) doc-only에 해당하는 표본이에요(doc-concretize 바인딩). 단 G2 *작성 시점*엔 `work_type` 필드 자체가 없었어요 — consensus 게이트 이전 코퍼스 G1~G12 초안 전부 미보유였고(이 필드는 게이트가 신설), 그 **부재**가 §1.2 결함을 dogfooding만으로 못 잡은 직접 증거예요. 스펙 확정 후 레퍼런스 G2엔 `work_type: doc-only`를 부여했고, **나머지 G1·G3~G12의 work_type 부여(마이그레이션)는 INV-4 파서 도입(#122 P2~P3)의 선행 요건**이에요. 따라서 G2 dogfooding이 *직접* 검증하는 건 **doc-only류 워크타입의 스키마 적합성**까지고, 가장 복잡한 **feature-full**(spec→impl→critique 3단계 + 산출 패싱) 워크타입의 e2e 검증은 **#122 P4의 "feature-dev goal-doc 1개 e2e dogfood"**(`omc-to-native-substrate.md` §5 P4)로 명시 이관해요. G1/G6 등이 executor 바인딩으로 부분 표본을 주지만 그건 별도 청크 작성이지 G2 dogfooding이 아니에요. §1.2 work_type 결함이 doc-only류 표본 자가검증만으로는 안 잡히고 consensus 게이트에서 잡힌 게 이 한정의 증거예요.
 
 ---
 
