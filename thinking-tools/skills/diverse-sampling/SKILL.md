@@ -14,7 +14,9 @@ description: |
 
   Routing: factual questions, single-answer tasks, and code/query work (debugging OR
   enhancement) fall outside both modes — Mode B authors prose, not code — so recommend a
-  standard response instead.
+  standard response instead. For plain concretization without diverse framing, use
+  doc-concretize directly; Mode B is for when multiple authoring directions should be
+  explored first.
 model: sonnet
 allowed-tools: AskUserQuestion Skill
 ---
@@ -101,6 +103,14 @@ Options:
 Mode B triggers are implicit — confirm before running, since Mode B consumes more tokens
 (diverse generation + doc-concretize authoring).
 
+> **On the broad `enhance` trigger**: `enhance` is a common English verb, so it can match
+> code/structure requests too. This is safe **by design** — Mode B has no explicit
+> immediate-execution path, so every match is confirmation-gated, and Phase 0's Use Case
+> Validation routes clear code targets to a standard response *before* any prompt. A broad
+> match therefore costs at most a decline-able confirmation, never a wrong action. The
+> `enhance` trigger is intentional (required by the Mode B spec); the implicit gating is the
+> safeguard that makes its breadth harmless.
+
 **Mode B Confirmation Prompt** (via AskUserQuestion):
 ```
 작성 다양성 향상(Verbalized Sampling → doc-concretize)을 적용할까요?
@@ -135,6 +145,9 @@ Options:
      response **immediately, with no confirmation prompt** (applies to Mode A and Mode B alike
      — neither runs VS generation nor the doc-concretize sub-call for excluded inputs).
      Gating here, before step 4, means an excluded input never triggers a wasted confirmation.
+   - Ambiguous target type (README, JSON/SQL schema, outline — prose or structure?) → do NOT
+     auto-exclude; let step 4's confirmation prompt disambiguate (Mode B = prose authoring; if
+     the user wants structural/code edits instead, they decline → standard response)
 
 4. **Invocation Type Check / Confirmation**
    - Explicit Mode A trigger (`/diverse-sampling`, "VS 기법으로", …) → proceed to Phase 1
@@ -234,6 +247,7 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
   - **Template adaptation**: reuse the Phase 1 VS template (see [reference.md](reference.md)),
     but instruct each `<text>` to hold a *one-paragraph approach/outline* (framing + section
     skeleton), not a finished answer. Probability and tail-sampling mechanics are unchanged.
+  - **k**: same count rule as Mode A ("N개 만들어줘" → default 5, range 3–10).
 - Parse the k directions exactly as Phase 1, with the same Fallback Mechanism on parse
   failure.
 
@@ -259,13 +273,15 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
 
 - Sub-call the intra-plugin **`doc-concretize`** skill (same plugin — see
   [doc-concretize](../doc-concretize/SKILL.md)) via the **Skill** tool. Pass the selected
-  direction's text as the Skill call's topic/seed argument; doc-concretize authors the full
-  structured document through its recursive-concretization workflow.
+  direction's text as the Skill call's topic/seed argument — `Skill args: topic = {direction
+  outline text}` (plain text, ≤1 paragraph). doc-concretize authors the full structured
+  document through its recursive-concretization workflow.
 - This is a one-way ①→② handoff: diverse-sampling (① cognition — diversity generation) feeds
   doc-concretize (② output — authored markdown). diverse-sampling does **not** edit the
   produced document; doc-concretize owns authoring.
 - **Output**: the structured document returned by doc-concretize, followed by a pinned
-  one-line footer (mirroring Mode A's pinned footers; truncate `{selected}` to ~20 chars):
+  one-line footer (mirroring Mode A's pinned footers; use the first 20 characters of
+  `{selected}`):
 
 ```
 ───

@@ -382,6 +382,28 @@ VS 생성과 doc-concretize 하위호출 없이 일반 응답으로 코드를 �
 
 ---
 
+### Example 11: Gray-Zone Target → Confirmation Disambiguates
+
+**User**:
+```
+README enhance해줘
+```
+
+**Assistant** (Mode B trigger present, but target type is ambiguous — prose or structure?):
+```
+[AskUserQuestion — Mode B Confirmation]
+작성 다양성 향상(Verbalized Sampling → doc-concretize)을 적용할까요?
+
+- README를 산문으로 다시 쓰는 작업이면 적용해요
+- 목차·배지·링크 등 구조 편집이면 일반 응답이 더 맞아요
+...
+```
+
+The confirmation prompt resolves the gray zone: if the user wants prose authoring →
+"적용", if they want structural edits → "일반 응답". No silent misfire either way.
+
+---
+
 ## Anti-Patterns (When NOT to Use)
 
 ### Factual Questions
