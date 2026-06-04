@@ -157,7 +157,7 @@ Confirmation: No confirmation needed (non-destructive, editor-only)
 **Purpose**: When brainstorming produces diverse options, use expert panel to evaluate them
 
 ```
-Pattern: User runs /diverse-sampling --all → gets 5+ options
+Pattern: User runs /diverse-sampling with "전부 보여줘" → gets 5+ options
 User says: "이 옵션들을 전문가 토론으로 평가해줘"
 Action: Load diverse-sampling results as expert-panel topics
 ```

@@ -164,7 +164,7 @@ Example:
 - Random r = 0.45 → falls in [0.267, 0.500) → index 1 → response 2
 ```
 
-### Show All (`--all`)
+### Show All ("전부 보여줘")
 
 ```
 Display all responses in table format:
@@ -173,7 +173,7 @@ Display all responses in table format:
 - No selection performed
 ```
 
-### Highest Probability (`--best`)
+### Highest Probability ("제일 나은 것")
 
 ```
 Algorithm:
