@@ -44,7 +44,7 @@ For each dimension, evaluate after receiving the user's answer. Mark Y/N and wri
 
 - Never assign 0.0 (no answer means unknown, not impossible) or 1.0 (always some residual ambiguity).
 - Floor values are hard gates — even if overall Ambiguity ≤ 0.20, a dimension below its floor blocks the gate.
-- For `--quick` mode: evaluate G1-G4 only; gate = Goal ≥ 0.75 (skip other dimensions).
+- For "빠르게" (quick) mode: evaluate G1-G4 only; gate = Goal ≥ 0.75 (skip other dimensions).
 - If user provides a very detailed answer covering multiple dimensions at once: score all relevant dimensions simultaneously.
 
 ---

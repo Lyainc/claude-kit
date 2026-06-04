@@ -106,7 +106,7 @@ At pipeline start, before Stage 1 runs, the orchestrator detects vault state onc
 
 State derived:
 - `vault_linked ∈ {yes, no}`
-- `snapshot_export ∈ {true, false}` (honors `auto_capture` alias)
+- `snapshot_export ∈ {true, false}`
 - `import_allowed` from vault `_index.md` (best-effort read)
 
 The state is held in the pipeline session memory and reused at every vault prompt. This avoids late-stage "actually, this option isn't available" surprises.

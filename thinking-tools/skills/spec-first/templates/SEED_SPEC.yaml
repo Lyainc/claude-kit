@@ -20,7 +20,7 @@ created: <ISO-date>
 target: <idea/project name>
 domain: <tech|biz|creative|custom>
 brownfield: <true|false>
-refine_generation: <0 if first run, N if --refine>
+refine_generation: <0 if first run, N if refining ("이 스펙 다듬어줘")>
 
 goal:
   statement: <single-sentence goal — what changes for whom>

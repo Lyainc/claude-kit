@@ -4,8 +4,8 @@
 
 - [Explicit Invocation](#explicit-invocation)
 - [Implicit Invocation with Confirmation](#implicit-invocation-with-confirmation)
-- [Using --all Option](#using---all-option)
-- [Using --best Option](#using---best-option)
+- [전부 보여줘 (Show All)](#전부-보여줘-show-all)
+- [제일 나은 것 (Best)](#제일-나은-것-best)
 - [Fallback Scenario](#fallback-scenario)
 - [Use Case Examples](#use-case-examples)
 - [Mode B — Enhance (Authoring Diversity)](#mode-b--enhance-authoring-diversity)
@@ -45,7 +45,7 @@ Phase 2:
 자연 친화적이면서도 커피 문화를 강조하는 이름입니다.
 
 ───
-*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
+*5개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*
 ```
 
 ---
@@ -81,7 +81,7 @@ A tagline that acknowledges the connection between physical activity and mental 
 while motivating users to track their progress meaningfully.
 
 ───
-*Diversity-based selection from 5 alternatives · Show all: `--all`*
+*Diversity-based selection from 5 alternatives · Show all: "전부 보여줘"*
 ```
 
 ---
@@ -117,7 +117,7 @@ Options:
 스타트업의 초기 단계지만 시장에 미칠 영향력을 강조합니다.
 
 ───
-*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
+*5개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*
 ```
 
 ---
@@ -151,13 +151,13 @@ Options:
 
 ---
 
-## Using --all Option
+## 전부 보여줘 (Show All)
 
 ### Example 5: Show All Responses
 
 **User**:
 ```
-/diverse-sampling --all 커피 농담 하나 해줘
+/diverse-sampling 커피 농담 하나 해줘 — 전부 보여줘
 ```
 
 **Output**:
@@ -178,13 +178,13 @@ Options:
 
 ---
 
-## Using --best Option
+## 제일 나은 것 (Best)
 
 ### Example 6: Select Highest Probability
 
 **User**:
 ```
-/diverse-sampling --best Suggest a name for my AI writing assistant
+/diverse-sampling Suggest a name for my AI writing assistant — 제일 나은 것
 ```
 
 **Output**:
@@ -250,7 +250,7 @@ Fallback triggered:
 **"매일 밤 11시 47분, 그 아이는 창문 밖에서 손을 흔들었다. 우리 집은 23층인데."**
 
 ───
-*5개 대안 중 다양성 기반 선택 · 전체 보기: `--all`*
+*5개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*
 ```
 
 ---
@@ -259,7 +259,7 @@ Fallback triggered:
 
 **User**:
 ```
-/diverse-sampling --all 재택근무자를 위한 새로운 앱 기능 아이디어
+/diverse-sampling 재택근무자를 위한 새로운 앱 기능 아이디어 — 전부 보여줘
 ```
 
 **Output**:
@@ -295,7 +295,7 @@ A headline that transforms the simple act of drinking water into environmental a
 creating emotional resonance with eco-conscious consumers.
 
 ───
-*Diversity-based selection from 5 alternatives · Show all: `--all`*
+*Diversity-based selection from 5 alternatives · Show all: "전부 보여줘"*
 ```
 
 ---
