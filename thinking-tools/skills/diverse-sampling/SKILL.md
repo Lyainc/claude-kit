@@ -12,8 +12,9 @@ description: |
   diverse ideas, brainstorming, alternatives, verbalized sampling,
   글로 발전시켜줘, 더 구체적으로 작성해줘, enhance, 작성 다양성.
 
-  Routing: factual questions, single-answer tasks, and code debugging fall outside both
-  modes — recommend a standard response instead.
+  Routing: factual questions, single-answer tasks, and code/query work (debugging OR
+  enhancement) fall outside both modes — Mode B authors prose, not code — so recommend a
+  standard response instead.
 model: sonnet
 allowed-tools: AskUserQuestion Skill
 ---
@@ -119,13 +120,17 @@ Options:
 1. **Mode Determination**
    - Mode B trigger detected (글로 발전시켜줘 / 더 구체적으로 작성해줘 / enhance / 작성 다양성) → **Mode B (Enhance)**
    - Explore trigger or `/diverse-sampling` → **Mode A (Explore)**
-   - Ambiguous (e.g. "다양하게 써줘") → ask via AskUserQuestion which mode fits
+   - Ambiguous (e.g. "다양하게 써줘") → ask via a **single** AskUserQuestion that offers Mode A
+     vs Mode B *and* states Mode B's higher token cost. The user's pick resolves the mode
+     **and doubles as confirmation** — do not prompt again in step 2.
 
 2. **Invocation Type Check**
-   - Explicit trigger detected → proceed to generation (Mode A → Phase 1)
-   - Implicit trigger or Mode B trigger detected → call AskUserQuestion for confirmation
-   - Ambiguity resolved in step 1 → treat as the chosen mode's implicit path (confirm before running)
-   - User declines → generate standard response and exit
+   - Explicit Mode A trigger (`/diverse-sampling`, "VS 기법으로", …) → proceed to Phase 1
+   - Implicit Mode A trigger → call AskUserQuestion for confirmation
+   - Mode B trigger → call AskUserQuestion for Mode B confirmation
+   - Mode already resolved via step 1's disambiguation question → already confirmed; proceed
+     with no second prompt
+   - User declines any confirmation → generate standard response and exit
 
 3. **Language Detection**
    - Analyze input language
@@ -223,6 +228,9 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
 - Apply the VS prompt template to generate k distinct **authoring directions** for the
   writing task (framing, structure, angle, tone) — not finished prose, but distinct
   approaches — each with a probability via tail sampling (same mechanism as Phase 1).
+  - **Template adaptation**: reuse the Phase 1 VS template (see [reference.md](reference.md)),
+    but instruct each `<text>` to hold a *one-paragraph approach/outline* (framing + section
+    skeleton), not a finished answer. Probability and tail-sampling mechanics are unchanged.
 - Parse the k directions exactly as Phase 1, with the same Fallback Mechanism on parse
   failure.
 
@@ -232,6 +240,15 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
   highest-probability direction; "전부 보여줘" presents all k directions as a table **and then
   asks which one to author** — unlike Mode A's "Show All" (which displays and stops), Mode B
   must converge on a single direction for the doc-concretize handoff.
+
+  **Direction-pick prompt** (after "전부 보여줘", via AskUserQuestion):
+```
+어느 방향으로 작성할까요?
+
+1. {direction 1 한 줄 요약}
+2. {direction 2 한 줄 요약}
+... ({k}개 방향)
+```
 - The selected direction becomes the seed for authoring.
 
 ### Phase 3-B: Concretization Handoff
@@ -309,6 +326,8 @@ Respond in JSON array format:
 
 - Factual questions ("What is the capital of Korea?")
 - Code debugging/fixing
+- Code/query/logic enhancement or optimization (e.g. "이 쿼리 enhance해줘") — Mode B authors
+  prose, not code, so a bare "enhance" on a code target routes here
 - Tasks with single correct answer
 - Precise calculations/analysis
 - Security-sensitive operations
