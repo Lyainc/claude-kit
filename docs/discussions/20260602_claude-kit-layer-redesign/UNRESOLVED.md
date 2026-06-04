@@ -19,10 +19,14 @@
 - **비대칭 재확인**: concretize=구조화 저작(인지 코어), polish=린트. 한 칸에 묶을 근거 약함.
 - **판단 보류 사유**: ② 출력 레이어가 "단일 플러그인 vs 분산"으로 먼저 결정돼야 행선지가 따라옴 (U-2 의존).
 
+> **RESOLVED via #102 (2026-06-04)**: 행선지 = **in-place reframe**(doc-concretize/doc-polish는 thinking-tools 잔류, 역할만 재정의). 분산=논리 계약이라 물리 이동 불필요 — `docs/design/output-layer-structure-adr.md` §2.5. 방향은 #102가 지정, 물리 실행은 #103.
+
 ## U-2. ② 출력 레이어 = 단일 플러그인 vs 분산 (TOPIC 2·5 파생)
 
 html/md/issue/note/goal-doc은 이질적이라 응집도가 의문(PA). graphify(html)·OVM(note)·spec-first(goal-doc)는 *이미 각자 플러그인/스킬*. ②를 새 단일 플러그인으로 묶으면 기존과 중복·이동 비용. 분산 유지하면 "출력 레이어"는 물리적 플러그인이 아니라 *논리적 계약*(출력 어댑터 인터페이스)일 뿐.
 - **잠정 우세**: 논리적 계약(분산) — 기존 자산 재배치 최소화. 단 미확정.
+
+> **RESOLVED (2026-06-04, #102)**: **분산(논리 계약)** 채택 확정 — `docs/design/output-layer-structure-adr.md`. 단일·전체/부분 OVM-fold 기각, load-bearing 근거 = C-2(thin 약한 응집 금지). "출력 레이어"의 실체 = 물리 플러그인이 아니라 #101 논리 어댑터 계약.
 
 ## U-3. goal-doc 포맷 및 슬라이스-스킬 바인딩 스펙 (TOPIC 3 핵심 glue)
 
