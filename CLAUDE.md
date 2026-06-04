@@ -149,6 +149,10 @@ python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
 python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
 # Expected: OK: all 8 cases passed
 
+# E2 auto-fix tag inference regression (#127)
+python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test
+# Expected: OK: all 6 infer-tags cases + E2 auto-fix simulation passed
+
 # audit DoD 측정 (mechanical reference impl)
 # gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py
 # and patches access_count=5 for the E8 access-target seed.
@@ -168,6 +172,8 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py \
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []
 #   dod.e3_with_suggestion >= 5    (E3 권장 파일명 present); dod.e5_with_candidates > 0
+#   dod.e2_tags_missing = 10; dod.e2_with_inferred_tags = 10   (#127 — every E2
+#     tags-missing finding carries a deterministic inferred tag proposal)
 # Note: dod.priority_counts is informational only (P1 includes existing
 # fixture inbox captures with old created: dates, varies by run date).
 ```
