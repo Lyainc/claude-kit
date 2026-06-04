@@ -549,6 +549,7 @@ for t in sorted(tag_files):
         seen.add(t); seen.add(plural)
 
 # E9b — camelCase vs snake_case property keys.
+# E9b: no `seen` set needed — each camelCase key has exactly one snake_case form.
 for camel in sorted(key_files):
     if not CAMEL_RE.search(camel):
         continue
