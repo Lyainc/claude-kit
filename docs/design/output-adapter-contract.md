@@ -174,6 +174,8 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 | (정합) `goal-doc-spec` §3.5 산출 체이닝 런타임 계약 | §3(`artifact_path(N)→payload(N+1)` + 타입 호환) |
 | (정합) #133 issue-authoring 경계 중복 0 | §5.2(소유권 분할표) |
 
+> 위 표의 처음 3행은 **#101 이슈 Acceptance 기준**(계약 doc·매트릭스·gap 목록)이고, `(정합)` 표시 2행은 하류 스펙(§3.5·#133)과의 **추가 정합 확인** 항목이에요 — 이슈 Acceptance가 아니라 본 PR이 추가로 닫은 경계 정합이에요.
+
 ---
 
 **참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·② 레이어 표·issue ② 귀속 line 25/38) · `docs/design/goal-doc-spec.md`(§3.2 토큰 문법·§3.4 조건분기·§3.5 산출 체이닝·§3.6 work_type 기본 바인딩) · `docs/design/omc-to-native-substrate.md`(§4.1 Gap-ROUTE) · `docs/design/execution-skill-inventory.md`(#133 issue-authoring 귀속) · `docs/plans/goal-docs/G2-goal-doc-output-contract.md`(S3 어댑터 슬라이스) · `docs/discussions/20260602_claude-kit-layer-redesign/SUMMARY.md`(C-5) · #99/#100/#102/#111/#122/#133.
