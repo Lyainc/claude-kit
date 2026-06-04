@@ -47,6 +47,28 @@ EVENT_TYPE="${1:-}"
 PAYLOAD="$(cat 2>/dev/null || printf '{}')"
 [ -n "$PAYLOAD" ] || PAYLOAD='{}'
 
+# --- 3b. Optional raw-payload capture (dogfooding instrument) ---------------
+# Gate: CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1. When set, append the raw stdin
+# payload (verbatim, one JSON object per line) to a per-event-type dump file
+# under events/raw/. This is the #153 dogfooding hook: enable it for ONE real
+# session, end a turn, then inspect events/raw/stop.jsonl to confirm the actual
+# Stop hook payload shape (in particular whether turn token totals live under
+# `.usage.*` — see extract_stop_meta's TODO below). Silent + best-effort: any
+# failure (mkdir, write) falls through without affecting the logging path.
+# Like VAULT_BRIDGE_DUMP_PAYLOAD (README "History"), this is a temporary
+# instrument — disable it once the real shape is confirmed.
+if [ "${CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD:-}" = "1" ]; then
+  RAW_DIR="${LOG_DIR}/raw"
+  if mkdir -p "$RAW_DIR" 2>/dev/null; then
+    # Compact to a single line so the dump file stays one-payload-per-line even
+    # if the hook delivers pretty-printed JSON. jq failure (non-JSON) → raw
+    # bytes are still captured so a malformed payload is not silently lost.
+    DUMP_LINE="$(printf '%s' "$PAYLOAD" | jq -c . 2>/dev/null)"
+    [ -n "$DUMP_LINE" ] || DUMP_LINE="$PAYLOAD"
+    printf '%s\n' "$DUMP_LINE" >> "${RAW_DIR}/${EVENT_TYPE}.jsonl" 2>/dev/null || true
+  fi
+fi
+
 # --- 4. Common fields ------------------------------------------------------
 TS="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 SESSION_ID="$(printf '%s' "$PAYLOAD" | jq -r '.session_id // empty' 2>/dev/null || true)"
@@ -99,11 +121,27 @@ extract_end_meta() {
 # Code Stop hook payload — it was an educated guess, not confirmed against live
 # data (no live stop events were available at authoring time). It is currently
 # exercised only against SYNTHETIC payloads (scripts/test/test-event-logger.sh).
-# To confirm the real shape: run a session with CLAUDE_KIT_TELEMETRY=1, inspect a
-# real Stop payload (e.g. log the raw stdin of this hook to a temp file, or check
-# Claude Code's Stop hook schema docs), and adjust `.usage` to the real key path
-# if it differs (candidates: `.turn_usage`, `.message.usage`, top-level token
-# fields). Do NOT blind-edit the live path until a real payload confirms it.
+#
+# WHAT MUST BE VERIFIED against a real Stop payload (resolves #153 Item 1):
+#   1. Does the Stop hook payload carry per-turn token usage AT ALL? (It may
+#      not — Stop fires when Claude finishes responding; the schema may expose
+#      no token totals, in which case this extractor should stay {} and the
+#      dogfooding finding is "Stop carries no usage; drop turn-token telemetry".)
+#   2. IF it does, WHICH key path holds it? Confirm `.usage.input_tokens` /
+#      `.usage.output_tokens` against the real shape, OR switch to the actual
+#      path. Documented candidates: `.usage.*` (current guess), `.turn_usage.*`,
+#      `.message.usage.*`, or top-level token fields.
+#   3. Are the field NAMES `input_tokens`/`output_tokens` (matching tool_response
+#      usage), or does Stop use different names (e.g. cumulative `*_token_count`)?
+#
+# HOW TO CAPTURE the real payload (no live stop data exists at authoring time):
+#   export CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1
+#   # run ONE real session, let a turn end, then:
+#   jq . telemetry/events/raw/stop.jsonl
+# (the §3b dump block above writes the verbatim Stop stdin there). Once the real
+# shape is confirmed, adjust `.usage`/field names here AND sync the expected
+# values in scripts/test/test-event-logger.sh, then delete this TODO.
+# Do NOT blind-edit the live path until a real payload confirms it.
 extract_stop_meta() {
   local payload="$1"
   printf '%s' "$payload" | jq -c '
