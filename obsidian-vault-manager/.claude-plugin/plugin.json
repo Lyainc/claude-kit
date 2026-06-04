@@ -1,7 +1,7 @@
 {
   "name": "obsidian-vault-manager",
-  "version": "0.18.0",
-  "description": "Obsidian vault knowledge management plugin (v4): capture / note / audit skills + 2 agents for a minimal second-brain workflow. audit detects E1–E8 structural defects and promotion candidates. type-optin; ovm-primitives shell API.",
+  "version": "0.19.0",
+  "description": "Obsidian vault knowledge management plugin (v4): capture / note / audit / base skills + 2 agents for a minimal second-brain workflow. audit detects E1–E11 structural defects (incl. E9 tag/property vocabulary) and promotion candidates. base generates non-destructive Obsidian Bases (.base) views. type-optin; ovm-primitives shell API.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -22,6 +22,8 @@
     "type-optin",
     "second-brain",
     "web-clipper",
-    "url-metadata"
+    "url-metadata",
+    "base",
+    "obsidian-bases"
   ]
 }
