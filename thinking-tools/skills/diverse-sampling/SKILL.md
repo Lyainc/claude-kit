@@ -296,9 +296,9 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
   doc-concretize (② output — authored markdown). diverse-sampling does **not** edit the
   produced document; doc-concretize owns authoring.
 - **Output**: the structured document returned by doc-concretize, followed by a pinned
-  one-line footer (mirroring Mode A's pinned footers; abbreviate `{selected}` to its 첫
-  구(phrase)나 ~15–20자 with an ellipsis — a word/phrase boundary, not a hard char cut, so
-  Korean text is not split mid-morpheme):
+  one-line footer (mirroring Mode A's pinned footers; abbreviate `{selected}` to its first
+  phrase or ~15–20 chars (Korean) with an ellipsis — a word/phrase boundary, not a hard char
+  cut, so Korean text is not split mid-morpheme):
 
 ```
 ───
