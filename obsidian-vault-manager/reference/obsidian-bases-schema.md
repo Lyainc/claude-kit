@@ -90,6 +90,7 @@ views:
     order:
       - file.name
       - type
+      - tags
       - created
     sort:
       - property: created
@@ -110,6 +111,7 @@ views:
     order:
       - file.name
       - type
+      - tags
       - created
     sort:
       - property: created

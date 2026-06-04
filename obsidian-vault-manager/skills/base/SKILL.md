@@ -17,6 +17,7 @@ Parse `$ARGUMENTS`:
 - `{view-name}` — when `{view-name}` is one of the built-in template names (`inbox-raw`, `draft-notes`, `evergreen`), use that template and name the file `{view-name}.base`.
 - `{view-name} --template {template}` — use the named built-in `{template}` but write the file as `{view-name}.base` (custom filename, built-in body).
 - Valid templates: `inbox-raw`, `draft-notes`, `evergreen`. If no template is resolvable from the name and no `--template` flag is given, ask the user which of the three templates to use (do not invent a filter).
+- **Invalid `--template` value**: if `--template` is given with a value that is NOT one of the 3 built-ins, do NOT silently create a broken view. Instead, immediately stop, list the valid names (`inbox-raw`, `draft-notes`, `evergreen`), and re-ask the user which template to apply.
 
 ## Built-in View Templates
 
@@ -58,6 +59,7 @@ views:
     order:
       - file.name
       - type
+      - tags
       - created
     sort:
       - property: created
@@ -78,6 +80,7 @@ views:
     order:
       - file.name
       - type
+      - tags
       - created
     sort:
       - property: created
@@ -102,6 +105,7 @@ views:
 ## Rules
 
 - **New-file-only**: write ONLY the new `.base` file. NEVER read, edit, or overwrite any existing note. This skill has no path that touches `.md` content.
+- **Built-ins are starting points**: the 3 built-in templates cover the most common cases; users can author custom views with other status values (`archived`) or different filters — this skill is not limited to those 3.
 - **type opt-in guard**: every template filter MUST keep `property.type != null` so untyped notes (diary, book notes, free folders) stay invisible (v4 §2.2). Never remove it.
 - **Pure YAML body**: a `.base` file is YAML only — no YAML frontmatter delimiters (`---`), no Markdown sections.
 - Show the plan first; write the file only after user confirmation.
