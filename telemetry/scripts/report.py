@@ -108,7 +108,7 @@ def latency_stats(events: list[dict]) -> dict | None:
     }
 
 
-def latency_by_event(events: list[dict]) -> dict[str, dict]:
+def latency_by_event(events: list[dict]) -> dict[str, dict[str, float | int]]:
     """Per-event-type latency p50/p95, keyed by the logical `event` field.
 
     Buckets events by their `event` value (skill_invoke / agent_spawn / stop /
@@ -208,9 +208,10 @@ def main() -> int:
             f"p50={latency['p50']:.0f}ms  p95={latency['p95']:.0f}ms"
         )
         print("  by event type:")
+        max_width = max((len(k) for k in latency_per_event), default=14)
         for ev_type, s in sorted(latency_per_event.items()):
             print(
-                f"    {ev_type:<14} "
+                f"    {ev_type:<{max_width}} "
                 f"n={s['count']:<4} "
                 f"p50={s['p50']:.0f}ms  p95={s['p95']:.0f}ms"
             )
