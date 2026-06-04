@@ -36,6 +36,10 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 > **`intent`×`format`이 "동작×포맷"**: §2 매핑표가 정확히 이 곱집합의 의미 있는 셀만 채워요. `format`이 1차 키, `intent`가 한 포맷 내 분기(md·issue에서만 실분기 발생)예요.
 
+> **`format=goal-doc`의 실제 산출물 주의**: 이 enum 값의 매핑 타겟 spec-first의 실제 산출물은 YAML Seed(`docs/specs/{slug}.yaml`)이지 `goal-doc-spec` 8필드 문서가 아니에요 — *intent 수준* 정합이고, Seed→goal-doc 재프레임은 **#111 소관**이에요(§2 #3 주의 참조). 라우터(#122)는 enum만 보지 말고 §2 #3 주의를 함께 읽어야 해요.
+
+> **`intent=file-issue` 명명 의도**: 다른 intent 값은 단일 동사형(`visualize`·`capture`·`author`)인데 `file-issue`만 동사+목적어형이에요 — `format=issue`와의 충돌을 피하면서 *기계적 파일링*(gh 생성/종료, §2 #8)을 본문 *저작*(issue-authoring, §4.1)과 구분하려는 의도적 명명이에요.
+
 ### 1.2 출력 계약 — 2-튜플 `(artifact_path, status)`
 
 | 필드 | 타입 | enum/형식 | 의미 |
@@ -151,6 +155,8 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 | 실행스킬 *판정* + *레이어 귀속* (재사용/native/신설, ②) | **#133** (`execution-skill-inventory.md` §4) | "gh CLI=외부 재사용, issue-authoring=신설 ② leaf" |
 
 두 doc은 서로 **참조만** 하고 상대 영역을 재정의하지 않아요. net-new gap은 #101이 *한 번* 선언하고, 레이어 귀속은 #133이 *한 번* 판정해요(`boundary` line 25/38 단일 출처 인용). → 중복 0.
+
+> **의사결정 기록(거울 표 유지)**: 위 분할표는 `execution-skill-inventory.md` §4에도 거울로 존재해요. 이 **§5.2를 정규 출처**로 두고 #133 §4는 *의도적 거울*(각 doc 독립 가독성 목적)이에요 — issue-authoring 스펙이 바뀌면 양쪽을 수동 동기화해요. 거울이 *중복(drift 리스크)*이 아닌 근거: 각 doc은 자기 *축*(#101=출력-포맷 / #133=실행-스킬)에서 firm한 칸만 선언하고 상대 칸은 참조 표식이라, **firm 규칙 자체는 각 1회만 정의**돼요(동기화 대상은 표현이지 규칙 정의가 아님). 유지 비용은 2축 분할이 안정적이라 낮아요.
 
 ### 5.3 #122 Gap-ROUTE와의 경계
 

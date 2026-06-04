@@ -35,6 +35,8 @@
 
 > **native 우선 순서**: 각 단계는 **REUSE → NATIVE → NEW** 순으로 판정해요 — 기존 leaf가 있으면 REUSE, 없으면 native agent로 되는지(NATIVE), 그것도 안 되는 gap만 NEW. NEW는 "후보"로 두고 gap 입증(telemetry/dogfood) 전까지 기본값은 NATIVE/REUSE예요.
 
+> **범위 외 항목**: `retro`(#123 소관)는 이 인벤토리의 *판정 대상이 아니에요* — REUSE/NATIVE/NEW enum은 in-scope 6항목(spec/impl/critique/debug/quality/issue)에만 적용하고, §0.1 표의 `retro` 행은 "범위 외" 마커일 뿐 판정값이 아니에요.
+
 ---
 
 ## 1. 인벤토리 표 (핵심 판정)
@@ -44,7 +46,7 @@
 | **spec** | spec-first | **REUSE** | ② 기존 출력 leaf. Socratic 게이트(Ambiguity ≤ 0.2)는 native에 등가 없음 → 재사용이 정답, native 위임 부적합 | (기존 ②) |
 | **impl** | native `executor` agent | **NATIVE** | `substrate` §3 **C3 = ✅ Full**: `agentType`이 OMC와 동일 레지스트리에서 해석 → `executor` 직접 호출 + 모델 티어 N8 + worktree 격리 N1/N3. claude-kit 신설 0 | — (native, leaf 아님) |
 | **critique** | adversarial-review(claim/설계) + native `code-reviewer`/`verifier`(code diff) | **REUSE(①) + NATIVE** | adversarial-review = ① 기존 leaf(주장 공격·survival verdict). code diff 비평은 native code-reviewer/verifier(C3 ✅). 격리(INV-2/INV-3)는 Gap-INV(#122/#134) 강제 | (기존 ①) |
-| **debug** | native `debugger` agent (1차) / 신설 debug-method(보류) | **NATIVE(1차) + NEW(보류·gap 미입증)** | native `debugger`(C3 레지스트리)가 stack-trace/RCA 오케스트레이션 커버. "5 Whys RCA 구조화"가 native 대비 gap인지 *미입증* → 기본 NATIVE, NEW는 보류 | ①(인지 — 추론 구조화) |
+| **debug** | native `debugger` agent (1차) / 신설 debug-method(보류) | **NATIVE(1차) + NEW(보류·gap 미입증)** | `debugger`는 `substrate` §1 **C3**(19종 named agent 중 `debugger` 명시)·§2 **N3**(agentType 레지스트리)에 실재 — 추측 아님. stack-trace/RCA 오케스트레이션 커버. "5 Whys RCA 구조화"가 native 대비 gap인지 *미입증* → 기본 NATIVE, NEW는 보류 | ①(인지 — 추론 구조화) |
 | **quality** | native `code-reviewer`/`verifier` + doc-polish(md) + adversarial-review/expert-panel(claim) | **REUSE + NATIVE (NEW 미정당)** | 코드=code-reviewer(native), md=doc-polish(②), 평가=adversarial-review/expert-panel(①)이 공간을 덮음. 전용 quality 신설은 3자 중복 리스크 → **현재 미정당** | (만약 신설 시 ① — 단 중복 리스크 플래그) |
 | **issue** | gh CLI(기계적) + issue-authoring(본문 저작) | **REUSE(외부) + NEW(②)** | gh = 외부 전송 도구 재사용. 본문 저작(템플릿·라벨·중복 검출)은 gap → NEW. #101 §4.1이 선언한 net-new와 동일 항목 | **②**(출력 leaf — `boundary` line 25/38) |
 | *(retro)* | — | **범위 외(#123)** | 본 인벤토리는 spec/impl/critique/debug/quality/issue만 | — |
@@ -89,7 +91,7 @@
 
 ## 4. issue 스킬 ↔ #101 issue-authoring 경계 (중복 0)
 
-issue는 **#101(출력-포맷 축)과 #133(실행-스킬 축)이 만나는 유일 교차점**이에요. `output-adapter-contract.md` §5.2와 **동일한 소유권 분할**을 여기서 거울처럼 기록해요(양쪽이 같은 분할을 참조 → 중복 0):
+issue는 **#101(출력-포맷 축)과 #133(실행-스킬 축)이 만나는 유일 교차점**이에요. `output-adapter-contract.md` §5.2와 **동일한 소유권 분할**을 여기서 거울처럼 기록해요(양쪽이 같은 분할을 참조 → 중복 0). **정규 출처는 #101 §5.2**, 아래 표는 #133 독립 가독성을 위한 *의도적 거울*이에요(스펙 변경 시 양쪽 수동 동기화 — `output-adapter-contract.md` §5.2 의사결정 기록 참조):
 
 | 책임 | 소유 doc | 내용 |
 |------|---------|------|
