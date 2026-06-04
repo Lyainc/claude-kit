@@ -101,7 +101,7 @@
 1. **E1 (독립)**: 오케스트레이터가 각 expert를 토픽+브리핑만 주고 독립 spawn. 서로의 발언 비공개. 전부 수집.
 2. **E2/E3 (반박)**: 오케스트레이터가 모든 expert를 **병렬** 재spawn. 각 packet = (a) 자기 직전 exchange 입장 (stateless라 없으면 "유지/방어" 불가) (b) 다른 expert의 *직전 exchange* 발언 요약 (within-exchange 비공개 → anti-anchoring 유지) (c) anti-conformity directive 재적용. expert는 유지·반박·수정 중 선택.
 
-**조기 종료**: 직전 exchange 대비 *어느 expert도* 새 논점·반박을 안 내면 종료 (재진술은 카운트 안 함). 판정은 오케스트레이터가 — full per-expert 발언이 필요하므로 visibility 제한된 Moderator subagent는 못 합니다. 기준은 *새 논점 유무*이지 *동의 여부*가 아닙니다 (새 근거 없는 동의 쌓임 = conformity 수렴 = 거짓 합의 방지).
+**조기 종료**: 직전 exchange 대비 *어느 expert도* 새 논점·반박을 안 내면 종료 — 새 논점은 새 증거(데이터·반례·근거)나 새 논증 구조를 포함해야 하며, 재진술은 카운트 안 함. 판정은 오케스트레이터가 — full per-expert 발언이 필요하므로 visibility 제한된 Moderator subagent는 못 합니다. 기준은 *새 논점 유무*이지 *동의 여부*가 아닙니다 (새 근거 없는 동의 쌓임 = conformity 수렴 = 거짓 합의 방지).
 
 **열화 케이스**: expert subagent 실패/빈 응답 → 1회 재시도, 재실패 시 남은 expert로 진행 (transcript 기록, silent drop 금지). 중간 추가된 expert → catch-up E1 후 다음 rebuttal exchange부터 합류.
 
