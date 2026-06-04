@@ -74,12 +74,46 @@ resolve_plugin() {
   printf 'unknown'
 }
 
+# Build the meta object for PostToolUse end events (skill_invoke_end /
+# agent_spawn_end). Token counts come from tool_response.usage.* and are
+# dropped entirely when absent or explicitly null (`!= null` guard → key
+# omitted), so empty/garbage keys never pollute the schema. duration_ms is
+# emitted as null when the payload carries no timing, per the schema contract
+# (Latency analysis treats null as "no datum"). Any jq error → `{}`.
+extract_end_meta() {
+  local payload="$1"
+  printf '%s' "$payload" | jq -c '
+    (.tool_response // {}) as $r
+    | ($r.usage // {}) as $u
+    | {duration_ms: ($r.duration_ms // .duration_ms // null)}
+      + (if ($u.input_tokens != null) then {input_tokens: $u.input_tokens} else {} end)
+      + (if ($u.output_tokens != null) then {output_tokens: $u.output_tokens} else {} end)
+      + (if ($u.cache_read_input_tokens != null) then {cache_read_tokens: $u.cache_read_input_tokens} else {} end)
+  ' 2>/dev/null || printf '{}'
+}
+
+# Build the meta object for the Stop event. Turn token totals come from a
+# usage block on the Stop payload when present; absent/null keys are omitted.
+extract_stop_meta() {
+  local payload="$1"
+  printf '%s' "$payload" | jq -c '
+    (.usage // {}) as $u
+    | {}
+      + (if ($u.input_tokens != null) then {turn_input_tokens: $u.input_tokens} else {} end)
+      + (if ($u.output_tokens != null) then {turn_output_tokens: $u.output_tokens} else {} end)
+  ' 2>/dev/null || printf '{}'
+}
+
 # --- 6. Per-event field extraction -----------------------------------------
 PLUGIN=""
 NAME=""
 QNAME=""
 TRIGGER=""
 OUTCOME=""
+# META holds a JSON object string injected via --argjson at compose time.
+# Empty inner keys are omitted (jq `// empty`) to avoid schema pollution; an
+# event with no extractable telemetry stays `{}`. jq failures fall back to {}.
+META='{}'
 
 case "$EVENT_TYPE" in
   skill_invoke_start|skill_invoke_end)
@@ -100,6 +134,7 @@ case "$EVENT_TYPE" in
       else
         OUTCOME="success"
       fi
+      META="$(extract_end_meta "$PAYLOAD")"
     fi
     ;;
 
@@ -110,10 +145,13 @@ case "$EVENT_TYPE" in
     TRIGGER="explicit"
     if [ "$EVENT_TYPE" = "agent_spawn_start" ]; then
       OUTCOME="started"
-    elif printf '%s' "$PAYLOAD" | jq -e '.tool_response.is_error // false' >/dev/null 2>&1; then
-      OUTCOME="error"
     else
-      OUTCOME="success"
+      if printf '%s' "$PAYLOAD" | jq -e '.tool_response.is_error // false' >/dev/null 2>&1; then
+        OUTCOME="error"
+      else
+        OUTCOME="success"
+      fi
+      META="$(extract_end_meta "$PAYLOAD")"
     fi
     ;;
 
@@ -142,6 +180,9 @@ case "$EVENT_TYPE" in
     PLUGIN="claude-kit"
     TRIGGER="auto"
     OUTCOME="success"
+    if [ "$EVENT_TYPE" = "stop" ]; then
+      META="$(extract_stop_meta "$PAYLOAD")"
+    fi
     ;;
 
   *)
@@ -156,6 +197,9 @@ case "$EVENT_TYPE" in
   *)              EVENT="$EVENT_TYPE" ;;
 esac
 
+# Guard: a blank META (jq error / empty substitution) must not break --argjson.
+[ -n "$META" ] || META='{}'
+
 # --- 7. Compose jsonl line via jq -nc (single output line) -----------------
 LINE="$(
   jq -nc \
@@ -169,6 +213,7 @@ LINE="$(
     --arg trigger     "$TRIGGER" \
     --arg outcome     "$OUTCOME" \
     --arg tool_use_id "$TOOL_USE_ID" \
+    --argjson meta    "$META" \
     '{
       ts: $ts,
       session_id: $session_id,
@@ -180,7 +225,7 @@ LINE="$(
       trigger: $trigger,
       outcome: $outcome,
       tool_use_id: $tool_use_id,
-      meta: {}
+      meta: $meta
     }' 2>/dev/null
 )"
 
