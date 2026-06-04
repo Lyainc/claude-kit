@@ -2,6 +2,8 @@
 
 실제 대화 예시. SKILL.md에서 참조됨.
 
+> **Note**: Example 1·2는 기본(inline) 모드 출력입니다 — 한 모델이 모든 페르소나 발언을 한 응답에 시뮬레이션한 결과예요. "격리 실행" 모드에서는 각 expert 발언이 별도 subagent의 exchange별 재spawn으로 생성되고 exchange 간 실제 반박이 일어나요 — Example 3 참조 (메커니즘은 SKILL.md의 [Isolated Execution: Rebuttal Exchanges]).
+
 ---
 
 ## Example 1: API 설계 검토
@@ -301,3 +303,60 @@ User: 재택근무 정책안을 법률전문가, HR전문가, 현장관리자 �
 
 ───
 *2개 토픽 논의 완료 · 1개 합의, 1개 보류*
+
+---
+
+## Example 3: 격리 모드 — exchange 흐름
+
+inline 예시(Example 1·2)와 달리 격리 모드는 각 발언이 별도 subagent의 실제 재spawn으로 생성됩니다. 아래는 오케스트레이터 시점의 한 토픽 흐름이에요 (전문가 3인: 보안/성능/UX).
+
+### 사용자 요청
+
+```
+User: 이 인증 설계를 보안/성능/UX 전문가 관점에서 격리해서 엄격하게 검토해줘.
+```
+
+### Exchange 1 — 독립 (anchoring-free)
+
+오케스트레이터가 3개 expert subagent를 토픽+브리핑만 주고 **동시 spawn**. 서로의 발언 비공개.
+
+- **[Security Expert — independent]**: Access Token 15분은 적절하나 Refresh Token 회수 경로가 없음. Rotation 필수.
+- **[Performance Expert — independent]**: 매 요청 signature 검증이 병목. Redis 캐싱 권장.
+- **[UX Expert — independent]**: Silent Refresh만 보장되면 세션 방식 대비 UX 손해 없음.
+
+STATE: `Rebuttal: [t1:e1:3/3]` (수집 완료)
+
+### Exchange 2 — 반박 (병렬 재spawn)
+
+오케스트레이터가 각 expert에 packet 주입 = {자기 e1 입장 + 다른 둘의 e1 요약 + anti-conformity}. 3인 **병렬** 재spawn — 서로의 e2 발언은 못 봄.
+
+- **[Security Expert]**: 성능전문가의 Redis 캐싱에 반박 — 검증 결과 캐싱은 탈취 토큰 무효화를 지연시켜 Rotation과 충돌.
+- **[Performance Expert]**: 입장 유지하되 수정 — 캐싱 TTL을 Rotation 주기 이하로 두면 양립 가능.
+- **[UX Expert]**: 입장 유지. 새 논점 없음.
+
+STATE: `Rebuttal: [t1:e2:3/3]`
+
+### Exchange 3 — 재반박 (병렬 재spawn)
+
+e2에서 보안·성능이 새 논점(캐싱↔Rotation 충돌·TTL 절충)을 냈으므로 — *어느 expert라도* 새 논점이 있으면 루프 계속 — 오케스트레이터가 e2 요약으로 e3를 병렬 spawn.
+
+- **[Security Expert]**: TTL ≤ Rotation 주기면 무효화 지연이 Rotation 윈도 안에 들어오므로 수용. 합의.
+- **[Performance Expert]**: 동일 합의.
+- **[UX Expert]**: 입장 유지. 새 논점 없음.
+
+STATE: `Rebuttal: [t1:e3:3/3]`
+
+### 조기 종료 판정 (오케스트레이터)
+
+e3는 e2 대비 새 논점·반박이 없음(전원 수렴, UX는 재진술) → early-stop 발동, 종료. e3는 2-rebuttal 캡이기도 함. (만약 e2가 e1 재진술뿐이었다면 e3 없이 e2에서 종료 — early-stop은 캡 전에도 발동합니다.)
+
+### Synthesis (Moderator subagent)
+
+오케스트레이터가 Moderator subagent를 e3 position summary만 주고 spawn:
+
+- **[Moderator]**: Rotation + 캐싱 TTL(≤ Rotation 주기) 양립안으로 수렴. Silent Refresh로 UX 중립.
+
+**결론**: JWT + Refresh Token Rotation, 캐싱 TTL ≤ Rotation 주기 합의.
+
+───
+*격리 모드: e1 독립 3 + e2 반박 3 + e3 재반박 3 = expert subagent 9 + Synthesis Moderator 1*

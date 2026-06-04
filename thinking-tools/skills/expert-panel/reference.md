@@ -83,7 +83,7 @@
 
 **중요**: 실무자는 추상적 찬반이 아니라 **현장 경험과 데이터**로 논쟁합니다.
 
-### Step 1.2: 전문가 질의응답
+### Step 1.2: 전문가 질의응답 (Q&A / Rebuttal)
 
 ```
 [전문가 A, B, C, ...]
@@ -91,6 +91,21 @@
 - 실무자들의 응답
 - 추가 clarification
 ```
+
+**격리 실행 모드 — 실제 멀티턴 반박 교환 (exchange)**:
+
+기본(inline) 모드에서는 한 모델이 모든 페르소나 발언을 한 응답에 시뮬레이션합니다. 격리 모드에서는 한 topic round의 Q&A/Rebuttal 단계 *안에서* exchange를 돌려 진짜 턴 교환을 만듭니다. exchange는 topic round가 아니며 (synchronous 전체 fan-out, per-expert 아님), **e1 독립 1회 + e2·e3 rebuttal 최대 2회 = 최대 3 exchanges**로 묶입니다 (3 topic-round 천장과 독립).
+
+오케스트레이션(spawn·packet 조립·중계·종료 판정)은 **부모 오케스트레이터(facilitating 메인 컨텍스트)**가 수행합니다. Moderator subagent는 visibility 제한(position summary만)을 유지하며 Synthesis용으로만 spawn됩니다 — 모든 발언을 쥔 오케스트레이터만 요약·중계할 수 있기 때문입니다.
+
+1. **E1 (독립)**: 오케스트레이터가 각 expert를 토픽+브리핑만 주고 독립 spawn. 서로의 발언 비공개. 전부 수집.
+2. **E2/E3 (반박)**: 오케스트레이터가 모든 expert를 **병렬** 재spawn. 각 packet = (a) 자기 직전 exchange 입장 (stateless라 없으면 "유지/방어" 불가) (b) 다른 expert의 *직전 exchange* 발언 요약 (within-exchange 비공개 → anti-anchoring 유지) (c) anti-conformity directive 재적용. expert는 유지·반박·수정 중 선택.
+
+**조기 종료**: 직전 exchange 대비 *어느 expert도* 새 논점·반박을 안 내면 종료 (재진술은 카운트 안 함). 판정은 오케스트레이터가 — full per-expert 발언이 필요하므로 visibility 제한된 Moderator subagent는 못 합니다. 기준은 *새 논점 유무*이지 *동의 여부*가 아닙니다 (새 근거 없는 동의 쌓임 = conformity 수렴 = 거짓 합의 방지).
+
+**열화 케이스**: expert subagent 실패/빈 응답 → 1회 재시도, 재실패 시 남은 expert로 진행 (transcript 기록, silent drop 금지). 중간 추가된 expert → catch-up E1 후 다음 rebuttal exchange부터 합류.
+
+**비용**: 토픽당 `(exchanges × experts)` expert subagent (exchanges = 1 독립 + 1~2 rebuttal, 즉 최대 `3 × experts`, early-stop 시 더 적음) + Synthesis용 Moderator subagent 1. 독립성과 실제 턴 교환이 속도보다 중요할 때 선택하세요.
 
 ### Step 1.3: 변증법적 논의
 

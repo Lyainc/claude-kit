@@ -27,7 +27,7 @@ Facilitate expert panel discussions where diverse specialists reach consensus th
 ## Execution Modes
 
 Express mode preferences in natural language — no flags needed:
-- **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation)
+- **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation). Enables real multi-turn rebuttal — experts are re-spawned each round with prior statements injected, instead of one simulated pass (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
 - **요약 출력** ("요약만", "transcript 없이"): Skip transcript generation; produce SUMMARY.md + UNRESOLVED.md only
 
 All combinations compose silently.
@@ -84,14 +84,15 @@ All combinations compose silently.
 For each topic (max 3 rounds per topic):
 1. **Briefing**: Practitioners present pro/con perspectives
 2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber). In default (inline) mode this is best-effort via prompt contract; isolated execution mode enforces it mechanically via subagent context boundaries.
-3. **Q&A**: Experts ask questions and exchange answers (max 2 exchanges per expert)
+3. **Q&A / Rebuttal**: Experts question and rebut each other. Inline mode renders this as one simulated pass; isolated mode runs it as a real exchange loop — 1 independent exchange + up to 2 rebuttal exchanges (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
 4. **Dialectic**: Thesis → Antithesis → Synthesis
 5. **Conclusion**: Consensus or hold decision
 
 **Round Limits**:
 - Each topic has a maximum of 3 discussion rounds
 - If no consensus after 3 rounds, Moderator escalates to tie-breaking
-- A "round" = one complete Briefing → Independent Statements → Q&A → Dialectic → Conclusion cycle
+- A "round" = one complete Briefing → Independent Statements → Q&A/Rebuttal → Dialectic → Conclusion cycle
+- Early stop (isolated mode): within a topic round, the rebuttal *exchange* loop (the inner Q&A/Rebuttal loop, see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges)) may stop after any rebuttal exchange that adds no new argument — before reaching the 2-rebuttal cap. This inner loop is distinct from the 3 topic-round ceiling above
 
 **STATE Block Contract**:
 
@@ -107,6 +108,7 @@ dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). Th
 Topic: {idx}/{total} | Phase: {0|1|2} | Round: {r}/3
 Mode: [isolated:{on|off}] [summary-only:{on|off}]
 Independent: {k}/{N}
+Rebuttal: [t{n}:e{i}:{k}/{N}]
 Topic-status: [t{n}:{pending|thesis-reached|antithesis-reached|synthesis-reached|consensus-reached|tie-broken}] ...
 Votes: [{expert}:{option}:{High|Medium|Low}] ...
 Tie-break: [used:{yes|no}] [margin:{n|—}]
@@ -116,12 +118,14 @@ Tie-break: [used:{yes|no}] [margin:{n|—}]
 **Field write/read points**:
 - `Mode` — set at Phase 0 (mode detection); read at Phase 2 item 1 (transcript skip in summary-only mode).
 - `Independent` — updated during Phase 1 Independent Statements; `k==N` means collection complete (single format; no separate "complete" token).
+- `Rebuttal` (isolated mode only) — topic `n`, exchange index `e{i}` (`e1` = independent, `e2`/`e3` = up to 2 rebuttal exchanges), and `{k}/{N}` experts collected in the current exchange. Bounded counters only — never statement prose. Empty/omitted in inline mode. At `e1` this duplicates `Independent`; on conflict the `Rebuttal` cursor wins (it also distinguishes `e2`/`e3`).
 - `Votes` — populated only by the Tie-Breaking Mechanism (after round 3); empty before tie-break.
 - `Topic-status` — closed enum, exactly these 6 values; no free-text. `tie-broken` = resolved via the Tie-Breaking Mechanism (weighted vote always yields a winner; a margin < 2 is recorded as "Conditional" in SUMMARY.md but the status stays `tie-broken`). There is no separate `deadlock` value — the vote is total, so a topic never ends unresolved.
 
 **Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
 Topic-status → `pending`; Votes → treat as no-vote / no-consensus; Independent → `0` (re-collect, preserves anti-anchoring);
 Mode flags → both `off` (full output — over-producing transcripts is safer than losing user content).
+In isolated mode the in-progress exchange is restored from the `Rebuttal` cursor — NOT from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode, so they do not exist mid-loop). When `Rebuttal` shows `e{i}` with `i>=2`, independent collection is already complete: do NOT apply the `Independent → 0` re-collect default above (that default applies only while the loop is still at `e1`) — re-running E1 would discard completed rebuttal progress.
 
 **Tie-Breaking Mechanism**:
 When consensus cannot be reached after 3 rounds:
@@ -131,6 +135,30 @@ When consensus cannot be reached after 3 rounds:
 2. **Moderator Summary**: Record the majority position AND dissenting rationale
 3. **Conditional Approval**: If vote margin < 2 points, mark as "Conditional — requires validation"
 4. **Document**: All tie-break decisions recorded in SUMMARY.md with vote breakdown
+
+### Isolated Execution: Rebuttal Exchanges
+
+In default (inline) mode, an entire topic — every persona's turns — is produced in one model response: a *simulated* debate where a single model scripts all voices. It is fast, but it is not a real turn exchange, and personas drift toward a single voice.
+
+Isolated execution replaces the simulated pass with real multi-turn **exchanges** inside a single topic round's Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a topic round. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total — independent of the 3 topic-round ceiling and its tie-break trigger.
+
+**Orchestrator vs. Moderator**: in isolated mode the mechanical work — spawning experts, assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator subagent. The Moderator subagent stays visibility-limited (position summaries only) and is spawned only for Synthesis/Conclusion. This keeps the Moderator Visibility Contract intact: the orchestrator already holds every statement, so it is the one allowed to summarize and relay.
+
+**Exchange loop**:
+1. **E1 — Independent** (anchoring-free): the orchestrator spawns each expert as a separate subagent with the topic + briefing only. No expert sees another's statement. The orchestrator collects all statements.
+2. **E2/E3 — Rebuttal**: the orchestrator re-spawns all experts **in parallel**, each receiving a packet of — (a) its own prior-exchange position (a re-spawned subagent is stateless; without this it cannot "hold/defend"), (b) a *summary* of the other experts' **prior-exchange** statements (never within-exchange statements — parallel re-spawn means no expert sees another's current-exchange turn, preserving anti-anchoring), and (c) the re-applied Anti-conformity directive. Each expert then (a) holds and defends, (b) rebuts a specific point with new evidence, or (c) revises.
+
+**Stop conditions** (whichever comes first):
+- The exchange loop reaches the 2-rebuttal cap (e3 completed), or
+- **No new argument**: comparing the latest exchange to the immediately prior one, *no expert* introduced a new point or a new rebuttal (a restated prior point does not count). The orchestrator makes this call — it needs the full per-expert statements, which the visibility-limited Moderator subagent cannot see. The test is *new arguments*, not *agreement*: an exchange where experts only echo growing agreement without new reasoning is convergence-by-conformity and also stops the loop. This guards against both runaway cost and false consensus.
+
+After the loop stops, the orchestrator spawns the Moderator subagent with the final exchange's position summaries to compute Synthesis → Conclusion.
+
+**Degenerate cases**:
+- An expert subagent that fails or returns empty is retried once; on a second failure the exchange proceeds with the remaining experts (recorded in the transcript — never silently dropped).
+- An expert added mid-discussion (see Expert Selection Guide) first runs a catch-up E1 independent statement, then joins from the next rebuttal exchange.
+
+**Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) + 1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop fires — plus 1 Moderator subagent for Synthesis. Choose isolated mode when independence and genuine turn exchange matter more than speed — inline mode stays the default for quick reviews.
 
 ### Phase 2: Recording (MANDATORY)
 
@@ -154,6 +182,7 @@ The following documents MUST be generated after discussion ends:
 
 - **Default**: Moderator receives expert position summaries only (full Q&A transcript blocked during synthesis)
 - **Isolated execution mode**: Moderator spawned as separate Agent subagent; pass expert position summaries only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
+- **Rebuttal relay (isolated)**: between exchanges the **orchestrator** (not the Moderator subagent) assembles and forwards per-expert summary packets; the Moderator subagent is spawned only for Synthesis and still sees position summaries only (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
 
 This prevents the Moderator from being anchored by the Q&A thread and ensures independent synthesis.
 
