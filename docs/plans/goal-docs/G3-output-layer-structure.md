@@ -27,11 +27,11 @@ claude-kit 레이어 재설계(2026-06-02 전문가 패널, `docs/discussions/20
 
 ## 완료 조건 (Definition of Done)
 
-**#102 — ADR**
-- [ ] `docs/design/output-layer-structure-adr.md` 작성: 단일 플러그인 vs 분산 결정 + 근거.
-- [ ] 결정에 다음 근거를 명시: (a) graphify/OVM note/spec-first goal-doc이 이미 분산 자산이라는 사실, (b) thin 2-스킬 플러그인 금지 제약(SUMMARY C-2), (c) concretize=인지 코어 / polish=린트 비대칭, (d) 이동 비용 vs 응집 가치 트레이드오프.
-- [ ] ADR이 #103의 concretize/polish 행선지를 **명시적으로 지정**(어느 플러그인/디렉토리에 안착하는지)해야 #103 게이트가 풀림.
-- [ ] ADR을 `docs/discussions/20260602_claude-kit-layer-redesign/UNRESOLVED.md`의 U-2/U-1 항목에서 참조하도록 링크 갱신(또는 RESOLVED 표시).
+**#102 — ADR** (완료 2026-06-04, PR #139 — `docs/design/output-layer-structure-adr.md`)
+- [x] `docs/design/output-layer-structure-adr.md` 작성: 단일 플러그인 vs 분산 결정 + 근거. → **분산(논리 계약)** 채택.
+- [x] 결정에 다음 근거를 명시: (a) graphify/OVM note/spec-first goal-doc이 이미 분산 자산이라는 사실, (b) thin 2-스킬 플러그인 금지 제약(SUMMARY C-2), (c) concretize=인지 코어 / polish=린트 비대칭, (d) 이동 비용 vs 응집 가치 트레이드오프. (load-bearing 근거=C-2, ADR §2)
+- [x] ADR이 #103의 concretize/polish 행선지를 **명시적으로 지정**(어느 플러그인/디렉토리에 안착하는지)해야 #103 게이트가 풀림. → **in-place reframe(thinking-tools 잔류)**, ADR §2.5.
+- [x] ADR을 `docs/discussions/20260602_claude-kit-layer-redesign/UNRESOLVED.md`의 U-2/U-1 항목에서 참조하도록 링크 갱신(또는 RESOLVED 표시). → U-2/U-1 RESOLVED 표기 완료.
 
 **#103 — concretize/polish 배치** (Acceptance: 스킬 이동 + thought-chain 링크 유효 + trigger-regression green + 매니페스트 동기화)
 - [ ] #102 ADR이 지정한 행선지대로 doc-concretize/doc-polish 배치(이동 또는 in-place reframe). concretize의 재귀적 구체화 인지 코어는 보존, polish는 md 린트로 역할 명확화.

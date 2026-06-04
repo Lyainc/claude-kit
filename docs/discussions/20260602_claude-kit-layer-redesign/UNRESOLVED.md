@@ -19,7 +19,7 @@
 - **비대칭 재확인**: concretize=구조화 저작(인지 코어), polish=린트. 한 칸에 묶을 근거 약함.
 - **판단 보류 사유**: ② 출력 레이어가 "단일 플러그인 vs 분산"으로 먼저 결정돼야 행선지가 따라옴 (U-2 의존).
 
-> **RESOLVED via #102 (2026-06-04)**: 행선지 = **in-place reframe**(doc-concretize/doc-polish는 thinking-tools 잔류, 역할만 재정의). 분산=논리 계약이라 물리 이동 불필요 — `docs/design/output-layer-structure-adr.md` §2.5. 방향은 #102가 지정, 물리 실행은 #103.
+> **RESOLVED via #102 (2026-06-04)**: (U-2 분산 결정의 하류 — 아래 **U-2 RESOLVED** 먼저 참조) 행선지 = **in-place reframe**(doc-concretize/doc-polish는 thinking-tools 잔류, 역할만 재정의). 분산=논리 계약이라 물리 이동 불필요 — `docs/design/output-layer-structure-adr.md` §2.5. 방향은 #102가 지정, 물리 실행은 #103.
 
 ## U-2. ② 출력 레이어 = 단일 플러그인 vs 분산 (TOPIC 2·5 파생)
 
