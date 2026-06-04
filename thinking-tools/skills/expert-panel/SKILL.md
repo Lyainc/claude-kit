@@ -125,7 +125,7 @@ Tie-break: [used:{yes|no}] [margin:{n|—}]
 **Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
 Topic-status → `pending`; Votes → treat as no-vote / no-consensus; Independent → `0` (re-collect, preserves anti-anchoring);
 Mode flags → both `off` (full output — over-producing transcripts is safer than losing user content).
-In isolated mode the in-progress exchange is restored from the `Rebuttal` cursor — NOT from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode, so they do not exist mid-loop). When `Rebuttal` shows `e{i}` with `i>=2`, independent collection is already complete: do NOT apply the `Independent → 0` re-collect default above (that default applies only while the loop is still at `e1`) — re-running E1 would discard completed rebuttal progress.
+In isolated mode the in-progress exchange is restored from the `Rebuttal` cursor — NOT from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode, so they do not exist mid-loop). When `Rebuttal` shows `e{i}` with `i>=2`, independent collection is already complete: do NOT apply the `Independent → 0` re-collect default above (that default applies only while the loop is still at `e1`) — re-running E1 would discard completed rebuttal progress. Conversely, when `Rebuttal` shows `e1`, independent collection is still in progress, so the `Independent → 0` re-collect default applies as usual — any partial e1 statements are re-collected from scratch, preserving anti-anchoring.
 
 **Tie-Breaking Mechanism**:
 When consensus cannot be reached after 3 rounds:
