@@ -109,8 +109,9 @@ Mode B triggers are implicit — confirm before running, since Mode B consumes m
 - 창의·개방형 작성에 효과적이지만 토큰 소비가 높습니다
 
 Options:
-1. 적용 (Apply Enhance)
-2. 일반 응답 (Standard response)
+1. 적용 — 자동 선택 (Apply; weighted-random direction)
+2. 방향 직접 선택 (생성된 방향들을 보고 고른 뒤 저작 — "전부 보여줘"와 동일)
+3. 일반 응답 (Standard response)
 ```
 
 ## Core Workflow
@@ -239,9 +240,10 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
 ### Phase 2-B: Direction Selection
 
 - Apply the selection strategy: weighted random by default; "제일 나은 것" picks the
-  highest-probability direction; "전부 보여줘" presents all k directions as a table **and then
-  asks which one to author** — unlike Mode A's "Show All" (which displays and stops), Mode B
-  must converge on a single direction for the doc-concretize handoff.
+  highest-probability direction; "전부 보여줘" (or the Mode B confirmation's "방향 직접 선택"
+  option) presents all k directions as a table **and then asks which one to author** — unlike
+  Mode A's "Show All" (which displays and stops), Mode B must converge on a single direction
+  for the doc-concretize handoff.
 
   **Direction-pick prompt** (after "전부 보여줘", via AskUserQuestion):
 ```
@@ -256,14 +258,14 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
 ### Phase 3-B: Concretization Handoff
 
 - Sub-call the intra-plugin **`doc-concretize`** skill (same plugin — see
-  [doc-concretize](../doc-concretize/SKILL.md)) via the **Skill** tool, passing the selected
-  direction as the seed/topic. doc-concretize authors the full structured document through
-  its recursive-concretization workflow.
+  [doc-concretize](../doc-concretize/SKILL.md)) via the **Skill** tool. Pass the selected
+  direction's text as the Skill call's topic/seed argument; doc-concretize authors the full
+  structured document through its recursive-concretization workflow.
 - This is a one-way ①→② handoff: diverse-sampling (① cognition — diversity generation) feeds
   doc-concretize (② output — authored markdown). diverse-sampling does **not** edit the
   produced document; doc-concretize owns authoring.
 - **Output**: the structured document returned by doc-concretize, followed by a pinned
-  one-line footer (mirroring Mode A's pinned footers):
+  one-line footer (mirroring Mode A's pinned footers; truncate `{selected}` to ~20 chars):
 
 ```
 ───
