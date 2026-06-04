@@ -288,10 +288,15 @@ PYEOF
 }
 
 # ── subcommand: infer-tags ─────────────────────────────────────────────────────
-# Usage: infer-tags <file>
-# Deterministic E2 auto-fix tag proposal (#127). No LLM. Reads the file's
-# frontmatter `type:` and its path, and emits a tag PROPOSAL as JSON:
+# Usage: infer-tags <file> [<file> ...]   |   infer-tags -   (paths via stdin, one per line)
+# Deterministic E2 auto-fix tag proposal (#127, batched #152). No LLM. Reads each
+# file's frontmatter `type:` and its path, and emits a tag PROPOSAL as JSON.
+# BATCH (#152): accepts N paths in one invocation (args or stdin) and emits a
+# JSON ARRAY — one object per input path — so the audit runtime spawns a single
+# Python process for all E2 findings instead of one per finding. Each element:
 #   {"path": "<rel>", "type": "<type|null>", "inferred_tags": [...]}
+# or, on a per-file read error:
+#   {"path": "<rel>", "error": "<msg>", "inferred_tags": []}
 # Three tiers (order preserved, duplicates dropped, all lowercased):
 #   1) type: field        → always the first tag
 #   2) filename slug       → words after stripping the date + {type}- prefix,
@@ -299,20 +304,40 @@ PYEOF
 #   3) parent folder       → notes/{domain}/... → add `domain`
 # Empty slug (date-only filename) → type tag only (graceful, never crashes).
 # The proposal is NOT auto-committed — the audit skill keeps the "수정 실행" gate.
+#
+# PARTIAL-FAILURE / EXIT-CODE POLICY (#152): graceful degradation is intended —
+# one unreadable file must NOT abort the whole audit batch. Per-file OSErrors are
+# captured in that element's `error` field (with inferred_tags: []) and the batch
+# continues. Exit code is non-zero (1) ONLY when EVERY item failed (caller can
+# treat that as a hard failure); a mix of ok+failed items still exits 0 so the
+# successful proposals are consumed. An empty input (no paths) also exits 1.
 
 cmd_infer_tags() {
-  local file="${1:-}"
-  [[ -z "$file" ]] && die "infer-tags requires <file>"
-  local abs_file
-  abs_file="$(validate_vault_path "$file")"
-  [[ -f "$abs_file" ]] || die "Not a file: $abs_file"
+  [[ $# -eq 0 ]] && die "infer-tags requires <file> [<file> ...] or '-' for stdin"
 
-  python3 - "$abs_file" "$VAULT_ROOT" <<'PYEOF'
+  # Resolve each requested path through the vault-boundary guard up front so a
+  # traversal / out-of-vault path fails loudly (security), while per-file *read*
+  # errors degrade gracefully inside Python (see policy above).
+  local -a abs_files=()
+  if [[ "$1" == "-" && $# -eq 1 ]]; then
+    local line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+      [[ -z "$line" ]] && continue
+      abs_files+=("$(validate_vault_path "$line")")
+    done
+  else
+    local file
+    for file in "$@"; do
+      [[ -z "$file" ]] && continue
+      abs_files+=("$(validate_vault_path "$file")")
+    done
+  fi
+
+  python3 - "$VAULT_ROOT" "${abs_files[@]}" <<'PYEOF'
 import sys, os, re, json
 
-abs_file = sys.argv[1]
-vault_root = os.path.realpath(os.path.expanduser(sys.argv[2]))
-rel = os.path.relpath(os.path.realpath(abs_file), vault_root)
+vault_root = os.path.realpath(os.path.expanduser(sys.argv[1]))
+abs_files = sys.argv[2:]
 
 STOPWORDS = frozenset({"the", "a", "an", "of", "and", "or", "to", "for"})
 TYPE_PREFIXES = ("note", "decision", "plan", "capture", "session")
@@ -336,40 +361,55 @@ def slug_from_filename(name):
     stem = re.sub(r'^(?:' + '|'.join(TYPE_PREFIXES) + r')-', '', stem)
     return stem
 
-try:
-    with open(abs_file, 'r', encoding='utf-8', errors='replace') as f:
-        content = f.read()
-except OSError as e:
-    print(json.dumps({"path": rel, "error": str(e), "inferred_tags": []}))
-    sys.exit(0)
+def infer_one(abs_file):
+    rel = os.path.relpath(os.path.realpath(abs_file), vault_root)
+    try:
+        with open(abs_file, 'r', encoding='utf-8', errors='replace') as f:
+            content = f.read()
+    except OSError as e:
+        # Graceful degradation: record the failure, keep going (#152).
+        return {"path": rel, "error": str(e), "inferred_tags": []}, False
 
-ftype = parse_type(content)
-tags = []
+    ftype = parse_type(content)
+    tags = []
 
-def push(tok):
-    tok = (tok or '').strip().lower()
-    if not tok or tok in STOPWORDS or tok.isdigit():
-        return
-    if tok not in tags:
-        tags.append(tok)
+    def push(tok):
+        tok = (tok or '').strip().lower()
+        if not tok or tok in STOPWORDS or tok.isdigit():
+            return
+        if tok not in tags:
+            tags.append(tok)
 
-# Tier 1: type.
-if ftype:
-    push(ftype)
+    # Tier 1: type.
+    if ftype:
+        push(ftype)
 
-# Tier 2: filename slug words (split on -/_).
-slug = slug_from_filename(os.path.basename(rel))
-if slug:
-    for word in re.split(r'[-_]+', slug):
-        push(word)
+    # Tier 2: filename slug words (split on -/_).
+    slug = slug_from_filename(os.path.basename(rel))
+    if slug:
+        for word in re.split(r'[-_]+', slug):
+            push(word)
 
-# Tier 3: parent folder domain — only inside notes/{domain}/...
-parts = rel.split(os.sep)
-if len(parts) >= 3 and parts[0] == 'notes':
-    push(parts[1])
+    # Tier 3: parent folder domain — only inside notes/{domain}/...
+    parts = rel.split(os.sep)
+    if len(parts) >= 3 and parts[0] == 'notes':
+        push(parts[1])
 
-print(json.dumps({"path": rel, "type": ftype, "inferred_tags": tags},
-                 ensure_ascii=False))
+    return {"path": rel, "type": ftype, "inferred_tags": tags}, True
+
+results = []
+ok_count = 0
+for abs_file in abs_files:
+    rec, ok = infer_one(abs_file)
+    results.append(rec)
+    if ok:
+        ok_count += 1
+
+print(json.dumps(results, ensure_ascii=False))
+
+# Exit non-zero only when ALL items failed (or there were none): a single bad
+# file must not abort the batch, so a mix of ok+failed still exits 0.
+sys.exit(0 if (results and ok_count > 0) else 1)
 PYEOF
 }
 
@@ -604,7 +644,7 @@ case "$SUBCOMMAND" in
     echo "  scan-frontmatter <dir>                      Emit JSON array of frontmatter records" >&2
     echo "  scan-filename <dir>                         Emit JSON array of filename parse results" >&2
     echo "  extract-wikilinks <file>                    Emit JSON array of wikilink targets" >&2
-    echo "  infer-tags <file>                           Emit E2 auto-fix tag proposal (type/slug/folder)" >&2
+    echo "  infer-tags <file> [<file> ...] | -          Emit E2 auto-fix tag proposals as a JSON array (batched; '-' = paths via stdin)" >&2
     echo "  audit-state <op> [args]                     Manage sidecar audit state" >&2
     echo "    ops: is-clean <relpath>                   Check if file is clean" >&2
     echo "         mark-clean <relpath> [mtime]         Mark file as audited clean" >&2
