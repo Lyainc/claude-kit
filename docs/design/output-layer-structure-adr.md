@@ -89,7 +89,7 @@ G3 goal-doc(`docs/plans/goal-docs/G3-output-layer-structure.md` line 33)은 "#10
 
 ## 3. #101 §5.1과의 정합 (불변성 명시)
 
-#101 `output-adapter-contract.md` §5.1의 핵심을 인용해요(괄호 부연 생략 — 특히 §5.1 원문의 "graphify가 이미 각자 플러그인" 표현은 부정확하므로 §0 정정을 따라 생략. graphify는 user-level 스킬·마켓플레이스 미등록):
+#101 `output-adapter-contract.md` §5.1의 핵심을 인용해요(괄호 부연 및 §5.1 말미의 #102 결정 결과 문장은 자기참조라 생략):
 
 > 이 문서 = **논리 계약**(어댑터 호출 규약·매핑·체이닝). ②를 단일 플러그인으로 묶을지 분산 유지할지의 **물리 구조는 #102(G3 wave)** 결정이에요. 어댑터 계약은 구조 독립적이라 #102 어느 결과에도 불변 — #101 Acceptance는 #102 없이 충족.
 
