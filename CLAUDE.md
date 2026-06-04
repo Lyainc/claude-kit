@@ -153,6 +153,12 @@ python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
 python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test
 # Expected: OK: all 6 infer-tags cases + E2 auto-fix simulation passed
 
+# infer-tags batch-mode regression (#152, shell-level — complements --infer-self-test:
+# covers multi-path/stdin array shape, partial-failure exit codes, and the security
+# hard-fail for traversal / out-of-vault paths that the Python reference impl can't reach)
+bash obsidian-vault-manager/scripts/test/test-infer-tags-batch.sh
+# Expected: OK: all infer-tags batch cases passed
+
 # audit DoD 측정 (mechanical reference impl)
 # gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py
 # and patches access_count=5 for the E8 access-target seed.

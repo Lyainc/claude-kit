@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vault-manager",
-  "version": "0.17.0",
+  "version": "0.18.0",
   "description": "Obsidian vault knowledge management plugin (v4): capture / note / audit skills + 2 agents for a minimal second-brain workflow. audit detects E1–E8 structural defects and promotion candidates. type-optin; ovm-primitives shell API.",
   "author": {
     "name": "Lyainc",
