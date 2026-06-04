@@ -3,8 +3,8 @@ name: doc-polish
 
 description: |
   Validate and improve EXISTING Markdown documents: fix formatting, consistency, and flag quality concerns.
-  Acts as an Editor (not Writer) — requires an existing MD file as input;
-  preserves content while improving structure and readability.
+  Output-layer md-edit adapter (format=md × intent=edit): acts as an Editor (not Writer) —
+  requires an existing MD file as input; preserves content while improving structure and readability.
   AI 표현(LLM trope, delve/grandiose nouns 등) 제거는 doc-polish 범위 밖 — Humanize KR 같은 전용 휴머나이저를 쓰세요.
 
   Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, 교정, 다듬기,
