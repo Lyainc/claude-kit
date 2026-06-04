@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -86,7 +87,6 @@ def percentile(sorted_vals: list[float], q: float) -> float:
     if not sorted_vals:
         raise ValueError("percentile of empty list")
     n = len(sorted_vals)
-    import math
     rank = max(1, math.ceil(q * n))
     return sorted_vals[rank - 1]
 

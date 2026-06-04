@@ -38,6 +38,12 @@ fi
 # --- Slice the two pure functions out of the logger and source them ----------
 # awk prints each `name() { ... }` block: start at the function header, stop
 # after the first line that is a bare `}` at column 0 (the function closer).
+# CONSTRAINT: this name-marker slice assumes each extractor's closing brace is
+# the FIRST bare `}` at column 0 in its body. If a function ever introduces a
+# column-0 `}` (e.g. a heredoc terminator or a nested subshell brace flush-left),
+# the slice would cut early and the sourced function would be malformed. The two
+# extractors keep all inner braces indented, so the marker holds — preserve that
+# (indent inner braces) when editing event-logger.sh's extract_* functions.
 FN_SLICE="$(mktemp 2>/dev/null || printf '/tmp/test-event-logger-%s.sh' "$$")"
 trap 'rm -f "$FN_SLICE"' EXIT
 
