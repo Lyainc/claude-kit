@@ -65,7 +65,11 @@ if [ "${CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD:-}" = "1" ]; then
     # bytes are still captured so a malformed payload is not silently lost.
     DUMP_LINE="$(printf '%s' "$PAYLOAD" | jq -c . 2>/dev/null)"
     [ -n "$DUMP_LINE" ] || DUMP_LINE="$PAYLOAD"
-    printf '%s\n' "$DUMP_LINE" >> "${RAW_DIR}/${EVENT_TYPE}.jsonl" 2>/dev/null || true
+    # Traversal guard: strip any chars outside [a-z0-9_-] so a crafted EVENT_TYPE
+    # like "../../foo" cannot escape the events/raw/ directory.
+    EVENT_TYPE_SAFE="$(printf '%s' "$EVENT_TYPE" | tr -cd 'a-z0-9_-')"
+    [ -n "$EVENT_TYPE_SAFE" ] || EVENT_TYPE_SAFE=unknown
+    printf '%s\n' "$DUMP_LINE" >> "${RAW_DIR}/${EVENT_TYPE_SAFE}.jsonl" 2>/dev/null || true
   fi
 fi
 
