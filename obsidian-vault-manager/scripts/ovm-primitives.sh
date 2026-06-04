@@ -289,14 +289,18 @@ PYEOF
 
 # ── subcommand: infer-tags ─────────────────────────────────────────────────────
 # Usage: infer-tags <file> [<file> ...]   |   infer-tags -   (paths via stdin, one per line)
+#   Paths may be absolute or VAULT_ROOT-relative — a bare relative path is resolved
+#   against VAULT_ROOT (NOT the current directory), so the audit runtime can pass
+#   vault-relative finding paths regardless of its cwd.
 # Deterministic E2 auto-fix tag proposal (#127, batched #152). No LLM. Reads each
 # file's frontmatter `type:` and its path, and emits a tag PROPOSAL as JSON.
 # BATCH (#152): accepts N paths in one invocation (args or stdin) and emits a
 # JSON ARRAY — one object per input path — so the audit runtime spawns a single
 # Python process for all E2 findings instead of one per finding. Each element:
 #   {"path": "<rel>", "type": "<type|null>", "inferred_tags": [...]}
-# or, on a per-file read error:
-#   {"path": "<rel>", "error": "<msg>", "inferred_tags": []}
+# or, on a per-file read error (same keys as success, with `error` added and
+# `type: null` so callers can read `element["type"]` uniformly):
+#   {"path": "<rel>", "type": null, "error": "<msg>", "inferred_tags": []}
 # Three tiers (order preserved, duplicates dropped, all lowercased):
 #   1) type: field        → always the first tag
 #   2) filename slug       → words after stripping the date + {type}- prefix,
@@ -317,19 +321,27 @@ cmd_infer_tags() {
 
   # Resolve each requested path through the vault-boundary guard up front so a
   # traversal / out-of-vault path fails loudly (security), while per-file *read*
-  # errors degrade gracefully inside Python (see policy above).
+  # errors degrade gracefully inside Python (see policy above). A bare relative
+  # path is resolved against VAULT_ROOT (NOT cwd) so callers can pass vault-relative
+  # finding paths from any directory; absolute paths are used as-is. The guard
+  # result is captured in a plain variable BEFORE the array append so `set -e`
+  # propagates a validate_vault_path `die` — a command substitution failure inside
+  # `arr+=(...)` is easy to overlook.
   local -a abs_files=()
+  local line file candidate validated
   if [[ "$1" == "-" && $# -eq 1 ]]; then
-    local line
     while IFS= read -r line || [[ -n "$line" ]]; do
       [[ -z "$line" ]] && continue
-      abs_files+=("$(validate_vault_path "$line")")
+      case "$line" in /*) candidate="$line" ;; *) candidate="$VAULT_ROOT/$line" ;; esac
+      validated="$(validate_vault_path "$candidate")"
+      abs_files+=("$validated")
     done
   else
-    local file
     for file in "$@"; do
       [[ -z "$file" ]] && continue
-      abs_files+=("$(validate_vault_path "$file")")
+      case "$file" in /*) candidate="$file" ;; *) candidate="$VAULT_ROOT/$file" ;; esac
+      validated="$(validate_vault_path "$candidate")"
+      abs_files+=("$validated")
     done
   fi
 
@@ -367,8 +379,10 @@ def infer_one(abs_file):
         with open(abs_file, 'r', encoding='utf-8', errors='replace') as f:
             content = f.read()
     except OSError as e:
-        # Graceful degradation: record the failure, keep going (#152).
-        return {"path": rel, "error": str(e), "inferred_tags": []}, False
+        # Graceful degradation: record the failure, keep going (#152). Carry a
+        # null `type` so error and success elements share one schema and callers
+        # can index element["type"] without a KeyError.
+        return {"path": rel, "type": None, "error": str(e), "inferred_tags": []}, False
 
     ftype = parse_type(content)
     tags = []
@@ -644,7 +658,8 @@ case "$SUBCOMMAND" in
     echo "  scan-frontmatter <dir>                      Emit JSON array of frontmatter records" >&2
     echo "  scan-filename <dir>                         Emit JSON array of filename parse results" >&2
     echo "  extract-wikilinks <file>                    Emit JSON array of wikilink targets" >&2
-    echo "  infer-tags <file> [<file> ...] | -          Emit E2 auto-fix tag proposals as a JSON array (batched; '-' = paths via stdin)" >&2
+    echo "  infer-tags <file> [<file> ...]              Emit E2 auto-fix tag proposals as a JSON array (batched)" >&2
+    echo "  infer-tags -                                ... same, reading newline-delimited paths from stdin" >&2
     echo "  audit-state <op> [args]                     Manage sidecar audit state" >&2
     echo "    ops: is-clean <relpath>                   Check if file is clean" >&2
     echo "         mark-clean <relpath> [mtime]         Mark file as audited clean" >&2

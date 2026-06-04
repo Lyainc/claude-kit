@@ -244,7 +244,8 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
    such relpaths as arguments — see **Tag inference** above):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" infer-tags <relpath1> <relpath2> ...
-   # Large batch (paths exceed ARG_MAX)? Pipe one relpath per line:
+   # Large batch (more than ~200 tag-missing E2 findings, to stay well under any
+   # platform's ARG_MAX)? Pipe one relpath per line instead:
    #   printf '%s\n' <relpath1> <relpath2> ... | bash ".../ovm-primitives.sh" infer-tags -
    ```
    The command returns a JSON array; match each element's `path` back to its
