@@ -100,7 +100,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
 | E1 | `missing_frontmatter` | Critical | P0 | `frontmatter_records` | — |
-| E2 | `missing_required_fields` | Critical | P0 | `frontmatter_records` | ✓ (add inferred values) |
+| E2 | `missing_required_fields` | Critical | P0 | `frontmatter_records` | ✓ (add fields; `tags:` inferred via type/slug/folder — see Phase 4) |
 | E3 | `filename_convention_violation` | Warning | P0 | `filename_records` | — (suggests `권장 파일명`) |
 | E4 | `broken_wikilink` | Critical | P0 | `wikilinks_by_file` | — |
 | E5 | `orphan_note` | Warning | P2 | `inbound_links` | — (suggests tag-based `연결 후보`) |
@@ -210,6 +210,23 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 **Auto-fix eligible types**:
 - `missing_required_fields` (E2): add missing `tags`, `type`, `created` fields with inferred values.
 
+**Tag inference** (#127, deterministic — no LLM): when `tags:` is missing, do NOT
+insert an empty `tags: []`. Instead derive a tag PROPOSAL from three tiers via
+`ovm-primitives.sh infer-tags <relpath>` (order preserved, duplicates dropped,
+all lowercased so the result plausibly passes a future E9 vocabulary check):
+
+| Tier | Source | Rule |
+|------|--------|------|
+| 1 | `type:` field | always the first tag (`type: note` → `note`) |
+| 2 | filename slug | words after stripping the date + `{type}-` prefix, split on `-`/`_` |
+| 3 | parent folder | `notes/{domain}/...` → add `domain` |
+
+Examples: `notes/llm/decision-2026-04-12-context-window.md` (`type: decision`)
+→ `[decision, context, window, llm]`; `inbox/capture-2026-05-01-obsidian-api.md`
+(`type: capture`) → `[capture, obsidian, api]`. Empty slug (date-only filename,
+e.g. `session-2026-04-12.md`) gracefully falls back to the type tag only.
+The proposal is never auto-committed — it is previewed in the confirmation gate below.
+
 **Auto-fix NOT eligible** (never mutate):
 - `missing_frontmatter` (E1): body structure unknown, skip.
 - `broken_wikilink` (E4): requires human decision on rename/delete.
@@ -219,7 +236,11 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
 **Procedure**:
 
-1. If `auto_fix_eligible` count > 0, ask (single AskUserQuestion):
+1. If `auto_fix_eligible` count > 0, first compute the tag proposal for every
+   E2 finding whose missing fields include `tags` (run
+   `ovm-primitives.sh infer-tags <relpath>` per finding — see **Tag inference**
+   above). Then ask (single AskUserQuestion). For each file with an inferred
+   `tags:`, show the proposal on its own line as `추론된 태그: [X, Y, Z]`:
    ```
    AskUserQuestion:
      question: "다음 F건의 frontmatter 이슈를 자동으로 수정할까요?"
@@ -227,7 +248,12 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
        수정 대상:
        • missing_required_fields: X건 (tags/type/created 추가)
 
-       frontmatter만 수정합니다. 파일 이름 · 내용 · 위치는 변경하지 않습니다.
+       추론된 태그 (제안):
+       • notes/llm/decision-2026-04-12-context-window.md → [decision, context, window, llm]
+       • inbox/capture-2026-05-01-obsidian-api.md → [capture, obsidian, api]
+
+       태그는 type·파일명·폴더에서 추론한 제안입니다. frontmatter만 수정하며
+       파일 이름 · 내용 · 위치는 변경하지 않습니다.
      options:
        - "수정 실행"
        - "건너뜀"
@@ -237,6 +263,7 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 
 3. If "수정 실행":
    - For each `missing_required_fields` finding: use Edit to add the missing fields to the existing frontmatter block.
+     - When `tags` is missing, write the inferred proposal from Step 1 (never an empty `tags: []`).
    - All edits are **frontmatter-only** — never touch the markdown body.
 
 4. After all fixes, mark all processed files clean:
