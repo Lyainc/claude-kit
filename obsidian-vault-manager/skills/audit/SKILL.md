@@ -210,10 +210,13 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 **Auto-fix eligible types**:
 - `missing_required_fields` (E2): add missing `tags`, `type`, `created` fields with inferred values.
 
-**Tag inference** (#127, deterministic — no LLM): when `tags:` is missing, do NOT
-insert an empty `tags: []`. Instead derive a tag PROPOSAL from three tiers via
-`ovm-primitives.sh infer-tags <relpath>` (order preserved, duplicates dropped,
-all lowercased so the result plausibly passes a future E9 vocabulary check):
+**Tag inference** (#127, deterministic — no LLM; batched #152): when `tags:` is
+missing, do NOT insert an empty `tags: []`. Instead derive a tag PROPOSAL from
+three tiers via a SINGLE batched call
+`ovm-primitives.sh infer-tags <relpath1> <relpath2> ...` (one Python process for
+all E2 findings, not one per finding). The call emits a JSON array — one element
+per path — with order preserved, duplicates dropped, all lowercased so the result
+plausibly passes a future E9 vocabulary check:
 
 | Tier | Source | Rule |
 |------|--------|------|
@@ -236,11 +239,20 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 
 **Procedure**:
 
-1. If `auto_fix_eligible` count > 0, first compute the tag proposal for every
-   E2 finding whose missing fields include `tags` (run
-   `ovm-primitives.sh infer-tags <relpath>` per finding — see **Tag inference**
-   above). Then ask (single AskUserQuestion). For each file with an inferred
-   `tags:`, show the proposal on its own line as `추론된 태그: [X, Y, Z]`:
+1. If `auto_fix_eligible` count > 0, first compute the tag proposals for every
+   E2 finding whose missing fields include `tags` in ONE batched call (pass all
+   such relpaths as arguments — see **Tag inference** above):
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" infer-tags <relpath1> <relpath2> ...
+   # Large batch (paths exceed ARG_MAX)? Pipe one relpath per line:
+   #   printf '%s\n' <relpath1> <relpath2> ... | bash ".../ovm-primitives.sh" infer-tags -
+   ```
+   The command returns a JSON array; match each element's `path` back to its
+   finding. Per-file failures surface as an `error` field on that element with
+   `inferred_tags: []` (the batch still succeeds for the rest — exit code is
+   non-zero only when EVERY path failed). Then ask (single AskUserQuestion). For
+   each file with an inferred `tags:`, show the proposal on its own line as
+   `추론된 태그: [X, Y, Z]`:
    ```
    AskUserQuestion:
      question: "다음 F건의 frontmatter 이슈를 자동으로 수정할까요?"
