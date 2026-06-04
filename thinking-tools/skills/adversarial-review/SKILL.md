@@ -76,9 +76,9 @@ Before attacking, build the strongest possible version of the claim.
 
 After the Steelman is finalized for a claim and **before Phase 1 begins**, attempt to ground the Evidence Attack (and, secondarily, the Counter-scenario) in the user's own past decision records stored in their Obsidian vault. This makes attacks context-tight — e.g. *"this claim conflicts with a decision you made 6 months ago in the opposite direction."*
 
-**One-shot vault-searcher call** (via the Agent tool):
-1. Call `vault-searcher` **exactly once per session** (not per round). Cache the returned excerpts and reuse them across all rounds of all claims.
-2. **Search target**: `notes/`, preferring `type: decision`. Tell vault-searcher to use the manifest `type` pre-filter when available, otherwise fall back to a `decision-` filename grep. Counter-scenario sourcing MAY additionally surface `status: archived` (failed/reversed) decisions as a secondary worst-case source.
+**One-shot vault-searcher call** (Mode 3 — Keyword Search, via the Agent tool):
+1. Call `vault-searcher` **exactly once per session** (not per round). Cache the returned excerpts and reuse them across rounds. Sized for the typical **single-claim** session; in a multi-claim session the cache reflects the **first** finalized Steelman's keywords, and the relevance gate (step 5) drops any cached decision unrelated to a later claim rather than re-querying — preserving the token budget at the cost of not surfacing claim-specific decisions for subsequent claims.
+2. **Search target**: `notes/`, preferring `type: decision`. Tell vault-searcher to use the manifest `type` pre-filter when available, otherwise fall back to a `decision-` filename grep (this is vault-searcher's native Mode 3 behavior). Counter-scenario sourcing MAY additionally surface `status: archived` decisions as a secondary worst-case source — but ONLY those carrying an explicit failure/reversal signal (a non-empty `## 문제` section or a reversal note); a plain `archived` status can also mean "successfully completed and shelved", which is NOT a worst-case source.
 3. **Query**: 2–3 core keywords distilled from the finalized Steelman.
 4. **Result bound**: up to **3** relevant decisions. Instruct vault-searcher to excerpt **only** the `## 결정` / `## 근거` / `## 문제` sections (not the full note).
 5. **Relevance gate**: drop any returned decision whose topic is not genuinely related to the claim — an irrelevant hit must not be used in any round.
