@@ -161,7 +161,7 @@ S2. **풀 분석** → 바인딩: unknown-discovery → expert-panel → doc-con
 | `doc-only` | 출력 전용 | doc-concretize \| doc-polish \| spec-first |
 | *(bug-light)* | *goal-doc 생략* | debug 직행(#133) — goal-doc 부재로 라우팅(§4.4) |
 
-> impl/critique의 구체 귀속(재사용/native위임/신설)은 **#133 인벤토리**가 확정해요. 표기는 placeholder(`executor|native(#133)`)로 두고 #133과 정합. **native 위임 우선** — #133이 "native agents/기존 leaf로 충분한지" 먼저 판정, 충분하면 신설 안 함.
+> impl/critique의 구체 귀속(재사용/native위임/신설)은 **#133 인벤토리**가 확정해요. 표기는 `candidate-or` 형태(`executor|native(#133)`, §3.2 문법 — 완전-TBD `placeholder` `<#133>`와 구분)로 두고 #133과 정합. **native 위임 우선** — #133이 "native agents/기존 leaf로 충분한지" 먼저 판정, 충분하면 신설 안 함.
 
 ---
 
@@ -210,7 +210,7 @@ goal-doc 파서는 이 스키마로 다음을 **결정적 검증**해요:
 | **#122 Gap-ROUTE** (4종 라우터) | §1.2 `work_type` 1차 키 + §3.6 work_type별 기본 바인딩 + §4.4 bug-light 부재 처리 | ✅ 4종 전부 라우팅 |
 | **#105** (thought-chain dissolve) | §3.4 조건분기(CT-게이트) + §3.5 산출 체이닝(4단계 시퀀스) | ✅ 표기력 닫힘(동작 입증=#105 e2e, 계약=#101) |
 | **#125** (tier 선언) | §1.3 `applies_tiers` cumulative enum + 미선언 시맨틱(`[default]`) | ✅ 병합 지점=파싱 단계 입력 형식 확정 |
-| **#133** (슬라이스 스킬 귀속) | §3.2 placeholder 문법 + §3.6 native 위임 우선 표기 | ✅ 귀속 미확정을 placeholder로, #133이 확정 |
+| **#133** (슬라이스 스킬 귀속) | §3.2 `candidate-or`/`placeholder` 문법 + §3.6 native 위임 우선 표기 | ✅ 미확정 귀속을 `candidate-or`(`executor\|native(#133)`)로, #133이 확정 |
 | **#101** (출력 어댑터 계약) | §3.5 산출 체이닝의 런타임 계약을 #101에 위임 명시 | ✅ 경계 명확(이 스펙=표기, #101=데이터 패싱) |
 
 > 표의 **✅ = *설계 표기 수준* 정합**이에요 — 하류 *구현* 검증(파서·라우터)은 #122 P2~P3에서 이뤄져요(`omc-to-native-substrate.md` §5). 이 스펙은 그 구현이 의존할 계약을 표기 수준에서 닫아요.
