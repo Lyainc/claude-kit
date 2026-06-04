@@ -120,7 +120,7 @@ Mode B triggers are implicit — confirm before running, since Mode B consumes m
 
 Options:
 1. 적용 — 자동 선택 (Apply; weighted-random direction)
-2. 방향 직접 선택 (생성된 방향들을 보고 고른 뒤 저작 — "전부 보여줘"와 동일)
+2. 방향 직접 선택 (보고 고름 → 방향 확정 후 doc-concretize 저작 — "전부 보여줘"와 동일)
 3. 일반 응답 (Standard response)
 ```
 
@@ -296,8 +296,8 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
   doc-concretize (② output — authored markdown). diverse-sampling does **not** edit the
   produced document; doc-concretize owns authoring.
 - **Output**: the structured document returned by doc-concretize, followed by a pinned
-  one-line footer (mirroring Mode A's pinned footers; abbreviate `{selected}` to its first
-  phrase or ~4–6 words with an ellipsis — a word/phrase boundary, not a hard char cut, so
+  one-line footer (mirroring Mode A's pinned footers; abbreviate `{selected}` to its 첫
+  구(phrase)나 ~15–20자 with an ellipsis — a word/phrase boundary, not a hard char cut, so
   Korean text is not split mid-morpheme):
 
 ```
@@ -305,8 +305,9 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
 *작성 다양성: {k}개 방향 중 "{selected}" 선택 → doc-concretize 구체화*
 ```
 
-**Mode B Fallback**: if the doc-concretize sub-call cannot run, emit the selected direction
-as a standard structured response (no sub-call) and note the fallback to the user.
+**Mode B Fallback**: if the doc-concretize sub-call cannot run (e.g. Skill 도구 에러 또는
+doc-concretize 미설치 시), emit the selected direction as a standard structured response
+(no sub-call) and note the fallback to the user.
 
 ## Structured Output Handling
 
