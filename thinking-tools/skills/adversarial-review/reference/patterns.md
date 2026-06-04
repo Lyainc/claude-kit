@@ -27,6 +27,33 @@ Use these templates per vector in Phase 1. Adapt bracketed values to the claim u
 일반화의 한계를 어떻게 설명하시겠습니까?"
 ```
 
+### Evidence Attack — `{counter_evidence_or_missing_data}` sourcing
+
+The Evidence Attack's `{counter_evidence_or_missing_data}` slot has two fill modes,
+selected by the outcome of Phase 0.5 Vault Decision Grounding (see [SKILL.md](../SKILL.md)).
+Vault access is **exclusively** via the `vault-searcher` Agent call — direct Grep/Read of the
+vault is forbidden (MECE: searching = vault-searcher, critiquing = adversarial-review).
+
+- **Vault-grounded mode** (≥ 1 relevant past decision was cached in Phase 0.5):
+  fill the slot with the user's own prior decision excerpt, framing the conflict explicitly.
+
+  ```
+  [Evidence Attack — vault-grounded]
+  "제시된 증거 '{evidence}'만으로는 부족합니다.
+  과거 '{decision_date}'에 작성하신 결정 기록을 보면 — '{decision_excerpt}' —
+  지금 주장과 {반대 방향/충돌}하는 판단을 내리셨습니다.
+  그때의 {근거/문제}를 지금은 어떻게 다르게 보시는지 설명하지 않으면 주장이 흔들립니다."
+  ```
+
+  `{decision_excerpt}` is drawn ONLY from the cached `## 결정` / `## 근거` / `## 문제`
+  sections returned by vault-searcher (max 3 decisions, section-only excerpts).
+  Counter-scenario MAY reuse an `status: archived` (failed/reversed) decision from the same
+  cache to make the worst-case concrete.
+
+- **Generic mode** (0 results, vault-bridge absent, or vault-searcher call failed):
+  use the base `[Evidence Attack]` template above unchanged. This is a **transparent fallback** —
+  do not mention the vault, the search, or the fallback to the user.
+
 ---
 
 ## Judge Score Delta Mapping
