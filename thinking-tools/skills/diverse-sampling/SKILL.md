@@ -116,11 +116,25 @@ Mode B triggers are implicit — confirm before running, since Mode B consumes m
 작성 다양성 향상(Verbalized Sampling → doc-concretize)을 적용할까요?
 
 - 다양한 작성 방향을 생성한 뒤 선택된 방향을 구조화 문서로 구체화합니다
-- 창의·개방형 작성에 효과적이지만 토큰 소비가 높습니다
+- 창의·개방형 작성에 효과적이지만 토큰 소비가 높습니다 (기본 5개 방향 생성 + doc-concretize 저작)
 
 Options:
 1. 적용 — 자동 선택 (Apply; weighted-random direction)
 2. 방향 직접 선택 (생성된 방향들을 보고 고른 뒤 저작 — "전부 보여줘"와 동일)
+3. 일반 응답 (Standard response)
+```
+
+**Mode Disambiguation Prompt** (via AskUserQuestion — for ambiguous input like "다양하게 써줘";
+the pick resolves the mode AND doubles as confirmation, so step 4 does not prompt again):
+```
+어떤 작업이 맞을까요?
+
+- Mode A (탐색): 여러 아이디어·대안을 생성해 그중 하나를 고름
+- Mode B (작성 향상): 다양한 작성 방향을 생성 후 doc-concretize로 구체화 (토큰 소비 높음)
+
+Options:
+1. Mode A — 아이디어 탐색
+2. Mode B — 작성 향상 (적용 확정)
 3. 일반 응답 (Standard response)
 ```
 
@@ -131,9 +145,10 @@ Options:
 1. **Mode Determination**
    - Mode B trigger detected (글로 발전시켜줘 / 더 구체적으로 작성해줘 / enhance / 작성 다양성) → **Mode B (Enhance)**
    - Explore trigger or `/diverse-sampling` → **Mode A (Explore)**
-   - Ambiguous (e.g. "다양하게 써줘") → ask via a **single** AskUserQuestion that offers Mode A
-     vs Mode B *and* states Mode B's higher token cost. The user's pick resolves the mode
-     **and doubles as confirmation** — do not prompt again in step 4.
+   - Ambiguous (e.g. "다양하게 써줘") → ask via the **Mode Disambiguation Prompt** (above) — a
+     single AskUserQuestion offering Mode A vs Mode B that also states Mode B's higher token
+     cost. The user's pick resolves the mode **and doubles as confirmation** — do not prompt
+     again in step 4.
 
 2. **Language Detection**
    - Analyze input language
@@ -273,15 +288,17 @@ writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing 
 
 - Sub-call the intra-plugin **`doc-concretize`** skill (same plugin — see
   [doc-concretize](../doc-concretize/SKILL.md)) via the **Skill** tool. Pass the selected
-  direction's text as the Skill call's topic/seed argument — `Skill args: topic = {direction
-  outline text}` (plain text, ≤1 paragraph). doc-concretize authors the full structured
-  document through its recursive-concretization workflow.
+  direction's outline text as doc-concretize's input — its Prerequisites accept an "abstract
+  concept or idea to concretize" as free-form text (plain text, ≤1 paragraph; optionally
+  append a format/structure hint). doc-concretize then authors the full structured document
+  through its recursive-concretization workflow.
 - This is a one-way ①→② handoff: diverse-sampling (① cognition — diversity generation) feeds
   doc-concretize (② output — authored markdown). diverse-sampling does **not** edit the
   produced document; doc-concretize owns authoring.
 - **Output**: the structured document returned by doc-concretize, followed by a pinned
-  one-line footer (mirroring Mode A's pinned footers; use the first 20 characters of
-  `{selected}`):
+  one-line footer (mirroring Mode A's pinned footers; abbreviate `{selected}` to its first
+  phrase or ~4–6 words with an ellipsis — a word/phrase boundary, not a hard char cut, so
+  Korean text is not split mid-morpheme):
 
 ```
 ───
