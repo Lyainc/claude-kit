@@ -12,7 +12,7 @@
   "plugins": [
     {
       "name": "thinking-tools",
-      "version": "2.1.0",
+      "version": "2.2.0",
       "description": "Claude Code thinking-tools plugin: 8 skills for structured reasoning, debate, document polish, blind-spot detection, and idea crystallization, plus a thinking-facilitator agent.",
       "author": {
         "name": "Lyainc",
@@ -38,7 +38,7 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "0.16.1",
+      "version": "0.17.0",
       "description": "Obsidian vault knowledge management plugin (v4): capture / note / audit skills + 2 agents for a minimal second-brain workflow. audit detects E1–E8 structural defects and promotion candidates. type-optin; ovm-primitives shell API.",
       "author": {
         "name": "Lyainc",
