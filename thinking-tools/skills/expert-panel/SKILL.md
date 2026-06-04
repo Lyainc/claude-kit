@@ -36,11 +36,11 @@ All combinations compose silently.
 
 ### Fixed (Always Present)
 
-| Role | Description |
-|------|-------------|
-| **Moderator** | Facilitates discussion, open/close authority, fact-check requests, unresolved issue tracking |
-| **Optimistic Practitioner** | Advocates proposal benefits and feasibility, proposes realistic implementation paths |
-| **Critical Practitioner** | Identifies risks and limitations, provides alternative perspectives |
+| Role | Stance | Distinct evaluation criteria | Voice |
+|------|--------|------------------------------|-------|
+| **Moderator** | Neutral facilitation (no position) | Open/close authority, fact-check requests, unresolved-issue tracking | Procedural, summarizing |
+| **Optimistic Practitioner** | Advocates benefits + feasibility | Implementation experience, delivery numbers ("3주 내 가능", "X% 개선") | Forward-leaning, solution-first |
+| **Critical Practitioner** | Identifies risk + limitations, proposes alternatives | Failure precedents, risk probabilities, tech-debt cost | Skeptical, evidence-demanding |
 
 ### Variable (User-specified)
 
@@ -48,7 +48,7 @@ All combinations compose silently.
 |------|-------------|
 | **Expert Panel** | 3+ domain experts specified by user (e.g., Security, UX, Performance, Legal, LLM) |
 
-**Important**: Experts reason based on core mechanisms, metrics, and precedents from their domain (details: [reference.md](reference.md)).
+**Important — role-prompt differentiation is the diversity source**: This panel's diversity comes from differentiated **role prompts**, not from extra spawns or higher temperature (rationale: [reference.md → 다양성 원천](reference.md)). Each role — fixed and variable — must carry a **distinct stance**, **distinct evaluation criteria** (a different measurable axis per role, e.g. Security→CVSS, Performance→p99/O(n), UX→task-completion rate), and a **distinct voice**. Roles that share the same criteria collapse into one opinion. When two roles agree too readily, re-validate the conclusion against each role's *own* criteria — easy agreement may be conformity, not aligned evidence (see Anti-conformity directive in [Phase 1](#phase-1-topic-rounds) and isolated-mode early-stop). Full per-role differentiation guidance + the rejected full-spawn-default alternative: [reference.md](reference.md).
 
 ### Expert Selection Guide
 
@@ -121,6 +121,12 @@ Tie-break: [used:{yes|no}] [margin:{n|—}]
 - `Rebuttal` (isolated mode only) — topic `n`, exchange index `e{i}` (`e1` = independent, `e2`/`e3` = up to 2 rebuttal exchanges), and `{k}/{N}` experts collected in the current exchange — updated after each expert is collected, so `k` may be partial mid-exchange (e.g. `e1:1/3` after the first of three). Bounded counters only — never statement prose. Empty/omitted in inline mode. In isolated mode the `Rebuttal` cursor is the authoritative loop-position source — recorded in the STATE block in **all** modes (including isolated + summary-only, since it is not a transcript); `Independent` is the inline-mode tracker and only a redundant mirror at `e1`. On any divergence (e.g. a partial write interrupted by compaction), `Rebuttal` wins (it also distinguishes `e2`/`e3`).
 - `Votes` — populated only by the Tie-Breaking Mechanism (after round 3); empty before tie-break.
 - `Topic-status` — closed enum, exactly these 6 values; no free-text. `tie-broken` = resolved via the Tie-Breaking Mechanism (weighted vote always yields a winner; a margin < 2 is recorded as "Conditional" in SUMMARY.md but the status stays `tie-broken`). There is no separate `deadlock` value — the vote is total, so a topic never ends unresolved.
+
+**Multi-round support (isolated mode) — verified**: the block tracks two nested loops, and isolated-mode multi-round debate is fully supported by them:
+- *Outer loop* = topic rounds, located by `Round: {r}/3` (the 3-round ceiling, line 92).
+- *Inner loop* = the isolated-mode exchange loop inside one round's Q&A/Rebuttal step, located by `Rebuttal: [t{n}:e{i}:{k}/{N}]`.
+
+The `Rebuttal` cursor intentionally carries only topic index `t{n}` + exchange index `e{i}` — **not** the round index `r`. It does not need one: the exchange loop re-enters fresh at `e1` every new topic round (independent statements are re-collected per round, preserving anti-anchoring), so the pair `(Round={r}, Rebuttal=[t{n}:e{i}:…])` — both fields in the same STATE block — uniquely locates the loop position across rounds. On compaction restore, read `Round` for the topic-round position and `Rebuttal` for the in-progress exchange; together they resume multi-round isolated debate without ambiguity. (Single-round and inline modes use the same fields; inline simply leaves `Rebuttal` empty.)
 
 **Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
 Topic-status → `pending`; Votes → treat as no-vote / no-consensus; Independent → `0` (re-collect, preserves anti-anchoring);
