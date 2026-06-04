@@ -76,7 +76,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 9. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" detect-vocabulary ~/vault
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" detect-vocabulary "$VAULT_ROOT"
    ```
    Always run on the **full vault** (not the dirty subset) — E9 is a vault-level check. The command emits a JSON array of pairs `{sub, a, b, a_files, b_files}` (empty when consistent); pass it straight to CLASSIFY as the E9 findings source.
 

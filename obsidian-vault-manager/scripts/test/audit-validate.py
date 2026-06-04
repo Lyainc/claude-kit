@@ -414,6 +414,7 @@ def detect_vocabulary_pairs(fm_records: list) -> list:
             seen.add(plural)
 
     # E9b — camelCase vs snake_case property keys.
+    # E9b: no `seen` set needed — each camelCase key has exactly one snake_case form.
     for camel in sorted(key_files):
         if not E9_CAMEL_RE.search(camel):
             continue
