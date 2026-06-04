@@ -11,7 +11,7 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 8개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain, adversarial-review, spec-first + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 3개 (capture, note, audit) + reference docs (`reference/vault-audit-rules.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 4개 (capture, note, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
 - **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 5종 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 6개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) + Python scripts (`generate-manifest.py`, `plan-doc-syncer.py`, `vault-commit-message.py`). vault 검색 + slash command 기반 session-note/capture/plan 작성 + 세션 생명주기 안전망 + 외부 plan-doc 자동 캡처.
 
 ## Git Conventions
@@ -58,9 +58,9 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                          # 3개 스킬 (capture, note, audit)
+│   ├── skills/                          # 4개 스킬 (capture, note, audit, base)
 │   ├── agents/                          # 2개 에이전트
-│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md
+│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, obsidian-bases-schema.md
 │   └── scripts/                         # ovm-primitives.sh, audit-validate.py, gen-fixture.sh
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
@@ -103,7 +103,7 @@ find obsidian-vault-manager/skills -name "SKILL.md" | sort
 python3 vault-bridge/scripts/test/test-discover.py
 # Expected: OK: all cases passed (currently 18 cases)
 
-# vault-bridge pre-write-guard regression (Write Role Contract + naming)
+# vault-bridge pre-write-guard regression (Write Role Contract + naming, incl. notes/*.base ext for #118 /base skill)
 python3 vault-bridge/scripts/test/test-pre-write-guard.py
 
 # vault-bridge pre-access-guard regression (vault-searcher self-exemption + counter)
@@ -168,13 +168,16 @@ OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
 python3 obsidian-vault-manager/scripts/test/audit-validate.py \
   /tmp/ovm-fixture-audit-recheck --dod
 # Expected (G8+):
-#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E10:5, E11:5}
+#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E9:2, E10:5, E11:5}
 #     (E2 has 10: 5 base + 5 status-missing; E5 has 6: 5 w/ tag candidates +
 #      1 empty-tags graceful orphan; E6=stale_inbox; E7=stale_draft;
 #      E8 has 2: promotion-target via refs_in=3, access-target via manifest patch;
+#      E9 has 2: vault-level vocabulary pairs (E9a api/apis singular-plural +
+#      E9b sourceUrl/source_url camel/snake), path-less findings, P2/no-autofix,
+#      counted per pair, FP-guarded by both forms appearing in >=3 files;
 #      E10=misplaced_file (type:session in notes/); E11=unstructured_path
 #      (2 root-direct + 3 in 20_Projects/), root _index.md exempt)
-#   dod.fp_on_clean per type = 0   (incl. E10/E11; root _index.md exercises E11 exempt guard)
+#   dod.fp_on_clean per type = 0   (incl. E9/E10/E11; root _index.md exercises E11 exempt guard)
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []
 #   dod.e3_with_suggestion >= 5    (E3 권장 파일명 present); dod.e5_with_candidates > 0
