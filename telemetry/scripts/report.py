@@ -57,6 +57,57 @@ def parse_since(s: str | None) -> int | None:
     return int(s[:-1])
 
 
+def collect_durations(events: list[dict]) -> list[float]:
+    """Pull numeric meta.duration_ms values across events.
+
+    Only events whose meta carries a non-null numeric duration_ms count. Events
+    with empty meta, a null duration_ms (no timing datum), or a non-numeric value
+    are skipped — so the latency stats reflect real timing samples only. bool is
+    explicitly rejected (it is an int subclass in Python).
+    """
+    durations: list[float] = []
+    for e in events:
+        meta = e.get("meta")
+        if not isinstance(meta, dict):
+            continue
+        d = meta.get("duration_ms")
+        if isinstance(d, bool) or not isinstance(d, (int, float)):
+            continue
+        durations.append(float(d))
+    return durations
+
+
+def percentile(sorted_vals: list[float], q: float) -> float:
+    """Nearest-rank percentile (q in [0,1]) over a pre-sorted list.
+
+    Nearest-rank avoids interpolation ambiguity and matches the "pick the
+    sample at rank ceil(q*N)" definition used for small-N dogfooding data.
+    """
+    if not sorted_vals:
+        raise ValueError("percentile of empty list")
+    n = len(sorted_vals)
+    import math
+    rank = max(1, math.ceil(q * n))
+    return sorted_vals[rank - 1]
+
+
+def latency_stats(events: list[dict]) -> dict | None:
+    """Return {count, p50, p95} over events carrying meta.duration_ms, or None.
+
+    None signals "no timing samples" so callers can render a skip line rather
+    than fabricating zeros.
+    """
+    durations = collect_durations(events)
+    if not durations:
+        return None
+    durations.sort()
+    return {
+        "count": len(durations),
+        "p50": percentile(durations, 0.50),
+        "p95": percentile(durations, 0.95),
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--since", default="7d", help="time window (e.g. '7d', 'all')")
@@ -86,12 +137,23 @@ def main() -> int:
     plugin_unknown = sum(1 for e in events if e.get("plugin") == "unknown")
     unknown_ratio = plugin_unknown / len(events)
 
+    latency = latency_stats(events)
+
     if args.format == "json":
         payload = {
             "total": len(events),
             "since": args.since,
             "outcomes": dict(outcomes),
             "plugin_unknown_ratio": round(unknown_ratio, 4),
+            "latency": (
+                {
+                    "count": latency["count"],
+                    "p50_ms": round(latency["p50"], 1),
+                    "p95_ms": round(latency["p95"], 1),
+                }
+                if latency is not None
+                else None
+            ),
             "top": [
                 {"plugin": plg, "event": ev, "name": nm, "count": c}
                 for (plg, ev, nm), c in counts.most_common(args.top)
@@ -103,6 +165,15 @@ def main() -> int:
     print(f"Total events: {len(events)} (since={args.since})")
     print(f"Outcomes: {dict(outcomes)}")
     print(f"plugin=unknown ratio: {unknown_ratio:.1%}")
+    print()
+    print("Latency p50/p95 (events with duration_ms only):")
+    if latency is None:
+        print("  (no events carry meta.duration_ms — nothing to report)")
+    else:
+        print(
+            f"  n={latency['count']}  "
+            f"p50={latency['p50']:.0f}ms  p95={latency['p95']:.0f}ms"
+        )
     print()
     print(f"Top {args.top}:")
     for (plg, ev, nm), c in counts.most_common(args.top):

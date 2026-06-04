@@ -94,6 +94,16 @@ extract_end_meta() {
 
 # Build the meta object for the Stop event. Turn token totals come from a
 # usage block on the Stop payload when present; absent/null keys are omitted.
+#
+# TODO(#153): the `.usage.*` key path below is UNVERIFIED against a real Claude
+# Code Stop hook payload — it was an educated guess, not confirmed against live
+# data (no live stop events were available at authoring time). It is currently
+# exercised only against SYNTHETIC payloads (scripts/test/test-event-logger.sh).
+# To confirm the real shape: run a session with CLAUDE_KIT_TELEMETRY=1, inspect a
+# real Stop payload (e.g. log the raw stdin of this hook to a temp file, or check
+# Claude Code's Stop hook schema docs), and adjust `.usage` to the real key path
+# if it differs (candidates: `.turn_usage`, `.message.usage`, top-level token
+# fields). Do NOT blind-edit the live path until a real payload confirms it.
 extract_stop_meta() {
   local payload="$1"
   printf '%s' "$payload" | jq -c '
