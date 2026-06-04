@@ -68,9 +68,14 @@ python3 telemetry/scripts/sequence.py --n=2 --top=20
   "name": "save-session",
   "qualified_name": "vault-bridge:save-session",
   "trigger": "explicit",
-  "outcome": "started",
+  "outcome": "success",
   "tool_use_id": "toolu_01ABC",
-  "meta": {}
+  "meta": {
+    "duration_ms": 1234,
+    "input_tokens": 500,
+    "output_tokens": 120,
+    "cache_read_tokens": 42
+  }
 }
 ```
 
@@ -83,6 +88,29 @@ python3 telemetry/scripts/sequence.py --n=2 --top=20
 | `stop` | Stop | response-boundary counter |
 
 `outcome` values: `started` (PreToolUse), `success` / `error` / `blocked` (PostToolUse).
+
+### `meta` fields
+
+`meta` is populated only on PostToolUse end events and the `stop` event;
+PreToolUse `started` events and `session_*` events keep `meta: {}`. Token
+counts come from `tool_response.usage.*`; an absent key is **omitted** (not
+written as null/empty) to avoid schema pollution. Only `duration_ms` is always
+present on end events, set to `null` when the hook payload carries no timing.
+
+| meta key | events | source | when present |
+|----------|--------|--------|--------------|
+| `duration_ms` | `skill_invoke`/`agent_spawn` end | `tool_response.duration_ms` (falls back to payload `.duration_ms`) | always (value or `null`) |
+| `input_tokens` | `skill_invoke`/`agent_spawn` end | `tool_response.usage.input_tokens` | only if present |
+| `output_tokens` | `skill_invoke`/`agent_spawn` end | `tool_response.usage.output_tokens` | only if present |
+| `cache_read_tokens` | `skill_invoke`/`agent_spawn` end | `tool_response.usage.cache_read_input_tokens` | only if present |
+| `turn_input_tokens` | `stop` | payload `.usage.input_tokens` | only if present |
+| `turn_output_tokens` | `stop` | payload `.usage.output_tokens` | only if present |
+
+All inner `meta` keys are **optional** in `validate-schema.py` — only the
+`meta: {}` envelope is required. `--strict` surfaces an advisory **warning**
+(never a hard failure) when a `skill_invoke`/`agent_spawn` end event carries an
+empty `meta`, so a token/timing pipeline regression is visible without breaking
+the Phase Gate on historical pre-instrumentation lines.
 
 ## Lock strategy: lockless POSIX O_APPEND
 

@@ -39,6 +39,14 @@ VALID_EVENTS = {
     "session_start", "session_end", "stop",
 }
 
+# Under --strict, a PostToolUse end event (skill_invoke/agent_spawn with a
+# terminal outcome) is expected to carry at least a duration_ms datum in meta;
+# an empty meta is surfaced as a (non-fatal) warning so a token/timing pipeline
+# regression is visible. Only `success`/`error`/`blocked` outcomes are end
+# events — `started` is the PreToolUse half and legitimately has empty meta.
+META_EXPECTED_EVENTS = {"skill_invoke", "agent_spawn"}
+END_OUTCOMES = {"success", "error", "blocked"}
+
 # PIPE_BUF safety threshold. POSIX guarantees atomic O_APPEND for writes <=
 # PIPE_BUF (4096 on macOS/Linux). We warn at 3500B to leave headroom; if we
 # ever exceed, the lockless append strategy needs to be revisited.
@@ -64,8 +72,17 @@ def _date_from_filename(p: Path):
         return datetime.min.date()
 
 
-def validate_line(raw: str, lineno: int, path: Path) -> list[str]:
+def validate_line(raw: str, lineno: int, path: Path,
+                  strict: bool = False) -> tuple[list[str], list[str]]:
+    """Return (errors, warnings) for one jsonl line.
+
+    errors are hard schema violations (drive --strict exit code); warnings are
+    advisory findings (empty-meta on end events) surfaced under --strict but
+    never fatal — historical pre-token-instrumentation lines must not break the
+    Phase Gate.
+    """
     errors: list[str] = []
+    warnings: list[str] = []
     line_bytes = len(raw.encode("utf-8"))
     if line_bytes > PIPE_BUF_WARN_BYTES:
         errors.append(
@@ -77,11 +94,11 @@ def validate_line(raw: str, lineno: int, path: Path) -> list[str]:
         obj = json.loads(raw)
     except json.JSONDecodeError as e:
         errors.append(f"{path.name}:{lineno} JSON parse error: {e.msg}")
-        return errors
+        return errors, warnings
 
     if not isinstance(obj, dict):
         errors.append(f"{path.name}:{lineno} not a JSON object")
-        return errors
+        return errors, warnings
 
     for field, expected_type in REQUIRED_FIELDS.items():
         if field not in obj:
@@ -98,11 +115,21 @@ def validate_line(raw: str, lineno: int, path: Path) -> list[str]:
             f"{path.name}:{lineno} event '{obj['event']}' not in {sorted(VALID_EVENTS)}"
         )
 
-    return errors
+    if (strict
+            and obj.get("event") in META_EXPECTED_EVENTS
+            and obj.get("outcome") in END_OUTCOMES
+            and isinstance(obj.get("meta"), dict)
+            and not obj["meta"]):
+        warnings.append(
+            f"{path.name}:{lineno} empty meta on {obj['event']} "
+            f"end event (expected duration_ms/token data)"
+        )
+
+    return errors, warnings
 
 
 def run_self_test() -> int:
-    # Synthesize one valid + one invalid line and run validator inline.
+    # Synthesize valid + invalid lines and run validator inline.
     good = json.dumps({
         "ts": "2026-05-15T00:00:00Z",
         "session_id": "x", "cwd": "/", "plugin": "claude-kit",
@@ -110,13 +137,67 @@ def run_self_test() -> int:
         "trigger": "auto", "outcome": "success",
         "tool_use_id": "", "meta": {},
     })
+    # A populated meta (duration_ms + token counts) must validate cleanly:
+    # inner meta keys are optional, only the `meta: dict` envelope is required.
+    good_meta = json.dumps({
+        "ts": "2026-05-15T00:00:00Z",
+        "session_id": "x", "cwd": "/", "plugin": "vault-bridge",
+        "event": "skill_invoke", "name": "save-session",
+        "qualified_name": "vault-bridge:save-session",
+        "trigger": "explicit", "outcome": "success",
+        "tool_use_id": "toolu_01ABC",
+        "meta": {
+            "duration_ms": 1234,
+            "input_tokens": 500,
+            "output_tokens": 120,
+            "cache_read_tokens": 42,
+        },
+    })
+    # duration_ms may be null when timing is unavailable — still valid.
+    good_meta_null = json.dumps({
+        "ts": "2026-05-15T00:00:00Z",
+        "session_id": "x", "cwd": "/", "plugin": "thinking-tools",
+        "event": "agent_spawn", "name": "executor",
+        "qualified_name": "executor",
+        "trigger": "explicit", "outcome": "success",
+        "tool_use_id": "toolu_02DEF",
+        "meta": {"duration_ms": None},
+    })
+    # An end event with empty meta is clean by default but warns under --strict.
+    empty_meta_end = json.dumps({
+        "ts": "2026-05-15T00:00:00Z",
+        "session_id": "x", "cwd": "/", "plugin": "vault-bridge",
+        "event": "skill_invoke", "name": "save-session",
+        "qualified_name": "vault-bridge:save-session",
+        "trigger": "explicit", "outcome": "success",
+        "tool_use_id": "toolu_03GHI", "meta": {},
+    })
     bad = '{"ts":"x","event":"not-an-event"}'
 
-    good_errs = validate_line(good, 1, Path("self-test.jsonl"))
-    bad_errs = validate_line(bad, 1, Path("self-test.jsonl"))
+    sp = Path("self-test.jsonl")
+    good_errs, _ = validate_line(good, 1, sp)
+    good_meta_errs, _ = validate_line(good_meta, 1, sp)
+    good_meta_null_errs, _ = validate_line(good_meta_null, 1, sp)
+    empty_lax_errs, empty_lax_warns = validate_line(empty_meta_end, 1, sp, strict=False)
+    _, empty_strict_warns = validate_line(empty_meta_end, 1, sp, strict=True)
+    bad_errs, _ = validate_line(bad, 1, sp)
 
     if good_errs:
         print(f"FAIL: good line flagged: {good_errs}", file=sys.stderr)
+        return 1
+    if good_meta_errs:
+        print(f"FAIL: good meta line flagged: {good_meta_errs}", file=sys.stderr)
+        return 1
+    if good_meta_null_errs:
+        print(f"FAIL: good null-duration meta line flagged: {good_meta_null_errs}",
+              file=sys.stderr)
+        return 1
+    if empty_lax_errs or empty_lax_warns:
+        print(f"FAIL: empty-meta end event flagged without --strict: "
+              f"errs={empty_lax_errs} warns={empty_lax_warns}", file=sys.stderr)
+        return 1
+    if not empty_strict_warns:
+        print("FAIL: empty-meta end event not warned under --strict", file=sys.stderr)
         return 1
     if not bad_errs:
         print("FAIL: bad line not flagged", file=sys.stderr)
@@ -155,6 +236,7 @@ def main() -> int:
 
     total_lines = 0
     all_errors: list[str] = []
+    all_warnings: list[str] = []
     for path in files:
         with path.open(encoding="utf-8") as f:
             for lineno, raw in enumerate(f, 1):
@@ -162,9 +244,20 @@ def main() -> int:
                 if not raw.strip():
                     continue
                 total_lines += 1
-                all_errors.extend(validate_line(raw, lineno, path))
+                errs, warns = validate_line(raw, lineno, path, strict=args.strict)
+                all_errors.extend(errs)
+                all_warnings.extend(warns)
 
     print(f"Scanned {total_lines} lines across {len(files)} files")
+    # Warnings (e.g. empty meta on end events) are advisory only — printed under
+    # --strict but never affect the exit code, so historical pre-instrumentation
+    # data does not break the Phase Gate.
+    if all_warnings:
+        print(f"Warnings: {len(all_warnings)}")
+        for warn in all_warnings[:50]:
+            print(f"  {warn}")
+        if len(all_warnings) > 50:
+            print(f"  ... and {len(all_warnings) - 50} more")
     if all_errors:
         print(f"Violations: {len(all_errors)}")
         for err in all_errors[:50]:
