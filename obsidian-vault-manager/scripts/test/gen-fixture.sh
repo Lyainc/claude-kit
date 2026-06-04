@@ -542,6 +542,88 @@ status: evergreen
 Root-level vault index — must be EXEMPT from E11 (regression guard for #129).
 EOF
 
+  # ── E9: tag_vocabulary_inconsistency (2 pairs, vault-wide) ────────────────────
+  # E9 is a VAULT-LEVEL check (findings carry path:"") — DoD counts PAIRS, not
+  # files. We seed two pairs, each form in 3 files (== E9_MIN_FILES) so the
+  # frequency FP guard fires exactly at the threshold:
+  #   E9a singular/plural : tag `api` (3 files) ↔ `apis` (3 files)
+  #   E9b property naming : key `sourceUrl` (3 files) ↔ `source_url` (3 files)
+  # All 12 files carry full valid frontmatter + conforming names + a ring
+  # wikilink within their group, so they trip ONLY E9 (no E1/E2/E3/E4/E5).
+  # The "note"/"notes" tag can never pair here — no `notes` tag exists in the
+  # fixture, so E9a only reports the api/apis pair.
+
+  # E9a — singular form `api` (3 files, ring-linked within the singular group).
+  for i in 1 2 3; do
+    next=$(( (i % 3) + 1 ))
+    write_file "$FIXTURE_DIR/notes/audit-e9-tag-api-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note, api]
+type: note
+status: raw
+---
+
+# Audit E9a API ${i}
+
+Uses the singular tag \`api\`. Links to [[audit-e9-tag-api-$(printf '%03d' $next)]].
+EOF
+  done
+
+  # E9a — plural form `apis` (3 files, ring-linked within the plural group).
+  for i in 1 2 3; do
+    next=$(( (i % 3) + 1 ))
+    write_file "$FIXTURE_DIR/notes/audit-e9-tag-apis-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note, apis]
+type: note
+status: raw
+---
+
+# Audit E9a APIs ${i}
+
+Uses the plural tag \`apis\` — inconsistent with \`api\`. Links to [[audit-e9-tag-apis-$(printf '%03d' $next)]].
+EOF
+  done
+
+  # E9b — snake_case key `source_url` (3 files, ring-linked).
+  for i in 1 2 3; do
+    next=$(( (i % 3) + 1 ))
+    write_file "$FIXTURE_DIR/notes/audit-e9-prop-snake-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: raw
+source_url: https://example.com/snake-${i}
+---
+
+# Audit E9b snake ${i}
+
+Uses the snake_case key \`source_url\`. Links to [[audit-e9-prop-snake-$(printf '%03d' $next)]].
+EOF
+  done
+
+  # E9b — camelCase key `sourceUrl` (3 files, ring-linked) — inconsistent with
+  # the snake_case form above → E9b pair.
+  for i in 1 2 3; do
+    next=$(( (i % 3) + 1 ))
+    write_file "$FIXTURE_DIR/notes/audit-e9-prop-camel-$(printf '%03d' $i).md" <<EOF
+---
+created: 2026-04-01
+tags: [note]
+type: note
+status: raw
+sourceUrl: https://example.com/camel-${i}
+---
+
+# Audit E9b camel ${i}
+
+Uses the camelCase key \`sourceUrl\`. Links to [[audit-e9-prop-camel-$(printf '%03d' $next)]].
+EOF
+  done
+
   # ── 200 extra clean notes for FP measurement ─────────────────────────────────
   # These have fully valid frontmatter and filenames; none should be flagged.
   # Linking strategy: note i links to note i+1 (mod 200), forming a ring so
@@ -613,9 +695,10 @@ PYEOF
   log "    E6 stale_inbox                      : 5 files (inbox raw, created 2020)"
   log "    E7 stale_draft                      : 5 files (notes draft, created 2020, ring-linked)"
   log "    E8 promotion_candidate              : 2 files (refs×3 + access×5 via manifest patch)"
+  log "    E9 tag_vocabulary_inconsistency     : 2 pairs (api↔apis, sourceUrl↔source_url; 12 files, 3 per form)"
   log "    E10 misplaced_file                  : 5 files (type:session in notes/, ring-linked)"
   log "    E11 unstructured_path               : 5 files (2 root-direct + 3 in 20_Projects/)"
-  log "    Total seeded errors                 : 53"
+  log "    Total seeded errors                 : 53 files + 12 E9 files (2 pairs)"
   log "    Extra clean notes (FP base)         : 200 + audit-clean-no-promotion + root _index.md (E11 exempt guard)"
   log ""
 fi

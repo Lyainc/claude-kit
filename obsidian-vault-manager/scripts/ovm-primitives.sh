@@ -427,6 +427,142 @@ sys.exit(0 if (results and ok_count > 0) else 1)
 PYEOF
 }
 
+# ── subcommand: detect-vocabulary ──────────────────────────────────────────────
+# Usage: detect-vocabulary <dir>
+# E9 (#119): vault-WIDE tag/property vocabulary inconsistency detection.
+# Aggregates tags + frontmatter keys across the whole directory (NOT per file —
+# E9 is a vault-level check) and emits one JSON object per detected pair. This is
+# the RUNTIME counterpart of audit-validate.py's detect_vocabulary_pairs(); the
+# two must agree (reference oracle vs production scan path). Deterministic, no LLM.
+#
+# Two sub-checks:
+#   E9a singular/plural — a lowercase tag `t` and its regular `+s` plural `t+"s"`
+#     both used. Only the literal `t+"s"` is paired → irregular plurals
+#     (leaf/leaves, status/statuses) are excluded by construction.
+#   E9b property naming — a frontmatter key in camelCase (`[a-z][A-Z]`) and its
+#     inferred snake_case equivalent both used (`sourceUrl` ↔ `source_url`).
+# FP guard (E9_MIN_FILES = 3): a pair is reported only when BOTH forms appear in
+# >= 3 files (per-form file count, deduped per file). Output: JSON array of
+#   {"sub": "E9a|E9b", "a": "<form>", "b": "<form>", "a_files": N, "b_files": M}
+# Empty array when the vault is vocabulary-consistent.
+
+cmd_detect_vocabulary() {
+  local dir="${1:-}"
+  [[ -z "$dir" ]] && die "detect-vocabulary requires <dir>"
+  local abs_dir
+  abs_dir="$(validate_vault_path "$dir")"
+  [[ -d "$abs_dir" ]] || die "Not a directory: $abs_dir"
+
+  python3 - "$abs_dir" <<'PYEOF'
+import sys, os, re, json
+
+# Must match audit-validate.py: E9_MIN_FILES and the camelCase marker.
+E9_MIN_FILES = 3
+CAMEL_RE = re.compile(r'[a-z][A-Z]')
+
+def parse_frontmatter(content):
+    """Parse YAML frontmatter — tags list + scalar keys. Mirrors scan-frontmatter."""
+    lines = content.split('\n')
+    if not lines or lines[0].strip() != '---':
+        return {}
+    fm_lines = []
+    for line in lines[1:]:
+        if line.strip() == '---':
+            break
+        fm_lines.append(line)
+    else:
+        return {}  # no closing ---
+
+    result = {}
+    current_key = None
+    current_list = None
+    for line in fm_lines:
+        if not line.strip():
+            continue
+        stripped = line.lstrip()
+        if stripped.startswith('- '):
+            item = stripped[2:].strip().strip('"\'')
+            if current_key and current_list is not None:
+                current_list.append(item)
+                result[current_key] = current_list
+            continue
+        m = re.match(r'^(\w[\w\-_]*)\s*:\s*(.*)', line)
+        if m:
+            current_key = m.group(1)
+            val = m.group(2).strip()
+            if val == '' or val == '[]':
+                current_list = []
+                result[current_key] = current_list
+            elif val.startswith('[') and val.endswith(']'):
+                inner = val[1:-1]
+                items = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
+                result[current_key] = items
+                current_list = None
+            else:
+                result[current_key] = val.strip('"\'')
+                current_list = None
+        else:
+            current_list = None
+    return result
+
+def camel_to_snake(key):
+    return re.sub(r'([a-z])([A-Z])', r'\1_\2', key).lower()
+
+target_dir = sys.argv[1]
+tag_files = {}   # lowercase tag -> set(relpath)
+key_files = {}   # frontmatter key -> set(relpath)
+
+for root, dirs, files in os.walk(target_dir):
+    dirs[:] = [d for d in dirs if not d.startswith('.')]
+    for fname in sorted(files):
+        if not fname.endswith('.md'):
+            continue
+        fpath = os.path.join(root, fname)
+        relpath = os.path.relpath(fpath, target_dir)
+        try:
+            with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+        except OSError:
+            continue
+        fm = parse_frontmatter(content)
+        raw_tags = fm.get('tags')
+        if isinstance(raw_tags, list):
+            for t in raw_tags:
+                if isinstance(t, str) and t.strip():
+                    tag_files.setdefault(t.strip().lower(), set()).add(relpath)
+        for k in fm.keys():
+            key_files.setdefault(k, set()).add(relpath)
+
+pairs = []
+
+# E9a — singular/plural tags.
+seen = set()
+for t in sorted(tag_files):
+    plural = t + 's'
+    if plural not in tag_files:
+        continue
+    if t in seen or plural in seen:
+        continue
+    if len(tag_files[t]) >= E9_MIN_FILES and len(tag_files[plural]) >= E9_MIN_FILES:
+        pairs.append({'sub': 'E9a', 'a': t, 'b': plural,
+                      'a_files': len(tag_files[t]), 'b_files': len(tag_files[plural])})
+        seen.add(t); seen.add(plural)
+
+# E9b — camelCase vs snake_case property keys.
+for camel in sorted(key_files):
+    if not CAMEL_RE.search(camel):
+        continue
+    snake = camel_to_snake(camel)
+    if snake == camel or snake not in key_files:
+        continue
+    if len(key_files[camel]) >= E9_MIN_FILES and len(key_files[snake]) >= E9_MIN_FILES:
+        pairs.append({'sub': 'E9b', 'a': camel, 'b': snake,
+                      'a_files': len(key_files[camel]), 'b_files': len(key_files[snake])})
+
+print(json.dumps(pairs, indent=2, ensure_ascii=False))
+PYEOF
+}
+
 # ── subcommand: audit-state ────────────────────────────────────────────────────
 # Usage: audit-state <is-clean|mark-clean|invalidate|list-dirty-since> [args]
 #   is-clean <relpath>               → {"clean": true|false}
@@ -649,6 +785,7 @@ case "$SUBCOMMAND" in
   scan-filename)      cmd_scan_filename "$@" ;;
   extract-wikilinks)  cmd_extract_wikilinks "$@" ;;
   infer-tags)         cmd_infer_tags "$@" ;;
+  detect-vocabulary)  cmd_detect_vocabulary "$@" ;;
   audit-state)        cmd_audit_state "$@" ;;
   metrics)            cmd_metrics "$@" ;;
   "")
@@ -660,6 +797,7 @@ case "$SUBCOMMAND" in
     echo "  extract-wikilinks <file>                    Emit JSON array of wikilink targets" >&2
     echo "  infer-tags <file> [<file> ...]              Emit E2 auto-fix tag proposals as a JSON array (batched)" >&2
     echo "  infer-tags -                                ... same, reading newline-delimited paths from stdin" >&2
+    echo "  detect-vocabulary <dir>                     Emit E9 tag/property vocabulary inconsistency pairs (vault-wide)" >&2
     echo "  audit-state <op> [args]                     Manage sidecar audit state" >&2
     echo "    ops: is-clean <relpath>                   Check if file is clean" >&2
     echo "         mark-clean <relpath> [mtime]         Mark file as audited clean" >&2
