@@ -1,6 +1,6 @@
 # 출력 레이어 물리 구조 ADR — 단일 플러그인 vs 분산(논리 계약)
 
-**Status**: design (decision) · **Created**: 2026-06-04 · **Issue**: #102 · **Epic**: #108
+**Status**: design (decision · accepted) · **Created**: 2026-06-04 · **Issue**: #102 · **Epic**: #108
 **선행**: #99(`docs/design/claude-kit-boundary.md` — 경계 A·CON-5·leaf vendor-neutral) · #100(`docs/design/goal-doc-spec.md` — work_type) · #101(`docs/design/output-adapter-contract.md` — 직계 입력, §5.1 #102 경계)
 **하류 소비처**: #103(doc-concretize/doc-polish 행선지 U-1) · #124(diverse-sampling Mode B 호출 경로, #103 경유 2차) · #111-4(spec-first 물리 분리) · #138(mirror drift 가드 위치) · issue-authoring 빌드 위치
 **Source**: `docs/discussions/20260602_claude-kit-layer-redesign/UNRESOLVED.md` U-2/U-1 · `SUMMARY.md` C-2/C-5 · `docs/plans/goal-docs/G2-goal-doc-output-contract.md` 쟁점 표
