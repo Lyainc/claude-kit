@@ -8,6 +8,7 @@
 - [Using --best Option](#using---best-option)
 - [Fallback Scenario](#fallback-scenario)
 - [Use Case Examples](#use-case-examples)
+- [Mode B — Enhance (Authoring Diversity)](#mode-b--enhance-authoring-diversity)
 
 ---
 
@@ -295,6 +296,68 @@ creating emotional resonance with eco-conscious consumers.
 
 ───
 *Diversity-based selection from 5 alternatives · Show all: `--all`*
+```
+
+---
+
+## Mode B — Enhance (Authoring Diversity)
+
+### Example 8: Diverse Framing → doc-concretize Handoff
+
+**User**:
+```
+이 한 줄 아이디어 "원격근무 팀의 비동기 협업 문화" 글로 발전시켜줘
+```
+
+**Assistant** (detects Mode B trigger "글로 발전시켜줘"):
+```
+[AskUserQuestion — Mode B Confirmation]
+작성 다양성 향상(Verbalized Sampling → doc-concretize)을 적용할까요?
+...
+```
+
+**User selects**: `1. 적용 (Apply Enhance)`
+
+**Assistant** (internal process):
+```
+Phase 0: Mode B (Enhance), Korean, open-ended authoring → valid
+Phase 1-B: VS generates 5 distinct authoring directions, e.g.
+  - 도입 사례 중심(구체 기업 일화로 시작)
+  - 안티패턴 대조(동기 협업의 실패 → 비동기 처방)
+  - 도구·의식(ritual) 체크리스트 구조
+  - 신뢰·문서화 원리 중심
+  - 시간대 분산 팀의 하루 타임라인 서사
+Phase 2-B: Weighted random → "안티패턴 대조" 방향 선택
+Phase 3-B: Sub-call doc-concretize (Skill tool) with the selected
+           direction as seed → recursive-concretization authoring
+```
+
+**Output** (structured document authored by doc-concretize):
+```
+# 원격근무 팀의 비동기 협업 문화
+
+## 동기 협업이 무너지는 지점
+...(doc-concretize가 재귀적 구체화로 저작한 본문)...
+
+───
+*작성 다양성: 5개 방향 중 "안티패턴 대조" 선택 → doc-concretize 구체화*
+```
+
+---
+
+### Example 9: Mode B Excludes Factual Input
+
+**User**:
+```
+대한민국 인구 수 enhance해서 정리해줘
+```
+
+**Assistant** (Mode B trigger present, but use case is factual):
+```
+⚠️ 사실 단답형 입력은 Mode B(작성 다양성) 적용 대상이 아니에요.
+VS 생성과 doc-concretize 하위호출 없이 일반 응답으로 답할게요.
+
+일반 응답: 대한민국 인구는 약 5,100만 명입니다(통계청 기준 연도 확인 필요).
 ```
 
 ---
