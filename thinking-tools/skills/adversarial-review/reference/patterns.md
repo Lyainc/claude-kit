@@ -47,8 +47,10 @@ vault is forbidden (MECE: searching = vault-searcher, critiquing = adversarial-r
 
   `{decision_excerpt}` is drawn ONLY from the cached `## 결정` / `## 근거` / `## 문제`
   sections returned by vault-searcher (max 3 decisions, section-only excerpts).
-  Counter-scenario MAY reuse an `status: archived` (failed/reversed) decision from the same
-  cache to make the worst-case concrete.
+  Counter-scenario MAY reuse a `status: archived` decision from the same cache to make the
+  worst-case concrete — but ONLY when it carries an explicit failure/reversal signal (a
+  non-empty `## 문제` section or a reversal note). A plain `archived` (successfully completed
+  and shelved) is NOT a worst-case source.
 
 - **Generic mode** (0 results, vault-bridge absent, or vault-searcher call failed):
   use the base `[Evidence Attack]` template above unchanged. This is a **transparent fallback** —
