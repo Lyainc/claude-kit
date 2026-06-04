@@ -172,6 +172,19 @@ def run_self_test() -> int:
         "trigger": "explicit", "outcome": "success",
         "tool_use_id": "toolu_03GHI", "meta": {},
     })
+    # A stop event with populated turn-usage meta must validate cleanly AND must
+    # NOT trip the empty-meta warning even under --strict — stop is outside
+    # META_EXPECTED_EVENTS, so the empty-meta invariant simply never applies to
+    # it. This case locks that: a real stop event carrying turn token totals is
+    # silent on both errors and warnings. (#153 stop-meta dogfooding.)
+    stop_populated_meta = json.dumps({
+        "ts": "2026-05-15T00:00:00Z",
+        "session_id": "x", "cwd": "/", "plugin": "claude-kit",
+        "event": "stop", "name": "", "qualified_name": "",
+        "trigger": "auto", "outcome": "success",
+        "tool_use_id": "",
+        "meta": {"turn_input_tokens": 1500, "turn_output_tokens": 300},
+    })
     bad = '{"ts":"x","event":"not-an-event"}'
 
     sp = Path("self-test.jsonl")
@@ -180,6 +193,10 @@ def run_self_test() -> int:
     good_meta_null_errs, _ = validate_line(good_meta_null, 1, sp)
     empty_lax_errs, empty_lax_warns = validate_line(empty_meta_end, 1, sp, strict=False)
     _, empty_strict_warns = validate_line(empty_meta_end, 1, sp, strict=True)
+    stop_meta_errs, stop_meta_warns_lax = validate_line(
+        stop_populated_meta, 1, sp, strict=False)
+    _, stop_meta_warns_strict = validate_line(
+        stop_populated_meta, 1, sp, strict=True)
     bad_errs, _ = validate_line(bad, 1, sp)
 
     if good_errs:
@@ -198,6 +215,18 @@ def run_self_test() -> int:
         return 1
     if not empty_strict_warns:
         print("FAIL: empty-meta end event not warned under --strict", file=sys.stderr)
+        return 1
+    if stop_meta_errs:
+        print(f"FAIL: stop populated-meta line flagged with errors: {stop_meta_errs}",
+              file=sys.stderr)
+        return 1
+    if stop_meta_warns_lax:
+        print(f"FAIL: stop populated-meta warned without --strict: {stop_meta_warns_lax}",
+              file=sys.stderr)
+        return 1
+    if stop_meta_warns_strict:
+        print("FAIL: stop event with non-empty meta wrongly triggered the empty-meta "
+              f"warning under --strict: {stop_meta_warns_strict}", file=sys.stderr)
         return 1
     if not bad_errs:
         print("FAIL: bad line not flagged", file=sys.stderr)
