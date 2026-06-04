@@ -171,6 +171,77 @@ def _compute_suggested_filename(rel: Path, fm: dict) -> Optional[str]:
     return None
 
 
+# #127 E2 auto-fix tag inference. Deterministic, no LLM.
+# Words that survive slug splitting but carry no semantic value as tags.
+# Kept tiny + conservative (the audit only proposes; the user confirms).
+INFER_STOPWORDS = frozenset({"the", "a", "an", "of", "and", "or", "to", "for"})
+
+
+def infer_tags(rel: Path, fm: dict) -> list:
+    """Infer a conservative tag proposal for an E2 missing-`tags:` fix (#127).
+
+    Three deterministic tiers, in order; duplicates removed, original order kept:
+      Tier 1 — `type:` field      → always the first tag (type: note → note)
+      Tier 2 — filename slug      → meaningful words after stripping the date
+                                    and the {type}- prefix, split on `-`/`_`
+      Tier 3 — parent folder      → notes/{domain}/... → add `domain`
+
+    All tokens are lowercased; stopwords and pure-numeric tokens are dropped so
+    the result plausibly passes a future E9 vocabulary check (#119, still open):
+    lowercase, kebab-friendly atoms, no duplicates. An empty slug (date-only
+    filename) gracefully falls back to the type tag only — never crashes.
+    """
+    tags: list = []
+
+    def _push(tok: str) -> None:
+        tok = tok.strip().lower()
+        if not tok or tok in INFER_STOPWORDS or tok.isdigit():
+            return
+        if tok not in tags:
+            tags.append(tok)
+
+    # Tier 1: type field (always first when present).
+    ftype = fm.get("type")
+    if isinstance(ftype, str) and ftype.strip():
+        _push(ftype)
+
+    # Tier 2: filename slug words (date + type prefix already stripped by
+    # _slug_from_filename), split on `-` / `_`.
+    slug = _slug_from_filename(rel)
+    if slug:
+        for word in re.split(r"[-_]+", slug):
+            _push(word)
+
+    # Tier 3: parent folder domain. Only meaningful inside notes/{domain}/...,
+    # where parts == ("notes", "{domain}", ..., "file.md"). The immediate
+    # vault-root folder ("notes") itself is structural, not a domain.
+    parts = rel.parts
+    if len(parts) >= 3 and parts[0] == "notes":
+        _push(parts[1])
+
+    return tags
+
+
+def simulate_e2_autofix(rel: Path, fm: dict) -> dict:
+    """Simulate the E2 OPTIONAL-FIX tag inference for one finding (#127).
+
+    Mirrors what `ovm-primitives.sh infer-tags` would propose. Returns the
+    inferred `tags` list plus the missing-field set the fix would populate.
+    This is a *proposal* preview only — the production skill keeps the
+    "수정 실행" confirmation gate; nothing is auto-committed here.
+    """
+    inferred = infer_tags(rel, fm)
+    missing = []
+    for f in REQUIRED_FM_FIELDS:
+        if f not in fm or fm[f] in (None, ""):
+            missing.append(f)
+    if fm.get("type") in STATUS_REQUIRED_TYPES and (
+        "status" not in fm or fm["status"] in (None, "")
+    ):
+        missing.append("status")
+    return {"inferred_tags": inferred, "missing_fields": missing}
+
+
 def collect(vault: Path) -> dict:
     fm_records: list = []
     files: list = []
@@ -291,7 +362,17 @@ def classify(bundle: dict) -> dict:
         if not rec["has_fm"]:
             add("E1_missing_frontmatter", rec["rel"])
         elif rec["missing_required"]:
-            add("E2_missing_required_fields", rec["rel"], ",".join(rec["missing_required"]))
+            # #127: attach the OPTIONAL-FIX tag proposal so REPORT can preview
+            # "추론된 태그: [...]" and the DoD harness can verify non-empty
+            # inference. Inference is a proposal — the skill still gates on
+            # "수정 실행"; nothing is auto-committed here.
+            inferred = (
+                infer_tags(Path(rec["rel"]), rec.get("fm") or {})
+                if "tags" in rec["missing_required"]
+                else []
+            )
+            add("E2_missing_required_fields", rec["rel"],
+                ",".join(rec["missing_required"]), inferred_tags=inferred)
 
     # E3: filename convention violation (v4: date-first prefix in notes/)
     for rec in bundle["fm_records"]:
@@ -488,12 +569,22 @@ def dod_report(findings: list) -> dict:
     # DoD report is self-contained (E2E also asserts via --findings).
     e3_with_suggestion: int = 0
     e5_with_candidates: int = 0
+    # #127: count E2 findings whose tags: would be inferred (proposal preview).
+    # e2_tags_missing = E2 findings where `tags` is among the missing fields;
+    # e2_with_inferred_tags = of those, how many got a NON-EMPTY tag proposal.
+    # The two are equal when inference never degenerates to an empty list.
+    e2_tags_missing: int = 0
+    e2_with_inferred_tags: int = 0
 
     for f in findings:
         if f["type"] == "E3_filename_convention_violation" and "권장 파일명" in (f.get("detail") or ""):
             e3_with_suggestion += 1
         if f["type"] == "E5_orphan_note" and f.get("candidates"):
             e5_with_candidates += 1
+        if f["type"] == "E2_missing_required_fields" and "tags" in (f.get("detail") or ""):
+            e2_tags_missing += 1
+            if f.get("inferred_tags"):
+                e2_with_inferred_tags += 1
 
         etype = f["type"]
         prio = f.get("priority")
@@ -530,6 +621,8 @@ def dod_report(findings: list) -> dict:
         "priority_mismatches": priority_mismatches,
         "e3_with_suggestion": e3_with_suggestion,
         "e5_with_candidates": e5_with_candidates,
+        "e2_tags_missing": e2_tags_missing,
+        "e2_with_inferred_tags": e2_with_inferred_tags,
     }
 
 
@@ -620,13 +713,87 @@ def _git_activity_summary(vault: Path, days: int = 7) -> Optional[dict]:
         return None
 
 
+def _infer_self_test() -> int:
+    """Deterministic self-test of the #127 E2 tag inference (no fixture needed).
+
+    Asserts the three-tier behavior + graceful empty-slug fallback. Returns 0
+    on pass, 1 on any mismatch. Slug words are split on `-`/`_` per the G9
+    goal-doc S6 spec, so a multi-word slug yields one tag per word.
+    """
+    cases = [
+        # (rel, fm, expected_tags)
+        ("notes/llm/decision-2026-04-12-context-window.md",
+         {"type": "decision", "created": "2026-04-12"},
+         ["decision", "context", "window", "llm"]),
+        ("inbox/capture-2026-05-01-obsidian-api.md",
+         {"type": "capture", "created": "2026-05-01"},
+         ["capture", "obsidian", "api"]),
+        # Tier-3 only fires for notes/{domain}/...; inbox/ has no domain folder.
+        ("notes/some-topic.md",
+         {"type": "note", "created": "2026-04-01"},
+         ["note", "some", "topic"]),
+        # Graceful empty slug: date-only filename → type tag only, no crash.
+        ("inbox/session-2026-04-12.md",
+         {"type": "session", "created": "2026-04-12"},
+         ["session"]),
+        # No type field → slug + domain only (type tier skipped, no crash).
+        ("notes/db/index-tuning.md",
+         {"created": "2026-04-01"},
+         ["index", "tuning", "db"]),
+        # Duplicate dedup: slug word equals domain → appears once.
+        ("notes/llm/llm-routing.md",
+         {"type": "note", "created": "2026-04-01"},
+         ["note", "llm", "routing"]),
+    ]
+    failures = 0
+    for rel_str, fm, expected in cases:
+        got = infer_tags(Path(rel_str), fm)
+        status = "OK" if got == expected else "FAIL"
+        if got != expected:
+            failures += 1
+        print(f"[{status}] {rel_str}: got={got} expected={expected}")
+
+    # E2 auto-fix simulation case: a file missing `tags:` must receive a
+    # NON-EMPTY proposal, and the fix must report `tags` among the fields it
+    # would populate. (#127 acceptance: inferred result, not an empty array.)
+    sim = simulate_e2_autofix(
+        Path("notes/llm/decision-2026-04-12-context-window.md"),
+        {"type": "decision", "created": "2026-04-12"},  # tags + status missing
+    )
+    if not sim["inferred_tags"]:
+        failures += 1
+        print("[FAIL] E2 sim: inferred_tags is empty (expected non-empty proposal)")
+    elif sim["inferred_tags"][0] != "decision":
+        failures += 1
+        print(f"[FAIL] E2 sim: first tag != type ({sim['inferred_tags']})")
+    elif "tags" not in sim["missing_fields"] or "status" not in sim["missing_fields"]:
+        failures += 1
+        print(f"[FAIL] E2 sim: missing_fields wrong ({sim['missing_fields']})")
+    else:
+        print(f"[OK] E2 sim: inferred_tags={sim['inferred_tags']} "
+              f"missing_fields={sim['missing_fields']}")
+
+    if failures:
+        print(f"FAIL: {failures} infer-tags self-test case(s) failed", file=sys.stderr)
+        return 1
+    print(f"OK: all {len(cases)} infer-tags cases + E2 auto-fix simulation passed")
+    return 0
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("vault")
+    ap.add_argument("vault", nargs="?")
     ap.add_argument("--findings", action="store_true")
     ap.add_argument("--dod", action="store_true",
                     help="Emit DoD analysis (seeded detection + FP on clean subset)")
+    ap.add_argument("--infer-self-test", action="store_true",
+                    help="Run the #127 E2 tag-inference self-test and exit")
     args = ap.parse_args()
+
+    if args.infer_self_test:
+        return _infer_self_test()
+    if args.vault is None:
+        ap.error("vault path is required unless --infer-self-test is given")
 
     vault = Path(args.vault).resolve()
     if not vault.is_dir():

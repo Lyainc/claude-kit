@@ -52,6 +52,44 @@ The priority mapping is canonical in `scripts/test/audit-validate.py` (constant 
 
 `status` is optional for `capture`, `session`, and `plan` — omitting it for those types is not an E2 violation.
 
+**Tag inference** (#127, display-only proposal): when `tags:` is among the
+missing fields, the OPTIONAL-FIX step does **not** insert an empty `tags: []`.
+It derives a deterministic tag proposal (no LLM) via
+`ovm-primitives.sh infer-tags <relpath>` using three tiers, in order. Tokens are
+lowercased, deduplicated (original order preserved), and pure-numeric / stopword
+tokens (`the a an of and or to for`) are dropped — so the proposal plausibly
+passes a future E9 vocabulary check (#119, still open): lowercase, kebab-friendly
+atoms, no duplicates. Inference here is intentionally conservative (no
+singular/plural normalization) to avoid hard-depending on the not-yet-finalized
+E9 standard.
+
+| Tier | Source | Rule |
+|------|--------|------|
+| 1 | `type:` field | always the first tag (`type: note` → `note`) |
+| 2 | filename slug | strip the date prefix (`YYYY-MM-DD-` / `YYYY-MM-`) and a leading `{type}-`, then split the remainder on `-`/`_` into one tag per word |
+| 3 | parent folder | only inside `notes/{domain}/...` (path depth ≥ 3) → add `domain`. The vault-root folder name itself (`notes`) is structural, not a domain. |
+
+```
+infer_tags(rel, fm):
+  tags = []
+  push(fm.type)                         # tier 1 (skipped if type absent)
+  slug = strip_date_and_type_prefix(rel.name)
+  for word in split(slug, /[-_]+/): push(word)   # tier 2
+  if rel.parts[0] == "notes" and len(rel.parts) >= 3:
+    push(rel.parts[1])                  # tier 3 domain
+  return tags                           # push() lowercases, dedups, drops stopwords/digits
+```
+
+**Examples**:
+- `notes/llm/decision-2026-04-12-context-window.md`, `type: decision` → `[decision, context, window, llm]`
+- `inbox/capture-2026-05-01-obsidian-api.md`, `type: capture` → `[capture, obsidian, api]`
+
+**Graceful empty slug**: a date-only filename (e.g. `session-2026-04-12.md`)
+leaves an empty slug after prefix stripping → the proposal falls back to the
+**type tag only** (never crashes, never an empty list when `type:` is present).
+The proposal is a suggestion — Phase 4 keeps the `수정 실행` confirmation gate and
+previews `추론된 태그: [X, Y, Z]`; nothing is auto-committed.
+
 ## E3 — `filename_convention_violation` [Warning]
 
 **Rule**: file does not conform to v4 naming convention (v4 §3.6)
@@ -249,7 +287,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 
 | Type | Auto-fix action |
 |------|-----------------|
-| `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields with inferred values |
+| `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → parent folder; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
 
 Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination).
 
