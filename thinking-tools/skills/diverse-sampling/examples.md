@@ -362,6 +362,26 @@ VS 생성과 doc-concretize 하위호출 없이 일반 응답으로 답할게요
 
 ---
 
+### Example 10: Mode B Excludes Code Target
+
+**User**:
+```
+이 Python 함수 enhance해줘
+
+def parse(data):
+    return [x.strip() for x in data.split(",")]
+```
+
+**Assistant** (Mode B trigger "enhance" present, but the target is code):
+```
+⚠️ 코드 대상의 enhance는 Mode B(작성 다양성, prose 저작) 적용 범위 밖이에요.
+VS 생성과 doc-concretize 하위호출 없이 일반 응답으로 코드를 개선할게요.
+
+[표준 코드 개선 응답 — 빈 입력·공백 처리, 타입 힌트 추가 등]
+```
+
+---
+
 ## Anti-Patterns (When NOT to Use)
 
 ### Factual Questions
