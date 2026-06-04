@@ -72,6 +72,25 @@ Before attacking, build the strongest possible version of the claim.
 
 **Multi-claim handling**: If 2+ claims are submitted, process them sequentially. Confirm order with user before proceeding.
 
+### Phase 0.5: Vault Decision Grounding (optional, between Phase 0 and Phase 1)
+
+After the Steelman is finalized for a claim and **before Phase 1 begins**, attempt to ground the Evidence Attack (and, secondarily, the Counter-scenario) in the user's own past decision records stored in their Obsidian vault. This makes attacks context-tight — e.g. *"this claim conflicts with a decision you made 6 months ago in the opposite direction."*
+
+**One-shot vault-searcher call** (via the Agent tool):
+1. Call `vault-searcher` **exactly once per session** (not per round). Cache the returned excerpts and reuse them across all rounds of all claims.
+2. **Search target**: `notes/`, preferring `type: decision`. Tell vault-searcher to use the manifest `type` pre-filter when available, otherwise fall back to a `decision-` filename grep. Counter-scenario sourcing MAY additionally surface `status: archived` (failed/reversed) decisions as a secondary worst-case source.
+3. **Query**: 2–3 core keywords distilled from the finalized Steelman.
+4. **Result bound**: up to **3** relevant decisions. Instruct vault-searcher to excerpt **only** the `## 결정` / `## 근거` / `## 문제` sections (not the full note).
+5. **Relevance gate**: drop any returned decision whose topic is not genuinely related to the claim — an irrelevant hit must not be used in any round.
+
+**Graceful degrade** (no user notice, no broken experience):
+- **≥ 1 relevant result** → vault-grounded mode: feed the excerpts into the Evidence Attack `{counter_evidence_or_missing_data}` slot (see [reference/patterns.md](reference/patterns.md#attack-templates)) when the Evidence vector comes up.
+- **0 results / vault-bridge not installed / Agent call fails** → transparently fall back to the existing generic Evidence Attack. Do **not** announce the fallback to the user; the session must look identical to the non-vault path.
+
+**Vault access policy (MECE — single source of truth)**: vault access happens **ONLY** through the `vault-searcher` Agent call described here. This skill MUST NOT directly `Read`, `Grep`, `Glob`, or `Bash`-grep any vault path (`~/vault/`, `.vault-link` targets, `.vault-bridge/manifest.json`, etc.). Searching is vault-searcher's job (MECE boundary); critiquing is this skill's job. Direct vault access is forbidden.
+
+**Token budget**: haiku model + section-only excerpts + max 3 results + one-shot call after Steelman keeps this step within **≤ +1500 tokens** of Phase 1 overhead. Do not exceed this budget — never re-query per round, never request full notes.
+
 ### Phase 1: Attack Rounds
 
 Cycle through 4 attack vectors in order. Each round:
@@ -94,7 +113,7 @@ In standard mode, visibility is best-effort (prompt contract only — the LLM sh
 | Vector | Attack Pattern | Survival Dimension |
 |--------|---------------|-------------------|
 | Logical Integrity | Premise-conclusion gap, circular reasoning, fallacy identification | Logical Integrity (weight 0.30) |
-| Evidence Attack | Evidence sufficiency, representativeness, source reliability | Evidence (weight 0.25) |
+| Evidence Attack | Evidence sufficiency, representativeness, source reliability (uses Phase 0.5 vault decision excerpts when available) | Evidence (weight 0.25) |
 | Counter-scenario | 10x scale / worst-case / external-change collapse test | Counter-resilience (weight 0.25) |
 | Scope Boundary | Generalization limits, exception domains, boundary conditions | Scope Robustness (weight 0.20) |
 
