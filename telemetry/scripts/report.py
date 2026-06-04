@@ -108,6 +108,30 @@ def latency_stats(events: list[dict]) -> dict | None:
     }
 
 
+def latency_by_event(events: list[dict]) -> dict[str, dict]:
+    """Per-event-type latency p50/p95, keyed by the logical `event` field.
+
+    Buckets events by their `event` value (skill_invoke / agent_spawn / stop /
+    ...) and runs latency_stats on each bucket. Only event types that carry at
+    least one numeric meta.duration_ms sample appear in the result — a type with
+    no timing samples is omitted entirely (latency_stats returns None), mirroring
+    the overall-latency "no datum → skip" contract rather than fabricating zeros.
+
+    This composes with the caller's --event filter for free: callers filter the
+    events list before passing it in, so a one-type filter yields a single-bucket
+    breakdown and the unfiltered list yields the full per-type split.
+    """
+    buckets: dict[str, list[dict]] = {}
+    for e in events:
+        buckets.setdefault(e.get("event", "?"), []).append(e)
+    out: dict[str, dict] = {}
+    for ev_type, bucket in buckets.items():
+        stats = latency_stats(bucket)
+        if stats is not None:
+            out[ev_type] = stats
+    return out
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--since", default="7d", help="time window (e.g. '7d', 'all')")
@@ -138,6 +162,7 @@ def main() -> int:
     unknown_ratio = plugin_unknown / len(events)
 
     latency = latency_stats(events)
+    latency_per_event = latency_by_event(events)
 
     if args.format == "json":
         payload = {
@@ -154,6 +179,14 @@ def main() -> int:
                 if latency is not None
                 else None
             ),
+            "latency_by_event": {
+                ev_type: {
+                    "count": s["count"],
+                    "p50_ms": round(s["p50"], 1),
+                    "p95_ms": round(s["p95"], 1),
+                }
+                for ev_type, s in sorted(latency_per_event.items())
+            },
             "top": [
                 {"plugin": plg, "event": ev, "name": nm, "count": c}
                 for (plg, ev, nm), c in counts.most_common(args.top)
@@ -174,6 +207,13 @@ def main() -> int:
             f"  n={latency['count']}  "
             f"p50={latency['p50']:.0f}ms  p95={latency['p95']:.0f}ms"
         )
+        print("  by event type:")
+        for ev_type, s in sorted(latency_per_event.items()):
+            print(
+                f"    {ev_type:<14} "
+                f"n={s['count']:<4} "
+                f"p50={s['p50']:.0f}ms  p95={s['p95']:.0f}ms"
+            )
     print()
     print(f"Top {args.top}:")
     for (plg, ev, nm), c in counts.most_common(args.top):
