@@ -2,7 +2,7 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Ten error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
+Eleven error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
 
 > **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduces a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extends with P1 stagnation. PR 4d adds **E8 `promotion_candidate`** (P2/Info), read from the vault-bridge manifest. Manifest-level *stale-manifest* checks (e.g., stale manifest as an Info finding) remain deferred to PR 6+.
 
@@ -20,14 +20,15 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E6   | P1       | Stale inbox → raw input never processed; loses freshness, signals review needed. |
 | E7   | P1       | Stale draft → notes/ `status: draft` sitting too long; either promote to evergreen or archive. |
 | E8   | P2       | Promotion candidate → high inbound refs or access count; suggests manual `status: evergreen`. Manifest-sourced, never auto-fixed. |
+| E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. |
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `inbox/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
 
 > **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
 > **P1 = 정체/구조 (stagnation / structure)**: E6 and E7 surface unprocessed inputs and stalled drafts; E10 and E11 surface folder-structure drift. All are visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive / move).
-> **P2 = quality**: E5 orphan notes and E8 promotion candidates are quality signals, not integrity defects.
+> **P2 = quality**: E5 orphan notes, E8 promotion candidates, and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
-> **Code numbering**: E9 is intentionally reserved (e.g., #119 E9c semantic-synonym work). E10/E11 are the next structural checks per #128/#129 and are deliberately not E9.
+> **Code numbering**: E9 (#119) is the tag/property vocabulary check below. Only its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship here; E9c (semantic synonyms) is **out of scope** and deferred to a separate issue (see the E9 section). E10/E11 are the structural checks per #128/#129.
 
 The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
@@ -218,6 +219,65 @@ for each record in frontmatter_records where path startswith "notes/":
 
 **Rationale**: A note with high inbound references or frequent access is a candidate for manual promotion to `status: evergreen`. Surfaced as Info/P2 — the user decides; never auto-fixed.
 
+## E9 — `tag_vocabulary_inconsistency` [Warning]
+
+**Rule**: The vault mixes two spellings of the same vocabulary atom. kepano's vault discipline ("Property names and values should aim to be reusable across categories"; "Having a consistent style collapses hundreds of future decisions into one") wants one canonical form per concept. E9 surfaces the two deterministic, non-semantic cases:
+
+| Sub-check | Detects | Example pair |
+|-----------|---------|--------------|
+| **E9a** singular/plural | a lowercase tag `t` and its regular `+s` plural `t+"s"` both used | `api` ↔ `apis`, `tag` ↔ `tags` |
+| **E9b** property naming | a frontmatter key in camelCase and its snake_case equivalent both used | `sourceUrl` ↔ `source_url` |
+
+**E9c** (semantic synonyms — `llm` ↔ `large-language-model`, `react` ↔ `reactjs`) is **out of scope** for #119: a fixed synonym dictionary over-fires and is costly to maintain. It is deferred to a separate issue (skill-only `--deep` opt-in; see #119 D10 design note for the source-overlap + common-neighbor approach).
+
+**Source**: `frontmatter_records` — but aggregated **vault-wide**, not per file. E9 is a single vault-level pass over every record's `tags` (E9a) and frontmatter keys (E9b); each detected pair is one finding.
+
+**Finding shape**: vault-level. `path: ""` (empty — the inconsistency is a property of the vault, not of any one file). REPORT must group the empty path gracefully (render under a "볼트 전역" / vault-wide heading rather than a per-file bullet).
+
+### FP guard — frequency threshold (N ≥ 3)
+
+A pair is reported **only when BOTH forms appear in `E9_MIN_FILES` (= 3) or more files** (file count per form, deduped per file). This is the Risk-section mitigation: a one-off typo (`apis` written once) does not drag an established `api` tag into a finding, and intentional distinct singulars (`status` vs `statuses` — note `statuses` is an *irregular* `+es` plural, so E9a never pairs them anyway) stay quiet. The threshold plus P2/visibility-only (never auto-fixed, never blocks) keeps E9 conservative.
+
+> **Irregular plurals excluded by construction**: E9a pairs only `t` with the literal `t+"s"`. `leaf`/`leaves`, `status`/`statuses`, `index`/`indices` differ by more than a trailing `s`, so the naive rule cannot pair them — no irregular-plural FPs, no English-morphology table needed.
+
+### Detection pseudocode
+
+```
+E9_MIN_FILES = 3
+
+# E9a — singular/plural tags (vault-wide)
+tag_files = {}                                  # lowercase tag → set(file paths)
+for rec in frontmatter_records:
+  for t in (rec.fm.tags or []):                 # only string items
+    tag_files[lower(t)].add(rec.path)
+seen = set()
+for t in sorted(tag_files):                     # deterministic order
+  plural = t + "s"
+  if plural in tag_files and t not in seen and plural not in seen:
+    if len(tag_files[t]) >= E9_MIN_FILES and len(tag_files[plural]) >= E9_MIN_FILES:
+      report pair (t, plural)                    # path:"" — singular/plural
+      seen.add(t); seen.add(plural)
+
+# E9b — camelCase vs snake_case property keys (vault-wide)
+key_files = {}                                  # frontmatter key → set(file paths)
+for rec in frontmatter_records:
+  for k in rec.fm.keys():
+    key_files[k].add(rec.path)
+for camel in sorted(key_files):
+  if not re.search(r"[a-z][A-Z]", camel): continue          # camelCase marker
+  snake = re.sub(r"([a-z])([A-Z])", r"\1_\2", camel).lower() # inferred equivalent
+  if snake == camel: continue
+  if snake in key_files:
+    if len(key_files[camel]) >= E9_MIN_FILES and len(key_files[snake]) >= E9_MIN_FILES:
+      report pair (camel, snake)                 # path:"" — property naming
+```
+
+**`detail` rendering** (Korean, user-facing): name both forms and their file counts, e.g. `태그 단복수 혼용: 'api' (N개 파일) ↔ 'apis' (M개 파일) — 정준 형태를 하나로 통일하세요` (E9a) / `프로퍼티 이름 혼용(camel/snake): 'sourceUrl' (N개 파일) ↔ 'source_url' (M개 파일)` (E9b). The canonical-form choice is **never** suggested or auto-applied — the user picks.
+
+**Guard**: non-string tag items are ignored (a malformed `tags:` is E2 territory). Files without `tags`/frontmatter contribute nothing. Each unordered pair is reported once (E9a dedup via `seen`).
+
+**Auto-fix**: none. Picking the canonical form (and rewriting every affected file) is a semantic decision with inbound-link and habit implications — E9 is display-only.
+
 ## E10 — `misplaced_file` [Warning]
 
 **Rule**: A file's `type` does not match the canonical folder it lives in (v4 §3.1). Each managed type belongs in exactly one top-level folder:
@@ -289,7 +349,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → parent folder; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination).
 
 ## Manifest Summary (display-only)
 

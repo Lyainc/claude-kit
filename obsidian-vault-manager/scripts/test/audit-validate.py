@@ -7,7 +7,10 @@ a fixture or live vault. Outputs per-type finding counts and a flat list of
 finding records as JSON. Stdlib only.
 
 v4 layout: inbox/ + notes/ + assets/  (no 00_Inbox, 20_Projects, 30_Notes)
-Error types: E1-E8, E10, E11 (E9 reserved for tag/property vocabulary, #119)
+Error types: E1-E11. E9 (#119) = tag/property vocabulary inconsistency, a
+vault-LEVEL check (findings carry path:""); only deterministic sub-checks ship
+(E9a singular/plural, E9b camel/snake property naming). E9c (semantic synonyms)
+is out of scope, deferred to a separate issue.
 
 Usage:
   python3 audit-validate.py <vault_root>          # JSON summary on stdout
@@ -48,9 +51,16 @@ PRIORITY_BY_TYPE = {
     "E6_stale_inbox": "P1",
     "E7_stale_draft": "P1",
     "E8_promotion_candidate": "P2",
+    "E9_tag_vocabulary_inconsistency": "P2",
     "E10_misplaced_file": "P1",
     "E11_unstructured_path": "P1",
 }
+# E9 (#119) frequency threshold: report a vocabulary pair only when BOTH forms
+# appear in this many files or more (per-form file count). Suppresses one-off
+# typos and intentional distinct singulars (Risk-section mitigation).
+E9_MIN_FILES = 3
+# E9b camelCase marker: a lowercase letter immediately followed by an uppercase.
+E9_CAMEL_RE = re.compile(r"[a-z][A-Z]")
 # E10 type↔folder placement (v4 §3.1): each managed type lives in one folder.
 EXPECTED_FOLDER = {
     "session": "inbox",
@@ -342,6 +352,84 @@ def _promotion_candidates_from_manifest(vault: Path) -> list:
     return results
 
 
+def _camel_to_snake(key: str) -> str:
+    """Infer the snake_case equivalent of a camelCase key (E9b, #119).
+
+    `sourceUrl` → `source_url`, `createdAtTime` → `created_at_time`. Lowercased.
+    A key with no camel boundary maps to its own lowercase form (caller skips
+    the self == inferred case).
+    """
+    return re.sub(r"([a-z])([A-Z])", r"\1_\2", key).lower()
+
+
+def detect_vocabulary_pairs(fm_records: list) -> list:
+    """E9 (#119): vault-wide tag/property vocabulary inconsistency detection.
+
+    Deterministic, no LLM. Two sub-checks, each emitting vault-level pairs
+    (one finding per pair, `path: ""`):
+
+      E9a singular/plural — aggregate lowercase tags vault-wide; if a tag `t`
+        and its regular `+s` plural `t+"s"` are BOTH present, report the pair.
+        Only the literal `t+"s"` is paired, so irregular plurals (leaf/leaves,
+        status/statuses) are excluded by construction — no morphology table.
+
+      E9b property naming — aggregate frontmatter keys vault-wide; for each
+        camelCase key (`[a-z][A-Z]`), infer the snake_case equivalent; if BOTH
+        the camel and snake forms appear, report the pair.
+
+    FP guard (E9_MIN_FILES = 3): a pair is reported only when BOTH forms appear
+    in >= E9_MIN_FILES files (per-form file count, deduped per file). Returns a
+    list of {sub, a, b, a_files, b_files} dicts in deterministic order.
+    """
+    tag_files: dict = {}   # lowercase tag → set(file paths)
+    key_files: dict = {}   # frontmatter key → set(file paths)
+    for rec in fm_records:
+        fm = rec.get("fm") or {}
+        path = rec.get("rel", "")
+        raw_tags = fm.get("tags")
+        if isinstance(raw_tags, list):
+            for t in raw_tags:
+                if isinstance(t, str) and t.strip():
+                    tag_files.setdefault(t.strip().lower(), set()).add(path)
+        for k in fm.keys():
+            key_files.setdefault(k, set()).add(path)
+
+    pairs: list = []
+
+    # E9a — singular/plural tags.
+    seen: set = set()
+    for t in sorted(tag_files):
+        plural = t + "s"
+        if plural not in tag_files:
+            continue
+        if t in seen or plural in seen:
+            continue
+        if len(tag_files[t]) >= E9_MIN_FILES and len(tag_files[plural]) >= E9_MIN_FILES:
+            pairs.append({
+                "sub": "E9a",
+                "a": t, "b": plural,
+                "a_files": len(tag_files[t]), "b_files": len(tag_files[plural]),
+            })
+            seen.add(t)
+            seen.add(plural)
+
+    # E9b — camelCase vs snake_case property keys.
+    for camel in sorted(key_files):
+        if not E9_CAMEL_RE.search(camel):
+            continue
+        snake = _camel_to_snake(camel)
+        if snake == camel or snake not in key_files:
+            continue
+        if len(key_files[camel]) >= E9_MIN_FILES and len(key_files[snake]) >= E9_MIN_FILES:
+            pairs.append({
+                "sub": "E9b",
+                "a": camel, "b": snake,
+                "a_files": len(key_files[camel]), "b_files": len(key_files[snake]),
+            })
+
+    return pairs
+
+
 def classify(bundle: dict) -> dict:
     findings: list = []
     today = date.today()
@@ -535,6 +623,21 @@ def classify(bundle: dict) -> dict:
         add("E8_promotion_candidate", cand["rel"],
             f"refs_in={r}, access={a} (manual: status→evergreen)")
 
+    # E9: tag/property vocabulary inconsistency (#119). Vault-LEVEL findings —
+    # path is "" because the inconsistency is a property of the vault, not of
+    # one file. Each detected pair is one finding (DoD counts pairs). The
+    # carried `sub`/`a`/`b`/file-count fields let REPORT render the Korean
+    # detail and a future test assert sub-check breakdown.
+    for pair in detect_vocabulary_pairs(bundle["fm_records"]):
+        if pair["sub"] == "E9a":
+            detail = (f"태그 단복수 혼용: '{pair['a']}' ({pair['a_files']}개 파일) ↔ "
+                      f"'{pair['b']}' ({pair['b_files']}개 파일) — 정준 형태를 하나로 통일하세요")
+        else:
+            detail = (f"프로퍼티 이름 혼용(camel/snake): '{pair['a']}' ({pair['a_files']}개 파일) ↔ "
+                      f"'{pair['b']}' ({pair['b_files']}개 파일) — 정준 형태를 하나로 통일하세요")
+        add("E9_tag_vocabulary_inconsistency", "", detail,
+            sub=pair["sub"], form_a=pair["a"], form_b=pair["b"])
+
     counts: dict = {}
     for f in findings:
         counts[f["type"]] = counts.get(f["type"], 0) + 1
@@ -559,9 +662,19 @@ SEED_PREFIXES = {
 }
 
 
+# E9 (#119) is a vault-LEVEL check: every finding carries path:"" so the
+# path-prefix SEED_PREFIXES mechanism cannot reach it. The DoD counting unit for
+# E9 is the PAIR (each detected pair = one finding = +1 toward seeded_detected),
+# and fp_on_clean.E9 stays 0 because clean-fixture notes never form a pair.
+E9_TYPE = "E9_tag_vocabulary_inconsistency"
+
+
 def dod_report(findings: list) -> dict:
     detected: dict = {k: 0 for k in SEED_PREFIXES}
     fp_clean: dict = {k: 0 for k in SEED_PREFIXES}
+    # E9 is path-less → counted by pair, separate from the prefix mechanism.
+    detected[E9_TYPE] = 0
+    fp_clean[E9_TYPE] = 0
     priority_counts: dict = {"P0": 0, "P1": 0, "P2": 0}
     findings_missing_priority: int = 0
     priority_mismatches: list = []
@@ -602,6 +715,13 @@ def dod_report(findings: list) -> dict:
                 "expected": expected_prio,
                 "got": prio,
             })
+
+        # E9 is path-less (vault-level): count every finding as one detected
+        # pair. It can never carry an "audit-clean-" path, so fp_on_clean.E9
+        # stays 0 (clean-fixture notes don't form vocabulary pairs).
+        if etype == E9_TYPE:
+            detected[E9_TYPE] += 1
+            continue
 
         marker = SEED_PREFIXES.get(etype)
         if marker is None:
