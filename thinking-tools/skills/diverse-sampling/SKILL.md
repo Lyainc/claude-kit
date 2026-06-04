@@ -95,7 +95,7 @@ Options:
 |---------|---------|
 | "글로 발전시켜줘" | "이 초안 글로 발전시켜줘" |
 | "더 구체적으로 작성해줘" | "이 아이디어 더 구체적으로 작성해줘" |
-| "enhance" | "enhance this rough draft into a full section" |
+| "enhance" | "enhance this rough draft into a full section" — but a code target ("이 쿼리 enhance해줘") routes to Exclude, not Mode B |
 | "작성 다양성" | "작성 다양성 살려서 정리해줘" |
 
 Mode B triggers are implicit — confirm before running, since Mode B consumes more tokens
@@ -122,9 +122,20 @@ Options:
    - Explore trigger or `/diverse-sampling` → **Mode A (Explore)**
    - Ambiguous (e.g. "다양하게 써줘") → ask via a **single** AskUserQuestion that offers Mode A
      vs Mode B *and* states Mode B's higher token cost. The user's pick resolves the mode
-     **and doubles as confirmation** — do not prompt again in step 2.
+     **and doubles as confirmation** — do not prompt again in step 4.
 
-2. **Invocation Type Check**
+2. **Language Detection**
+   - Analyze input language
+   - Select appropriate VS prompt template (EN/KO)
+
+3. **Use Case Validation** (both modes — runs BEFORE confirmation)
+   - Creative/open-ended task → proceed
+   - Factual question, code debugging/enhancement, single-answer task → recommend a standard
+     response **immediately, with no confirmation prompt** (applies to Mode A and Mode B alike
+     — neither runs VS generation nor the doc-concretize sub-call for excluded inputs).
+     Gating here, before step 4, means an excluded input never triggers a wasted confirmation.
+
+4. **Invocation Type Check / Confirmation**
    - Explicit Mode A trigger (`/diverse-sampling`, "VS 기법으로", …) → proceed to Phase 1
    - Implicit Mode A trigger → call AskUserQuestion for confirmation
    - Mode B trigger → call AskUserQuestion for Mode B confirmation
@@ -132,18 +143,9 @@ Options:
      with no second prompt
    - User declines any confirmation → generate standard response and exit
 
-3. **Language Detection**
-   - Analyze input language
-   - Select appropriate VS prompt template (EN/KO)
-
-4. **Use Case Validation** (both modes)
-   - Creative/open-ended task → proceed
-   - Factual question, code debugging, single-answer task → recommend standard response
-     (applies to Mode A and Mode B alike — neither runs VS generation nor the
-     doc-concretize sub-call for excluded inputs)
-
-**Quality Gate**: Mode determined + confirmation received (if implicit/Mode B) + appropriate
-use case → proceed (Mode A → Phase 1; Mode B → Phase 1-B in the Mode B Branch below)
+**Quality Gate**: Mode determined + appropriate use case (validated before asking) +
+confirmation received (if implicit/Mode B) → proceed (Mode A → Phase 1; Mode B → Phase 1-B
+in the Mode B Branch below)
 
 ### Phase 1: VS Generation
 
