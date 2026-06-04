@@ -8,6 +8,7 @@ skills:
   - capture
   - note
   - audit
+  - base
 ---
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
