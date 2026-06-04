@@ -160,9 +160,10 @@ case "$top_dir" in
     ;;
   notes)
     # Intentionally loose kebab-case — preserves user freedom (v4 §3.1); OVM `note` enforces prefix convention.
-    expected_pattern='^[a-z0-9][a-z0-9-]*(-v[0-9]+)?\.md$'
+    # .base allowed alongside .md (Obsidian Bases view files, #118): same kebab stem, NEVER overwrites notes.
+    expected_pattern='^[a-z0-9][a-z0-9-]*(-v[0-9]+)?\.(md|base)$'
     if ! validate_pattern "$filename" "$expected_pattern"; then
-      violation="notes/ filenames must match: {lowercase-kebab}[-vN].md"
+      violation="notes/ filenames must match: {lowercase-kebab}[-vN].(md|base)"
     fi
     ;;
   assets)

@@ -168,6 +168,50 @@ def case_notes_violation(errors: list[str], vault_root: str) -> None:
     _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
 
 
+def case_notes_base_view(errors: list[str], vault_root: str) -> None:
+    """notes/{view-name}.base (Obsidian Bases view, #118) → clean pass (exit 0, stdout empty)."""
+    print("\ncase: notes_base_view")
+    path = f"{vault_root}/notes/inbox-raw.base"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_notes_base_subfolder(errors: list[str], vault_root: str) -> None:
+    """notes/{sub}/{view-name}.base → clean pass (top_dir=notes; .base allowed under sub-folder)."""
+    print("\ncase: notes_base_subfolder")
+    path = f"{vault_root}/notes/diary/evergreen.base"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_notes_base_uppercase_violation(errors: list[str], vault_root: str) -> None:
+    """notes/ .base with uppercase stem → naming violation (STRICT_NAMING=1 → exit 2).
+
+    Confirms the .base extension widening did NOT loosen the kebab stem rule.
+    """
+    print("\ncase: notes_base_uppercase_violation")
+    path = f"{vault_root}/notes/InboxRaw.base"
+    payload = _make_payload(path)
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root=vault_root)
+    _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
+
+
+def case_inbox_base_violation(errors: list[str], vault_root: str) -> None:
+    """inbox/{view-name}.base → naming violation (.base is a notes/ view file, not inbox/).
+
+    The .base extension widening is scoped to notes/; inbox/ keeps {type}-DATE.md only.
+    """
+    print("\ncase: inbox_base_violation")
+    path = f"{vault_root}/inbox/inbox-raw.base"
+    payload = _make_payload(path)
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root=vault_root)
+    _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
+
+
 def case_notes_decision_dated(errors: list[str], vault_root: str) -> None:
     """notes/decision-YYYY-MM-DD-{slug}.md (v4 §3.6) matches the loose kebab pattern."""
     print("\ncase: notes_decision_dated")
@@ -280,6 +324,10 @@ def main() -> int:
         case_notes_valid_filename(errors, vault_root)
         case_notes_subfolder_valid(errors, vault_root)
         case_notes_violation(errors, vault_root)
+        case_notes_base_view(errors, vault_root)
+        case_notes_base_subfolder(errors, vault_root)
+        case_notes_base_uppercase_violation(errors, vault_root)
+        case_inbox_base_violation(errors, vault_root)
         case_notes_decision_dated(errors, vault_root)
         case_notes_plan_dated(errors, vault_root)
         case_filename_violation_warn_mode(errors, vault_root)
