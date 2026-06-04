@@ -4,7 +4,9 @@ name: doc-concretize
 description: |
   Transform abstract concepts into concrete, well-structured documentation
   through step-by-step recursive writing with verification at each step.
-  Creates NEW markdown documents — for editing/improving an existing MD file, use doc-polish.
+  Output-layer md-author adapter (format=md × intent=author): creates NEW
+  markdown documents while preserving the recursive-concretization cognitive core.
+  For editing/improving an existing MD file, use doc-polish.
 
   Trigger when user mentions: 구체화, 문서화, 체계적 정리, 개념 정리, 아이디어 문서화, 글로 정리,
   doc-concretize, concretize, "이 개념을 문서로 정리해줘".
