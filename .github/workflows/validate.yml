@@ -64,23 +64,22 @@ jobs:
       - name: Run thinking-tools trigger regression
         run: |
           python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
-          # origin/main diff catches dropped triggers in PRs. checkout@v4 uses a
-          # branch-scoped fetch refspec, so a bare `git fetch origin main` writes only
-          # FETCH_HEAD and never creates refs/remotes/origin/main — the diff would then
-          # silently no-op. Fetch with an explicit destination refspec so origin/main
-          # actually resolves.
-          git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' 2>/dev/null || true
-          # Distinguish exit 2 (base ref unresolved — infra error, must surface) from
-          # exit 1 (real trigger removals — report-only per CLAUDE.md policy) from
-          # exit 0 (clean). A swallowed exit 2 is exactly what would hide a broken diff.
+          # The checkout step uses fetch-depth: 0, which fetches all branches — so
+          # refs/remotes/origin/main is already populated (confirmed in CI logs:
+          # checkout reports "* [new branch] main -> origin/main") and the origin/main
+          # diff resolves without an extra fetch. The exit-code branch is a safety net:
+          # exit 2 = base ref somehow absent (surface a ::warning::, never silently
+          # no-op); exit 1 = real trigger removals (report-only per CLAUDE.md policy);
+          # exit 0 = clean.
           ec=0
           python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main || ec=$?
           if [ "$ec" -eq 2 ]; then
             echo "::warning::trigger-regression base ref unresolved (origin/main) — diff did NOT run"
           elif [ "$ec" -eq 1 ]; then
             echo "trigger-regression: removals reported above (non-blocking, reviewer decides)"
+          else
+            echo "thinking-tools trigger regression OK (no removals)"
           fi
-          echo "thinking-tools checks OK"
 
       - name: Run obsidian-vault-manager unit tests
         run: |
