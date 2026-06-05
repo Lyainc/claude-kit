@@ -18,7 +18,7 @@ Usage:
     --self-test   Run in-memory drift-detection cases (version/description/keywords/name)
                   and exit 0 only if every case is detected as expected.
 
-Exit codes: 0 = synced, 1 = drift detected, 2 = usage / unreadable marketplace.json.
+Exit codes: 0 = synced, 1 = drift detected, 2 = usage / unreadable marketplace.json, 3 = marketplace.json not found.
 """
 import argparse
 import json
@@ -63,7 +63,7 @@ def check_root(root):
     mp_path = os.path.join(root, ".claude-plugin", "marketplace.json")
     if not os.path.isfile(mp_path):
         report["violations"].append(f"marketplace.json not found: {mp_path}")
-        report["fatal"] = True
+        report["missing_manifest"] = True
         return False, report
 
     try:
@@ -151,11 +151,18 @@ def run_self_test():
                 f"  {label}: expected {expected_fields}, got {got_fields}"
             )
 
+    # Test missing manifest vs drift exit code modes
+    import tempfile
+    with tempfile.TemporaryDirectory() as tmpdir:
+        ok, missing_report = check_root(tmpdir)
+        if not missing_report.get("missing_manifest"):
+            failures.append("  missing marketplace: expected missing_manifest=True")
+
     if failures:
         print("FAIL: check-version-sync self-test")
         print("\n".join(failures))
         return 1
-    print(f"OK: all {len(cases)} version-sync self-test cases passed")
+    print(f"OK: all {len(cases)} version-sync self-test cases passed (+ 1 missing-manifest mode check)")
     return 0
 
 
@@ -188,6 +195,8 @@ def main(argv=None):
                   ".claude-plugin/marketplace.json and each plugin's plugin.json "
                   "(see CLAUDE.md 'Version Sync Rule').")
 
+    if report.get("missing_manifest"):
+        return 3
     if report.get("fatal"):
         return 2
     return 0 if ok else 1
