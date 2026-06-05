@@ -2,8 +2,8 @@
 name: expert-panel
 
 description: |
-  Facilitate structured expert panel discussions with dialectical analysis for decision-making.
-  Simulates domain-specialist debates (thesis-antithesis-synthesis) and produces consensus + action items.
+  Facilitate expert panel discussions (thesis-antithesis-synthesis).
+  Produces consensus + action items.
 
   Trigger when user mentions: 전문가 토론, 찬반 토론, 다관점 분석, 합의 도출, 트레이드오프 정리,
   expert panel, multi-perspective review, "전문가 관점에서 검토해줘", "다양한 관점에서 평가해줘".
@@ -96,10 +96,8 @@ For each topic (max 3 rounds per topic):
 
 **STATE Block Contract**:
 
-Output a STATE block at the end of each topic round and at every checkpoint.
-On context compaction, restore state from the most recent STATE block.
+> **Core Rules**: See [../../reference/state-contract.md](../../reference/state-contract.md)
 
-**The entire STATE block is internal restoration scaffolding — never rendered to the user.**
 Never store thesis/antithesis/synthesis prose in the block — only the closed-enum status below;
 dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). This keeps the block bounded.
 

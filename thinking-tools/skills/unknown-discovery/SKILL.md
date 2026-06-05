@@ -2,9 +2,8 @@
 name: unknown-discovery
 
 description: |
-  Discover Unknown Unknowns through iterative deep interviews using AskUserQuestion.
-  Systematically uncover blind spots in projects, plans, or decisions through
-  Socratic questioning and adaptive follow-up.
+  Discover Unknown Unknowns through iterative Socratic interviews.
+  Systematically uncover blind spots in projects/plans.
 
   Trigger when user mentions: 맹점, 놓친 것, 빠진 것, 심층 분석, 인터뷰해줘, 누락된 것, 맹점 검토,
   blind spot, unknown unknown, "내가 놓치고 있는 게 뭐야?", "이 기획에서 빠진 게 있을까?".
@@ -171,10 +170,9 @@ Explicit Done 시 Depth가 65% 미만이면 경고를 표시하되, 사용자 �
 
 ## State Management
 
-Output a STATE block at every checkpoint to record progress.
-On compaction, restore state from the most recent STATE block.
+> **Core Rules**: See [../../reference/state-contract.md](../../reference/state-contract.md)
 
-**The entire STATE block is internal restoration scaffolding — never rendered to the user.** Numeric Depth/score fields serve compaction restoration and gate logic only; user-facing checkpoints show qualitative progress (충분/진행 중), never the raw Depth percentage.
+Numeric Depth/score fields serve compaction restoration and gate logic only; user-facing checkpoints show qualitative progress (충분/진행 중), never the raw Depth percentage.
 
 ### Legacy Format Compatibility
 

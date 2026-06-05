@@ -2,13 +2,12 @@
 name: adversarial-review
 
 description: |
-  Stress-test claims through structured adversarial battle rounds with quantified Survival Score.
-  Runs 1:1 attacker-vs-defender battle across 4 vectors and produces a per-claim verdict
-  (survived / collapsed / pending). Starts with Steelman Construction before attacking.
+  Stress-test claims via adversarial rounds and Survival Score.
+  Runs 1:1 attacker-vs-defender battle. Starts with Steelman.
 
   Trigger when user mentions: 반증해줘, 주장 반박, 약점 찾아줘, 논리적 허점 찾아줘, 주장 검증, 살아남을 수 있어?,
   devil's advocate, adversarial review, claim attack, survival score, steelman and attack.
-  Routing: 합의 도출·다관점은 expert-panel, 맹점 인터뷰는 unknown-discovery. Standalone — thought-chain 단계 아님.
+  Routing: 합의 도출·다관점은 expert-panel, 맹점 인터뷰는 unknown-discovery.
 
 allowed-tools: AskUserQuestion Read Write Agent
 ---
@@ -143,7 +142,7 @@ Qualitative bands (mirroring verdict thresholds): **탄탄** (Survived, ≥60%) 
 | Round Limit | 5 rounds per claim reached | Force Phase 2 |
 | Soft Round Checkpoint | 3 rounds completed | AskUserQuestion: continue or Phase 2? |
 | Attack Exhaustion | ≥ 3 of 4 vectors yield no new attacks | Propose early termination |
-| Saturation | 3 consecutive short + repetitive + evasive defenses | Depth warning + confirm |
+| Saturation | 3 consecutive: short response + repetition + avoidance | Depth warning + confirm |
 | Explicit Done | "충분해", "그만", "done", "stop", "enough" | Proceed to Phase 2 |
 
 Priority order (first match wins): Explicit Done > Vulnerability Detected > Round Limit > Survival Gate > Saturation > Attack Exhaustion > Soft Checkpoint.
@@ -161,10 +160,9 @@ Full report template and summary output mode format: [reference/patterns.md](ref
 
 ## STATE Block Contract
 
-Output a STATE block after every Judge evaluation and at every checkpoint.
-On context compaction, restore state from the most recent STATE block.
+> **Core Rules**: See [../../reference/state-contract.md](../../reference/state-contract.md)
 
-**The entire STATE block is internal restoration scaffolding — never rendered to the user.** Numeric fields (dimension scores, Weighted Score) serve compaction restoration and gate logic only; user-facing output shows the qualitative Resilience label (탄탄/보통/취약), never raw percentages.
+Numeric fields (dimension scores, Weighted Score) serve compaction restoration and gate logic only; user-facing output shows the qualitative Resilience label (탄탄/보통/취약), never raw percentages.
 
 ```
 <!-- STATE:CHECKPOINT -->
