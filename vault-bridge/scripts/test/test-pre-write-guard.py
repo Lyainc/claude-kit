@@ -212,6 +212,63 @@ def case_inbox_base_violation(errors: list[str], vault_root: str) -> None:
     _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
 
 
+def case_notes_moc_named_passes(errors: list[str], vault_root: str) -> None:
+    """notes/moc-overview.md → clean pass via the kebab notes/ pattern (NOT a whitelist).
+
+    Proves the moc-*.md whitelist removal (#166) is safe for notes/: a MOC-named
+    file still matches the loose kebab pattern, so removal changes nothing here.
+    """
+    print("\ncase: notes_moc_named_passes")
+    path = f"{vault_root}/notes/moc-overview.md"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_inbox_moc_named_violation(errors: list[str], vault_root: str) -> None:
+    """inbox/moc-overview.md + STRICT_NAMING=1 → exit 2.
+
+    Proves the moc-*.md whitelist case was actually removed (#166): with no
+    whitelist, the file now fails the inbox capture|session pattern.
+    """
+    print("\ncase: inbox_moc_named_violation")
+    path = f"{vault_root}/inbox/moc-overview.md"
+    payload = _make_payload(path)
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root=vault_root)
+    _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
+
+
+def case_notes_index_structural(errors: list[str], vault_root: str) -> None:
+    """notes/_index.md → clean pass (structural index still valid; audit-aligned)."""
+    print("\ncase: notes_index_structural")
+    path = f"{vault_root}/notes/_index.md"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_notes_subfolder_index(errors: list[str], vault_root: str) -> None:
+    """notes/diary/_index.md → clean pass (folder-level index in a sub-folder still valid)."""
+    print("\ncase: notes_subfolder_index")
+    path = f"{vault_root}/notes/diary/_index.md"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_root_index(errors: list[str], vault_root: str) -> None:
+    """{vault_root}/_index.md → clean pass (vault-level index)."""
+    print("\ncase: root_index")
+    path = f"{vault_root}/_index.md"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
 def case_notes_decision_dated(errors: list[str], vault_root: str) -> None:
     """notes/decision-YYYY-MM-DD-{slug}.md (v4 §3.6) matches the loose kebab pattern."""
     print("\ncase: notes_decision_dated")
@@ -328,6 +385,11 @@ def main() -> int:
         case_notes_base_subfolder(errors, vault_root)
         case_notes_base_uppercase_violation(errors, vault_root)
         case_inbox_base_violation(errors, vault_root)
+        case_notes_moc_named_passes(errors, vault_root)
+        case_inbox_moc_named_violation(errors, vault_root)
+        case_notes_index_structural(errors, vault_root)
+        case_notes_subfolder_index(errors, vault_root)
+        case_root_index(errors, vault_root)
         case_notes_decision_dated(errors, vault_root)
         case_notes_plan_dated(errors, vault_root)
         case_filename_violation_warn_mode(errors, vault_root)
