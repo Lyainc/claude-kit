@@ -24,6 +24,16 @@ jobs:
           python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
           echo "All JSON manifests valid"
 
+      - name: Check marketplace governance guards
+        run: |
+          # version-sync is a BLOCK guard: drift between marketplace.json and any
+          # plugin.json fails CI (non-zero exit). CI-coverage is a WARN guard (exit 0).
+          python3 scripts/check-version-sync.py --self-test
+          python3 scripts/check-version-sync.py
+          python3 scripts/check-ci-coverage.py --self-test
+          python3 scripts/check-ci-coverage.py
+          echo "Governance guards OK"
+
       - name: Check shell hook syntax
         run: |
           bash -n vault-bridge/hooks/*.sh
