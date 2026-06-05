@@ -11,6 +11,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history so check-trigger-regression.py can diff against origin/main
+          # (a shallow clone lacks the base commit/ref the diff needs).
+          fetch-depth: 0
 
       - uses: actions/setup-python@v5
         with:
@@ -27,11 +31,13 @@ jobs:
       - name: Check marketplace governance guards
         run: |
           # version-sync is a BLOCK guard: drift between marketplace.json and any
-          # plugin.json fails CI (non-zero exit). CI-coverage is a WARN guard (exit 0).
+          # plugin.json fails CI. check-ci-coverage is now a BLOCK guard too (--strict,
+          # promoted in #175 once coverage reached 0 gaps): any CLAUDE.md-registered
+          # test missing from this workflow fails CI.
           python3 scripts/check-version-sync.py --self-test
           python3 scripts/check-version-sync.py
           python3 scripts/check-ci-coverage.py --self-test
-          python3 scripts/check-ci-coverage.py
+          python3 scripts/check-ci-coverage.py --strict
           echo "Governance guards OK"
 
       - name: Check shell hook syntax
@@ -44,10 +50,69 @@ jobs:
           python3 vault-bridge/scripts/test/test-discover.py
           python3 vault-bridge/scripts/test/test-pre-write-guard.py
           python3 vault-bridge/scripts/test/test-pre-access-guard.py
+          python3 vault-bridge/scripts/test/test-manifest-type-optin.py
+          python3 vault-bridge/scripts/test/test-vault-commit-message.py
           echo "vault-bridge tests OK"
 
       - name: Check telemetry scripts
         run: |
           bash -n telemetry/event-logger.sh
           python3 telemetry/scripts/validate-schema.py --self-test
+          python3 telemetry/scripts/test/test-report.py
           echo "Telemetry checks OK"
+
+      - name: Run thinking-tools trigger regression
+        run: |
+          python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
+          # origin/main diff catches dropped triggers in PRs. checkout@v4 uses a
+          # branch-scoped fetch refspec, so a bare `git fetch origin main` writes only
+          # FETCH_HEAD and never creates refs/remotes/origin/main — the diff would then
+          # silently no-op. Fetch with an explicit destination refspec so origin/main
+          # actually resolves.
+          git fetch --no-tags --depth=1 origin '+refs/heads/main:refs/remotes/origin/main' 2>/dev/null || true
+          # Distinguish exit 2 (base ref unresolved — infra error, must surface) from
+          # exit 1 (real trigger removals — report-only per CLAUDE.md policy) from
+          # exit 0 (clean). A swallowed exit 2 is exactly what would hide a broken diff.
+          ec=0
+          python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main || ec=$?
+          if [ "$ec" -eq 2 ]; then
+            echo "::warning::trigger-regression base ref unresolved (origin/main) — diff did NOT run"
+          elif [ "$ec" -eq 1 ]; then
+            echo "trigger-regression: removals reported above (non-blocking, reviewer decides)"
+          fi
+          echo "thinking-tools checks OK"
+
+      - name: Run obsidian-vault-manager unit tests
+        run: |
+          python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
+          python3 obsidian-vault-manager/scripts/test/test-git-activity.py
+          python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
+          python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
+          python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test
+          bash obsidian-vault-manager/scripts/test/test-infer-tags-batch.sh
+          python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
+          echo "obsidian-vault-manager tests OK"
+
+  audit-dod:
+    # Heavy reference-impl DoD gate (#175): gen-fixture builds a seeded vault and
+    # audit-validate --dod re-derives detection counts. Split into its own job so it
+    # runs in parallel and never slows the main validate job. `--dod` itself always
+    # exits 0 (it measures, it does not assert), so assert-dod.py turns the measurement
+    # into a real gate over the date-independent invariants.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Audit DoD seeded-detection gate
+        run: |
+          rm -rf /tmp/ovm-fixture-audit-recheck
+          OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
+            bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
+          python3 obsidian-vault-manager/scripts/test/audit-validate.py \
+            /tmp/ovm-fixture-audit-recheck --dod > /tmp/dod.json
+          python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
+          echo "Audit DoD gate OK"
