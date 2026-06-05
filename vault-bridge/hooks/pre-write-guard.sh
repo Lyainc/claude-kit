@@ -119,17 +119,22 @@ filename=$(basename "$abs_path")
 
 # ---------------------------------------------------------------------------
 # Whitelist — always allowed regardless of directory
-# Matches: _index.md, Home.md, home.md, MOC-*.md (case-insensitive MOC prefix)
+# Matches: _index.md, Home.md, home.md
+#
+# _index.md is the structural vault/folder index — it mirrors audit-validate.py
+# `filename_conforms`/`EXEMPT_FILES` (always valid at any path) and is NOT a MOC
+# remnant (the snapshot_import marker lives in vault _index.md; it's E11-exempt).
+# Kept consistent with audit-validate.py `filename_conforms`.
+#
+# The hand-written MOC pattern (moc-*.md) was retired per v4 §9.5 (#166): MOC is
+# rejected as a separate slot and #118 `.base` views replace hand-written MOC.
+# After removal, moc-foo.md in notes/ still passes via the kebab pattern; in
+# inbox/ it now correctly fails the capture|session pattern.
+#
+# Home.md|home.md stay as landing-page aliases (out of #166 scope).
 # ---------------------------------------------------------------------------
 case "$filename" in
   _index.md|Home.md|home.md)
-    exit 0
-    ;;
-esac
-# MOC prefix check (case-insensitive)
-lower_filename=$(printf '%s' "$filename" | tr '[:upper:]' '[:lower:]')
-case "$lower_filename" in
-  moc-*.md)
     exit 0
     ;;
 esac
