@@ -35,7 +35,22 @@ jobs:
           # promoted in #175 once coverage reached 0 gaps): any CLAUDE.md-registered
           # test missing from this workflow fails CI.
           python3 scripts/check-version-sync.py --self-test
-          python3 scripts/check-version-sync.py
+          
+          ec=0
+          python3 scripts/check-version-sync.py || ec=$?
+          if [ "$ec" -eq 3 ]; then
+            echo "::error::marketplace.json missing (exit 3) — version-sync cannot proceed"
+            exit 3
+          elif [ "$ec" -eq 1 ]; then
+            echo "::error::version-sync drift detected (exit 1) — manifests must match marketplace.json"
+            exit 1
+          elif [ "$ec" -eq 2 ]; then
+            echo "::error::version-sync fatal error (exit 2) — unreadable manifest"
+            exit 2
+          else
+            echo "version-sync OK"
+          fi
+
           python3 scripts/check-ci-coverage.py --self-test
           python3 scripts/check-ci-coverage.py --strict
           echo "Governance guards OK"
