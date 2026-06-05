@@ -92,6 +92,16 @@ python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 
+# 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(warn)
+python3 scripts/check-version-sync.py --self-test
+# Expected: OK: all 7 version-sync self-test cases passed
+python3 scripts/check-version-sync.py
+# Expected: OK: version-sync clean — 3 plugin(s), no drift (drift 시 비제로 exit = 릴리스 차단)
+python3 scripts/check-ci-coverage.py --self-test
+# Expected: OK: all check-ci-coverage self-test cases passed
+python3 scripts/check-ci-coverage.py
+# Expected: warn-mode coverage report (gaps는 경고만, exit 0). --strict로 hard-fail 전환 가능
+
 # 플러그인 스펙 전체 검증 (frontmatter·hooks 스키마 포함)
 # claude plugin validate  # Claude Code 설치 환경에서 실행
 

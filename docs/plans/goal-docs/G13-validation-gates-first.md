@@ -86,15 +86,24 @@ grep -qiE "already|이미 다룬|재지적|previous round|prior" .github/workflo
 # === S2: 거버넌스 가드 ===
 # 정상 트리: 통과 (exit 0)
 python3 scripts/check-version-sync.py && echo "S2 version-sync clean OK"
-# 의도적 drift 주입 → 비제로 exit 기대 (임시 복사본으로 비파괴 테스트)
-tmp=$(mktemp -d); cp -r .claude-plugin "$tmp/"; \
-  python3 - "$tmp" <<'PY'
-import json,sys,glob,os
+# version-compare 로직 자체는 파일시스템과 독립적으로 self-test가 증명 (drift 7케이스)
+python3 scripts/check-version-sync.py --self-test && echo "S2 version-sync self-test OK"
+# 비파괴 통합 테스트: marketplace.json + 각 plugin.json을 임시 트리에 복사해야
+# version-compare 경로가 실제로 동작함 (.claude-plugin만 복사하면 plugin.json 부재로
+# version 비교 전에 멈춰 false-green이 됨 — #169 리뷰 지적 반영).
+tmp=$(mktemp -d); cp -r .claude-plugin "$tmp/"
+for p in $(python3 -c "import json,os;print(' '.join(os.path.normpath(e['source']) for e in json.load(open('.claude-plugin/marketplace.json'))['plugins']))"); do
+  mkdir -p "$tmp/$p/.claude-plugin"; cp "$p/.claude-plugin/plugin.json" "$tmp/$p/.claude-plugin/"
+done
+# 통제군(drift 없음): exit 0이어야 함 → 실험군과 대비해 false-green 차단
+python3 scripts/check-version-sync.py --root "$tmp" && echo "S2 control clean OK (drift 없음 → exit 0)" || echo "S2 FAIL: 통제군 오탐"
+# 실험군: marketplace version만 틀기 → version-compare가 drift를 잡아 비제로 exit
+python3 - "$tmp" <<'PY'
+import json,os,sys
 mp=os.path.join(sys.argv[1],".claude-plugin","marketplace.json")
 d=json.load(open(mp)); d["plugins"][0]["version"]="0.0.0-drift"; json.dump(d,open(mp,"w"))
 print("drift injected into copy")
 PY
-# (가드가 --root 인자 또는 환경변수로 대상 경로 받도록 구현 — 아래는 인터페이스 예시)
 python3 scripts/check-version-sync.py --root "$tmp" && echo "S2 FAIL: drift 미탐지" || echo "S2 drift 탐지 OK (비제로 exit)"
 rm -rf "$tmp"
 
@@ -108,7 +117,7 @@ for p in thinking-tools obsidian-vault-manager vault-bridge; do
 bash -n .github/workflows/*.yml 2>/dev/null; echo "shell/yaml syntax checked"
 ```
 
-**통과 기준**: S1 4줄(YAML+severity+defer+재지적) 전부 출력, S2 정상 클린 + drift 탐지(비제로 exit) + 커버리지 체크 실행, 공통 게이트 green.
+**통과 기준**: S1 4줄(YAML+severity+defer+재지적) 전부 출력, S2 정상 클린 + self-test OK + 통제군 clean(exit 0) + 실험군 drift 탐지(비제로 exit) + 커버리지 체크 실행, 공통 게이트 green. (통제군/실험군 대비가 핵심 — drift 탐지가 false-green이 아님을 증명.)
 
 ## 의존성 / 순서 주의
 
