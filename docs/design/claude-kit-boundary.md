@@ -84,3 +84,4 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 - **#101** (출력 어댑터 계약): ②출력 레이어 귀속(issue-skill=②, diverse-sampling Mode B 합성 허용)이 §3 규율 범위에 근거.
 - **#122** (thin 하네스): §3 단방향 + strangler 원칙 + §5 헌법 invariant enforcement(D5).
 - **#125** (3-tier 규칙): §5 헌법/정책 *목록*을 참조만. 재정의 금지.
+- **#170** (4-flow 카탈로그): 물리 재편 없이 `docs/design/4-flow-catalog.md`에서 5-레이어 직교 매핑만 정의.

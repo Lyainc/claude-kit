@@ -10,6 +10,17 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 | [obsidian-vault-manager](obsidian-vault-manager/) | `0.16.1` | 스킬 3 + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
 | [vault-bridge](vault-bridge/) | `1.17.3` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 6 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) (구 `vault-reader`) |
 
+## 4-흐름 카탈로그
+
+claude-kit은 사용자의 직관적인 활용을 위해 기능을 4가지 주요 흐름(Flow)으로 논리적으로 묶어 제공합니다. 이는 물리적 재구조화가 아니며, 기존 5-레이어 구조와 직교(Orthogonal)로 매핑됩니다 (CON-5 위반 회피). 이 논리적 묶음은 #117 setup-wizard의 온보딩 제안과 연결됩니다. 자세한 매핑 구조는 [`docs/design/4-flow-catalog.md`](docs/design/4-flow-catalog.md)를 참고하세요.
+
+| 4-흐름 (Logical Flow) | 매핑되는 5-레이어 (Physical) |
+| --- | --- |
+| **사고/기획** | ①인지, ②결정화·출력, ⑤실행 |
+| **작업/폴리싱** | ①인지, ②결정화·출력, ⑤실행 |
+| **시각화** | ②결정화·출력 |
+| **지식관리** | ③딜리버리, ④지식베이스 |
+
 ## 플러그인 목록
 
 ### [thinking-tools](thinking-tools/)
