@@ -22,6 +22,7 @@ CI claude-code-review와 사람 리뷰 모두 무한 수렴(끝없는 nit 핑퐁
 - **P2 nit defer (silent drop 금지)**: P2는 그 PR에서 고치지 말고 PR당 하나의 백로그 이슈(`chore: deferred review nits PR #N`)로 묶습니다. 메인테이너가 그 이슈를 triage합니다.
 - **재지적 금지**: 이전 라운드에서 이미 다뤘거나 해결된 지적은 다시 제기하지 않습니다.
 - **shift-left 경계**: substantive(P0/P1) 품질 게이팅의 1차 책임은 프리푸시 quality 게이트(#134)에 있고, CI 리뷰는 그것이 놓친 것을 잡는 fresh-eyes 안전망입니다 — 같은 규칙을 CI에서 재정의하지 않습니다.
+- **Self-review 제약**: `claude-code-review.yml` 기반 self-review 시에도 코드 작성자 스스로 무한정 라운드를 반복하지 않도록, 미해결 P0/P1에 대해서만 추가 라운드를 허용하는 제약을 따릅니다.
 
 ## 개발 가이드
 
