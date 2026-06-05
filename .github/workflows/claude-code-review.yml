@@ -40,18 +40,53 @@ jobs:
             REPO: ${{ github.repository }}
             PR NUMBER: ${{ github.event.pull_request.number }}
 
-            Please review this pull request and provide feedback on:
+            Review this pull request. Cover these dimensions, but weight substance over style:
             - Code quality and best practices
             - Potential bugs or issues
             - Performance considerations
             - Security concerns
             - Test coverage
 
-            Use the repository's CLAUDE.md for guidance on style and conventions. Be constructive and helpful in your feedback.
+            Use the repository's CLAUDE.md for guidance on style and conventions.
 
-            Use `gh pr comment` with your Bash tool to leave your review as a comment on the PR.
+            ## Severity gate (REQUIRED — classify every finding)
+
+            Tag EVERY finding with one severity and act on it per the gate:
+            - **P0 (blocking)**: real bugs, security holes, data loss, broken build/tests.
+              Must be fixed in THIS PR.
+            - **P1 (should-fix)**: correctness risks, missing tests for changed logic,
+              contract/spec violations. Fix in THIS PR unless the author defers with a reason.
+            - **P2 (nit)**: style, naming, micro-optimizations, subjective preferences.
+              Do NOT request changes for these in this PR. DEFER them — never silently drop:
+              collect all P2 nits into a single backlog issue. First run
+              `gh issue list --search "deferred review nits PR #${{ github.event.pull_request.number }}"`;
+              if none exists and there ARE P2 nits, `gh issue create` one titled
+              `chore: deferred review nits PR #${{ github.event.pull_request.number }}`
+              listing them, then link it from your PR comment. At most ONE such issue per PR.
+
+            ## Stop conditions (no infinite review rounds)
+
+            - **No re-flagging**: do NOT re-raise a point already raised or already addressed
+              in a previous round. Read prior review comments first
+              (`gh pr view ${{ github.event.pull_request.number }} --comments`) and skip
+              anything covered in a prior round.
+            - Only unresolved P0/P1 findings justify requesting another review round on this PR.
+              P2 nits go to the backlog issue, not another round.
+
+            ## Shift-left boundary (do not redefine)
+
+            Substantive quality gating (P0/P1) is owned by the pre-push quality gate tracked
+            in #134. This CI review is the fresh-eyes safety net — an external, independent
+            pass that catches what slipped through — NOT the primary quality gate. Do not
+            duplicate or re-specify that gate's rules here.
+
+            Use `gh pr comment` with your Bash tool to leave your review as a single comment on
+            the PR. Group findings by severity (P0 / P1 / Deferred nits (P2)) and link the
+            backlog issue under the P2 group.
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
-          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+          # gh issue create is allowed so P2 nits can be bundled into a single backlog issue
+          # (deferred, never silently dropped); the prompt dedups to at most one issue per PR.
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
 
