@@ -92,7 +92,7 @@ python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 
-# 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(warn)
+# 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(block — #175 --strict 승격)
 python3 scripts/check-version-sync.py --self-test
 # Expected: OK: all 7 version-sync self-test cases passed
 python3 scripts/check-version-sync.py
@@ -100,7 +100,9 @@ python3 scripts/check-version-sync.py
 python3 scripts/check-ci-coverage.py --self-test
 # Expected: OK: all check-ci-coverage self-test cases passed
 python3 scripts/check-ci-coverage.py
-# Expected: warn-mode coverage report (gaps는 경고만, exit 0). --strict로 hard-fail 전환 가능
+# Expected: "CI coverage: N/N ... OK: every registered test is wired into CI." (gap=0).
+# CI runs this as `check-ci-coverage.py --strict` (#175): a coverage gap now BLOCKS
+# (warn-mode 도입은 #134, gap 0 도달 후 #175에서 --strict 승격).
 
 # 플러그인 스펙 전체 검증 (frontmatter·hooks 스키마 포함)
 # claude plugin validate  # Claude Code 설치 환경에서 실행
@@ -128,6 +130,10 @@ python3 vault-bridge/scripts/test/test-vault-commit-message.py
 
 # telemetry schema self-test
 python3 telemetry/scripts/validate-schema.py --self-test
+
+# telemetry report.py latency_by_event regression gate (#164)
+python3 telemetry/scripts/test/test-report.py
+# Expected: OK: all cases passed
 
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
@@ -169,6 +175,10 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test
 bash obsidian-vault-manager/scripts/test/test-infer-tags-batch.sh
 # Expected: OK: all infer-tags batch cases passed
 
+# E9 vocabulary pairs unit test + ovm-primitives↔audit-validate parser parity gate (#165)
+python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
+# Expected: OK: all cases passed
+
 # audit DoD 측정 (mechanical reference impl)
 # gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py
 # and patches access_count=5 for the E8 access-target seed.
@@ -176,8 +186,12 @@ rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
 python3 obsidian-vault-manager/scripts/test/audit-validate.py \
-  /tmp/ovm-fixture-audit-recheck --dod
-# Expected (G8+):
+  /tmp/ovm-fixture-audit-recheck --dod > /tmp/dod.json
+# Assert the date-independent DoD invariants (#175 — the CI `audit-dod` job runs this
+# exact gate; `--dod` itself always exits 0, assert-dod.py turns it into a real gate).
+python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
+# Expected: OK: audit DoD invariants hold (...)
+# Expected (G8+) — the values assert-dod.py enforces:
 #   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E9:2, E10:5, E11:5}
 #     (E2 has 10: 5 base + 5 status-missing; E5 has 6: 5 w/ tag candidates +
 #      1 empty-tags graceful orphan; E6=stale_inbox; E7=stale_draft;
