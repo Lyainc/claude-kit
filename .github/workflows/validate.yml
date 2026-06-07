@@ -47,8 +47,14 @@ jobs:
           elif [ "$ec" -eq 2 ]; then
             echo "::error::version-sync fatal error (exit 2) — unreadable manifest"
             exit 2
-          else
+          elif [ "$ec" -eq 0 ]; then
             echo "version-sync OK"
+          else
+            # exit code outside the documented {0,1,2,3} contract (e.g. 127
+            # python3-not-found, 126 permission-denied). `|| ec=$?` opted out of
+            # set -e, so propagate explicitly instead of silently passing.
+            echo "::error::version-sync unexpected exit $ec — environment/runner failure"
+            exit "$ec"
           fi
 
           python3 scripts/check-ci-coverage.py --self-test
