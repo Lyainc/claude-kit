@@ -4,11 +4,12 @@ claude-kit **layer ⑤ (execution / doing)** harness — a lightweight orchestra
 plugin built **on top of Claude Code native primitives** (`/goal`, dynamic
 Workflow, agents, hooks).
 
-> **Status: v0.1.0 thin scaffold.** This is the *minimal plugin shell*, not the
-> full OMC-strangler engine described in [#122](https://github.com/Lyainc/claude-kit/issues/122).
-> It exists so layer ⑤ skills (starting with `retro`, [#123](https://github.com/Lyainc/claude-kit/issues/123))
-> have a home that satisfies claude-kit's boundary contract. Capability lands
-> incrementally, route by route — never as a big-bang replacement.
+> **Status: v0.2.0 — thin scaffold + first skill (`retro`).** This is still a
+> *lightweight harness*, not the full OMC-strangler engine described in
+> [#122](https://github.com/Lyainc/claude-kit/issues/122). It now ships its first
+> layer ⑤ skill, `retro` ([#123](https://github.com/Lyainc/claude-kit/issues/123)),
+> which closes the measure→improve loop. Capability lands incrementally, route by
+> route — never as a big-bang replacement.
 
 ## Why this plugin exists
 
@@ -21,9 +22,9 @@ dependency note below.) Layer **⑤실행** is
 a **native-substrate-based lightweight harness** that absorbs ⑤ responsibilities
 **route by route (strangler pattern)** — not a from-scratch engine.
 
-`workflow-harness` is that harness. v0.1.0 ships only the manifest + this README
-so the first real consumer (`retro`) can move in without violating the layering
-rules below.
+`workflow-harness` is that harness. v0.2.0 ships its first consumer, `retro`,
+which reads leaf output (audit E8 findings, telemetry) and turns it into
+user-confirmed actions — all within the one-way layering rules below.
 
 ## Dependency direction — ONE-WAY (harness → leaf)
 
@@ -36,13 +37,13 @@ workflow-harness  ─────▶  vault-bridge            (leaf ③ delivery
    (harness, ⑤)   ─────▶  obsidian-vault-manager  (leaf ②④: E8 promotion findings / audit input)
 
                   ┄┄┄▶  telemetry/   (project-local measurement dogfooding output — NOT a plugin,
-                                       NOT a leaf layer; read by `retro` in slice 2 for dedup
-                                       history / retro meta. No dependency edge exists at v0.1.0.)
+                                       NOT a leaf layer; read by `retro` for dedup history /
+                                       retro meta when CLAUDE_KIT_TELEMETRY=1.)
 ```
 
-The two solid edges are the leaf-plugin dependencies that land as skills move in.
-The dashed line to `telemetry/` is a *measurement* read realized only when `retro`
-(slice 2) arrives — it is not a leaf plugin and the v0.1.0 scaffold has no edge to it.
+The two solid edges are leaf-plugin dependencies. The dashed line to `telemetry/`
+is a *measurement* read (realized by `retro`) — `telemetry/` is not a leaf plugin,
+and the read is best-effort / opt-in, so the harness degrades gracefully without it.
 
 - **Allowed:** `workflow-harness` invokes leaf-plugin capabilities (calls a slash
   command, reads an audit finding) and may read the local telemetry dogfooding
@@ -77,8 +78,8 @@ Claude Code native `/goal`, Workflow, and agents wherever possible.
 
 | Slice | Skill / capability | Issue | Status |
 |-------|--------------------|-------|--------|
-| 1 | thin scaffold (this) | #122 | ✅ v0.1.0 |
-| 2 | `retro` — E8 promotion + 3-branch output + dedup + budget | #123 | next |
+| 1 | thin scaffold | #122 | ✅ v0.1.0 |
+| 2 | `retro` — E8 promotion + 3-branch output + dedup + budget | #123 | ✅ v0.2.0 |
 | 3 | `handoff` realization — issue chunking / epic proposal → goal-doc slice binding | #171 | planned |
 | — | gate-chain orchestration (pre-commit / slice critique / pre-push quality / retro) | #134 | planned |
 
@@ -87,7 +88,9 @@ Claude Code native `/goal`, Workflow, and agents wherever possible.
 ```
 workflow-harness/
 ├── .claude-plugin/
-│   └── plugin.json        # manifest (v0.1.0)
-├── skills/                # layer ⑤ skills land here (retro = first, #123)
+│   └── plugin.json        # manifest (v0.2.0)
+├── skills/
+│   └── retro/
+│       └── SKILL.md       # #123 — E8 promotion + 3-branch output + dedup + budget
 └── README.md
 ```
