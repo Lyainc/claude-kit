@@ -67,6 +67,15 @@ Zero mutation. Produce a deduped, priority-sorted item list.
 1. **Read config**: `RETRO_BUDGET` (default 10), `VAULT_AUDIT_PROMOTION_REFS`
    (default 3), `VAULT_AUDIT_PROMOTION_ACCESS` (default 5). Resolve vault root:
    `VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault` (expand `~`).
+   Then **stamp the pipeline start** for the Phase-4 `duration_ms` datum. Each
+   Bash call is a fresh shell (env vars do not persist between calls), so the
+   start time must live on disk, not in a variable. Gate it on the same telemetry
+   opt-in so nothing is written when telemetry is off:
+   ```bash
+   [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && \
+     python3 -c 'import time;print(int(time.time()*1000))' \
+       > "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true
+   ```
 
 2. **E8 promotion candidates** (PROMOTE source). Read the vault-bridge manifest
    (the same source `/audit` uses — do NOT re-derive):
@@ -182,27 +191,45 @@ opts in (offer them, do not run silently).
 2. **Report** (Korean): processed / promoted / deduped / budget_used + the
    remainder breakdown above.
 3. **Emit telemetry** (best-effort, opt-in). Only when `CLAUDE_KIT_TELEMETRY=1`
-   AND `telemetry/events/` is resolvable under the repo. Append ONE schema-valid
-   line whose `meta` carries the four retro fields (the envelope `meta` is the
-   only schema-required part; `report.py` latency reads only `duration_ms`, so
-   extra keys never pollute it). Silent on any failure; skip if the line ≥ 3500B:
+   AND `telemetry/events/` is resolvable under the repo. Anchor the path to
+   `${CLAUDE_PROJECT_ROOT:-$PWD}` (NOT bare `$PWD`) so an in-session `cd` cannot
+   silently misdirect the append — this mirrors the vault-bridge hook convention
+   (every hook resolves `PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"`). Append ONE
+   schema-valid line whose `meta` carries the four retro fields **plus
+   `duration_ms`** (the envelope `meta` is the only schema-required part;
+   `report.py` latency reads `duration_ms`, so emitting it surfaces retro's own
+   execution cost in the latency table — the other keys never pollute it).
+   `duration_ms` = pipeline wall-clock from the Phase-1 start stamp; when the
+   stamp is missing it falls back to `null`, which is schema-valid (the latency
+   collector treats null as "no datum"). Silent on any failure; skip if the line
+   ≥ 3500B:
    ```bash
-   if [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d telemetry/events ]; then
+   PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
+   if [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "${PROJ_ROOT}/telemetry/events" ]; then
+     # duration_ms = now − Phase-1 start stamp; null when the stamp is unavailable.
+     START_MS=$(cat "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true)
+     END_MS=$(python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || true)
+     # Require both to be all-digits before arithmetic — a corrupt/non-numeric
+     # stamp must fall back to null, not resolve to 0 and emit a bogus duration.
+     if [[ "$START_MS" =~ ^[0-9]+$ ]] && [[ "$END_MS" =~ ^[0-9]+$ ]]; then DURATION_MS=$((END_MS - START_MS)); else DURATION_MS=null; fi
      LINE=$(jq -nc \
        --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-       --arg sid "${CLAUDE_SESSION_ID:-unknown}" --arg cwd "$PWD" \
+       --arg sid "${CLAUDE_SESSION_ID:-unknown}" --arg cwd "$PROJ_ROOT" \
        --argjson processed "$PROCESSED" --argjson promoted "$PROMOTED" \
        --argjson deduped "$DEDUPED" --argjson budget "$BUDGET_USED" \
+       --argjson duration "$DURATION_MS" \
        '{ts:$ts, session_id:$sid, cwd:$cwd, plugin:"workflow-harness",
          event:"skill_invoke", name:"retro", qualified_name:"workflow-harness:retro",
          trigger:"explicit", outcome:"success", tool_use_id:"",
          meta:{retro_items_processed:$processed, items_promoted:$promoted,
-               items_deduped:$deduped, budget_used:$budget}}' 2>/dev/null)
+               items_deduped:$deduped, budget_used:$budget, duration_ms:$duration}}' 2>/dev/null)
      [ -n "$LINE" ] && [ "${#LINE}" -lt 3500 ] && \
-       printf '%s\n' "$LINE" >> "telemetry/events/events-$(date -u +%Y-%m-%d).jsonl" 2>/dev/null
+       printf '%s\n' "$LINE" >> "${PROJ_ROOT}/telemetry/events/events-$(date -u +%Y-%m-%d).jsonl" 2>/dev/null
+     rm -f "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true
    fi
    ```
-   `budget_used` = items processed (≤ `RETRO_BUDGET`).
+   `budget_used` = items processed (≤ `RETRO_BUDGET`); `duration_ms` is the retro
+   pipeline wall-clock (null if the start stamp was unavailable).
 
 ---
 
