@@ -418,4 +418,4 @@ if __name__ == "__main__":
     test_inv5_leaf_prose_citation_allowed()
     test_inv5_non_leaf_path_ignored()
     test_parser_extracts_slices_and_sections()
-    print("\nOK: all 34 cases passed")
+    print("\nOK: all 35 cases passed")

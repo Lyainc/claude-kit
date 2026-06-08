@@ -148,7 +148,7 @@ python3 telemetry/scripts/test/test-report.py
 python3 workflow-harness/scripts/test/test-router.py
 # Expected: OK: all 11 cases passed
 python3 workflow-harness/scripts/test/test-invariant.py
-# Expected: OK: all 34 cases passed
+# Expected: OK: all 35 cases passed
 
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
