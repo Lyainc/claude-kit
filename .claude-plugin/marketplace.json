@@ -95,6 +95,27 @@
       "repository": "https://github.com/Lyainc/claude-kit",
       "license": "MIT",
       "source": "./vault-bridge/"
+    },
+    {
+      "name": "workflow-harness",
+      "version": "0.1.0",
+      "description": "claude-kit layer ⑤ execution harness (thin scaffold): a lightweight orchestration plugin on Claude Code native primitives (/goal, Workflow, agents, hooks). One-way dependency (CON-5) harness → leaf plugins (vault-bridge / obsidian-vault-manager), plus a read of the project-local telemetry dogfooding output; reverse imports forbidden. v0.1.0 is a minimal shell — retro and further slice-loop skills land incrementally.",
+      "author": {
+        "name": "Lyainc",
+        "url": "https://github.com/Lyainc"
+      },
+      "keywords": [
+        "workflow-harness",
+        "execution",
+        "harness",
+        "orchestration",
+        "slice-loop",
+        "native-substrate"
+      ],
+      "homepage": "https://github.com/Lyainc/claude-kit",
+      "repository": "https://github.com/Lyainc/claude-kit",
+      "license": "MIT",
+      "source": "./workflow-harness/"
     }
   ]
 }

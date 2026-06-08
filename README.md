@@ -6,9 +6,10 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 
 | 플러그인 | 버전 | 구성 |
 |---|---|---|
-| [thinking-tools](thinking-tools/) | `1.10.0` | 스킬 8 + 에이전트 1 |
-| [obsidian-vault-manager](obsidian-vault-manager/) | `0.16.1` | 스킬 3 + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
-| [vault-bridge](vault-bridge/) | `1.17.3` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 6 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) (구 `vault-reader`) |
+| [thinking-tools](thinking-tools/) | `2.2.0` | 스킬 8 + 에이전트 1 |
+| [obsidian-vault-manager](obsidian-vault-manager/) | `0.19.0` | 스킬 4 (capture/note/audit/base) + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
+| [vault-bridge](vault-bridge/) | `2.1.0` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 6 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) (구 `vault-reader`) |
+| [workflow-harness](workflow-harness/) | `0.1.0` | thin scaffold (layer ⑤ 실행 하네스 — plugin.json + README, 스킬은 retro부터 점진 입주) |
 
 ## 4-흐름 카탈로그
 
@@ -45,7 +46,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ### [obsidian-vault-manager](obsidian-vault-manager/)
 
-Obsidian vault 지식 관리 플러그인 (v4). 2개 에이전트 + 3개 스킬.
+Obsidian vault 지식 관리 플러그인 (v4). 2개 에이전트 + 4개 스킬.
 
 ```bash
 claude plugin install obsidian-vault-manager@Lyainc-claude-kit
@@ -57,7 +58,8 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `vault-file-organizer` (agent) | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
 | `capture` | 즉시 Inbox에 메모 저장 + URL Defuddle 추출 옵션 |
 | `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 |
-| `audit` | vault 구조 무결성 감사 — E1-E8 오류 감지 (P0-P2 우선순위), promotion candidate 추적 |
+| `audit` | vault 구조 무결성 감사 — E1-E11 오류 감지 (P0-P2 우선순위), promotion candidate 추적 |
+| `base` | 비파괴 Obsidian Bases(.base) 뷰 생성 |
 
 ### [vault-bridge](vault-bridge/)
 
@@ -84,6 +86,12 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 | PreToolUse hook (Write\|Edit) | `Write`/`Edit`으로 `~/vault/` 쓰기 시 파일명 컨벤션 검증 → 위반 시 `systemMessage` 경고 (log-only 기본). `VAULT_BRIDGE_STRICT_NAMING=1` 시 차단 (exit 2) |
 
 자세한 3-mode 동작, `.vault-link` 포인터 파일 컨벤션, Write Role 정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
+
+### [workflow-harness](workflow-harness/)
+
+> **v0.1.0 thin scaffold** — layer ⑤(실행) 하네스의 최소 플러그인 셸. 전체 OMC-strangler 엔진(#122)이 아니라, ⑤ 스킬(첫 입주: `retro`, #123)이 경계 계약을 지키며 들어올 자리예요.
+
+Claude Code 네이티브 기능(`/goal`, dynamic Workflow, agents, hooks)을 substrate로 한 경량 오케스트레이션 플러그인. **단방향 의존(CON-5)**: `workflow-harness`(harness) → leaf 플러그인(`vault-bridge`·`obsidian-vault-manager`) + 프로젝트 로컬 `telemetry/` dogfooding 출력(플러그인 아님). 역방향·순환 금지. 자세한 경계는 [`docs/design/claude-kit-boundary.md`](docs/design/claude-kit-boundary.md) §3/§5, 로드맵은 [workflow-harness/README.md](workflow-harness/README.md) 참조.
 
 ## 빠른 시작 (신규 사용자)
 
