@@ -58,6 +58,8 @@ G2~G12 goal-doc이 실사용한 8필드예요. 전부 required.
 
 > **`applies_tiers` 형식(consensus MAJOR 반영)**: "optional"만으로는 부족해요 — #125 병합(project > user-global > default)이 입력 형식을 알아야 하거든요. **cumulative list**로 고정: 상위 tier 선언은 하위를 포함해요(`[default, user]` = default+user 적용, project 미적용). 미선언 = `[default]`(보수적 안전 기본값 — 헌법 항목은 어느 tier도 override 불가이므로 default-only가 안전). 이건 #125 "tier 선언 필드 연결 지점"의 실현이고, override 가능 범위는 #99 **정책(policy)** 항목에 한해요(헌법 항목 override 불가).
 
+> **스키마에 없는 필드 — `epic:` (정합 결정 #186, 2026-06-09)**: goal-doc은 `epic:` 프론트매터 필드를 **정의하지 않아요**. 에픽 멤버십은 GitHub 트래킹 메타데이터일 뿐 라우팅(§4.1)·INV-4 검증(§4.3) 어디에도 입력되지 않으므로, CON-4 "stable harness-neutral contract"를 흐리지 않게 스키마 밖에 둬요. 에픽 소속은 본문 "## 참조" 섹션의 advisory 링크(`Epic: #NNN`)와 `gh`(에픽 본문 + handoff-plan EPIC phase의 참조 코멘트)로 관리해요 — handoff-plan BIND가 이미 frontmatter에서 epic을 omit하는 설계(`workflow-harness/skills/handoff-plan/SKILL.md` Phase 3)와 일관해요. **기각된 대안 (a)**: `epic:`을 §1.3 optional 필드로 스키마에 추가 — 라우팅·검증에 안 쓰이는 순수 GitHub 메타데이터라 `schema_version` 진화 부담만 늘고 중립 계약성을 약화시켜서 기각했어요. corpus는 이 결정에 맞춰 G14·G15의 frontmatter `epic:`을 제거하고 G16(이미 omit) 패턴으로 통일했어요.
+
 ### 1.4 ID 네임스페이스 주의 (consensus MAJOR 반영)
 
 `issues:`와 `depends_on:`은 **서로 다른 네임스페이스**예요 — 한 frontmatter에 공존하니 파서가 혼동하면 안 돼요:

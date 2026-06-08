@@ -2,7 +2,6 @@
 goal_id: G15
 title: ⑤ self-hosting — handoff 실질화 (이슈 청킹·에픽 제안 → goal-doc 슬라이스 바인딩)
 issues: [171]
-epic: 172
 wave: 5
 depends_on: [G14]
 recommended_model: opus
@@ -15,6 +14,8 @@ created: 2026-06-08
 > G14 슬라이스 3(여력 시 항목)을 분리한 자기완결 실행 단위예요. G14에서 ⑤ thin 진입의
 > 코어(workflow-harness scaffold + retro)가 닫혔고, 이 goal은 ⑤ self-hosting의 두 번째
 > 조각 — "쌓인 이슈를 손으로 청킹/에픽 묶기"라는 가장 비싼 수작업을 자동화해요.
+> `epic:` frontmatter는 goal-doc-spec 미정의라 omit(spec-faithful, §1.3) — #172 self-hosting 소속은
+> 아래 "## 참조"의 advisory 링크로 관리해요(G16·handoff-plan EPIC phase 설계와 일관, #186).
 
 ## 배경 / 분리 사유
 

@@ -2,7 +2,6 @@
 goal_id: G14
 title: ⑤ self-hosting 부트스트랩 — workflow-harness thin scaffold + retro 첫 입주
 issues: [122, 123, 171]
-epic: 172
 wave: 5
 depends_on: [G1, G2, G6]
 recommended_model: opus
@@ -15,6 +14,8 @@ created: 2026-06-08
 > 이 문서는 다음 세션에서 Claude Code `/goal`에 그대로 넣을 수 있는 자기완결 실행 계획이에요.
 > 기존 G6(#122/#125)·G7(#123/#121)을 **2026-06-08 현재값으로 갱신·통합**한 실행 단위예요 —
 > 그 사이 #125·#121이 닫혔고, #172(self-hosting sub-epic)가 "#122 전체보다 thin 진입"으로 방향을 재정의했어요.
+> `epic:` frontmatter는 goal-doc-spec 미정의라 omit(spec-faithful, §1.3) — #172 self-hosting 소속은
+> 아래 "## 참조"의 advisory 링크로 관리해요(G16·handoff-plan EPIC phase 설계와 일관, #186).
 
 ## 배경 / 목적
 
