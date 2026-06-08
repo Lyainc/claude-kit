@@ -8,11 +8,12 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 
 ## Project Overview
 
-**claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 세 개의 독립 플러그인을 포함합니다.
+**claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 네 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 8개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain, adversarial-review, spec-first + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 4개 (capture, note, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
 - **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 5종 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 6개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) + Python scripts (`generate-manifest.py`, `plan-doc-syncer.py`, `vault-commit-message.py`). vault 검색 + slash command 기반 session-note/capture/plan 작성 + 세션 생명주기 안전망 + 외부 plan-doc 자동 캡처.
+- **workflow-harness** (`workflow-harness/`): layer ⑤ 실행 하네스 (Claude Code 네이티브 substrate 기반 경량 오케스트레이션, #122). 스킬 1개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산, #123). **단방향 의존(CON-5)**: harness → leaf(vault-bridge·obsidian-vault-manager) + telemetry dogfooding 출력(플러그인 아님). 역방향 금지. 전체 OMC-strangler 아닌 thin 진입.
 
 ## Git Conventions
 
@@ -68,6 +69,10 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── commands/                        # 6개 슬래시 커맨드 정의
 │   ├── hooks/                           # 5개 hook handler (stop-check, session-end-pre, session-start-manifest, pre-access-guard, pre-write-guard)
 │   └── scripts/                         # generate-manifest.py, plan-doc-syncer.py + tests/
+├── workflow-harness/                    # plugin: workflow-harness (layer ⑤ 실행 하네스)
+│   ├── .claude-plugin/plugin.json
+│   ├── skills/                          # retro (#123 — E8 승격 + 3갈래 출력 + dedup + 회고예산)
+│   └── README.md                        # 단방향 의존(CON-5) harness→leaf 명시
 ├── docs/
 │   ├── design/                          # 설계 문서
 │   └── discussions/                     # 의사결정 토론 transcripts (`YYYYMMDD_topic/`)

@@ -9,7 +9,7 @@ Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러�
 | [thinking-tools](thinking-tools/) | `2.2.0` | 스킬 8 + 에이전트 1 |
 | [obsidian-vault-manager](obsidian-vault-manager/) | `0.19.0` | 스킬 4 (capture/note/audit/base) + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
 | [vault-bridge](vault-bridge/) | `2.1.0` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 6 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) (구 `vault-reader`) |
-| [workflow-harness](workflow-harness/) | `0.1.0` | thin scaffold (layer ⑤ 실행 하네스 — plugin.json + README, 스킬은 retro부터 점진 입주) |
+| [workflow-harness](workflow-harness/) | `0.2.0` | 스킬 1 (retro) — layer ⑤ 실행 하네스 (audit E8 승격 + 3갈래 출력 + dedup + 회고예산) |
 
 ## 4-흐름 카탈로그
 
@@ -89,7 +89,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 ### [workflow-harness](workflow-harness/)
 
-> **v0.1.0 thin scaffold** — layer ⑤(실행) 하네스의 최소 플러그인 셸. 전체 OMC-strangler 엔진(#122)이 아니라, ⑤ 스킬(첫 입주: `retro`, #123)이 경계 계약을 지키며 들어올 자리예요.
+> **v0.2.0 — thin scaffold + 첫 스킬 `retro`** — layer ⑤(실행) 경량 하네스. 전체 OMC-strangler 엔진(#122)이 아니라, ⑤ 스킬이 경계 계약을 지키며 점진 입주하는 구조예요. 첫 입주: `retro`(#123) — 측정→개선 루프를 닫는 회고 스킬.
 
 Claude Code 네이티브 기능(`/goal`, dynamic Workflow, agents, hooks)을 substrate로 한 경량 오케스트레이션 플러그인. **단방향 의존(CON-5)**: `workflow-harness`(harness) → leaf 플러그인(`vault-bridge`·`obsidian-vault-manager`) + 프로젝트 로컬 `telemetry/` dogfooding 출력(플러그인 아님). 역방향·순환 금지. 자세한 경계는 [`docs/design/claude-kit-boundary.md`](docs/design/claude-kit-boundary.md) §3/§5, 로드맵은 [workflow-harness/README.md](workflow-harness/README.md) 참조.
 
