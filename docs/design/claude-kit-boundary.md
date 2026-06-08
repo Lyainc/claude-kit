@@ -52,13 +52,15 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 
 | # | 규칙 | 의미 |
 |---|------|------|
-| CON-1 | **vault writes: new-file-only, user-initiated slash command only** | vault 쓰기는 덮어쓰기 금지(새 파일만) + 메인 컨텍스트 슬래시 커맨드로만 개시. 서브에이전트 직접 write 금지(vault-bridge pre-write-guard Write Role Contract). |
+| CON-1 | **vault writes: new-file-only, user-initiated slash command only** | vault 쓰기는 덮어쓰기 금지(새 파일만) + 메인 컨텍스트 슬래시 커맨드로만 개시. 서브에이전트 직접 write 금지(vault-bridge pre-write-guard Write Role Contract). *예외: frontmatter-only status-machine 전이(아래 CON-1 status-machine note).* |
 | CON-2 | **deterministic hooks: zero per-turn LLM cost** | 훅은 결정적 셸 스크립트 — 턴마다 LLM 호출 0. (prompt 기반 훅의 무한 루프·토큰 비용 회피.) |
 | CON-3 | **self-approval: prohibited in the same active context** | 저작 패스와 리뷰 패스 분리. 같은 액티브 컨텍스트가 자기 산출물을 승인 불가 — reviewer ≠ author. |
 | CON-4 | **goal-doc schema: stable harness-neutral contract** | goal-doc은 harness가 바뀌어도 안정적인 중립 계약. 스키마 *세부*는 #100(`docs/design/goal-doc-spec.md`)이 정의하나, "stable harness-neutral contract여야 한다"는 *제약*은 여기 헌법으로 못박음. |
 | CON-5 | **dependency direction: harness → leaf only, no reverse** | §3 단방향. intra-leaf 호출은 면제(§3 규율 범위). |
 
 > CON-4 forward-ref: 스키마 자체는 #100 소관이지만, 그 스키마가 "stable harness-neutral contract"라는 제약 안에서 설계돼야 한다는 게 #100 → #99 의존의 실체예요. #100은 이 제약을 전제로 frontmatter·본문 섹션을 확정해요.
+
+> **CON-1 status-machine note** (carve-out, ratified 2026-06-08): CON-1의 "new-file-only / 덮어쓰기 금지"는 **content·whole-file 클로버링**을 금지하는 것이지, frontmatter `status:` 전이를 막는 게 아니에요. v4 status machine(raw→draft→evergreen→archived, `vault-second-brain-v4.md` §3.3)은 설계상 `status:` 필드를 in-place 전이시키므로, **frontmatter-only + user-confirmed + 메인 컨텍스트** status 패치는 CON-1 *안*이에요. 이 carve-out은 (a) leaf write로는 OVM `audit` E2 OPTIONAL-FIX가 이미 행사하고, (b) **harness write로는 `workflow-harness` retro(#123)가 최초**예요 — 둘 다 frontmatter-only·user-confirmed·non-subagent(pre-write-guard 통과) 조건에 한해 허용돼요. body·파일명·경로 변경, 또는 silent(미확인) 패치는 여전히 금지.
 
 #### Policy rules (harness-overridable / config-gated)
 
