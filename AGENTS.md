@@ -72,7 +72,7 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 - `thinking-tools/`: thinking skills plugin with skills for diverse sampling, document concretization/polish, expert panels, unknown discovery, thought chains, adversarial review, plus the `thinking-facilitator` agent.
 - `obsidian-vault-manager/`: Obsidian vault knowledge-management plugin with vault/project/note/inbox/archive/audit skills and vault organization agents.
 - `vault-bridge/`: Obsidian vault I/O bridge with the `vault-searcher` agent (read-only since v1.9.0), slash-command style workflows, hook scripts, slash command based session-note/capture/plan creation, manifest caching, vault write governance (VAULT_BRIDGE_WRITE_CONTRACT), plan-doc sync, and portable vault location via `userConfig.vault_path` / `VAULT_BRIDGE_VAULT_PATH` (v1.13.0+).
-- `workflow-harness/`: layer ⑤ execution harness — a lightweight orchestration plugin on Claude Code native primitives (`/goal`, Workflow, agents, hooks). Skills: `retro` (audit E8 promotion + 3-branch output + dedup + budget) and `handoff-plan` (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings). One-way dependency (CON-5): harness → leaf plugins (vault-bridge / obsidian-vault-manager) + a read of the project-local telemetry dogfooding output; reverse imports forbidden. Thin entry, not a full OMC-strangler engine.
+- `workflow-harness/`: layer ⑤ execution harness — a lightweight orchestration plugin on Claude Code native primitives (`/goal`, Workflow, agents, hooks). Skills: `retro` (audit E8 promotion + 3-branch output + dedup + budget), `handoff-plan` (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings), and `slice-router` (goal-doc execution router: #100 schema validation (INV-4) + 4-way work_type slice routing + D5 constitutional invariant enforcement, #183). One-way dependency (CON-5): harness → leaf plugins (vault-bridge / obsidian-vault-manager) + a read of the project-local telemetry dogfooding output; reverse imports forbidden. Thin entry, not a full OMC-strangler engine.
 
 ### Repository conventions
 
@@ -122,11 +122,27 @@ python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
 python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool workflow-harness/.claude-plugin/plugin.json > /dev/null
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
+find workflow-harness/skills -name "SKILL.md" | sort
 
 # thinking-tools trigger-regression self-test (run after editing any SKILL.md description)
 python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
+
+# Marketplace governance gates (#134/#175): both BLOCK on failure
+python3 scripts/check-version-sync.py --self-test
+python3 scripts/check-version-sync.py        # exit 1 = version/desc/keyword drift, exit 3 = manifest missing (release-blocking)
+python3 scripts/check-ci-coverage.py --self-test
+python3 scripts/check-ci-coverage.py         # CI runs this as --strict: a coverage gap BLOCKS
+
+# telemetry schema + report regression
+python3 telemetry/scripts/validate-schema.py --self-test
+python3 telemetry/scripts/test/test-report.py
+
+# workflow-harness (layer ⑤) slice router + D5 invariant guards (#183)
+python3 workflow-harness/scripts/test/test-router.py      # Expected: OK: all 11 cases passed
+python3 workflow-harness/scripts/test/test-invariant.py   # Expected: OK: all 35 cases passed
 ```
 
 For `audit` definition-of-done checks:
@@ -147,9 +163,11 @@ rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
 python3 obsidian-vault-manager/scripts/test/audit-validate.py \
-  /tmp/ovm-fixture-audit-recheck --dod
-# Expected (PR 4d+):
-#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:5, E6:5, E7:5, E8:2}
+  /tmp/ovm-fixture-audit-recheck --dod > /tmp/dod.json
+# Assert date-independent DoD invariants (CI `audit-dod` job runs this exact gate):
+python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
+# Expected (G8+):
+#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E9:2, E10:5, E11:5}
 #   dod.fp_on_clean per type = 0
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []
