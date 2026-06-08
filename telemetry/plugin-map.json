@@ -23,5 +23,6 @@
   "vault-knowledge-manager": "obsidian-vault-manager",
   "vault-file-organizer": "obsidian-vault-manager",
 
-  "retro": "workflow-harness"
+  "retro": "workflow-harness",
+  "handoff-plan": "workflow-harness"
 }
