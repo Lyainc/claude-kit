@@ -146,9 +146,9 @@ python3 telemetry/scripts/test/test-report.py
 # constitutional invariant (INV-4 schema / INV-1 new-file-only / INV-2·3 isolated
 # critique / INV-5 one-way). Both also dogfood the real G16 goal-doc.
 python3 workflow-harness/scripts/test/test-router.py
-# Expected: OK: all 10 cases passed
+# Expected: OK: all 11 cases passed
 python3 workflow-harness/scripts/test/test-invariant.py
-# Expected: OK: all 33 cases passed
+# Expected: OK: all 34 cases passed
 
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:

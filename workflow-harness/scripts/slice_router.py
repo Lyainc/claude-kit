@@ -91,7 +91,9 @@ def route(goal_doc_text) -> dict:
     returns an `invalid` plan with the schema violations, never a routed sequence.
     """
     if goal_doc_text is None:
-        return dict(_BUG_LIGHT_PLAN)
+        plan = dict(_BUG_LIGHT_PLAN)
+        plan["slices"] = list(_BUG_LIGHT_PLAN["slices"])  # don't alias the module constant
+        return plan
 
     violations = validate_goal_doc(goal_doc_text)
     if violations:
@@ -120,6 +122,10 @@ def route(goal_doc_text) -> dict:
 
     plan = {"work_type": work_type}
     plan.update(seq)
+    # Deep-copy the slice dicts so a caller mutating the returned plan can NEVER corrupt
+    # the module-level routing table (_SLICE_SEQUENCES) via aliasing — the router's whole
+    # job is to hand this plan to a caller that acts on it (#189 nit 1).
+    plan["slices"] = [dict(s) for s in seq["slices"]]
     # carry goal identity through so the active agent can label the loop
     plan["goal_id"] = fm.get("goal_id")
     plan["recommended_model"] = fm.get("recommended_model")
