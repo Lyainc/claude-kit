@@ -161,6 +161,7 @@ Full report template and summary output mode format: [reference/patterns.md](ref
 ## STATE Block Contract
 
 > **Core Rules**: See [../../reference/state-contract.md](../../reference/state-contract.md)
+> **Additional trigger**: output a STATE block after every Judge evaluation (each Judge evaluation is a checkpoint).
 
 Numeric fields (dimension scores, Weighted Score) serve compaction restoration and gate logic only; user-facing output shows the qualitative Resilience label (탄탄/보통/취약), never raw percentages.
 

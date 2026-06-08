@@ -182,7 +182,8 @@ def _run_main(argv: list[str]) -> str:
         buf = io.StringIO()
         with contextlib.redirect_stdout(buf):
             rc = report.main()
-        assert rc == 0, f"main() returned {rc}"
+        if rc != 0:
+            raise AssertionError(f"main() returned {rc}")
         return buf.getvalue()
     finally:
         report.load_events = saved_load
