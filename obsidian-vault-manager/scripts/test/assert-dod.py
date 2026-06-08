@@ -82,7 +82,11 @@ def main(argv: list) -> int:
         return 2
     src = argv[0]
     try:
-        raw = sys.stdin.read() if src == "-" else open(src, encoding="utf-8").read()
+        if src == "-":
+            raw = sys.stdin.read()
+        else:
+            with open(src, encoding="utf-8") as f:
+                raw = f.read()
         payload = json.loads(raw)
     except (OSError, json.JSONDecodeError) as exc:
         print(f"ERROR: cannot read DoD JSON from {src!r}: {exc}", file=sys.stderr)

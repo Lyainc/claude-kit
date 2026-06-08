@@ -20,7 +20,7 @@
 ### 흐름별 대표 기능
 - **사고/기획**: `spec-first`, `diverse-sampling`, `unknown-discovery` 등 (①인지, ②결정화)
 - **작업/폴리싱**: `doc-polish`, `expert-panel`, `adversarial-review` 등 (①인지, ②결정화)
-- **시각화**: `graphify(html)` 등 (②결정화)
+- **시각화**: `graphify(html)` (계획 — *claude-kit 플러그인에 미수록*; 현재는 사용자 글로벌 스킬로만 존재) 등 (②결정화)
 - **지식관리**: `vault-bridge`, `obsidian-vault-manager` 플러그인의 전체 기능 (③딜리버리, ④지식베이스)
 
 이 카탈로그는 구조의 종속성(CON-5)을 위반하지 않으면서 목적별 스킬 묶음을 뷰 형태로만 제공합니다.

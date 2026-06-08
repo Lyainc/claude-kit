@@ -31,8 +31,6 @@ Run: python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
   → "OK: all cases passed" (exit 0) / "FAILED: N assertion(s) failed" (exit 1).
 """
 
-from __future__ import annotations
-
 import importlib.util
 import json
 import os
@@ -61,7 +59,7 @@ def _assert(cond: bool, desc: str, errors: list) -> None:
     if cond:
         print(f"  ok   {desc}")
     else:
-        print(f"  FAIL {desc}")
+        print(f"  FAIL {desc}", file=sys.stderr)
         errors.append(desc)
 
 
