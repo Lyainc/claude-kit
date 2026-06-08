@@ -30,11 +30,10 @@ Single source of truth: [`docs/design/claude-kit-boundary.md`](../../../docs/des
   *content / whole-file* clobbering; the v4 status machine by design mutates the
   `status:` field in place (raw→draft→evergreen→archived), so a frontmatter-only,
   user-confirmed status transition is *within* CON-1's intent, not against it.
-  (OVM `audit` E2 OPTIONAL-FIX already shows frontmatter-only Edits on existing
-  notes are tolerated when user-confirmed — note E2 *adds* fields and is a
-  leaf-layer write, so this is the **first harness-layer** frontmatter status
-  patch; the boundary-doc owner may wish to codify a one-line status-machine note
-  under §5 CON-1 to make the carve-out explicit.) The patch is applied in **main
+  (This carve-out is ratified in boundary.md §5 — the "CON-1 status-machine note":
+  OVM `audit` E2 OPTIONAL-FIX exercises it as a leaf write, and `retro` is the
+  **first harness-layer** use; both are bounded to frontmatter-only + user-confirmed
+  + non-subagent.) The patch is applied in **main
   context** — a user-initiated `/retro` slash command, never a subagent, so
   vault-bridge `pre-write-guard`'s Write Role Contract passes — and **only after
   the user confirms**. **CON-5 is unaffected**: a vault note is user *data*, not a
