@@ -4,12 +4,14 @@ claude-kit **layer ⑤ (execution / doing)** harness — a lightweight orchestra
 plugin built **on top of Claude Code native primitives** (`/goal`, dynamic
 Workflow, agents, hooks).
 
-> **Status: v0.2.0 — thin scaffold + first skill (`retro`).** This is still a
-> *lightweight harness*, not the full OMC-strangler engine described in
-> [#122](https://github.com/Lyainc/claude-kit/issues/122). It now ships its first
-> layer ⑤ skill, `retro` ([#123](https://github.com/Lyainc/claude-kit/issues/123)),
-> which closes the measure→improve loop. Capability lands incrementally, route by
-> route — never as a big-bang replacement.
+> **Status: v0.3.0 — thin scaffold + two skills (`retro`, `handoff-plan`).** This
+> is still a *lightweight harness*, not the full OMC-strangler engine described in
+> [#122](https://github.com/Lyainc/claude-kit/issues/122). It ships two layer ⑤
+> skills: `retro` ([#123](https://github.com/Lyainc/claude-kit/issues/123)), which
+> closes the measure→improve loop, and `handoff-plan`
+> ([#171](https://github.com/Lyainc/claude-kit/issues/171)), which chunks the open
+> backlog into goal-doc slice bindings for the next session's `/goal`. Capability
+> lands incrementally, route by route — never as a big-bang replacement.
 
 ## Why this plugin exists
 
@@ -22,9 +24,11 @@ dependency note below.) Layer **⑤실행** is
 a **native-substrate-based lightweight harness** that absorbs ⑤ responsibilities
 **route by route (strangler pattern)** — not a from-scratch engine.
 
-`workflow-harness` is that harness. v0.2.0 ships its first consumer, `retro`,
-which reads leaf output (audit E8 findings, telemetry) and turns it into
-user-confirmed actions — all within the one-way layering rules below.
+`workflow-harness` is that harness. v0.2.0 shipped its first consumer, `retro`
+(reads leaf output — audit E8 findings, telemetry — and turns it into
+user-confirmed actions); v0.3.0 adds `handoff-plan`, which reads the open GitHub
+backlog and emits goal-doc slice bindings the next session's `/goal` can run. Both
+stay within the one-way layering rules below.
 
 ## Dependency direction — ONE-WAY (harness → leaf)
 
@@ -80,7 +84,8 @@ Claude Code native `/goal`, Workflow, and agents wherever possible.
 |-------|--------------------|-------|--------|
 | 1 | thin scaffold | #122 | ✅ v0.1.0 |
 | 2 | `retro` — E8 promotion + 3-branch output + dedup + budget | #123 | ✅ v0.2.0 |
-| 3 | `handoff` realization — issue chunking / epic proposal → goal-doc slice binding | #171 | planned |
+| 3 | `handoff-plan` — open-issue chunking (dependency + domain) → user-confirmed epic candidates → goal-doc slice binding | #171 | ✅ v0.3.0 |
+| — | #122 residual — 4-way slice router + D5 invariant enforcement | #183 | planned |
 | — | gate-chain orchestration (pre-commit / slice critique / pre-push quality / retro) | #134 | planned |
 
 ## Layout
@@ -88,9 +93,11 @@ Claude Code native `/goal`, Workflow, and agents wherever possible.
 ```
 workflow-harness/
 ├── .claude-plugin/
-│   └── plugin.json        # manifest (v0.2.0)
+│   └── plugin.json        # manifest (v0.3.0)
 ├── skills/
-│   └── retro/
-│       └── SKILL.md       # #123 — E8 promotion + 3-branch output + dedup + budget
+│   ├── retro/
+│   │   └── SKILL.md       # #123 — E8 promotion + 3-branch output + dedup + budget
+│   └── handoff-plan/
+│       └── SKILL.md       # #171 — backlog chunking → goal-doc slice binding
 └── README.md
 ```

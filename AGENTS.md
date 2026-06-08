@@ -72,6 +72,7 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 - `thinking-tools/`: thinking skills plugin with skills for diverse sampling, document concretization/polish, expert panels, unknown discovery, thought chains, adversarial review, plus the `thinking-facilitator` agent.
 - `obsidian-vault-manager/`: Obsidian vault knowledge-management plugin with vault/project/note/inbox/archive/audit skills and vault organization agents.
 - `vault-bridge/`: Obsidian vault I/O bridge with the `vault-searcher` agent (read-only since v1.9.0), slash-command style workflows, hook scripts, slash command based session-note/capture/plan creation, manifest caching, vault write governance (VAULT_BRIDGE_WRITE_CONTRACT), plan-doc sync, and portable vault location via `userConfig.vault_path` / `VAULT_BRIDGE_VAULT_PATH` (v1.13.0+).
+- `workflow-harness/`: layer ⑤ execution harness — a lightweight orchestration plugin on Claude Code native primitives (`/goal`, Workflow, agents, hooks). Skills: `retro` (audit E8 promotion + 3-branch output + dedup + budget) and `handoff-plan` (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings). One-way dependency (CON-5): harness → leaf plugins (vault-bridge / obsidian-vault-manager) + a read of the project-local telemetry dogfooding output; reverse imports forbidden. Thin entry, not a full OMC-strangler engine.
 
 ### Repository conventions
 
