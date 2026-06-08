@@ -49,6 +49,9 @@ Epic #108 layer redesign의 **설계·계약 스파인이 전부 닫혔어요** 
 - [ ] vault 쓰기는 user-initiated slash 경유 (vault-bridge Write Role Contract 준수)
 
 ### 슬라이스 3 — handoff 실질화 (#171, 여력 시)
+
+> **2026-06-08 분리됨 → [`G15-handoff-realization.md`](G15-handoff-realization.md).** 슬라이스 1·2(scaffold + retro)로 ⑤ thin 진입 코어가 닫혔고, #171은 #140 물리위치 게이트(⑤ harness 권고) + #104 정합이 선행돼야 해서 급조 시 CON-5 리스크가 커요. goal-doc이 허용한 G15 분리로 처리했어요(아래 항목은 G15 DoD로 이관).
+
 - [ ] handoff가 열린 이슈를 청킹/에픽 후보로 제안 (continuation prompt 외 신규 로직)
 - [ ] 청킹 결과 → goal-doc(#100) 슬라이스 바인딩 형식 출력 (다음 세션 `/goal` 연결)
 - [ ] 에픽 링크 user-confirmed, vault 쓰기 없음 또는 user-initiated만 (CON-1)
