@@ -1,7 +1,7 @@
 {
   "name": "workflow-harness",
-  "version": "0.3.0",
-  "description": "claude-kit layer ⑤ execution harness: a lightweight orchestration plugin on Claude Code native primitives (/goal, Workflow, agents, hooks). One-way dependency (CON-5) harness → leaf plugins (vault-bridge / obsidian-vault-manager), plus a read of the project-local telemetry dogfooding output; reverse imports forbidden. Ships the retro skill (audit E8 promotion + 3-branch output + dedup + budget) and the handoff-plan skill (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings); further slice-loop skills land incrementally.",
+  "version": "0.4.0",
+  "description": "claude-kit layer ⑤ execution harness: a lightweight orchestration plugin on Claude Code native primitives (/goal, Workflow, agents, hooks). One-way dependency (CON-5) harness → leaf plugins (vault-bridge / obsidian-vault-manager), plus a read of the project-local telemetry dogfooding output; reverse imports forbidden. Ships the retro skill (audit E8 promotion + 3-branch output + dedup + budget), the handoff-plan skill (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings), and the slice-router skill (#122-residual 4-way slice router binding work_type to a slice sequence + D5 constitutional invariant enforcement, native-delegation first); further slice-loop skills land incrementally.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -17,6 +17,7 @@
     "slice-loop",
     "native-substrate",
     "retro",
-    "handoff-plan"
+    "handoff-plan",
+    "slice-router"
   ]
 }
