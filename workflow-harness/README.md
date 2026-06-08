@@ -4,14 +4,18 @@ claude-kit **layer ⑤ (execution / doing)** harness — a lightweight orchestra
 plugin built **on top of Claude Code native primitives** (`/goal`, dynamic
 Workflow, agents, hooks).
 
-> **Status: v0.3.0 — thin scaffold + two skills (`retro`, `handoff-plan`).** This
-> is still a *lightweight harness*, not the full OMC-strangler engine described in
-> [#122](https://github.com/Lyainc/claude-kit/issues/122). It ships two layer ⑤
+> **Status: v0.4.0 — thin scaffold + three skills + the #122-residual router.**
+> This is still a *lightweight harness*, not the full OMC-strangler engine described
+> in [#122](https://github.com/Lyainc/claude-kit/issues/122). It ships three layer ⑤
 > skills: `retro` ([#123](https://github.com/Lyainc/claude-kit/issues/123)), which
-> closes the measure→improve loop, and `handoff-plan`
+> closes the measure→improve loop; `handoff-plan`
 > ([#171](https://github.com/Lyainc/claude-kit/issues/171)), which chunks the open
-> backlog into goal-doc slice bindings for the next session's `/goal`. Capability
-> lands incrementally, route by route — never as a big-bang replacement.
+> backlog into goal-doc slice bindings for the next session's `/goal`; and
+> `slice-router` ([#183](https://github.com/Lyainc/claude-kit/issues/183)) — the
+> #122-residual **4-way slice router + D5 invariant enforcement**, which routes an
+> existing goal-doc to its slice sequence and enforces the constitutional invariants
+> native cannot. Capability lands incrementally, route by route — never as a big-bang
+> replacement.
 
 ## Why this plugin exists
 
@@ -26,9 +30,11 @@ a **native-substrate-based lightweight harness** that absorbs ⑤ responsibiliti
 
 `workflow-harness` is that harness. v0.2.0 shipped its first consumer, `retro`
 (reads leaf output — audit E8 findings, telemetry — and turns it into
-user-confirmed actions); v0.3.0 adds `handoff-plan`, which reads the open GitHub
-backlog and emits goal-doc slice bindings the next session's `/goal` can run. Both
-stay within the one-way layering rules below.
+user-confirmed actions); v0.3.0 added `handoff-plan`, which reads the open GitHub
+backlog and emits goal-doc slice bindings the next session's `/goal` can run; v0.4.0
+adds `slice-router`, the #122-residual router that takes an *existing* goal-doc and
+binds its `work_type` to a slice sequence while enforcing the D5 constitutional
+invariants. All three stay within the one-way layering rules below.
 
 ## Dependency direction — ONE-WAY (harness → leaf)
 
@@ -78,6 +84,15 @@ native cannot express:
 Everything else (goal-doc parse/exec, the slice loop itself) is delegated to
 Claude Code native `/goal`, Workflow, and agents wherever possible.
 
+As of v0.4.0 these two gaps are realized by the **`slice-router`** skill backed by
+two stdlib-only decision libraries — `scripts/slice_router.py` (the `work_type`→slice
+binding, Gap-ROUTE) and `scripts/invariant_guard.py` (INV-4 schema / new-file-only /
+isolated critique / one-way, Gap-INV). **Native-delegation boundary (the one line):
+the harness self-builds ONLY Gap-ROUTE + Gap-INV; the execution loop, slice fan-out,
+agent spawn, Write block, and reviewer summon all stay delegated to native** (`/goal`,
+Workflow, Agent, PreToolUse hooks). They are *decision* libraries, not engines — and
+any check native later enforces natively is retired, not kept (P6 reversible endpoint).
+
 ## Roadmap (incremental, route by route)
 
 | Slice | Skill / capability | Issue | Status |
@@ -85,7 +100,7 @@ Claude Code native `/goal`, Workflow, and agents wherever possible.
 | 1 | thin scaffold | #122 | ✅ v0.1.0 |
 | 2 | `retro` — E8 promotion + 3-branch output + dedup + budget | #123 | ✅ v0.2.0 |
 | 3 | `handoff-plan` — open-issue chunking (dependency + domain) → user-confirmed epic candidates → goal-doc slice binding | #171 | ✅ v0.3.0 |
-| — | #122 residual — 4-way slice router + D5 invariant enforcement | #183 | planned |
+| 4 | `slice-router` — #122-residual 4-way slice router + D5 invariant enforcement | #183 | ✅ v0.4.0 |
 | — | gate-chain orchestration (pre-commit / slice critique / pre-push quality / retro) | #134 | planned |
 
 ## Layout
@@ -93,11 +108,19 @@ Claude Code native `/goal`, Workflow, and agents wherever possible.
 ```
 workflow-harness/
 ├── .claude-plugin/
-│   └── plugin.json        # manifest (v0.3.0)
+│   └── plugin.json        # manifest (v0.4.0)
+├── scripts/
+│   ├── slice_router.py    # #183 S1 — work_type → slice sequence binding (Gap-ROUTE)
+│   ├── invariant_guard.py # #183 S2 — INV-4 / INV-1 / INV-2·3 / INV-5 (Gap-INV)
+│   └── test/
+│       ├── test-router.py     # 4-way routing + native-fallback
+│       └── test-invariant.py  # one negative case per constitutional invariant
 ├── skills/
 │   ├── retro/
 │   │   └── SKILL.md       # #123 — E8 promotion + 3-branch output + dedup + budget
-│   └── handoff-plan/
-│       └── SKILL.md       # #171 — backlog chunking → goal-doc slice binding
+│   ├── handoff-plan/
+│   │   └── SKILL.md       # #171 — backlog chunking → goal-doc slice binding
+│   └── slice-router/
+│       └── SKILL.md       # #183 — goal-doc → 4-way route + invariant gate (entrypoint)
 └── README.md
 ```

@@ -140,6 +140,16 @@ python3 telemetry/scripts/validate-schema.py --self-test
 python3 telemetry/scripts/test/test-report.py
 # Expected: OK: all cases passed
 
+# workflow-harness slice router + D5 invariant guard (#183 — Gap-ROUTE + Gap-INV)
+# test-router: 4-way work_type routing (feature-full/decision-only/doc-only/bug-light)
+# + INV-4 block + native-fallback. test-invariant: one negative case per
+# constitutional invariant (INV-4 schema / INV-1 new-file-only / INV-2·3 isolated
+# critique / INV-5 one-way). Both also dogfood the real G16 goal-doc.
+python3 workflow-harness/scripts/test/test-router.py
+# Expected: OK: all 10 cases passed
+python3 workflow-harness/scripts/test/test-invariant.py
+# Expected: OK: all 33 cases passed
+
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
 python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test

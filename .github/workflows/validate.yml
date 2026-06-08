@@ -82,6 +82,14 @@ jobs:
           python3 telemetry/scripts/test/test-report.py
           echo "Telemetry checks OK"
 
+      - name: Run workflow-harness unit tests
+        run: |
+          # #183 — Gap-ROUTE (4-way slice router) + Gap-INV (D5 constitutional
+          # invariant enforcement). Both also dogfood the real G16 goal-doc.
+          python3 workflow-harness/scripts/test/test-router.py
+          python3 workflow-harness/scripts/test/test-invariant.py
+          echo "workflow-harness tests OK"
+
       - name: Run thinking-tools trigger regression
         run: |
           python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
