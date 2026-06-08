@@ -139,7 +139,10 @@ binding or epic action. Chunking is a proposal, not a decision.
 3. **Apply only what the user confirmed**, via `gh` (issue creation / edit is
    outward-facing, so confirm first):
    ```bash
-   # new epic (only if confirmed):
+   # new epic (only if confirmed). `--label epic` FAILS if the label is absent in
+   # the target repo, so ensure it exists first (idempotent — ignores "already
+   # exists"); drop the flag entirely for repos that intentionally have no epic label:
+   gh label create epic --color BFD4F2 --description "Tracking epic" 2>/dev/null || true
    gh issue create --title "<epic title>" --body "<chunk list + rationale>" --label epic
    # link an issue under an epic (only if confirmed) — a comment/reference, not a force:
    gh issue comment <epic#> --body "Sub-issue: #<n> (handoff-plan chunk: <title>)"

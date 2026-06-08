@@ -69,10 +69,13 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    `VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault` (expand `~`).
    Then **stamp the pipeline start** for the Phase-4 `duration_ms` datum. Each
    Bash call is a fresh shell (env vars do not persist between calls), so the
-   start time must live on disk, not in a variable. Gate it on the same telemetry
-   opt-in so nothing is written when telemetry is off:
+   start time must live on disk, not in a variable. Gate it on the SAME condition
+   as the Phase-4 emit — telemetry opt-in AND a resolvable `telemetry/events/`
+   dir — so no stamp is orphaned in `/tmp` when telemetry output is unreachable
+   (the Phase-4 `rm -f` only runs inside that same branch):
    ```bash
-   [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && \
+   PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
+   [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "${PROJ_ROOT}/telemetry/events" ] && \
      python3 -c 'import time;print(int(time.time()*1000))' \
        > "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true
    ```
