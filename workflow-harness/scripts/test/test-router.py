@@ -142,6 +142,23 @@ def test_router_emits_bindings_not_execution() -> None:
     print("PASS test_router_emits_bindings_not_execution")
 
 
+def test_router_plan_does_not_alias_module_table() -> None:
+    # mutating a returned plan must NOT corrupt the module-level routing table (#189 nit 1)
+    from slice_router import _SLICE_SEQUENCES
+    before = len(_SLICE_SEQUENCES["feature-full"]["slices"])
+    p = route(_doc("feature-full", single_slice=False))
+    p["slices"].append({"name": "injected", "binding": "evil"})
+    p["slices"][0]["binding"] = "mutated"
+    assert len(_SLICE_SEQUENCES["feature-full"]["slices"]) == before, "module table length corrupted"
+    fresh = route(_doc("feature-full", single_slice=False))
+    assert fresh["slices"][0]["binding"] == "spec-first", "module table slice dict was mutated"
+    # bug-light shares a module constant too
+    b = route(None)
+    b["slices"].append({"x": 1})
+    assert route(None)["slices"] == [], "bug-light plan aliased the module constant"
+    print("PASS test_router_plan_does_not_alias_module_table")
+
+
 def test_real_g16_routes_feature_full() -> None:
     # dogfooding: the actual G16 goal-doc routes to feature-full with isolated critique
     g16 = (_SCRIPTS.parents[1] / "docs" / "plans" / "goal-docs" / "G16-harness-router-invariant.md")
@@ -163,5 +180,6 @@ if __name__ == "__main__":
     test_invalid_goal_doc_blocked()
     test_malformed_no_frontmatter_blocked()
     test_router_emits_bindings_not_execution()
+    test_router_plan_does_not_alias_module_table()
     test_real_g16_routes_feature_full()
-    print("\nOK: all 10 cases passed")
+    print("\nOK: all 11 cases passed")

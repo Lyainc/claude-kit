@@ -384,7 +384,12 @@ def check_one_way_dependency(leaf_path: str, text: str) -> str | None:
     if not any(leaf_path.startswith(d) or f"/{d}" in leaf_path for d in _LEAF_DIRS):
         return None  # not a leaf file — INV-5 only constrains leaves
     for line in text.splitlines():
-        # ignore comment/markdown-prose lines that merely cite the rule
+        # Skip commented-out lines: a `# import invariant_guard` example or a
+        # "never do this" note in a leaf must not trip a false INV-5 verdict. (The
+        # regexes already require real import/call syntax, so prose without a comment
+        # marker still won't match — this closes the commented-out-code path. #189 nit 2.)
+        if line.lstrip().startswith("#"):
+            continue
         for rx in _HARNESS_REVERSE_RE:
             if rx.search(line):
                 return (

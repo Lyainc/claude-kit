@@ -338,6 +338,19 @@ def test_inv5_variable_path_shellout_caught() -> None:
     print("PASS test_inv5_variable_path_shellout_caught")
 
 
+def test_inv5_commented_out_import_not_flagged() -> None:
+    # a commented-out import / "never do this" note must NOT trip INV-5 (#189 nit 2)
+    v = check_one_way_dependency(
+        "vault-bridge/scripts/x.py",
+        "# from invariant_guard import validate_goal_doc  # NEVER do this",
+    )
+    assert v is None, "commented-out import wrongly flagged as INV-5 violation"
+    # but a real (uncommented) import on the same kind of line is still caught
+    live = check_one_way_dependency("vault-bridge/scripts/x.py", "from invariant_guard import validate_goal_doc")
+    assert live is not None, "uncommented import wrongly skipped"
+    print("PASS test_inv5_commented_out_import_not_flagged")
+
+
 def test_inv5_harness_self_import_allowed() -> None:
     # harness importing its own sibling module is fine — one-way constrains leaf→harness
     v = check_one_way_dependency("workflow-harness/scripts/slice_router.py", "import invariant_guard")
@@ -400,8 +413,9 @@ if __name__ == "__main__":
     test_inv5_leaf_shellout_caught()
     test_inv5_dynamic_import_caught()
     test_inv5_variable_path_shellout_caught()
+    test_inv5_commented_out_import_not_flagged()
     test_inv5_harness_self_import_allowed()
     test_inv5_leaf_prose_citation_allowed()
     test_inv5_non_leaf_path_ignored()
     test_parser_extracts_slices_and_sections()
-    print("\nOK: all 33 cases passed")
+    print("\nOK: all 34 cases passed")
