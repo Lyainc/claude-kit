@@ -89,6 +89,10 @@ user-confirmed gate.
    lightweight `{issue → {refs:[...], epic:#N|null, domain, labels}}` map. Domain
    is inferred from labels + path hints in the body (e.g. `vault-bridge`,
    `workflow-harness`, `telemetry`, `obsidian-vault-manager`, `docs/design`).
+   > `gh issue list --json body` can truncate very long bodies, so a dependency signal
+   > buried deep in one may be missed silently. When a chunk's deps look thin against a
+   > visibly long issue, fall back to `gh issue view <n> --json body` for the full text
+   > before concluding "no deps" — don't treat a truncated body as a complete one.
 
 **Output of this phase**: a deduped issue list with dependency/domain metadata.
 No file is written, no issue is touched.
