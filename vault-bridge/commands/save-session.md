@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # /save-session
 
-Create a new vault session note for the current session. The full procedure lives in `vault-bridge/reference/session-note-recipe.md` — this file is the slash-command entry point and contract surface.
+Create a new vault session note for the current session. This command is the runtime entry point for the `format=session` output adapter (`docs/design/output-adapter-contract.md` §2, row #5: `session`/`record` → `/save-session`). vault-bridge is claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26), so per §2 this adapter delivers the `session` artifact to the vault (`destination=vault`, `gated` under CON-1). Per the G3 #102 ADR the output layer is **distributed in-place**, so the adapter lives here in vault-bridge and its authoring/delivery step runs **inline in the main context only** — never delegated to a subagent (vault writes are gated by the Write Role Contract). The full procedure lives in `vault-bridge/reference/session-note-recipe.md` (the `session` delivery-adapter implementation) — this file is the slash-command entry point and contract surface.
 
 <!-- TODO(T1.7 audit): vault_path is RISKY here — it is resolved from .vault-link via session-note-recipe.md and used as the single source of truth for the session note save directory (recipe §save-path-determination step). The Write tool destination for the session note file flows through this vault_path resolution. Follow-up: broader audit plan. -->
 

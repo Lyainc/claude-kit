@@ -7,7 +7,7 @@ disable-model-invocation: true
 
 # /handoff
 
-Generate a continuation handoff for the next session. Summarizes current work state and produces a ready-to-use resume prompt in the format the user chooses.
+Generate a continuation handoff for the next session. This command implements the `format=handoff` output adapter (`docs/design/output-adapter-contract.md` §2, row #4: `handoff`/`handoff` → `/handoff`). It is **vault-bypassing** — a local vault-bridge command writing only `local_ephemeral`/`stdout` — so per §2 it falls outside ③ vault delivery and is not CON-1 gated. The summarizing and authoring steps still run **inline in the main context only** — never delegated to a subagent. Summarizes current work state and produces a ready-to-use resume prompt in the format the user chooses.
 
 **User language: Korean.** All user-facing output MUST be in Korean.
 

@@ -1,6 +1,8 @@
 # Vault Write Recipe — Session Note, Capture, Plan
 
-Detailed procedure executed inline by the `/save-session` slash command (main context). Originally housed in `vault-searcher` Mode 4 — moved here when vault writes were narrowed to user-initiated slash commands only (2026-05-12).
+This is the implementation of the `format=session` delivery adapter (`docs/design/output-adapter-contract.md` §2, row #5). vault-bridge is claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26), so this delivers the `session` artifact to the vault. Detailed procedure executed **inline by the `/save-session` slash command (main context only)** — vault writes are gated by the Write Role Contract, so this is never delegated to a subagent. Originally housed in `vault-searcher` Mode 4 — moved here when vault writes were narrowed to user-initiated slash commands only (2026-05-12).
+
+Per the G3 #102 ADR (`docs/design/output-layer-structure-adr.md`) the output layer is **distributed in-place** — there is no separate output plugin to relocate into — so this recipe stays here in vault-bridge as the delivery adapter's implementation. It is intentionally **not** moved or deleted; doing so would break the `/save-session` entry point.
 
 The entry point is [`../commands/save-session.md`](../commands/save-session.md); the full procedure, templates, and rules live here.
 

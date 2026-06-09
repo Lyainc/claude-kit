@@ -376,17 +376,18 @@ VAULT_BRIDGE_STRICT_NAMING=1 claude
 
 ## Write Role Policy
 
-vault-bridge v1.9.0 adds an explicit Write Role Policy enforced by `hooks/pre-write-guard.sh`. Vault writes must originate from the main context (user-initiated slash commands). Subagent vault writes — identified by a non-empty agent identifier in the `PreToolUse` payload — are blocked or warned depending on the `VAULT_BRIDGE_WRITE_CONTRACT` environment variable.
+vault-bridge v1.9.0 adds an explicit Write Role Policy enforced by `hooks/pre-write-guard.sh`. Vault writes must originate from the main context (user-initiated slash commands). Subagent vault writes — identified by a non-empty agent identifier in the `PreToolUse` payload — are **blocked by default** (or warned / disabled) per the `VAULT_BRIDGE_WRITE_CONTRACT` environment variable.
 
 | Mode | Behavior | When |
 |------|----------|------|
-| `warn` (default) | Injects a `systemMessage` warning; write is allowed to proceed | Default |
-| `enforce` | Blocks the write (`exit 2`) — subagent vault writes are rejected | `VAULT_BRIDGE_WRITE_CONTRACT=enforce` |
+| `enforce` (default) | Emits `permissionDecision: deny` + a `systemMessage`; the subagent vault write is blocked | Default |
+| `warn` | Injects a `systemMessage` warning; the write is allowed to proceed | `VAULT_BRIDGE_WRITE_CONTRACT=warn` |
 | `off` | No check performed | `VAULT_BRIDGE_WRITE_CONTRACT=off` |
 
 ```bash
-# Block all subagent vault writes
-VAULT_BRIDGE_WRITE_CONTRACT=enforce claude
+# Subagent vault writes are blocked by default (enforce mode).
+# Relax to warn (log + allow):
+VAULT_BRIDGE_WRITE_CONTRACT=warn claude
 
 # Disable the policy check entirely
 VAULT_BRIDGE_WRITE_CONTRACT=off claude
@@ -447,7 +448,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background; also detects `.claude-kit/vault-bridge/resume.md`, injects its body into the model context via `additionalContext`, and consumes (deletes) the file. Never blocks session startup
 - **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects all deterministic state — `.vault-link` presence + Layer 1 `snapshot_export`, `_index.md` Layer 2 `snapshot_import`, plan-doc candidates, direct-access counter, plan-doc-asked flag — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
-- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `warn`, supports `enforce` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
+- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/handoff/quick)
 - **`/handoff` command**: generates a next-session continuation handoff (one-liner / summary / `resume.md` file) — main-context user trigger
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
