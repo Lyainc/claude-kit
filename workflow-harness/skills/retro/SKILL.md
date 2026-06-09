@@ -75,6 +75,9 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    (the Phase-4 `rm -f` only runs inside that same branch):
    ```bash
    PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
+   # `:-unknown` fallback is benign: retro runs single-session per sid, and this stamp is
+   # written here but read back in the separate Phase-4 shell — a `$$`-suffix can't survive
+   # across invocations, so sid-less concurrent retros only theoretically share the path.
    [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "${PROJ_ROOT}/telemetry/events" ] && \
      python3 -c 'import time;print(int(time.time()*1000))' \
        > "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true
