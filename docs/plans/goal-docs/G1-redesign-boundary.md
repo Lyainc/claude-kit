@@ -6,6 +6,7 @@ wave: 1
 depends_on: []
 recommended_model: opus
 status: ready
+work_type: doc-only
 created: 2026-06-03
 ---
 

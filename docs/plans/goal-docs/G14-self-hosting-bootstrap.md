@@ -6,6 +6,7 @@ wave: 5
 depends_on: [G1, G2, G6]
 recommended_model: opus
 status: ready
+work_type: feature-full
 created: 2026-06-08
 ---
 
