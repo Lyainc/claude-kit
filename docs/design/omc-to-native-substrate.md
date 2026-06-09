@@ -45,7 +45,7 @@
 
 | ID | Native 프리미티브 | 제공 | 실측 한계 | 근거 |
 |----|------------------|------|----------|------|
-| **N1** | dynamic Workflow | `agent()`/`parallel()`/`pipeline()`/`phase()`/`log()`, schema 구조화 출력, worktree 격리, budget, resume, nested workflow | 동시 에이전트 cap = `min(16, cores−2)`; 총 1000 에이전트; **중첩 1단계**(workflow 안 workflow 1회); `Date.now`/`Math.random`/argless `new Date()` 사용 불가; **resume 동일 세션 한정** | `[SPEC]` (Workflow 도구 정의 — 메인 세션 도구 명세 기재값) |
+| **N1** | dynamic Workflow | `agent()`/`parallel()`/`pipeline()`/`phase()`/`log()`, schema 구조화 출력, worktree 격리, budget, resume, nested workflow | 동시 에이전트 cap = `min(16, cores−2)`; 총 1000 에이전트; **중첩 1단계**(workflow 안 workflow 1회); `Date.now`/`Math.random`/argless `new Date()` 사용 불가; **resume 동일 세션 한정** | `[SPEC]` (Workflow 도구 정의 — 메인 세션 도구 명세 기재값) · 공개 corroboration(#200): [dynamic-workflows 블로그](https://claude.com/blog/a-harness-for-every-task-dynamic-workflows-in-claude-code) — 프리미티브·`~/.claude/workflows` 공유 표면·비용 경고("not needed for every task … significantly more tokens")는 공개 1차 출처로 확인, 단 위 *한계 수치*까지는 블로그가 안 다뤄 티어는 `[SPEC]` 유지(도구 정의가 여전히 1차) |
 | **N2** | `/goal` | 세션 자율 진행 + 완료조건 Stop 훅 평가, 충족 시 auto-clear | **세션 싱글톤 — 1 세션 1 활성 goal, 동시 다중 goal 불가**; 완료조건이 **freeform 텍스트** — 구조화 goal-doc을 슬라이스별 스킬에 바인딩하는 파싱은 native가 안 함 | `[CONFIRMED 2026-06-03]` + `[WORKAROUND]` (OMC `ultragoal`이 durable multi-goal/ledger 영속용으로 존재 = native가 multi-goal·영속을 안 줌의 방증) |
 | **N3** | Agent / Task 도구 | 서브에이전트 spawn, `run_in_background`, `SendMessage`로 컨텍스트 이어 재호출, `agentType`(커스텀 에이전트 레지스트리), worktree 격리 | 서브에이전트 **최종 메시지는 호출자에게만** 반환(사용자 비노출) → **중간 critique 과정 관찰 불가**(INV-2 enforce 설계 제약, §4.2 참조); 새 Agent 호출은 fresh context(SendMessage만 컨텍스트 유지) | `[SPEC]` (Agent 도구 정의) |
 | **N4** | hooks | 이벤트 12종(2026-06-03 확인, 플랫폼 확장 가능): PreToolUse·PermissionRequest·PostToolUse·PostToolUseFailure·Stop·SubagentStart·SubagentStop·SessionStart·SessionEnd·UserPromptSubmit·PreCompact·Notification. `systemMessage`/`additionalContext` emit, PreToolUse·PermissionRequest는 차단 가능 | 이벤트 셋은 native가 정의(플러그인이 임의 이벤트 추가 불가); PreToolUse/PermissionRequest가 **차단**은 하지만 "self-approval인지/격리됐는지" 같은 **의미 판정은 native가 안 함 — 핸들러 로직이 소유**; soft warning은 비차단 | `[CONFIRMED 2026-06-03]` (OMC `hooks.json` 11종 실측 + Notification 도구 명세; 본 세션 SubagentStart 훅 수신 확인) |
@@ -73,6 +73,8 @@
 | **C6** 상태 관리 / 메모리 | N4 훅-기록 파일 + 파일 메모리 디렉토리 + N1 반환값 | ◐ Partial | 세션 상태·파일 메모리는 native 커버. **잔여**: `notepad`/`wiki`/`shared_memory` 같은 구조화 KV에 1:1 native 도구는 없음 — 단 plain 파일 I/O로 대체 가능 → **non-gap**(§4.3) |
 | **C7** 훅 트리거 | N4 hooks | ✅ Full | 이벤트·주입 **메커니즘 자체가 native**(MAGIC KEYWORD·boulder·remember는 native 훅에 얹은 authored handler). 주입 *내용*의 정교함은 OMC 핸들러 로직이지만 ⑤ 대체 관점에선 메커니즘이 native라 ✅ |
 | **C8** 검증 게이트 | N1 verify 스테이지 + N3 reviewer 에이전트 | ◐ Partial (orchestration만) | reviewer **소환**은 native가 함(pipeline verify 스테이지). **잔여**: "self-approval 금지 / authoring≠review / 격리됐는지"의 **강제(enforcement)**는 native가 판정 안 함 → **Gap-INV** |
+
+> **C1/C2 페어링 정합 메모(#200)**: dynamic-workflows 블로그가 Workflow를 `/goal`·`/loop`과 **페어링**해 쓰길 공식 권장 — C1(`/goal` 완료조건 루프)·C2(Workflow 반복 루프) 매핑과 동일한 그림의 공개 확인이에요. 또 블로그의 3대 실패 모드(agentic laziness / self-preferential bias / goal drift) 중 self-preferential bias는 우리 CON-3·Gap-INV(INV-2·3)와 같은 문제의식 — native의 투자 방향이 헌법 invariant와 정렬됨을 공개적으로 확인.
 
 **매트릭스 요약**: ✅ Full ×5 (C2·C3·C4·C5·C7), ◐ Partial ×3 (C1·C6·C8). Partial의 잔여 중 native 못 채우는 건 **Gap-ROUTE(C1)**와 **Gap-INV(C8)** 둘뿐. C1·C6의 나머지 잔여는 §4.3에서 non-gap으로 정리.
 
@@ -148,7 +150,7 @@ OMC는 지금 ⑤를 담당하며 정상 동작 → 전면 교체 아닌 **route
 | **P3** | invariant + 규칙 — D5 enforcement(**Gap-INV** INV-1~5) + 3-tier 병합(규칙 우선순위 project > user-global > default) | #122 S4–S5, #125 | 헌법 disable 차단 테스트 + 병합 우선순위 테스트 | 훅 모드 플래그로 비활성(`WRITE_CONTRACT` 패턴) |
 | **P4** | 스킬 바인딩 + 게이트 체인 — spec/impl/critique/debug/quality 바인딩, 4지점 게이트 | #133, #134 | feature-dev goal-doc 1개 e2e dogfood | 라우트를 OMC autopilot/ralph로 재지정 |
 | **P5** | retro + telemetry — 루프 닫기, 이관 parity 측정 | #123, D8 | telemetry `meta` 필드 | 스킬 제거 |
-| **P6** | OMC 표면 축소 (**조건부·가역**) — telemetry가 native+하네스 parity 입증 **AND** native invariant 지원 성숙 시에만, ⑤ 의존을 route별 감축 | (후속) | route별 parity 게이트 | route별 OMC 재지정(완전 가역) |
+| **P6** | OMC 표면 축소 (**조건부·가역**) — telemetry가 native+하네스 parity 입증 **AND** native invariant 지원 성숙 시에만, ⑤ 의존을 route별 감축. *watch 신호(#200)*: dynamic-workflows 블로그 공개 = native가 이 영역에 빠르게 공개 투자 중 — Claude Code 릴리스 노트 워치가 P6 조건("native invariant 지원 성숙") 재평가 트리거(P6 이슈는 신설하지 않음 — #108 에픽의 "P5 parity 후 개설" 결정 유지) | (후속) | route별 parity 게이트 | route별 OMC 재지정(완전 가역) |
 
 **strangler 불변식**:
 - 매 phase에서 **미이관 ⑤ 경로는 OMC가 계속 담당** — 큰 빅뱅 컷오버 없음.
