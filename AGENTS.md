@@ -142,7 +142,7 @@ python3 telemetry/scripts/test/test-report.py
 
 # workflow-harness (layer ⑤) slice router + D5 invariant guards (#183)
 python3 workflow-harness/scripts/test/test-router.py      # Expected: OK: all 11 cases passed
-python3 workflow-harness/scripts/test/test-invariant.py   # Expected: OK: all 35 cases passed
+python3 workflow-harness/scripts/test/test-invariant.py   # Expected: OK: all 37 cases passed
 ```
 
 For `audit` definition-of-done checks:

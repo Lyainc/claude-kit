@@ -213,6 +213,15 @@ def validate_goal_doc(text: str) -> list[str]:
         if key not in fm or fm[key] in (None, ""):
             violations.append(f"missing required frontmatter field: {key}")
 
+    # `issues: []` is present-but-empty → still effectively missing: a goal must close ≥1
+    # issue (#190 N1). Scoped to `issues` ONLY — depends_on:[] is legitimately empty for
+    # foundation goals (G1 has no predecessors), so this is NOT a blanket
+    # empty-list-is-missing rule applied across the required fields.
+    if isinstance(fm.get("issues"), list) and not fm["issues"]:
+        violations.append(
+            "issues must list at least one GitHub issue number (empty list is not allowed)"
+        )
+
     # (2) enum legality (only when the field is present — absence already flagged above)
     if fm.get("recommended_model") not in (None, "") and fm.get("recommended_model") not in _MODEL_ENUM:
         violations.append(

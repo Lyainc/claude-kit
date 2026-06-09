@@ -73,6 +73,22 @@ def test_inv4_missing_required_field() -> None:
     print("PASS test_inv4_missing_required_field")
 
 
+def test_inv4_empty_issues_rejected() -> None:
+    # issues: [] is present-but-empty → still "missing": a goal must close ≥1 issue (#190 N1)
+    bad = _VALID.replace("issues: [200, 201]", "issues: []")
+    v = validate_goal_doc(bad)
+    assert any("at least one GitHub issue" in x for x in v), f"empty issues not rejected: {v}"
+    print("PASS test_inv4_empty_issues_rejected")
+
+
+def test_inv4_empty_depends_on_allowed() -> None:
+    # depends_on: [] is legitimate (foundation goals like G1 have no predecessors) — the
+    # empty-issues rule must NOT generalize into a blanket empty-list-is-missing rule (#190 N1)
+    doc = _VALID.replace("depends_on: [G1]", "depends_on: []")
+    assert validate_goal_doc(doc) == [], "empty depends_on wrongly rejected"
+    print("PASS test_inv4_empty_depends_on_allowed")
+
+
 def test_inv4_bad_model_enum() -> None:
     bad = _VALID.replace("recommended_model: opus", "recommended_model: gpt4")
     v = validate_goal_doc(bad)
@@ -385,6 +401,8 @@ def test_parser_extracts_slices_and_sections() -> None:
 if __name__ == "__main__":
     test_inv4_valid_passes()
     test_inv4_missing_required_field()
+    test_inv4_empty_issues_rejected()
+    test_inv4_empty_depends_on_allowed()
     test_inv4_bad_model_enum()
     test_inv4_bad_status_enum()
     test_inv4_bug_light_worktype_rejected()
@@ -418,4 +436,4 @@ if __name__ == "__main__":
     test_inv5_leaf_prose_citation_allowed()
     test_inv5_non_leaf_path_ignored()
     test_parser_extracts_slices_and_sections()
-    print("\nOK: all 35 cases passed")
+    print("\nOK: all 37 cases passed")
