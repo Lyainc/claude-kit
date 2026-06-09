@@ -6,6 +6,7 @@ wave: 4
 depends_on: [G1, G2]
 recommended_model: opus
 status: gated
+work_type: feature-full
 created: 2026-06-03
 ---
 

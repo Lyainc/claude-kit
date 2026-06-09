@@ -6,6 +6,7 @@ wave: 게이트
 depends_on: []
 recommended_model: haiku
 status: gated
+work_type: decision-only
 created: 2026-06-03
 ---
 

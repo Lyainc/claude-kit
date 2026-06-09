@@ -6,6 +6,7 @@ wave: 5
 depends_on: [G6]
 recommended_model: sonnet
 status: gated
+work_type: feature-full
 created: 2026-06-03
 ---
 

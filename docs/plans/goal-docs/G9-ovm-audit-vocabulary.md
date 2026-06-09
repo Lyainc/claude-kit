@@ -6,6 +6,7 @@ wave: 독립·게이트
 depends_on: []
 recommended_model: sonnet
 status: gated
+work_type: feature-full
 created: 2026-06-03
 ---
 

@@ -6,6 +6,7 @@ wave: 독립
 depends_on: []
 recommended_model: sonnet
 status: ready
+work_type: feature-full
 created: 2026-06-03
 ---
 
