@@ -85,7 +85,7 @@ top_dir=$(printf '%s' "$rel_path" | cut -d'/' -f1)
 # Write Role Contract enforcement
 # Policy: vault writes must originate from main context (user-initiated slash
 # commands). Subagent vault writes are out of policy.
-# Modes: warn (default — log + systemMessage, allow), enforce (deny), off (skip).
+# Modes: enforce (default — deny), warn (log + systemMessage, allow), off (skip).
 # assets/ is a passthrough — no contract check (automated tools may write attachments).
 # ---------------------------------------------------------------------------
 contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-enforce}"

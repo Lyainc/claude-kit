@@ -81,8 +81,7 @@ def case_main_context_inbox_write(errors: list[str], vault_root: str) -> None:
 
 
 def case_subagent_enforce_default(errors: list[str], vault_root: str) -> None:
-    """subagent_type present + no VAULT_BRIDGE_WRITE_CONTRACT → enforce (actual default at line 86)."""
-    # TODO: pre-write-guard.sh:86 default=enforce vs 주석/docs warn 불일치 — 별도 PR로 추적
+    """subagent_type present + no VAULT_BRIDGE_WRITE_CONTRACT → enforce (actual default at line 91)."""
     print("\ncase: subagent_enforce_default")
     path = f"{vault_root}/inbox/session-2026-05-12.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="vault-searcher")
@@ -95,7 +94,7 @@ def case_subagent_enforce_default(errors: list[str], vault_root: str) -> None:
 
 
 def case_subagent_warn_explicit(errors: list[str], vault_root: str) -> None:
-    """VAULT_BRIDGE_WRITE_CONTRACT=warn → same as default warn."""
+    """VAULT_BRIDGE_WRITE_CONTRACT=warn → explicit warn mode (log + allow); default is enforce."""
     print("\ncase: subagent_warn_explicit")
     path = f"{vault_root}/inbox/session-2026-05-12.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="vault-searcher")

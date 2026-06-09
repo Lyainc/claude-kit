@@ -5,7 +5,7 @@ argument-hint: "[file ...]"
 disable-model-invocation: true
 ---
 
-Save one or more external plan/design documents from the current project into the bound vault project as snapshots.
+Save one or more external plan/design documents from the current project into the bound vault project as snapshots. Because this writes to the vault, the snapshot/authoring step runs **inline in the main context only** — never delegated to a subagent (vault writes are gated by the Write Role Contract / CON-1: new-file-only, user-initiated slash command).
 
 <!-- TODO(T1.7 audit): vault_path is RISKY here — it flows directly from .vault-link into the Write tool destination '${VAULT_ROOT}/{vault_path}/' (Step 5 syncer --vault-link arg) and into resume.md write at '${CLAUDE_PROJECT_ROOT}/.claude-kit/vault-bridge/resume.md' (Step 6 intent==defer branch). The resume.md write in Step 6 uses a hardcoded .claude-kit path (safe), but the syncer destination in Step 5 uses vault_path as the write root (RISKY if vault_path is malformed or attacker-controlled). Follow-up: broader audit plan. -->
 
