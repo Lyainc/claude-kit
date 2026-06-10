@@ -271,6 +271,16 @@ if (resolvedImplType) {
 
 const impl_report = await agent(implPrompt, implAgentOptions);
 
+// agent() returns null on user skip or terminal API error (Workflow tool contract).
+// Without this guard the critique prompt would embed the literal string "null" and
+// produce a structurally meaningless verdict (PR #205 review P1-2).
+if (!impl_report) {
+  throw new Error(
+    "feature-full.js: impl agent returned null (user abort or terminal API error). " +
+    "Aborting — the critique stage requires a valid impl report."
+  );
+}
+
 // ── Phase 2: Critique ─────────────────────────────────────────────────────────
 // A SEPARATE agent() call — different agentType, fresh context.
 // This is the structural CON-3 enforcement: the authoring context (Phase 1)
@@ -343,12 +353,25 @@ if (resolvedCritiqueType) {
 
 const verdict = await agent(critiquePrompt, critiqueAgentOptions);
 
+// Same null contract as the impl stage: a null verdict means the critique never
+// happened — failing loudly beats returning { verdict: null } that a caller could
+// misread as "no blocking findings" (PR #205 review P1-2 follow-on).
+if (!verdict) {
+  throw new Error(
+    "feature-full.js: critique agent returned null (user abort or terminal API error). " +
+    "Aborting — the route is incomplete without a VERDICT (CON-3 output contract)."
+  );
+}
+
 // ── Return ────────────────────────────────────────────────────────────────────
 // The active agent under /goal consumes this result.
 // REJECT handling (fix-round → re-critique loop) belongs to the outer /goal loop.
 
 return {
-  goal_id: plan.goal_id,
+  // goal_id is label-only; a router-produced plan always carries it (INV-4 requires
+  // it in frontmatter), but normalize a hand-built plan's absence to an explicit
+  // null rather than a silent undefined (#206 N2).
+  goal_id: plan.goal_id ?? null,
   impl_report,
   verdict,
 };

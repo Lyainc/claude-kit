@@ -506,6 +506,11 @@ def test_wf_separate_agent_stages() -> None:
     assert "resolvedImplType === resolvedCritiqueType" in text, (
         "CON-3 runtime disjoint assert (resolvedImplType === resolvedCritiqueType) not found"
     )
+
+    # Null-return guards (PR #205 review P1-2): agent() returns null on user skip /
+    # terminal API error — both stages must fail loudly, never feed "null" onward.
+    assert "if (!impl_report)" in text, "impl_report null guard missing (P1-2)"
+    assert "if (!verdict)" in text, "verdict null guard missing (P1-2)"
     print("PASS test_wf_separate_agent_stages")
 
 
