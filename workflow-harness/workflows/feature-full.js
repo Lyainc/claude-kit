@@ -144,9 +144,26 @@ const IMPL_REPORT_SCHEMA = {
 
 // ── Script body (top-level — the Workflow runtime injects agent()/phase()/log()/args) ──
 
+// args may arrive as a JSON-ENCODED STRING depending on the caller surface
+// (dogfood-confirmed 2026-06-10: the tool-call layer can deliver the args input
+// as one string). Normalize with a parse only — verbatim semantics preserved,
+// no reshaping. An unparseable string still fails fast at the contract guard.
+let input = args;
+if (typeof input === "string") {
+  try {
+    input = JSON.parse(input);
+  } catch (err) {
+    throw new Error(
+      "feature-full.js: args arrived as a non-JSON string. Pass the args object " +
+      "(plan / goal_doc_path / spec_artifact / critique_payload) or its JSON encoding. " +
+      `Parse error: ${err.message}`
+    );
+  }
+}
+
 // ── Guard: validate args ──────────────────────────────────────────────────────
 
-if (!args || !args.plan) {
+if (!input || !input.plan) {
   throw new Error(
     "feature-full.js: args.plan is required. " +
     "This script must be invoked by slice-router Phase 4 DELEGATE after " +
@@ -154,7 +171,7 @@ if (!args || !args.plan) {
   );
 }
 
-const plan = args.plan;
+const plan = input.plan;
 
 if (plan.work_type !== "feature-full") {
   throw new Error(
@@ -170,7 +187,7 @@ if (plan.route !== "spec→impl→critique") {
   );
 }
 
-if (!args.spec_artifact) {
+if (!input.spec_artifact) {
   throw new Error(
     "feature-full.js: args.spec_artifact is required. " +
     "Run the spec slice (spec-first interview) in MAIN context first, then pass its artifact path here. " +
@@ -181,14 +198,14 @@ if (!args.spec_artifact) {
 // Resolve agentType overrides (registry-qualified names for some environments).
 // An empty-string override is normalized to "unset" — "" must read as "use the
 // default", never as a silent way to drop the agentType while looking explicit.
-const implOverride = args.impl_agent_type || undefined;
+const implOverride = input.impl_agent_type || undefined;
 const critiqueOverride =
-  args.critique_agent_type === undefined || args.critique_agent_type === ""
+  input.critique_agent_type === undefined || input.critique_agent_type === ""
     ? undefined
-    : args.critique_agent_type;
+    : input.critique_agent_type;
 
 const resolvedImplType = implOverride || IMPL_AGENT_TYPE;
-const critiquePayload = args.critique_payload || "diff";
+const critiquePayload = input.critique_payload || "diff";
 
 if (!Object.prototype.hasOwnProperty.call(CRITIQUE_AGENT_TYPE_BY_PAYLOAD, critiquePayload)) {
   throw new Error(
@@ -229,9 +246,9 @@ const implPrompt = [
   JSON.stringify(plan, null, 2),
   "```",
   "",
-  `## Goal-doc path\n${args.goal_doc_path}`,
+  `## Goal-doc path\n${input.goal_doc_path}`,
   "",
-  `## Spec artifact (produced by the spec slice in main context)\n${args.spec_artifact}`,
+  `## Spec artifact (produced by the spec slice in main context)\n${input.spec_artifact}`,
   "",
   "## Instructions",
   "1. Read the goal-doc at the path above. Implement EXACTLY the impl slice described in",
@@ -299,7 +316,7 @@ const critiquePrompt = [
   JSON.stringify(plan, null, 2),
   "```",
   "",
-  `## Goal-doc path\n${args.goal_doc_path}`,
+  `## Goal-doc path\n${input.goal_doc_path}`,
   "",
   "## Impl report (from the impl stage)",
   "```json",
