@@ -241,6 +241,90 @@ def case_event_filter_end_to_end(errors: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Lifecycle view cases
+# ---------------------------------------------------------------------------
+
+def case_lifecycle_never_fired(errors: list[str]) -> None:
+    """A skill in catalog with zero events must appear in never_fired."""
+    print("\ncase: lifecycle_never_fired")
+    # Catalog: two fake skills; events only fire one of them.
+    catalog = ["fake-plugin:active-skill", "fake-plugin:zero-count-skill"]
+    events = [
+        _ev("skill_invoke", plugin="fake-plugin", name="active-skill"),
+        _ev("skill_invoke", plugin="fake-plugin", name="active-skill"),
+    ]
+    # Patch qualified_name onto these events (report uses qualified_name for matching).
+    for e in events:
+        e["qualified_name"] = "fake-plugin:active-skill"
+
+    result = report.skill_lifecycle_view(events, catalog=catalog)
+
+    _assert("fake-plugin:zero-count-skill" in result["never_fired"],
+            "zero-count skill appears in never_fired", errors)
+    _assert("fake-plugin:active-skill" not in result["never_fired"],
+            "active skill absent from never_fired", errors)
+    _assert(len(result["never_fired"]) == 1,
+            f"exactly one never-fired skill (got: {result['never_fired']})", errors)
+
+
+def case_lifecycle_stale_note(errors: list[str]) -> None:
+    """A --since window <= the stale threshold must surface a stale_note (not silence).
+
+    Under e.g. --since=7d no loaded event can be >14d old, so the stale section is
+    structurally inert — the view must say so instead of rendering a bare "(none)"
+    (isolated-critique MEDIUM finding, 2026-06-10).
+    """
+    print("\ncase: lifecycle_stale_note")
+    catalog = ["fake-plugin:some-skill"]
+
+    bounded = report.skill_lifecycle_view([], catalog=catalog, since_days=7)
+    _assert(bounded["stale_note"] is not None,
+            "since_days=7 (<= stale threshold) sets stale_note", errors)
+
+    unbounded = report.skill_lifecycle_view([], catalog=catalog, since_days=None)
+    _assert(unbounded["stale_note"] is None,
+            "since_days=None (--since=all) leaves stale_note None", errors)
+
+    wide = report.skill_lifecycle_view([], catalog=catalog, since_days=30)
+    _assert(wide["stale_note"] is None,
+            "since_days=30 (> stale threshold) leaves stale_note None", errors)
+
+
+def case_lifecycle_caveat_in_output(errors: list[str]) -> None:
+    """Table output must contain the measurement-scope caveat string."""
+    print("\ncase: lifecycle_caveat_in_output")
+    out = _run_main(["report.py", "--since=all", "--format=table"])
+    _assert(
+        "측정범위: claude-kit 레포 내 세션 기준 (telemetry Option A)" in out,
+        "table output contains measurement-scope caveat",
+        errors,
+    )
+    _assert(
+        "Skill lifecycle" in out,
+        "table output has 'Skill lifecycle' section header",
+        errors,
+    )
+
+
+def case_lifecycle_caveat_in_json(errors: list[str]) -> None:
+    """JSON output must include a lifecycle key with caveat and never_fired."""
+    print("\ncase: lifecycle_caveat_in_json")
+    out = _run_main(["report.py", "--since=all", "--format=json"])
+    payload = json.loads(out)
+    _assert("lifecycle" in payload, "json has 'lifecycle' key", errors)
+    lc = payload.get("lifecycle", {})
+    _assert(
+        lc.get("caveat") == "측정범위: claude-kit 레포 내 세션 기준 (telemetry Option A)",
+        f"json lifecycle.caveat correct (got: {lc.get('caveat')!r})",
+        errors,
+    )
+    _assert("never_fired" in lc, "json lifecycle has 'never_fired' list", errors)
+    _assert("stale" in lc, "json lifecycle has 'stale' list", errors)
+    _assert("bottom" in lc, "json lifecycle has 'bottom' list", errors)
+    _assert("guide" in lc, "json lifecycle has 'guide' string", errors)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -256,6 +340,10 @@ def main() -> int:
     case_json_output_end_to_end(errors)
     case_table_output_end_to_end(errors)
     case_event_filter_end_to_end(errors)
+    case_lifecycle_never_fired(errors)
+    case_lifecycle_stale_note(errors)
+    case_lifecycle_caveat_in_output(errors)
+    case_lifecycle_caveat_in_json(errors)
 
     print()
     if errors:

@@ -22,6 +22,23 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 TELEMETRY_DIR = SCRIPT_DIR.parent
 EVENTS_DIR = TELEMETRY_DIR / "events"
+REPO_ROOT = TELEMETRY_DIR.parent
+
+# Stale threshold for lifecycle view (days since last use).
+_STALE_DAYS = 14
+# Bottom-N threshold for lifecycle view.
+_BOTTOM_N = 5
+
+# Interpretation guide — hardcoded per DoD.
+_LIFECYCLE_CAVEAT = "측정범위: claude-kit 레포 내 세션 기준 (telemetry Option A)"
+# NOTE: vault-bridge is deliberately NOT named here — it ships agents/commands/
+# hooks but no skills/, so it can never appear in this skills-catalog view
+# (isolated-critique LOW finding, 2026-06-10). OVM is the representative class.
+_LIFECYCLE_GUIDE = (
+    "해석 가이드: thinking-tools류(in-repo 사용 본질)의 never-fired는 죽은 표면 신호로 "
+    "우선 해석하세요. OVM류(타 프로젝트 사용 주류)의 never-fired는 "
+    "측정범위 밖 사용 가능성을 먼저 의심하세요."
+)
 
 
 def load_events(since_days: int | None = None):
@@ -132,6 +149,112 @@ def latency_by_event(events: list[dict]) -> dict[str, dict[str, float | int]]:
     return out
 
 
+def scan_skill_catalog(repo_root: Path | None = None) -> list[str]:
+    """Return sorted list of '{plugin}:{skill}' identifiers from SKILL.md files.
+
+    Glob pattern: <repo_root>/*/skills/*/SKILL.md (depth-2 only, no hidden dirs).
+    plugin = first path component (e.g. 'thinking-tools').
+    skill  = third path component (e.g. 'expert-panel').
+    """
+    root = repo_root if repo_root is not None else REPO_ROOT
+    catalog: list[str] = []
+    for skill_md in root.glob("*/skills/*/SKILL.md"):
+        parts = skill_md.relative_to(root).parts
+        # Expected: (plugin, 'skills', skill_name, 'SKILL.md') → 4 parts
+        if len(parts) != 4:
+            continue
+        plugin, _, skill_name, _ = parts
+        # Skip hidden directories
+        if plugin.startswith("."):
+            continue
+        catalog.append(f"{plugin}:{skill_name}")
+    return sorted(catalog)
+
+
+def skill_lifecycle_view(
+    events: list[dict],
+    catalog: list[str] | None = None,
+    stale_days: int = _STALE_DAYS,
+    bottom_n: int = _BOTTOM_N,
+    since_days: int | None = None,
+) -> dict:
+    """Derive per-skill lifecycle signals from events vs. catalog.
+
+    Returns a dict with keys:
+      catalog        - full catalog list
+      never_fired    - skills with 0 events in the window
+      stale          - skills whose last event is > stale_days ago (excluding never-fired)
+      stale_note     - non-None when the --since window is too short to ever
+                       contain a stale event (the section would be inert)
+      bottom         - bottom_n skills by count (excluding never-fired), sorted ascending
+      caveat         - measurement-scope caveat string
+      guide          - interpretation guide string
+
+    Matching: event['qualified_name'] == '{plugin}:{skill}' (catalog format).
+    Only skill_invoke events (event == 'skill_invoke') with a non-empty
+    qualified_name are counted — other event types don't carry skill identity.
+    """
+    if catalog is None:
+        catalog = scan_skill_catalog()
+
+    catalog_set = set(catalog)
+    now = datetime.now(timezone.utc)
+    stale_cutoff = now - timedelta(days=stale_days)
+
+    # Collect last-seen timestamp and counts per qualified_name from skill_invoke events.
+    last_seen: dict[str, datetime] = {}
+    counts: Counter[str] = Counter()
+    for e in events:
+        if e.get("event") != "skill_invoke":
+            continue
+        qn = e.get("qualified_name", "")
+        if not qn or qn not in catalog_set:
+            continue
+        counts[qn] += 1
+        ts_raw = e.get("ts", "")
+        try:
+            ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
+        except (ValueError, AttributeError):
+            continue
+        if qn not in last_seen or ts > last_seen[qn]:
+            last_seen[qn] = ts
+
+    # 1. never-fired: in catalog but count == 0
+    never_fired = sorted(s for s in catalog if counts[s] == 0)
+
+    # 2. stale: has events but last seen > stale_days ago
+    stale = sorted(
+        s for s in catalog
+        if counts[s] > 0 and s in last_seen and last_seen[s] < stale_cutoff
+    )
+
+    # A bounded --since window <= the stale threshold filters out every event old
+    # enough to be stale BEFORE this view runs, so the section would render "(none)"
+    # unconditionally. Surface that instead of silently hiding the one signal the
+    # stale view exists for (isolated-critique MEDIUM finding, 2026-06-10).
+    stale_note = None
+    if since_days is not None and since_days <= stale_days:
+        stale_note = (
+            f"--since={since_days}d window cannot contain >{stale_days}d-old events; "
+            "use --since=all or a window above the stale threshold"
+        )
+
+    # 3. bottom-N: skills with events, sorted by count ascending, top bottom_n
+    fired = [(s, counts[s]) for s in catalog if counts[s] > 0]
+    fired.sort(key=lambda x: (x[1], x[0]))
+    bottom = fired[:bottom_n]
+
+    return {
+        "catalog": catalog,
+        "never_fired": never_fired,
+        "stale": stale,
+        "stale_note": stale_note,
+        "bottom": bottom,
+        "caveat": _LIFECYCLE_CAVEAT,
+        "guide": _LIFECYCLE_GUIDE,
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--since", default="7d", help="time window (e.g. '7d', 'all')")
@@ -164,6 +287,8 @@ def main() -> int:
     latency = latency_stats(events)
     latency_per_event = latency_by_event(events)
 
+    lifecycle = skill_lifecycle_view(events, since_days=since_days)
+
     if args.format == "json":
         payload = {
             "total": len(events),
@@ -191,6 +316,16 @@ def main() -> int:
                 {"plugin": plg, "event": ev, "name": nm, "count": c}
                 for (plg, ev, nm), c in counts.most_common(args.top)
             ],
+            "lifecycle": {
+                "caveat": lifecycle["caveat"],
+                "never_fired": lifecycle["never_fired"],
+                "stale": lifecycle["stale"],
+                "stale_note": lifecycle["stale_note"],
+                "bottom": [
+                    {"skill": s, "count": c} for s, c in lifecycle["bottom"]
+                ],
+                "guide": lifecycle["guide"],
+            },
         }
         print(json.dumps(payload, indent=2))
         return 0
@@ -220,6 +355,29 @@ def main() -> int:
     for (plg, ev, nm), c in counts.most_common(args.top):
         label = f"{plg}:{ev}" + (f" ({nm})" if nm else "")
         print(f"  {c:>5}  {label}")
+    print()
+    print(f"Skill lifecycle ({lifecycle['caveat']}):")
+    if lifecycle["never_fired"]:
+        print(f"  never-fired ({len(lifecycle['never_fired'])}):")
+        for s in lifecycle["never_fired"]:
+            print(f"    {s}")
+    else:
+        print("  never-fired: (none)")
+    if lifecycle["stale"]:
+        print(f"  last-used > {_STALE_DAYS}d ({len(lifecycle['stale'])}):")
+        for s in lifecycle["stale"]:
+            print(f"    {s}")
+    else:
+        print(f"  last-used > {_STALE_DAYS}d: (none)")
+    if lifecycle["stale_note"]:
+        print(f"    ({lifecycle['stale_note']})")
+    if lifecycle["bottom"]:
+        print(f"  bottom-{_BOTTOM_N} (by count):")
+        for s, c in lifecycle["bottom"]:
+            print(f"    {c:>5}  {s}")
+    else:
+        print(f"  bottom-{_BOTTOM_N}: (none)")
+    print(f"  {lifecycle['guide']}")
     return 0
 
 
