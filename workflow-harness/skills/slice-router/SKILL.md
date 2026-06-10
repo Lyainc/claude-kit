@@ -138,6 +138,12 @@ Hand each slice to native in sequence, honoring the chaining (`→`):
      })
      ```
      Write `${CLAUDE_PLUGIN_ROOT}` literally — it is resolved at runtime by Claude Code.
+     The script's default agentTypes are the #133 inventory tokens (`executor` /
+     `code-reviewer`). If the environment's agent registry only resolves **qualified**
+     names (dogfood 2026-06-10: `oh-my-claudecode:executor`), pass them via the
+     `impl_agent_type` / `critique_agent_type` args overrides — the script's CON-3
+     disjoint assert applies to the resolved pair either way, and an unresolvable
+     agentType fails fast with the registry listing (0 tokens spent).
   4. **Fallback**: when the Workflow tool is unavailable in the environment, fall back
      to the existing native-Agent procedure: spawn the critique slice as a **separate
      Agent context** (`code-reviewer` / `adversarial-review`) — never the same context
