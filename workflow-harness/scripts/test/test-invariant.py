@@ -421,6 +421,11 @@ def test_wf_script_exists_and_meta_present() -> None:
     assert _WORKFLOW_JS.is_file(), f"feature-full.js not found at {_WORKFLOW_JS}"
     assert "export const meta" in text, "export const meta literal missing"
     assert 'name: "feature-full"' in text, 'meta.name "feature-full" not found'
+    # meta must be the FIRST statement — the Workflow runtime rejects scripts where
+    # any other statement precedes `export const meta` (dogfood-confirmed 2026-06-10).
+    assert text.index("export const meta") < text.index("const IMPL_AGENT_TYPE"), (
+        "export const meta must precede every other statement (Workflow runtime requirement)"
+    )
     print("PASS test_wf_script_exists_and_meta_present")
 
 

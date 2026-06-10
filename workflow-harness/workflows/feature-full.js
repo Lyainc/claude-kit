@@ -49,6 +49,25 @@
  * meta must be a PURE literal (statically checkable).
  */
 
+// ── Workflow meta (PURE literal — MUST be the first statement: the Workflow
+//    runtime rejects scripts where `export const meta` is preceded by any other
+//    statement, dogfood-confirmed 2026-06-10) ──────────────────────────────────
+
+export const meta = {
+  name: "feature-full",
+  description: "feature-full route DELEGATE carrier — impl→critique as separate agent() stages, CON-3 structural",
+  phases: [
+    {
+      title: "Impl",
+      detail: "Executor agent implements the goal-doc impl slice and runs verifications",
+    },
+    {
+      title: "Critique",
+      detail: "Isolated critique agent reviews impl output; cannot be the same context that authored (CON-3)",
+    },
+  ],
+};
+
 // ── Module constants (statically checkable literals — A4 test parses these) ──
 
 // #133 §1: impl = NATIVE executor agent
@@ -121,23 +140,6 @@ const IMPL_REPORT_SCHEMA = {
     },
   },
   required: ["files_changed", "tests"],
-};
-
-// ── Workflow meta (PURE literal — no computed values) ────────────────────────
-
-export const meta = {
-  name: "feature-full",
-  description: "feature-full route DELEGATE carrier — impl→critique as separate agent() stages, CON-3 structural",
-  phases: [
-    {
-      title: "Impl",
-      detail: "Executor agent implements the goal-doc impl slice and runs verifications",
-    },
-    {
-      title: "Critique",
-      detail: "Isolated critique agent reviews impl output; cannot be the same context that authored (CON-3)",
-    },
-  ],
 };
 
 // ── Script body (top-level — the Workflow runtime injects agent()/phase()/log()/args) ──
