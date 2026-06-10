@@ -23,7 +23,13 @@
  *     does not re-validate
  *   - CON-1..5 single source: docs/design/claude-kit-boundary.md §5
  *
- * Args contract (passed as args object to Workflow()):
+ * Execution model: Workflow scripts are TOP-LEVEL BODIES, not exported functions —
+ * the runtime injects agent()/phase()/log()/args as globals and runs the body in an
+ * async context (top-level await/return are the documented convention). A `node
+ * --check` as plain ESM therefore rejects the top-level return; the hermetic
+ * validity gates are the Python static checks in scripts/test/test-invariant.py.
+ *
+ * Args contract (passed as Workflow()'s args input — exposed here as the global `args`):
  *   plan              {object}  — verbatim slice_router.py JSON routing plan
  *                                  (work_type === "feature-full", route === "spec→impl→critique")
  *   goal_doc_path     {string}  — path to the goal-doc markdown file
@@ -125,194 +131,205 @@ export const meta = {
   phases: [
     {
       title: "Impl",
-      description: "Executor agent implements the goal-doc impl slice and runs verifications",
+      detail: "Executor agent implements the goal-doc impl slice and runs verifications",
     },
     {
       title: "Critique",
-      description: "Isolated critique agent reviews impl output; cannot be the same context that authored (CON-3)",
+      detail: "Isolated critique agent reviews impl output; cannot be the same context that authored (CON-3)",
     },
   ],
 };
 
-// ── Main workflow function ───────────────────────────────────────────────────
+// ── Script body (top-level — the Workflow runtime injects agent()/phase()/log()/args) ──
 
-export default async function featureFullWorkflow(args, { agent, pipeline }) {  // eslint-disable-line no-unused-vars
+// ── Guard: validate args ──────────────────────────────────────────────────────
 
-  // ── Guard: validate args ─────────────────────────────────────────────────
-
-  if (!args || !args.plan) {
-    throw new Error(
-      "feature-full.js: args.plan is required. " +
-      "This script must be invoked by slice-router Phase 4 DELEGATE after " +
-      "INV-4 validation (Phase 1) and ENFORCE (Phase 3) have already passed."
-    );
-  }
-
-  const plan = args.plan;
-
-  if (plan.work_type !== "feature-full") {
-    throw new Error(
-      `feature-full.js: args.plan.work_type must be "feature-full", got "${plan.work_type}". ` +
-      "The script consumes a routed plan; route the goal-doc through slice_router.py first."
-    );
-  }
-
-  if (plan.route !== "spec→impl→critique") {
-    throw new Error(
-      `feature-full.js: args.plan.route must be "spec→impl→critique", got "${plan.route}". ` +
-      "Only the feature-full route is handled by this script."
-    );
-  }
-
-  if (!args.spec_artifact) {
-    throw new Error(
-      "feature-full.js: args.spec_artifact is required. " +
-      "Run the spec slice (spec-first interview) in MAIN context first, then pass its artifact path here. " +
-      "AskUserQuestion cannot run inside a workflow subagent."
-    );
-  }
-
-  // Resolve agentType overrides (registry-qualified names for some environments)
-  const resolvedImplType = args.impl_agent_type || IMPL_AGENT_TYPE;
-  const critiquePayload = args.critique_payload || "diff";
-
-  if (!Object.prototype.hasOwnProperty.call(CRITIQUE_AGENT_TYPE_BY_PAYLOAD, critiquePayload)) {
-    throw new Error(
-      `feature-full.js: args.critique_payload must be "diff" or "claim", got "${critiquePayload}".`
-    );
-  }
-
-  const defaultCritiqueType = CRITIQUE_AGENT_TYPE_BY_PAYLOAD[critiquePayload];
-  const resolvedCritiqueType = args.critique_agent_type !== undefined
-    ? args.critique_agent_type
-    : defaultCritiqueType;
-
-  // CON-3 runtime belt: the script's own spawn parameters must be disjoint.
-  // (INV-4 + check_isolated_critique already ran in Phase 3 ENFORCE before this script
-  //  is invoked — this assert judges the script's OWN parameter structure, not the plan.)
-  if (resolvedCritiqueType !== null && resolvedImplType === resolvedCritiqueType) {
-    throw new Error(
-      `feature-full.js CON-3 violation: impl agentType "${resolvedImplType}" equals ` +
-      `critique agentType "${resolvedCritiqueType}". The critique stage must be a DIFFERENT ` +
-      "agent context than the impl stage (no self-approval). " +
-      "Use a different agentType or leave critique_agent_type unset for the claim payload."
-    );
-  }
-
-  // ── Phase 1: Impl ────────────────────────────────────────────────────────
-  // A single executor agent() call. The verbatim plan JSON is embedded as the
-  // anti-drift anchor so the impl agent cannot reinterpret the routing decision.
-  // (#133 §1 NATIVE executor, substrate §4.2 N3 isolated context)
-
-  const implPrompt = [
-    "You are the IMPL slice for the feature-full workflow (#201).",
-    "",
-    "## Anti-drift anchor (verbatim routing plan — do not reinterpret)",
-    "```json",
-    JSON.stringify(plan, null, 2),
-    "```",
-    "",
-    `## Goal-doc path\n${args.goal_doc_path}`,
-    "",
-    `## Spec artifact (produced by the spec slice in main context)\n${args.spec_artifact}`,
-    "",
-    "## Instructions",
-    "1. Read the goal-doc at the path above. Implement EXACTLY the impl slice described in",
-    "   the 슬라이스 순서 section — nothing more, nothing less.",
-    "2. Follow the spec artifact as the implementation contract.",
-    "3. Run ALL verifications listed in the goal-doc's E2E 자가검증 section.",
-    "4. Return a structured IMPL_REPORT: files_changed (repo-relative paths),",
-    "   tests (each with cmd, pass, output_tail), and notes (design decisions,",
-    "   deferred items, anything the critique stage should know).",
-    "",
-    "Do NOT run the spec slice (already done in main context).",
-    "Do NOT run the critique slice (a separate isolated agent will do that).",
-    "Stay within the impl slice scope defined by the routing plan.",
-  ].join("\n");
-
-  const implAgentOptions = { schema: IMPL_REPORT_SCHEMA };
-  if (resolvedImplType) {
-    implAgentOptions.agentType = resolvedImplType;
-  }
-
-  const impl_report = await agent(implPrompt, implAgentOptions);
-
-  // ── Phase 2: Critique ────────────────────────────────────────────────────
-  // A SEPARATE agent() call — different agentType, fresh context.
-  // This is the structural CON-3 enforcement: the authoring context (Phase 1)
-  // cannot participate in the approval decision (Phase 2).
-  //
-  // For diff payload: code-reviewer native agent reviews the working-tree diff.
-  // For claim payload: default isolated subagent instructed to apply the
-  //   adversarial-review methodology (steelman→attack→survival score).
-  //   adversarial-review is a ① leaf SKILL, not an agentType — its carrier is
-  //   this isolated agent() call. (gate-chain §3.2, #133 §2)
-  //
-  // Output contract: schema VERDICT_SCHEMA enforces APPROVE|REJECT + findings.
-  // (substrate §4.2 N3: process surveillance impossible — only final message returns;
-  //  the schema IS the isolation proof for the caller.)
-
-  const critiqueMethodology = critiquePayload === "diff"
-    ? [
-        "Review the working-tree changes (run `git diff HEAD` or inspect modified files).",
-        "Assess correctness, completeness against the goal-doc DoD, test coverage, and",
-        "absence of regressions. Flag any violation of the constitutional invariants",
-        "(CON-1 new-file-only vault writes, CON-3 no self-approval, CON-5 one-way deps).",
-      ].join("\n")
-    : [
-        "Apply the adversarial-review methodology:",
-        "  1. Steelman Construction — build the strongest version of the impl's claims.",
-        "  2. Attack — challenge each claim across: logical validity, evidence sufficiency,",
-        "     hidden assumptions, and goal-doc DoD completeness.",
-        "  3. Survival Score — for each claim: survived / collapsed / pending.",
-        "Return APPROVE only if all CRITICAL and HIGH findings are resolved.",
-        "Return REJECT if any blocking finding remains.",
-      ].join("\n");
-
-  const critiquePrompt = [
-    "You are the isolated CRITIQUE slice for the feature-full workflow (#201, CON-3).",
-    "You did NOT author the changes you are reviewing. Your role is adversarial review,",
-    "not completion — find real problems, not cosmetic ones.",
-    "",
-    "## Anti-drift anchor (verbatim routing plan — do not reinterpret)",
-    "```json",
-    JSON.stringify(plan, null, 2),
-    "```",
-    "",
-    `## Goal-doc path\n${args.goal_doc_path}`,
-    "",
-    "## Impl report (from the impl stage)",
-    "```json",
-    JSON.stringify(impl_report, null, 2),
-    "```",
-    "",
-    `## Critique methodology (payload: ${critiquePayload})`,
-    critiqueMethodology,
-    "",
-    "## Output contract",
-    "Return a structured verdict: verdict (APPROVE|REJECT), findings (array of",
-    "{severity CRITICAL|HIGH|MEDIUM|LOW, file?, title, detail}), summary (narrative).",
-    "APPROVE = all DoD items met, no blocking findings.",
-    "REJECT  = one or more CRITICAL or HIGH findings remain; the impl slice must fix them.",
-  ].join("\n");
-
-  const critiqueAgentOptions = { schema: VERDICT_SCHEMA };
-  if (resolvedCritiqueType) {
-    critiqueAgentOptions.agentType = resolvedCritiqueType;
-  }
-  // For claim payload with null agentType: no agentType field set — the Workflow
-  // runtime uses its default isolated subagent, which is instructed via the prompt
-  // to apply the adversarial-review methodology above.
-
-  const verdict = await agent(critiquePrompt, critiqueAgentOptions);
-
-  // ── Return ───────────────────────────────────────────────────────────────
-  // The active agent under /goal consumes this result.
-  // REJECT handling (fix-round → re-critique loop) belongs to the outer /goal loop.
-
-  return {
-    goal_id: plan.goal_id,
-    impl_report,
-    verdict,
-  };
+if (!args || !args.plan) {
+  throw new Error(
+    "feature-full.js: args.plan is required. " +
+    "This script must be invoked by slice-router Phase 4 DELEGATE after " +
+    "INV-4 validation (Phase 1) and ENFORCE (Phase 3) have already passed."
+  );
 }
+
+const plan = args.plan;
+
+if (plan.work_type !== "feature-full") {
+  throw new Error(
+    `feature-full.js: args.plan.work_type must be "feature-full", got "${plan.work_type}". ` +
+    "The script consumes a routed plan; route the goal-doc through slice_router.py first."
+  );
+}
+
+if (plan.route !== "spec→impl→critique") {
+  throw new Error(
+    `feature-full.js: args.plan.route must be "spec→impl→critique", got "${plan.route}". ` +
+    "Only the feature-full route is handled by this script."
+  );
+}
+
+if (!args.spec_artifact) {
+  throw new Error(
+    "feature-full.js: args.spec_artifact is required. " +
+    "Run the spec slice (spec-first interview) in MAIN context first, then pass its artifact path here. " +
+    "AskUserQuestion cannot run inside a workflow subagent."
+  );
+}
+
+// Resolve agentType overrides (registry-qualified names for some environments).
+// An empty-string override is normalized to "unset" — "" must read as "use the
+// default", never as a silent way to drop the agentType while looking explicit.
+const implOverride = args.impl_agent_type || undefined;
+const critiqueOverride =
+  args.critique_agent_type === undefined || args.critique_agent_type === ""
+    ? undefined
+    : args.critique_agent_type;
+
+const resolvedImplType = implOverride || IMPL_AGENT_TYPE;
+const critiquePayload = args.critique_payload || "diff";
+
+if (!Object.prototype.hasOwnProperty.call(CRITIQUE_AGENT_TYPE_BY_PAYLOAD, critiquePayload)) {
+  throw new Error(
+    `feature-full.js: args.critique_payload must be "diff" or "claim", got "${critiquePayload}".`
+  );
+}
+
+const defaultCritiqueType = CRITIQUE_AGENT_TYPE_BY_PAYLOAD[critiquePayload];
+const resolvedCritiqueType = critiqueOverride !== undefined
+  ? critiqueOverride
+  : defaultCritiqueType;
+
+// CON-3 runtime belt: the script's own spawn parameters must be disjoint.
+// (INV-4 + check_isolated_critique already ran in Phase 3 ENFORCE before this script
+//  is invoked — this assert judges the script's OWN parameter structure, not the plan.)
+if (resolvedCritiqueType !== null && resolvedImplType === resolvedCritiqueType) {
+  throw new Error(
+    `feature-full.js CON-3 violation: impl agentType "${resolvedImplType}" equals ` +
+    `critique agentType "${resolvedCritiqueType}". The critique stage must be a DIFFERENT ` +
+    "agent context than the impl stage (no self-approval). " +
+    "Use a different agentType or leave critique_agent_type unset for the claim payload."
+  );
+}
+
+// ── Phase 1: Impl ─────────────────────────────────────────────────────────────
+// A single executor agent() call. The verbatim plan JSON is embedded as the
+// anti-drift anchor so the impl agent cannot reinterpret the routing decision.
+// (#133 §1 NATIVE executor, substrate §4.2 N3 isolated context)
+
+phase("Impl");
+log(`impl 슬라이스 실행 중 — ${plan.goal_id || "goal"} (agentType: ${resolvedImplType})`);
+
+const implPrompt = [
+  "You are the IMPL slice for the feature-full workflow (#201).",
+  "",
+  "## Anti-drift anchor (verbatim routing plan — do not reinterpret)",
+  "```json",
+  JSON.stringify(plan, null, 2),
+  "```",
+  "",
+  `## Goal-doc path\n${args.goal_doc_path}`,
+  "",
+  `## Spec artifact (produced by the spec slice in main context)\n${args.spec_artifact}`,
+  "",
+  "## Instructions",
+  "1. Read the goal-doc at the path above. Implement EXACTLY the impl slice described in",
+  "   the 슬라이스 순서 section — nothing more, nothing less.",
+  "2. Follow the spec artifact as the implementation contract.",
+  "3. Run ALL verifications listed in the goal-doc's E2E 자가검증 section.",
+  "4. Return a structured IMPL_REPORT: files_changed (repo-relative paths),",
+  "   tests (each with cmd, pass, output_tail), and notes (design decisions,",
+  "   deferred items, anything the critique stage should know).",
+  "",
+  "Do NOT run the spec slice (already done in main context).",
+  "Do NOT run the critique slice (a separate isolated agent will do that).",
+  "Stay within the impl slice scope defined by the routing plan.",
+].join("\n");
+
+const implAgentOptions = { schema: IMPL_REPORT_SCHEMA };
+if (resolvedImplType) {
+  implAgentOptions.agentType = resolvedImplType;
+}
+
+const impl_report = await agent(implPrompt, implAgentOptions);
+
+// ── Phase 2: Critique ─────────────────────────────────────────────────────────
+// A SEPARATE agent() call — different agentType, fresh context.
+// This is the structural CON-3 enforcement: the authoring context (Phase 1)
+// cannot participate in the approval decision (Phase 2).
+//
+// For diff payload: code-reviewer native agent reviews the working-tree diff.
+// For claim payload: default isolated subagent instructed to apply the
+//   adversarial-review methodology (steelman→attack→survival score).
+//   adversarial-review is a ① leaf SKILL, not an agentType — its carrier is
+//   this isolated agent() call. (gate-chain §3.2, #133 §2)
+//
+// Output contract: schema VERDICT_SCHEMA enforces APPROVE|REJECT + findings.
+// (substrate §4.2 N3: process surveillance impossible — only final message returns;
+//  the schema IS the isolation proof for the caller.)
+
+phase("Critique");
+log(`격리 critique 실행 중 — payload: ${critiquePayload} (CON-3 별도 컨텍스트)`);
+
+const critiqueMethodology = critiquePayload === "diff"
+  ? [
+      "Review the working-tree changes (run `git diff HEAD` or inspect modified files).",
+      "Assess correctness, completeness against the goal-doc DoD, test coverage, and",
+      "absence of regressions. Flag any violation of the constitutional invariants",
+      "(CON-1 new-file-only vault writes, CON-3 no self-approval, CON-5 one-way deps).",
+    ].join("\n")
+  : [
+      "Apply the adversarial-review methodology:",
+      "  1. Steelman Construction — build the strongest version of the impl's claims.",
+      "  2. Attack — challenge each claim across: logical validity, evidence sufficiency,",
+      "     hidden assumptions, and goal-doc DoD completeness.",
+      "  3. Survival Score — for each claim: survived / collapsed / pending.",
+      "Return APPROVE only if all CRITICAL and HIGH findings are resolved.",
+      "Return REJECT if any blocking finding remains.",
+    ].join("\n");
+
+const critiquePrompt = [
+  "You are the isolated CRITIQUE slice for the feature-full workflow (#201, CON-3).",
+  "You did NOT author the changes you are reviewing. Your role is adversarial review,",
+  "not completion — find real problems, not cosmetic ones.",
+  "",
+  "## Anti-drift anchor (verbatim routing plan — do not reinterpret)",
+  "```json",
+  JSON.stringify(plan, null, 2),
+  "```",
+  "",
+  `## Goal-doc path\n${args.goal_doc_path}`,
+  "",
+  "## Impl report (from the impl stage)",
+  "```json",
+  JSON.stringify(impl_report, null, 2),
+  "```",
+  "",
+  `## Critique methodology (payload: ${critiquePayload})`,
+  critiqueMethodology,
+  "",
+  "## Output contract",
+  "Return a structured verdict: verdict (APPROVE|REJECT), findings (array of",
+  "{severity CRITICAL|HIGH|MEDIUM|LOW, file?, title, detail}), summary (narrative).",
+  "APPROVE = all DoD items met, no blocking findings.",
+  "REJECT  = one or more CRITICAL or HIGH findings remain; the impl slice must fix them.",
+].join("\n");
+
+const critiqueAgentOptions = { schema: VERDICT_SCHEMA };
+if (resolvedCritiqueType) {
+  critiqueAgentOptions.agentType = resolvedCritiqueType;
+}
+// For claim payload with null agentType: no agentType field set — the Workflow
+// runtime uses its default isolated subagent, which is instructed via the prompt
+// to apply the adversarial-review methodology above.
+
+const verdict = await agent(critiquePrompt, critiqueAgentOptions);
+
+// ── Return ────────────────────────────────────────────────────────────────────
+// The active agent under /goal consumes this result.
+// REJECT handling (fix-round → re-critique loop) belongs to the outer /goal loop.
+
+return {
+  goal_id: plan.goal_id,
+  impl_report,
+  verdict,
+};
