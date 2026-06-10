@@ -1,8 +1,8 @@
 ---
 name: slice-router
-description: "Goal-doc execution router for the ⑤ harness: parse a goal-doc, validate it against the #100 schema (INV-4), bind its work_type to a slice sequence (feature-full → spec→impl→critique / decision-only / doc-only, or bug-light = goal-doc absence → debug direct), and enforce the constitutional invariants native can't (new-file-only vault writes, isolated critique / no self-approval, one-way dependency). Delegates the actual loop to native /goal + Workflow + agents — it only owns the routing decision and the invariant judgment. Trigger: 슬라이스 라우팅, goal-doc 실행, 라우터, 워크타입 라우팅, 골닥 실행, 인바리언트 검사, slice route, route goal-doc, execute goal-doc, slice router, invariant check. Routing: goal-doc GENERATION (backlog → slice binding) is handoff-plan; this skill ROUTES an existing goal-doc for execution. Example: '/slice-router docs/plans/goal-docs/G16-...md' or 'goal-doc 라우팅해줘'."
+description: "Goal-doc execution router for the ⑤ harness: parse a goal-doc, validate it against the #100 schema (INV-4), bind its work_type to a slice sequence (feature-full → spec→impl→critique / decision-only / doc-only, or bug-light = goal-doc absence → debug direct), and enforce the constitutional invariants native can't (new-file-only vault writes, isolated critique / no self-approval, one-way dependency). Delegates the actual loop to native /goal + Workflow + agents — it only owns the routing decision and the invariant judgment. feature-full DELEGATE uses the workflow script (workflows/feature-full.js, #201) when available: structural CON-3 via separate agent() stages, behind a user-confirmed cost gate. Trigger: 슬라이스 라우팅, goal-doc 실행, 라우터, 워크타입 라우팅, 골닥 실행, 인바리언트 검사, slice route, route goal-doc, execute goal-doc, slice router, invariant check. Routing: goal-doc GENERATION (backlog → slice binding) is handoff-plan; this skill ROUTES an existing goal-doc for execution. Example: '/slice-router docs/plans/goal-docs/G16-...md' or 'goal-doc 라우팅해줘'."
 model: inherit
-allowed-tools: Read Bash Grep Glob Agent
+allowed-tools: Read Bash Grep Glob Agent AskUserQuestion Workflow
 ---
 
 **User language: Korean.** All user-facing output (status lines, the routing plan,
@@ -37,6 +37,11 @@ The two scripts are *decision libraries*, not runtime engines: they return a ver
 invariants natively, the matching self-built check is *retired*, not kept (P6
 reversible endpoint — boundary §1, substrate §5). The self-build is bounded to the
 gap, by design.
+
+> **ADR note (#201):** `workflows/feature-full.js` is an *authored handler ON the
+> native substrate* — a declarative composition of native primitives (`agent()` /
+> `pipeline()`), the same layer as hook handlers. It is NOT a reimplementation of
+> the right column (the loop engine stays native Workflow).
 
 ## Boundary & safety (constitutional — do not relax)
 
@@ -111,11 +116,36 @@ Before delegating, gate the plan:
 
 Hand each slice to native in sequence, honoring the chaining (`→`):
 
-- **feature-full**: spawn `spec-first` (or the bound skill) → feed its artifact to the
-  impl slice (`executor` via Agent / native agent) → spawn the critique slice as a
-  **separate Agent context** (`code-reviewer` / `adversarial-review`) — never the same
-  context that authored (CON-3). Use native Workflow `pipeline()` when the slices are
-  independent enough to stream.
+- **feature-full**:
+  1. **Spec slice in MAIN context first**: run `spec-first` (AskUserQuestion interview)
+     in the current main context. Capture its artifact path. `spec-first` uses
+     AskUserQuestion, which cannot run inside a workflow subagent — it MUST run here.
+  2. **User-confirmed COST GATE** (Korean, AskUserQuestion): present the routed plan,
+     the expected scale (2 subagents: impl executor + isolated critique reviewer), and
+     the token-cost warning. **Silent invocation is FORBIDDEN** — the user must
+     explicitly confirm before the Workflow tool is called (retro "Silent ... is
+     FORBIDDEN" pattern).
+  3. **On explicit confirmation only**: invoke the workflow script —
+     ```
+     Workflow({
+       scriptPath: "${CLAUDE_PLUGIN_ROOT}/workflows/feature-full.js",
+       args: {
+         plan: <verbatim slice_router.py JSON routing plan>,
+         goal_doc_path: <goal-doc path>,
+         spec_artifact: <artifact path from step 1>,
+         critique_payload: "diff" | "claim"
+       }
+     })
+     ```
+     Write `${CLAUDE_PLUGIN_ROOT}` literally — it is resolved at runtime by Claude Code.
+  4. **Fallback**: when the Workflow tool is unavailable in the environment, fall back
+     to the existing native-Agent procedure: spawn the critique slice as a **separate
+     Agent context** (`code-reviewer` / `adversarial-review`) — never the same context
+     that authored (CON-3). This is the prose path proven in G4/#198. **Report the
+     fallback explicitly** — no silent degradation (say "Workflow unavailable, using
+     native-Agent fallback" in the output).
+  5. A REJECT verdict goes back to the impl slice for a fix round — the loop is native
+     `/goal`, not this skill.
 - **decision-only**: run `expert-panel` / `adversarial-review` for the verdict; **no
   implementation** — the output is the decision artifact.
 - **doc-only**: run `doc-concretize` / `doc-polish` / `spec-first`; **output only**.
@@ -144,3 +174,10 @@ have "run" the loop — native ran it; the harness routed it.
   the right column of the boundary table.
 - CON-5: read goal-docs/specs and invoke leaf skills downward only; no reverse
   dependency, ever.
+- **feature-full DELEGATE rides the workflow script** (`workflows/feature-full.js`)
+  when the Workflow tool is available — structural CON-3 (impl and critique are
+  syntactically separate `agent()` calls). Silent Workflow invocation is forbidden;
+  the user-confirmed cost gate in Phase 4 step 2 must fire first.
+- **The script consumes the Phase-2 routing plan verbatim** (anti goal-drift). The
+  plan JSON is forwarded unchanged into both the impl and critique prompts as the
+  anti-drift anchor.
