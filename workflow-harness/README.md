@@ -4,7 +4,7 @@ claude-kit **layer ⑤ (execution / doing)** harness — a lightweight orchestra
 plugin built **on top of Claude Code native primitives** (`/goal`, dynamic
 Workflow, agents, hooks).
 
-> **Status: v0.4.0 — thin scaffold + three skills + the #122-residual router.**
+> **Status: v0.5.0 — thin scaffold + three skills + #122-residual router + feature-full workflow script.**
 > This is still a *lightweight harness*, not the full OMC-strangler engine described
 > in [#122](https://github.com/Lyainc/claude-kit/issues/122). It ships three layer ⑤
 > skills: `retro` ([#123](https://github.com/Lyainc/claude-kit/issues/123)), which
@@ -14,8 +14,11 @@ Workflow, agents, hooks).
 > `slice-router` ([#183](https://github.com/Lyainc/claude-kit/issues/183)) — the
 > #122-residual **4-way slice router + D5 invariant enforcement**, which routes an
 > existing goal-doc to its slice sequence and enforces the constitutional invariants
-> native cannot. Capability lands incrementally, route by route — never as a big-bang
-> replacement.
+> native cannot. v0.5.0 adds `workflows/feature-full.js`
+> ([#201](https://github.com/Lyainc/claude-kit/issues/201)) — the feature-full DELEGATE
+> carrier that makes CON-3 structural: impl and critique are separate `agent()` calls,
+> so the authoring context approving its own output becomes syntactically impossible.
+> Capability lands incrementally, route by route — never as a big-bang replacement.
 
 ## Why this plugin exists
 
@@ -93,6 +96,75 @@ agent spawn, Write block, and reviewer summon all stay delegated to native** (`/
 Workflow, Agent, PreToolUse hooks). They are *decision* libraries, not engines — and
 any check native later enforces natively is retired, not kept (P6 reversible endpoint).
 
+## feature-full Workflow Script (`workflows/feature-full.js`)
+
+`workflows/feature-full.js` is the **feature-full DELEGATE carrier** introduced in
+[#201](https://github.com/Lyainc/claude-kit/issues/201). It is a plain-JS Claude Code
+dynamic Workflow script — an authored handler *on* the native substrate (the same layer
+as hook handlers), not a reimplementation of the loop engine (which stays native
+Workflow).
+
+### What it does
+
+It splits the feature-full route's impl and critique into **two syntactically separate
+`agent()` calls**, making CON-3 structural rather than prose-only:
+
+```
+Phase 1 — Impl:     agent(implPrompt, { agentType: "executor", schema: IMPL_REPORT_SCHEMA })
+Phase 2 — Critique: agent(critiquePrompt, { agentType: "code-reviewer"|null, schema: VERDICT_SCHEMA })
+```
+
+The authoring context (Phase 1 executor) **cannot participate** in the approval decision
+(Phase 2 critique) — they are separate `agent()` calls with separate, isolated contexts.
+This is the structural enforcement that the previous prose-only instruction ("spawn as a
+separate Agent context") could not guarantee syntactically.
+
+### CON-3 structural enforcement
+
+- `IMPL_AGENT_TYPE = "executor"` — #133 §1 NATIVE verdict.
+- `CRITIQUE_AGENT_TYPE_BY_PAYLOAD = { diff: "code-reviewer", claim: null }` — #133 §2:
+  diff payload → native `code-reviewer`; claim payload → default isolated subagent
+  instructed to apply the `adversarial-review` methodology (a ① leaf skill, not an
+  agentType; isolation comes from the separate `agent()` call).
+- A runtime guard throws if `resolvedImplType === resolvedCritiqueType` — belt-and-
+  suspenders CON-3 check on the script's own spawn parameters.
+
+### Output contract
+
+The critique stage carries `schema: VERDICT_SCHEMA` (substrate §4.2 N3). Because process
+surveillance is impossible (only the final message returns), the schema IS the isolation
+proof: the verdict is `APPROVE | REJECT` with structured `findings` and `summary`.
+
+### Cost gate
+
+The user-confirmed cost gate lives in **SKILL.md Phase 4**, not in this script. The
+`slice-router` skill presents the routing plan + expected scale (2 subagents: impl
+executor + isolated critique reviewer) and the token-cost warning to the user before
+invoking `Workflow({ scriptPath: "..." })`. Silent invocation is forbidden.
+
+### Fallback
+
+When the `Workflow` tool is unavailable in the environment, `slice-router` Phase 4 falls
+back to the existing native-Agent procedure (critique spawned as a separate Agent context
+— the prose path proven in G4/#198) and **reports this explicitly**. No silent
+degradation.
+
+### Args
+
+| Arg | Type | Required | Description |
+|-----|------|----------|-------------|
+| `plan` | object | yes | Verbatim `slice_router.py` JSON routing plan (`work_type === "feature-full"`) |
+| `goal_doc_path` | string | yes | Path to the goal-doc |
+| `spec_artifact` | string | yes | Path to spec artifact produced by spec slice in main context |
+| `critique_payload` | `"diff"` \| `"claim"` | no (default `"diff"`) | Review methodology |
+| `impl_agent_type` | string | no | Registry-qualified override (e.g. `"oh-my-claudecode:executor"`) |
+| `critique_agent_type` | string | no | Registry-qualified override |
+
+Returns `{ goal_id, impl_report, verdict }`. REJECT handling belongs to the outer
+`/goal` loop, not this script.
+
+---
+
 ## Roadmap (incremental, route by route)
 
 | Slice | Skill / capability | Issue | Status |
@@ -101,6 +173,7 @@ any check native later enforces natively is retired, not kept (P6 reversible end
 | 2 | `retro` — E8 promotion + 3-branch output + dedup + budget | #123 | ✅ v0.2.0 |
 | 3 | `handoff-plan` — open-issue chunking (dependency + domain) → user-confirmed epic candidates → goal-doc slice binding | #171 | ✅ v0.3.0 |
 | 4 | `slice-router` — #122-residual 4-way slice router + D5 invariant enforcement | #183 | ✅ v0.4.0 |
+| 5 | `workflows/feature-full.js` — feature-full DELEGATE carrier (structural CON-3 via separate `agent()` stages) | #201 | ✅ v0.5.0 |
 | — | gate-chain orchestration (pre-commit / slice critique / pre-push quality / retro) | #134 | planned |
 
 ## Layout
@@ -108,19 +181,21 @@ any check native later enforces natively is retired, not kept (P6 reversible end
 ```
 workflow-harness/
 ├── .claude-plugin/
-│   └── plugin.json        # manifest (v0.4.0)
+│   └── plugin.json        # manifest (v0.5.0)
 ├── scripts/
 │   ├── slice_router.py    # #183 S1 — work_type → slice sequence binding (Gap-ROUTE)
 │   ├── invariant_guard.py # #183 S2 — INV-4 / INV-1 / INV-2·3 / INV-5 (Gap-INV)
 │   └── test/
 │       ├── test-router.py     # 4-way routing + native-fallback
-│       └── test-invariant.py  # one negative case per constitutional invariant
+│       └── test-invariant.py  # one negative case per constitutional invariant + #201 static checks
 ├── skills/
 │   ├── retro/
 │   │   └── SKILL.md       # #123 — E8 promotion + 3-branch output + dedup + budget
 │   ├── handoff-plan/
 │   │   └── SKILL.md       # #171 — backlog chunking → goal-doc slice binding
 │   └── slice-router/
-│       └── SKILL.md       # #183 — goal-doc → 4-way route + invariant gate (entrypoint)
+│       └── SKILL.md       # #183/#201 — goal-doc → 4-way route + invariant gate + feature-full workflow carrier
+├── workflows/
+│   └── feature-full.js    # #201 — feature-full DELEGATE carrier (impl→critique separate agent() stages, CON-3 structural)
 └── README.md
 ```

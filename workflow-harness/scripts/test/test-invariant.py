@@ -398,6 +398,143 @@ def test_parser_extracts_slices_and_sections() -> None:
     print("PASS test_parser_extracts_slices_and_sections")
 
 
+# ── INV-2/3 structural carrier: workflows/feature-full.js (#201) ─────────────
+#
+# Hermetic static checks — regex-only, no node, no JS eval.
+# Verifies structural CON-3 enforcement: impl and critique are syntactically
+# separate agent() calls, the agentTypes are disjoint, the critique carries a
+# VERDICT_SCHEMA output contract, and no resume-breaking globals are present.
+
+_WORKFLOW_JS = _SCRIPTS.parents[0] / "workflows" / "feature-full.js"
+
+
+def _read_workflow_js() -> str:
+    """Return feature-full.js text, skip gracefully if absent (error is the test)."""
+    if not _WORKFLOW_JS.is_file():
+        return ""
+    return _WORKFLOW_JS.read_text(encoding="utf-8")
+
+
+def test_wf_script_exists_and_meta_present() -> None:
+    """Script exists and exports a meta literal named 'feature-full' (#201)."""
+    text = _read_workflow_js()
+    assert _WORKFLOW_JS.is_file(), f"feature-full.js not found at {_WORKFLOW_JS}"
+    assert "export const meta" in text, "export const meta literal missing"
+    assert 'name: "feature-full"' in text, 'meta.name "feature-full" not found'
+    print("PASS test_wf_script_exists_and_meta_present")
+
+
+def test_wf_agenttype_disjoint() -> None:
+    """IMPL_AGENT_TYPE must not appear in any CRITIQUE_AGENT_TYPE_BY_PAYLOAD value (#201, CON-3).
+
+    Extracts the string literal assigned to IMPL_AGENT_TYPE and each string value
+    inside CRITIQUE_AGENT_TYPE_BY_PAYLOAD, then asserts they are disjoint.
+    """
+    import re as _re
+    text = _read_workflow_js()
+    assert text, "feature-full.js empty or missing"
+
+    # Extract: const IMPL_AGENT_TYPE = "somestring";
+    impl_m = _re.search(r'const\s+IMPL_AGENT_TYPE\s*=\s*"([^"]+)"', text)
+    assert impl_m, "IMPL_AGENT_TYPE literal not found"
+    impl_type = impl_m.group(1)
+
+    # Extract all quoted string values inside CRITIQUE_AGENT_TYPE_BY_PAYLOAD { ... }
+    block_m = _re.search(
+        r'const\s+CRITIQUE_AGENT_TYPE_BY_PAYLOAD\s*=\s*\{([^}]+)\}', text, _re.DOTALL
+    )
+    assert block_m, "CRITIQUE_AGENT_TYPE_BY_PAYLOAD literal block not found"
+    critique_values = _re.findall(r'"([^"]+)"', block_m.group(1))
+    # Remove the keys (payload names: diff, claim) — keep only right-hand values
+    # by matching value positions: key: "value" pattern
+    rhs_values = _re.findall(r':\s*"([^"]+)"', block_m.group(1))
+
+    assert impl_type not in rhs_values, (
+        f"CON-3 violation: IMPL_AGENT_TYPE '{impl_type}' appears in "
+        f"CRITIQUE_AGENT_TYPE_BY_PAYLOAD values {rhs_values}"
+    )
+    print("PASS test_wf_agenttype_disjoint")
+
+
+def test_wf_verdict_schema_output_contract() -> None:
+    """Critique agent() call carries schema: VERDICT_SCHEMA and VERDICT_SCHEMA defines APPROVE/REJECT.
+
+    Verifies substrate §4.2 N3 output contract — only the final message returns,
+    so the schema IS the isolation proof (gate-chain §3.2).
+    """
+    import re as _re
+    text = _read_workflow_js()
+    assert text, "feature-full.js empty or missing"
+
+    # VERDICT_SCHEMA must be defined and contain APPROVE and REJECT
+    assert "const VERDICT_SCHEMA" in text, "VERDICT_SCHEMA constant not defined"
+    assert '"APPROVE"' in text, "APPROVE not present in VERDICT_SCHEMA enum"
+    assert '"REJECT"' in text, "REJECT not present in VERDICT_SCHEMA enum"
+
+    # The critique agent() call must reference schema: VERDICT_SCHEMA
+    # Look for the critiqueAgentOptions object that sets schema
+    assert "schema: VERDICT_SCHEMA" in text, (
+        "critique agent() options do not carry 'schema: VERDICT_SCHEMA' — "
+        "INV-2/3 output contract missing"
+    )
+    print("PASS test_wf_verdict_schema_output_contract")
+
+
+def test_wf_separate_agent_stages() -> None:
+    """At least two distinct agent( call sites exist, and the CON-3 runtime disjoint assert is present.
+
+    Two separate agent() calls = impl stage + critique stage are syntactically
+    impossible to be the same context (#201 structural enforcement).
+    The runtime assert (resolvedImplType === resolvedCritiqueType → throw) is the
+    belt-and-suspenders CON-3 check on the script's own spawn parameters.
+    """
+    import re as _re
+    text = _read_workflow_js()
+    assert text, "feature-full.js empty or missing"
+
+    agent_calls = _re.findall(r'\bawait\s+agent\s*\(', text)
+    assert len(agent_calls) >= 2, (
+        f"Expected at least 2 'await agent(' call sites (impl + critique), found {len(agent_calls)}"
+    )
+
+    # Runtime CON-3 disjoint assert must exist in the script
+    assert "resolvedImplType === resolvedCritiqueType" in text, (
+        "CON-3 runtime disjoint assert (resolvedImplType === resolvedCritiqueType) not found"
+    )
+    print("PASS test_wf_separate_agent_stages")
+
+
+def test_wf_no_forbidden_resume_breaking_apis() -> None:
+    """Script must not use Date.now(), Math.random(), or argless new Date() in live code.
+
+    Tokens are assembled by concatenation so this test file itself does not
+    carry the literal forbidden strings. Comment lines (// ...) are excluded —
+    documentation warnings that NAME the APIs are not violations.
+    """
+    import re as _re
+    text = _read_workflow_js()
+    assert text, "feature-full.js empty or missing"
+
+    # Strip JS comment lines before checking — doc warnings naming the
+    # forbidden APIs must not trip the guard (only live code is checked).
+    # Covers: // single-line comments and * lines inside /** ... */ block comments.
+    non_comment_lines = [
+        line for line in text.splitlines()
+        if not _re.match(r"^\s*//", line) and not _re.match(r"^\s*\*", line)
+    ]
+    live_code = "\n".join(non_comment_lines)
+
+    # Build forbidden patterns by concatenation (so this file stays clean)
+    _date_now   = "Date" + "." + "now" + "()"          # Date.now()
+    _math_rand  = "Math" + "." + "random" + "()"       # Math.random()
+    _new_date   = "new " + "Date" + "()"               # argless new Date()
+
+    assert _date_now  not in live_code, f"Forbidden resume-breaking API in live code: {_date_now}"
+    assert _math_rand not in live_code, f"Forbidden resume-breaking API in live code: {_math_rand}"
+    assert _new_date  not in live_code, f"Forbidden resume-breaking API in live code: {_new_date}"
+    print("PASS test_wf_no_forbidden_resume_breaking_apis")
+
+
 if __name__ == "__main__":
     test_inv4_valid_passes()
     test_inv4_missing_required_field()
@@ -436,4 +573,9 @@ if __name__ == "__main__":
     test_inv5_leaf_prose_citation_allowed()
     test_inv5_non_leaf_path_ignored()
     test_parser_extracts_slices_and_sections()
-    print("\nOK: all 37 cases passed")
+    test_wf_script_exists_and_meta_present()
+    test_wf_agenttype_disjoint()
+    test_wf_verdict_schema_output_contract()
+    test_wf_separate_agent_stages()
+    test_wf_no_forbidden_resume_breaking_apis()
+    print("\nOK: all 42 cases passed")
