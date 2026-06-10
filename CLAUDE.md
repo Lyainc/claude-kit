@@ -143,6 +143,7 @@ python3 vault-bridge/scripts/test/test-vault-commit-message.py
 python3 telemetry/scripts/validate-schema.py --self-test
 
 # telemetry report.py latency_by_event regression gate (#164)
+# + per-skill lifecycle view (never-fired / stale / bottom-N vs */skills/*/SKILL.md catalog, #203)
 python3 telemetry/scripts/test/test-report.py
 # Expected: OK: all cases passed
 
