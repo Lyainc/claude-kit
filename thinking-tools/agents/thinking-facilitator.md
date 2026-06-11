@@ -117,6 +117,26 @@ Display this template on strong signal and execute immediately. If the user requ
 - Follow each SKILL.md's instructions exactly for the skill's internal workflow
 - The agent must not modify or shortcut a skill's behavior
 
+## Final Response Contract
+
+"Only the final message returns to the caller" holds for this agent too. Because the
+facilitator *routes to a skill and relays its output*, the specific failure mode is
+ending on a routing meta-comment or a content-free sign-off while the skill's actual
+output sits in an earlier message — the caller then receives the sign-off, not the work.
+
+- Your LAST assistant message MUST carry the selected skill's full output (or, for a
+  confirmed multi-skill chain, the synthesized result) — not just the Confirmation
+  Template, a routing rationale, or a follow-up suggestion.
+- Do not leave the substantive deliverable only in earlier messages. If the skill emitted
+  its output mid-run, carry it into the final message.
+- Never end with a content-free sign-off (`"완료"`, `"끝났어요"`, `"실행했어요"`, `"done"`,
+  `"complete"`). A final response without the skill's deliverable violates this contract.
+- Routing rationale and follow-up suggestions (Session Behavior step 5) are *additive* —
+  they accompany the deliverable, never replace it.
+
+(This mirrors OMC `code-reviewer.md`'s `<Final_Response_Contract>`; see workflow-harness
+README "Agent output contract" for the schema-first alternative when output is structured.)
+
 ## Examples
 
 <example>

@@ -96,6 +96,36 @@ agent spawn, Write block, and reviewer summon all stay delegated to native** (`/
 Workflow, Agent, PreToolUse hooks). They are *decision* libraries, not engines — and
 any check native later enforces natively is retired, not kept (P6 reversible endpoint).
 
+## Agent output contract (schema-first, final-message fallback)
+
+**"Only the final message returns" is a property of *every* subagent** — native
+`Agent`/`Task` and schema-less Workflow `agent()` alike. A subagent can do correct work
+across many turns and then end with a content-free sign-off (`"Complete."`, `"done"`,
+`"다 올라와 있어요"`); that sign-off — not the work — becomes the return value, and the
+real output is stranded in the transcript. Any handler on this substrate that spawns
+subagents MUST defend against this, in order of strength:
+
+1. **Prefer a `schema`** (structural — what `feature-full.js` does). With a schema the
+   subagent is *forced* to call `StructuredOutput`; the validated object returns, never a
+   stray sign-off. Use this for any `agent()` whose result you consume programmatically.
+   `feature-full.js` carries `IMPL_REPORT_SCHEMA` + `VERDICT_SCHEMA` and additionally
+   throws on a `null` return, so a missing deliverable fails loudly instead of silently.
+2. **When a schema is too rigid** (free-form reports, exploratory analysis), pin a
+   final-message contract in the prompt. Borrowed from OMC's `code-reviewer.md`
+   `<Final_Response_Contract>` — notably the *only* OMC agent that has it; `explore.md`
+   lacks it, which is exactly why a schema-less Explore fan-out can return
+   `"다 올라와 있어요"` with the analysis stranded earlier in the transcript:
+
+   > Your LAST assistant message is the deliverable surfaced to the caller. It MUST
+   > contain the full structured output. Do not leave it only in earlier messages — if
+   > you drafted it earlier, repeat it in the last message. Never end with a content-free
+   > sign-off (`"done"`, `"complete"`, `"looks good"`); a final response without the
+   > structured deliverable violates this contract.
+
+The rule of thumb: **if you `await agent(...)` and read the result, it needs a `schema`;
+if you can only read prose, paste the contract above into the prompt.** Never rely on a
+subagent volunteering its full output in the last message by default — it won't.
+
 ## feature-full Workflow Script (`workflows/feature-full.js`)
 
 `workflows/feature-full.js` is the **feature-full DELEGATE carrier** introduced in
