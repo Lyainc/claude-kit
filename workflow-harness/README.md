@@ -122,6 +122,8 @@ subagents MUST defend against this, in order of strength:
    > sign-off (`"done"`, `"complete"`, `"looks good"`); a final response without the
    > structured deliverable violates this contract.
 
+   *(Contract shape adapted from OMC `agents/code-reviewer.md` `<Final_Response_Contract>`.)*
+
 The rule of thumb: **if you `await agent(...)` and read the result, it needs a `schema`;
 if you can only read prose, paste the contract above into the prompt.** Never rely on a
 subagent volunteering its full output in the last message by default — it won't.
