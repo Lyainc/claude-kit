@@ -91,11 +91,11 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
    a. Read `{vault_root}/.vault-bridge/manifest.json`.
    b. Filter entries using any combination of: `type`, `tags` (contains domain keyword), `workstream`, `path` prefix matching `.vault-link` `vault_path`, or `status`.
    c. Sort candidates: `status=active` first, then by recall-weight signals already in
-      the manifest entry — `access_count` descending (git-touch frequency = how often the
-      note is actually worked on), then `references_in` descending (cross-note wikilink
-      weight) — and finally `mtime` descending as the last tiebreaker. (Importance-ordered
-      recall, mirrors omp mnemopi `consolidate.ts` `ORDER BY importance DESC`; the signals
-      are free — `generate-manifest.py` `_enrich` already populates both fields.)
+      the manifest entry — `access_count` descending (count of git commits touching the
+      file in the **last 7 days** = recent activity, not all-time work), then
+      `references_in` descending (cross-note wikilink weight) — and finally `mtime`
+      descending as the last tiebreaker. Both signals are free: `generate-manifest.py`
+      `_enrich` already populates them.
    d. Select top ≤ 5 candidates by priority.
    e. Read only those specific files. Skip the MOC/grep scan entirely.
    f. **Staleness check**: if manifest `generated_at` is older than 24 hours OR any candidate file's actual `mtime` (via `stat`) is newer than the manifest's `generated_at`, fall through to standard scan below and log a warning: "manifest가 오래되었거나 변경 파일이 있어 전체 스캔으로 대체합니다."
@@ -134,8 +134,9 @@ Search the entire vault by keyword and load note contents.
 3. Sort: title match > tag match > body match > recent modification. When candidates come
    from the manifest pre-filter (step 1), break ties *within the same match tier* by
    `access_count` then `references_in` descending (both already in the manifest entry) —
-   so a frequently-worked, heavily-linked note surfaces above an equally-matched but cold
-   one. Grep/CLI-fallback candidates have no manifest signal, so they keep the plain order.
+   so a recently-active (7-day git touches), heavily-linked note surfaces above an
+   equally-matched but cold one. Grep/CLI-fallback candidates have no manifest signal, so
+   they keep the plain order.
 4. Output preview: filename + first 2 lines + location + tags + modification date.
 5. Load full note content when user selects a number (default 10 results).
 
