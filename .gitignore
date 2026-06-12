@@ -71,6 +71,16 @@ telemetry/*.local.json
 .anthropics_official_skills/
 docs/private/
 
+# Decision/discussion trails are NOT committed — GitHub issues are the canonical
+# decision record (handoff + backlog + task list). These dirs are local working
+# material; provenance pointers in issues mark them "(local, untracked)".
+# NOTE: ~104 files already tracked under these dirs are a legacy bulk-import
+# (commit abc4f36, 2026-06-05); kept for history (no rewrite), no new files added.
+# Carve-outs that DO get committed: docs/design/ (living contracts), docs/plans/
+# (master plans), docs/specs/ (spec-first Seeds — refine re-input artifacts).
+docs/discussions/
+docs/adversarial-review/
+
 # Python bytecode (generated when scripts are imported, e.g. during local testing)
 __pycache__/
 *.pyc
