@@ -1,0 +1,181 @@
+---
+# Output conforms to thinking-tools/reference/common-schema.md
+skill: spec-first
+schema_version: 1
+version: 2.2.0
+generated: 2026-06-12
+input:
+  target: claude-kit-work-rules
+  options: []
+output:
+  type: spec
+  structure: templates/SEED_SPEC.yaml
+
+# spec-first extensions
+spec_version: 1
+created: 2026-06-12
+target: claude-kit-work-rules
+domain: tech
+brownfield: true
+refine_generation: 1   # v1 = 플러그인화 전제. v2(this) = adversarial-review 후 minimal core 대수술.
+
+# ── refine 사유 ──────────────────────────────────────────────
+# v1(플러그인 엔진 + 3층 + 통합 루프)이 adversarial-review에서 thin harness 정합성에
+# 붕괴(C5 collapsed). + 사용자가 OMC 의존 제거를 요구. 두 힘이 설계를 minimal core로
+# 축소시킴. 전체 트레일: docs/adversarial-review/2026-06-12-work-rules-minimal-core.md
+# ─────────────────────────────────────────────────────────────
+
+goal:
+  statement: >
+    claude-kit 작업 시 지킬 규칙을, 새 플러그인/스킬/OMC 의존 없이 기존 native substrate
+    (Claude Code hooks + scripts/check-*.py + telemetry/ + rules/ 문서)에 얇게 얹어
+    강제한다. 범용 규칙(스타일·표현)은 외부 린터에 위임하고, claude-kit 특화 규칙만
+    결정론 스크립트로 확실히 보장하며, 판단형 규칙은 작업끝 체크(soft)로 둔다.
+  clarity_score: 0.85
+
+constraints:
+  - id: c1
+    type: other
+    description: >
+      메인 에이전트 voice/캐릭터(개인 ~/.claude/CLAUDE.md)와 물리적으로 분리된
+      실작업 규칙. 작업 규칙은 레포 rules/ 에 두어 voice와 섞지 않는다.
+    hard: true
+    rationale: 어조 레이어와 작업 판단 레이어는 독립.
+
+  - id: c2
+    type: technical
+    description: >
+      새 플러그인을 만들지 않는다. 규칙은 scripts/ + .claude/ + rules/ + telemetry/ 에
+      분산해 기존 substrate에 얹는다. (초기 "플러그인 미포함" 제약으로 복귀)
+    hard: true
+    rationale: >
+      adversarial C1 collapsed — 범용 규칙은 외부 린터에 위임하면 플러그인에 담을 고유물이
+      없고, claude-kit 특화 규칙(version-sync류)은 재사용 대상이 아니라 배포 단위가 불필요.
+      thin harness(#122)와 정합. 두 번 뒤집힌 끝에 thin 논거로 재확정.
+
+  - id: c3
+    type: technical
+    description: >
+      OMC(oh-my-claudecode) 의존 0. 검증·RCA·verifier를 OMC에 위임하지 않고
+      Claude Code 네이티브로만 구현한다. 검증증거→결정론 스크립트(테스트 실제 실행),
+      RCA→rules/ 참조 문서, 자기승인 회피(필요 시)→네이티브 haiku subagent(vault-searcher 패턴).
+    hard: true
+    rationale: >
+      사용자가 OMC 점진 제거(#204) 결정. native substrate 매핑(#132)이 대체 가능성 입증.
+      OMC가 있어도 판단형 규칙은 비결정론이었으므로 제거로 인한 보장 손실 없음.
+
+  - id: c4
+    type: technical
+    description: >
+      스타일·표현위생(범용)은 외부 린터/포매터(prettier·ruff 등)에 위임한다.
+      claude-kit은 "린터가 있으면 돌려라 + 통과를 강제하라"는 얇은 위임만 하고
+      린터 기능을 재구현하지 않는다.
+    hard: true
+    rationale: adversarial C5 MECE — 외부 린터·OMC와 기능 중복 제거. 진짜 빈칸만 담당.
+
+  - id: c5
+    type: technical
+    description: >
+      강제 3층. (1) 하드: 외부 린터 통과 + scripts/check-*.py(version-sync, type opt-in,
+      language policy, 금지어, 테스트 exit code)가 결정론적으로 차단. (2) 소프트: 작업끝
+      트리거 훅이 rules/ 체크리스트를 강제 호출(skip 차단), 메인이 자가점검. (3) 사람:
+      비가역·릴리스만 사용자 게이트. haiku verifier는 YAGNI로 v1 보류 — 자기승인이 실제
+      문제로 드러나면 네이티브 subagent 추가.
+    hard: true
+    rationale: >
+      결정론 가능한 항목은 하드(확실 보장), 판단형은 소프트(작업끝 체크 = 초기 요청의
+      "또는 작업 마지막 체크"). 가벼움과 확실보장의 정직한 트레이드오프.
+
+  - id: c6
+    type: other
+    description: >
+      정책(policy) vs 취향(preference)을 가른다. 기본값은 취향(레포 설정 주입,
+      .prettierrc/ruff.toml 등). 객관적 손상이 입증된 규칙만 정책으로 승격해 하드코딩.
+      회색지대는 취향으로 둔다.
+    hard: true
+    rationale: >
+      adversarial R1 — "정책/취향 분류를 누가 하나" 구멍 봉합. 분류 기준 = "위반이 객관적
+      손상을 내는가". 강요 회피(타인이 써도 자기 스타일 주입).
+
+  - id: c7
+    type: other
+    description: >
+      4단계 RCA(What→Why→How→Revise)는 retro 안에 넣지 않는다. retro는 thin consumer
+      (읽고 행동)로 유지. RCA는 rules/rca-checklist.md 참조 문서로 두고, 위반이 재발 패턴일
+      때만 진입한다. 멈춤기준 = "결정론적 코드 변경으로 표현 가능한 레벨"(stop-at-determinism).
+    hard: true
+    rationale: >
+      adversarial C3 collapsed — retro에 DIAGNOSE 삽입은 retro 헌법(재구현 금지) 정의상 위반.
+      C2 무한후퇴 급소는 멈춤기준 + 재발 게이트(일회성 과적합 방지)로 봉합.
+
+  - id: c8
+    type: technical
+    description: >
+      텔레메트리는 기존 telemetry/ 인프라(event-logger.sh, report.py, lifecycle view)를
+      재사용. 규칙 fire 이벤트를 로깅해 never-fired(죽은 규칙)/stale 규칙을 색출한다.
+    hard: false
+    rationale: 관측·자가개선 레이어. 새로 만들지 않고 기존 레일 재사용.
+
+success_criteria:
+  - id: ac1
+    description: >
+      초기 기대 11항목(스타일·도메인컨벤션·플러그인미포함·voice분리·강제성·절차누락·검증증거·
+      표현위생·일관성추적·텔레메트리·위반교정)이 minimal core로 전부 커버됨을 매핑표로 확인.
+    verifiable: true
+    measurable_via: 리뷰 문서의 커버리지 표 (11/11), soft 항목은 의도된 한계로 표기
+
+  - id: ac2
+    description: 하드 규칙은 위반 fixture에서 에러로 차단, soft 규칙은 작업끝 트리거가 리마인드.
+    verifiable: true
+    measurable_via: 기존 fixture 테스트 방식(gen-fixture + assert) 재사용
+
+  - id: ac3
+    description: 외부 린터·OMC 기능을 재구현한 코드가 0건(MECE — 위임만).
+    verifiable: true
+    measurable_via: 스타일·verifier·RCA 자체구현 grep = 0, 위임 호출만 존재
+
+  - id: ac4
+    description: 취향 규칙의 하드코딩 0건 — 모든 스타일은 레포 설정 주입으로 결정.
+    verifiable: true
+    measurable_via: 스타일 상수 grep = 0, 설정 주입 경로 존재
+
+  - id: ac5
+    description: OMC 심볼·경로 의존 0건. 새 플러그인·새 스킬 0건.
+    verifiable: true
+    measurable_via: omc/oh-my-claudecode 참조 grep = 0, plugin.json·SKILL.md 신규 = 0
+
+context:
+  existing_stack:
+    - scripts/check-version-sync.py, check-ci-coverage.py (결정론 가드 패턴 — 확장 대상)
+    - telemetry/ (event-logger.sh, report.py, lifecycle view — 재사용)
+    - Claude Code hooks (vault-bridge 5종 선례 — 작업끝 트리거 substrate)
+    - vault-searcher (haiku 네이티브 subagent 패턴 — verifier 필요 시 참조)
+    - 외부 린터/포매터 (prettier, ruff 등 — 위임 대상)
+  dependencies:
+    - Claude Code 네이티브 hooks (.claude/settings.json) — 유일한 공식 차단 메커니즘
+    - GitHub Actions CI — push-time 하드 강제
+    - 외부 린터 설정 (.prettierrc/ruff.toml 등 — 취향 주입)
+  integration_points:
+    - "#125 (3-tier rule): default=플러그인 전제를 뒤집되 헌법/정책 분리·안전판 4종은 흡수"
+    - "#134 (게이트 체인): native 우선·opt-in 게이트의 구현 형태 확정"
+    - "#204 (OMC glue 제거): OMC 의존 0 설계가 동기를 공유"
+    - "#132 (OMC→native): native 대체 가능성의 근거"
+
+ambiguity:
+  overall: 0.15
+  gate_passed: true
+
+clarity_breakdown:
+  goal: 0.85
+  constraint: 0.88
+  success: 0.82
+  context: 0.84
+
+metadata:
+  interview_rounds: 7
+  questions_asked: 9
+  generated_by: thinking-tools/spec-first
+  source_session: >
+    claude-kit 작업 규칙 — spec-first 인터뷰 → 플러그인화 가정 → 4단계 회고 통합 →
+    adversarial-review(thin 정합성·OMC 제거) → minimal core 대수술(v2)
+---
