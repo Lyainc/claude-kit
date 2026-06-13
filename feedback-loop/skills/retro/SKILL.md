@@ -179,6 +179,13 @@ opts in (offer them, do not run silently).
 | **기억 (memory)** | session insights | surface the exact `/capture …` or `/save-session` command for the USER to run (user-initiated slash; `retro` does NOT write vault) | off (offer) |
 | **규칙 (rule)** | validated patterns | propose text + target `.claude/*.local.md` (project-local rule, Tier 3); user-confirmed `Edit` | off (offer) |
 
+> **`/distill` suggestion (propose-only, #202):** when the session surfaced a
+> *reusable procedural technique* (not declarative knowledge — that is the memory
+> branch's `/capture`), `retro` MAY surface a ready-to-run `/distill` command the
+> SAME way the memory branch surfaces `/capture` — a suggestion for the USER to run,
+> never inline. `distill` is a sibling skill, NOT a fourth always-on output branch;
+> `retro` does not run it and does not embed its procedure.
+
 - **Action**: for each deduped waste pattern, draft `{title, body}` (body cites
   the evidence: counts, event types, scope). Confirm with the user (filing a
   GitHub issue is outward-facing), then `gh issue create`. Split by scope:
