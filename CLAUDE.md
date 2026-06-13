@@ -102,12 +102,15 @@ python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
 python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool workflow-harness/.claude-plugin/plugin.json > /dev/null
 
 # 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(block — #175 --strict 승격)
 python3 scripts/check-version-sync.py --self-test
-# Expected: OK: all 7 version-sync self-test cases passed (+ 1 missing-manifest mode check)
+# Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check)
 python3 scripts/check-version-sync.py
-# Expected: OK: version-sync clean — 3 plugin(s), no drift (drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단)
+# Expected: OK: version-sync clean — 4 plugin(s), no drift (drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단)
+# marketplace.json은 plugin.json에서 derived — drift 시 `--fix`로 plugin.json 기준 동기화:
+#   python3 scripts/check-version-sync.py --fix
 python3 scripts/check-ci-coverage.py --self-test
 # Expected: OK: all check-ci-coverage self-test cases passed
 python3 scripts/check-ci-coverage.py
@@ -140,6 +143,12 @@ python3 scripts/run-linters.py --self-test
 # (real mode `python3 scripts/run-linters.py` delegates to ruff/prettier/shellcheck IF
 #  installed + configured, else graceful-skips; style/taste lives in ruff.toml/.prettierrc,
 #  never hardcoded — #216 c4/c6.)
+
+# 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
+python3 scripts/bump-version.py --self-test
+# Expected: OK: all bump-version self-test cases passed
+python3 scripts/gen-release-notes.py --self-test
+# Expected: OK: all gen-release-notes self-test cases passed
 
 # 플러그인 스펙 전체 검증 (frontmatter·hooks 스키마 포함)
 # claude plugin validate  # Claude Code 설치 환경에서 실행
@@ -354,21 +363,28 @@ Within `thinking-tools`:
 
 1. 해당 플러그인의 `skills/{skill-name}/SKILL.md` 생성
 2. `plugin.json`의 `keywords`에 스킬명 추가
-3. 상위 `marketplace.json`의 해당 플러그인 항목 버전 범프
+3. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
 4. 에이전트가 해당 스킬을 사용해야 하면: 에이전트 `.md`의 `skills:` frontmatter에 추가
 
 ## Adding a New Agent
 
 1. 해당 플러그인의 `agents/{agent-name}.md` 생성 (frontmatter: name, description, model, skills)
 2. `plugin.json`의 `keywords`에 에이전트명 추가
-3. 상위 `marketplace.json`의 해당 플러그인 항목 버전 범프
+3. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
 
 ## Version Sync Rule
 
-`plugin.json`과 `marketplace.json`의 다음 필드는 항상 동기화:
-- `version`: 양쪽 동일하게 범프
-- `description`: 양쪽 동일한 문자열 유지
-- `keywords`: 양쪽 동일한 배열 유지
+`plugin.json`이 단일 소스(source of truth), `marketplace.json`은 거기서 derived입니다.
+다음 필드는 항상 양쪽이 일치해야 하고, `check-version-sync.py`가 CI block 가드로 강제합니다:
+- `version`, `description`, `keywords` (+ `name`은 매칭 키)
+
+운영 규칙:
+- **버전은 lockstep** — 모든 플러그인이 같은 버전을 공유하고, 단일 태그 `vX.Y.Z`로 함께
+  배포됩니다. 개별 작업에서 버전을 직접 올리지 마세요. 릴리스 워크플로가 `bump-version.py`로
+  전 매니페스트(4개 `plugin.json` + `marketplace.json` 루트·항목)를 한 번에 같은 값으로 씁니다.
+- **drift 동기화**: `description`/`keywords`를 `plugin.json`에서 바꿨다면
+  `python3 scripts/check-version-sync.py --fix`로 `marketplace.json`을 맞춥니다 (plugin.json이 이김).
+- 자세한 버전 정책·릴리스 절차: [RELEASING.md](RELEASING.md).
 
 ## Adding a New Plugin
 

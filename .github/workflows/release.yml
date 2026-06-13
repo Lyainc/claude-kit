@@ -1,0 +1,133 @@
+name: Release
+
+# Manual lockstep release (replaces release-please). One version, all plugins, one tag.
+# Trigger from the Actions tab: enter the version (e.g. 3.0.0), optionally dry-run first
+# to preview the generated notes without writing anything.
+#
+# What it does:
+#   1. bump every plugin.json + marketplace.json to the input version (lockstep)
+#   2. commit + push that bump to main, then tag vX.Y.Z
+#   3. build per-plugin release notes (gen-release-notes.py) and append GitHub's
+#      native "What's Changed" PR list, then publish the GitHub Release
+#
+# dry-run does steps 1 + 3 in-memory only and prints the notes to the job summary —
+# no commit, no tag, no release.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Release version (SemVer, no leading v — e.g. 3.0.0)"
+        required: true
+        type: string
+      dry_run:
+        description: "Preview notes only — no commit, tag, or release"
+        required: false
+        type: boolean
+        default: false
+      prerelease:
+        description: "Mark the GitHub Release as a pre-release"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      VERSION: ${{ inputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # full history + tags for previous-tag detection and notes
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Validate inputs & resolve previous tag
+        id: prep
+        run: |
+          if ! echo "$VERSION" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+([-+][0-9A-Za-z.-]+)?$'; then
+            echo "::error::version '$VERSION' is not valid SemVer (expected X.Y.Z)"
+            exit 1
+          fi
+          if git rev-parse "v$VERSION" >/dev/null 2>&1; then
+            echo "::error::tag v$VERSION already exists"
+            exit 1
+          fi
+          # Most recent tag reachable from HEAD (empty on the very first release).
+          PREV=$(git describe --tags --abbrev=0 2>/dev/null || true)
+          echo "prev=$PREV" >> "$GITHUB_OUTPUT"
+          echo "Previous tag: ${PREV:-<none>}"
+
+      - name: Bump lockstep version
+        run: |
+          python3 scripts/bump-version.py "$VERSION"
+          # The bump must leave marketplace.json and plugin.json in sync, or the
+          # release would ship divergent manifests. Fail loudly if not.
+          python3 scripts/check-version-sync.py
+          python3 scripts/bump-version.py "$VERSION" --check
+
+      - name: Build release notes
+        id: notes
+        run: |
+          PREV="${{ steps.prep.outputs.prev }}"
+          # Curated per-plugin sections from Conventional Commits since the last tag.
+          if [ -n "$PREV" ]; then
+            python3 scripts/gen-release-notes.py --version "$VERSION" --from "$PREV" > /tmp/curated.md
+          else
+            python3 scripts/gen-release-notes.py --version "$VERSION" > /tmp/curated.md
+          fi
+
+          # GitHub-native "What's Changed" (PR list + new-contributors).
+          if [ -n "$PREV" ]; then
+            gh api "repos/${{ github.repository }}/releases/generate-notes" \
+              -f tag_name="v$VERSION" \
+              -f previous_tag_name="$PREV" \
+              --jq .body > /tmp/whatschanged.md || true
+          else
+            gh api "repos/${{ github.repository }}/releases/generate-notes" \
+              -f tag_name="v$VERSION" \
+              --jq .body > /tmp/whatschanged.md || true
+          fi
+
+          {
+            cat /tmp/curated.md
+            if [ -s /tmp/whatschanged.md ]; then
+              printf '\n\n---\n\n'
+              cat /tmp/whatschanged.md
+            fi
+          } > /tmp/notes.md
+
+          {
+            echo "## Release notes preview — v$VERSION"
+            echo
+            cat /tmp/notes.md
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Commit, tag & publish
+        if: ${{ !inputs.dry_run }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "chore(release): v$VERSION"
+          git push origin HEAD:main
+          git tag "v$VERSION"
+          git push origin "v$VERSION"
+
+          FLAGS=()
+          if [ "${{ inputs.prerelease }}" = "true" ]; then FLAGS+=(--prerelease); fi
+          gh release create "v$VERSION" \
+            --title "v$VERSION" \
+            --notes-file /tmp/notes.md \
+            "${FLAGS[@]}"
+
+      - name: Dry-run notice
+        if: ${{ inputs.dry_run }}
+        run: echo "::notice::Dry run — notes rendered to the job summary; no commit, tag, or release was created."

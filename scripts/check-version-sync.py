@@ -9,16 +9,21 @@ This is a BLOCK guard: any drift (or an unresolvable plugin.json a marketplace e
 points at) exits non-zero, so a release that would ship divergent manifests is stopped
 in CI before merge.
 
+plugin.json is the source of truth; --fix rewrites marketplace.json entries to match.
+
 Usage:
-    python3 scripts/check-version-sync.py [--root DIR] [--json] [--self-test]
+    python3 scripts/check-version-sync.py [--root DIR] [--json] [--self-test] [--fix]
 
     --root DIR    Repo root to check (default: git toplevel, else CWD). Looks for
                   DIR/.claude-plugin/marketplace.json and DIR/<source>/.claude-plugin/plugin.json.
     --json        Emit a machine-readable JSON report instead of text.
+    --fix         Reconcile drift by copying version/description/keywords from each
+                  plugin.json into its marketplace.json entry (plugin.json wins), then
+                  re-check. The plugin `name` (the match key) is never rewritten.
     --self-test   Run in-memory drift-detection cases (version/description/keywords/name)
                   and exit 0 only if every case is detected as expected.
 
-Exit codes: 0 = synced, 1 = drift detected, 2 = usage / unreadable marketplace.json, 3 = marketplace.json not found.
+Exit codes: 0 = synced (or fixed), 1 = drift detected, 2 = usage / unreadable marketplace.json, 3 = marketplace.json not found.
 """
 import argparse
 import json
@@ -121,6 +126,45 @@ def check_root(root):
     return ok, report
 
 
+def fix_root(root):
+    """Rewrite marketplace.json entries to match each plugin.json (plugin.json wins).
+
+    Only the synced fields except `name` are copied (name is the match key). Returns
+    (fixed_count, errors[]). A plugin.json that is missing/unreadable is reported as an
+    error and left for the normal check to flag — --fix does not invent data.
+    """
+    mp_path = os.path.join(root, ".claude-plugin", "marketplace.json")
+    errors = []
+    try:
+        marketplace = _load_json(mp_path)
+    except (json.JSONDecodeError, OSError) as exc:
+        return 0, [f"marketplace.json unreadable: {exc}"]
+
+    fixed = 0
+    fixable_fields = [f for f in SYNCED_FIELDS if f != "name"]
+    for entry in marketplace.get("plugins", []):
+        name = entry.get("name", "<unnamed>")
+        source = entry.get("source", "")
+        pj_path = os.path.normpath(
+            os.path.join(root, source, ".claude-plugin", "plugin.json")
+        )
+        try:
+            plugin_json = _load_json(pj_path)
+        except (json.JSONDecodeError, OSError) as exc:
+            errors.append(f"[{name}] plugin.json unreadable, skipped: {exc}")
+            continue
+        for field in fixable_fields:
+            if field in plugin_json and entry.get(field) != plugin_json[field]:
+                entry[field] = plugin_json[field]
+                fixed += 1
+
+    if fixed:
+        with open(mp_path, "w", encoding="utf-8") as fh:
+            json.dump(marketplace, fh, ensure_ascii=False, indent=2)
+            fh.write("\n")
+    return fixed, errors
+
+
 def run_self_test():
     """Validate drift detection independently of the filesystem."""
     base_mp = {
@@ -158,11 +202,40 @@ def run_self_test():
         if not missing_report.get("missing_manifest"):
             failures.append("  missing marketplace: expected missing_manifest=True")
 
+    # Test --fix reconciles drift on a real fixture (plugin.json wins).
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "demo", ".claude-plugin"))
+        os.makedirs(os.path.join(tmpdir, ".claude-plugin"))
+        with open(os.path.join(tmpdir, "demo", ".claude-plugin", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "2.0.0",
+                       "description": "new desc", "keywords": ["x", "y"]}, fh)
+        with open(os.path.join(tmpdir, ".claude-plugin", "marketplace.json"), "w") as fh:
+            json.dump({"name": "mp", "version": "1.0.0", "plugins": [
+                {"name": "demo", "version": "1.0.0", "description": "old desc",
+                 "keywords": ["x"], "source": "./demo/"}]}, fh)
+        # Before fix: drift exists.
+        ok_before, _ = check_root(tmpdir)
+        if ok_before:
+            failures.append("  --fix fixture: expected drift before fix")
+        fixed, errs = fix_root(tmpdir)
+        if errs:
+            failures.append(f"  --fix fixture: unexpected errors {errs}")
+        if fixed != 3:  # version + description + keywords
+            failures.append(f"  --fix fixture: expected 3 fields fixed, got {fixed}")
+        ok_after, _ = check_root(tmpdir)
+        if not ok_after:
+            failures.append("  --fix fixture: drift remains after fix")
+        # name is the match key — never rewritten.
+        mp_after = _load_json(os.path.join(tmpdir, ".claude-plugin", "marketplace.json"))
+        if mp_after["plugins"][0]["name"] != "demo":
+            failures.append("  --fix fixture: name must not be rewritten")
+
     if failures:
         print("FAIL: check-version-sync self-test")
         print("\n".join(failures))
         return 1
-    print(f"OK: all {len(cases)} version-sync self-test cases passed (+ 1 missing-manifest mode check)")
+    print(f"OK: all {len(cases)} version-sync self-test cases passed "
+          f"(+ missing-manifest mode + --fix reconcile check)")
     return 0
 
 
@@ -170,6 +243,8 @@ def main(argv=None):
     parser = argparse.ArgumentParser(description="marketplace ↔ plugin.json version-sync guard")
     parser.add_argument("--root", default=None, help="repo root to check")
     parser.add_argument("--json", action="store_true", help="emit JSON report")
+    parser.add_argument("--fix", action="store_true",
+                        help="rewrite marketplace.json entries to match plugin.json")
     parser.add_argument("--self-test", action="store_true", help="run in-memory drift cases")
     args = parser.parse_args(argv)
 
@@ -178,6 +253,17 @@ def main(argv=None):
 
     root = args.root or _git_toplevel() or os.getcwd()
     root = os.path.abspath(root)
+
+    if args.fix:
+        fixed, errors = fix_root(root)
+        for err in errors:
+            print(f"  - {err}", file=sys.stderr)
+        if fixed:
+            print(f"FIXED: reconciled {fixed} field(s) into marketplace.json from plugin.json")
+        else:
+            print("OK: nothing to fix — marketplace.json already matches plugin.json")
+        # Fall through to a normal check so the exit code reflects the post-fix state.
+
     ok, report = check_root(root)
 
     if args.json:
