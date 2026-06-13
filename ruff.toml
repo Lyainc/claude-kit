@@ -1,0 +1,17 @@
+# ruff.toml — repo-owned Python lint config (config injection per #216 c6/ac4).
+#
+# Style/taste for Python lives HERE, not hardcoded in scripts/check-*.py. scripts/run-linters.py
+# only DELEGATES to ruff (if installed) and enforces that it passes — it never reimplements rules.
+#
+# Only OBJECTIVE-DAMAGE rules are selected (the c6 promotion criterion: "does a violation cause
+# objective damage?"). Pure stylistic/formatting rules are left to ruff defaults / opt-in so this
+# config does not impose taste on contributors. Promote a rule into `select` only when a violation
+# is a real defect, not a preference.
+line-length = 100
+
+[lint]
+select = [
+    "F",    # pyflakes — undefined names, unused imports/vars, f-string bugs (real defects)
+    "E9",   # syntax / IndentationError / IOError on parse (broken code)
+    "B",    # flake8-bugbear — likely-bug patterns (mutable defaults, etc.)
+]
