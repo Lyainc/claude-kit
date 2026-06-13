@@ -1,0 +1,195 @@
+# RULES.md — claude-kit work rules
+
+This is the repository's **work-rules** reference: the conventions, the enforcement
+model, and the task-end checklist for doing work *on* claude-kit. It is an
+LLM-optimized reference doc (English body), with a short Korean note where it
+addresses a human reader directly.
+
+> 한국어 메모 (사람 독자용): 이 문서는 claude-kit **작업 규칙**이에요. 말투·페르소나(voice)는
+> 개인 `~/.claude/CLAUDE.md`에 있고, 여기엔 안 섞여요. 규칙은 두 종류로 갈려요 — 위반이 객관적
+> 손상을 내면 **정책(policy)** 이라 결정론 스크립트로 막고, 취향·회색지대면 **선호(preference)**
+> 라 외부 린터 설정에 위임해요. 하드코딩으로 자기 스타일을 강요하지 않아요.
+
+## 0. Why this file exists — voice vs work rules (c1)
+
+claude-kit's main-agent **voice/persona** lives in the developer's *personal*
+`~/.claude/CLAUDE.md` (tone layer: warmth, honorifics, liveliness). That is
+deliberately **not** in this repo. **Work rules** — how code/docs in this repo are
+written, traced, and enforced — live **here in `rules/`**, physically separate.
+
+The separation is the point: the tone layer and the work-judgment layer are
+independent. A friendly tone must never soften a correctness judgment, and a work
+rule must never depend on who is at the keyboard or what their tone preference is.
+Anyone (or any agent) working on claude-kit follows `rules/`; nobody is required to
+adopt anyone else's voice.
+
+## 1. Domain conventions & traceability
+
+These are the conventions specific to working on claude-kit. The canonical *runtime*
+guidance lives in `CLAUDE.md`; this section captures the **work/traceability** rules.
+
+- **Issue = canonical source of truth.** Every non-trivial change traces to a GitHub
+  issue. The issue holds the *why* (the decision, the spec, the trade-off). Commits
+  and PRs are the *how*; they point back to the issue, never the reverse. When the
+  issue and a PR description disagree, the issue wins — reconcile by updating one of
+  them, do not let the trail fork.
+- **PR descriptions in Korean, referencing the issue.** PR bodies are written in
+  Korean and reference the master plan / vault spec / issue number so the decision
+  trail stays searchable. (Per `feedback_trace_to_root`: on a tangled inconsistency,
+  trace upstream to the origin before acting, then fix all related artifacts.)
+- **Conventional Commits, English.** `feat:`, `fix:`, `docs:`, `refactor:`,
+  `chore:`. Branch prefixes: `feat/`, `fix/`, `docs/`, `refactor/`. (Commit subject
+  language and branch prefixes are claude-kit policy, enforced by review/convention,
+  not by this file's scripts.)
+- **Version lockstep.** All plugins share one version and ship together under a
+  single tag `vX.Y.Z`. Do **not** bump a version in a feature branch — the release
+  workflow bumps every manifest at once. `plugin.json` is the source of truth;
+  `marketplace.json` is derived. See `RELEASING.md` and the Version Sync Rule in
+  `CLAUDE.md`.
+- **Vault file conventions — by reference, not redefined.** Files written to the
+  vault follow the unified convention already specified in `CLAUDE.md` ("Vault File
+  Conventions" — folder layout, filename pattern, frontmatter standard, `type:`
+  opt-in). This file does **not** restate them; treat `CLAUDE.md` as canonical and
+  keep them in one place.
+
+## 2. POLICY vs PREFERENCE (c6)
+
+This is the classifier that keeps the repo from hardcoding one person's taste onto
+everyone who works in it.
+
+> **The test: "Does a violation cause OBJECTIVE DAMAGE?"**
+
+- **Yes → it MAY be promoted to POLICY.** A policy is a claude-kit-specific rule
+  whose violation breaks something real and measurable. Policy is enforced by a
+  deterministic check (a `scripts/check-*.py` or an external linter we *require to
+  pass*), and it blocks in CI.
+- **No → it stays PREFERENCE.** Taste, formatting, gray-zone style: the violation is
+  cosmetic or arguable, with no objective damage. Preference is **never hardcoded**
+  here. It is delegated to **external linter/formatter config** (`.prettierrc`,
+  `ruff.toml`, etc.) so each repo/setup configures its own taste, and claude-kit
+  only requires *that the configured linter passes* — it does not reimplement the
+  linter or bake in style constants.
+
+The promotion gate is one-directional: a rule must *earn* its way into POLICY by
+demonstrating objective damage. When unsure, it stays PREFERENCE.
+
+**POLICY — worked examples (objective damage):**
+
+1. **`marketplace.json` ↔ `plugin.json` version/description/keywords drift.** If
+   these diverge, a release ships divergent manifests and the marketplace serves
+   wrong metadata. Objective damage → `check-version-sync` (block).
+2. **A note written to the vault without a `type:` field.** Without `type:`, the file
+   is invisible to claude-kit's management (v4 §2.2 opt-in) — capture/audit/search
+   silently skip it, so the user's note is functionally lost to the tooling.
+   Objective damage → `check-type-optin` (block).
+3. **A registered regression test that exits non-zero (or is not wired into CI).** A
+   green-looking suite that doesn't actually run, or a test that fails and is ignored,
+   means a guard is silently off. Objective damage → `check-test-exitcode` /
+   `check-ci-coverage` (block).
+
+**PREFERENCE — worked examples (taste / gray-zone):**
+
+1. **Line length, quote style, indent width, trailing commas.** Whether a line wraps
+   at 88 or 100, single vs double quotes — no objective damage. Delegate to
+   `ruff.toml` / `.prettierrc`; claude-kit requires the linter to pass, never
+   hardcodes the constant.
+2. **Import ordering / blank-line grouping.** Stylistic; a misordered import does not
+   break behavior. Delegate to the external formatter's config.
+3. **Markdown wrap width / list-marker style (`-` vs `*`).** Cosmetic prose
+   formatting. Delegate to a markdown linter config if desired; not a claude-kit
+   policy.
+
+## 3. The 3-tier enforcement model (c5)
+
+Enforcement has exactly three tiers. Heavier tiers cost more and are reserved for
+where they are actually warranted.
+
+- **HARD — deterministic, blocks in CI.** External linters/formatters (required to
+  *pass*) plus `scripts/check-*.py` guards. These run in CI and a violation blocks
+  the merge. No judgment, no LLM, no per-turn cost. The HARD checks, by name:
+  - `check-version-sync` — marketplace ↔ plugin.json drift (existing).
+  - `check-ci-coverage` — every registered test is wired into CI (existing).
+  - `check-type-optin` — vault notes carry the `type:` opt-in marker.
+  - `check-language-policy` — language policy (doc body language placement) holds.
+  - `check-banned-words` — claude-kit-specific banned terms are absent.
+  - `check-test-exitcode` — registered regression tests actually exit 0.
+  - (Each non-existing check is described here at the **policy level**; its exact
+    behavior is defined by its own slice/script, not invented here.)
+- **SOFT — task-end self-check via the rules reminder hook.** Judgment-type rules
+  that cannot be made deterministic are checked by the **main agent at task end**
+  against the checklist in §4. A Claude Code hook fires the reminder so the check is
+  not silently skipped; the main agent self-verifies. This is a reminder, not a
+  blocker — it carries no per-turn LLM cost beyond the task-end trigger.
+- **HUMAN — irreversible / release gates only.** A human gate is reserved for
+  irreversible or release-time decisions (publishing a tag, anything not safely
+  revertible). Everything safely automatable lives in HARD or SOFT; the HUMAN tier
+  stays small on purpose.
+
+**Deferred (YAGNI, c5): the haiku verifier.** A native haiku sub-agent verifier (to
+guard against self-approval, following the `vault-searcher` haiku pattern) is **not**
+built in v1. Self-approval in a single context is a *potential* problem, not a
+demonstrated one. The verifier is added only **if self-approval proves to be a real
+problem** — earning its way in exactly like a PREFERENCE→POLICY promotion.
+
+## 4. The SOFT task-end checklist
+
+At task end, the main agent self-checks the following (this is the SOFT tier in §3).
+None of these block automatically — they are the judgment-type rules that a
+deterministic script cannot fairly decide:
+
+- [ ] **Traceability**: the change references its issue; the PR description (Korean)
+      points back to the issue / spec / master plan. No forked decision trail.
+- [ ] **Voice/work-rule separation (c1)**: no persona/voice content leaked into repo
+      files; work rules stayed in `rules/`, tone stayed in personal config.
+- [ ] **POLICY vs PREFERENCE (c6)**: no subjective style constant was hardcoded; any
+      style concern was delegated to external linter config, not baked in.
+- [ ] **MECE / no reimplementation**: no external-linter behavior was reimplemented;
+      claude-kit only delegates to and requires linters, it does not rebuild them.
+- [ ] **Conventions**: conventional-commit subjects, branch prefix, version lockstep
+      respected (no manual version bump in a feature branch).
+- [ ] **HARD checks green**: the relevant `scripts/check-*.py` and external linters
+      were run and pass (or are wired so CI will run them).
+- [ ] **Recurrence (c7)**: if this violation looks like a *repeat pattern*, enter the
+      RCA flow (§5) before closing out.
+
+**How the reminder hook is wired.** The task-end reminder is a deterministic Claude
+Code hook: `scripts/rules-checklist-hook.sh`, registered via the developer's local
+`.claude/settings.json`. Note that `.claude/` is **gitignored**, so the wiring is
+**per-developer by design** — each developer opts the hook into their own session;
+the script is shared in-repo, the activation is local. The hook surfaces this
+checklist at task end so the SOFT tier is not silently skipped.
+
+## 5. Recurrence-driven RCA
+
+When a violation is a **recurring pattern** (not a one-off), run the root-cause
+analysis flow rather than just patching the symptom. The RCA checklist lives at
+**`rules/rca-checklist.md`** — it is the entry point for the What → Why → How →
+Revise flow, gated on recurrence and stopping at the level expressible as a
+deterministic code change (so RCA does not regress into endless re-analysis). A
+one-off slip does **not** trigger RCA; only a repeat pattern does.
+
+## 6. Coverage of the 11 initial expectations (ac1)
+
+The work-rules effort started from 11 expected items. Each is covered by a mechanism
+in this minimal core. SOFT and DEFERRED rows mark **intended limits**, not gaps.
+
+| # | Expected item | Mechanism | Tier |
+|---|---------------|-----------|------|
+| 1 | Style hygiene | `ruff.toml` / `.prettierrc` injected, run via `scripts/run-linters.py` (delegation, never hardcoded) | HARD-when-present / else graceful-skip |
+| 2 | Domain conventions | §1 + `check-type-optin` (vault `type:`) + `check-banned-words` | HARD + SOFT |
+| 3 | No new plugin/skill | c2: zero new `plugin.json`/`SKILL.md`; rules live in `scripts/` + `rules/` + `.claude/` only | by-design (ac5 grep) |
+| 4 | Voice separation | §0 — voice in personal `~/.claude/CLAUDE.md`, work rules in `rules/` | SOFT (c1) |
+| 5 | Enforcement | §3 three-tier model (HARD scripts + linters / SOFT hook / HUMAN gate) | structural |
+| 6 | Procedure omission | §4 task-end checklist + `scripts/rules-checklist-hook.sh` reminder; `check-test-exitcode` | SOFT + HARD |
+| 7 | Verification evidence | Deterministic scripts emit real exit-code evidence; `check-test-exitcode` runs registered tests; CI. No external-orchestrator dependency (c3) | HARD |
+| 8 | Expression hygiene | claude-kit-specific banned terms → `check-banned-words` (HARD); general prose hygiene → external linters (delegation, c4) | HARD + delegated |
+| 9 | Consistency / traceability | §1 (issue = canonical, trace-to-root) + `check-version-sync` + `check-ci-coverage` | HARD + SOFT |
+| 10 | Telemetry | Reuse existing `telemetry/` (event-logger, `report.py` lifecycle). Rule-fire event schema **DEFERRED to #217** (telemetry external-distribution owner) — c8 | DEFERRED (soft) |
+| 11 | Violation correction | §5 + `rules/rca-checklist.md` (4-step RCA, stop-at-determinism, recurrence gate) | reference (c7) |
+
+**Intended limits.** Rows 4, 6 (checklist part) and 9 (traceability part) are SOFT by
+design — judgment-type rules a deterministic script cannot fairly decide (c5). Row 10
+(telemetry rule-fire) is DEFERRED: #217 owns telemetry external distribution, so the
+rule-fire event schema is added there to avoid a split owner (c8 is the only non-hard
+constraint). Row 1 is latent on a repo with no linter installed — the delegation
+mechanism is committed and activates the moment a linter is present (c4).

@@ -61,9 +61,27 @@ jobs:
           python3 scripts/check-ci-coverage.py --strict
           echo "Governance guards OK"
 
+      - name: Check work-rules guards (#216)
+        run: |
+          # claude-kit-specific deterministic guards + external-linter delegation.
+          # Each check ships an in-memory --self-test (planted violation + clean fixture);
+          # the repo-scanning checks also run real mode (FP=0 on a clean tree).
+          # check-test-exitcode real mode is intentionally NOT run here (it would re-run the
+          # whole registered suite recursively); only its --self-test gates CI.
+          python3 scripts/check-type-optin.py --self-test
+          python3 scripts/check-type-optin.py
+          python3 scripts/check-language-policy.py --self-test
+          python3 scripts/check-language-policy.py
+          python3 scripts/check-banned-words.py --self-test
+          python3 scripts/check-banned-words.py
+          python3 scripts/check-test-exitcode.py --self-test
+          python3 scripts/run-linters.py --self-test
+          echo "Work-rules guards OK"
+
       - name: Check shell hook syntax
         run: |
           bash -n vault-bridge/hooks/*.sh
+          bash -n scripts/rules-checklist-hook.sh
           echo "Hook syntax OK"
 
       - name: Run vault-bridge unit tests

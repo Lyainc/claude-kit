@@ -115,6 +115,32 @@ python3 scripts/check-ci-coverage.py
 # CI runs this as `check-ci-coverage.py --strict` (#175): a coverage gap now BLOCKS
 # (warn-mode 도입은 #134, gap 0 도달 후 #175에서 --strict 승격).
 
+# 작업 규칙 minimal core 가드 (#216): claude-kit 특화 결정론 가드 + 외부 린터 위임.
+# 각 check는 --self-test(인메모리 위반+clean fixture)로 검증, 실모드는 레포 스캔 FP=0.
+# 규칙 본문/정책vs취향 기준은 rules/RULES.md, 재발 시 RCA는 rules/rca-checklist.md.
+python3 scripts/check-type-optin.py --self-test
+# Expected: OK: all check-type-optin self-test cases passed
+python3 scripts/check-type-optin.py
+# Expected: OK: check-type-optin clean — N markdown file(s) checked, ... no missing `type:`
+python3 scripts/check-language-policy.py --self-test
+# Expected: OK: all check-language-policy self-test cases passed
+python3 scripts/check-language-policy.py
+# Expected: OK: language-policy clean — 8 metadata source(s) checked, no Hangul ...
+python3 scripts/check-banned-words.py --self-test
+# Expected: OK: all check-banned-words self-test cases passed
+python3 scripts/check-banned-words.py
+# Expected: OK: banned-words clean — N file(s) checked, no violations (terms from rules/banned-terms.txt)
+python3 scripts/check-test-exitcode.py --self-test
+# Expected: OK: all check-test-exitcode self-test cases passed
+# (real mode `python3 scripts/check-test-exitcode.py` RUNS every registered Validation
+#  command — local pre-push convenience; intentionally NOT wired into CI to avoid re-running
+#  the suite recursively. `--list` prints the extracted commands without running them.)
+python3 scripts/run-linters.py --self-test
+# Expected: OK: all run-linters self-test cases passed
+# (real mode `python3 scripts/run-linters.py` delegates to ruff/prettier/shellcheck IF
+#  installed + configured, else graceful-skips; style/taste lives in ruff.toml/.prettierrc,
+#  never hardcoded — #216 c4/c6.)
+
 # 플러그인 스펙 전체 검증 (frontmatter·hooks 스키마 포함)
 # claude plugin validate  # Claude Code 설치 환경에서 실행
 
@@ -172,6 +198,7 @@ python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
 bash -n telemetry/event-logger.sh
+bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
 
 # parse_created_date unit test (audit-validate Phase 2 helper)
 python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py

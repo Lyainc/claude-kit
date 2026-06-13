@@ -1,0 +1,38 @@
+# banned-terms.txt — repo-owned banned-term policy list (slice S3, work-rules minimal core).
+#
+# FORMAT: one entry per line —  <term>  ::  <reason>
+#   - '#' lines and blank lines are ignored (comments).
+#   - <term> is matched as a literal substring (case-sensitive) in scanned files.
+#   - <reason> documents the OBJECTIVE DAMAGE a reappearance would cause.
+#
+# This is repo-owned DATA (config-injection, not hardcoded taste): scripts/check-banned-words.py
+# READS this file and flags any occurrence in scanned code/config text (.py .sh .json .yaml .yml,
+# git-tracked + untracked-non-ignored; markdown prose and this file itself are out of scope). To
+# retire a term, delete its line. To add one, FIRST confirm it currently greps to ZERO occurrences
+# in the scanned scope — otherwise the gate red-lines a clean repo. Only add terms whose
+# reappearance is objective damage (silent breakage), never taste.
+#
+# ── ATOMICITY RULE: ban a term only once the thing it names is actually GONE ──
+# A banned term must already be absent from the scanned scope. Banning an identifier whose files
+# still exist breaks CI until they are removed, and couples this PR's CI to an unmerged one. So the
+# ban lands in the SAME change that removes the subsystem — not before it.
+#
+# ── release-please removal (auto-versioning → manual lockstep release) ──
+# release-please is being replaced by a manual lockstep release (one version across all plugins,
+# one tag; scripts/bump-version.py + .github/workflows/release.yml). Its reintroduction would race
+# the manual release and produce divergent / double version bumps across the 4 plugin.json +
+# marketplace.json — exactly the drift check-version-sync.py exists to prevent (objective damage).
+#
+# ACTIVE NOW: the inline version-marker release-please injects INTO manifests. It is absent from the
+# scanned scope today (the legacy release-please files do not contain it), so banning it is safe and
+# catches the reintroduction symptom without flagging the legacy files still pending removal.
+x-release-please  ::  release-please inline version-marker comment; its presence means release-please was reintroduced into a manifest, breaking single-source plugin.json versioning
+#
+# PENDING — activate in the PR that DELETES the legacy release-please files (per the ATOMICITY RULE
+# above). These identifiers still exist on main today (.github/workflows/release-please.yml,
+# release-please-config.json, .release-please-manifest.json), so they cannot be banned until that
+# removal merges; uncomment them there to make the ban atomic with the deletion.
+# release-please-config.json  ::  removed release-please config file; reappearance silently re-enables auto-versioning that races the manual lockstep release (divergent/double version bumps)
+# release-please-manifest.json  ::  removed release-please manifest; reappearance re-enables auto-versioning conflicting with manual lockstep release
+# release-please-action  ::  release-please GitHub Action reference; reappearance in a workflow restarts auto-releases that conflict with manual lockstep release.yml
+# googleapis/release-please  ::  release-please action/CLI source path; reappearance reintroduces the removed auto-release tooling
