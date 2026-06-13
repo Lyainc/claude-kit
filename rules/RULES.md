@@ -51,6 +51,23 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   Conventions" — folder layout, filename pattern, frontmatter standard, `type:`
   opt-in). This file does **not** restate them; treat `CLAUDE.md` as canonical and
   keep them in one place.
+- **Subagents do not cause git side effects (#209).** A subagent (Workflow `agent()`,
+  Agent/Task) leaves all changes in the working tree — it does **not** `commit`,
+  `push`, or create PRs. The **main context owns git**. This keeps isolated-critique
+  premises intact (the review target is an uncommitted diff) and prevents
+  unapproved outward-facing actions (a push or PR is an external, often irreversible
+  publish). Workflow scripts that delegate implementation MUST state this contract in
+  the subagent prompt (see `feature-full.js`); the prompt-level contract is the
+  enforcement here — a deterministic Bash guard is deferred (YAGNI per §3) until the
+  pattern recurs despite the contract.
+- **Identifiers ride the global ID; local tracking IDs stay local (#214).** The
+  single authority for identifier prefixes is `docs/design/glossary.md`. Anything
+  worth tracking globally becomes a GitHub issue (`#N`) — do **not** invent a
+  parallel global tracking scheme (`U/P/W/D/C`). A document's running number is local:
+  valid only inside that document; when cross-referencing, carry the source
+  (`<file> §U1`) or promote it to an issue. Do not reuse a letter across meanings, and
+  write local IDs letter+digit with no hyphen (`C2`, not `C-2`). Before introducing a
+  new global prefix, register it in the glossary first.
 
 ## 2. POLICY vs PREFERENCE (c6)
 
@@ -139,6 +156,9 @@ deterministic script cannot fairly decide:
 
 - [ ] **Traceability**: the change references its issue; the PR description (Korean)
       points back to the issue / spec / master plan. No forked decision trail.
+- [ ] **Identifiers (#214)**: no new parallel global tracking scheme was invented;
+      local tracking IDs (`U/P/W/D/C`) stayed local or carried their source on
+      cross-reference; any new global prefix was registered in `docs/design/glossary.md`.
 - [ ] **Voice/work-rule separation (c1)**: no persona/voice content leaked into repo
       files; work rules stayed in `rules/`, tone stayed in personal config.
 - [ ] **POLICY vs PREFERENCE (c6)**: no subjective style constant was hardcoded; any
@@ -147,6 +167,9 @@ deterministic script cannot fairly decide:
       claude-kit only delegates to and requires linters, it does not rebuild them.
 - [ ] **Conventions**: conventional-commit subjects, branch prefix, version lockstep
       respected (no manual version bump in a feature branch).
+- [ ] **Subagent git side effects (#209)**: no subagent committed, pushed, or opened a
+      PR; changes were left in the working tree for the main context to own; any
+      impl-delegating workflow prompt states the no-git-side-effects contract.
 - [ ] **HARD checks green**: the relevant `scripts/check-*.py` and external linters
       were run and pass (or are wired so CI will run them).
 - [ ] **Recurrence (c7)**: if this violation looks like a *repeat pattern*, enter the
