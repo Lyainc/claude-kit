@@ -70,15 +70,19 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    Then **stamp the pipeline start** for the Phase-4 `duration_ms` datum. Each
    Bash call is a fresh shell (env vars do not persist between calls), so the
    start time must live on disk, not in a variable. Gate it on the SAME condition
-   as the Phase-4 emit — telemetry opt-in AND a resolvable `telemetry/events/`
-   dir — so no stamp is orphaned in `/tmp` when telemetry output is unreachable
-   (the Phase-4 `rm -f` only runs inside that same branch):
+   as the Phase-4 emit — telemetry opt-in AND a resolvable events dir — so no stamp
+   is orphaned in `/tmp` when telemetry output is unreachable (the Phase-4 `rm -f`
+   only runs inside that same branch). The events dir follows the single shared rule
+   (same as `feedback-loop/scripts/event-logger.sh`): env override, else the
+   user-writable `.claude-kit/telemetry/events` under the project root — never the
+   plugin install cache:
    ```bash
    PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
+   EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${PROJ_ROOT}/.claude-kit/telemetry/events}"
    # `:-unknown` fallback is benign: retro runs single-session per sid, and this stamp is
    # written here but read back in the separate Phase-4 shell — a `$$`-suffix can't survive
    # across invocations, so sid-less concurrent retros only theoretically share the path.
-   [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "${PROJ_ROOT}/telemetry/events" ] && \
+   [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ] && \
      python3 -c 'import time;print(int(time.time()*1000))' \
        > "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true
    ```
@@ -94,11 +98,13 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    then `/audit`, and skip the PROMOTE phase (do not guess candidates).
 
 3. **Waste signals** (action-branch source). If the project-local telemetry
-   dogfooding output exists (`telemetry/events/` under the repo) and
-   `CLAUDE_KIT_TELEMETRY=1`, surface repeat-waste patterns:
+   dogfooding output exists (the events dir — `.claude-kit/telemetry/events/`
+   by default, see `feedback-loop/README.md`) and `CLAUDE_KIT_TELEMETRY=1`,
+   surface repeat-waste patterns (the report/sequence scripts self-resolve the
+   events dir via the same shared rule):
    ```bash
-   python3 telemetry/scripts/report.py 2>/dev/null        # outcome/error mix, latency (default 7d window)
-   python3 telemetry/scripts/sequence.py --n=2 --top=20 2>/dev/null # repeated n-grams (review-round churn)
+   python3 feedback-loop/scripts/report.py 2>/dev/null        # outcome/error mix, latency (default 7d window)
+   python3 feedback-loop/scripts/sequence.py --n=2 --top=20 2>/dev/null # repeated n-grams (review-round churn)
    ```
    Plus this session's observable waste (repeated failed tool calls, repeated
    review rounds, repeated same-error retries). Each signal:
@@ -121,12 +127,13 @@ Zero mutation. Produce a deduped, priority-sorted item list.
      ```bash
      gh issue list --state open --search "in:title <pattern keywords>" --json number,title 2>/dev/null
      ```
-   - *Prior retro* (only when `CLAUDE_KIT_TELEMETRY=1` AND `telemetry/events/`
-     exists — the same opt-in gate as Phase 4): read prior `retro` events to
-     report cumulative processing (best-effort):
+   - *Prior retro* (only when `CLAUDE_KIT_TELEMETRY=1` AND the events dir exists —
+     the same opt-in gate as Phase 4): read prior `retro` events to report
+     cumulative processing (best-effort):
      ```bash
-     [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d telemetry/events ] && \
-       grep -h '"name":"retro"' telemetry/events/events-*.jsonl 2>/dev/null | tail -n 20
+     EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT:-$PWD}/.claude-kit/telemetry/events}"
+     [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ] && \
+       grep -h '"name":"retro"' "$EVENTS_DIR"/events-*.jsonl 2>/dev/null | tail -n 20
      ```
 
 6. **Prioritize**: tag each item P0/P1/P2. Reuse audit's mapping for vault items
@@ -197,10 +204,11 @@ opts in (offer them, do not run silently).
 2. **Report** (Korean): processed / promoted / deduped / budget_used + the
    remainder breakdown above.
 3. **Emit telemetry** (best-effort, opt-in). Only when `CLAUDE_KIT_TELEMETRY=1`
-   AND `telemetry/events/` is resolvable under the repo. Anchor the path to
-   `${CLAUDE_PROJECT_ROOT:-$PWD}` (NOT bare `$PWD`) so an in-session `cd` cannot
-   silently misdirect the append — this mirrors the vault-bridge hook convention
-   (every hook resolves `PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"`). Append ONE
+   AND the events dir is resolvable. The dir follows the single shared rule
+   (`${CLAUDE_KIT_TELEMETRY_DIR:-${PROJ_ROOT}/.claude-kit/telemetry/events}`); `PROJ_ROOT`
+   is anchored to `${CLAUDE_PROJECT_ROOT:-$PWD}` (NOT bare `$PWD`) so an in-session
+   `cd` cannot silently misdirect the append — this mirrors the vault-bridge hook
+   convention (every hook resolves `PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"`). Append ONE
    schema-valid line whose `meta` carries the four retro fields **plus
    `duration_ms`** (the envelope `meta` is the only schema-required part;
    `report.py` latency reads `duration_ms`, so emitting it surfaces retro's own
@@ -211,7 +219,8 @@ opts in (offer them, do not run silently).
    ≥ 3500B:
    ```bash
    PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
-   if [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "${PROJ_ROOT}/telemetry/events" ]; then
+   EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${PROJ_ROOT}/.claude-kit/telemetry/events}"
+   if [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ]; then
      # duration_ms = now − Phase-1 start stamp; null when the stamp is unavailable.
      START_MS=$(cat "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true)
      END_MS=$(python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || true)
@@ -224,13 +233,13 @@ opts in (offer them, do not run silently).
        --argjson processed "$PROCESSED" --argjson promoted "$PROMOTED" \
        --argjson deduped "$DEDUPED" --argjson budget "$BUDGET_USED" \
        --argjson duration "$DURATION_MS" \
-       '{ts:$ts, session_id:$sid, cwd:$cwd, plugin:"workflow-harness",
-         event:"skill_invoke", name:"retro", qualified_name:"workflow-harness:retro",
+       '{ts:$ts, session_id:$sid, cwd:$cwd, plugin:"feedback-loop",
+         event:"skill_invoke", name:"retro", qualified_name:"feedback-loop:retro",
          trigger:"explicit", outcome:"success", tool_use_id:"",
          meta:{retro_items_processed:$processed, items_promoted:$promoted,
                items_deduped:$deduped, budget_used:$budget, duration_ms:$duration}}' 2>/dev/null)
      [ -n "$LINE" ] && [ "${#LINE}" -lt 3500 ] && \
-       printf '%s\n' "$LINE" >> "${PROJ_ROOT}/telemetry/events/events-$(date -u +%Y-%m-%d).jsonl" 2>/dev/null
+       printf '%s\n' "$LINE" >> "${EVENTS_DIR}/events-$(date -u +%Y-%m-%d).jsonl" 2>/dev/null
      rm -f "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true
    fi
    ```

@@ -48,9 +48,9 @@ GEMINI.md
 # Graphify output (regenerable analysis artifacts, any depth)
 graphify-out/
 
-# Telemetry — events are local dogfooding data; config/scripts stay tracked.
-telemetry/events/
-telemetry/*.local.json
+# Telemetry — feedback-loop events are local dogfooding data (user-writable dir).
+# The events output path is ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
+# which already falls under the .claude-kit/ ignore below; config/scripts stay tracked.
 
 # Serena IDE context provider
 .serena/
@@ -62,7 +62,8 @@ telemetry/*.local.json
 .vault-link
 .vault-link.local
 
-# Vault bridge session handoff scratch (ephemeral resume.md, consumed on next SessionStart)
+# Local-only .claude-kit/ scratch: vault-bridge resume.md (ephemeral handoff) +
+# feedback-loop telemetry events (.claude-kit/telemetry/events/, opt-in dogfooding data).
 .claude-kit/
 
 # Sensitive or temporary documents (docs/ is now tracked by default)

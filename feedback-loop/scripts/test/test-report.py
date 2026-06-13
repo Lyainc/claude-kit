@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Regression test — telemetry/scripts/report.py latency_by_event() + per-event breakdown.
+Regression test — feedback-loop/scripts/report.py latency_by_event() + per-event breakdown.
 
 PR #161 claude-review flagged latency_by_event as the only new logic without a
 runnable check. This locks the per-event-type bucketing contract:
@@ -15,7 +15,7 @@ runnable check. This locks the per-event-type bucketing contract:
   - JSON output rounds p50/p95 to 1 decimal under key latency_by_event (sorted);
     table output renders a "by event type:" block with per-type lines
 
-Run: python3 telemetry/scripts/test/test-report.py
+Run: python3 feedback-loop/scripts/test/test-report.py
 Exit 0 on pass, 1 on fail.
 """
 

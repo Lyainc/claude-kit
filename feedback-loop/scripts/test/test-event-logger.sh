@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# telemetry/scripts/test/test-event-logger.sh
+# feedback-loop/scripts/test/test-event-logger.sh
 #
 # Unit test for event-logger.sh's meta extractors (extract_end_meta /
 # extract_stop_meta) against SYNTHETIC hook payloads. This is the verification

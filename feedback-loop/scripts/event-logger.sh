@@ -147,7 +147,7 @@ extract_end_meta() {
 # HOW TO CAPTURE the real payload (no live stop data exists at authoring time):
 #   export CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1
 #   # run ONE real session, let a turn end, then:
-#   jq . telemetry/events/raw/stop.jsonl
+#   jq . "${CLAUDE_KIT_TELEMETRY_DIR:-.claude-kit/telemetry/events}"/raw/stop.jsonl
 # (the §3b dump block above writes the verbatim Stop stdin there). Once the real
 # shape is confirmed, adjust `.usage`/field names here AND sync the expected
 # values in scripts/test/test-event-logger.sh, then delete this TODO.
