@@ -40,15 +40,25 @@ SYNCED_FIELDS = ("name", "version", "description", "keywords")
 DEV_ONLY_TOKENS = ("dev-harness",)
 
 
+def _source_leaf(source):
+    """Final path segment of a marketplace source (e.g. './dev-harness/' → 'dev-harness')."""
+    return source.strip().strip("/").split("/")[-1] if source else ""
+
+
 def detect_dev_drift(plugins):
     """Return a list of violation strings for any dev-only token that leaked into
-    marketplace.plugins[] (matched against each entry's name or source path)."""
+    marketplace.plugins[].
+
+    Matches on the plugin `name` OR the final path SEGMENT of `source` — anchored, NOT a
+    substring (so a future legit `./dev-harness-v2/` is not false-blocked by the
+    `dev-harness` token)."""
     violations = []
     for entry in plugins:
         name = entry.get("name", "")
         source = entry.get("source", "")
+        leaf = _source_leaf(source)
         for tok in DEV_ONLY_TOKENS:
-            if tok == name or tok in source:
+            if tok == name or tok == leaf:
                 violations.append(
                     f"dev-only '{tok}' must NOT be registered in marketplace.json "
                     f"(entry name={name!r} source={source!r}) — it is dev-only, never distributed"
@@ -236,6 +246,9 @@ def run_self_test():
         ("mixed clean + drift",
          [{"name": "vault-bridge", "source": "./vault-bridge/"},
           {"name": "dev-harness", "source": "./dev-harness/"}], 1),
+        # Anchored match (not substring): a future legit dev-harness-v2 must NOT false-block.
+        ("dev-harness-v2 not false-blocked",
+         [{"name": "dev-harness-v2", "source": "./dev-harness-v2/"}], 0),
     ]
     for label, plugins, expected_n in drift_cases:
         got_n = len(detect_dev_drift(plugins))
