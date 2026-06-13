@@ -13,7 +13,8 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 8개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain, adversarial-review, spec-first + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 4개 (capture, note, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
 - **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 5종 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 6개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) + Python scripts (`generate-manifest.py`, `plan-doc-syncer.py`, `vault-commit-message.py`). vault 검색 + slash command 기반 session-note/capture/plan 작성 + 세션 생명주기 안전망 + 외부 plan-doc 자동 캡처.
-- **workflow-harness** (`workflow-harness/`): layer ⑤ 실행 하네스 (Claude Code 네이티브 substrate 기반 경량 오케스트레이션, #122). 스킬 3개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산, #123 / handoff-plan — 열린 이슈 의존·도메인 청킹 → user-confirmed 에픽 후보 → goal-doc 슬라이스 바인딩, #171 / slice-router — goal-doc 실행 라우터: #100 스키마 검증(INV-4) + 4종 work_type 슬라이스 라우팅 + D5 헌법 invariant enforcement, #183). `workflows/feature-full.js` (#201): feature-full DELEGATE carrier — impl→critique를 별도 agent() 스테이지로 분리하는 workflow script (structural CON-3). **단방향 의존(CON-5)**: harness → leaf(vault-bridge·obsidian-vault-manager) + telemetry dogfooding 출력(플러그인 아님). 역방향 금지. 전체 OMC-strangler 아닌 thin 진입.
+- **feedback-loop** (`feedback-loop/`): layer ⑤ 자기개선 루프 (measure→review→keep, **실행/이터레이션 엔진 아님** — #217로 ⑤ 하네스에서 분리된 **외부 배포** 단위). 스킬 1개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산, #123) + telemetry 흡수 (event-logger hooks 8 event-type, report.py lifecycle, opt-in `CLAUDE_KIT_TELEMETRY=1` 아니면 silent·per-turn LLM 0·외부 유출 0). **단방향 의존(CON-5)**: feedback-loop은 leaf OUTPUT(audit·manifest·telemetry events)만 읽고 leaf code import 0; 외부 배포지만 ⑤ harness 계열(배포단위≠레이어).
+- **dev-harness** (`dev-harness/`): layer ⑤ 개발 거버넌스 (claude-kit 자체 빌드 전용 — **DEV-ONLY, marketplace 미등록**, #217). 스킬 2개 (handoff-plan — 열린 이슈 의존·도메인 청킹 → user-confirmed 에픽 후보 → goal-doc 슬라이스 바인딩, #171 / slice-router — goal-doc 실행 라우터: #100 스키마 검증(INV-4) + 4종 work_type 슬라이스 라우팅 + D5 헌법 invariant enforcement, #183). `workflows/feature-full.js` (#201): feature-full DELEGATE carrier — impl→critique를 별도 agent() 스테이지로 분리하는 workflow script (structural CON-3). **단방향 의존(CON-5)**: dev-harness → leaf(vault-bridge·obsidian-vault-manager) + feedback-loop(rule_fire emit-only 데이터 계약). 역방향 금지. 전체 OMC-strangler 아닌 thin 진입.
 
 ## Git Conventions
 
@@ -69,16 +70,17 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── commands/                        # 6개 슬래시 커맨드 정의
 │   ├── hooks/                           # 5개 hook handler (stop-check, session-end-pre, session-start-manifest, pre-access-guard, pre-write-guard)
 │   └── scripts/                         # generate-manifest.py, plan-doc-syncer.py + tests/
-├── workflow-harness/                    # plugin: workflow-harness (layer ⑤ 실행 하네스)
-│   ├── .claude-plugin/plugin.json
+├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
+│   ├── .claude-plugin/plugin.json       # hooks 키: 8 event-type 등록 (opt-in telemetry)
 │   ├── skills/                          # retro (#123 — E8 승격 + 3갈래 출력 + dedup + 회고예산)
-│   ├── workflows/                       # workflow scripts (native substrate handlers)
-│   │   └── feature-full.js              # #201 DELEGATE carrier: impl→critique separate agent() stages
-│   ├── scripts/                         # decision libraries (Gap-ROUTE + Gap-INV)
-│   │   ├── slice_router.py              # work_type → slice sequence binding
-│   │   ├── invariant_guard.py           # INV-4 / INV-1 / INV-2·3 / INV-5
-│   │   └── test/                        # regression tests
-│   └── README.md                        # 단방향 의존(CON-5) harness→leaf 명시
+│   ├── scripts/                         # telemetry: event-logger.sh, report.py, sequence.py, validate-schema.py, plugin-map.json + test/
+│   └── README.md                        # measure→review→keep, opt-in·local-only·per-turn LLM 0
+├── dev-harness/                         # layer ⑤ dev-거버넌스 (DEV-ONLY, marketplace 미등록 — #217)
+│   ├── .claude-plugin/plugin.json       # OPTIONAL (dev-only; marketplace 미등록 — anti-drift fence 강제)
+│   ├── skills/                          # handoff-plan (#171), slice-router (#183)
+│   ├── workflows/                       # feature-full.js (#201 DELEGATE carrier: impl→critique separate agent() stages)
+│   ├── scripts/                         # slice_router.py (Gap-ROUTE), invariant_guard.py (Gap-INV) + test/
+│   └── README.md                        # 단방향 의존(CON-5) dev-harness→leaf+feedback-loop 명시
 ├── docs/
 │   ├── design/                          # 설계 문서
 │   └── discussions/                     # 의사결정 토론 transcripts (`YYYYMMDD_topic/`)
@@ -102,11 +104,13 @@ python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
 python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
-python3 -m json.tool workflow-harness/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool dev-harness/.claude-plugin/plugin.json > /dev/null
 
 # 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(block — #175 --strict 승격)
 python3 scripts/check-version-sync.py --self-test
-# Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check)
+# Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check + dev-drift fence)
+# (#217 anti-drift fence: a dev-only token — e.g. dev-harness — appearing in marketplace.plugins[] FAILs)
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단)
 # marketplace.json은 plugin.json에서 derived — drift 시 `--fix`로 plugin.json 기준 동기화:
@@ -174,22 +178,25 @@ python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 python3 vault-bridge/scripts/test/test-vault-commit-message.py
 # Expected: OK: all cases passed (currently 14 cases)
 
-# telemetry schema self-test
-python3 telemetry/scripts/validate-schema.py --self-test
+# feedback-loop telemetry schema self-test (#217 — telemetry absorbed into feedback-loop)
+python3 feedback-loop/scripts/validate-schema.py --self-test
 
-# telemetry report.py latency_by_event regression gate (#164)
+# feedback-loop report.py latency_by_event regression gate (#164)
 # + per-skill lifecycle view (never-fired / stale / bottom-N vs */skills/*/SKILL.md catalog, #203)
-python3 telemetry/scripts/test/test-report.py
+python3 feedback-loop/scripts/test/test-report.py
 # Expected: OK: all cases passed
+# event-logger meta-extractor unit test (extract_end_meta / extract_stop_meta)
+bash feedback-loop/scripts/test/test-event-logger.sh
+# Expected: OK: all event-logger meta-extractor cases passed
 
-# workflow-harness slice router + D5 invariant guard (#183 — Gap-ROUTE + Gap-INV)
+# dev-harness slice router + D5 invariant guard (#183 — Gap-ROUTE + Gap-INV; #217 → dev-harness)
 # test-router: 4-way work_type routing (feature-full/decision-only/doc-only/bug-light)
 # + INV-4 block + native-fallback. test-invariant: one negative case per
 # constitutional invariant (INV-4 schema / INV-1 new-file-only / INV-2·3 isolated
-# critique / INV-5 one-way). Both also dogfood the real G16 goal-doc.
-python3 workflow-harness/scripts/test/test-router.py
+# critique / INV-5 one-way). Both also dogfood the real G16 goal-doc (repo-root, parents[1]).
+python3 dev-harness/scripts/test/test-router.py
 # Expected: OK: all 11 cases passed
-python3 workflow-harness/scripts/test/test-invariant.py
+python3 dev-harness/scripts/test/test-invariant.py
 # Expected: OK: all 42 cases passed
 # (+5 static checks for #201 feature-full.js: agentType disjoint / VERDICT schema /
 #  separate agent() stages / CON-3 runtime assert / forbidden resume-breaking APIs)
@@ -206,7 +213,7 @@ python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main
 
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
-bash -n telemetry/event-logger.sh
+bash -n feedback-loop/scripts/event-logger.sh
 bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
 
 # parse_created_date unit test (audit-validate Phase 2 helper)

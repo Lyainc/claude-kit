@@ -31,7 +31,7 @@ PLUGIN_DIRS = [
     "thinking-tools",
     "obsidian-vault-manager",
     "vault-bridge",
-    "workflow-harness",
+    "feedback-loop",
 ]
 _SEMVER_RE = re.compile(r"^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$")
 

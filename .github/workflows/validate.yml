@@ -26,7 +26,8 @@ jobs:
           python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
           python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
           python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
-          python3 -m json.tool workflow-harness/.claude-plugin/plugin.json > /dev/null
+          python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
+          python3 -m json.tool dev-harness/.claude-plugin/plugin.json > /dev/null
           echo "All JSON manifests valid"
 
       - name: Check marketplace governance guards
@@ -98,20 +99,21 @@ jobs:
           python3 vault-bridge/scripts/test/test-vault-commit-message.py
           echo "vault-bridge tests OK"
 
-      - name: Check telemetry scripts
+      - name: Check feedback-loop telemetry scripts
         run: |
-          bash -n telemetry/event-logger.sh
-          python3 telemetry/scripts/validate-schema.py --self-test
-          python3 telemetry/scripts/test/test-report.py
-          echo "Telemetry checks OK"
+          bash -n feedback-loop/scripts/event-logger.sh
+          python3 feedback-loop/scripts/validate-schema.py --self-test
+          python3 feedback-loop/scripts/test/test-report.py
+          bash feedback-loop/scripts/test/test-event-logger.sh
+          echo "feedback-loop telemetry checks OK"
 
-      - name: Run workflow-harness unit tests
+      - name: Run dev-harness unit tests
         run: |
           # #183 — Gap-ROUTE (4-way slice router) + Gap-INV (D5 constitutional
           # invariant enforcement). Both also dogfood the real G16 goal-doc.
-          python3 workflow-harness/scripts/test/test-router.py
-          python3 workflow-harness/scripts/test/test-invariant.py
-          echo "workflow-harness tests OK"
+          python3 dev-harness/scripts/test/test-router.py
+          python3 dev-harness/scripts/test/test-invariant.py
+          echo "dev-harness tests OK"
 
       - name: Run thinking-tools trigger regression
         run: |

@@ -39,11 +39,13 @@ import subprocess
 import sys
 
 # Plugin source dirs, in display order. Keep in sync with marketplace.json plugins[].source.
+# dev-harness is intentionally absent: it is DEV-ONLY (not marketplace-registered, not
+# lockstep-released — #217). Its file changes fall under the infra section, not a plugin.
 PLUGIN_DIRS = [
     "thinking-tools",
     "obsidian-vault-manager",
     "vault-bridge",
-    "workflow-harness",
+    "feedback-loop",
 ]
 INFRA_SECTION = "Repository / infrastructure"
 
@@ -246,8 +248,8 @@ def run_self_test():
           plugins_for_files(["thinking-tools/skills/x/SKILL.md"]),
           {"thinking-tools"})
     check("multi plugin",
-          plugins_for_files(["vault-bridge/a.sh", "workflow-harness/b.py"]),
-          {"vault-bridge", "workflow-harness"})
+          plugins_for_files(["vault-bridge/a.sh", "feedback-loop/b.py"]),
+          {"vault-bridge", "feedback-loop"})
     check("infra only",
           plugins_for_files(["scripts/x.py", "README.md"]),
           {INFRA_SECTION})
@@ -262,8 +264,8 @@ def run_self_test():
          "files": ["obsidian-vault-manager/skills/wrapup/SKILL.md"]},
         {"sha": "4", "subject": "docs: readme", "body": "", "files": ["README.md"]},
         {"sha": "5", "subject": "chore: bump dep", "body": "", "files": ["scripts/x.py"]},
-        {"sha": "6", "subject": "refactor: tidy router", "body": "",
-         "files": ["workflow-harness/scripts/slice_router.py"]},
+        {"sha": "6", "subject": "refactor: tidy report", "body": "",
+         "files": ["feedback-loop/scripts/report.py"]},
     ]
     sections = build_sections(commits)
     # ovm has Added(base) + Breaking(drop wrapup)
@@ -273,9 +275,9 @@ def run_self_test():
     check("vault-bridge fixed",
           sections.get("vault-bridge", {}).get("Fixed"),
           [("stop-hook loop", None)])
-    check("harness changed",
-          sections.get("workflow-harness", {}).get("Changed"),
-          [("tidy router", None)])
+    check("feedback-loop changed",
+          sections.get("feedback-loop", {}).get("Changed"),
+          [("tidy report", None)])
     # docs/chore omitted → no infra section at all
     check("infra omitted (docs/chore only)",
           INFRA_SECTION in sections, False)

@@ -25,7 +25,7 @@ claude-kit은 **①인지 ②결정화·출력 ③딜리버리 ④지식베이�
 | **②결정화·출력** | 포맷·목적별 산출물 | spec-first(goal-doc) · doc-concretize · doc-polish · graphify(html) · note · issue | claude-kit (leaf) |
 | **③딜리버리** | vault 운반 | vault-bridge | claude-kit (leaf) |
 | **④지식베이스** | vault 상주 관리 | obsidian-vault-manager | claude-kit (leaf) |
-| **⑤실행(doing)** | debug · quality · retro · 슬라이스 루프 · 오케스트레이션 | **현재 OMC / 목표 native 기반 경량 하네스 / strangler 점진 이관** (정적 "⑤=OMC" 아님) | harness (CC 전용) |
+| **⑤실행(doing)** | debug · quality · retro · 슬라이스 루프 · 오케스트레이션 | **현재 OMC / 목표 native 기반 경량 하네스 / strangler 점진 이관** (정적 "⑤=OMC" 아님). **두 배포단위로 분할(#217)**: measure→improve = `feedback-loop`(외부 배포 ⑤, retro+telemetry) / 슬라이스 루프 + invariant enforcement = `dev-harness`(dev-only ⑤, marketplace 미등록). 배포단위≠레이어 — 둘 다 ⑤ harness 계열. | harness (CC 전용) |
 
 claude-kit은 ①②③④를 leaf로 소유하고, ⑤는 native(`/goal`·Workflow·agents·hooks)를 substrate로 한 경량 하네스가 점진 흡수해요. ⑤의 native 위임 경계와 thin gap(정확히 2종 — 슬라이스→스킬 바인딩 라우팅 + 헌법 invariant enforcement)은 `docs/design/omc-to-native-substrate.md`가 확정해요.
 
@@ -60,7 +60,7 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 
 > CON-4 forward-ref: 스키마 자체는 #100 소관이지만, 그 스키마가 "stable harness-neutral contract"라는 제약 안에서 설계돼야 한다는 게 #100 → #99 의존의 실체예요. #100은 이 제약을 전제로 frontmatter·본문 섹션을 확정해요.
 
-> **CON-1 status-machine note** (carve-out, ratified 2026-06-08): CON-1의 "new-file-only / 덮어쓰기 금지"는 **content·whole-file 클로버링**을 금지하는 것이지, frontmatter `status:` 전이를 막는 게 아니에요. v4 status machine(raw→draft→evergreen→archived, `vault-second-brain-v4.md` §3.3)은 설계상 `status:` 필드를 in-place 전이시키므로, **frontmatter-only + user-confirmed + 메인 컨텍스트** status 패치는 CON-1 *안*이에요. 이 carve-out은 (a) leaf write로는 OVM `audit` E2 OPTIONAL-FIX가 이미 행사하고, (b) **harness write로는 `workflow-harness` retro(#123)가 최초**예요 — 둘 다 frontmatter-only·user-confirmed·non-subagent(pre-write-guard 통과) 조건에 한해 허용돼요. body·파일명·경로 변경, 또는 silent(미확인) 패치는 여전히 금지.
+> **CON-1 status-machine note** (carve-out, ratified 2026-06-08): CON-1의 "new-file-only / 덮어쓰기 금지"는 **content·whole-file 클로버링**을 금지하는 것이지, frontmatter `status:` 전이를 막는 게 아니에요. v4 status machine(raw→draft→evergreen→archived, `vault-second-brain-v4.md` §3.3)은 설계상 `status:` 필드를 in-place 전이시키므로, **frontmatter-only + user-confirmed + 메인 컨텍스트** status 패치는 CON-1 *안*이에요. 이 carve-out은 (a) leaf write로는 OVM `audit` E2 OPTIONAL-FIX가 이미 행사하고, (b) **harness write로는 `feedback-loop` retro(#123, #217로 workflow-harness에서 분리)가 최초**예요 — 둘 다 frontmatter-only·user-confirmed·non-subagent(pre-write-guard 통과) 조건에 한해 허용돼요. body·파일명·경로 변경, 또는 silent(미확인) 패치는 여전히 금지.
 
 #### Policy rules (harness-overridable / config-gated)
 
