@@ -24,7 +24,7 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 
 ## PR Workflow
 
-- **Merge strategy**: rebase merge by default (atomic commits preserved, linear history). `--merge` only when an explicit merge commit is needed.
+- **Merge strategy**: **rebase-merge by default** (`gh pr merge --rebase`) — atomic commits preserved, linear history. **Squash is NOT the default**: squash only when the owner explicitly asks, or to collapse genuinely noisy junk history (e.g. a `wip` auto-checkpoint) — and only after confirming with the owner. `--merge` only when an explicit merge commit is needed. **Never force-push `main` to convert a merge strategy after the fact** — if the wrong method was used, recover via the PR mechanism, not a raw push to the default branch. If a `wip` commit would otherwise land on main via rebase-merge, fold it into its slice before merging rather than reaching for squash.
 - **Chained PRs** (child PR base = parent's feature branch):
   - Before merging parent with `--delete-branch`: update child's base to `main` first (`gh pr edit <child> --base main`). GitHub auto-closes PRs whose base branch is deleted, and closed PRs cannot have their base changed — recreate the PR instead.
   - After parent rebase-merges, child branch likely has SHAs that diverged from main (rebase merge rewrites them). Rebase locally with `git rebase --onto origin/main <old-parent-tip>` to drop the now-duplicate commits, then `git push --force-with-lease`.
