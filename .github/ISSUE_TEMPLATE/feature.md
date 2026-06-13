@@ -12,7 +12,7 @@ labels: enhancement
 <!-- 구체적인 방향이 있다면. 없으면 비워도 됩니다. -->
 
 ## 영향 범위 (선택)
-<!-- 어느 플러그인/레이어에 닿는지 (thinking-tools / obsidian-vault-manager / vault-bridge / workflow-harness / infra). -->
+<!-- 어느 플러그인/레이어에 닿는지 (thinking-tools / obsidian-vault-manager / vault-bridge / feedback-loop / dev-harness / infra). -->
 
 ## 관련 이슈·문서 (선택)
 <!-- #번호, docs/ 경로 등. -->

@@ -8,8 +8,9 @@ policy and the release procedure.
 ## Version policy (lockstep)
 
 - **One version for the whole marketplace.** `thinking-tools`, `obsidian-vault-manager`,
-  `vault-bridge`, and `workflow-harness` always carry the same version, mirrored in the
-  root `marketplace.json` `version` and every `plugins[].version`.
+  `vault-bridge`, and `feedback-loop` always carry the same version, mirrored in the
+  root `marketplace.json` `version` and every `plugins[].version`. (`dev-harness` is
+  DEV-ONLY — not marketplace-registered, not part of the lockstep set — #217.)
 - **One tag per release**: `vX.Y.Z`. Plugin-scoped tags are not used.
 - **SemVer is judged across the whole repo**, not per plugin: pick the bump that matches
   the *largest* change shipped in the release.
@@ -70,7 +71,7 @@ the Conventional Commits since the previous tag. Good commit messages → good n
 
 **Commit → plugin mapping**: a commit lands in a plugin's section based on the files it
 touched (`thinking-tools/...` → the thinking-tools section). Commits touching only shared
-infra (`scripts/`, `telemetry/`, `.github/`, `docs/`, root files) land in a final
+infra (`scripts/`, `dev-harness/`, `.github/`, `docs/`, root files) land in a final
 **Repository / infrastructure** section. A commit spanning several plugins appears under
 each — so keep commits scoped to one plugin where practical.
 

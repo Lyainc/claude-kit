@@ -1,7 +1,7 @@
 # RCA Checklist (rules/rca-checklist.md)
 
 A thin **reference** for root-cause analysis in claude-kit. This is a doc, not a skill and
-not a workflow. Nothing executes it; the `retro` skill (workflow-harness) stays a *thin
+not a workflow. Nothing executes it; the `retro` skill (feedback-loop) stays a *thin
 consumer* — when retro routes a finding to the `rule` output, it may link here, but it does
 not embed this procedure (spec `claude-kit-work-rules.yaml` constraint **c7**). Read this
 when a defect or rule-violation is a **repeat**, decide the fix, and stop.

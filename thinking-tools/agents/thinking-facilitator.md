@@ -134,7 +134,7 @@ output sits in an earlier message — the caller then receives the sign-off, not
 - Routing rationale and follow-up suggestions (Session Behavior step 5) are *additive* —
   they accompany the deliverable, never replace it.
 
-(Same contract as OMC `code-reviewer.md`; schema-first alternative in workflow-harness README.)
+(Same contract as OMC `code-reviewer.md`; schema-first alternative in dev-harness README.)
 
 ## Examples
 

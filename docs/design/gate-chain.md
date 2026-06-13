@@ -2,14 +2,14 @@
 
 **Issue**: #134 · **Epic**: #172(⑤ self-hosting 부트스트랩) → #108(⑤ 실행 트랙)
 **Status**: design · **Created**: 2026-06-09
-**선행**: #122(thin 하네스 — 게이트 오케스트레이션 주체) · #132(`docs/design/omc-to-native-substrate.md` §4.2 Gap-INV·§5 P4) · #133(`docs/design/execution-skill-inventory.md` — quality/critique 스킬 판정) · #123(`workflow-harness/skills/retro/SKILL.md` — retro 로직) · #183(`workflow-harness/scripts/invariant_guard.py` — `check_isolated_critique` enforce)
+**선행**: #122(thin 하네스 — 게이트 오케스트레이션 주체) · #132(`docs/design/omc-to-native-substrate.md` §4.2 Gap-INV·§5 P4) · #133(`docs/design/execution-skill-inventory.md` — quality/critique 스킬 판정) · #123(`feedback-loop/skills/retro/SKILL.md` — retro 로직, #217로 이전) · #183(`dev-harness/scripts/invariant_guard.py` — `check_isolated_critique` enforce, #217로 이전)
 **소비처**: slice-router 스킬(#183 — SKILL.md `Phase 3 — ENFORCE`가 게이트 ② 발동 절차) · ⑤ 실행 루프 dogfood(P4 feature-dev goal-doc e2e)
 
 > **이 문서는 게이트의 *오케스트레이션*만 명세해요 — 게이트 *수단*은 재정의하지 않아요.**
 > 4지점 게이트가 호출하는 실제 enforce 로직·스킬 정의는 모두 기존 자산에 있고, 이 문서는 그걸 "언제·어디서·어떤 조건으로" 발동할지만 엮어요(thin orchestration). 단일 출처:
-> - 슬라이스 critique enforce = `workflow-harness/scripts/invariant_guard.py` `check_isolated_critique` (#183)
+> - 슬라이스 critique enforce = `dev-harness/scripts/invariant_guard.py` `check_isolated_critique` (#183, #217로 이전)
 > - quality 스킬 정의 = `docs/design/execution-skill-inventory.md` §1·§3 (#133)
-> - retro 로직 = `workflow-harness/skills/retro/SKILL.md` (#123)
+> - retro 로직 = `feedback-loop/skills/retro/SKILL.md` (#123, #217로 이전)
 > - 헌법 규칙 = `docs/design/claude-kit-boundary.md` §5 (CON-1/CON-3/CON-5)
 >
 > 게이트 수단을 여기서 다시 정의하면 drift가 나요. 아래는 전부 *참조*예요.
@@ -88,7 +88,7 @@ retro(④)는 goal 완료 후 *자동으로 트리거*되지만, retro 내부의
 |------|------|
 | native 우선 | native Agent(별도 컨텍스트 spawn, substrate §2 N3). reviewer 소환은 native Workflow verify 스테이지 / Agent. |
 | 기존 자산(매핑) | `invariant_guard.check_isolated_critique(route_plan)` — critique 바인딩이 spec/impl(author) 바인딩과 disjoint인지 판정(CON-3). qualifier 안에 author를 숨긴 self-approval도 차단. **셀프 검증**: `check_new_file_only`(CON-1 — 산출이 기존 파일 덮어쓰는지). 둘 다 #183이 enforce 완료. |
-| 하네스 역할 | 발동 지점 = slice-router **SKILL.md** `Phase 3 — ENFORCE` 절차(`workflow-harness/skills/slice-router/SKILL.md:98`). 절차를 수행하는 **active agent**가 critique 슬라이스를 **별도 Agent 컨텍스트**로 spawn하고, delegate 전에 `check_isolated_critique(route_plan)`를 호출해 통과시켜요. 겹치면 STOP. **판정 로직 재구현 0** — 게이트 체인은 *언제 호출할지*만 명세하고, 판정은 전부 #183 `invariant_guard`. |
+| 하네스 역할 | 발동 지점 = slice-router **SKILL.md** `Phase 3 — ENFORCE` 절차(`dev-harness/skills/slice-router/SKILL.md:98`). 절차를 수행하는 **active agent**가 critique 슬라이스를 **별도 Agent 컨텍스트**로 spawn하고, delegate 전에 `check_isolated_critique(route_plan)`를 호출해 통과시켜요. 겹치면 STOP. **판정 로직 재구현 0** — 게이트 체인은 *언제 호출할지*만 명세하고, 판정은 전부 #183 `invariant_guard`. |
 | 코드 seam (중요) | `slice_router.py`의 `route()`는 **plan만 생성**해요 — `parse_goal_doc`/`validate_goal_doc`만 import하고 `check_isolated_critique`는 **호출하지 않아요**(스크립트 자동 wiring이 아님). 그 호출은 plan을 *소비*하는 쪽(SKILL.md Phase 3 절차를 도는 active agent, 또는 PreToolUse 핸들러)이 수행해요 — 즉 **게이트 ②는 게이트 체인 자신의 오케스트레이션 책임**이지 라우터 스크립트에 이미 박힌 자동 호출이 아니에요. (`route()` 도크스트링도 "does not summon reviewers"라고 명시 — 라우터는 결정 라이브러리, 게이트는 소비자.) |
 | 발동 조건 | feature-full 라우트에서만(critique 슬라이스 보유 work_type). §2.2 참조. |
 
@@ -211,4 +211,4 @@ retro(④)는 goal 완료 후 *자동으로 트리거*되지만, retro 내부의
 
 ---
 
-**참조**: `docs/design/omc-to-native-substrate.md`(§4.2 Gap-INV·§5 P4 게이트 체인 위치) · `docs/design/execution-skill-inventory.md`(§1·§3 quality 판정) · `docs/design/claude-kit-boundary.md`(§5 CON-1/3/5) · `docs/design/rule-tiers.md`(§1 tier·§2 안전판 4 Kill Switch — 헌법 immutable) · `workflow-harness/skills/slice-router/SKILL.md`(`Phase 3 — ENFORCE` 절차 — 게이트 ② 발동 명세) · `workflow-harness/scripts/invariant_guard.py`(`check_isolated_critique`·`check_new_file_only` — 판정 로직) · `workflow-harness/scripts/slice_router.py`(`route()` — plan 생성만, 게이트 비호출) · `workflow-harness/skills/retro/SKILL.md`(#123 2갈래 scope 구현 소유) · `.github/workflows/validate.yml`(CI 게이트) · #122/#123/#132/#133/#172/#183.
+**참조**: `docs/design/omc-to-native-substrate.md`(§4.2 Gap-INV·§5 P4 게이트 체인 위치) · `docs/design/execution-skill-inventory.md`(§1·§3 quality 판정) · `docs/design/claude-kit-boundary.md`(§5 CON-1/3/5) · `docs/design/rule-tiers.md`(§1 tier·§2 안전판 4 Kill Switch — 헌법 immutable) · `dev-harness/skills/slice-router/SKILL.md`(`Phase 3 — ENFORCE` 절차 — 게이트 ② 발동 명세) · `dev-harness/scripts/invariant_guard.py`(`check_isolated_critique`·`check_new_file_only` — 판정 로직) · `dev-harness/scripts/slice_router.py`(`route()` — plan 생성만, 게이트 비호출) · `feedback-loop/skills/retro/SKILL.md`(#123 2갈래 scope 구현 소유) · `.github/workflows/validate.yml`(CI 게이트) · #122/#123/#132/#133/#172/#183.

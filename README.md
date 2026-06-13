@@ -77,7 +77,11 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 ---
 
-> **workflow-harness** (실험적 · 개발자용): claude-kit의 layer ⑤ 실행 하네스예요. 지금은 claude-kit 자체 개발에 쓰는 거버넌스 스킬과 설치자 자기개선 루프가 한 플러그인에 섞여 있어, 둘로 분리하는 작업이 진행 중이에요 ([#217](https://github.com/Lyainc/claude-kit/issues/217)). 외부 사용 목적이라면 위 세 플러그인을 권해요.
+> **feedback-loop** (실험적 · layer ⑤ 자기개선): measure→review→keep 루프예요 (실행/이터레이션 엔진 아님). `retro` 스킬(세션 회고 + vault 승격 후보 재확인)과 opt-in 로컬 telemetry로 이뤄져요. telemetry는 `CLAUDE_KIT_TELEMETRY=1` 아니면 아무것도 안 쓰고(silent), 턴당 LLM 비용 0, 외부 유출 0이에요. [#217](https://github.com/Lyainc/claude-kit/issues/217)로 자체 개발용 거버넌스(`dev-harness`, 외부 설치 대상 아님)와 분리됐어요.
+>
+> ```bash
+> claude plugin install feedback-loop@Lyainc-claude-kit
+> ```
 
 기능을 작업 흐름별로 보고 싶으면 [4-흐름 카탈로그](docs/design/4-flow-catalog.md)(사고/기획 · 작업/폴리싱 · 시각화 · 지식관리)를 참고하세요.
 

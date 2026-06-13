@@ -72,7 +72,8 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 - `thinking-tools/`: thinking skills plugin with skills for diverse sampling, document concretization/polish, expert panels, unknown discovery, thought chains, adversarial review, plus the `thinking-facilitator` agent.
 - `obsidian-vault-manager/`: Obsidian vault knowledge-management plugin with vault/project/note/inbox/archive/audit skills and vault organization agents.
 - `vault-bridge/`: Obsidian vault I/O bridge with the `vault-searcher` agent (read-only since v1.9.0), slash-command style workflows, hook scripts, slash command based session-note/capture/plan creation, manifest caching, vault write governance (VAULT_BRIDGE_WRITE_CONTRACT), plan-doc sync, and portable vault location via `userConfig.vault_path` / `VAULT_BRIDGE_VAULT_PATH` (v1.13.0+).
-- `workflow-harness/`: layer ⑤ execution harness — a lightweight orchestration plugin on Claude Code native primitives (`/goal`, Workflow, agents, hooks). Skills: `retro` (audit E8 promotion + 3-branch output + dedup + budget), `handoff-plan` (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings), and `slice-router` (goal-doc execution router: #100 schema validation (INV-4) + 4-way work_type slice routing + D5 constitutional invariant enforcement, #183). One-way dependency (CON-5): harness → leaf plugins (vault-bridge / obsidian-vault-manager) + a read of the project-local telemetry dogfooding output; reverse imports forbidden. Thin entry, not a full OMC-strangler engine.
+- `feedback-loop/`: layer ⑤ self-improvement plugin (measure→review→keep — NOT an execution engine; **externally distributed**, #217). Skill: `retro` (audit E8 promotion + 3-branch output + dedup + budget) + absorbed telemetry (opt-in `CLAUDE_KIT_TELEMETRY=1`, deterministic event-logger hooks, zero per-turn LLM cost, local-only). One-way dependency (CON-5): reads leaf OUTPUT + telemetry events, never imports leaf code.
+- `dev-harness/`: layer ⑤ development-governance harness (**DEV-ONLY — not in marketplace.json, never installed by external users**, #217). Skills: `handoff-plan` (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings) and `slice-router` (goal-doc execution router: #100 schema validation (INV-4) + 4-way work_type slice routing + D5 constitutional invariant enforcement, #183), plus `workflows/feature-full.js` (#201 DELEGATE carrier, structural CON-3). One-way dependency (CON-5): dev-harness → leaf plugins + feedback-loop (rule_fire emit-only); reverse imports forbidden. Thin entry, not a full OMC-strangler engine.
 
 ### Repository conventions
 
@@ -122,10 +123,12 @@ python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
 python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
-python3 -m json.tool workflow-harness/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool dev-harness/.claude-plugin/plugin.json > /dev/null
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
-find workflow-harness/skills -name "SKILL.md" | sort
+find feedback-loop/skills -name "SKILL.md" | sort
+find dev-harness/skills -name "SKILL.md" | sort
 
 # thinking-tools trigger-regression self-test (run after editing any SKILL.md description)
 python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
@@ -141,13 +144,14 @@ python3 scripts/check-ci-coverage.py         # CI runs this as --strict: a cover
 python3 scripts/bump-version.py --self-test
 python3 scripts/gen-release-notes.py --self-test
 
-# telemetry schema + report regression
-python3 telemetry/scripts/validate-schema.py --self-test
-python3 telemetry/scripts/test/test-report.py
+# feedback-loop telemetry schema + report regression (#217 — telemetry absorbed)
+python3 feedback-loop/scripts/validate-schema.py --self-test
+python3 feedback-loop/scripts/test/test-report.py
+bash feedback-loop/scripts/test/test-event-logger.sh
 
-# workflow-harness (layer ⑤) slice router + D5 invariant guards (#183)
-python3 workflow-harness/scripts/test/test-router.py      # Expected: OK: all 11 cases passed
-python3 workflow-harness/scripts/test/test-invariant.py   # Expected: OK: all 37 cases passed
+# dev-harness (layer ⑤, dev-only) slice router + D5 invariant guards (#183/#217)
+python3 dev-harness/scripts/test/test-router.py      # Expected: OK: all 11 cases passed
+python3 dev-harness/scripts/test/test-invariant.py   # Expected: OK: all 42 cases passed
 ```
 
 For `audit` definition-of-done checks:
