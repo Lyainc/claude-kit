@@ -26,6 +26,7 @@ jobs:
           python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
           python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
           python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
+          python3 -m json.tool workflow-harness/.claude-plugin/plugin.json > /dev/null
           echo "All JSON manifests valid"
 
       - name: Check marketplace governance guards
@@ -59,6 +60,10 @@ jobs:
 
           python3 scripts/check-ci-coverage.py --self-test
           python3 scripts/check-ci-coverage.py --strict
+
+          # Release tooling self-tests (lockstep bump + per-plugin notes generation).
+          python3 scripts/bump-version.py --self-test
+          python3 scripts/gen-release-notes.py --self-test
           echo "Governance guards OK"
 
       - name: Check work-rules guards (#216)

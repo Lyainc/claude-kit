@@ -133,8 +133,13 @@ python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
 # Marketplace governance gates (#134/#175): both BLOCK on failure
 python3 scripts/check-version-sync.py --self-test
 python3 scripts/check-version-sync.py        # exit 1 = version/desc/keyword drift, exit 3 = manifest missing (release-blocking)
+python3 scripts/check-version-sync.py --fix  # reconcile marketplace.json from plugin.json (plugin.json wins)
 python3 scripts/check-ci-coverage.py --self-test
 python3 scripts/check-ci-coverage.py         # CI runs this as --strict: a coverage gap BLOCKS
+
+# Release tooling self-test (lockstep bump + per-plugin notes) — see RELEASING.md
+python3 scripts/bump-version.py --self-test
+python3 scripts/gen-release-notes.py --self-test
 
 # telemetry schema + report regression
 python3 telemetry/scripts/validate-schema.py --self-test
@@ -178,6 +183,7 @@ python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 - Branch names should use `feature/`, `fix/`, `docs/`, or `refactor/` prefixes.
 - PR descriptions should be Korean.
 - For Codex/OMX-authored commits in this workspace, follow the Lore Commit Protocol below; if preparing instructions specifically for Claude Code contributors, preserve the existing Conventional Commit expectation from `CLAUDE.md`.
+- Releases are **lockstep** (all plugins share one version, single tag `vX.Y.Z`), cut manually via the `Release` GitHub Actions workflow. Conventional Commits feed the per-plugin release notes (`scripts/gen-release-notes.py`). Do not bump versions by hand — see `RELEASING.md`.
 
 ### Cross-plugin boundaries
 
