@@ -12,13 +12,27 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-TELEMETRY_DIR = SCRIPT_DIR.parent
-EVENTS_DIR = TELEMETRY_DIR / "events"
+PLUGIN_DIR = SCRIPT_DIR.parent          # feedback-loop/
+
+
+def resolve_events_dir() -> Path:
+    """User-writable events dir (mirrors event-logger.sh + report.py):
+        ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
+    """
+    env = os.environ.get("CLAUDE_KIT_TELEMETRY_DIR")
+    if env:
+        return Path(env)
+    proj = os.environ.get("CLAUDE_PROJECT_ROOT") or os.getcwd()
+    return Path(proj) / ".claude-kit" / "telemetry" / "events"
+
+
+EVENTS_DIR = resolve_events_dir()
 
 REQUIRED_FIELDS = {
     "ts": str,
@@ -37,6 +51,12 @@ REQUIRED_FIELDS = {
 VALID_EVENTS = {
     "skill_invoke", "agent_spawn", "command_run",
     "session_start", "session_end", "stop",
+    # rule_fire — #216 c8 / #217: a work-rules guard firing (check-*.py violation
+    # or task-end checklist reminder). feedback-loop OWNS this schema; dev-harness
+    # rule-checks only EMIT to it (a data contract, never a code import — CON-5 safe).
+    # meta is free-form per the envelope rule; conventional keys: rule_id (str),
+    # severity ('hard'|'soft'), file (str), count (int). All optional.
+    "rule_fire",
 }
 
 # Under --strict, a PostToolUse end event (skill_invoke/agent_spawn with a

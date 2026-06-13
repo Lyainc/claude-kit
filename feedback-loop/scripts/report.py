@@ -14,15 +14,32 @@ from __future__ import annotations
 import argparse
 import json
 import math
+import os
 import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 SCRIPT_DIR = Path(__file__).resolve().parent
-TELEMETRY_DIR = SCRIPT_DIR.parent
-EVENTS_DIR = TELEMETRY_DIR / "events"
-REPO_ROOT = TELEMETRY_DIR.parent
+PLUGIN_DIR = SCRIPT_DIR.parent          # feedback-loop/
+REPO_ROOT = PLUGIN_DIR.parent           # repo root (holds */skills/*/SKILL.md)
+
+
+def resolve_events_dir() -> Path:
+    """Events live in a user-writable dir, NOT the plugin install cache.
+
+    Single shared rule (mirrors event-logger.sh + retro):
+        ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
+    CLAUDE_PROJECT_ROOT falls back to CWD when unset (CLI / test invocation).
+    """
+    env = os.environ.get("CLAUDE_KIT_TELEMETRY_DIR")
+    if env:
+        return Path(env)
+    proj = os.environ.get("CLAUDE_PROJECT_ROOT") or os.getcwd()
+    return Path(proj) / ".claude-kit" / "telemetry" / "events"
+
+
+EVENTS_DIR = resolve_events_dir()
 
 # Stale threshold for lifecycle view (days since last use).
 _STALE_DAYS = 14

@@ -4,6 +4,11 @@
 Phase 1 W3 deliverable. Skeleton here exposes the CLI shape and a minimal
 2-gram count so the surface is locked in before full impl.
 
+Untested-by-design: retro invokes this as a best-effort waste signal with
+`2>/dev/null` (SKILL.md Phase 1 §3), so a missing-events / empty-output run is a
+tolerated no-op rather than a failure. The n-gram logic is a thin wrapper over
+report.load_events (covered by test-report.py); no dedicated regression gate.
+
 Usage:
     sequence.py [--since=Nd] [--n=2|3] [--top=N]
 """

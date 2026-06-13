@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# telemetry/event-logger.sh — claude-kit Phase 1 local dogfooding logger.
+# feedback-loop/scripts/event-logger.sh — claude-kit local dogfooding logger.
 #
 # Opt-in: logs only when CLAUDE_KIT_TELEMETRY=1. Otherwise silent exit 0.
 #
@@ -8,15 +8,18 @@
 #     Claude's context; any stray output pollutes the model. All writes go to
 #     files; jq errors are swallowed.
 #   - jsonl append uses POSIX O_APPEND single write() for sub-PIPE_BUF lines
-#     (~600B by schema). Lockless by design — see telemetry/README.md
+#     (~600B by schema). Lockless by design — see feedback-loop/README.md
 #     "Lock strategy" for the atomicity argument.
 #   - Hook failures must never break a turn — jq errors and missing fields
 #     fall through to a best-effort entry or silent exit.
 #
-# Phase 2 portability (rev3 Principle #6):
-#   - Path uses ${BASH_SOURCE[0]}-resolved SCRIPT_DIR (self-relative). No
-#     hard-coded absolute paths inside this handler.
-#   - Migration map: telemetry/ → ${CLAUDE_PLUGIN_ROOT}/scripts/ at Phase 2.
+# Path resolution (CON-2 deterministic):
+#   - ${CLAUDE_PLUGIN_ROOT} resolves THIS handler in the plugin.json hook command
+#     path only — never the events output path.
+#   - The events OUTPUT dir is user-writable (NOT the plugin install cache):
+#       ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
+#     This is the single events-dir rule shared by retro + report/validate scripts.
+#   - plugin-map.json ships with the plugin, so it stays SCRIPT_DIR-relative.
 #
 # Invocation:
 #   event-logger.sh <event_type>   < hook_payload_json
@@ -32,9 +35,12 @@ set -uo pipefail
 # --- 1. Opt-in gate (silent exit if not enabled) ---------------------------
 [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] || exit 0
 
-# --- 2. Resolve telemetry root from script location ------------------------
+# --- 2. Resolve paths ------------------------------------------------------
+# plugin-map.json ships with the plugin (SCRIPT_DIR-relative). The events dir is
+# user-writable and resolved by the single shared rule (env override → project
+# root → never the install cache).
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || exit 0
-LOG_DIR="${SCRIPT_DIR}/events"
+LOG_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT:-$PWD}/.claude-kit/telemetry/events}"
 LOG_FILE="${LOG_DIR}/events-$(date -u +%Y-%m-%d).jsonl"
 PLUGIN_MAP="${SCRIPT_DIR}/plugin-map.json"
 

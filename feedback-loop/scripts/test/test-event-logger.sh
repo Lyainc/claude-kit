@@ -23,7 +23,8 @@
 set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-LOGGER="${SCRIPT_DIR}/../../event-logger.sh"
+# event-logger.sh sits one level up (scripts/), test lives in scripts/test/.
+LOGGER="${SCRIPT_DIR}/../event-logger.sh"
 
 if [ ! -f "$LOGGER" ]; then
   printf 'FAIL: cannot find event-logger.sh at %s\n' "$LOGGER" >&2
