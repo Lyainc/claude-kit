@@ -1,0 +1,4 @@
+# Blank issues stay enabled — this is a small, single-maintainer repo where a quick
+# free-form issue (decide:/design:/refactor:/chore: …) is often the right shape. The
+# two templates above are conveniences, not gates.
+blank_issues_enabled: true

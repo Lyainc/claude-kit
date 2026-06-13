@@ -1,101 +1,89 @@
 # claude-kit
 
-Claude Code용 **스킬 플러그인 마켓플레이스**. 독립적인 플러그인들을 하나의 저장소에서 관리합니다.
+**Claude Code가 같이 생각해주는 도구 모음.**
 
-## 플러그인 버전
+브레인스토밍하고, 주장의 약점을 반증하고, 결정을 다관점으로 검토하고 — 그 사고 과정을 지식으로 남겨요. `thinking-tools`는 코드와 무관해서 **기획·글쓰기·리서치·의사결정에 바로** 쓸 수 있어요.
 
-| 플러그인 | 버전 | 구성 |
-|---|---|---|
-| [thinking-tools](thinking-tools/) | `2.2.0` | 스킬 8 + 에이전트 1 |
-| [obsidian-vault-manager](obsidian-vault-manager/) | `0.19.0` | 스킬 4 (capture/note/audit/base) + 에이전트 2 + scripts (ovm-primitives) + reference (vault-audit-rules) |
-| [vault-bridge](vault-bridge/) | `2.1.0` | 에이전트 1 (read-only) + 훅 5 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read\|Grep\|Glob / PreToolUse Write\|Edit) + 슬래시 커맨드 6 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/save-plan-doc`, `/handoff`) (구 `vault-reader`) |
-| [workflow-harness](workflow-harness/) | `0.2.0` | 스킬 1 (retro) — layer ⑤ 실행 하네스 (audit E8 승격 + 3갈래 출력 + dedup + 회고예산) |
+```bash
+claude plugin marketplace add Lyainc/claude-kit
+claude plugin install thinking-tools@Lyainc-claude-kit
+```
 
-## 4-흐름 카탈로그
+> 플러그인은 전부 독립적이에요. 하나만 깔아도 되고, 전부 깔아 **사고 → 기록**으로 이어도 돼요.
+> 최신 버전은 [Releases](https://github.com/Lyainc/claude-kit/releases) 참고 (lockstep — 모든 플러그인이 같은 버전으로 함께 배포).
 
-claude-kit은 사용자의 직관적인 활용을 위해 기능을 4가지 주요 흐름(Flow)으로 논리적으로 묶어 제공합니다. 이는 물리적 재구조화가 아니며, 기존 5-레이어 구조와 직교(Orthogonal)로 매핑됩니다 (CON-5 위반 회피). 이 논리적 묶음은 #117 setup-wizard의 온보딩 제안과 연결됩니다. 자세한 매핑 구조는 [`docs/design/4-flow-catalog.md`](docs/design/4-flow-catalog.md)를 참고하세요.
+## 왜 claude-kit인가
 
-| 4-흐름 (Logical Flow) | 매핑되는 5-레이어 (Physical) |
-| --- | --- |
-| **사고/기획** | ①인지, ②결정화·출력, ⑤실행 |
-| **작업/폴리싱** | ①인지, ②결정화·출력, ⑤실행 |
-| **시각화** | ②결정화·출력 |
-| **지식관리** | ③딜리버리, ④지식베이스 |
+Claude Code와의 작업은 강력하지만 세 가지가 아쉬워요:
 
-## 플러그인 목록
+- 생각을 **체계적으로** 끌어내는 도구가 없어요 — 그냥 물어보는 것 이상이 안 돼요
+- 좋은 결론도 세션이 끝나면 **흩어져요**
+- 매번 같은 사고 과정을 **처음부터** 반복해요
 
-### [thinking-tools](thinking-tools/)
+claude-kit은 이걸 *도구*로 만들어요. **사고**(`thinking-tools`)로 끌어내고, **기록·지식관리**(`vault-bridge` · `obsidian-vault-manager`)로 남겨요. 하나로 이어지는 흐름이지만, 스킬 하나만 따로 써도 강력해요.
 
-분석, 문서 작성, 품질 검증을 위한 사고 도구 스킬 플러그인. 8개 스킬 + 1개 에이전트.
+## 플러그인
+
+### thinking-tools — 사고 도구 (비개발자도 OK)
+
+"그냥 답해줘"가 아니라 **체계적으로 같이 생각해요.** 코드와 무관해서 기획·글쓰기·리서치·의사결정에 바로 써요.
+
+| 이럴 때 | 스킬 |
+|---|---|
+| 아이디어를 여러 갈래로 펼치고 싶을 때 | `diverse-sampling` — 브레인스토밍 (Verbalized Sampling) |
+| 내 주장·계획의 약점을 찾고 싶을 때 | `adversarial-review` — 반증 + Survival Score |
+| 결정을 다관점으로 검토하고 싶을 때 | `expert-panel` — 전문가 패널 토론 |
+| 놓친 맹점을 발견하고 싶을 때 | `unknown-discovery` — 블라인드 스팟 인터뷰 |
+| 모호한 생각을 문서·스펙으로 정리할 때 | `doc-concretize` · `spec-first` |
+| 다 쓴 문서를 다듬고 싶을 때 | `doc-polish` |
+
+`thinking-facilitator` 에이전트가 요청을 분석해 알맞은 스킬로 자동 안내해요. (여러 스킬을 한 번에 잇고 싶으면 `thought-chain`.)
 
 ```bash
 claude plugin install thinking-tools@Lyainc-claude-kit
 ```
 
-| Component | Description |
-| --- | --- |
-| `diverse-sampling` | Verbalized Sampling 기반 다양한 응답 생성 |
-| `doc-concretize` | 추상적 개념을 구조화된 문서로 변환 |
-| `doc-polish` | 마크다운 문서 3-layer QA 검증 |
-| `expert-panel` | 변증법적 전문가 패널 토론 |
-| `unknown-discovery` | 반복 인터뷰를 통한 맹점 발견 |
-| `thought-chain` | 스킬 파이프라인 오케스트레이션 |
-| `adversarial-review` | 주장 반증 테스트 + Survival Score 정량 평가 |
-| `spec-first` | 모호한 아이디어를 machine-readable Seed 스펙으로 구체화 (Socratic + ambiguity gate) |
-| `thinking-facilitator` (agent) | 요청을 분석하여 최적 스킬로 자동 라우팅 |
+### obsidian-vault-manager — 지식 관리
 
-### [obsidian-vault-manager](obsidian-vault-manager/)
+작업하며 알게 된 걸 Obsidian vault(plain Markdown)에 쌓고 관리해요. 앱이 아니라 **사용자 소유 파일**에 지식이 상주해요.
 
-Obsidian vault 지식 관리 플러그인 (v4). 2개 에이전트 + 4개 스킬.
+| 스킬 | 하는 일 |
+|---|---|
+| `capture` | 즉시 메모 저장 (+ URL 본문 자동 추출) |
+| `note` | 노트 생성 + MOC·프로젝트 연결 |
+| `audit` | vault 구조 무결성 감사 (E1–E11 오류 + 승격 후보 추적) |
+| `base` | 비파괴 Obsidian Bases(.base) 뷰 생성 |
 
 ```bash
 claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 ```
 
-| Component | Description |
-| --- | --- |
-| `vault-knowledge-manager` (agent) | 메인 에이전트 — 노트 생성, MOC 관리, 프로젝트 추적 |
-| `vault-file-organizer` (agent) | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
-| `capture` | 즉시 Inbox에 메모 저장 + URL Defuddle 추출 옵션 |
-| `note` | 새 노트 생성 + MOC 연결 + 프로젝트 연결 옵션 |
-| `audit` | vault 구조 무결성 감사 — E1-E11 오류 감지 (P0-P2 우선순위), promotion candidate 추적 |
-| `base` | 비파괴 Obsidian Bases(.base) 뷰 생성 |
+### vault-bridge — 프로젝트 ↔ vault 브릿지
 
-### [vault-bridge](vault-bridge/)
+외부 코드 프로젝트에서 vault에 접근하고, 세션 작업을 기록으로 남겨요. haiku 기반 읽기 전용 검색 에이전트 + 기록 슬래시 커맨드 + 결정형 훅(턴당 LLM 비용 0).
 
-> v1.0.0에서 `vault-reader` → `vault-bridge`로 리네이밍 (read-only 뉘앙스 제거, 외부 프로젝트↔vault 양방향 브릿지 역할 반영).
+| 커맨드 | 하는 일 |
+|---|---|
+| `/save-session` | 세션 노트 작성 (record / handoff / quick) |
+| `/vault-link` | 프로젝트를 특정 vault 위치에 바인딩 |
+| `/handoff` | 다음 세션 이어가기용 프롬프트 생성 |
+| `/vault-commit` | vault 변경사항 커밋 |
 
-외부 프로젝트에서 Obsidian vault에 접근하는 브릿지 플러그인. `vault-searcher` 에이전트(Haiku)가 **proactive invocation**으로 `~/vault/` 접근 시 자동 소환됩니다.
+이 외에 `/vault-manifest-refresh`, `/save-plan-doc`, 그리고 세션 생명주기 안전망 훅 5종이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
 
 ```bash
 claude plugin install vault-bridge@Lyainc-claude-kit
 ```
 
-| Component | Description |
-| --- | --- |
-| `vault-searcher` (agent) | 3-mode read/search I/O: (1) Session Restore, (2) Domain Context Load, (3) Keyword Search (optional Obsidian CLI acceleration). **Read-only since v1.9.0** — vault writes route through slash commands (`/save-session`, `/save-plan-doc`, `/vault-commit`) executed in main context. |
-| Stop hook | 매 턴 실행 (결정형 셸). 세션 종료 신호(`세션 끝`, `wrap up` 등) 감지 시 `/save-session` 제안 `systemMessage` 방출 |
-| SessionEnd hook | 세션 종료 시 silent 안전망 — meaningful work(파일 수정/볼트 읽기/결정 기록/코드 실행/리서치 중 하나 + 3턴 이상) 감지 시 자동 quick-save |
-| `/save-session` | 사용자가 명시적으로 호출하는 슬래시 커맨드 — record/handoff/quick 3-mode 세션 노트 작성을 main context에서 inline 실행 |
-| `/vault-link` | 현재 디렉토리에 `.vault-link` 포인터 파일 생성 — 코드 리포를 특정 vault 프로젝트에 바인딩. 검색 스코프 제한 + `/save-session` 저장 경로 자동 결정 |
-| `/vault-manifest-refresh` | vault manifest 강제 재생성 — `~/vault/.vault-bridge/manifest.json` 갱신. 토큰 절감 효과: 도메인 컨텍스트 로드 시 ~97% 절감 |
-| `/vault-commit` | vault git 리포의 미커밋 변경사항 commit — 변경 요약 표시, 커밋 메시지 자동 생성, 사용자 승인 후 실행 |
-| `/save-plan-doc` | 외부 프로젝트의 plan/design/RFC 문서를 바인딩된 vault 프로젝트에 스냅샷으로 저장 — 2-layer opt-in gate(`.vault-link`의 `snapshot_export: true` + vault `_index.md`의 `snapshot_import: true`), 5-case source_commit fallback, 본문 기준 중복 제거 |
-| SessionStart hook | 세션 시작 시 manifest staleness 체크 → 변경 파일만 incremental 업데이트 (백그라운드, 세션 차단 없음) |
-| PreToolUse hook (Read\|Grep\|Glob) | `Read`/`Grep`/`Glob`으로 `~/vault/` 직접 접근 감지 → vault-searcher 사용 권장 `systemMessage` 방출 (soft warning, 차단 없음). 세션 직접 접근 횟수 카운팅 → SessionEnd 요약에 포함 |
-| PreToolUse hook (Write\|Edit) | `Write`/`Edit`으로 `~/vault/` 쓰기 시 파일명 컨벤션 검증 → 위반 시 `systemMessage` 경고 (log-only 기본). `VAULT_BRIDGE_STRICT_NAMING=1` 시 차단 (exit 2) |
+---
 
-자세한 3-mode 동작, `.vault-link` 포인터 파일 컨벤션, Write Role 정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
+> **workflow-harness** (실험적 · 개발자용): claude-kit의 layer ⑤ 실행 하네스예요. 지금은 claude-kit 자체 개발에 쓰는 거버넌스 스킬과 설치자 자기개선 루프가 한 플러그인에 섞여 있어, 둘로 분리하는 작업이 진행 중이에요 ([#217](https://github.com/Lyainc/claude-kit/issues/217)). 외부 사용 목적이라면 위 세 플러그인을 권해요.
 
-### [workflow-harness](workflow-harness/)
+기능을 작업 흐름별로 보고 싶으면 [4-흐름 카탈로그](docs/design/4-flow-catalog.md)(사고/기획 · 작업/폴리싱 · 시각화 · 지식관리)를 참고하세요.
 
-> **v0.2.0 — thin scaffold + 첫 스킬 `retro`** — layer ⑤(실행) 경량 하네스. 전체 OMC-strangler 엔진(#122)이 아니라, ⑤ 스킬이 경계 계약을 지키며 점진 입주하는 구조예요. 첫 입주: `retro`(#123) — 측정→개선 루프를 닫는 회고 스킬.
+## 빠른 시작 — vault second brain
 
-Claude Code 네이티브 기능(`/goal`, dynamic Workflow, agents, hooks)을 substrate로 한 경량 오케스트레이션 플러그인. **단방향 의존(CON-5)**: `workflow-harness`(harness) → leaf 플러그인(`vault-bridge`·`obsidian-vault-manager`) + 프로젝트 로컬 `telemetry/` dogfooding 출력(플러그인 아님). 역방향·순환 금지. 자세한 경계는 [`docs/design/claude-kit-boundary.md`](docs/design/claude-kit-boundary.md) §3/§5, 로드맵은 [workflow-harness/README.md](workflow-harness/README.md) 참조.
-
-## 빠른 시작 (신규 사용자)
-
-5분 안에 vault second brain을 시작하는 방법이에요.
+`thinking-tools`는 설치 후 자연어로 바로 써요 ("브레인스토밍 해줘", "이 주장 반증해줘"). 아래는 vault 기반 지식 관리를 5분 안에 시작하는 방법이에요.
 
 ### 1. vault 초기화
 
@@ -127,7 +115,7 @@ Claude Code를 재시작하면 적용됩니다.
 /vault-link
 ```
 
-`.vault-link` 파일이 생성되면 이후 `/save-session`, `/save-plan-doc`이 이 프로젝트 경로로 자동 저장됩니다.
+`.vault-link` 파일이 생성되면 이후 `/save-session`이 이 프로젝트 경로로 자동 저장됩니다.
 
 ### 4. 첫 캡처
 
@@ -146,8 +134,6 @@ Claude Code를 재시작하면 적용됩니다.
 ```
 
 record / handoff / quick 모드 중 선택 후 `~/vault/inbox/` 또는 연결된 프로젝트 폴더에 저장됩니다.
-
----
 
 ## 마이그레이션
 
@@ -202,7 +188,9 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ## 개발
 
-개발자 가이드는 [CLAUDE.md](CLAUDE.md) 참조.
+- 개발자 가이드: [CLAUDE.md](CLAUDE.md)
+- 기여 가이드 (커밋 컨벤션·리뷰 라운드 정책): [CONTRIBUTING.md](CONTRIBUTING.md)
+- 릴리스 정책·절차 (lockstep): [RELEASING.md](RELEASING.md)
 
 ## 라이선스
 
