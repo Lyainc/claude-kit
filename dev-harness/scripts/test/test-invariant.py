@@ -329,7 +329,7 @@ def test_inv5_leaf_plugin_import_caught() -> None:
 def test_inv5_leaf_shellout_caught() -> None:
     v = check_one_way_dependency(
         "obsidian-vault-manager/scripts/z.sh",
-        "python3 workflow-harness/scripts/slice_router.py $doc",
+        "python3 dev-harness/scripts/slice_router.py $doc",
     )
     assert v is not None, "leaf shelling out to harness script not caught"
     print("PASS test_inv5_leaf_shellout_caught")
@@ -369,21 +369,21 @@ def test_inv5_commented_out_import_not_flagged() -> None:
 
 def test_inv5_harness_self_import_allowed() -> None:
     # harness importing its own sibling module is fine — one-way constrains leaf→harness
-    v = check_one_way_dependency("workflow-harness/scripts/slice_router.py", "import invariant_guard")
+    v = check_one_way_dependency("dev-harness/scripts/slice_router.py", "import invariant_guard")
     assert v is None, "harness self-import wrongly flagged as INV-5"
     print("PASS test_inv5_harness_self_import_allowed")
 
 
 def test_inv5_leaf_prose_citation_allowed() -> None:
     # prose that merely NAMES the harness (boundary citation) is not a reverse dependency
-    v = check_one_way_dependency("vault-bridge/README.md", "Bound by CON-5 (see workflow-harness boundary §5).")
+    v = check_one_way_dependency("vault-bridge/README.md", "Bound by CON-5 (see dev-harness boundary §5).")
     assert v is None, "leaf prose citing the harness wrongly flagged"
     print("PASS test_inv5_leaf_prose_citation_allowed")
 
 
 def test_inv5_non_leaf_path_ignored() -> None:
-    # a non-leaf file (e.g. telemetry, docs) is not constrained by INV-5
-    v = check_one_way_dependency("telemetry/scripts/report.py", "from slice_router import route")
+    # a non-leaf file (e.g. feedback-loop telemetry, docs) is not constrained by INV-5
+    v = check_one_way_dependency("feedback-loop/scripts/report.py", "from slice_router import route")
     assert v is None, "non-leaf path wrongly constrained by INV-5"
     print("PASS test_inv5_non_leaf_path_ignored")
 

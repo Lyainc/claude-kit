@@ -1,0 +1,23 @@
+{
+  "name": "dev-harness",
+  "version": "0.5.0",
+  "description": "claude-kit layer ⑤ development-governance harness (DEV-ONLY — not registered in marketplace.json, never installed by external users). Governs claude-kit's own build loop on Claude Code native primitives: the slice-router skill (goal-doc execution router — #100 schema validation INV-4 + 4-way work_type slice routing + D5 constitutional invariant enforcement), the handoff-plan skill (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings), and workflows/feature-full.js (feature-full DELEGATE carrier — impl→critique as separate agent() stages, structural CON-3). One-way dependency (CON-5): dev-harness → leaf plugins + feedback-loop (emits rule_fire to feedback-loop's telemetry schema, a data contract, no code import); reverse forbidden. The installer-facing self-improvement loop (retro + telemetry) lives in the separate feedback-loop plugin (#217).",
+  "author": {
+    "name": "Lyainc",
+    "url": "https://github.com/Lyainc"
+  },
+  "homepage": "https://github.com/Lyainc/claude-kit",
+  "repository": "https://github.com/Lyainc/claude-kit",
+  "license": "MIT",
+  "keywords": [
+    "dev-harness",
+    "dev-governance",
+    "slice-router",
+    "handoff-plan",
+    "feature-full",
+    "invariant-enforcement",
+    "goal-doc",
+    "native-substrate",
+    "workflow-script"
+  ]
+}

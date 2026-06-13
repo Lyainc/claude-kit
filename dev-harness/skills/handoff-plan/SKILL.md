@@ -22,7 +22,7 @@ skills — it *plans the loop*, it does not author content.
 
 ## Physical-location ruling (#140 gate — ratified at build, G15)
 
-**This skill lives in ⑤ `workflow-harness`, not a ② leaf plugin.** Rationale (the
+**This skill lives in ⑤ `dev-harness`, not a ② leaf plugin.** Rationale (the
 #140 one-line record): the deliverable's center of gravity is the **goal-doc slice
 binding that feeds the slice loop** (next-session `/goal` entry) — that is ⑤ slice-loop
 work, not ② output authoring. A ⑤ skill reading `gh` (external) and writing a
@@ -30,8 +30,9 @@ goal-doc (a ⑤ artifact) keeps the dependency one-way (CON-5): no leaf depends 
 on it. The existing **vault-bridge `/handoff` (③ delivery)** stays the
 *continuation-prompt generator* (session-to-session handoff); this skill is the
 *backlog chunking → goal-doc* planner. **Distinct roles — no duplicate definition.**
-(C-2 "no thin new plugin" does not apply: `workflow-harness` is the ⑤ home already
-established in G14; this skill moves in there.)
+(C-2 "no thin new plugin" does not apply: `dev-harness` is the ⑤ dev-governance home
+the harness split — #217 — relocated this skill into; the ⑤ home was first established
+as `workflow-harness` in G14.)
 
 ## Boundary & safety (constitutional — do not relax)
 
@@ -88,7 +89,7 @@ user-confirmed gate.
    `Refs #N`, `depends_on`, `Parent Epic: #N`, "선행", "후속", "blocked by". Build a
    lightweight `{issue → {refs:[...], epic:#N|null, domain, labels}}` map. Domain
    is inferred from labels + path hints in the body (e.g. `vault-bridge`,
-   `workflow-harness`, `telemetry`, `obsidian-vault-manager`, `docs/design`).
+   `dev-harness`, `feedback-loop`, `obsidian-vault-manager`, `docs/design`).
    > `gh issue list --json body` can truncate very long bodies, so a dependency signal
    > buried deep in one may be missed silently. When a chunk's deps look thin against a
    > visibly long issue, fall back to `gh issue view <n> --json body` for the full text

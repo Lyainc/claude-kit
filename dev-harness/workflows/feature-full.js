@@ -261,6 +261,10 @@ const implPrompt = [
   "",
   "Do NOT run the spec slice (already done in main context).",
   "Do NOT run the critique slice (a separate isolated agent will do that).",
+  "Do NOT commit, push, or create PRs — leave ALL changes in the working tree.",
+  "The main context owns git. Committing breaks the isolated-critique premise",
+  "(the critique reviews an uncommitted diff), and a push/PR is an unapproved",
+  "outward-facing action. (#209: subagent git side-effect contract, rules/RULES.md §1.)",
   "Stay within the impl slice scope defined by the routing plan.",
 ].join("\n");
 

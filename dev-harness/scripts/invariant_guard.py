@@ -498,9 +498,9 @@ def run_self_test() -> int:
     # INV-5: leaf importing harness
     if check_one_way_dependency("vault-bridge/scripts/x.py", "from invariant_guard import validate_goal_doc") is None:
         failures.append("  leaf→harness import not caught")
-    if check_one_way_dependency("workflow-harness/scripts/slice_router.py", "import invariant_guard") is not None:
+    if check_one_way_dependency("dev-harness/scripts/slice_router.py", "import invariant_guard") is not None:
         failures.append("  harness self-import wrongly flagged as INV-5")
-    if check_one_way_dependency("vault-bridge/README.md", "see workflow-harness boundary §5 CON-5") is not None:
+    if check_one_way_dependency("vault-bridge/README.md", "see dev-harness boundary §5 CON-5") is not None:
         failures.append("  leaf prose citing harness wrongly flagged")
 
     if failures:
