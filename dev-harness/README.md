@@ -57,6 +57,35 @@ dev-harness   ─────▶  vault-bridge            (leaf ③ delivery)
   telemetry events, whose schema `feedback-loop` owns (#216 c8). Emitting to a data
   contract is not a code dependency — `dev-harness` never imports `feedback-loop`.
 
+## Portability — zero runtime dependency on local-harness (§0)
+
+This harness is **self-contained**: it carries **zero runtime/build dependency** on the
+developer's machine-level policy base (`~/.claude/rules/`, the *local-harness* MVP), so a
+public clone builds and runs on any machine. Canonical statement of this boundary:
+[`docs/design/claude-kit-boundary.md`](../docs/design/claude-kit-boundary.md)
+(claude-kit ↔ local-harness §0); the work-rule-layer form is `rules/RULES.md` §0.
+
+**"Self-contained (자족)" ≠ no shared ideas.** claude-kit holds its *own concrete form* of any
+policy it needs — the **concretization of a machine-level abstract, not an identical copy and
+not a runtime fetch**. The link to the abstract is intellectual lineage (plus the optional
+`feedback-loop` nudge bridge), never a code/build dependency (#229, discovery f15).
+
+**Component classification (#229 — policy vs implementation).** Decomposing the three
+dev-harness components by the abstract(policy)/concrete(implementation) test:
+
+| Component | Verdict | Destination |
+|-----------|---------|-------------|
+| `workflows/feature-full.js` (#201) | implementation | **claude-kit self-contained** — Claude-Code-Workflow-specific carrier; it *embodies* the #209 contract via prompt text, it is not that policy |
+| `skills/handoff-plan` (#171) | implementation | **claude-kit self-contained** — inseparable from #100 goal-doc-spec + repo paths |
+| `skills/slice-router` (#183) | implementation | **claude-kit self-contained** — Gap-ROUTE / Gap-INV bound to the #100 schema + the CON-1..5 constitution |
+
+**No component moves** to local-harness: a move + runtime-consume would breach §0. The single
+genuine *abstract* lift is the **subagent git side-effect contract** (#209) — its broad
+*what + why* now lives as a machine-level work-rule (`~/.claude/rules/` P3, sibling to P1
+worktree-isolation / P2 python→uv), while the concrete enforcement (`rules/RULES.md` §1, the
+`feature-full.js` impl prompt, the §4 task-end self-check) stays here, self-contained. That is
+the abstract/concrete *decomposition* — distinct altitudes, no identical duplication (f15).
+
 ## Native-substrate principle (#122)
 
 The harness **delegates to native first** and only adds a thin layer for what native

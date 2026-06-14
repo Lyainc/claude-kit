@@ -34,7 +34,10 @@ base). claude-kit holds only the **concrete** form of any rule it actually needs
 holds it **self-contained**: this repo has **zero runtime/build dependency** on that
 personal layer, so a public clone works on any machine. The relationship is
 intellectual lineage (the same idea expressed at two altitudes), not a dependency —
-§0's "depend" means runtime/build, never lineage. Do **not** add a `~/.claude/...`
+§0's "depend" means runtime/build, never lineage. The subagent git side-effect
+contract (§1, #209) is the worked example: claude-kit holds it concretely here, while its
+broad/abstract *what + why* lives as a machine-level work-rule — the same idea at two
+altitudes, linked by lineage, not by any runtime reference. Do **not** add a `~/.claude/...`
 reference that a clone would need to resolve.
 
 ## 1. Domain conventions & traceability

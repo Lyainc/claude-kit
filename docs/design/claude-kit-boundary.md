@@ -74,6 +74,19 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 
 ---
 
+## claude-kit ↔ local-harness 경계 (§0 — 이식성)
+
+**이 경계는 위 harness↔leaf 경계와 별개**예요. local-harness는 개인 머신 정책 베이스(머신 스코프, claude-kit *밖* 별도 프로젝트 — #229)이고, claude-kit은 공개 마켓플레이스(레포 스코프)예요. 둘 사이엔 단 하나의 불변식만 둬요:
+
+> **§0 — claude-kit 레포는 local-harness에 런타임/빌드 의존이 0이다.** 그래야 공개 clone이 어느 머신에서나 빌드·실행돼요. (work-rule 레이어 형태는 `rules/RULES.md` §0.)
+
+- **"자족(self-contained)"의 정확한 뜻**: claude-kit은 자기가 필요로 하는 정책의 *구체 형태*를 **스스로** 보유해요. 이건 머신 레벨 추상의 **구체화(concretization)**지 *동일 복제*도 *런타임 fetch*도 아니에요. 추상과의 연결은 **지적 계보(intellectual lineage)** + `feedback-loop`의 느슨한 넛지 다리일 뿐, 코드/빌드 의존이 아니에요. §0의 "의존"은 런타임/빌드를 뜻하지 지적 계보가 아니에요(#229, discovery f15).
+- **상속 = 추상/구체 분해 (동일 복제 금지)**: 같은 정책을 양쪽에 동일 텍스트로 두면 상속이 아니라 중복(DRY 위반)이에요. 로컬 = 추상(what+why), claude-kit = 구체(how) — 고도(altitude)로 구분해요.
+- **워크드 예제 (#229 dev-harness 슬림)**: dev-harness 세 컴포넌트(`feature-full.js` #201 / `handoff-plan` #171 / `slice-router` #183)는 전부 *구현체* → **claude-kit 자족 잔류**(이동 0; 이동 후 런타임 소비는 §0 위반이라 기각). 유일한 진짜 *추상* 상향은 **서브에이전트 git 부작용 계약(#209)** — 광의 what+why는 머신 레벨 work-rule(`~/.claude/rules/` P3)로 올라가고 구체 강제는 claude-kit에 자족으로 남아요. 컴포넌트별 분류표는 `dev-harness/README.md`("Portability" 섹션)에 있어요.
+- **느슨한 연결 — `feedback-loop` 넛지(상향)**: 프로젝트 반복 패턴을 "로컬 rules로 올릴래요?" user-confirmed 넛지로 승격 제안하는 게 유일한 다리예요. 코드 의존이 아니라 telemetry 데이터 계약이에요.
+
+---
+
 ## W5 reframe 교차 참조
 
 `thinking-tools/docs/improvement-matrix.md`의 W5("사고 도구가 실행 도구와 단절")는 *약점이 아니라* 이 경계 A의 **의도된 design boundary**예요. leaf(①②)가 harness(⑤ 실행)와 단방향으로만 결합하고 역방향 의존을 갖지 않는 건 §3 규율의 직접 귀결이에요. improvement-matrix W5 행은 이 사실을 reframe로 반영해요(행·ID 보존).
