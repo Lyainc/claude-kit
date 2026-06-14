@@ -15,12 +15,15 @@
 # context owns git. It then blocks git commit / git push / gh pr create / gh pr merge
 # inside that command. Reads (status, log, diff, show, ...) are never blocked.
 #
-# Scope (honest-subagent threat model): the parser catches the realistic direct forms —
+# Scope (honest-subagent threat model): it flags git/gh only in COMMAND POSITION (the verb
+# being run), not when "git push" appears as an argument — so `echo git push`, `man git
+# commit`, `grep "git push" f` are NOT flagged. It catches the realistic direct forms —
 # git commit/push and gh pr create/merge, including &&/||/;/| chaining, a trailing
-# background &, subshell/brace grouping, a full-path or sudo prefix, git global
-# value-options (git -C / -c ...), gh global value-options (gh -R / --repo ...), and
+# background &, subshell/brace grouping and $(...) command substitution (the inner verb is
+# exposed by the segmenter), a full-path / sudo / env-assignment / time-style prefix, git
+# global value-options (git -C / -c ...), gh global value-options (gh -R / --repo ...), and
 # backslash-newline line continuations. It deliberately does NOT try to defeat arbitrary
-# indirection (eval, sh -c "...", backticks/$(...), a shell-function wrapper): the target
+# indirection (eval, sh -c "...", backticks, a shell-function wrapper, xargs): the target
 # is an honest LLM subagent that ignored a prose "Do NOT commit" contract (#209), not a
 # deliberate adversary, and those forms cannot be caught statically without false
 # positives. Those residual gaps are encoded as KNOWN_EVASIONS in the regression test.
@@ -99,39 +102,51 @@ segments = re.split(r"&&|\|\||[;\n|&(){}]", cmd)
 GIT_VALUE_OPTS = {"-C", "-c", "--git-dir", "--work-tree", "--namespace", "--exec-path", "--super-prefix"}
 # gh global options that consume the NEXT token as their value (may precede the subcommand).
 GH_VALUE_OPTS = {"-R", "--repo"}
+# Wrapper commands / shell keywords that PREFIX a real command (they run or gate what
+# follows), so the guarded verb may legitimately sit after them. A leading run of these —
+# plus FOO=bar env-assignments — is skipped to find the actual command in the segment. Match
+# on COMMAND POSITION (git/gh must be the command, not an argument), so `echo git push`,
+# `man git commit`, `grep "git push" f` are NOT flagged, while `sudo git push`,
+# `env X=1 git commit`, `time git push` still are. Indirection wrappers that take the
+# command as data (eval, sh -c, xargs, backticks) are intentionally NOT prefixes — they are
+# the documented KNOWN_EVASIONS (honest-subagent threat model, see the test).
+PREFIXES = {"sudo", "env", "command", "exec", "time", "nice", "ionice", "nohup", "stdbuf",
+            "setsid", "builtin", "if", "then", "elif", "else", "while", "until", "do", "!"}
 
 def base(tok):
     return tok.rsplit("/", 1)[-1]
 
+def is_assignment(tok):
+    return re.match(r"^[A-Za-z_][A-Za-z0-9_]*=", tok) is not None
+
 found = ""
 for seg in segments:
     toks = seg.split()
-    i, n = 0, len(toks)
-    while i < n:
-        b = base(toks[i])
-        if b == "git":
-            j = i + 1
-            while j < n and toks[j].startswith("-"):
-                j += 2 if toks[j] in GIT_VALUE_OPTS else 1
-            if j < n and toks[j] in ("commit", "push"):
-                found = "git " + toks[j]
-                break
-            i = j
-        elif b == "gh":
-            # Skip leading global options (consuming a value for -R/--repo) the same way
-            # the git branch does, so a flag BEFORE the subcommand (gh -R o/r pr create)
-            # is caught, not just the flag-after form (gh pr create -R o/r).
-            j = i + 1
-            while j < n and toks[j].startswith("-"):
-                j += 2 if toks[j] in GH_VALUE_OPTS else 1
-            if j + 1 < n and toks[j] == "pr" and toks[j + 1] in ("create", "merge"):
-                found = "gh pr " + toks[j + 1]
-                break
-            i = j
-        else:
-            i += 1
-    if found:
-        break
+    n = len(toks)
+    # Advance to the command position: skip leading wrapper-prefixes + env-assignments.
+    i = 0
+    while i < n and (base(toks[i]) in PREFIXES or is_assignment(toks[i])):
+        i += 1
+    if i >= n:
+        continue
+    b = base(toks[i])
+    if b == "git":
+        j = i + 1
+        while j < n and toks[j].startswith("-"):
+            j += 2 if toks[j] in GIT_VALUE_OPTS else 1
+        if j < n and toks[j] in ("commit", "push"):
+            found = "git " + toks[j]
+            break
+    elif b == "gh":
+        # Skip leading global options (consuming a value for -R/--repo) the same way the
+        # git branch does, so a flag BEFORE the subcommand (gh -R o/r pr create) is caught,
+        # not just the flag-after form (gh pr create -R o/r).
+        j = i + 1
+        while j < n and toks[j].startswith("-"):
+            j += 2 if toks[j] in GH_VALUE_OPTS else 1
+        if j + 1 < n and toks[j] == "pr" and toks[j + 1] in ("create", "merge"):
+            found = "gh pr " + toks[j + 1]
+            break
 
 sys.stdout.write(found)
 ' 2>/dev/null || true)

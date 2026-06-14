@@ -83,6 +83,8 @@ VIOLATIONS = [
     ("subshell_push", "(git push)"),
     ("full_path_git_commit", "/usr/bin/git commit -m z"),
     ("sudo_git_push", "sudo git push"),
+    ("env_assign_git_commit", "GIT_AUTHOR_NAME=x git commit -m y"),  # env-assignment prefix
+    ("time_git_push", "time git push"),                              # wrapper-command prefix
     ("commit_after_semicolon", 'echo hi ; git commit -m x'),
     # Evasion forms surfaced by adversarial review (#209 hardening) — must all DENY:
     ("git_push_bg_glued", "git push&"),                 # trailing & glued to the verb
@@ -140,6 +142,14 @@ CLEAN_SUBAGENT = [
     ("bg_non_git", "sleep 1 & echo done"),  # FP guard: '&' split must not block non-git
     ("git_continuation_read", "git \\\nstatus --short"),  # continuation join, still a read
     ("gh_pr_list_search", 'gh pr list --search "is:open"'),  # 'pr' but not create/merge
+    # Command-position guard (#239 nit 1): git/gh as an ARGUMENT, not the command → allowed.
+    ("echo_git_push", "echo git push"),          # unquoted mention as echo args
+    ("man_git_commit", "man git commit"),        # reading git help
+    ("grep_git_push", 'grep "git push" file'),   # searching for the string
+    # gh pr non-publishing subcommands (#239 nit 2): commonly issued, must stay unblocked.
+    ("gh_pr_comment", 'gh pr comment 238 --body "x"'),
+    ("gh_pr_close", "gh pr close 238"),
+    ("gh_pr_edit", "gh pr edit 238 --add-label x"),
 ]
 
 
