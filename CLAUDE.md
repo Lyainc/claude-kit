@@ -151,6 +151,8 @@ python3 scripts/run-linters.py --self-test
 # 서브에이전트 git 부수효과 가드 회귀 (#209): scripts/subagent-git-guard.sh PreToolUse Bash
 # 훅이 subagent context의 git commit/push·gh pr create|merge를 deny하는지 검증 (인메모리
 # 위반 + clean fixture, FP=0; 메인 컨텍스트·git 읽기·따옴표 멘션은 통과). 규칙은 rules/RULES.md §1.
+# 활성화는 per-developer: rules-checklist-hook.sh처럼 .claude/settings.json에 PreToolUse(Bash)로
+# 직접 배선 (스니펫은 scripts/subagent-git-guard.sh 헤더 주석 참조 — .claude/는 gitignore).
 python3 scripts/test/test-subagent-git-guard.py
 # Expected: OK: all cases passed
 
