@@ -73,10 +73,31 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   `push`, or create PRs. The **main context owns git**. This keeps isolated-critique
   premises intact (the review target is an uncommitted diff) and prevents
   unapproved outward-facing actions (a push or PR is an external, often irreversible
-  publish). Workflow scripts that delegate implementation MUST state this contract in
-  the subagent prompt (see `feature-full.js`); the prompt-level contract is the
-  enforcement here — a deterministic Bash guard is deferred (YAGNI per §3) until the
-  pattern recurs despite the contract.
+  publish). Two layers enforce it: (1) Workflow scripts that delegate implementation
+  MUST state this contract in the subagent prompt (see `feature-full.js`); (2) a
+  deterministic PreToolUse Bash guard, `scripts/subagent-git-guard.sh`, blocks subagent
+  `git commit` / `git push` / `gh pr create` / `gh pr merge` at runtime (main-context
+  git is untouched — the guard acts only when the call carries a subagent identifier).
+  The guard earned its HARD promotion (§2 POLICY) when the pattern recurred *despite*
+  the prompt-level contract: an `executor` subagent committed + pushed + opened PR #205
+  against an explicit "Do NOT commit" prompt. It is wired per-developer in
+  `.claude/settings.json` (like the §4 reminder hook), and its regression test
+  (`scripts/test/test-subagent-git-guard.py`) blocks in CI so the guard logic cannot
+  silently regress.
+- **Concurrent work goes in an isolated git worktree (#234).** When another agent or
+  tool is working this repo at the same time (e.g. a second CLI agent running its own
+  slices in parallel), do your work in a **dedicated `git worktree`** — never the shared
+  main checkout. Concurrent writers on one checkout race each other: index corruption,
+  half-applied edits, branch confusion, and trampling a collaborator's in-flight work.
+  This is the claude-kit-**concrete** form (the *how*) of a broad machine-level
+  work-rule whose abstract *what + why* lives one altitude up (machine work-rule P1,
+  lineage source `discovery-2026-06-14.md f15`); per §0 claude-kit holds only the
+  concrete form, self-contained, with **no** runtime reference to that layer. Sibling to
+  the #209 git contract above — both govern how a delegated/concurrent agent touches the
+  repo. Enforcement is this rule plus the §4 self-check; there is no deterministic guard,
+  because "is someone else working this repo right now?" is a judgment call (the §3 SOFT
+  tier), not deterministically detectable in general — so it stays a §4 self-check, not a
+  HARD gate.
 - **Identifiers ride the global ID; local tracking IDs stay local (#214).** The
   single authority for identifier prefixes is `docs/design/glossary.md`. Anything
   worth tracking globally becomes a GitHub issue (`#N`) — do **not** invent a
@@ -120,6 +141,13 @@ demonstrating objective damage. When unsure, it stays PREFERENCE.
    green-looking suite that doesn't actually run, or a test that fails and is ignored,
    means a guard is silently off. Objective damage → `check-test-exitcode` /
    `check-ci-coverage` (block).
+4. **A subagent that commits, pushes, or opens/merges a PR (#209).** A subagent
+   publishing on its own breaks the isolated-critique premise (the review target is no
+   longer an uncommitted diff) *and* performs an unapproved outward-facing, often
+   irreversible action (a push / PR). This recurred despite the prompt-level contract
+   (PR #205), which is what earned the promotion. Objective damage → runtime venue is
+   the deterministic PreToolUse deny hook `scripts/subagent-git-guard.sh`; the
+   CI-blocking part is its regression test (`scripts/test/test-subagent-git-guard.py`).
 
 **PREFERENCE — worked examples (taste / gray-zone):**
 
@@ -147,6 +175,13 @@ where they are actually warranted.
   - `check-language-policy` — language policy (doc body language placement) holds.
   - `check-banned-words` — claude-kit-specific banned terms are absent.
   - `check-test-exitcode` — registered regression tests actually exit 0.
+  - `subagent-git-guard` (#209) — a deterministic **PreToolUse Bash deny hook**
+    (`scripts/subagent-git-guard.sh`) that blocks subagent `git commit` / `git push` /
+    `gh pr create` / `gh pr merge`. Its enforcement *venue* differs from the checks
+    above: it blocks in the **live session** (a Claude Code hook, wired per-developer
+    like the §4 reminder hook), not at merge time. What blocks in CI is its regression
+    test (`scripts/test/test-subagent-git-guard.py`), which keeps the guard logic from
+    silently regressing. It is HARD because the violation is objective damage (§2 #4).
   - (Each non-existing check is described here at the **policy level**; its exact
     behavior is defined by its own slice/script, not invented here.)
 - **SOFT — task-end self-check via the rules reminder hook.** Judgment-type rules
@@ -187,7 +222,13 @@ deterministic script cannot fairly decide:
       respected (no manual version bump in a feature branch).
 - [ ] **Subagent git side effects (#209)**: no subagent committed, pushed, or opened a
       PR; changes were left in the working tree for the main context to own; any
-      impl-delegating workflow prompt states the no-git-side-effects contract.
+      impl-delegating workflow prompt states the no-git-side-effects contract; if you
+      ran agents on this repo, the runtime guard (`scripts/subagent-git-guard.sh`) was
+      wired in your `.claude/settings.json`.
+- [ ] **Concurrent worktree isolation (#234)**: if another agent or tool was working
+      this repo concurrently, your changes were made in a dedicated `git worktree`, not
+      the shared main checkout — so concurrent writers did not race or trample each
+      other's in-flight work.
 - [ ] **HARD checks green**: the relevant `scripts/check-*.py` and external linters
       were run and pass (or are wired so CI will run them).
 - [ ] **Recurrence (c7)**: if this violation looks like a *repeat pattern*, enter the

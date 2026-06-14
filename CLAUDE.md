@@ -148,6 +148,12 @@ python3 scripts/run-linters.py --self-test
 #  installed + configured, else graceful-skips; style/taste lives in ruff.toml/.prettierrc,
 #  never hardcoded — #216 c4/c6.)
 
+# 서브에이전트 git 부수효과 가드 회귀 (#209): scripts/subagent-git-guard.sh PreToolUse Bash
+# 훅이 subagent context의 git commit/push·gh pr create|merge를 deny하는지 검증 (인메모리
+# 위반 + clean fixture, FP=0; 메인 컨텍스트·git 읽기·따옴표 멘션은 통과). 규칙은 rules/RULES.md §1.
+python3 scripts/test/test-subagent-git-guard.py
+# Expected: OK: all cases passed
+
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test
 # Expected: OK: all bump-version self-test cases passed
@@ -215,6 +221,7 @@ python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main
 bash -n vault-bridge/hooks/*.sh
 bash -n feedback-loop/scripts/event-logger.sh
 bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
+bash -n scripts/subagent-git-guard.sh     # #209 subagent git side-effect deny hook
 
 # parse_created_date unit test (audit-validate Phase 2 helper)
 python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py

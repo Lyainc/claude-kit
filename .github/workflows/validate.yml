@@ -82,12 +82,15 @@ jobs:
           python3 scripts/check-banned-words.py
           python3 scripts/check-test-exitcode.py --self-test
           python3 scripts/run-linters.py --self-test
+          # #209 subagent git side-effect deny hook: in-memory violation + clean (FP=0).
+          python3 scripts/test/test-subagent-git-guard.py
           echo "Work-rules guards OK"
 
       - name: Check shell hook syntax
         run: |
           bash -n vault-bridge/hooks/*.sh
           bash -n scripts/rules-checklist-hook.sh
+          bash -n scripts/subagent-git-guard.sh
           echo "Hook syntax OK"
 
       - name: Run vault-bridge unit tests
