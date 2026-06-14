@@ -5,23 +5,37 @@ model, and the task-end checklist for doing work *on* claude-kit. It is an
 LLM-optimized reference doc (English body), with a short Korean note where it
 addresses a human reader directly.
 
-> 한국어 메모 (사람 독자용): 이 문서는 claude-kit **작업 규칙**이에요. 말투·페르소나(voice)는
-> 개인 `~/.claude/CLAUDE.md`에 있고, 여기엔 안 섞여요. 규칙은 두 종류로 갈려요 — 위반이 객관적
+> 한국어 메모 (사람 독자용): 이 문서는 claude-kit **작업 규칙**(work-rule)이에요. 페르소나 —
+> 말투(voice)와 관점·판단(stance) — 는 개인 `~/.claude/CLAUDE.md`에 있고, 여기엔 안 섞여요. 규칙은 두 종류로 갈려요 — 위반이 객관적
 > 손상을 내면 **정책(policy)** 이라 결정론 스크립트로 막고, 취향·회색지대면 **선호(preference)**
 > 라 외부 린터 설정에 위임해요. 하드코딩으로 자기 스타일을 강요하지 않아요.
 
-## 0. Why this file exists — voice vs work rules (c1)
+## 0. Why this file exists — stance / voice / work-rule (c1)
 
-claude-kit's main-agent **voice/persona** lives in the developer's *personal*
-`~/.claude/CLAUDE.md` (tone layer: warmth, honorifics, liveliness). That is
-deliberately **not** in this repo. **Work rules** — how code/docs in this repo are
-written, traced, and enforced — live **here in `rules/`**, physically separate.
+claude-kit's main-agent **persona** lives in the developer's *personal*
+`~/.claude/CLAUDE.md`, and the persona is itself two independent layers: **voice**
+(어조 — tone: warmth, honorifics, liveliness) and **stance** (관점 — the judgment
+posture: critic, honesty, calibration). Both are deliberately **not** in this repo.
+The third layer — **work-rule** (작업 규율 — how code/docs in this repo are written,
+traced, and enforced) — lives **here in `rules/`**, physically separate from the
+persona.
 
-The separation is the point: the tone layer and the work-judgment layer are
-independent. A friendly tone must never soften a correctness judgment, and a work
-rule must never depend on who is at the keyboard or what their tone preference is.
-Anyone (or any agent) working on claude-kit follows `rules/`; nobody is required to
-adopt anyone else's voice.
+That is the c1 trichotomy: **stance · voice · work-rule** are three independent
+layers. A lively *voice* must never soften a *stance* judgment, and neither may bend a
+*work-rule*; and a work rule must never depend on who is at the keyboard or on their
+tone or judgment style. Anyone (or any agent) working on claude-kit follows `rules/`;
+nobody is required to adopt anyone else's persona.
+
+**Broad machine rules vs this repo's concrete rules.** Some work-rules are *광의(broad)*
+— they hold on the developer's machine across every project (e.g. "isolate concurrent
+agents in separate git worktrees", "Python goes through uv"). Those live, stated
+abstractly, in the developer's *personal* `~/.claude/rules/` (a separate machine-level
+base). claude-kit holds only the **concrete** form of any rule it actually needs, and
+holds it **self-contained**: this repo has **zero runtime/build dependency** on that
+personal layer, so a public clone works on any machine. The relationship is
+intellectual lineage (the same idea expressed at two altitudes), not a dependency —
+§0's "depend" means runtime/build, never lineage. Do **not** add a `~/.claude/...`
+reference that a clone would need to resolve.
 
 ## 1. Domain conventions & traceability
 
@@ -159,8 +173,9 @@ deterministic script cannot fairly decide:
 - [ ] **Identifiers (#214)**: no new parallel global tracking scheme was invented;
       local tracking IDs (`U/P/W/D/C`) stayed local or carried their source on
       cross-reference; any new global prefix was registered in `docs/design/glossary.md`.
-- [ ] **Voice/work-rule separation (c1)**: no persona/voice content leaked into repo
-      files; work rules stayed in `rules/`, tone stayed in personal config.
+- [ ] **Stance/voice/work-rule separation (c1)**: no persona content (voice *or* stance)
+      leaked into repo files; work rules stayed in `rules/`, tone and judgment-posture
+      stayed in personal config.
 - [ ] **POLICY vs PREFERENCE (c6)**: no subjective style constant was hardcoded; any
       style concern was delegated to external linter config, not baked in.
 - [ ] **MECE / no reimplementation**: no external-linter behavior was reimplemented;
@@ -201,7 +216,7 @@ in this minimal core. SOFT and DEFERRED rows mark **intended limits**, not gaps.
 | 1 | Style hygiene | `ruff.toml` / `.prettierrc` injected, run via `scripts/run-linters.py` (delegation, never hardcoded) | HARD-when-present / else graceful-skip |
 | 2 | Domain conventions | §1 + `check-type-optin` (vault `type:`) + `check-banned-words` | HARD + SOFT |
 | 3 | No new plugin/skill | c2: zero new `plugin.json`/`SKILL.md`; rules live in `scripts/` + `rules/` + `.claude/` only | by-design (ac5 grep) |
-| 4 | Voice separation | §0 — voice in personal `~/.claude/CLAUDE.md`, work rules in `rules/` | SOFT (c1) |
+| 4 | Persona separation | §0 — persona (voice + stance) in personal `~/.claude/CLAUDE.md`, work rules in `rules/` | SOFT (c1) |
 | 5 | Enforcement | §3 three-tier model (HARD scripts + linters / SOFT hook / HUMAN gate) | structural |
 | 6 | Procedure omission | §4 task-end checklist + `scripts/rules-checklist-hook.sh` reminder; `check-test-exitcode` | SOFT + HARD |
 | 7 | Verification evidence | Deterministic scripts emit real exit-code evidence; `check-test-exitcode` runs registered tests; CI. No external-orchestrator dependency (c3) | HARD |
