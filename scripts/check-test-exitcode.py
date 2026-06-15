@@ -52,9 +52,15 @@ import sys
 _HERE = os.path.dirname(os.path.abspath(__file__))
 if _HERE not in sys.path:
     sys.path.insert(0, _HERE)
-from importlib import import_module
+import importlib.util
 
-_ci = import_module("check-ci-coverage")
+# Canonical pattern for loading a script whose filename isn't a valid module
+# identifier (hyphenated): spec_from_file_location, not import_module("check-ci-coverage").
+_ci_spec = importlib.util.spec_from_file_location(
+    "check_ci_coverage", os.path.join(_HERE, "check-ci-coverage.py")
+)
+_ci = importlib.util.module_from_spec(_ci_spec)
+_ci_spec.loader.exec_module(_ci)
 extract_validation_section = _ci.extract_validation_section
 _join_continuations = _ci._join_continuations
 

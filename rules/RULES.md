@@ -5,15 +5,16 @@ model, and the task-end checklist for doing work *on* claude-kit. It is an
 LLM-optimized reference doc (English body), with a short Korean note where it
 addresses a human reader directly.
 
-> 한국어 메모 (사람 독자용): 이 문서는 claude-kit **작업 규칙**(work-rule)이에요. 페르소나 —
-> 말투(voice)와 관점·판단(stance) — 는 개인 `~/.claude/CLAUDE.md`에 있고, 여기엔 안 섞여요. 규칙은 두 종류로 갈려요 — 위반이 객관적
-> 손상을 내면 **정책(policy)** 이라 결정론 스크립트로 막고, 취향·회색지대면 **선호(preference)**
+> 한국어 메모 (사람 독자용): 이 문서는 claude-kit **작업 규칙**(work-rule)이에요.
+> 페르소나 — 말투(voice)와 관점·판단(stance) — 는 개인 `~/.claude/CLAUDE.md`에
+> 있고, 여기엔 안 섞여요. 규칙은 두 종류로 갈려요 — 위반이 객관적 손상을 내면
+> **정책(policy)** 이라 결정론 스크립트로 막고, 취향·회색지대면 **선호(preference)**
 > 라 외부 린터 설정에 위임해요. 하드코딩으로 자기 스타일을 강요하지 않아요.
 
 ## 0. Why this file exists — stance / voice / work-rule (c1)
 
 claude-kit's main-agent **persona** lives in the developer's *personal*
-`~/.claude/CLAUDE.md`, and the persona is itself two independent layers: **voice**
+`~/.claude/CLAUDE.md`, and it is itself two independent layers: **voice**
 (어조 — tone: warmth, honorifics, liveliness) and **stance** (관점 — the judgment
 posture: critic, honesty, calibration). Both are deliberately **not** in this repo.
 The third layer — **work-rule** (작업 규율 — how code/docs in this repo are written,
@@ -33,7 +34,7 @@ abstractly, in the developer's *personal* `~/.claude/rules/` (a separate machine
 base). claude-kit holds only the **concrete** form of any rule it actually needs, and
 holds it **self-contained**: this repo has **zero runtime/build dependency** on that
 personal layer, so a public clone works on any machine. The relationship is
-intellectual lineage (the same idea expressed at two altitudes), not a dependency —
+intellectual lineage (the same idea expressed at two abstraction levels), not a dependency —
 §0's "depend" means runtime/build, never lineage. The subagent git side-effect
 contract (§1, #209) is the worked example: claude-kit holds it concretely here, while its
 broad/abstract *what + why* lives as a machine-level work-rule — the same idea at two

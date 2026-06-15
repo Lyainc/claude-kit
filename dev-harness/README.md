@@ -65,7 +65,7 @@ public clone builds and runs on any machine. Canonical statement of this boundar
 [`docs/design/claude-kit-boundary.md`](../docs/design/claude-kit-boundary.md)
 (claude-kit ↔ local-harness §0); the work-rule-layer form is `rules/RULES.md` §0.
 
-**"Self-contained (자족)" ≠ no shared ideas.** claude-kit holds its *own concrete form* of any
+**"Self-contained" ≠ no shared ideas.** claude-kit holds its *own concrete form* of any
 policy it needs — the **concretization of a machine-level abstract, not an identical copy and
 not a runtime fetch**. The link to the abstract is intellectual lineage (plus the optional
 `feedback-loop` nudge bridge), never a code/build dependency (#229, discovery f15).

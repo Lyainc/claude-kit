@@ -24,7 +24,8 @@ These name a *kind* of thing, are globally consistent, and are healthy. Keep the
 | `GN` | Goal-doc ID (unbounded series) | `docs/plans/goal-docs/` |
 
 **Notation.** Each global code is written in its canonical form verbatim, including
-the hyphen that is part of the prefix: `CON-2`, `INV-4`, `POL-1`, `E8`, `G16`.
+the hyphen that is part of the prefix — `CON-2`, `INV-4`, `POL-1` — while E/G-series
+codes carry no hyphen: `E8`, `G16`.
 
 ## 2. Local tracking IDs (NOT globally registered — disciplined)
 
