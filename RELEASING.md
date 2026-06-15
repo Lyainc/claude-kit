@@ -9,8 +9,13 @@ policy and the release procedure.
 
 - **One version for the whole marketplace.** `thinking-tools`, `obsidian-vault-manager`,
   `vault-bridge`, and `feedback-loop` always carry the same version, mirrored in the
-  root `marketplace.json` `version` and every `plugins[].version`. (`dev-harness` is
-  DEV-ONLY — not marketplace-registered, not part of the lockstep set — #217.)
+  root `marketplace.json` `version` and every `plugins[].version`. Lockstep is enforced
+  **at `bump-version.py` call time** (the next release writes all manifests to one
+  version), not at plugin introduction — a newly added marketplace plugin may carry its
+  own initial version (e.g. `feedback-loop` started at `0.1.0`) until the next release
+  absorbs it. (`dev-harness` is DEV-ONLY — not marketplace-registered, not part of the
+  lockstep set — #217; the `version` field in its `plugin.json` is inert and does not
+  participate in lockstep.)
 - **One tag per release**: `vX.Y.Z`. Plugin-scoped tags are not used.
 - **SemVer is judged across the whole repo**, not per plugin: pick the bump that matches
   the *largest* change shipped in the release.
@@ -100,7 +105,9 @@ gh release create "v$VERSION" --title "v$VERSION" \
 ```
 
 Here `--notes-file` is prepended above GitHub's auto-generated What's Changed
-(`--generate-notes`). The workflow merges the two via the `generate-notes` API instead —
+(`--generate-notes`) — this prepend behavior is **gh CLI 2.x**; other majors may order
+the two blocks differently, so pin/verify the gh version if the layout matters. The
+workflow merges the two via the `generate-notes` API instead —
 so the **dry-run preview shows the exact final notes** (`--generate-notes` only runs when
 a release is actually created) and so the `---` divider between the curated sections and
 What's Changed is under our control.

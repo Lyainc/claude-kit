@@ -159,7 +159,7 @@ def check_language_policy(root):
             report["fatal"] = True
             ok = False
             continue
-        report["checked"].append(f"{source}plugin.json")
+        report["checked"].append(os.path.join(source, ".claude-plugin", "plugin.json"))
         pv = scan_fields(plugin_json, "plugin.json", name)
         if pv:
             report["violations"].extend(pv)

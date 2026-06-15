@@ -156,8 +156,8 @@ def build_sections(commits):
 
 
 def _plugin_version(plugin_dir, version, cwd=None):
-    """The version to display for a plugin. Under lockstep this equals `version`,
-    but read plugin.json so the header is truthful even mid-transition."""
+    """The version to display for a plugin. Under lockstep this equals `version`;
+    read plugin.json so the header stays truthful if a manifest ever diverges."""
     if not cwd:
         cwd = "."
     pj = os.path.join(cwd, plugin_dir, ".claude-plugin", "plugin.json")

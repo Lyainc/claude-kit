@@ -21,8 +21,10 @@ appearing in body prose or inside a fenced code block never trips the check.
 Usage:
     python3 scripts/check-type-optin.py [--root DIR] [--json] [--self-test]
 
-Exit codes: 0 = clean (no vault-note missing `type:`), 1 = violations found,
-            2 = usage / unreadable input.
+Exit codes: 0 = clean (no vault-note missing `type:`), 1 = violations found.
+            2 = usage error, or (text mode only) unreadable input when it is the sole
+            problem. In --json mode any non-clean result — including unreadable-only —
+            exits 1, since `ok=False` drives the exit code there.
 """
 import argparse
 import json
