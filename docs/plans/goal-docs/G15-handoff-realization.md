@@ -90,12 +90,18 @@ python3 scripts/check-version-sync.py && echo "ok version-sync clean"
 python3 scripts/check-ci-coverage.py --strict && echo "ok ci-coverage clean"
 
 # 3. 단방향 의존(CON-5) 확인
-grep -rl "workflow.harness\|workflow-harness" thinking-tools/ obsidian-vault-manager/ vault-bridge/ feedback-loop/ 2>/dev/null \
+grep -rl "workflow[._-]harness" thinking-tools/ obsidian-vault-manager/ vault-bridge/ feedback-loop/ 2>/dev/null \
   && echo "FAIL: 역방향 의존 발견" || echo "ok CON-5 단방향 clean"
 
-# 4. vault 쓰기 없음 확인 (CON-1)
-grep -n "~/vault\|VAULT_ROOT" workflow-harness/skills/handoff-plan/SKILL.md 2>/dev/null \
-  | grep -v "confirm\|never\|not\|없음" && echo "WARN: vault write 패턴 발견" || echo "ok vault write 없음 (CON-1)"
+# 4. vault 쓰기 없음 확인 (CON-1) — 파일 부재 시 "ok" 거짓 통과 방지(존재 가드)
+if [ ! -f workflow-harness/skills/handoff-plan/SKILL.md ]; then
+  echo "SKIP: handoff-plan SKILL.md 미구현 — CON-1 확인은 구현 후 유효"
+elif grep -n "~/vault\|VAULT_ROOT" workflow-harness/skills/handoff-plan/SKILL.md \
+  | grep -v "confirm\|never\|not\|없음"; then
+  echo "WARN: vault write 패턴 발견"
+else
+  echo "ok vault write 없음 (CON-1)"
+fi
 ```
 
 **통과 기준**: 모든 확인 통과 + version-sync + ci-coverage green + CON-5 역방향 의존 없음
