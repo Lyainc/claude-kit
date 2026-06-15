@@ -58,6 +58,50 @@ Epic #108 layer redesign의 **설계·계약 스파인이 전부 닫혔어요** 
 - [ ] 청킹 결과 → goal-doc(#100) 슬라이스 바인딩 형식 출력 (다음 세션 `/goal` 연결)
 - [ ] 에픽 링크 user-confirmed, vault 쓰기 없음 또는 user-initiated만 (CON-1)
 
+---
+
+## 쟁점과 트레이드오프
+
+| 쟁점 | 옵션 | 결정 | 근거 |
+|------|------|------|------|
+| #122 범위 | OMC 전체 strangler vs thin scaffold | **thin scaffold만** | telemetry 루프 닫는 최소 진입; #172가 "전체보다 thin 진입"으로 방향 재정의 |
+| #123 위치 | ⑤ workflow-harness 신규 스킬 vs ② leaf 이식 | **⑤ workflow-harness 신규** | CON-5: retro가 telemetry(④ leaf)를 소비하니 ⑤가 자연스러운 home |
+| #171 처리 | G14 슬라이스 3 포함 vs G15 분리 | **G15 분리** | #140 물리위치 게이트 미해결 + #104 정합 선행 필요 → 급조 시 CON-5 경계 훼손 |
+
+---
+
+## 슬라이스 순서
+
+1. **S1: workflow-harness thin scaffold** → 바인딩: executor|native(#133) | 대상 파일: workflow-harness/.claude-plugin/plugin.json, workflow-harness/skills/, workflow-harness/README.md | 산출: 플러그인 셸 + 단방향 의존 명시 README | 검증: check-version-sync.py + check-ci-coverage.py --strict green
+2. **S2: retro 스킬 구현** → 바인딩: spec-first → executor|native(#133) | 대상 파일: workflow-harness/skills/retro/SKILL.md | 산출: COLLECT→PROMOTE→OUTPUT→BUDGET 4단계 파이프라인 + telemetry 메타 | 검증: user-confirmed 게이트 + vault Write Role Contract 준수 확인
+3. **critique** → 바인딩: adversarial-review|code-reviewer(#133) | 대상 파일: workflow-harness/ | 산출: 비판적 검토 결과 | 검증: PASS (자기승인 금지 CON-3)
+
+---
+
+## E2E 자가검증
+
+```bash
+# 1. 플러그인 셸 존재 확인
+ls workflow-harness/.claude-plugin/plugin.json && echo "ok plugin.json"
+ls workflow-harness/skills/ && echo "ok skills 디렉토리"
+ls workflow-harness/README.md && echo "ok README.md"
+
+# 2. retro 스킬 존재 확인
+ls workflow-harness/skills/retro/SKILL.md && echo "ok retro SKILL.md"
+
+# 3. 버전 동기화 + CI 커버리지 확인
+python3 scripts/check-version-sync.py && echo "ok version-sync clean"
+python3 scripts/check-ci-coverage.py --strict && echo "ok ci-coverage clean"
+
+# 4. 단방향 의존(CON-5) 확인 — leaf가 workflow-harness를 역방향으로 import하지 않는지
+grep -rl "workflow.harness\|workflow-harness" thinking-tools/ obsidian-vault-manager/ vault-bridge/ feedback-loop/ 2>/dev/null \
+  && echo "FAIL: 역방향 의존 발견" || echo "ok CON-5 단방향 clean"
+```
+
+**통과 기준**: 모든 확인 통과 + version-sync + ci-coverage green + CON-5 역방향 의존 없음
+
+---
+
 ## 제약 / 안전판 (재정의 금지 — 참조만)
 - **CON-5 단방향 의존**: workflow-harness(harness) → leaf(②③④). 역방향·순환 금지. 물리 위치는 #140 게이트("이슈 읽기→청킹"=②인접 / "슬라이스 루프"=⑤)로 결정.
 - **Write Role Contract**: vault 쓰기는 메인컨텍스트 user-initiated slash만. 서브에이전트 vault write 금지.
