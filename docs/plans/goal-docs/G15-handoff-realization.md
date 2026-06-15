@@ -96,7 +96,7 @@ python3 scripts/check-version-sync.py && echo "ok version-sync clean"
 python3 scripts/check-ci-coverage.py --strict && echo "ok ci-coverage clean"
 
 # 3. 단방향 의존(CON-5) 확인
-grep -rl "dev[._-]harness" thinking-tools/ obsidian-vault-manager/ vault-bridge/ 2>/dev/null \
+grep -rl "dev[._-]harness\|feedback[._-]loop" thinking-tools/ obsidian-vault-manager/ vault-bridge/ 2>/dev/null \
   && echo "FAIL: 역방향 의존 발견" || echo "ok CON-5 단방향 clean"
 
 # 4. vault 쓰기 없음 확인 (CON-1) — 파일 부재 시 "ok" 거짓 통과 방지(존재 가드)
