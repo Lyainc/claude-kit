@@ -16,7 +16,7 @@ created: 2026-06-05
 
 ## 배경 / 목적
 
-self-hosting 부트스트랩(sub-epic #172)의 **의존-0 첫 조각**이에요. #172의 나머지(#123 retro=G7, #171 handoff)는 G6(workflow-harness 신설, `status: gated`)에 hard 의존해서 지금 당장 착수 못 해요 — G7 frontmatter가 `depends_on: [G6]`이고 G6는 게이트 대기거든요.
+self-hosting 부트스트랩(sub-epic #172)의 **의존-0 첫 조각**이에요. #172의 나머지(#123 retro=G7, #171 handoff)는 G6(⑤ 하네스 신설, `status: gated`)에 hard 의존해서 지금 당장 착수 못 해요 — G7 frontmatter가 `depends_on: [G6]`이고 G6는 게이트 대기거든요. (작성 후 경과: G6/G7은 [`G14`](G14-self-hosting-bootstrap.md)/[`G16`](G16-harness-router-invariant.md)로 재편됐고 ⑤ 하네스는 #217로 dev-harness/feedback-loop로 분리됐어요 — 이 단락은 작성 시점 기록.)
 
 반면 이 묶음은 **하네스 없이 즉시 가능**해요. `.github/workflows/claude-code-review.yml`과 `validate.yml`이 이미 존재하니 설정·스크립트·정책만 손대면 되고, 둘 다 deterministic이라 헌법(CON-2)에 안전해요. 게다가 CI 종료조건(#169)은 review-round 낭비를 *직접* 줄여서 측정-개선 효과가 retro 없이도 바로 나요.
 

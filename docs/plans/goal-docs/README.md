@@ -15,8 +15,8 @@
 | **G3** 출력 레이어 물리 구조 | [G3-output-layer-structure](G3-output-layer-structure.md) | #102 #103 #124 | 3 | opus | ready |
 | **G4** vault-bridge 슬림화 | [G4-vault-bridge-slim](G4-vault-bridge-slim.md) | #104 | 3 · ∥G3 | sonnet | ready |
 | **G5** thought-chain dissolve (BREAKING) | [G5-thought-chain-dissolve](G5-thought-chain-dissolve.md) | #105 | 4 | opus | ready |
-| **G6** workflow-harness + 3-tier 규칙 | [G6-workflow-harness-rules](G6-workflow-harness-rules.md) | #122 #125 | 4 · ∥G5 | opus | ready |
-| **G7** retro 스킬 + telemetry meta | [G7-retro-telemetry](G7-retro-telemetry.md) | #123 #121 | 5 | sonnet | gated(G6) |
+| **G6** ⑤ 하네스 + 3-tier 규칙 | [G6-workflow-harness-rules](G6-workflow-harness-rules.md) | #122 #125 | 4 · ∥G5 | opus | superseded (→G14/G16) |
+| **G7** retro 스킬 + telemetry meta | [G7-retro-telemetry](G7-retro-telemetry.md) | #123 #121 | 5 | sonnet | superseded (→G14) |
 | **G8** OVM audit 결정론 검사 4종 | [G8-ovm-audit-deterministic](G8-ovm-audit-deterministic.md) | #126 #128 #129 #130 | 독립 | sonnet | ready |
 | **G9** OVM audit vocabulary + tag 추론 | [G9-ovm-audit-vocabulary](G9-ovm-audit-vocabulary.md) | #119 #127 | 독립 · 게이트 | sonnet | gated(#119) |
 | **G10** Obsidian Bases 뷰 | [G10-obsidian-bases](G10-obsidian-bases.md) | #118 | 독립 | sonnet | ready |
@@ -56,7 +56,7 @@ Wave 5                                   G7 (#123/#121)
 | Goal | 게이트 조건 |
 |------|-------------|
 | G2 | ralplan consensus 권장 (linchpin이라 합의 후 착수) |
-| G7 | G6(#122 workflow-harness 플러그인) 머지 완료 |
+| G7 | G6(#122 ⑤ 하네스 플러그인) 머지 완료 — *경과: G6/G7은 G14/G16로 재편, ⑤ 하네스는 #217로 dev-harness/feedback-loop 분리* |
 | G9 | #119(E9) backlog 라벨 해제 결정 — E9 vocabulary 기준이 #127 tag 추론의 선행 |
 | G12 | 전부 backlog/deferred — 각 항목 해제 조건은 [G12-backlog-gates](G12-backlog-gates.md) 참조 |
 

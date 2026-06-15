@@ -1,6 +1,6 @@
 ---
 goal_id: G14
-title: ⑤ self-hosting 부트스트랩 — workflow-harness thin scaffold + retro 첫 입주
+title: ⑤ self-hosting 부트스트랩 — ⑤ 하네스 scaffold + retro 첫 입주
 issues: [122, 123, 171]
 wave: 5
 depends_on: [G1, G2, G6]
@@ -10,7 +10,14 @@ work_type: feature-full
 created: 2026-06-08
 ---
 
-# G14 — ⑤ self-hosting 부트스트랩 (workflow-harness thin scaffold + retro 첫 입주)
+# G14 — ⑤ self-hosting 부트스트랩 (⑤ 하네스 scaffold + retro 첫 입주)
+
+> **✅ 완료 (#122·#123 CLOSED · #217 정합).** ⑤ thin 진입(하네스 scaffold + retro 첫 입주)은 배포됐어요.
+> #217이 ⑤ 하네스를 **dev-harness**(개발 거버넌스)와 **feedback-loop**(자기개선)로 분리하면서, 이 문서가
+> 단일 "workflow-harness"로 부르던 플러그인은 그 둘이 됐어요 — 실제 산출물: retro → `feedback-loop/skills/retro/`,
+> telemetry → `feedback-loop/scripts/`, 거버넌스 scaffold → `dev-harness/`. 본문 경로는 산출물이 실제 안착한
+> 플러그인으로 갱신했고(scaffold-레벨 참조는 "⑤ 하네스"로 둠), frontmatter `status: ready`는 goal-doc-spec §1.1
+> enum(gated/ready 2종)에 완료 표기 수단이 없어 유지하되 완료 상태의 단일 출처는 이 배너예요.
 
 > 이 문서는 다음 세션에서 Claude Code `/goal`에 그대로 넣을 수 있는 자기완결 실행 계획이에요.
 > 기존 G6(#122/#125)·G7(#123/#121)을 **2026-06-08 현재값으로 갱신·통합**한 실행 단위예요 —
@@ -28,21 +35,21 @@ Epic #108 layer redesign의 **설계·계약 스파인이 전부 닫혔어요** 
 
 ## 포함 이슈 (현재값)
 
-- **#122** (workflow-harness 플러그인) — **thin scaffold만**. 전체 strangler 엔진 아님. #125(3-tier 규칙)는 이미 닫혀(`rule-tiers.md`) 이 goal에서 빠짐.
+- **#122** (⑤ 하네스 플러그인) — **thin scaffold만**. 전체 strangler 엔진 아님. #125(3-tier 규칙)는 이미 닫혀(`rule-tiers.md`) 이 goal에서 빠짐.
 - **#123** (retro thin) — telemetry 첫 소비처. **이 goal의 메인**. #121(telemetry meta)도 닫혀 retro의 meta 연동만 남음.
 - **#171** (handoff 실질화) — 다음 슬라이스. 여력 있으면 착수, 아니면 G15로 분리.
 
 ## 완료 조건 (Definition of Done)
 
-### 슬라이스 1 — workflow-harness thin scaffold (#122)
-- [ ] `workflow-harness/.claude-plugin/plugin.json` (name, version 0.1.0, keywords)
-- [ ] `workflow-harness/skills/` 디렉토리 + `workflow-harness/README.md`
+### 슬라이스 1 — ⑤ 하네스 thin scaffold (#122)
+- [ ] `dev-harness/`·`feedback-loop/` 각 `.claude-plugin/plugin.json` (name, version, keywords) — #217로 2개 플러그인 분리
+- [ ] `dev-harness/`·`feedback-loop/` skills 디렉토리 + 각 `README.md`
 - [ ] `.claude-plugin/marketplace.json`에 항목 추가 (source 경로) — version-sync 규칙 준수
-- [ ] 단방향 의존 명시(README): **workflow-harness → vault-bridge·obsidian-vault-manager·telemetry** (CON-5, harness→leaf). 역방향 금지.
+- [ ] 단방향 의존 명시(README): **dev-harness·feedback-loop(harness) → leaf(vault-bridge·obsidian-vault-manager)** (CON-5, harness→leaf). 역방향 금지.
 - [ ] `scripts/check-version-sync.py` + `check-ci-coverage.py --strict` green
 
 ### 슬라이스 2 — retro 스킬 (#123, 메인)
-- [ ] `workflow-harness/skills/retro/SKILL.md` — 4단계 파이프라인 **COLLECT → PROMOTE → OUTPUT → BUDGET**
+- [ ] `feedback-loop/skills/retro/SKILL.md` — 4단계 파이프라인 **COLLECT → PROMOTE → OUTPUT → BUDGET**
 - [ ] **E8 임계승격**: audit E8 `promotion_candidate` findings 입력 → refs_in·access_count 임계 재확인 → **user-confirmed 게이트** → `status: evergreen` 패치(Edit, frontmatter-only). silent auto-fix 금지.
 - [ ] **3갈래 출력** (각 opt-in, 기본 액션만 활성): 액션→git issue / 기억→vault capture(user-initiated slash) / 규칙→`.claude/*.local.md`
 - [ ] **dedup**: 동일 세션 (파일·error_type) 쌍 중복 제거 + 이전 retro 처리분 telemetry 확인 후 스킵
@@ -65,16 +72,16 @@ Epic #108 layer redesign의 **설계·계약 스파인이 전부 닫혔어요** 
 | 쟁점 | 옵션 | 결정 | 근거 |
 |------|------|------|------|
 | #122 범위 | OMC 전체 strangler vs thin scaffold | **thin scaffold만** | telemetry 루프 닫는 최소 진입; #172가 "전체보다 thin 진입"으로 방향 재정의 |
-| #123 위치 | ⑤ workflow-harness 신규 스킬 vs ② leaf 이식 | **⑤ workflow-harness 신규** | CON-5: retro가 telemetry(④ leaf)를 소비하니 ⑤가 자연스러운 home |
+| #123 위치 | ⑤ 하네스 신규 스킬 vs ② leaf 이식 | **⑤ feedback-loop 신규** | CON-5: retro가 telemetry(당시 ④ leaf, #217로 feedback-loop 흡수)를 소비하니 ⑤가 자연스러운 home |
 | #171 처리 | G14 슬라이스 3 포함 vs G15 분리 | **G15 분리** | #140 물리위치 게이트 미해결 + #104 정합 선행 필요 → 급조 시 CON-5 경계 훼손 |
 
 ---
 
 ## 슬라이스 순서
 
-1. **S1: workflow-harness thin scaffold** → 바인딩: executor|native(#133) | 대상 파일: workflow-harness/.claude-plugin/plugin.json, workflow-harness/skills/, workflow-harness/README.md | 산출: 플러그인 셸 + 단방향 의존 명시 README | 검증: check-version-sync.py + check-ci-coverage.py --strict green
-2. **S2: retro 스킬 구현** → 바인딩: spec-first → executor|native(#133) | 대상 파일: workflow-harness/skills/retro/SKILL.md | 산출: COLLECT→PROMOTE→OUTPUT→BUDGET 4단계 파이프라인 + telemetry 메타 | 검증: user-confirmed 게이트 + vault Write Role Contract 준수 확인
-3. **critique** → 바인딩: adversarial-review|code-reviewer(#133) | 대상 파일: workflow-harness/ | 산출: 비판적 검토 결과 | 검증: PASS (자기승인 금지 CON-3)
+1. **S1: ⑤ 하네스 thin scaffold** → 바인딩: executor|native(#133) | 대상 파일: dev-harness/·feedback-loop/ (.claude-plugin/plugin.json, skills/, README.md) | 산출: 플러그인 셸 + 단방향 의존 명시 README | 검증: check-version-sync.py + check-ci-coverage.py --strict green
+2. **S2: retro 스킬 구현** → 바인딩: spec-first → executor|native(#133) | 대상 파일: feedback-loop/skills/retro/SKILL.md | 산출: COLLECT→PROMOTE→OUTPUT→BUDGET 4단계 파이프라인 + telemetry 메타 | 검증: user-confirmed 게이트 + vault Write Role Contract 준수 확인
+3. **critique** → 바인딩: adversarial-review|code-reviewer(#133) | 대상 파일: feedback-loop/ | 산출: 비판적 검토 결과 | 검증: PASS (자기승인 금지 CON-3)
 
 ---
 
@@ -82,19 +89,19 @@ Epic #108 layer redesign의 **설계·계약 스파인이 전부 닫혔어요** 
 
 ```bash
 # 1. 플러그인 셸 존재 확인
-ls workflow-harness/.claude-plugin/plugin.json && echo "ok plugin.json"
-ls workflow-harness/skills/ && echo "ok skills 디렉토리"
-ls workflow-harness/README.md && echo "ok README.md"
+ls dev-harness/.claude-plugin/plugin.json feedback-loop/.claude-plugin/plugin.json && echo "ok plugin.json (dev-harness·feedback-loop)"
+ls -d dev-harness/skills/ feedback-loop/skills/ && echo "ok skills 디렉토리"
+ls dev-harness/README.md feedback-loop/README.md && echo "ok README.md"
 
 # 2. retro 스킬 존재 확인
-ls workflow-harness/skills/retro/SKILL.md && echo "ok retro SKILL.md"
+ls feedback-loop/skills/retro/SKILL.md && echo "ok retro SKILL.md"
 
 # 3. 버전 동기화 + CI 커버리지 확인
 python3 scripts/check-version-sync.py && echo "ok version-sync clean"
 python3 scripts/check-ci-coverage.py --strict && echo "ok ci-coverage clean"
 
-# 4. 단방향 의존(CON-5) 확인 — leaf가 workflow-harness를 역방향으로 import하지 않는지
-grep -rl "workflow[._-]harness" thinking-tools/ obsidian-vault-manager/ vault-bridge/ feedback-loop/ 2>/dev/null \
+# 4. 단방향 의존(CON-5) 확인 — leaf가 harness(dev-harness·feedback-loop)를 역방향으로 import하지 않는지
+grep -rl "dev[._-]harness\|feedback[._-]loop" thinking-tools/ obsidian-vault-manager/ vault-bridge/ 2>/dev/null \
   && echo "FAIL: 역방향 의존 발견" || echo "ok CON-5 단방향 clean"
 ```
 
@@ -103,7 +110,7 @@ grep -rl "workflow[._-]harness" thinking-tools/ obsidian-vault-manager/ vault-br
 ---
 
 ## 제약 / 안전판 (재정의 금지 — 참조만)
-- **CON-5 단방향 의존**: workflow-harness(harness) → leaf(②③④). 역방향·순환 금지. 물리 위치는 #140 게이트("이슈 읽기→청킹"=②인접 / "슬라이스 루프"=⑤)로 결정.
+- **CON-5 단방향 의존**: dev-harness·feedback-loop(harness) → leaf(②③④). 역방향·순환 금지. 물리 위치는 #140 게이트("이슈 읽기→청킹"=②인접 / "슬라이스 루프"=⑤)로 결정.
 - **Write Role Contract**: vault 쓰기는 메인컨텍스트 user-initiated slash만. 서브에이전트 vault write 금지.
 - **확인 게이트**(#125 rule-tiers §2): 승격·에픽 등록·규칙 추가는 자동 후보까지, 확정은 사용자. silent 금지.
 - 헌법/정책 목록 단일출처: `docs/design/claude-kit-boundary.md` §Design Principles 참조.
