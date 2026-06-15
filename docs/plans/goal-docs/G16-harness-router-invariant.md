@@ -12,7 +12,14 @@ created: 2026-06-08
 
 # G16 — ⑤ 하네스 본체 (4종 슬라이스 라우터 + D5 invariant, #183)
 
-> **handoff-plan(#171) dogfooding 산출.** G15에서 `workflow-harness/skills/handoff-plan`이
+> **✅ 완료 (#183 CLOSED · #217 정합).** 4종 슬라이스 라우터 + D5 헌법 invariant enforcement는 배포됐어요 —
+> 산출물은 `dev-harness/scripts/slice_router.py`·`invariant_guard.py` + 테스트 `dev-harness/scripts/test/test-router.py`·`test-invariant.py`.
+> #217이 ⑤ 하네스를 dev-harness(개발 거버넌스)/feedback-loop(자기개선)로 분리하면서, 이 문서가 "workflow-harness"로
+> 부르던 플러그인은 라우터·invariant가 거버넌스 산출물이라 **dev-harness**가 됐고, 본문 경로를 현재값으로 갱신했어요.
+> frontmatter `status: ready`는 goal-doc-spec §1.1 enum(gated/ready 2종)에 완료 표기 수단이 없어 유지하되,
+> 완료 상태의 단일 출처는 이 배너예요(CON-4 enum 진화는 schema_version 경유 — 미적용).
+
+> **handoff-plan(#171) dogfooding 산출.** G15에서 `dev-harness/skills/handoff-plan`이
 > 열린 backlog 18건을 의존·도메인으로 청킹한 결과, #183(=#122 잔여)이 "한 세션에 다 하면
 > 비싼 ⑤ 하네스 본체"로 식별됐고, 그걸 **비용 커서로 4슬라이스 분할**한 goal-doc이에요.
 > `epic:` frontmatter는 goal-doc-spec 미정의라 omit(spec-faithful) — #172 self-hosting 정합은
@@ -55,10 +62,10 @@ invariant를 충분히 강제하면 자체 enforcement는 축소 가능(P6 가�
 
 ## 슬라이스 순서
 
-1. **4종 슬라이스 라우터** → 바인딩: spec-first → executor|native(#133) → adversarial-review|code-reviewer(#133) | 대상 파일: `workflow-harness/` (라우터 로직 + 진입점) | 산출: `work_type`→슬라이스 시퀀스 결정·위임(§3.6 기본 바인딩 + §4.4 bug-light 부재 라우팅) | 검증: 4종(feature-full/decision-only/doc-only/bug-light) 라우팅 단위테스트
-2. **D5 헌법 invariant enforcement** → 바인딩: spec-first → executor|native(#133) → adversarial-review|code-reviewer(#133) | 대상 파일: `workflow-harness/` (enforce 레이어) | 산출: native 미강제 invariant(new-file-only·격리critique·INV-4·CON-5) thin enforce | 검증: invariant 위반 케이스 차단 테스트(각 CON별 negative case)
-3. **native 위임 경계 구현** → 바인딩: 직접(메인 컨텍스트, 설계 결정) → executor|native(#133) | 대상 파일: `workflow-harness/` + `README.md` | 산출: goal-doc parse/exec·슬라이스 루프 native 위임 경계 + 자체 빌드 한정 범위 명문화 | 검증: native fallback 동작(native 가능분은 위임, 미제공분만 자체)
-4. **통합 테스트** → 바인딩: executor|native(#133) → verifier | 대상 파일: `workflow-harness/scripts/test/` | 산출: 4종 라우팅 + native fallback 통합테스트 + CLAUDE.md Validation·`validate.yml` 등록 | 검증: ci-coverage --strict green(신규 테스트 wired) + 통합테스트 통과
+1. **4종 슬라이스 라우터** → 바인딩: spec-first → executor|native(#133) → adversarial-review|code-reviewer(#133) | 대상 파일: `dev-harness/` (라우터 로직 + 진입점) | 산출: `work_type`→슬라이스 시퀀스 결정·위임(§3.6 기본 바인딩 + §4.4 bug-light 부재 라우팅) | 검증: 4종(feature-full/decision-only/doc-only/bug-light) 라우팅 단위테스트
+2. **D5 헌법 invariant enforcement** → 바인딩: spec-first → executor|native(#133) → adversarial-review|code-reviewer(#133) | 대상 파일: `dev-harness/` (enforce 레이어) | 산출: native 미강제 invariant(new-file-only·격리critique·INV-4·CON-5) thin enforce | 검증: invariant 위반 케이스 차단 테스트(각 CON별 negative case)
+3. **native 위임 경계 구현** → 바인딩: 직접(메인 컨텍스트, 설계 결정) → executor|native(#133) | 대상 파일: `dev-harness/` + `README.md` | 산출: goal-doc parse/exec·슬라이스 루프 native 위임 경계 + 자체 빌드 한정 범위 명문화 | 검증: native fallback 동작(native 가능분은 위임, 미제공분만 자체)
+4. **통합 테스트** → 바인딩: executor|native(#133) → verifier | 대상 파일: `dev-harness/scripts/test/` | 산출: 4종 라우팅 + native fallback 통합테스트 + CLAUDE.md Validation·`validate.yml` 등록 | 검증: ci-coverage --strict green(신규 테스트 wired) + 통합테스트 통과
 
 > **슬라이스 의존**: S1 → S2(라우터 위에 invariant enforce가 올라감). S3는 S1과 병렬 가능
 > (위임 경계는 라우터 설계와 동시 진행). S4는 S1–S3 후(통합). `→`는 산출→입력 체이닝(§3.5).
@@ -78,10 +85,10 @@ invariant를 충분히 강제하면 자체 enforcement는 축소 가능(P6 가�
 #    - decision-only → 실행 없음
 #    - doc-only → 출력 전용
 #    - (bug-light) → goal-doc 부재 시 debug 직행
-python3 workflow-harness/scripts/test/test-router.py   # 신설 예정 (S4)
+python3 dev-harness/scripts/test/test-router.py   # 신설 예정 (S4)
 
 # 2) invariant enforce: 위반 케이스 차단
-python3 workflow-harness/scripts/test/test-invariant.py # 신설 예정 (S4)
+python3 dev-harness/scripts/test/test-invariant.py # 신설 예정 (S4)
 
 # 3) ci-coverage: 신규 테스트가 CI에 wired (silent local-only 금지)
 python3 scripts/check-ci-coverage.py --strict
