@@ -94,7 +94,7 @@ python3 scripts/check-version-sync.py && echo "ok version-sync clean"
 python3 scripts/check-ci-coverage.py --strict && echo "ok ci-coverage clean"
 
 # 4. 단방향 의존(CON-5) 확인 — leaf가 workflow-harness를 역방향으로 import하지 않는지
-grep -rl "workflow.harness\|workflow-harness" thinking-tools/ obsidian-vault-manager/ vault-bridge/ feedback-loop/ 2>/dev/null \
+grep -rl "workflow[._-]harness" thinking-tools/ obsidian-vault-manager/ vault-bridge/ feedback-loop/ 2>/dev/null \
   && echo "FAIL: 역방향 의존 발견" || echo "ok CON-5 단방향 clean"
 ```
 
