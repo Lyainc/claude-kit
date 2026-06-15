@@ -59,6 +59,49 @@ workflow-harness는 G14에서 이미 신설된 ⑤ home이라 거기 입주.
 - [ ] 단방향 의존(CON-5): ⑤ → leaf만. 역방향 금지. plugin.json version-sync + ci-coverage green.
 - [ ] 격리 code-reviewer/verifier 패스(자기승인 금지, CON-3).
 
+---
+
+## 쟁점과 트레이드오프
+
+| 쟁점 | 옵션 | 결정 | 근거 |
+|------|------|------|------|
+| 물리 위치 | ② leaf 기존 플러그인 vs ⑤ workflow-harness 신규 스킬 | **⑤ workflow-harness** | 산출물 무게중심이 goal-doc 슬라이스 바인딩(⑤ 아티팩트); CON-5 단순화 (#140 게이트) |
+| G14 통합 vs 분리 | G14 슬라이스 3 유지 vs G15 독립 goal | **G15 독립** | #140 미해결 + #104 vault-bridge slim 정합 선행 필요; 급조 시 CON-5 경계 훼손 |
+| vault-bridge /handoff 역할 | 기존 /handoff 확장 vs 신규 ⑤ 스킬 병행 | **신규 ⑤ 스킬** | 역할 분리: /handoff=continuation prompt(③), handoff-plan=백로그 청킹 → goal-doc(⑤). 중복 정의 금지 |
+
+---
+
+## 슬라이스 순서
+
+1. **#140 위치 확정** → 바인딩: 직접(메인 컨텍스트, ⑤ workflow-harness 위치 확정 1줄 기록) | 대상 파일: 해당 없음 | 산출: #140 패턴 1줄 기록 | 검증: 위치 결정 근거(산출물 무게중심=⑤ 슬라이스 루프) 기록됨
+2. **handoff-plan 스킬 구현** → 바인딩: spec-first → executor|native(#133) | 대상 파일: workflow-harness/skills/handoff-plan/SKILL.md | 산출: COLLECT→CHUNK→EPIC→BIND→OUTPUT 파이프라인 | 검증: version-sync + ci-coverage green + user-confirmed 게이트 동작
+3. **critique** → 바인딩: adversarial-review|code-reviewer(#133) | 대상 파일: workflow-harness/skills/handoff-plan/ | 산출: 비판적 검토 결과 | 검증: PASS (자기승인 금지 CON-3)
+
+---
+
+## E2E 자가검증
+
+```bash
+# 1. handoff-plan 스킬 존재 확인
+ls workflow-harness/skills/handoff-plan/SKILL.md && echo "ok handoff-plan SKILL.md"
+
+# 2. 버전 동기화 + CI 커버리지 확인
+python3 scripts/check-version-sync.py && echo "ok version-sync clean"
+python3 scripts/check-ci-coverage.py --strict && echo "ok ci-coverage clean"
+
+# 3. 단방향 의존(CON-5) 확인
+grep -rl "workflow.harness\|workflow-harness" thinking-tools/ obsidian-vault-manager/ vault-bridge/ feedback-loop/ 2>/dev/null \
+  && echo "FAIL: 역방향 의존 발견" || echo "ok CON-5 단방향 clean"
+
+# 4. vault 쓰기 없음 확인 (CON-1)
+grep -n "~/vault\|VAULT_ROOT" workflow-harness/skills/handoff-plan/SKILL.md 2>/dev/null \
+  | grep -v "confirm\|never\|not\|없음" && echo "WARN: vault write 패턴 발견" || echo "ok vault write 없음 (CON-1)"
+```
+
+**통과 기준**: 모든 확인 통과 + version-sync + ci-coverage green + CON-5 역방향 의존 없음
+
+---
+
 ## 제약 / 안전판 (재정의 금지 — 참조만)
 
 - 헌법/정책 단일출처: `docs/design/claude-kit-boundary.md` §5 (CON-1 vault write·CON-3 self-approval·CON-5 단방향).
