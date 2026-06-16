@@ -97,7 +97,10 @@ manifests, frontmatter, and constitution), so they are **claude-kit self-contain
 | `check-version-sync.py` | repo-root `scripts/` | reconciles `plugin.json` ↔ `marketplace.json` (incl. the dev-drift fence) — marketplace governance, repo-only |
 | `check-type-optin.py` · `check-language-policy.py` · `check-banned-words.py` | repo-root `scripts/` | enforce this repo's own doc/work-rule conventions (#216 minimal core) |
 
-These are repo-build infrastructure, not portable policy: there is nothing to abstract up, because
+The table lists the **#229 1(a) set** specifically; the same verdict extends to the repo's
+other build-only scripts (`check-ci-coverage.py`, `run-linters.py`, `check-test-exitcode.py`,
+the release tooling) — all claude-kit self-contained for the identical reason. These are
+repo-build infrastructure, not portable policy: there is nothing to abstract up, because
 the *what + why* is "validate claude-kit itself." (Contrast the #209 lift above, whose what+why is
 machine-general.) Note the root guards live in repo-root `scripts/`, not under `dev-harness/` — the
 slimming verdict is about *destination* (claude-kit, never local-harness), not relocation within the
