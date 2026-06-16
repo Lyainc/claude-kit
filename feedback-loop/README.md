@@ -18,6 +18,32 @@ Two pieces ship together:
   which skills/agents/commands ran so `retro` (and you) can spot waste and dead
   surfaces.
 
+## Definition — project-unit, nudge-only, zero local dependency (#229)
+
+feedback-loop is scoped **per project**, not per machine. Telemetry events are
+written under the project's own tree (`${CLAUDE_PROJECT_ROOT}/.claude-kit/...`, see
+*Events directory*) and `retro` reviews that project's signal. There is no
+machine-global state and no shared store across projects.
+
+The only coupling the design **permits** to the developer's **machine-level policy
+base** (the *local-harness* MVP at `~/.claude/rules/`) is a **user-confirmed nudge** —
+never an import, fetch, or shared store. What ships today is the project-scoped half:
+`retro` proposes **project-local** rule lines (`.claude/*.local.md`, Tier 3) behind a
+user-confirmed gate. The further step — *promoting* a recurring project rule up to the
+machine-level base — is the **deferred (YAGNI)** form of that same bridge (it lands
+only once there are 2+ projects and a real drift event). Either way it is a
+**suggestion you confirm** (carried by the `rule_fire` data contract), never a runtime
+or build dependency.
+
+**Zero local dependency = portability.** Because the bridge is nudge-only,
+feedback-loop runs **identically on a machine that has no local-harness at all** —
+nothing imports it, nothing fetches it, nothing breaks when it is absent. This is the
+externally-distributable half of layer ⑤: a public install must work for users who
+have never heard of local-harness. (Strong coupling to the machine base is therefore
+forbidden — it would break that portability.) Canonical statement of this boundary:
+[`docs/design/claude-kit-boundary.md`](../docs/design/claude-kit-boundary.md) §0; the
+dev-governance sibling carries the same §0 in `dev-harness/README.md`.
+
 ## Privacy & cost — read this
 
 The telemetry hooks are registered in this plugin's manifest, so **the hook is

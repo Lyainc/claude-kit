@@ -82,7 +82,7 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 
 - **"자족(self-contained)"의 정확한 뜻**: claude-kit은 자기가 필요로 하는 정책의 *구체 형태*를 **스스로** 보유해요. 이건 머신 레벨 추상의 **구체화(concretization)**지 *동일 복제*도 *런타임 fetch*도 아니에요. 추상과의 연결은 **지적 계보(intellectual lineage)** + `feedback-loop`의 느슨한 넛지 다리일 뿐, 코드/빌드 의존이 아니에요. §0의 "의존"은 런타임/빌드를 뜻하지 지적 계보가 아니에요(#229, discovery f15).
 - **상속 = 추상/구체 분해 (동일 복제 금지)**: 같은 정책을 양쪽에 동일 텍스트로 두면 상속이 아니라 중복(DRY 위반)이에요. 로컬 = 추상(what+why), claude-kit = 구체(how) — 고도(altitude)로 구분해요.
-- **워크드 예제 (#229 dev-harness 슬림)**: dev-harness 세 컴포넌트(`feature-full.js` #201 / `handoff-plan` #171 / `slice-router` #183)는 전부 *구현체* → **claude-kit 자족 잔류**(이동 0; 이동 후 런타임 소비는 §0 위반이라 기각). 유일한 진짜 *추상* 상향은 **서브에이전트 git 부작용 계약(#209)** — 광의 what+why는 머신 레벨 work-rule(`~/.claude/rules/` P3)로 올라가고 구체 강제는 claude-kit에 자족으로 남아요. 컴포넌트별 분류표는 `dev-harness/README.md`("Portability" 섹션)에 있어요.
+- **워크드 예제 (#229 dev-harness 슬림)**: dev-harness 세 컴포넌트(`feature-full.js` #201 / `handoff-plan` #171 / `slice-router` #183)는 전부 *구현체* → **claude-kit 자족 잔류**(이동 0; 이동 후 런타임 소비는 §0 위반이라 기각). 유일한 진짜 *추상* 상향은 **서브에이전트 git 부작용 계약(#209)** — 광의 what+why는 머신 레벨 work-rule(`~/.claude/rules/` P3)로 올라가고 구체 강제는 claude-kit에 자족으로 남아요. **레포 빌드 결정론 가드(#229 1(a))** — `invariant_guard`(dev-harness) + 루트 `scripts/`의 `check-version-sync`·`check-type-optin`·`check-language-policy`·`check-banned-words` — 도 같은 판정: *이 레포 자체*를 검증하니 추상화할 거리가 없어 **claude-kit 자족 잔류**(local-harness 이관 0). 컴포넌트·가드별 분류표는 `dev-harness/README.md`("Portability" 섹션)에 있어요.
 - **느슨한 연결 — `feedback-loop` 넛지(상향)**: 프로젝트 반복 패턴을 "로컬 rules로 올릴래요?" user-confirmed 넛지로 승격 제안하는 게 유일한 다리예요. 코드 의존이 아니라 telemetry 데이터 계약이에요.
 
 ---
