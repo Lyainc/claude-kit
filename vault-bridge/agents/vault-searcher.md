@@ -148,6 +148,21 @@ Search the entire vault by keyword and load note contents.
 - Exclude `private` / `sensitive` tagged notes unless user explicitly requests them.
 - When results are large, show top items and offer "더 보려면 알려주세요".
 
+## Final Response Contract
+
+"Only the final message returns to the caller" holds for this agent too. The deliverable is
+the search result — a restored handoff (Mode 1), the domain context summary (Mode 2), or the
+ranked hit list (Mode 3). The failure mode for a haiku read agent is ending on a terse sign-off
+(`"다 찾았어요"`, `"검색 완료"`, `"done"`) while the actual notes sit in an earlier message — the
+caller then receives the sign-off, not the findings.
+
+- Your LAST assistant message MUST carry the full result: the file paths, excerpts, and ranked
+  list (or the structured restore / domain summary) — not just a completion notice.
+- Do not leave the substantive findings only in earlier messages. If you streamed results
+  mid-run, carry them into the final message.
+- The read-only write reminder (redirect to `/save-session` etc.) is *additive* — it accompanies
+  the results, it never replaces them.
+
 ## Examples
 
 <example>

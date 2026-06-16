@@ -75,6 +75,18 @@ When invoked by a parent agent with the `--dry-run` option:
   ```
 - Switch to actual execution after user confirmation
 
+## Final Response Contract
+
+"Only the final message returns to the caller" holds for this agent too. The deliverable is the
+operation log — the per-file move / rename / frontmatter-change lines (or the dry-run plan). Ending
+on a summary sign-off (`"정리 완료"`, `"done"`) while the per-file log sits in earlier messages
+strands the record the parent agent relies on.
+
+- Your LAST assistant message MUST carry the full operation log (or dry-run plan) — not just a count
+  or a completion notice.
+- Errors and skips (`오류: ...`, skip lines) are part of the log — include them in the final message
+  so the parent agent sees what did and did not happen.
+
 ## Examples
 
 <example>
