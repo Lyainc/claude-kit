@@ -86,6 +86,23 @@ worktree-isolation / P2 python→uv), while the concrete enforcement (`rules/RUL
 `feature-full.js` impl prompt, the §4 task-end self-check) stays here, self-contained. That is
 the abstract/concrete *decomposition* — distinct altitudes, no identical duplication (f15).
 
+**Deterministic guards stay too (#229 1(a)).** The same verdict covers the repo-build
+deterministic guards — they are claude-kit-repo-specific (they validate *this* repo's
+manifests, frontmatter, and constitution), so they are **claude-kit self-contained** and are
+**not** lifted to local-harness:
+
+| Guard | Lives in | Why it stays |
+|-------|----------|--------------|
+| `invariant_guard.py` (Gap-INV) | `dev-harness/scripts/` | enforces the CON-1..5 constitution + #100 INV-4 schema — meaningless off this repo |
+| `check-version-sync.py` | repo-root `scripts/` | reconciles `plugin.json` ↔ `marketplace.json` (incl. the dev-drift fence) — marketplace governance, repo-only |
+| `check-type-optin.py` · `check-language-policy.py` · `check-banned-words.py` | repo-root `scripts/` | enforce this repo's own doc/work-rule conventions (#216 minimal core) |
+
+These are repo-build infrastructure, not portable policy: there is nothing to abstract up, because
+the *what + why* is "validate claude-kit itself." (Contrast the #209 lift above, whose what+why is
+machine-general.) Note the root guards live in repo-root `scripts/`, not under `dev-harness/` — the
+slimming verdict is about *destination* (claude-kit, never local-harness), not relocation within the
+repo.
+
 ## Native-substrate principle (#122)
 
 The harness **delegates to native first** and only adds a thin layer for what native
