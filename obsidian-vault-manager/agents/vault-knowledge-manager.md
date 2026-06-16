@@ -100,6 +100,18 @@ Use audit proactively when the user asks about vault health, broken links, or or
 - On failure, provide a clear error report with resolution steps.
 - Track the list of files created/modified during the session.
 
+## Final Response Contract
+
+"Only the final message returns to the caller" holds for this agent too. Note creation, domain
+search, and audit are multi-step, so the deliverable (created file paths, search findings, or the
+E1–E5 audit report) is easy to strand by ending on a content-free sign-off (`"완료"`, `"끝났어요"`,
+`"done"`) while the substance sits in an earlier message.
+
+- Your LAST assistant message MUST carry the full deliverable: the created/modified file list, the
+  search results, or the audit findings — not just a completion notice.
+- If the output was emitted mid-run (e.g. an audit report printed before a follow-up question),
+  carry it into the final message.
+
 ## Examples
 
 <example>

@@ -106,6 +106,18 @@ machine-general.) Note the root guards live in repo-root `scripts/`, not under `
 slimming verdict is about *destination* (claude-kit, never local-harness), not relocation within the
 repo.
 
+**Further general candidates (#229 1(a) — still *candidates*, not yet lifted).** Beyond the #209
+lift, two items have intellectual lineage pointing machine-ward but are **not** (yet) abstract-lifted:
+(1) **the #211 subagent output contract** — "only the final message returns" is a general pattern
+across every spawn point (skill / workflow / native agent), so claude-kit already holds it
+self-contained as a repo-wide rule (`rules/RULES.md` §1 + each native agent's Final Response Contract);
+the machine-level abstract lift is a **deferred candidate**, earned the way #209 earned its promotion
+(recurrence). (2) **#202 distill** — not a component move but the *distillation path of the
+`feedback-loop` nudge itself*: the channel that distills a session's reusable *procedural* technique
+into a personal skill (`~/.claude/skills/`), the concrete mechanism by which such a pattern could ride
+the nudge up to the machine base (the distill build itself is the separate #202 track). Both are
+lineage, not runtime dependency — §0 holds.
+
 ## Native-substrate principle (#122)
 
 The harness **delegates to native first** and only adds a thin layer for what native
@@ -153,6 +165,12 @@ against this, in order of strength:
 
 The rule of thumb: **if you `await agent(...)` and read the result, it needs a `schema`;
 if you can only read prose, paste the contract above into the prompt.**
+
+This is a **repo-wide** rule, not substrate-local. `rules/RULES.md` §1 states it for *every*
+claude-kit subagent spawn point, and the native agents carry their own "Final Response Contract"
+section (`thinking-facilitator`, `vault-searcher`, `vault-knowledge-manager`,
+`vault-file-organizer`). This section is the substrate-specific concretization — the schema-first
+carrier `feature-full.js`.
 
 ## feature-full Workflow Script (`workflows/feature-full.js`)
 

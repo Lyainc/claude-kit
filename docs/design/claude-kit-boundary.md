@@ -84,6 +84,7 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 - **상속 = 추상/구체 분해 (동일 복제 금지)**: 같은 정책을 양쪽에 동일 텍스트로 두면 상속이 아니라 중복(DRY 위반)이에요. 로컬 = 추상(what+why), claude-kit = 구체(how) — 고도(altitude)로 구분해요.
 - **워크드 예제 (#229 dev-harness 슬림)**: dev-harness 세 컴포넌트(`feature-full.js` #201 / `handoff-plan` #171 / `slice-router` #183)는 전부 *구현체* → **claude-kit 자족 잔류**(이동 0; 이동 후 런타임 소비는 §0 위반이라 기각). 유일한 진짜 *추상* 상향은 **서브에이전트 git 부작용 계약(#209)** — 광의 what+why는 머신 레벨 work-rule(`~/.claude/rules/` P3)로 올라가고 구체 강제는 claude-kit에 자족으로 남아요. **레포 빌드 결정론 가드(#229 1(a))** — `invariant_guard`(dev-harness) + 루트 `scripts/`의 `check-version-sync`·`check-type-optin`·`check-language-policy`·`check-banned-words` — 도 같은 판정: *이 레포 자체*를 검증하니 추상화할 거리가 없어 **claude-kit 자족 잔류**(local-harness 이관 0). 컴포넌트·가드별 분류표는 `dev-harness/README.md`("Portability" 섹션)에 있어요.
 - **느슨한 연결 — `feedback-loop` 넛지(상향)**: 프로젝트 반복 패턴을 "로컬 rules로 올릴래요?" user-confirmed 넛지로 승격 제안하는 게 유일한 다리예요. 코드 의존이 아니라 telemetry 데이터 계약이에요.
+- **추가 범용 후보 (#229 1(a) — 아직 *후보*, 리프트 미실행)**: #209 git 계약처럼 *지적 계보가 머신 레벨로 향하는* 항목이 둘 더 있어요. (1) **#211 서브에이전트 반환 계약** — "마지막 메시지만 반환된다"는 모든 스폰 지점(스킬·워크플로·네이티브 에이전트)에 걸리는 범용 패턴이라, claude-kit엔 이미 범용 규칙으로 **자족 보유**(`rules/RULES.md` §1 + 각 에이전트의 Final Response Contract)해요. 머신 레벨 추상 리프트는 #209가 그랬듯 *재발이 증명되면* 올리는 **deferred 후보**고요. (2) **#202 distill** — 컴포넌트 이동이 아니라 **`feedback-loop` 넛지의 *증류 경로* 그 자체**예요: 세션의 재사용 가능한 *절차* 기법을 개인 스킬(`~/.claude/skills/`)로 증류하는 채널이고, 그 증류물이 위 넛지를 타고 머신 레벨 베이스로 올라갈 수 있는 상향 다리의 구체 메커니즘이에요(distill 빌드 자체는 별도 트랙 #202). 둘 다 *런타임 의존이 아니라 계보*라는 점은 #209와 같아서 §0 불변식은 안 깨져요.
 
 ---
 

@@ -85,6 +85,28 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   `.claude/settings.json` (like the §4 reminder hook), and its regression test
   (`scripts/test/test-subagent-git-guard.py`) blocks in CI so the guard logic cannot
   silently regress.
+- **A subagent's deliverable rides its final message — pin it (#211).** "Only the last
+  assistant message returns to the caller" is a property of *every* subagent — native
+  `Agent`/`Task` and schema-less Workflow `agent()` alike. A subagent can do correct work
+  across many turns and then end with a content-free sign-off (`"done"`, `"완료"`); that
+  sign-off — not the work — becomes the return value, and the real output is stranded in
+  the transcript (confirmed: an omp-analysis workflow stranded 351k tokens of analysis
+  behind `"Complete."`). Every spawn point MUST defend, strongest first: (1) **prefer a
+  `schema`** — the subagent is *forced* to call `StructuredOutput`, so the validated object
+  returns, never a stray sign-off (what `feature-full.js` does with `IMPL_REPORT_SCHEMA` /
+  `VERDICT_SCHEMA` + a null guard); (2) when a schema is too rigid (free-form reports),
+  **pin a final-message contract** in the prompt or agent definition — "your LAST assistant
+  message IS the deliverable; never end on a content-free sign-off." This is a **repo-wide**
+  rule, not substrate-local: the substrate detail + the schema-first carrier live in
+  `dev-harness/README.md` ("Agent output contract"), and the native-agent application is
+  each agent's own "Final Response Contract" section (`thinking-facilitator`,
+  `vault-searcher`, `vault-knowledge-manager`, `vault-file-organizer`). Sibling to the #209
+  git contract above — #209 governs a subagent's *git side effects*, this governs its
+  *returned output* (the two axes of the same "subagent contract" theme). Enforcement is
+  convention + the §4 self-check, not a deterministic guard: "did the final message carry
+  the deliverable?" is a judgment call (the §3 SOFT tier), so it is not made HARD. The
+  general-candidate status of this contract (an abstract lift toward the machine level, the
+  way #209 earned its promotion) is tracked in `docs/design/claude-kit-boundary.md` §0.
 - **Concurrent work goes in an isolated git worktree (#234).** When another agent or
   tool is working this repo at the same time (e.g. a second CLI agent running its own
   slices in parallel), do your work in a **dedicated `git worktree`** — never the shared
@@ -226,6 +248,9 @@ deterministic script cannot fairly decide:
       impl-delegating workflow prompt states the no-git-side-effects contract; if you
       ran agents on this repo, the runtime guard (`scripts/subagent-git-guard.sh`) was
       wired in your `.claude/settings.json`.
+- [ ] **Subagent output contract (#211)**: every subagent spawn point either passes a
+      `schema` or pins a final-message contract, so the deliverable rides the final message
+      and is not stranded behind a content-free sign-off (`"done"` / `"완료"`).
 - [ ] **Concurrent worktree isolation (#234)**: if another agent or tool was working
       this repo concurrently, your changes were made in a dedicated `git worktree`, not
       the shared main checkout — so concurrent writers did not race or trample each
