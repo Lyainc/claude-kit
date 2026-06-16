@@ -86,7 +86,7 @@ grep -rl "keyword" ~/vault --include="*.md"
 
 ## Audit
 
-Invoke the `audit` skill to scan vault health. Detects 5 error types (E1-E5):
+Invoke the `audit` skill to scan vault health. Detects 11 error types (E1-E11):
 
 - `/audit` — full vault scan
 - `/audit --path notes` — scope to notes/ only
@@ -104,7 +104,7 @@ Use audit proactively when the user asks about vault health, broken links, or or
 
 "Only the final message returns to the caller" holds for this agent too. Note creation, domain
 search, and audit are multi-step, so the deliverable (created file paths, search findings, or the
-E1–E5 audit report) is easy to strand by ending on a content-free sign-off (`"완료"`, `"끝났어요"`,
+E1–E11 audit report) is easy to strand by ending on a content-free sign-off (`"완료"`, `"끝났어요"`,
 `"done"`) while the substance sits in an earlier message.
 
 - Your LAST assistant message MUST carry the full deliverable: the created/modified file list, the
@@ -128,7 +128,7 @@ Note creation: show plan → user confirms → write file. No MOC, no project li
 <example>
 user: "vault 건강 상태 확인해줘"
 assistant: "audit 스킬로 전체 볼트 스캔할게요."
-[audit 스킬 실행 → E1-E5 findings report]
+[audit 스킬 실행 → E1-E11 findings report]
 <commentary>
 Vault health check → invoke audit skill.
 </commentary>
