@@ -18,6 +18,39 @@ ports the *prompt assets* (not code) of
 [claude-self-improving-skills](https://github.com/UniM0cha/claude-self-improving-skills)
 (SIS, Hermes Agent).
 
+## Discovery ↔ landfill boundary (DISCOVER-LANDFILL-BOUNDARY)
+
+distill is the **DISCOVERY half** of the recursive-improvement loop (#251): it judges
+*what* is a class-level reusable technique and emits a **natural-language proposal**
+(what / why / session-provenance / inviolability judgment — see §"output contract"
+below). Deciding *where and how* to embed — placement classification
+(patch>extend>reference>new) and authoring — is the **landfill responsibility** of
+the general engine (G19, add-policy lineage), NOT distill **in the target state**
+(the transition caveat is below). The proposal is the engine's input interface.
+
+**Output contract** (C2 — format is G19-deferred; content is specified now):
+
+A distill proposal is a natural-language object carrying:
+- **what**: the reusable procedural technique in one line — the rule/technique content.
+- **why**: what is lost if not captured — the reuse value. (Mirrors add-policy §5
+  entry template What/Why.)
+- **session provenance**: which session pattern this was repeatedly observed in.
+- **inviolability judgment** (C4): if the proposal patches an existing skill X, is X
+  user-authored (inviolable)? This judgment is **discovery's responsibility** — the
+  proposal carries it so the landfill engine never overwrites what it must not.
+
+distill does NOT fill the **classification grid** — the four slots
+layer/scope/tier/channel, the embedding engine's *placement schema* (add-policy §1/§2;
+lineage-only, CON-5 self-contained). This holds even during the transition: unlike the
+patch>extend>new placement-action choice (Phase 2, provisionally retained), the grid is
+never distill's to fill — pre-filling it would usurp landfill responsibility (C5).
+
+During the transition (G19 not yet built) distill provisionally retains the
+placement-action choice (Phase 2/3) and WRITE (Phase 4) behind the sealed markers in
+those phases, so discovery stays non-regressing until the landfill engine absorbs them.
+This is a *managed* transition, not the terminus — those blocks are named G19 removal
+targets (C6).
+
 ## MECE boundaries (do not blur — print boundary ① to the user once)
 
 - **Boundary ① — procedural only.** `distill` captures *reusable procedural
@@ -63,6 +96,10 @@ manufacture a skill to have something to show.
 
 ### Phase 2 — PRIORITIZE (suppress skill proliferation)
 
+> **Boundary note**: placement decision (patch>extend>reference>new) is **landfill
+> responsibility** (G19, add-policy §3 placement rules); provisionally retained here
+> during transition. This block is a G19 named removal target (C6, T2).
+
 For each surviving candidate, choose the **least-proliferating** action, in this
 strict order (scan `~/.claude/skills/*/SKILL.md` first to know what exists):
 
@@ -77,6 +114,12 @@ strict order (scan `~/.claude/skills/*/SKILL.md` first to know what exists):
 
 ### Phase 3 — GATE (user-confirmed, silent forbidden)
 
+> **Boundary split** (C5): "shall we proceed with this proposal at all?" is the
+> **discovery gate** (distill's responsibility, retained here). "Which action
+> (patch/extend/new) and which target?" is the **landfill decision gate** (G19
+> 1-click gate); provisionally presented together during transition. The two faces
+> are co-resident here until the landfill engine exists.
+
 Present each candidate via AskUserQuestion (Korean): the technique, the chosen
 action (patch/extend/reference/new + target skill), the proposed `name`
 (class-level — name the *situation/capability*, e.g. `flaky-test-triage`, not
@@ -85,6 +128,11 @@ picks which to apply (multi-select) or skips all. **Never write without explicit
 confirmation.** Distilling is opt-in exactly like `retro`'s memory/rule branches.
 
 ### Phase 4 — WRITE (confirmed only)
+
+> **PROVISIONAL (transition)**: WRITE is **landfill responsibility** (actual
+> authoring = placement + Edit/Write). G19 removes this phase once the landfill
+> engine absorbs authoring. Until then it is retained so discovery stays
+> non-regressing. **This block is a named G19 removal target (C6).**
 
 For each confirmed candidate:
 
@@ -103,15 +151,39 @@ For each confirmed candidate:
     `skill-creator` (Boundary ②) — but the provenance marker and the distill
     judgment stay here.
 
+> **Inviolability judgment (C4 — discovery responsibility)**: before writing,
+> distill must determine whether the target skill is user-authored (inviolable). This
+> *judgment* ("is X inviolable?") is the discovery half's responsibility and is
+> carried in the proposal object. Only the mechanical provenance marker write is
+> landfill work. The safety invariant — "user-authored skills are inviolable / never
+> overwrite" — is non-negotiable and must not be lost when G19 absorbs authoring.
+
 ### Phase 5 — SELF-CHECK (in-skill, no hook)
+
+> **Boundary split** (C3): two distinct faces with different owners.
+>
+> - **Artifact verification** ("frontmatter parses, name is kebab, body non-empty") —
+>   **landfill face**: these checks validate the *written artifact* produced by Phase 4
+>   (landfill work) and follow as a landfill sub-step. They stay here provisionally
+>   during transition but are a named G19 removal target.
+> - **Placement verification** ("is this the place that actually gets read?") —
+>   **discovery face** (retained here permanently): did the write land in a location
+>   that the harness actually loads? This is the seed of SUMMARY §5(c)
+>   post-embedding verification. It stays in distill because it is a *judgment* about
+>   whether the discovery reached its audience — not a mechanical artifact check.
 
 After each write, verify deterministically (report failures in Korean, do not
 leave a malformed skill):
 
+**Artifact checks (landfill face — provisional, G19 removal target):**
 - frontmatter parses and carries `name`, `description`, `allowed-tools`;
 - `name` is kebab-case and matches the directory name;
 - body is non-empty (more than the frontmatter);
 - `metadata.provenance` is present on a newly created skill.
+
+**Placement check (discovery face — retained):**
+- the written path (`~/.claude/skills/<name>/SKILL.md`) is within a directory that
+  Claude Code actually loads skills from; warn in Korean if the path looks wrong.
 
 ```bash
 # Example self-check for a freshly written skill (best-effort, Korean report on fail):
