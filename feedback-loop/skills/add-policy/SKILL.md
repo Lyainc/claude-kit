@@ -148,6 +148,13 @@ Read-only `Bash`/`Grep` is the natural way to inspect provenance across candidat
 (e.g. grep the frontmatter of `~/.claude/skills/*/SKILL.md`) — the same read-only use
 `distill` retains for its discovery checks.
 
+> **Migration note (old `metadata.provenance`)**: skills written by the *previous* distill
+> carried a nested `metadata.provenance: distilled`, not a top-level key. The engine reads
+> the top-level `provenance:` only, so such a skill falls into the "unknown marker →
+> inviolable" branch — protected, but not engine-revisable. This is the **intended
+> fail-safe** (safe > overwrite). To let the engine revise an old distilled skill, add a
+> top-level `provenance: distilled` line to its frontmatter.
+
 ## 6. Conflict check (target = the landfill site's current rules)
 
 Before adding, read the **current contents of the chosen site** (not any private
@@ -170,7 +177,13 @@ that site's present content.
   context owns git.
 - For the **hook** site, the engine emits the guard script *and* the registration diff to
   the working tree only; it **never self-registers or activates** a hook before the user
-  approves (the guard appears as a reviewable diff first).
+  approves (the guard appears as a reviewable diff first). The registration entry follows
+  the Claude Code `hooks` shape — `{event-type} → matcher → command array` — e.g.:
+  ```json
+  { "matcher": "Bash", "hooks": [{ "type": "command", "command": "bash <guard-script-path>" }] }
+  ```
+  The user wires this into the `hooks` block of their Claude Code configuration; the engine
+  emits the fragment but does not name or assume a specific config filename.
 - **Zero own harness hooks (CON-2)**: the engine adds no hooks to claude-kit's own harness
   surface. Writing a hook into the *user's* configuration is a landfill *output* — user
   machine state — not a claude-kit harness hook. The distinction matters: the engine's own
@@ -179,6 +192,32 @@ that site's present content.
   context (this skill emits text into the working tree; the main context runs, verifies,
   and commits).
 - Close with one Korean line: "메인 컨텍스트가 검토 후 커밋하세요."
+
+## 8. Post-write self-check (artifact verification)
+
+After writing, verify the artifact deterministically and report any failure to the user
+in Korean — never leave a malformed result behind. This is the **landfill-side artifact
+verification** that moved here from distill's old Phase 5 (distill keeps only the
+discovery-side placement-fit judgment). The check depends on the site:
+
+- **skill site**: frontmatter parses and carries `name` / `description` / `allowed-tools`;
+  `name` is kebab-case and matches the directory name; the body is non-empty (more than
+  the frontmatter); a newly created skill carries a top-level `provenance: distilled`.
+- **hook site**: the guard script is syntactically valid (`bash -n`) and the registration
+  entry is well-formed JSON (a matcher plus a command array).
+- **CLAUDE.md site**: the rule was actually appended (a non-empty addition to the file).
+
+Example for a freshly written skill (best-effort, Korean report on failure):
+
+```bash
+SKILL_PATH="$HOME/.claude/skills/<name>/SKILL.md"
+[ -s "$SKILL_PATH" ] && grep -q '^name:' "$SKILL_PATH" && grep -q '^description:' "$SKILL_PATH" \
+  && grep -q '^allowed-tools:' "$SKILL_PATH" && grep -q '^provenance:' "$SKILL_PATH" \
+  && echo "self-check OK" || echo "self-check FAILED — report to user in Korean"
+```
+
+A malformed write is reported and fixed, never left in place. This verification is an
+in-skill self-check, never a registered harness hook (CON-2).
 
 ## Rules
 
