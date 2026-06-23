@@ -1,9 +1,16 @@
 # thought-chain Checkpoint & Vault Integration
 
-> Status: Design — ready for implementation
+> **⚠️ SUPERSEDED (G21 cut).** The `/save-plan-doc` + `plan-doc-syncer` "③ delivery" intake
+> and the `snapshot_export` / `snapshot_import` opt-in gates that this design is built on were
+> removed (dual-source antipattern, telemetry 3-week zero, issue #215). The vault-save path
+> described here is dead: thought-chain now routes its single vault destination to
+> `vault-bridge:save-session` (with a `plan` arg for plan docs), with visibility gated only on
+> `.vault-link` presence. Kept for historical context; do not implement from this doc.
+
+> Status: ~~Design — ready for implementation~~ SUPERSEDED
 > Owner: thinking-tools plugin
 > Created: 2026-05-12
-> Related: `thinking-tools/skills/thought-chain/SKILL.md`, `vault-bridge/commands/save-plan-doc.md`, `docs/thought-chain-rationale.md`
+> Related: `thinking-tools/skills/thought-chain/SKILL.md`, `docs/thought-chain-rationale.md`
 
 ## 1. Background
 

@@ -70,7 +70,7 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 | POL-2 | **`VAULT_BRIDGE_STRICT_NAMING`** strictness | 환경변수 / project-local |
 | POL-3 | **model routing defaults** (haiku / sonnet / opus) | user-global / project-local |
 | POL-4 | **Stop hook closing-keyword list** | user-global / project-local |
-| POL-5 | **`snapshot_export` / `snapshot_import` opt-in gates** | `.vault-link` (project) + vault `_index.md` (vault owner) |
+| ~~POL-5~~ | ~~**`snapshot_export` / `snapshot_import` opt-in gates**~~ — **OBSOLETE (G21 cut)**: the `/save-plan-doc` "③ delivery" intake (dual-source antipattern, telemetry 3-week zero) was removed, so these gates no longer exist. | — |
 
 ---
 

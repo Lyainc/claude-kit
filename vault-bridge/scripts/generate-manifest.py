@@ -68,8 +68,6 @@ def _default_vault_root() -> str:
     1. VAULT_BRIDGE_VAULT_ROOT  — explicit env override (CI / runtime)
     2. VAULT_BRIDGE_VAULT_PATH  — userConfig value injected by Claude Code
     3. ~/vault                  — built-in default
-
-    NOTE: keep in sync with plan-doc-syncer.py:_default_vault_root().
     """
     raw = os.environ.get("VAULT_BRIDGE_VAULT_ROOT") or \
           os.environ.get("VAULT_BRIDGE_VAULT_PATH", "")
@@ -95,8 +93,7 @@ def _parse_scalar(value: str) -> object:
     if m:
         inner = m.group(1)
         return [item.strip().strip("\"'") for item in inner.split(",") if item.strip()]
-    # Quoted scalars: strip before bool/int coercion so `"true"` → True
-    # (parity with plan-doc-syncer.py _parse_scalar).
+    # Quoted scalars: strip before bool/int coercion so `"true"` → True.
     if len(v) >= 2 and (
         (v[0] == '"' and v[-1] == '"') or (v[0] == "'" and v[-1] == "'")
     ):
@@ -135,7 +132,7 @@ def _parse_frontmatter(text: str) -> dict:
             if current_key is not None:
                 if current_list is None:
                     # Preserve any inline scalar so `key: foo\n  - bar` yields
-                    # ["foo", "bar"] (parity with plan-doc-syncer.py).
+                    # ["foo", "bar"].
                     existing = result.get(current_key)
                     if isinstance(existing, list):
                         current_list = existing

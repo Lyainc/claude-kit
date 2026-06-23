@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+### Removed
+
+* **vault-bridge:** remove the `/save-plan-doc` command and the `plan-doc-syncer.py` "③ delivery" intake (G21, [#215](https://github.com/Lyainc/claude-kit/issues/215)). The plan-doc snapshot path was a dual-source antipattern with three weeks of zero telemetry, so it is cut. The `snapshot_export` / `snapshot_import` opt-in gates (boundary POL-5) and the `autosync_paths_include` / `autosync_paths_exclude` `.vault-link` keys are removed with it; the SessionEnd hook no longer scans for plan-doc candidates. `/save-session` (record/quick) and the manifest system are unaffected. thought-chain's vault destination now routes to `vault-bridge:save-session` (with a `plan` arg for plan docs), gated only on `.vault-link` presence.
+
 ## [2.0.0](https://github.com/Lyainc/claude-kit/compare/v1.2.0...v2.0.0) (2026-04-13)
 
 

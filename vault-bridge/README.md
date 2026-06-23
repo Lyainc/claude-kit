@@ -57,7 +57,7 @@ vault-searcher is read-only. All vault writes route through user-initiated slash
 | `record` | Past summary of completed work | Summary, Done, Related Files, Reference Context |
 | `quick` | Minimal capture | Summary, Related Files |
 
-For captures and plan documents, use `/save-plan-doc`. For committing vault changes to git, use `/vault-commit`. To hand work off to the next session, use `/handoff` (see [Session Handoff](#session-handoff)).
+For committing vault changes to git, use `/vault-commit`. To hand work off to the next session, use `/handoff` (see [Session Handoff](#session-handoff)).
 
 Use `/save-session` to trigger session note creation from the main context. The command handles type/mode selection, path confirmation, same-date collision resolution, and final save confirmation inline.
 
@@ -79,8 +79,6 @@ Use `/save-session` to trigger session note creation from the main context. The 
 | 복붙 한 줄 | One-line prompt printed to the terminal | Quick continuation, paste into the next session |
 | 복붙 요약 | Structured summary printed to the terminal | Richer context, paste into the next session |
 | 파일 저장 | `resume.md` written to `.claude-kit/vault-bridge/` | Hands off automatically — no copy-paste |
-
-`/save-plan-doc` run with the "다음 세션으로" (defer) intent also writes a `resume.md`.
 
 ### resume.md auto-pickup
 
@@ -214,7 +212,7 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 
 ## Vault-Project Link
 
-`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) searches and determines the `/save-session` / `/save-plan-doc` save path automatically — zero user intervention required.
+`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) searches and determines the `/save-session` save path automatically — zero user intervention required.
 
 ### Schema
 
@@ -223,39 +221,9 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 ```yaml
 version: 1                          # optional; v1 assumed if absent
 vault_path: notes/my-project  # required; relative to vault root
-snapshot_export: true               # optional; plan-doc autosync gate, project-owner opt-in (default: false)
-autosync_paths_include:             # optional v1.1; extra plan-doc patterns merged with defaults
-  - notes/specs/*.md
-  - adrs/**/*.md
-autosync_paths_exclude:             # optional v1.1; extra exclude patterns merged with defaults
-  - notes/specs/draft-*.md
 ```
 
-`autosync_paths_include` / `autosync_paths_exclude` are appended to spec §3.2 default patterns; both are optional and the file remains fully backward-compat with v1 (`vault_path` only).
-
-**Format constraint** — `.vault-link` and `.vault-link.local` are flat key:value YAML files. Do **not** wrap the body with `---` frontmatter delimiters; the parser treats the whole file as a single key:value scope and silently drops fields below the first `---` if any are present. The syncer emits a warning to stderr when it sees `---` in a `.vault-link` body.
-
-**Accepted list forms** — both work:
-
-```yaml
-autosync_paths_include:        # block list (preferred for readability)
-  - notes/specs/*.md
-  - adrs/**/*.md
-
-autosync_paths_include: [notes/specs/*.md, adrs/**/*.md]   # flow array
-```
-
-**Exclude pattern semantics**:
-
-| Form | Match scope | Example |
-|------|-------------|---------|
-| `path/to/dir/` (trailing `/`) | Substring match anywhere in the path | `node_modules/`, `vendor/` |
-| `**` glob | Cross-segment regex (zero or more dirs) | `proposals/**/draft-*.md` |
-| Plain glob (`*`, `?`) | fnmatch on basename or full relative path | `*.tmp.md`, `CHANGELOG.md` |
-
-To suppress a default include, write an exclude that covers it (e.g. `docs/discussions/**/*.md` blocks the default `docs/discussions/**/*.md` include for that project).
-
-**Lax boolean** — `snapshot_export` / `snapshot_import` accept `true`, `yes`, `1` (case-insensitive). The hook (bash) and the syncer (Python) treat them identically.
+**Format constraint** — `.vault-link` and `.vault-link.local` are flat key:value YAML files. Do **not** wrap the body with `---` frontmatter delimiters; the parser treats the whole file as a single key:value scope and silently drops fields below the first `---` if any are present.
 
 **`.vault-link.local`** (gitignore this file):
 
@@ -273,7 +241,6 @@ vault-searcher walks upward from CWD (git-style) until it finds `.vault-link`. T
 |---------|-----------------------|--------------------|
 | **vault-searcher Mode 2 (Domain Context Load)** | Searches all of `~/vault/` | Searches only `{vault_root}/{vault_path}/` |
 | **`/save-session`** | Saves to `~/vault/inbox/` | Saves to `{vault_root}/{vault_path}/` |
-| **`/save-plan-doc`** | Cannot run (requires `.vault-link`) | Saves snapshots to `{vault_root}/{vault_path}/` |
 
 vault-searcher Modes 1 and 3 (Session Restore, Keyword Search) are unaffected by `.vault-link` scope.
 
@@ -446,10 +413,10 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **Stop hook** (deterministic shell script `hooks/stop-check.sh`): silently checks the user's last message for session-closing keywords; injects a one-line `systemMessage` suggesting `/save-session` only when a closing signal is detected. No LLM call → no per-turn cost, no infinite-loop risk
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background; also detects `.claude-kit/vault-bridge/resume.md`, injects its body into the model context via `additionalContext`, and consumes (deletes) the file. Never blocks session startup
-- **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects all deterministic state — `.vault-link` presence + Layer 1 `snapshot_export`, `_index.md` Layer 2 `snapshot_import`, plan-doc candidates, direct-access counter, plan-doc-asked flag — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
+- **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects deterministic state — `.vault-link` presence and the direct-access counter — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
-- **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/handoff/quick)
+- **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/quick)
 - **`/handoff` command**: generates a next-session continuation handoff (one-liner / summary / `resume.md` file) — main-context user trigger
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
@@ -500,9 +467,8 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks or commit suggestions fir
 
 | Command | Description |
 |---------|-------------|
-| `/save-session` | Inline session note creation in main context — mode selection (record/handoff/quick), path confirmation, collision resolution |
+| `/save-session` | Inline session note creation in main context — mode selection (record/quick), path confirmation, collision resolution |
 | `/handoff` | Generate a next-session continuation handoff — one-line prompt, summary, or `resume.md` file |
-| `/save-plan-doc` | Snapshot external plan/design docs into the bound vault project — 2-layer opt-in gate |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |

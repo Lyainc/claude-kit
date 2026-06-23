@@ -95,9 +95,8 @@ For **claim validation** (1:1 attacker-vs-defender), invoke `adversarial-review`
 
 Run once before Stage 1. Silent — never surface to user at this point.
 
-1. Read `.vault-link` (if present): parse `vault_path`, `snapshot_export` (also honor `auto_capture` alias). `vault_linked = true` if file found, `false` otherwise.
-2. If `vault_linked`: read `~/vault/{vault_path}/_index.md` (best-effort; default `import_allowed = false` on read failure). Parse `snapshot_import` → `import_allowed`.
-3. Hold `{vault_linked, vault_path, snapshot_export, import_allowed}` in pipeline session memory.
+1. Read `.vault-link` (if present): parse `vault_path`. `vault_linked = true` if file found, `false` otherwise.
+2. Hold `{vault_linked, vault_path}` in pipeline session memory.
 
 This state is reused at every vault prompt. No upfront question.
 
@@ -170,7 +169,7 @@ When "멈추고 vault 저장" is selected before Stage 4 completes:
 
 Triggered after "멈추고 vault 저장" (post mini-polish) or after Stage 4 completes.
 Routes: "Plan doc" → `save-session plan`; "Session note" → `save-session` (record mode); "터미널만" → terminal print; "종료" → exit.
-Option visibility depends on vault gate state (`vault_linked`, `snapshot_export`, `import_allowed`).
+Option visibility depends on vault link state (`vault_linked`).
 Full option list, visibility rules, routing details, frontmatter injection:
 [reference/pipeline-examples.md](reference/pipeline-examples.md#vault-destination-question)
 

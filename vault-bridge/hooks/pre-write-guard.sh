@@ -96,7 +96,7 @@ if [ "$contract_mode" != "off" ]; then
   ' 2>/dev/null || true)
 
   if [ -n "$agent_id" ] && [ "$top_dir" != "assets" ]; then
-    contract_msg="Vault writes must be user-initiated slash commands (/save-session, /save-plan-doc, /vault-commit). Subagent ($agent_id) vault write blocked. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
+    contract_msg="Vault writes must be user-initiated slash commands (/save-session, /vault-commit). Subagent ($agent_id) vault write blocked. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
 
     if [ "$contract_mode" = "enforce" ]; then
       # Emit both permissionDecisionReason (for the deny dialog) AND systemMessage
@@ -123,8 +123,7 @@ filename=$(basename "$abs_path")
 #
 # _index.md is the structural vault/folder index — it mirrors audit-validate.py
 # `filename_conforms`/`EXEMPT_FILES` (always valid at any path) and is NOT a MOC
-# remnant (the snapshot_import marker lives in vault _index.md; it's E11-exempt).
-# Kept consistent with audit-validate.py `filename_conforms`.
+# remnant. Kept consistent with audit-validate.py `filename_conforms`.
 #
 # The hand-written MOC pattern (moc-*.md) was retired per v4 §9.5 (#166): MOC is
 # rejected as a separate slot and #118 `.base` views replace hand-written MOC.

@@ -3,7 +3,6 @@
   "vault-link": "vault-bridge",
   "vault-manifest-refresh": "vault-bridge",
   "vault-commit": "vault-bridge",
-  "save-plan-doc": "vault-bridge",
   "vault-searcher": "vault-bridge",
 
   "doc-concretize": "thinking-tools",

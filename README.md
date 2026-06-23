@@ -69,7 +69,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `/handoff` | 다음 세션 이어가기용 프롬프트 생성 |
 | `/vault-commit` | vault 변경사항 커밋 |
 
-이 외에 `/vault-manifest-refresh`, `/save-plan-doc`, 그리고 세션 생명주기 안전망 훅 5종이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
+이 외에 `/vault-manifest-refresh`, 그리고 세션 생명주기 안전망 훅 5종이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
 
 ```bash
 claude plugin install vault-bridge@Lyainc-claude-kit
