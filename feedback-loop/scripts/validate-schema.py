@@ -205,11 +205,25 @@ def run_self_test() -> int:
         "tool_use_id": "",
         "meta": {"turn_input_tokens": 1500, "turn_output_tokens": 300},
     })
+    # A rule_fire event (G20 #258) must validate cleanly, including its outcome="fired"
+    # (outcome is unconstrained for non-end events) and its conventional meta keys. This
+    # locks the contract in self-test isolation so a future change that accidentally
+    # constrained outcome to END_OUTCOMES for all events would be caught here, not just
+    # by the integration round-trip.
+    good_rule_fire = json.dumps({
+        "ts": "2026-05-15T00:00:00Z",
+        "session_id": "x", "cwd": "/", "plugin": "claude-kit",
+        "event": "rule_fire", "name": "no-pyyaml", "qualified_name": "no-pyyaml",
+        "trigger": "auto", "outcome": "fired",
+        "tool_use_id": "",
+        "meta": {"rule_id": "no-pyyaml", "severity": "hard", "file": "foo.py"},
+    })
     bad = '{"ts":"x","event":"not-an-event"}'
 
     sp = Path("self-test.jsonl")
     good_errs, _ = validate_line(good, 1, sp)
     good_meta_errs, _ = validate_line(good_meta, 1, sp)
+    good_rule_fire_errs, good_rule_fire_warns = validate_line(good_rule_fire, 1, sp, strict=True)
     good_meta_null_errs, _ = validate_line(good_meta_null, 1, sp)
     empty_lax_errs, empty_lax_warns = validate_line(empty_meta_end, 1, sp, strict=False)
     _, empty_strict_warns = validate_line(empty_meta_end, 1, sp, strict=True)
@@ -224,6 +238,13 @@ def run_self_test() -> int:
         return 1
     if good_meta_errs:
         print(f"FAIL: good meta line flagged: {good_meta_errs}", file=sys.stderr)
+        return 1
+    if good_rule_fire_errs:
+        print(f"FAIL: good rule_fire line flagged: {good_rule_fire_errs}", file=sys.stderr)
+        return 1
+    if good_rule_fire_warns:
+        print(f"FAIL: rule_fire wrongly warned under --strict (not an end event): "
+              f"{good_rule_fire_warns}", file=sys.stderr)
         return 1
     if good_meta_null_errs:
         print(f"FAIL: good null-duration meta line flagged: {good_meta_null_errs}",

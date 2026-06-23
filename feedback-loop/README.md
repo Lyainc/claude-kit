@@ -125,13 +125,31 @@ python3 feedback-loop/scripts/sequence.py --n=2 --top=20      # repeated n-gram 
 | `command_run` | UserPromptSubmit | first slash-token of prompt |
 | `session_start` / `session_end` | SessionStart / SessionEnd | session_id only |
 | `stop` | Stop | response-boundary counter |
-| `rule_fire` | (emitted by dev-harness work-rule checks) | rule_id / severity / file (all optional) |
+| `rule_fire` | `event-logger.sh rule_fire` (emitted by any work-rule guard) | rule_id / severity / file (all optional) |
 
 `outcome` values: `started` (PreToolUse), `success` / `error` / `blocked`
-(PostToolUse). All inner `meta` keys are optional — only the `meta: {}` envelope
-is required. `rule_fire` (#216 c8) is owned here as a schema (data contract); the
-dev-harness rule checks only *emit* to it — they never import feedback-loop code,
+(PostToolUse), `fired` (rule_fire). All inner `meta` keys are optional — only the
+`meta: {}` envelope is required. `rule_fire` (#216 c8) is owned here as a schema
+(data contract); emitters only *emit* to it — they never import feedback-loop code,
 so CON-5 (one-way dependency) is preserved.
+
+**rule_fire emit convention (G20, enforcement-liveness measurement)**: any work-rule
+guard — a `check-*.py` violation, a task-end reminder, or a **landed add-policy hook
+guard** — records that it *fired* by shelling out to the logger:
+
+```bash
+printf '%s' '{"meta":{"rule_id":"<id>","severity":"hard","file":"<f>"}}' \
+  | bash "$CLAUDE_PROJECT_DIR/feedback-loop/scripts/event-logger.sh" rule_fire
+```
+
+This is a **process call, not a code import** (CON-5 emit-only). The logger lifts
+`meta.rule_id` into `name`/`qualified_name`, so `report.py` counts fires per rule
+(`report.py --format=json` → `rule_fire: {<id>: <count>}`). **Honesty bound (G20
+consensus gate)**: a fire = a violation was *caught*, NOT that the rule was *followed*
+— a perfectly-obeyed rule fires zero times, and a 0-fire rule is invisible here (no
+landed-rule registry to diff against). `report.py` ships this caveat inline; the
+rule_fire view is an enforcement-**liveness** tally, never a compliance measure.
+`scripts/no-pyyaml-guard.sh` is the reference emitter.
 
 ## Lock strategy: lockless POSIX O_APPEND
 
