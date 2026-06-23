@@ -275,7 +275,8 @@ opts in (offer them, do not run silently).
 ## Rules
 
 - Silent promotion / issue filing / rule handoff is FORBIDDEN — all are user-confirmed.
-- The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed. Memory output is a `/capture` suggestion and rule output is an `/add-policy` suggestion — never a direct vault write or rule-file `Edit`; `add-policy` owns rule classification + placement (discover→land split).
+- The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed. Memory output is a `/capture` suggestion and rule output is an `/add-policy` suggestion — never a direct vault write or rule-file `Edit`.
+- `add-policy` owns rule classification + placement (the discover→land split).
 - Never re-implement audit/promotion classification — read leaf output, re-confirm thresholds, act.
 - Dedup before processing; enforce the budget; report the remainder (no silent drop).
 - CON-5: read leaf artifacts only; never modify leaf-plugin code; no reverse dependency.
