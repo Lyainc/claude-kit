@@ -75,7 +75,7 @@ type: capture | note | decision | session | plan
 | `note` | 일반 지식 단위 | Matuschak의 concept-oriented 원칙 |
 | `decision` | 의사결정 트레일 | **핵심 자산**. Phase 2 패턴 추출 대상 |
 | `session` | 세션 기록 | vault-bridge `/save-session`이 생성 |
-| `plan` | 작업 스펙 | vault-bridge `/save-plan-doc`이 생성 |
+| `plan` | 작업 스펙 | vault-bridge `/save-session plan`이 생성 |
 
 **제거된 type**:
 - `clip` → `capture` + `source: web-clipper`로 흡수 (라이프사이클 동일)
@@ -311,7 +311,7 @@ P0 항목 존재 시 *먼저 출력*하고 사용자 확인 후 다음 단계 �
 | `pre-write-guard.sh` | `00_Inbox` → `inbox` 패턴 갱신. type 없는 노트는 패스 |
 | `generate-manifest.py` | EXCLUDED_DIRS 갱신, type 필터링, 시스템 메타 추적 (`references_in/out`, `access_count`, `promotion_candidate`) |
 | `vault-searcher.md` | 경로 갱신, type 기반 우선순위, Mode 1/2/3 출력 경계 명세 정비 |
-| `/save-session`, `/save-plan-doc` | 저장 경로 갱신 |
+| `/save-session` | 저장 경로 갱신 |
 | `/vault-commit` | Commit message 컨벤션 자동 생성 |
 | SessionStart 훅 | 새 push 추가 X (기존 handoff resume만 유지) |
 

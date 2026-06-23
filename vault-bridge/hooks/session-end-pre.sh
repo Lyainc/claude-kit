@@ -43,79 +43,9 @@ vault_root="${_raw_vr/#\~/$HOME}"
 unset _raw_vr
 vault_link_file="${project_root}/.vault-link"
 
-# ── Layer 1: .vault-link presence + snapshot_export flag ──────────────────────
+# ── .vault-link presence ──────────────────────────────────────────────────────
 vl_present=false
-snapshot_export_l1=false
-vault_path=""
-
-if [ -f "$vault_link_file" ]; then
-  vl_present=true
-  # Anchored grep — never match `# snapshot_export: true` comments.
-  if grep -qE '^snapshot_export[[:space:]]*:[[:space:]]*true' "$vault_link_file" 2>/dev/null; then
-    snapshot_export_l1=true
-  fi
-  vault_path=$(grep -E '^vault_path[[:space:]]*:' "$vault_link_file" 2>/dev/null \
-    | head -n1 | sed 's/.*:[[:space:]]*//' | tr -d '[:space:]' || true)
-fi
-
-# ── Layer 2: vault project _index.md snapshot_import ──────────────────────────
-index_present=false
-snapshot_import_l2=false
-index_file=""
-
-if [ -n "$vault_path" ]; then
-  index_file="${vault_root}/${vault_path}/_index.md"
-  if [ -f "$index_file" ]; then
-    index_present=true
-    if grep -qE '^snapshot_import[[:space:]]*:[[:space:]]*true' "$index_file" 2>/dev/null; then
-      snapshot_import_l2=true
-    fi
-  fi
-fi
-
-# ── Plan-doc candidates (only meaningful when both layers opted in) ───────────
-plan_doc_already_asked=false
-[ -f "${state_dir}/plan-doc-asked" ] && plan_doc_already_asked=true
-
-# Always scan candidates so the prompt can decide whether to suggest;
-# gating happens in the prompt by combining snapshot_export_l1 ∧ snapshot_import_l2.
-# Discovery is delegated to plan-doc-syncer.py so .vault-link's
-# autosync_paths_include/exclude (W8 v1.1) is honored — handles default
-# patterns (docs/discussions, docs/design, docs/plans, PLAN.md,
-# DESIGN.md, RFC-*.md) plus user-overridden include/exclude globs.
-candidates_json="[]"
-discovery_error=""
-if [ "$snapshot_export_l1" = "true" ] && [ "$snapshot_import_l2" = "true" ]; then
-  syncer="${CLAUDE_PLUGIN_ROOT:-$(cd "$(dirname "$0")/.." && pwd)}/scripts/plan-doc-syncer.py"
-  # Capture syncer stderr to state_dir so a crash leaves a forensic artifact
-  # instead of degrading silently to candidates=[]. The empty-log cleanup keeps
-  # clean runs free of clutter; a non-empty log surfaces in state.discovery_error
-  # so the prompt-side hook can tell a real "no candidates" from a discovery crash.
-  syncer_err="${state_dir}/plan-doc-syncer-err.log"
-  # Command substitution (not process substitution) so $? reflects the
-  # syncer's actual exit code — `done < <(cmd)` would lose it.
-  syncer_out=$(python3 "$syncer" --discover "$project_root" --vault-link "$vault_link_file" 2>"$syncer_err")
-  syncer_rc=$?
-  found=()
-  while IFS= read -r line; do
-    [ -n "$line" ] && found+=("$line")
-  done <<< "$syncer_out"
-  if [ -s "$syncer_err" ]; then
-    discovery_error=$(head -c 500 "$syncer_err" | tr '\n' ' ')
-  else
-    rm -f "$syncer_err"
-  fi
-  if [ "$syncer_rc" -ne 0 ] && [ -z "$discovery_error" ]; then
-    discovery_error="syncer exited rc=${syncer_rc} with empty stderr"
-  fi
-
-  if [ "${#found[@]}" -gt 0 ]; then
-    candidates_json=$(python3 -c '
-import json, sys
-print(json.dumps(sys.argv[1:]))
-' "${found[@]}")
-  fi
-fi
+[ -f "$vault_link_file" ] && vl_present=true
 
 # ── Direct-access counter (set by pre-access-guard.sh) ────────────────────────
 direct_access_count=0
@@ -129,22 +59,13 @@ if [ -f "$counter_file" ]; then
 fi
 
 # ── Emit the JSON state ──────────────────────────────────────────────────────
-# Build the JSON in Python to escape strings safely. Booleans and the
-# nested candidates array are passed in via env vars so we avoid mixing
-# Bash-literal `true`/`false` into Python source.
+# Build the JSON in Python to escape strings safely. Booleans are passed in via
+# env vars so we avoid mixing Bash-literal `true`/`false` into Python source.
 SESSION_ID="$session_id" \
 SESSION_STATE_DIR="$state_dir" \
 PROJECT_ROOT="$project_root" \
 VAULT_ROOT="$vault_root" \
 VL_PRESENT="$vl_present" \
-SNAPSHOT_EXPORT_L1="$snapshot_export_l1" \
-VAULT_PATH="$vault_path" \
-INDEX_FILE="$index_file" \
-INDEX_PRESENT="$index_present" \
-SNAPSHOT_IMPORT_L2="$snapshot_import_l2" \
-PLAN_DOC_ALREADY_ASKED="$plan_doc_already_asked" \
-CANDIDATES_JSON="$candidates_json" \
-DISCOVERY_ERROR="$discovery_error" \
 DIRECT_ACCESS_COUNT="$direct_access_count" \
 python3 - <<'PY' > "$state_file"
 import json, os
@@ -155,10 +76,6 @@ def b(name):
 def s(name):
     return os.environ.get(name, "")
 
-candidates = json.loads(os.environ.get("CANDIDATES_JSON", "[]"))
-snapshot_export_l1 = b("SNAPSHOT_EXPORT_L1")
-snapshot_import_l2 = b("SNAPSHOT_IMPORT_L2")
-
 state = {
     "version": 1,
     "disabled": False,
@@ -168,19 +85,6 @@ state = {
     "vault_root": s("VAULT_ROOT"),
     "vault_link": {
         "present": b("VL_PRESENT"),
-        "snapshot_export_l1": snapshot_export_l1,
-        "vault_path": s("VAULT_PATH"),
-    },
-    "vault_index": {
-        "path": s("INDEX_FILE"),
-        "present": b("INDEX_PRESENT"),
-        "snapshot_import_l2": snapshot_import_l2,
-    },
-    "plan_docs": {
-        "snapshot_gate_active": snapshot_export_l1 and snapshot_import_l2,
-        "already_asked": b("PLAN_DOC_ALREADY_ASKED"),
-        "candidates": candidates,
-        "discovery_error": s("DISCOVERY_ERROR") or None,
     },
     "direct_access_count": int(os.environ.get("DIRECT_ACCESS_COUNT", "0") or 0),
 }

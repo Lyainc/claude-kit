@@ -71,7 +71,7 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 
 - `thinking-tools/`: thinking skills plugin with skills for diverse sampling, document concretization/polish, expert panels, unknown discovery, thought chains, adversarial review, plus the `thinking-facilitator` agent.
 - `obsidian-vault-manager/`: Obsidian vault knowledge-management plugin with vault/project/note/inbox/archive/audit skills and vault organization agents.
-- `vault-bridge/`: Obsidian vault I/O bridge with the `vault-searcher` agent (read-only since v1.9.0), slash-command style workflows, hook scripts, slash command based session-note/capture/plan creation, manifest caching, vault write governance (VAULT_BRIDGE_WRITE_CONTRACT), plan-doc sync, and portable vault location via `userConfig.vault_path` / `VAULT_BRIDGE_VAULT_PATH` (v1.13.0+).
+- `vault-bridge/`: Obsidian vault I/O bridge with the `vault-searcher` agent (read-only since v1.9.0), slash-command style workflows, hook scripts, slash command based session-note/capture creation, manifest caching, vault write governance (VAULT_BRIDGE_WRITE_CONTRACT), and portable vault location via `userConfig.vault_path` / `VAULT_BRIDGE_VAULT_PATH` (v1.13.0+).
 - `feedback-loop/`: layer ⑤ self-improvement plugin (measure→review→keep — NOT an execution engine; **externally distributed**, #217). Skills: `retro` (audit E8 promotion + 3-branch output + dedup + budget), `distill` (discovery half — user-confirmed distillation of reusable procedural techniques into a natural-language proposal; placement/authoring is add-policy's, #202), `add-policy` (landfill engine, G19/#255 — classifies a natural-language rule or distill proposal and places it into one of 3 sites: CLAUDE.md / hook / skill, behind a 1-click confirm, machine-neutral, never commits, user-authored skills inviolable) + absorbed telemetry (opt-in `CLAUDE_KIT_TELEMETRY=1`, deterministic event-logger hooks, zero per-turn LLM cost, local-only). One-way dependency (CON-5): reads leaf OUTPUT + telemetry events, never imports leaf code.
 - `dev-harness/`: layer ⑤ development-governance harness (**DEV-ONLY — not in marketplace.json, never installed by external users**, #217). Skills: `handoff-plan` (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings) and `slice-router` (goal-doc execution router: #100 schema validation (INV-4) + 4-way work_type slice routing + D5 constitutional invariant enforcement, #183), plus `workflows/feature-full.js` (#201 DELEGATE carrier, structural CON-3). One-way dependency (CON-5): dev-harness → leaf plugins + feedback-loop (rule_fire emit-only); reverse imports forbidden. Thin entry, not a full OMC-strangler engine.
 
@@ -194,7 +194,7 @@ python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 | Area | `obsidian-vault-manager` | `vault-bridge` |
 | --- | --- | --- |
 | Domain context load | `vault-knowledge-manager` agent (OVM-internal, direct mdfind/grep) | `vault-searcher` Mode 2 (external, read-only lightweight search) |
-| Session record | Not owned here | `/save-session` slash command (inline in main context — record/handoff/quick modes) |
+| Session record | Not owned here | `/save-session` slash command (inline in main context — record/quick modes) |
 | Note creation | `note` skill (evergreen notes + decision records, `notes/`) | N/A |
 
 Within `thinking-tools`, route creative alternative generation to `diverse-sampling` and evaluative multi-perspective review to `expert-panel`.

@@ -27,20 +27,16 @@ Forcing past the cap (option 1) is allowed but requires explicit selection. Afte
 
 Triggered after "멈추고 vault 저장" (post mini-polish) or after Stage 4 completes.
 
-**Option visibility rules** (based on gate state from Pre-Pipeline Gate Check):
+**Option visibility rules** (based on link state from Pre-Pipeline Gate Check):
 
-| Gate state | Plan doc option | Session note option |
+| Link state | Plan doc option | Session note option |
 |------------|-----------------|---------------------|
 | `vault_linked = false` | Hidden | Hidden |
-| `vault_linked = true`, `snapshot_export = false` | Hidden | Visible |
-| `vault_linked = true`, `snapshot_export = true`, `import_allowed = false` | Visible (with warning) | Visible |
-| Both gates open | Visible (recommended) | Visible |
+| `vault_linked = true` | Visible | Visible |
 
 When all vault options are hidden (`vault_linked = false`), append hint:
 ```
 vault 저장을 원하시면 먼저 `/vault-link`로 프로젝트를 바인딩하세요.
-Plan doc 저장에는 추가로 `.vault-link`의 `snapshot_export: true` 및
-vault `_index.md`의 `snapshot_import: true`가 필요해요.
 ```
 
 **Question options** (show applicable subset):
