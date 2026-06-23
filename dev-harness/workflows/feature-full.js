@@ -38,8 +38,9 @@
  *   critique_payload  {string}  — "diff" (default) | "claim"
  *                                  diff  = code change review (code-reviewer)
  *                                  claim = design/claim review (adversarial-review methodology)
- *   impl_agent_type   {string?} — override for impl agentType (e.g. "oh-my-claudecode:executor")
- *   critique_agent_type {string?} — override for critique agentType (e.g. "oh-my-claudecode:code-reviewer")
+ *   impl_agent_type   {string?} — override for impl agentType (a registry-qualified
+ *                                  name when the env resolves only qualified names)
+ *   critique_agent_type {string?} — override for critique agentType (same convention)
  *
  * Returns:
  *   { goal_id, impl_report, verdict }
@@ -70,7 +71,10 @@ export const meta = {
 
 // ── Module constants (statically checkable literals — A4 test parses these) ──
 
-// #133 §1: impl = NATIVE executor agent
+// #133 §1: impl = NATIVE executor agent.
+// NOTE: `executor`/`code-reviewer` were OMC-registered agentTypes, removed with OMC
+// (#204); native rewiring is tracked in #268. Until then they resolve only where a
+// compatible registry still provides the tokens.
 const IMPL_AGENT_TYPE = "executor";
 
 // #133 §2: critique agentType by payload type.

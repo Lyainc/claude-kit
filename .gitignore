@@ -34,11 +34,8 @@ local/
 # Gemini CLI local state/temp files
 .gemini/
 
-# OMC / OMX runtime state (local-only, regenerable)
-.omc/
+# OMX runtime state (local-only, regenerable)
 .omx/
-# OMC skill discovery cache (e.g. .agents/skills/omc-reference/ — injected per session, not claude-kit's own)
-.agents/
 
 # Codex / OMX project surfaces (local-only, not shared via this repo)
 
