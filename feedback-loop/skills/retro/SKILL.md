@@ -1,6 +1,6 @@
 ---
 name: retro
-description: "Session retro for the ⑤ execution loop: re-confirm vault promotion candidates (audit E8) behind a user-confirmed gate, route findings to 3 opt-in outputs (action→git issue / memory→vault capture / rule→project-local rule), dedup repeats, and cap work with a retro budget. Trigger: 회고, 회고해줘, 세션 회고, 낭비 탐색, 승격 후보 검토, retro, session retrospective, waste sweep, promote candidates. Routing: vault structural defects only = obsidian-vault-manager /audit; this skill is the ⑤ post-loop consumer that ACTS on audit/telemetry output. Example: '/retro' or '회고해줘'."
+description: "Session retro for the ⑤ execution loop: re-confirm vault promotion candidates (audit E8) behind a user-confirmed gate, route findings to 3 opt-in outputs (action→git issue / memory→vault capture / rule→add-policy handoff), dedup repeats, and cap work with a retro budget. Trigger: 회고, 회고해줘, 세션 회고, 낭비 탐색, 승격 후보 검토, retro, session retrospective, waste sweep, promote candidates. Routing: vault structural defects only = obsidian-vault-manager /audit; this skill is the ⑤ post-loop consumer that ACTS on audit/telemetry output. Example: '/retro' or '회고해줘'."
 model: inherit
 allowed-tools: Read Edit Bash Grep Glob AskUserQuestion
 ---
@@ -177,7 +177,7 @@ opts in (offer them, do not run silently).
 |--------|--------|-----------|---------|
 | **액션 (action)** | repeat/waste patterns | git issue via `gh` — `scope: harness` → harness-level issue, `scope: local` → this-repo issue | **ON** (confirm before filing) |
 | **기억 (memory)** | session insights | surface the exact `/capture …` or `/save-session` command for the USER to run (user-initiated slash; `retro` does NOT write vault) | off (offer) |
-| **규칙 (rule)** | validated patterns | propose text + target `.claude/*.local.md` (project-local rule, Tier 3); user-confirmed `Edit` | off (offer) |
+| **규칙 (rule)** | validated patterns | surface a ready-to-run `/add-policy` invocation (propose-only handoff — `add-policy` classifies + places; `retro` does NOT `Edit`) | off (offer) |
 
 > **`/distill` suggestion (propose-only, #202):** when the session surfaced a
 > *reusable procedural technique* (not declarative knowledge — that is the memory
@@ -193,9 +193,16 @@ opts in (offer them, do not run silently).
   conflate them (mirrors #134's 2-branch waste split).
 - **Memory**: never write the vault from `retro`. Output the ready-to-run slash
   command so the user keeps the Write Role Contract.
-- **Rule**: `.claude/*.local.md` is project-local config (not a vault note), so an
-  `Edit` is allowed — but still gated by user confirmation. Propose the smallest
-  rule line that captures the validated pattern.
+- **Rule**: surface a ready-to-run `/add-policy` invocation — never `Edit` a rule file
+  directly. `retro` discovers *that* a validated pattern is rule-worthy; **`add-policy`
+  (the landfill engine) owns classification + placement** (which site, what form), exactly
+  as the memory branch hands off to `/capture`. This is the same discover→land split as
+  distill→add-policy (#251): a project-local SOFT rule lands in `add-policy`'s **CLAUDE.md
+  site at project-local scope** (a project-local `.claude/CLAUDE.md` is a CLAUDE.md-family
+  landfill, not a fourth site — "which CLAUDE.md?" is the engine's scope choice), a
+  deterministically-guardable rule becomes a **hook**, a procedure becomes a **skill** —
+  `add-policy` decides, not `retro`. Pass the validated pattern as the natural-language
+  rule the engine re-classifies; do NOT pre-fill the placement.
 
 ---
 
@@ -267,8 +274,8 @@ opts in (offer them, do not run silently).
 
 ## Rules
 
-- Silent promotion / issue filing / rule addition is FORBIDDEN — all are user-confirmed.
-- The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed. Memory output is a slash-command suggestion, never a direct vault write.
+- Silent promotion / issue filing / rule handoff is FORBIDDEN — all are user-confirmed.
+- The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed. Memory output is a `/capture` suggestion and rule output is an `/add-policy` suggestion — never a direct vault write or rule-file `Edit`; `add-policy` owns rule classification + placement (discover→land split).
 - Never re-implement audit/promotion classification — read leaf output, re-confirm thresholds, act.
 - Dedup before processing; enforce the budget; report the remainder (no silent drop).
 - CON-5: read leaf artifacts only; never modify leaf-plugin code; no reverse dependency.
