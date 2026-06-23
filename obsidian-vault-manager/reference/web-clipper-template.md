@@ -98,7 +98,7 @@ title: How LLMs Work From Scratch
 | 인터넷 필요 | 필요 | 필요 |
 | 태그 커스터마이즈 | topic 태그 자동 추출 | 템플릿 수동 편집 |
 
-두 방식 모두 vault `/audit`의 E1–E5 검사 대상이 됩니다 (`type: capture` opt-in 기준).
+두 방식 모두 vault `/audit`의 E1–E11 검사 대상이 됩니다 (`type: capture` opt-in 기준).
 
 ## 커스터마이즈 팁
 
