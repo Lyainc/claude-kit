@@ -84,6 +84,8 @@ jobs:
           python3 scripts/run-linters.py --self-test
           # #209 subagent git side-effect deny hook: in-memory violation + clean (FP=0).
           python3 scripts/test/test-subagent-git-guard.py
+          # #259 no-PyYAML guard: deny/allow/warn/off + regex boundary + rule_fire emit on/off.
+          bash scripts/test/test-no-pyyaml-guard.sh
           echo "Work-rules guards OK"
 
       - name: Check shell hook syntax
@@ -91,6 +93,7 @@ jobs:
           bash -n vault-bridge/hooks/*.sh
           bash -n scripts/rules-checklist-hook.sh
           bash -n scripts/subagent-git-guard.sh
+          bash -n scripts/no-pyyaml-guard.sh
           echo "Hook syntax OK"
 
       - name: Run vault-bridge unit tests

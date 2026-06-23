@@ -160,6 +160,13 @@ python3 scripts/run-linters.py --self-test
 python3 scripts/test/test-subagent-git-guard.py
 # Expected: OK: all cases passed
 
+# no-PyYAML guard 회귀 (#259 review P1): scripts/no-pyyaml-guard.sh가 .py 쓰기의 PyYAML
+# import를 deny + (telemetry opt-in 시) rule_fire emit하는지 — deny/allow/warn/off + regex
+# 경계(yamllint 등 FP) + emit on/off. G19 add-policy dogfood 산출이자 G20 rule_fire reference
+# emitter라, 다른 가드(subagent-git-guard/event-logger)처럼 회귀 게이트를 보유.
+bash scripts/test/test-no-pyyaml-guard.sh
+# Expected: OK: all no-pyyaml-guard cases passed (12)
+
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test
 # Expected: OK: all bump-version self-test cases passed
@@ -228,6 +235,7 @@ bash -n vault-bridge/hooks/*.sh
 bash -n feedback-loop/scripts/event-logger.sh
 bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
 bash -n scripts/subagent-git-guard.sh     # #209 subagent git side-effect deny hook
+bash -n scripts/no-pyyaml-guard.sh        # #259 no-PyYAML guard (add-policy dogfood + rule_fire emitter)
 
 # parse_created_date unit test (audit-validate Phase 2 helper)
 python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
