@@ -11,7 +11,7 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 네 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 8개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, thought-chain, adversarial-review, spec-first + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 4개 (capture, note, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`)
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 5개 (capture, note, wiki, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`). wiki = v5 A-layer LLM wiki 컴파일(`vault/wiki/`, AI recall 主, provenance 추적, 게이트된 명시 액션).
 - **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 5종 (Stop / SessionEnd command+prompt / SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 5개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`, `/handoff`) + Python scripts (`generate-manifest.py`, `vault-commit-message.py`). vault 검색 + slash command 기반 session-note/capture 작성 + 세션 생명주기 안전망.
 - **feedback-loop** (`feedback-loop/`): layer ⑤ 자기개선 루프 (measure→review→keep, **실행/이터레이션 엔진 아님** — #217로 ⑤ 하네스에서 분리된 **외부 배포** 단위). 스킬 3개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산, #123 / distill — 세션 절차 기법의 user-confirmed **발견**: 자연어 제안 객체 emit, 저작은 안 함(매립은 add-policy 소유), SIS 이식, #202 / add-policy — **매립 엔진**(G19/#255): 자연어 규칙·distill 제안을 분류해 매립지 3개(CLAUDE.md/hook/skill) 중 한 곳에 1클릭 배치, 머신-중립·커밋 안 함, user-authored 스킬 inviolable) + telemetry 흡수 (event-logger hooks 8 event-type, report.py lifecycle, opt-in `CLAUDE_KIT_TELEMETRY=1` 아니면 silent·per-turn LLM 0·외부 유출 0). **단방향 의존(CON-5)**: feedback-loop은 leaf OUTPUT(audit·manifest·telemetry events)만 읽고 leaf code import 0; 외부 배포지만 ⑤ harness 계열(배포단위≠레이어).
 - **dev-harness** (`dev-harness/`): layer ⑤ 개발 거버넌스 (claude-kit 자체 빌드 전용 — **DEV-ONLY, marketplace 미등록**, #217). 스킬 2개 (handoff-plan — 열린 이슈 의존·도메인 청킹 → user-confirmed 에픽 후보 → goal-doc 슬라이스 바인딩, #171 / slice-router — goal-doc 실행 라우터: #100 스키마 검증(INV-4) + 4종 work_type 슬라이스 라우팅 + D5 헌법 invariant enforcement, #183). `workflows/feature-full.js` (#201): feature-full DELEGATE carrier — impl→critique를 별도 agent() 스테이지로 분리하는 workflow script (structural CON-3). **단방향 의존(CON-5)**: dev-harness → leaf(vault-bridge·obsidian-vault-manager) + feedback-loop(rule_fire emit-only 데이터 계약). 역방향 금지. 전체 OMC-strangler 아닌 thin 진입.
@@ -64,7 +64,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                          # 4개 스킬 (capture, note, audit, base)
+│   ├── skills/                          # 5개 스킬 (capture, note, wiki, audit, base)
 │   ├── agents/                          # 2개 에이전트
 │   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, obsidian-bases-schema.md
 │   └── scripts/                         # ovm-primitives.sh, audit-validate.py, gen-fixture.sh
@@ -310,11 +310,11 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 
 ## Vault File Conventions
 
-Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (vault second brain v4 — see `docs/design/vault-second-brain-v4.md`).
+Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (vault second brain v4, extended by v5 — see `docs/design/vault-second-brain-v4.md` and `docs/design/vault-second-brain-v5.md`).
 
-**Folder layout** (v4 §3.1): three top-level folders only — `inbox/` (raw input), `notes/` (all content; free sub-folders allowed), `assets/` (attachments).
+**Folder layout** (v4 §3.1; v5 §3 adds `wiki/`): four top-level folders — `inbox/` (raw input), `notes/` (all content; free sub-folders allowed), `wiki/` (LLM-compiled domain knowledge — the v5 A layer, AI-recall primary; free sub-folders allowed), `assets/` (attachments).
 
-**Filename pattern** (v4 §3.6): `{type}-YYYY-MM-DD[-{topic}][-vN].md` for dated types, `{slug}.md` for evergreen notes.
+**Filename pattern** (v4 §3.6): `{type}-YYYY-MM-DD[-{topic}][-vN].md` for dated types, `{slug}.md` for evergreen notes and wiki pages.
 
 | Type | Example | Path |
 |------|---------|------|
@@ -323,15 +323,17 @@ Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (
 | `note` | `{topic}.md` (no date) | `notes/` |
 | `decision` | `decision-2026-04-12-{topic}.md` | `notes/` |
 | `plan` | `plan-2026-04-12-{topic}.md` | `notes/{project}/` (linked via `.vault-link`) |
+| `wiki` | `{topic}.md` (no date) | `wiki/` (v5 A layer; written by the `wiki` skill) |
 
-Same-date collisions: `-v2`, `-v3` increment.
+Same-date collisions: `-v2`, `-v3` increment. For `wiki`, same-topic is an **update** (compounding), never a `-vN` duplicate.
 
 **Frontmatter standard**:
 ```yaml
 created: YYYY-MM-DD                            # required, all files
 tags: [{type}, {domain}]                       # required
-type: capture|note|decision|session|plan       # required — type opt-in (v4 §2.2): files without `type:` are invisible to claude-kit
-status: raw|draft|evergreen|archived           # required for note/decision (status machine, v4 §3.3); session/capture/plan: optional
+type: capture|note|decision|session|plan|wiki  # required — type opt-in (v4 §2.2): files without `type:` are invisible to claude-kit
+status: raw|draft|evergreen|archived           # required for note/decision (status machine, v4 §3.3); session/capture/plan: optional; wiki: OMITTED (A is outside the status machine, v5 §4.1)
+provenance: <query/session>                    # wiki only, required (v5 §4.1 U3 traceability — the exploration that produced the page)
 source: web-clipper|manual|...                 # capture only, optional
 url: ...                                       # capture only, optional
 ```

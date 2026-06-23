@@ -3,6 +3,13 @@
 Vault Manifest Generator — vault-bridge W10 Phase A
 Generates ~/vault/.vault-bridge/manifest.json from vault .md files.
 
+vault v5 note: this manifest is also the ④ wiki recall index. `type: wiki`
+pages (the A layer, ~/vault/wiki/) are picked up automatically via type opt-in
+(`wiki` is not in EXCLUDED_DIRS), and the existing recall signals — access_count
+(7-day git touches) + references_in — rank them for vault-searcher with no
+manifest code change. `promotion_candidate` stays None for wiki (note/decision
+only): A is the recall layer, not a promotion source.
+
 Note on references_in vs references_out:
   references_in is per-source-file (a note linking [[X]] three times counts
   once for X, and self-links are excluded), while references_out is per

@@ -61,16 +61,20 @@ PRIORITY_BY_TYPE = {
 E9_MIN_FILES = 3
 # E9b camelCase marker: a lowercase letter immediately followed by an uppercase.
 E9_CAMEL_RE = re.compile(r"[a-z][A-Z]")
-# E10 type↔folder placement (v4 §3.1): each managed type lives in one folder.
+# E10 type↔folder placement (v4 §3.1; v5 §3 adds wiki): each managed type lives in one folder.
 EXPECTED_FOLDER = {
     "session": "inbox",
     "capture": "inbox",
     "note": "notes",
     "decision": "notes",
     "plan": "notes",
+    "wiki": "wiki",
 }
-# E11 structural layout (v4 §3.1): only these three top-level folders are canonical.
-CANONICAL_FOLDERS = {"inbox", "notes", "assets"}
+# E11 structural layout (v4 §3.1; v5 §3 adds wiki/): only these top-level folders are canonical.
+# `wiki/` is the A-layer (LLM-compiled domain knowledge) — recognized here so wiki pages
+# are NOT flagged as unstructured. Full wiki self-audit E-rules (contradiction / provenance
+# gaps) are a separate slice (v5 §7); MVP only makes the folder canonical.
+CANONICAL_FOLDERS = {"inbox", "notes", "assets", "wiki"}
 # Files exempt from E11 (vault-level index lives at the root or any folder root).
 EXEMPT_FILES = {"_index.md"}
 # E5 candidate tuning (v4 §6.1): top-N tag-intersection candidates per orphan.
@@ -605,7 +609,7 @@ def classify(bundle: dict) -> dict:
         # Root-direct file (no folder component): top folder is the file itself.
         if "/" not in rec["rel"]:
             add("E11_unstructured_path", rec["rel"],
-                "root-direct file outside canonical folders (inbox/notes/assets)")
+                "root-direct file outside canonical folders (inbox/notes/assets/wiki)")
             continue
         top = rel_path.parts[0]
         if top.startswith("."):
@@ -613,7 +617,7 @@ def classify(bundle: dict) -> dict:
         if top in CANONICAL_FOLDERS:
             continue
         add("E11_unstructured_path", rec["rel"],
-            f"top folder '{top}/' is not canonical (inbox/notes/assets)")
+            f"top folder '{top}/' is not canonical (inbox/notes/assets/wiki)")
 
     # E8: promotion candidates from manifest (schema_version ≥ 3 only).
     # note/decision files that meet refs_in or access_count thresholds —

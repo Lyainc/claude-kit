@@ -53,7 +53,9 @@ done
 
 ## Vault Layout
 
-Vault root: `~/vault/` — dirs: `inbox` (raw input), `notes` (all content; free sub-folders), `assets` (attachments)
+Vault root: `~/vault/` — dirs: `inbox` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — the A layer, **AI-recall primary**; vault second-brain v5), `assets` (attachments)
+
+The `wiki/` layer is the primary recall target: pages there are domain knowledge the model compiled to read on the human's behalf. Treat it as first-class recall material alongside `notes/` (see ranking below).
 
 ## Modes
 
@@ -93,9 +95,11 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
    c. Sort candidates: `status=active` first, then by recall-weight signals already in
       the manifest entry — `access_count` descending (count of git commits touching the
       file in the **last 7 days** = recent activity, not all-time work), then
-      `references_in` descending (cross-note wikilink weight) — and finally `mtime`
-      descending as the last tiebreaker. Both signals are free: `generate-manifest.py`
-      `_enrich` already populates them.
+      `references_in` descending (cross-note wikilink weight), then `type: wiki` preferred
+      (the A layer is the primary recall target, so a wiki page wins a tie over an
+      equally-scored note — a *tiebreaker only*, never an override that buries a more
+      relevant non-wiki hit) — and finally `mtime` descending as the last tiebreaker.
+      These signals are free: `generate-manifest.py` `_enrich` already populates them.
    d. Select top ≤ 5 candidates by priority.
    e. Read only those specific files. Skip the MOC/grep scan entirely.
    f. **Staleness check**: if manifest `generated_at` is older than 24 hours OR any candidate file's actual `mtime` (via `stat`) is newer than the manifest's `generated_at`, fall through to standard scan below and log a warning: "manifest가 오래되었거나 변경 파일이 있어 전체 스캔으로 대체합니다."
@@ -104,7 +108,7 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 **Procedure** (standard, used when manifest is absent or stale):
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search)
-   - No pointer or resolution failed → `search_root = ~/vault/notes/` (primary) + `~/vault/inbox/` (secondary — raw inputs may carry domain context before promotion)
+   - No pointer or resolution failed → `search_root = ~/vault/wiki/` (primary — A-layer domain knowledge, AI-recall first) + `~/vault/notes/` (primary) + `~/vault/inbox/` (secondary — raw inputs may carry domain context before promotion)
 2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
    - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree.
    - If CLI is unavailable/fails/times out, search adaptively within `search_root`:
@@ -133,10 +137,12 @@ Search the entire vault by keyword and load note contents.
      - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
 3. Sort: title match > tag match > body match > recent modification. When candidates come
    from the manifest pre-filter (step 1), break ties *within the same match tier* by
-   `access_count` then `references_in` descending (both already in the manifest entry) —
-   so a recently-active (7-day git touches), heavily-linked note surfaces above an
-   equally-matched but cold one. Grep/CLI-fallback candidates have no manifest signal, so
-   they keep the plain order.
+   `access_count` then `references_in` descending, then `type: wiki` preferred (A-layer
+   recall priority — a wiki page wins an otherwise-even tie; tiebreaker only, never an
+   override) — so a recently-active (7-day git touches), heavily-linked, or compiled-wiki
+   page surfaces above an equally-matched but cold one. Grep/CLI-fallback candidates have
+   no manifest signal, so they keep the plain order. The full-vault `mdfind`/`grep`
+   fallback already covers `wiki/` (it scans all of `~/vault`).
 4. Output preview: filename + first 2 lines + location + tags + modification date.
 5. Load full note content when user selects a number (default 10 results).
 

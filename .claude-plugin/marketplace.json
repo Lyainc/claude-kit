@@ -39,7 +39,7 @@
     {
       "name": "obsidian-vault-manager",
       "version": "0.19.0",
-      "description": "Obsidian vault knowledge management plugin (v4): capture / note / audit / base skills + 2 agents for a minimal second-brain workflow. audit detects E1–E11 structural defects (incl. E9 tag/property vocabulary) and promotion candidates. base generates non-destructive Obsidian Bases (.base) views. type-optin; ovm-primitives shell API.",
+      "description": "Obsidian vault knowledge management plugin (v4/v5): capture / note / wiki / audit / base skills + 2 agents for a minimal second-brain workflow. wiki compiles learned domain knowledge into the AI-recall-primary vault/wiki/ A layer (gated explicit action, provenance-tracked; v5). audit detects E1–E11 structural defects (incl. E9 tag/property vocabulary) and promotion candidates. base generates non-destructive Obsidian Bases (.base) views. type-optin; ovm-primitives shell API.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -59,7 +59,10 @@
         "web-clipper",
         "url-metadata",
         "base",
-        "obsidian-bases"
+        "obsidian-bases",
+        "wiki",
+        "llm-wiki",
+        "provenance"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",

@@ -170,6 +170,14 @@ case "$top_dir" in
       violation="notes/ filenames must match: {lowercase-kebab}[-vN].(md|base)"
     fi
     ;;
+  wiki)
+    # v5 §3 A-layer LLM wiki: evergreen kebab slugs, no date prefix (same shape as notes .md).
+    # The OVM `wiki` skill compounds onto an existing page; -vN is only a genuine slug collision.
+    expected_pattern='^[a-z0-9][a-z0-9-]*(-v[0-9]+)?\.md$'
+    if ! validate_pattern "$filename" "$expected_pattern"; then
+      violation="wiki/ filenames must match: {lowercase-kebab}[-vN].md"
+    fi
+    ;;
   assets)
     exit 0  # attachments — no naming policy
     ;;
