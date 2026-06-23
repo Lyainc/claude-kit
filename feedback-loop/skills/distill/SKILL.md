@@ -96,9 +96,10 @@ For each surviving candidate, construct the natural-language proposal object (wh
 why / session-provenance / inviolability judgment). Two discovery judgments are made
 here with **read-only** tools — distill never writes:
 
-- **Inviolability judgment**: if the proposal would touch an existing skill, read that
-  skill's frontmatter and judge whether it is user-authored (inviolable). Carry the
-  judgment in the proposal; `add-policy` enforces the block.
+- **Inviolability judgment**: if the technique plausibly refines an existing skill, read
+  that skill's frontmatter and judge whether it is user-authored (inviolable). Carry the
+  judgment in the proposal; `add-policy` enforces the block. This is advisory — distill
+  flags the risk, it does not *select* the placement target (that is `add-policy`'s).
 - **Audience / placement-fit check (discovery seed)**: judge whether the technique's
   intended audience would actually read it where it is likely to land — the seed of
   post-embedding placement verification. A rule whose reader never sees it is a wasted
@@ -113,9 +114,10 @@ name the classification grid — those are `add-policy`'s.
 ### Phase 3 — GATE (user-confirmed, silent forbidden)
 
 Present each candidate via AskUserQuestion (Korean): the technique, *why* it is worth
-keeping, the proposed `name` (class-level — name the *situation/capability*, e.g.
-`flaky-test-triage`, not `fix-the-thing-from-today`), and a situation-first one-line
-`description`. The single question is the **discovery gate**: "shall we hand this
+keeping, the proposed `name` (a **proposal label**, not a placement commitment — class-level,
+naming the *situation/capability*, e.g. `flaky-test-triage`, not `fix-the-thing-from-today`;
+`add-policy` holds final naming authority and MAY rename it at placement time), and a
+situation-first one-line `description`. The single question is the **discovery gate**: "shall we hand this
 proposal to the landfill engine?" The user picks which proposals to forward
 (multi-select) or skips all. **The placement decision (which site / patch vs new) is NOT
 asked here — that is `add-policy`'s 1-click gate.** Distilling is opt-in exactly like

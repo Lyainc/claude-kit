@@ -90,6 +90,13 @@ is what makes classification reliable and keeps the engine portable.
 - *tier* answers "auto-enforced or just reminded" → **HARD ⇒ hook, SOFT ⇒ CLAUDE.md**,
 - the scope/channel question ("which CLAUDE.md? which config?") is the site choice itself.
 
+**Layer → tier default (engine inference, reduces variance):** *judgment* and *expression*
+are **always SOFT** (a CLAUDE.md reminder — they are not deterministically guardable). A
+*work-rule* is **HARD (→ hook) iff its violation is deterministically detectable**, else
+SOFT (→ CLAUDE.md): "leave deletes recoverable / never `rm`" is detectable → hook; "run
+Python through the project runner" stated as a habit is a reminder → CLAUDE.md. This is the
+engine's tier inference from what/why, never a user-supplied axis.
+
 **1-click confirmation**: present the *decision*, not the grid. Show the user where it
 will land, the exact text/diff that will be added, and one short line of why-here — then
 ask a single confirmation:
