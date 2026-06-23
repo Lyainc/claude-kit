@@ -135,7 +135,7 @@
 
 **열화 케이스**: expert subagent 실패/빈 응답 → 1회 재시도, 재실패 시 남은 expert로 진행 (transcript 기록, silent drop 금지). 중간 추가된 expert → catch-up E1 후 다음 rebuttal exchange부터 합류.
 
-**비용**: 토픽당 `(exchanges × experts)` expert subagent (exchanges = 1 독립 + 1~2 rebuttal, 즉 최대 `3 × experts`, early-stop 시 더 적음) + Synthesis용 Moderator subagent 1. 독립성과 실제 턴 교환이 속도보다 중요할 때 선택하세요.
+**비용**: 토픽당 `(exchanges × experts)` expert subagent (exchanges = 1 독립 + 1~2 rebuttal, 즉 최대 `3 × experts`, early-stop 시 더 적음) + Synthesis용 Moderator subagent 1. **복구 비용**: Phase 2가 압축된 최종 메시지나 내용 없는 sign-off로 끝나면 (컨텍스트 압박 등으로) 유저가 전체 기록을 재요청해야 하며 — 패널 전체 컨텍스트 재로딩 1회가 실질 비용에 추가됩니다. 이 복구 오버헤드는 경량 세션의 인라인 SUMMARY 경로와 멀티토픽 세션의 3파일 출력으로 방지합니다. 독립성과 실제 턴 교환이 속도보다 중요할 때 선택하세요.
 
 ### Step 1.3: 변증법적 논의
 
@@ -229,9 +229,9 @@
 
 ### 합의된 사항
 
-| 토픽 | 결론 | 근거 |
-|------|------|------|
-| ... | ... | ... |
+| 토픽 | 결론 | 근거 | 출처 / 인용 |
+|------|------|------|------------|
+| ... | ... | ... | ... |
 
 ### 미해결 이슈
 
