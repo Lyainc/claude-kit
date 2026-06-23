@@ -286,6 +286,7 @@ for camel in sorted(key_files):
 EXPECTED_FOLDER = {
     "session": "inbox", "capture": "inbox",
     "note": "notes", "decision": "notes", "plan": "notes",
+    "wiki": "wiki",   # v5 §3 — A-layer LLM wiki; a type:wiki file outside wiki/ is misplaced
 }
 ```
 
@@ -304,7 +305,7 @@ for each record in frontmatter_records:
   if record in E1/E2 findings: skip
   top = path.parts[0]
   if top startswith "." or top == "assets": skip
-  if path is root-direct or top not in {inbox,notes,assets}: skip   # E11 owns these
+  if path is root-direct or top not in {inbox,notes,assets,wiki}: skip   # E11 owns these
   type = fm.type ; if type not str: skip
   expected = EXPECTED_FOLDER.get(type) ; if expected is None: skip
   if top != expected: → misplaced_file
@@ -314,10 +315,10 @@ for each record in frontmatter_records:
 
 ## E11 — `unstructured_path` [Warning]
 
-**Rule**: A `.md` file lives outside the canonical top-level folders (v4 §3.1). Only `inbox/`, `notes/`, `assets/` are canonical; anything else (arbitrary folders, root-direct files) is structural drift.
+**Rule**: A `.md` file lives outside the canonical top-level folders (v4 §3.1; v5 §3 adds `wiki/`). Only `inbox/`, `notes/`, `assets/`, `wiki/` are canonical; anything else (arbitrary folders, root-direct files) is structural drift.
 
 ```python
-CANONICAL_FOLDERS = {"inbox", "notes", "assets"}
+CANONICAL_FOLDERS = {"inbox", "notes", "assets", "wiki"}  # v5 §3 adds wiki/ (A layer)
 EXEMPT_FILES = {"_index.md"}
 ```
 

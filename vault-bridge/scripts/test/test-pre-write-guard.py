@@ -288,6 +288,55 @@ def case_notes_plan_dated(errors: list[str], vault_root: str) -> None:
     _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
 
 
+def case_wiki_valid_filename(errors: list[str], vault_root: str) -> None:
+    """wiki/{slug}.md (v5 §3 A-layer) → clean pass (exit 0, stdout empty)."""
+    print("\ncase: wiki_valid_filename")
+    path = f"{vault_root}/wiki/defuddle-cli.md"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_wiki_subfolder_valid(errors: list[str], vault_root: str) -> None:
+    """wiki/{sub}/{slug}.md → clean pass (free sub-folders, like notes/; top_dir=wiki)."""
+    print("\ncase: wiki_subfolder_valid")
+    path = f"{vault_root}/wiki/tools/obsidian-bases.md"
+    payload = _make_payload(path)
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_wiki_violation(errors: list[str], vault_root: str) -> None:
+    """wiki/ with uppercase filename → naming violation (STRICT_NAMING=1 → exit 2)."""
+    print("\ncase: wiki_violation")
+    path = f"{vault_root}/wiki/DefuddleCLI.md"
+    payload = _make_payload(path)
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root=vault_root)
+    _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
+
+
+def case_wiki_base_violation(errors: list[str], vault_root: str) -> None:
+    """wiki/{name}.base → naming violation (.base is a notes/ view file only; STRICT → exit 2)."""
+    print("\ncase: wiki_base_violation")
+    path = f"{vault_root}/wiki/view.base"
+    payload = _make_payload(path)
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root=vault_root)
+    _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
+
+
+def case_wiki_subagent_enforce(errors: list[str], vault_root: str) -> None:
+    """Subagent wiki write → deny (Write Role Contract holds for wiki/ too — wiki skill is main-context)."""
+    print("\ncase: wiki_subagent_enforce")
+    path = f"{vault_root}/wiki/defuddle-cli.md"
+    payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="executor")
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "enforce"}, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert('"permissionDecision":"deny"' in proc.stdout.replace(" ", ""),
+            f"stdout contains permissionDecision:deny (got: {proc.stdout!r})", errors)
+
+
 def case_filename_violation_warn_mode(errors: list[str], vault_root: str) -> None:
     """Subagent + bad filename + warn → both CONTRACT WARNING and NAMING VIOLATION in stderr."""
     print("\ncase: filename_violation_warn_mode")
@@ -365,11 +414,12 @@ def main() -> int:
     # ~/vault is never touched. The hook only requires the directory to exist.
     with tempfile.TemporaryDirectory() as tmp:
         vault_root = tmp
-        # Create the top-level dirs the hook navigates (v4: inbox, notes, assets)
-        for d in ("inbox", "notes", "assets"):
+        # Create the top-level dirs the hook navigates (v4: inbox, notes, assets; v5 adds wiki)
+        for d in ("inbox", "notes", "assets", "wiki"):
             Path(vault_root, d).mkdir(parents=True, exist_ok=True)
-        # Sub-folder for notes subfolder test
+        # Sub-folders for the notes/ and wiki/ sub-folder tests
         Path(vault_root, "notes", "diary").mkdir(parents=True, exist_ok=True)
+        Path(vault_root, "wiki", "tools").mkdir(parents=True, exist_ok=True)
 
         case_main_context_inbox_write(errors, vault_root)
         case_subagent_enforce_default(errors, vault_root)
@@ -391,6 +441,11 @@ def main() -> int:
         case_root_index(errors, vault_root)
         case_notes_decision_dated(errors, vault_root)
         case_notes_plan_dated(errors, vault_root)
+        case_wiki_valid_filename(errors, vault_root)
+        case_wiki_subfolder_valid(errors, vault_root)
+        case_wiki_violation(errors, vault_root)
+        case_wiki_base_violation(errors, vault_root)
+        case_wiki_subagent_enforce(errors, vault_root)
         case_filename_violation_warn_mode(errors, vault_root)
         case_filename_violation_strict_naming(errors, vault_root)
         case_subagent_filename_violation_enforce(errors, vault_root)
