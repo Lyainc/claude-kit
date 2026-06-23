@@ -2,7 +2,9 @@
 
 > 작성일: 2026-05-26
 > 도출 과정: critic 토론 7라운드 + 외부 PKM 레퍼런스 검증 + 외부 도구 4개 검토 + 자기 비판 리뷰
-> 상태: 설계 확정, 구현 대기
+> 상태: **SUPERSEDED by [`vault-second-brain-v5.md`](vault-second-brain-v5.md)** (2026-06-23, #215 — LLM wiki A 主 + B probation).
+> v5가 인간 저작 second-brain 전제를 "LLM 컴파일 + 인간 승급만"으로 전환. v4의 type opt-in·status machine·recall 중심·git
+> 통합·거부목록은 v5가 **계승**. 이 문서는 역사 기록으로 보존(원 상태: 설계 확정, 구현 대기).
 > 관련 문서: `docs/plans/vault-second-brain-v4-migration.md`
 
 ## 1. 정의
