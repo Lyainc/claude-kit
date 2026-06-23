@@ -2,8 +2,10 @@
 
 > 작성일: 2026-06-23 · 상태: **초안 (linchpin L1·L2 owner 합의 완료, 구현은 별 세션)** · 커밋은 owner 확인 후
 > 대체 대상: `vault-second-brain-v4.md` (인간 저작 second-brain 모델)
-> 방향 출처: #215(④ 재설계, 정전) · `docs/discussions/20260612_vault-llm-wiki-redesign/`(SUMMARY+UNRESOLVED+RESOLUTIONS-draft)
-> · `docs/discussions/20260623_vault-debloat-reckoning/DECISION.md`(5레이어) · 메모리 `project_vault_usage_reality`
+> 방향 출처 — **정전(SSOT) = GitHub #215**(④ 재설계). 근거 트레일: 토론 문서 `docs/discussions/20260612_vault-llm-wiki-redesign/`
+> (SUMMARY+UNRESOLVED+RESOLUTIONS-draft) · `docs/discussions/20260623_vault-debloat-reckoning/DECISION.md`(5레이어) ·
+> 메모리 `project_vault_usage_reality`. **이 토론 문서·메모리는 repo 비커밋 로컬 작업물**(`.gitignore`의 `docs/discussions/`,
+> 트레일 정책 #204/#215) — repo 클론으로는 안 보이므로, 본문의 그 경로·라인 인용은 *로컬 근거 포인터*이고 검증 가능한 정전은 #215다.
 > 상속: v4의 type opt-in(§2.2)·status machine(§3.3)·recall 중심(§2.3)·git 통합·거부목록(§9)은 **계승**.
 > 이 문서는 *바뀌는 것*만 명세하고, 안 바뀌는 기계는 v4를 참조한다.
 
@@ -46,7 +48,7 @@ v4는 "인간이 채우는 second-brain"을 전제했으나, 측정·증언·디
 - loop = LLM이 "뭐가 빠졌나" self-ask(query responder 아닌 knowledge compiler) + `--save`로 합성 지식 적재 = compounding.
 
 > "codebase"는 비유 — 지식이 코드처럼 구조화·재사용된다는 뜻. 코드는 repo가 정본(SSOT). wiki엔 코드에서
-> *추출된 지식*만(§9 repo↔vault 경계). v4 §385 교훈 정합: "capture 자동화만으론 brain 불가, **recall이 핵심**."
+> *추출된 지식*만(§9 repo↔vault 경계). v4 §10(외부 검증 요약) 교훈 정합: "capture 자동화만으론 brain 불가, **recall이 핵심**."
 
 ---
 
@@ -216,7 +218,7 @@ B 인간-읽기 목적의 재판. "열었나"(novelty/Hawthorne confound) 폐기
 - **plain markdown 유지, no embedding/`.db`** — #211 reject 조항 + claude-kit-boundary.md file-over-app. Karpathy plain-md 정합.
 - **CON-5 단방향**: harness→leaf만. wiki는 leaf(OVM/vault-bridge) 내부. 역방향 금지.
 - **MECE**: wiki는 OVM(④) capability. vault-bridge(③)는 I/O 기판. 경계 무손상.
-- **비가역 회피**: 기존 더미는 hard delete 아닌 cold archive. 삭제는 trash 경유(P4).
+- **비가역 회피**: 기존 더미는 hard delete 아닌 cold archive. 삭제는 trash 경유(`rm` 금지).
 
 ---
 
