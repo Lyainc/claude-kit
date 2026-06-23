@@ -140,6 +140,13 @@ jobs:
             echo "thinking-tools trigger regression OK (no removals)"
           fi
 
+      - name: Run expert-panel mode-compose regression
+        run: |
+          # #228 — guards the "all combinations compose silently" claim in expert-panel SKILL.md.
+          python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
+          python3 thinking-tools/scripts/test/test-mode-compose.py
+          echo "expert-panel mode-compose OK"
+
       - name: Run obsidian-vault-manager unit tests
         run: |
           python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py

@@ -8,7 +8,7 @@ description: |
   Trigger when user mentions: 전문가 토론, 찬반 토론, 다관점 분석, 합의 도출, 트레이드오프 정리,
   expert panel, multi-perspective review, "전문가 관점에서 검토해줘", "다양한 관점에서 평가해줘".
   Routing: 1:1 단일 주장 공격은 adversarial-review, 맹점 발견 인터뷰는 unknown-discovery.
-allowed-tools: Read Write AskUserQuestion Agent
+allowed-tools: Read Grep Write AskUserQuestion Agent
 ---
 
 # Expert Panel Discussion
@@ -30,7 +30,7 @@ Express mode preferences in natural language — no flags needed:
 - **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation). Enables real multi-turn rebuttal — experts are re-spawned each round with prior statements injected, instead of one simulated pass (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
 - **요약 출력** ("요약만", "transcript 없이"): Skip transcript generation; produce SUMMARY.md + UNRESOLVED.md only
 
-All combinations compose silently.
+All combinations compose silently — including any combination with citation grounding (see [Citation Contract](#citation-contract)) and the Phase 2 inline-summary path (see [Phase 2: Recording](#phase-2-recording)).
 
 ## Participants
 
@@ -61,7 +61,19 @@ All combinations compose silently.
 
 **When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert with user confirmation.
 
-## Consensus Rules
+## Citation Contract
+
+When an expert states a **numeric or factual claim** (statistics, performance figures, failure rates, legal citations, precedents), it must cite exactly one grounding source:
+
+1. **Preferred**: call `vault-searcher` (Agent tool, Mode 3 — Keyword Search) once per topic to surface relevant past decisions or notes. Cache returned excerpts for reuse within the same topic — do NOT re-query per round. Search target: user's vault `notes/`, preferring `type: decision`.
+2. **Fallback**: cite a named document or file already in scope via Read/Grep (e.g., a design doc the user provided for this session).
+3. **Inline fallback**: if vault-searcher is unavailable / returns 0 relevant results / the Agent call fails, fall back to the existing inline behavior — the expert states the claim as a domain judgment. Do NOT announce the fallback to the user; session behavior must look identical.
+
+**Token budget**: vault-searcher call + section-only excerpts + max 3 results keeps this step within **~+1500 tokens** of per-topic overhead (mirrors the adversarial-review grounding budget precedent). Never re-query per rebuttal exchange, never request full notes.
+
+**Citation-coverage escalation signal**: a consensus topic where grounding was *attempted but not found* is classified "검증 안 됨 (unverified)" and feeds the existing escalation/early-stop logic — the same signal path as topic conflict (see [Round Limits](#phase-1-topic-rounds)). Such a topic is NOT classified "쉬움 (easy)"; it escalates/deepens instead, catching false-consensus (experts agree but no evidence surfaced despite vault-searcher being available). **This fires ONLY on `unverified`, never on `skipped`.** When vault-searcher is unavailable (e.g. thinking-tools standalone, no vault-bridge) grounding is never attempted, the topic is recorded `skipped`, and the normal "no new argument" early-stop applies unchanged — escalating every topic merely because no vault exists would make standalone sessions silently longer, violating the "behavior must look identical" promise of inline fallback (Citation Contract step 3).
+
+**Note on full-spawn-default**: citation grounding is a verification purpose — sourcing evidence to ground claims. It does NOT increase expert diversity and does NOT conflict with the spawn≠diversity / full-spawn-default ADR (see [reference.md → 다양성 원천](reference.md)). The diversity lever remains role-prompt differentiation only; citation is orthogonal.
 
 | Item | Rule |
 |------|------|
@@ -108,6 +120,7 @@ Mode: [isolated:{on|off}] [summary-only:{on|off}]
 Independent: {k}/{N}
 Rebuttal: [t{n}:e{i}:{k}/{N}]
 Topic-status: [t{n}:{pending|thesis-reached|antithesis-reached|synthesis-reached|consensus-reached|tie-broken}] ...
+Citation: [t{n}:{grounded|unverified|skipped}] ...
 Votes: [{expert}:{option}:{High|Medium|Low}] ...
 Tie-break: [used:{yes|no}] [margin:{n|—}]
 <!-- /STATE -->
@@ -117,6 +130,7 @@ Tie-break: [used:{yes|no}] [margin:{n|—}]
 - `Mode` — set at Phase 0 (mode detection); read at Phase 2 item 1 (transcript skip in summary-only mode).
 - `Independent` — updated during Phase 1 Independent Statements; `k==N` means collection complete (single format; no separate "complete" token).
 - `Rebuttal` (isolated mode only) — topic `n`, exchange index `e{i}` (`e1` = independent, `e2`/`e3` = up to 2 rebuttal exchanges), and `{k}/{N}` experts collected in the current exchange — updated after each expert is collected, so `k` may be partial mid-exchange (e.g. `e1:1/3` after the first of three). Bounded counters only — never statement prose. Empty/omitted in inline mode. In isolated mode the `Rebuttal` cursor is the authoritative loop-position source — recorded in the STATE block in **all** modes (including isolated + summary-only, since it is not a transcript); `Independent` is the inline-mode tracker and only a redundant mirror at `e1`. On any divergence (e.g. a partial write interrupted by compaction), `Rebuttal` wins (it also distinguishes `e2`/`e3`).
+- `Citation` — written per topic after the vault-searcher call attempt (or inline fallback). Three values: `grounded` = at least one expert cited a source for a numeric/factual claim; `unverified` = grounding *was available* (vault-searcher reachable, or an in-scope doc) and consulted, but no source was found / experts fell back to inline judgment despite availability; `skipped` = vault-searcher was *unavailable* (not installed / Agent call failed) so grounding was never attempted — inline fallback, behavior identical to pre-grounding. Read by the escalation signal: a topic with consensus AND `Citation: unverified` is escalated/deepened rather than marked easy; `grounded` and `skipped` never escalate (see [Citation Contract](#citation-contract)).
 - `Votes` — populated only by the Tie-Breaking Mechanism (after round 3); empty before tie-break.
 - `Topic-status` — closed enum, exactly these 6 values; no free-text. `tie-broken` = resolved via the Tie-Breaking Mechanism (weighted vote always yields a winner; a margin < 2 is recorded as "Conditional" in SUMMARY.md but the status stays `tie-broken`). There is no separate `deadlock` value — the vote is total, so a topic never ends unresolved.
 
@@ -128,7 +142,8 @@ The `Rebuttal` cursor intentionally carries only topic index `t{n}` + exchange i
 
 **Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
 Topic-status → `pending`; Votes → treat as no-vote / no-consensus; Independent → `0` (re-collect, preserves anti-anchoring);
-Mode flags → both `off` (full output — over-producing transcripts is safer than losing user content).
+Mode flags → both `off` (full output — over-producing transcripts is safer than losing user content);
+Citation → `skipped` (a missing citation state most often means grounding was never attempted this session — e.g. no vault-bridge — so defaulting to `skipped` avoids spuriously escalating every restored topic; if vault-searcher IS available this session, re-attempt grounding on the resumed topic instead of trusting the default).
 In isolated mode the in-progress exchange is restored from the `Rebuttal` cursor — NOT from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode, so they do not exist mid-loop). When `Rebuttal` shows `e{i}` with `i>=2`, independent collection is already complete: do NOT apply the `Independent → 0` re-collect default above (that default applies only while the loop is still at `e1`) — re-running E1 would discard completed rebuttal progress. Conversely, when `Rebuttal` shows `e1`, independent collection is still in progress, so the `Independent → 0` re-collect default applies as usual — any partial e1 statements are re-collected from scratch, preserving anti-anchoring.
 
 **Tie-Breaking Mechanism**:
@@ -162,11 +177,23 @@ After the loop stops, the orchestrator spawns the Moderator subagent with the fi
 - An expert subagent that fails or returns empty is retried once; on a second failure the exchange proceeds with the remaining experts (recorded in the transcript — never silently dropped).
 - An expert added mid-discussion (see Expert Selection Guide) first runs a catch-up E1 independent statement, then joins from the next rebuttal exchange.
 
-**Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) + 1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop fires — plus 1 Moderator subagent for Synthesis. Choose isolated mode when independence and genuine turn exchange matter more than speed — inline mode stays the default for quick reviews.
+**Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) + 1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop fires — plus 1 Moderator subagent for Synthesis. **Recovery cost**: if Phase 2 produces only a compressed final message or a content-free sign-off (e.g. due to context pressure), the user must re-request the full record — add one full-panel context reload to the effective cost. This recovery overhead is avoided by the inline SUMMARY path (lightweight sessions) and by the full 3-file output (multi-topic sessions). Choose isolated mode when independence and genuine turn exchange matter more than speed — inline mode stays the default for quick reviews.
 
-### Phase 2: Recording (MANDATORY)
+### Phase 2: Recording
 
-The following documents MUST be generated after discussion ends:
+After all topics are discussed, produce output according to session scope:
+
+**Lightweight / single-topic sessions** (default path when none of the triggers below apply):
+- Produce an **inline SUMMARY** in the current conversation — consensus items, recommendations, action items, unresolved issues. No files written.
+- This is sufficient for quick, single-topic reviews and avoids unnecessary file I/O for routine use.
+
+**Full 3-file generation** is required when ANY of the following apply:
+- Session covers **multiple topics** (2+)
+- User explicitly requests file output ("저장해줘", "파일로", "transcript 남겨줘", etc.)
+- Unresolved issues are substantial enough to warrant a persistent UNRESOLVED.md record
+- Session used isolated execution mode (real turn exchanges justify persistent transcripts)
+
+When full generation is required, write:
 
 1. **Raw transcripts**: `docs/discussions/{YYYYMMDD}_{name}/transcripts/{순번}_{topic}.md`
    - All statements recorded chronologically (template: `templates/TRANSCRIPT_TEMPLATE.md`)
@@ -178,9 +205,9 @@ The following documents MUST be generated after discussion ends:
 3. **Unresolved issues**: `docs/discussions/{YYYYMMDD}_{name}/UNRESOLVED.md`
    - Detailed record of held topics (template: `templates/UNRESOLVED_TEMPLATE.md`)
 
-**Important**: Discussion cannot end without document generation. Proceed to Phase 2 immediately after all topics are discussed.
+Proceed to Phase 2 immediately after all topics are discussed. In the inline path, the inline SUMMARY replaces file generation — discussion does not end without some form of output.
 
-**Note on summary output mode**: Item 1 (raw transcripts) is skipped. SUMMARY.md (item 2) and UNRESOLVED.md (item 3) are always generated regardless of mode.
+**Note on summary output mode**: Item 1 (raw transcripts) is skipped. SUMMARY.md (item 2) and UNRESOLVED.md (item 3) are always generated regardless of mode when full generation is triggered.
 
 ### Moderator Visibility Contract
 

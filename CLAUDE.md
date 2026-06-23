@@ -226,6 +226,15 @@ python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main
 # descriptions. Removals are reported (not hard-gated) — reviewer decides if intentional.
 # Restore any CLAUDE.md-mandated trigger (e.g. expert-panel "다양한 관점에서 평가해줘").
 
+# expert-panel mode-compose regression (#228) — verifies the SKILL.md's "all combinations
+# compose silently" claim: every declared mode toggle (격리/요약 + citation grounding +
+# Phase 2 inline path) is described and non-contradictory. Run after editing expert-panel
+# mode/Phase structure or the Citation Contract.
+python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
+# Expected: OK: all 16 self-test cases passed
+python3 thinking-tools/scripts/test/test-mode-compose.py
+# Expected: OK: all 9 mode-compose checks passed. (static check against the live SKILL.md)
+
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
 bash -n feedback-loop/scripts/event-logger.sh
