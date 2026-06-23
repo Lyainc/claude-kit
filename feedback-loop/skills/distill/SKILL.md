@@ -115,9 +115,9 @@ name the classification grid — those are `add-policy`'s.
 
 Present each candidate via AskUserQuestion (Korean): the technique, *why* it is worth
 keeping, the proposed `name` (a **proposal label**, not a placement commitment — class-level,
-naming the *situation/capability*, e.g. `flaky-test-triage`, not `fix-the-thing-from-today`;
-`add-policy` holds final naming authority and MAY rename it at placement time), and a
-situation-first one-line `description`. The single question is the **discovery gate**: "shall we hand this
+naming the *situation/capability*, e.g. `flaky-test-triage`, not `fix-the-thing-from-today`), and a
+situation-first one-line `description`. The `name` is only a proposal: `add-policy` holds final
+naming authority and MAY rename it at placement time. The single question is the **discovery gate**: "shall we hand this
 proposal to the landfill engine?" The user picks which proposals to forward
 (multi-select) or skips all. **The placement decision (which site / patch vs new) is NOT
 asked here — that is `add-policy`'s 1-click gate.** Distilling is opt-in exactly like
