@@ -194,6 +194,34 @@ def _run_main(argv: list[str]) -> str:
         sys.argv = saved_argv
 
 
+def _run_main_with(events: list[dict], argv: list[str],
+                   catalog: list[str] | None = None) -> str:
+    """Like _run_main but with a caller-supplied event fixture (not the shared one).
+
+    When `catalog` is given, scan_skill_catalog is ALSO stubbed (#210 N3) so the
+    lifecycle e2e is hermetic — it no longer depends on the live repo's */skills/*
+    layout, letting the fired/stale/bottom paths be exercised deterministically.
+    """
+    saved_load = report.load_events
+    saved_scan = report.scan_skill_catalog
+    saved_argv = sys.argv
+    try:
+        report.load_events = lambda *a, **k: list(events)
+        if catalog is not None:
+            report.scan_skill_catalog = lambda *a, **k: list(catalog)
+        sys.argv = argv
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = report.main()
+        if rc != 0:
+            raise AssertionError(f"main() returned {rc}")
+        return buf.getvalue()
+    finally:
+        report.load_events = saved_load
+        report.scan_skill_catalog = saved_scan
+        sys.argv = saved_argv
+
+
 def case_json_output_end_to_end(errors: list[str]) -> None:
     """--format=json: latency_by_event keys + rounded p50_ms/p95_ms; no-datum type excluded."""
     print("\ncase: json_output_end_to_end")
@@ -364,34 +392,6 @@ def case_lifecycle_fired_bottom_e2e(errors: list[str]) -> None:
 # ---------------------------------------------------------------------------
 # Rule-fire liveness cases (G20 #258)
 # ---------------------------------------------------------------------------
-
-def _run_main_with(events: list[dict], argv: list[str],
-                   catalog: list[str] | None = None) -> str:
-    """Like _run_main but with a caller-supplied event fixture (not the shared one).
-
-    When `catalog` is given, scan_skill_catalog is ALSO stubbed (#210 N3) so the
-    lifecycle e2e is hermetic — it no longer depends on the live repo's */skills/*
-    layout, letting the fired/stale/bottom paths be exercised deterministically.
-    """
-    saved_load = report.load_events
-    saved_scan = report.scan_skill_catalog
-    saved_argv = sys.argv
-    try:
-        report.load_events = lambda *a, **k: list(events)
-        if catalog is not None:
-            report.scan_skill_catalog = lambda *a, **k: list(catalog)
-        sys.argv = argv
-        buf = io.StringIO()
-        with contextlib.redirect_stdout(buf):
-            rc = report.main()
-        if rc != 0:
-            raise AssertionError(f"main() returned {rc}")
-        return buf.getvalue()
-    finally:
-        report.load_events = saved_load
-        report.scan_skill_catalog = saved_scan
-        sys.argv = saved_argv
-
 
 def case_rule_fire_per_rule_id(errors: list[str]) -> None:
     """rule_fire_view counts per rule_id (lifted into name) — no single-bucket collision."""
