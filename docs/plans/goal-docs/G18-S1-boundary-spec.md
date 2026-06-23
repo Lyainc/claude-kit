@@ -95,7 +95,7 @@ distill은 제안 단계까지 비퇴행 — WRITE 잠정 유지라 사용자가
 (1) frontmatter stdlib 파싱 / (2) sentinel 앵커 2개 / (2b) trigger / (2c) inviolability /
 (3) language-policy / (4) type-optin / (5) version-sync. **전부 통과해야 S2 완료.**
 
-## 5. S3 격리 critique 입력 (CON-3)
+## 5. S3 격리 critique 프로세스 (CON-3)
 
 S2 산출(distill SKILL.md diff)을 **별도 컨텍스트 reviewer**가 검토 — 경계 정합(발견/매립이
 깨끗이 갈렸나) + distill 비퇴행 + 안전 불변식 보존 + CON-3/CON-5 정합. **VERDICT: APPROVE 필요**.
