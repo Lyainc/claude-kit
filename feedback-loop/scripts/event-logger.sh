@@ -243,6 +243,37 @@ case "$EVENT_TYPE" in
     fi
     ;;
 
+  rule_fire)
+    # A work-rule guard fired (a check-*.py violation, a task-end reminder, or a
+    # landed add-policy hook guard catching a violation). The schema reserves this
+    # event (validate-schema.py VALID_EVENTS); this case fills the previously-empty
+    # emitter slot. EMIT-ONLY data contract (CON-5): the guard shells out to THIS
+    # script — a process call, never a code import — so feedback-loop pulls in no
+    # leaf/guard code. Identity (G20 #258): rule_fire carries no tool_input; its
+    # rule_id rides in the incoming meta, so we LIFT meta.rule_id into name /
+    # qualified_name — report.py's `top` keys on (plugin, event, name), so without
+    # the lift every rule would collapse into one undifferentiated bucket.
+    NAME="$(printf '%s' "$PAYLOAD" | jq -r '.meta.rule_id // empty' 2>/dev/null || true)"
+    QNAME="$NAME"
+    # plugin: an optional meta.plugin (which harness owns the rule), else claude-kit.
+    PLUGIN="$(printf '%s' "$PAYLOAD" | jq -r '.meta.plugin // "claude-kit"' 2>/dev/null || printf 'claude-kit')"
+    [ -n "$PLUGIN" ] || PLUGIN="claude-kit"
+    TRIGGER="auto"
+    OUTCOME="fired"
+    # Pass through the conventional rule_fire meta keys (rule_id / severity / file /
+    # count), dropping any that are absent/null so the envelope stays clean. This is
+    # liveness telemetry: a fire means a violation was CAUGHT, never that a rule was
+    # "followed" — a perfectly-obeyed rule fires zero times (G20 honesty contract).
+    META="$(printf '%s' "$PAYLOAD" | jq -c '
+      (.meta // {}) as $m
+      | {}
+        + (if ($m.rule_id  != null) then {rule_id:  $m.rule_id}  else {} end)
+        + (if ($m.severity != null) then {severity: $m.severity} else {} end)
+        + (if ($m.file     != null) then {file:     $m.file}     else {} end)
+        + (if ($m.count    != null) then {count:    $m.count}    else {} end)
+    ' 2>/dev/null || printf '{}')"
+    ;;
+
   *)
     exit 0
     ;;

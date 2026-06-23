@@ -272,6 +272,44 @@ def skill_lifecycle_view(
     }
 
 
+# Rule-fire liveness (G20 #258). HONESTY BOUNDS — read before interpreting:
+#  - a fire = a guard CAUGHT a violation; it is NOT a compliance/adherence count.
+#  - a perfectly-obeyed rule fires ZERO times, indistinguishable from a dead rule, so
+#    0-fire is AMBIGUOUS (dead vs perfectly-internalized) — never read as "unfollowed".
+#  - 0-fire rules are INVISIBLE here: telemetry only sees rules that fired >= 1 (there is
+#    no landed-rule registry to diff against, unlike skills which have a SKILL.md catalog).
+#    This view therefore never surfaces "inert" rules; it is an enforcement-LIVENESS tally
+#    for rules that fired, nothing more. (consensus gate G1/G2, 2026-06-23.)
+_RULE_FIRE_CAVEAT = (
+    "rule_fire = enforcement liveness(위반이 잡힌 횟수)지 준수도 아님. "
+    "0-fire는 telemetry에 안 보이고(레지스트리 미구현) 해석 불가(죽음/완벽내재화) — "
+    "제거·재고려 신호로 쓰지 마세요. 측정범위: claude-kit 레포 내 세션 (Option A)."
+)
+
+
+def rule_fire_view(events: list[dict]) -> dict[str, int]:
+    """Per-rule_id fire counts from rule_fire events (enforcement liveness).
+
+    Keyed by the rule identity the logger lifts into name/qualified_name
+    (event-logger.sh rule_fire case: meta.rule_id -> name, so report's
+    (plugin,event,name) `top` and this view both differentiate per rule rather
+    than collapsing into one undifferentiated rule_fire bucket). Only rule_fire
+    events count. See _RULE_FIRE_CAVEAT for the honesty bounds: this is a liveness
+    tally, NOT a compliance measure, and 0-fire rules are structurally unobservable.
+    """
+    # One occurrence == one fire: this tally counts EVENTS, not meta.count (a
+    # reserved/forward-provisioned key the liveness view does not consume). A fire
+    # with no rule_id lands in "(unnamed rule)" — an honest catch-all (the reference
+    # emitter always sets rule_id; anonymous fires under-specify, never over-claim).
+    counts: Counter[str] = Counter()
+    for e in events:
+        if e.get("event") != "rule_fire":
+            continue
+        rid = e.get("name") or e.get("qualified_name") or "(unnamed rule)"
+        counts[rid] += 1
+    return dict(counts)
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--since", default="7d", help="time window (e.g. '7d', 'all')")
@@ -305,6 +343,7 @@ def main() -> int:
     latency_per_event = latency_by_event(events)
 
     lifecycle = skill_lifecycle_view(events, since_days=since_days)
+    rule_fire_counts = rule_fire_view(events)
 
     if args.format == "json":
         payload = {
@@ -336,6 +375,12 @@ def main() -> int:
             "lifecycle": {
                 "caveat": lifecycle["caveat"],
                 "never_fired": lifecycle["never_fired"],
+                # #210 N1: never_fired is window-bounded; the label disambiguates
+                # "absolutely never" (--since=all) from "no events in this window".
+                "never_fired_label": (
+                    "never-fired" if since_days is None
+                    else f"no events in {args.since} window"
+                ),
                 "stale": lifecycle["stale"],
                 "stale_note": lifecycle["stale_note"],
                 "bottom": [
@@ -343,6 +388,11 @@ def main() -> int:
                 ],
                 "guide": lifecycle["guide"],
             },
+            # Rule-fire liveness: per-rule_id fire counts (enforcement, NOT compliance).
+            # 0-fire rules are absent by construction (see _RULE_FIRE_CAVEAT); the caveat
+            # ships alongside so a consumer never reads a fire count as an adherence rate.
+            "rule_fire": rule_fire_counts,
+            "rule_fire_caveat": _RULE_FIRE_CAVEAT if rule_fire_counts else None,
         }
         print(json.dumps(payload, indent=2))
         return 0
@@ -374,12 +424,16 @@ def main() -> int:
         print(f"  {c:>5}  {label}")
     print()
     print(f"Skill lifecycle ({lifecycle['caveat']}):")
+    # #210 N1: "never-fired" is window-bounded — a skill that fired 10d ago still shows
+    # under --since=7d. Say so in the label so it is not read as "never, ever fired":
+    # only --since=all earns the absolute "never-fired"; a window says "no events in <w>".
+    nf_label = "never-fired" if since_days is None else f"no events in {args.since} window"
     if lifecycle["never_fired"]:
-        print(f"  never-fired ({len(lifecycle['never_fired'])}):")
+        print(f"  {nf_label} ({len(lifecycle['never_fired'])}):")
         for s in lifecycle["never_fired"]:
             print(f"    {s}")
     else:
-        print("  never-fired: (none)")
+        print(f"  {nf_label}: (none)")
     if lifecycle["stale"]:
         print(f"  last-used > {_STALE_DAYS}d ({len(lifecycle['stale'])}):")
         for s in lifecycle["stale"]:
@@ -395,6 +449,15 @@ def main() -> int:
     else:
         print(f"  bottom-{_BOTTOM_N}: (none)")
     print(f"  {lifecycle['guide']}")
+    # Rule-fire liveness — only render when something actually fired. The caveat is
+    # printed INLINE with the counts (consensus gate G6) so a reader never sees a fire
+    # tally without the "liveness != compliance, 0-fire is invisible/ambiguous" warning.
+    if rule_fire_counts:
+        print()
+        print("Rule-fire liveness (enforcement, NOT compliance):")
+        for rid, c in sorted(rule_fire_counts.items(), key=lambda x: (-x[1], x[0])):
+            print(f"  {c:>5}  {rid}")
+        print(f"  ! {_RULE_FIRE_CAVEAT}")
     return 0
 
 

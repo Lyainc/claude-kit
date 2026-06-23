@@ -160,11 +160,15 @@ def case_percentile_accuracy(errors: list[str]) -> None:
 
 # --- end-to-end main() exercises -------------------------------------------
 
-# Shared fixture: skill_invoke (3 numeric) + agent_spawn (2 numeric) + stop (no datum)
+# Shared fixture: skill_invoke (3 numeric) + agent_spawn (2 numeric) + stop (no datum).
+# skill_invoke events carry qualified_name (#210 N2) so a catalog-matched lifecycle run
+# can exercise the fired path; the shared cases don't stub a catalog, so these names stay
+# never-fired there (they match no real skill) — see case_lifecycle_fired_bottom_e2e for
+# the hermetic, catalog-stubbed fired/stale/bottom coverage.
 FIXTURE_EVENTS = [
-    _ev("skill_invoke", 10, name="a"),
-    _ev("skill_invoke", 20, name="b"),
-    _ev("skill_invoke", 30, name="c"),
+    {**_ev("skill_invoke", 10, name="a"), "qualified_name": "p:a"},
+    {**_ev("skill_invoke", 20, name="b"), "qualified_name": "p:b"},
+    {**_ev("skill_invoke", 30, name="c"), "qualified_name": "p:c"},
     _ev("agent_spawn", 100, name="x"),
     _ev("agent_spawn", 300, name="y"),
     _ev("stop"),
@@ -324,6 +328,127 @@ def case_lifecycle_caveat_in_json(errors: list[str]) -> None:
     _assert("guide" in lc, "json lifecycle has 'guide' string", errors)
 
 
+def case_lifecycle_fired_bottom_e2e(errors: list[str]) -> None:
+    """#210 N2/N3: hermetic e2e lifecycle over a STUBBED catalog — exercises the
+    fired/bottom paths (not just all-never-fired) without depending on the live repo."""
+    print("\ncase: lifecycle_fired_bottom_e2e")
+    catalog = ["fx:hot", "fx:cold", "fx:dead"]
+    events = [
+        {**_ev("skill_invoke", name="hot"), "qualified_name": "fx:hot",
+         "ts": "2099-01-01T00:00:00Z"},
+        {**_ev("skill_invoke", name="hot"), "qualified_name": "fx:hot",
+         "ts": "2099-01-01T00:00:00Z"},
+        {**_ev("skill_invoke", name="hot"), "qualified_name": "fx:hot",
+         "ts": "2099-01-01T00:00:00Z"},
+        {**_ev("skill_invoke", name="cold"), "qualified_name": "fx:cold",
+         "ts": "2099-01-01T00:00:00Z"},
+    ]
+    out = _run_main_with(events, ["report.py", "--since=all", "--format=json"], catalog=catalog)
+    lc = json.loads(out)["lifecycle"]
+    _assert("fx:dead" in lc["never_fired"],
+            "unfired catalog skill in never_fired", errors)
+    _assert("fx:hot" not in lc["never_fired"] and "fx:cold" not in lc["never_fired"],
+            "fired skills absent from never_fired", errors)
+    bottom = {d["skill"]: d["count"] for d in lc["bottom"]}
+    _assert(bottom.get("fx:cold") == 1 and bottom.get("fx:hot") == 3,
+            f"bottom-N carries per-skill fired counts (got: {bottom})", errors)
+    # #210 N1: --since=all earns the absolute label; a window must say "no events in <w>".
+    _assert(lc.get("never_fired_label") == "never-fired",
+            f"since=all → absolute never-fired label (got: {lc.get('never_fired_label')})", errors)
+    wout = _run_main_with(events, ["report.py", "--since=7d", "--format=json"], catalog=catalog)
+    wlc = json.loads(wout)["lifecycle"]
+    _assert(wlc.get("never_fired_label") == "no events in 7d window",
+            f"windowed never_fired_label not overstated (got: {wlc.get('never_fired_label')})", errors)
+
+
+# ---------------------------------------------------------------------------
+# Rule-fire liveness cases (G20 #258)
+# ---------------------------------------------------------------------------
+
+def _run_main_with(events: list[dict], argv: list[str],
+                   catalog: list[str] | None = None) -> str:
+    """Like _run_main but with a caller-supplied event fixture (not the shared one).
+
+    When `catalog` is given, scan_skill_catalog is ALSO stubbed (#210 N3) so the
+    lifecycle e2e is hermetic — it no longer depends on the live repo's */skills/*
+    layout, letting the fired/stale/bottom paths be exercised deterministically.
+    """
+    saved_load = report.load_events
+    saved_scan = report.scan_skill_catalog
+    saved_argv = sys.argv
+    try:
+        report.load_events = lambda *a, **k: list(events)
+        if catalog is not None:
+            report.scan_skill_catalog = lambda *a, **k: list(catalog)
+        sys.argv = argv
+        buf = io.StringIO()
+        with contextlib.redirect_stdout(buf):
+            rc = report.main()
+        if rc != 0:
+            raise AssertionError(f"main() returned {rc}")
+        return buf.getvalue()
+    finally:
+        report.load_events = saved_load
+        report.scan_skill_catalog = saved_scan
+        sys.argv = saved_argv
+
+
+def case_rule_fire_per_rule_id(errors: list[str]) -> None:
+    """rule_fire_view counts per rule_id (lifted into name) — no single-bucket collision."""
+    print("\ncase: rule_fire_per_rule_id")
+    events = [
+        _ev("rule_fire", name="no-pyyaml"),
+        _ev("rule_fire", name="no-pyyaml"),
+        _ev("rule_fire", name="trash-not-rm"),
+        _ev("skill_invoke", name="note"),   # non-rule_fire ignored
+    ]
+    res = report.rule_fire_view(events)
+    _assert(res == {"no-pyyaml": 2, "trash-not-rm": 1},
+            f"per-rule_id counts, distinct rules not collapsed (got: {res})", errors)
+    # An empty / no-rule_fire event list yields an empty view (0-fire is invisible).
+    _assert(report.rule_fire_view([_ev("stop")]) == {},
+            "no rule_fire events → empty view (0-fire rules unobservable)", errors)
+    # A rule_fire with no rule_id (empty name) lands in the honest "(unnamed rule)"
+    # catch-all, never silently dropped or merged with a named rule.
+    anon = report.rule_fire_view([_ev("rule_fire", name=""), _ev("rule_fire", name="x")])
+    _assert(anon == {"(unnamed rule)": 1, "x": 1},
+            f"rule_id-less fire → '(unnamed rule)' bucket (got: {anon})", errors)
+
+
+def case_rule_fire_view_end_to_end(errors: list[str]) -> None:
+    """main(): json carries per-rule_id rule_fire + caveat; table renders the section inline."""
+    print("\ncase: rule_fire_view_end_to_end")
+    fixture = [
+        _ev("rule_fire", plugin="claude-kit", name="no-pyyaml"),
+        _ev("rule_fire", plugin="claude-kit", name="no-pyyaml"),
+        _ev("rule_fire", plugin="claude-kit", name="trash-not-rm"),
+        _ev("skill_invoke", 10, name="note"),
+    ]
+    # JSON: rule_fire = per-rule_id counts, plus a non-null caveat alongside.
+    out = _run_main_with(fixture, ["report.py", "--since=all", "--format=json"])
+    payload = json.loads(out)
+    _assert(payload.get("rule_fire") == {"no-pyyaml": 2, "trash-not-rm": 1},
+            f"json rule_fire per-rule_id (got: {payload.get('rule_fire')})", errors)
+    _assert(bool(payload.get("rule_fire_caveat")),
+            "json carries rule_fire_caveat when fires exist", errors)
+    _assert("liveness" in (payload.get("rule_fire_caveat") or "")
+            and "준수" in (payload.get("rule_fire_caveat") or ""),
+            "caveat states liveness != compliance", errors)
+    # Table: the liveness section renders AND the caveat prints inline with the counts.
+    tout = _run_main_with(fixture, ["report.py", "--since=all", "--format=table"])
+    _assert("Rule-fire liveness (enforcement, NOT compliance):" in tout,
+            "table renders rule-fire liveness section", errors)
+    _assert("no-pyyaml" in tout and "trash-not-rm" in tout,
+            "table lists per-rule_id fire counts", errors)
+    _assert("0-fire는 telemetry에 안 보이고" in tout,
+            "table prints the 0-fire honesty caveat inline (not just counts)", errors)
+    # Honesty floor: when nothing fired, the caveat must be null (no fabricated section).
+    empty = _run_main_with([_ev("skill_invoke", 10, name="note")],
+                           ["report.py", "--since=all", "--format=json"])
+    _assert(json.loads(empty).get("rule_fire_caveat") is None,
+            "no fires → rule_fire_caveat is null (no fabricated liveness claim)", errors)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -344,6 +469,9 @@ def main() -> int:
     case_lifecycle_stale_note(errors)
     case_lifecycle_caveat_in_output(errors)
     case_lifecycle_caveat_in_json(errors)
+    case_lifecycle_fired_bottom_e2e(errors)
+    case_rule_fire_per_rule_id(errors)
+    case_rule_fire_view_end_to_end(errors)
 
     print()
     if errors:
