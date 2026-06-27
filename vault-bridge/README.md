@@ -2,7 +2,7 @@
 
 **Obsidian vault ↔ external project bridge** plugin for Claude Code. Access vault knowledge from external projects and record session notes back into the vault.
 
-> **Renamed from `vault-reader` (≤ v0.3.0) at v1.0.0.** The plugin's scope expanded beyond read-only search (session-note creation, Stop/SessionEnd hooks, `/save-session` command), so the name now reflects the two-way bridge role. See [Migration](#migration-from-vault-reader) below.
+> **Renamed from `vault-reader` (≤ v0.3.0) at v1.0.0.** The plugin's scope expanded beyond read-only search (session-note creation via `/save-session`, vault I/O hooks), so the name now reflects the two-way bridge role. See [Migration](#migration-from-vault-reader) below.
 
 ## Install
 
@@ -78,11 +78,11 @@ Use `/save-session` to trigger session note creation from the main context. The 
 |--------|----------|----------|
 | 복붙 한 줄 | One-line prompt printed to the terminal | Quick continuation, paste into the next session |
 | 복붙 요약 | Structured summary printed to the terminal | Richer context, paste into the next session |
-| 파일 저장 | `resume.md` written to `.claude-kit/vault-bridge/` | Hands off automatically — no copy-paste |
+| 파일 저장 | `resume.md` written to `.claude-kit/vault-bridge/` | Read back on request ("handoff 보여줘") next session |
 
-### resume.md auto-pickup
+### resume.md
 
-When a `resume.md` is written under the project root (`.claude-kit/vault-bridge/resume.md`), the **SessionStart hook** detects it on the next session, injects its body into the model context via `additionalContext`, then deletes the file (single-use). The `.claude-kit/` directory is ephemeral — keep it gitignored.
+The `resume.md` is written under the project root (`.claude-kit/vault-bridge/resume.md`). **It is no longer auto-injected at SessionStart** — ask "handoff 보여줘" next session to read it back. (G24 removed the SessionStart auto-injection: silent `additionalContext` injection blocked the user from reviewing the handoff before it entered context. A visible, explicit re-entry is the redesign direction — see G25.) The `.claude-kit/` directory is ephemeral — keep it gitignored.
 
 ```
 /handoff
@@ -384,9 +384,8 @@ Direct file access skips the manifest-first approach that delivers [97% token sa
 ### Soft enforcement philosophy
 
 - **Never blocks**: `exit 0` always. User workflow is never interrupted.
-- **Informs at milestones**: a `systemMessage` is injected into Claude's context on the 1st, 5th, and 10th direct access of the session, suggesting vault-searcher as the more efficient path. Subsequent accesses still increment the counter but emit no notice — keeps hot-path sessions quiet while preserving telemetry.
-- **Counts silently**: each direct access increments a session counter at `/tmp/vault-bridge-session-{session_id}/direct-access-count` (every call, not just milestones).
-- **Reports at session end**: the SessionEnd hook reads the counter and appends a one-line note to the auto-saved session note.
+- **Informs at milestones**: a `systemMessage` is injected into Claude's context on the 1st, 2nd, 3rd, and 5th direct access of the session, suggesting vault-searcher as the more efficient path. Subsequent accesses still increment the counter but emit no notice — keeps hot-path sessions quiet while preserving telemetry.
+- **Counts silently**: each direct access increments a session counter at `/tmp/vault-bridge-session-{session_id}/direct-access-count` (every call, not just milestones). The counter drives the milestone notices above; the prior SessionEnd auto-report that also consumed it was removed in G24.
 
 ### Counter file structure
 
@@ -396,7 +395,7 @@ Direct file access skips the manifest-first approach that delivers [97% token sa
   direct-access-log     # tab-separated: timestamp + tool + abs_path (debug)
 ```
 
-`CLAUDE_SESSION_ID` from environment; falls back to `pid-{PID}` if absent. The directory is deleted at SessionEnd.
+`CLAUDE_SESSION_ID` from environment; falls back to `pid-{PID}` if absent. The directory lives under `/tmp` (OS-cleaned); the prior SessionEnd cleanup was removed in G24.
 
 ### Kill switch
 
@@ -411,9 +410,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - Filename: `session-YYYY-MM-DD.md` (type-first convention)
 - Frontmatter: `created`, `tags: [session, {project}]`, `type: session` (no `status` field — `status: active` applies to `plan` artifacts only)
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
-- **Stop hook** (deterministic shell script `hooks/stop-check.sh`): silently checks the user's last message for session-closing keywords; injects a one-line `systemMessage` suggesting `/save-session` only when a closing signal is detected. No LLM call → no per-turn cost, no infinite-loop risk
-- **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background; also detects `.claude-kit/vault-bridge/resume.md`, injects its body into the model context via `additionalContext`, and consumes (deletes) the file. Never blocks session startup
-- **SessionEnd hook** (chained `hooks/session-end-pre.sh` → prompt): the shell pre-hook collects deterministic state — `.vault-link` presence and the direct-access counter — and writes a JSON file. The prompt then makes the LLM-judgment calls (meaningful-work check, Summary composition, conditional sections) and writes the safety-net session-note. The shell step uses `${CLAUDE_PROJECT_ROOT:-$PWD}` so a session-internal `cd` does not break `.vault-link` discovery
+- **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24 — see [resume.md](#resumemd).)
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/quick)
@@ -451,16 +448,12 @@ When vault-bridge writes session notes, captures, or plan files to a git-tracked
 | Two plans + one note in a project | `vault session 2026-04-18: 2 plans, 1 note in claude-kit` |
 | Mixed types, no clear project | `vault session 2026-04-18: 3 files` |
 
-### Stop hook integration
-
-The Stop hook (`hooks/stop-check.sh`) already suggests `/save-session` when a closing keyword (`세션 끝`, `wrap up`, etc.) is detected. With v1.4.0 it additionally checks whether the vault has uncommitted changes and, if so, appends a suggestion to run `/vault-commit` in the same `systemMessage`. This is fully deterministic (no LLM call) and adds negligible latency.
-
 ### Kill switch
 
-Set `VAULT_BRIDGE_DISABLE=1` to suppress both the `/vault-commit` command and the Stop hook's vault dirty check.
+Set `VAULT_BRIDGE_DISABLE=1` to suppress the `/vault-commit` command. (The Stop-hook auto-suggestion of `/save-session` and `/vault-commit` was removed in G24 — run `/vault-commit` manually when the vault has uncommitted changes.)
 
 ```bash
-VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks or commit suggestions fire
+VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 ```
 
 ## Slash Commands
@@ -500,7 +493,7 @@ VAULT_BRIDGE_VAULT_ROOT=/Volumes/Shared/vault claude
 ## Prerequisites
 
 - An Obsidian vault at your configured vault path (default `~/vault/`)
-- [`jq`](https://jqlang.github.io/jq/) on PATH (used by the Stop hook to parse the transcript JSONL)
+- [`jq`](https://jqlang.github.io/jq/) on PATH (used by hooks to parse JSON payloads)
 
 ## Migration from vault-reader
 

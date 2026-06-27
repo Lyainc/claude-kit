@@ -66,7 +66,7 @@ Claude slash commands under `vault-bridge/commands/*.md` do not automatically be
 
 ### Session lifecycle hooks
 
-`vault-bridge` uses Claude `Stop`, `SessionStart`, `SessionEnd`, and `PreToolUse` hooks. Codex has hook support through `.codex/hooks.json`, but exact event payloads and timing may differ. Treat session-note parity as smoke-test required.
+`vault-bridge` uses Claude `SessionStart` and `PreToolUse` hooks (the `Stop`/`SessionEnd` session-lifecycle auto-hooks were cut in G24). Codex has hook support through `.codex/hooks.json`, but exact event payloads and timing may differ. Treat session-note parity as smoke-test required.
 
 ### Agent models
 
