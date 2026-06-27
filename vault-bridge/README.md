@@ -57,7 +57,7 @@ vault-searcher is read-only. All vault writes route through user-initiated slash
 | `record` | Past summary of completed work | Summary, Done, Related Files, Reference Context |
 | `quick` | Minimal capture | Summary, Related Files |
 
-For committing vault changes to git, use `/vault-commit`. To hand work off to the next session, use `/handoff` (see [Session Handoff](#session-handoff)).
+For committing vault changes to git, use `/vault-commit`. Next-session handoff is no longer a vault-bridge command — see [Session Handoff](#session-handoff).
 
 Use `/save-session` to trigger session note creation from the main context. The command handles type/mode selection, path confirmation, same-date collision resolution, and final save confirmation inline.
 
@@ -72,45 +72,7 @@ Use `/save-session` to trigger session note creation from the main context. The 
 
 ## Session Handoff
 
-`/handoff` (vault-bridge v1.11.0) generates a continuation handoff for the next session — distinct from `/save-session`, which records a past-tense session note into the vault. `/handoff` summarizes the current work state and delivers it in one of three forms:
-
-| Option | Delivery | Use when |
-|--------|----------|----------|
-| 복붙 한 줄 | One-line prompt printed to the terminal | Quick continuation, paste into the next session |
-| 복붙 요약 | Structured summary printed to the terminal | Richer context, paste into the next session |
-| 파일 저장 | `resume.md` written to `.claude-kit/vault-bridge/` | Read back on request ("handoff 보여줘") next session |
-
-### resume.md
-
-The `resume.md` is written under the project root (`.claude-kit/vault-bridge/resume.md`). **It is no longer auto-injected at SessionStart** — ask "handoff 보여줘" next session to read it back. (G24 removed the SessionStart auto-injection: silent `additionalContext` injection blocked the user from reviewing the handoff before it entered context. A visible, explicit re-entry is the redesign direction — see G25.) The `.claude-kit/` directory is ephemeral — keep it gitignored.
-
-```
-/handoff
-"다음 세션 인수인계"
-"이어서 작업할 수 있게 정리해줘"
-```
-
-## Handoff Term Convention
-
-`handoff` has a single canonical meaning in vault-bridge: **the `/handoff` command** that generates a next-session continuation handoff (see [Session Handoff](#session-handoff)). All other historical usages are deprecated.
-
-| Context | Allowed? | Replacement |
-|---------|----------|-------------|
-| `/handoff` command (next-session continuation) | **Allowed (canonical)** | — |
-| Standalone `handoff-*.md` filename | **Forbidden (legacy only)** | Use `session-*.md` |
-| Redundant tag `tags: [session, handoff, ...]` | **Forbidden** | Omit `handoff` — `type:` already conveys artifact role |
-| thinking-tools stage-to-stage data contract | **Domain prefix required** | Use `inter-stage handoff` or `stage-transition` |
-| "Project-level handover document" | **Forbidden** | Write `plan-YYYY-MM-DD-{topic}.md`, then run `/handoff` to point the next session at it |
-
-vault-searcher Mode 1 no longer matches the legacy `handoff-*.md` / `*-handoff.md` patterns (removed in v1.7.x). Existing legacy files have been renamed or absorbed.
-
-**Migration for vaults that still contain `handoff-*.md` files** — Mode 1 will not surface these files. Three options:
-
-1. **Rename** to `session-YYYY-MM-DD[-topic].md` (preferred — restores Mode 1 discovery and matches the canonical naming).
-2. **Convert** to a `plan-YYYY-MM-DD-{topic}.md` if the file is closer to a project-level design doc than a session record.
-3. **Leave as-is** if the file is purely historical reference and you no longer need it surfaced. Tag-based search (`tags: [session]`) and direct path access still work.
-
-Pure rename is safe: vault-bridge does not read filename for semantics — `type:` in frontmatter is the source of truth.
+Next-session handoff is **no longer a vault-bridge command**. The `/handoff` command and its `resume.md` mechanism were retired in G26 (decision G25 D4); the handoff function — authoring a next-session continuation / START-PROMPT — now lives in the machine-level `session-close` skill, part of the owner's personal kit and **not shipped in this plugin**. Use `/save-session` here to record a past-tense session note into the vault; the next-session continuation is handled outside claude-kit.
 
 ## Optional Obsidian CLI integration
 
@@ -410,11 +372,10 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - Filename: `session-YYYY-MM-DD.md` (type-first convention)
 - Frontmatter: `created`, `tags: [session, {project}]`, `type: session` (no `status` field — `status: active` applies to `plan` artifacts only)
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
-- **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24 — see [resume.md](#resumemd).)
+- **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24; the `/handoff` command + `resume.md` mechanism were retired in G26 — see [Session Handoff](#session-handoff).)
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/quick)
-- **`/handoff` command**: generates a next-session continuation handoff (one-liner / summary / `resume.md` file) — main-context user trigger
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
 ## Session Auto-Commit
@@ -461,7 +422,6 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 | Command | Description |
 |---------|-------------|
 | `/save-session` | Inline session note creation in main context — mode selection (record/quick), path confirmation, collision resolution |
-| `/handoff` | Generate a next-session continuation handoff — one-line prompt, summary, or `resume.md` file |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |

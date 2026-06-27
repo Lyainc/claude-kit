@@ -34,8 +34,8 @@ Check whether `$ARGUMENTS` contains any handoff-mode token (case-insensitive):
 
 If any token matches, output the following and stop:
 
-> `/save-session`은 더 이상 handoff 모드를 지원하지 않아요.
-> 대신 `/handoff`를 사용해 주세요 — 복붙 한 줄 / 복붙 요약 / resume.md 저장 중 하나를 선택할 수 있어요.
+> `/save-session`은 handoff 모드를 지원하지 않아요 — 과거형 세션 노트만 기록해요.
+> 다음 세션 인수인계는 머신 레벨 `session-close` 스킬이 담당해요 (claude-kit에 포함되지 않는 개인 킷, G25/G26).
 
 ---
 
