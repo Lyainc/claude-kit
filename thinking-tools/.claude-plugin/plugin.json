@@ -21,5 +21,19 @@
     "thinking-facilitator",
     "adversarial-review",
     "spec-first"
-  ]
+  ],
+  "hooks": {
+    "SessionStart": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/session-start-welcome.sh",
+            "timeout": 5
+          }
+        ]
+      }
+    ]
+  }
 }

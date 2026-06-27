@@ -91,6 +91,7 @@ jobs:
       - name: Check shell hook syntax
         run: |
           bash -n vault-bridge/hooks/*.sh
+          bash -n thinking-tools/hooks/session-start-welcome.sh
           bash -n scripts/rules-checklist-hook.sh
           bash -n scripts/subagent-git-guard.sh
           bash -n scripts/no-pyyaml-guard.sh
@@ -146,6 +147,12 @@ jobs:
           python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
           python3 thinking-tools/scripts/test/test-mode-compose.py
           echo "expert-panel mode-compose OK"
+
+      - name: Run session-start onboarding hook regression
+        run: |
+          # #117 — first-run onboarding hint: 3-session grace, kill switch, JSON shape.
+          bash thinking-tools/scripts/test/test-session-start-welcome.sh
+          echo "session-start-welcome OK"
 
       - name: Run obsidian-vault-manager unit tests
         run: |

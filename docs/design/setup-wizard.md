@@ -1,9 +1,17 @@
 # claude-kit Setup Wizard 설계
 
-**상태**: 설계 합의 완료, 구현 대기
-**최종 합의일**: 2026-05-12
-**근거 문서**: [`docs/discussions/20260512_setup-wizard-design/`](../discussions/20260512_setup-wizard-design/)
-**관련 PR/이슈**: TBD (구현 단계에서 채움)
+> **⚠️ SUPERSEDED (2026-06-28, #117/#173).** 아래 §3~§9의 핵심 아키텍처 — **신설 4번째 플러그인 `claude-kit-welcome`** + state.json/progress.json 스키마 + `/welcome` 페이지네이션 wizard — 는 **채택되지 않았어요.** thin 단일목적 플러그인 신설이 **C-2**(thin doc-tools 플러그인 신설 금지, `output-layer-structure-adr.md`)에 걸리거든요.
+>
+> **실제 채택된 축소판**: 4번째 플러그인 없이 *기존 자산 흡수* — (1) thinking-tools SessionStart 훅(`thinking-tools/hooks/session-start-welcome.sh`)이 첫 3세션 발견성 안내(결정형 셸, 정수 카운터 1개, kill switch `CLAUDE_KIT_WELCOME_DISABLE=1`), (2) 루트 README "무엇부터 써볼까" 4-흐름 진입점 표. state.json 7필드·progress.json·pages/·`/welcome` 커맨드는 전부 미채택(YAGNI). 호스트가 thinking-tools인 이유: vault 비의존 + 타깃(비개발자) 첫 진입 플러그인. 마켓플레이스는 훅 등록 불가라 진입 플러그인에 얹음.
+>
+> **§6/§10 전제 정정**: 원안 §6은 SessionStart가 `systemMessage`로 사용자에게 안내를 *띄운다*고 가정했는데, **SessionStart에는 사용자 대면 메시지 채널이 없어요**(`systemMessage`는 PreToolUse/PostToolUse 전용). 구현은 `hookSpecificOutput.additionalContext`로 컨텍스트에 주입하고, Claude가 적절할 때(새 세션·"뭐 할 수 있어?") 사용자에게 안내하는 model-mediated 방식이에요 — 강제 팝업이 아니라 §2 "Read-Only Walkthrough" 원칙에 오히려 더 맞아요. §10 "SessionStart systemMessage 길이 캡" 검증항목도 같은 전제라 무효.
+>
+> 아래 본문은 *설계 사고의 기록*으로 보존해요(어떤 대안을 왜 버렸는지). 구현 진실은 위 두 산출물이에요.
+
+**상태**: ~~설계 합의 완료, 구현 대기~~ → **SUPERSEDED — 축소판 구현 완료 (#117)**
+**최종 합의일**: 2026-05-12 (원안) · **축소·구현**: 2026-06-28
+**근거 문서**: [`docs/discussions/20260512_setup-wizard-design/`](../discussions/20260512_setup-wizard-design/) · 축소 근거 [#173](https://github.com/Lyainc/claude-kit/issues/173) · [`output-layer-structure-adr.md`](output-layer-structure-adr.md) (C-2)
+**관련 PR/이슈**: #117 (setup-wizard, 축소 구현) · #173 (온보딩 sub-epic)
 
 ---
 

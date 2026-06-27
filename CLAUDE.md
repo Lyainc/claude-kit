@@ -235,8 +235,16 @@ python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
 python3 thinking-tools/scripts/test/test-mode-compose.py
 # Expected: OK: all 9 mode-compose checks passed. (static check against the live SKILL.md)
 
+# session-start onboarding hook regression (#117) — first-run discoverability hint
+# hosted in thinking-tools SessionStart (vault-independent entry plugin; C-2 forbids a
+# 4th "welcome" plugin). Verifies 3-session grace, kill switch, corrupt-counter recovery,
+# and valid systemMessage JSON. State = single integer file under CLAUDE_CONFIG_DIR.
+bash thinking-tools/scripts/test/test-session-start-welcome.sh
+# Expected: OK: all session-start-welcome cases passed
+
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
+bash -n thinking-tools/hooks/session-start-welcome.sh   # #117 first-run onboarding hint
 bash -n feedback-loop/scripts/event-logger.sh
 bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
 bash -n scripts/subagent-git-guard.sh     # #209 subagent git side-effect deny hook
