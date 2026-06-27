@@ -1,6 +1,6 @@
 ---
 name: vault-searcher
-description: "Read/search agent for `~/vault/`. MUST BE USED PROACTIVELY before any Read/Grep/Glob on ~/vault/ (Bash too, by convention). Exception: a verbatim absolute path from the user; topic names alone don't qualify. Three modes: session restore, MOC domain context, keyword search. Read/write asymmetry (Write Role Contract): vault reads are delegable to this haiku agent, but writes are NOT supported here — vault writes are main-context user-initiated slash commands only, so redirect to /save-session, /vault-commit instead. KR triggers: '노트 찾아줘', '관련 자료', '예전에 썼던', '검색해줘', '핸드오프 복원', '도메인 컨텍스트', '이전 세션'. EN triggers: 'vault search', 'find in vault', 'load handoff', 'domain context', 'previous session'."
+description: "Read/search agent for `~/vault/`. MUST BE USED PROACTIVELY before any Read/Grep/Glob on ~/vault/ (Bash too, by convention). Exception: a verbatim absolute path from the user; topic names alone don't qualify. Three modes: session restore, MOC domain context, keyword search. Read/write asymmetry (Write Role Contract): vault reads are delegable to this haiku agent, but writes are NOT supported here — vault writes are main-context user-initiated slash commands only, so redirect to /save-session, /vault-commit instead. KR triggers: '노트 찾아줘', '관련 자료', '예전에 썼던', '검색해줘', '도메인 컨텍스트', '이전 세션', '세션 복원'. EN triggers: 'vault search', 'find in vault', 'domain context', 'previous session', 'session restore'."
 model: haiku
 color: cyan
 tools: Read, Bash, Glob, Grep
@@ -63,9 +63,9 @@ Three modes. Auto-select based on the user's request.
 
 ### 1. Session Restore
 
-Find and load the most recent active session note or handoff to restore session context.
+Find and load the most recent active session note to restore session context.
 
-**Triggers**: "load handoff", "resume last session", "what was I working on?", "{project} status", "이전 세션", "세션 복원"
+**Triggers**: "resume last session", "what was I working on?", "{project} status", "이전 세션", "세션 복원"
 
 **Procedure**:
 1. Search for session files:
@@ -116,7 +116,7 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
      - Other / fallback: `grep -rl "{domain}" {search_root} --include="*.md"`
    - Comma-separated domains: query each individually, merge results.
 3. Collect titles and tags from matched notes.
-4. If `status: active` handoff exists for the domain, show as "In Progress" priority section.
+4. If a `status: active` session note exists for the domain, show as "In Progress" priority section.
 5. Show recent notes first (default 20).
 
 ### 3. Keyword Search
@@ -157,7 +157,7 @@ Search the entire vault by keyword and load note contents.
 ## Final Response Contract
 
 "Only the final message returns to the caller" holds for this agent too. The deliverable is
-the search result — a restored handoff (Mode 1), the domain context summary (Mode 2), or the
+the search result — a restored session note (Mode 1), the domain context summary (Mode 2), or the
 ranked hit list (Mode 3). The failure mode for a haiku read agent is ending on a terse sign-off
 (`"다 찾았어요"`, `"검색 완료"`, `"done"`) while the actual notes sit in an earlier message — the
 caller then receives the sign-off, not the findings.
