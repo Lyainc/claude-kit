@@ -96,7 +96,7 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 
 ### Adding or changing plugin surfaces
 
-- New skill: create `{plugin}/skills/{skill-name}/SKILL.md`, add the skill name to the plugin `keywords`, bump/sync the plugin entry in `.claude-plugin/marketplace.json`, and reference it from agent frontmatter when needed.
+- New skill: create `{plugin}/skills/{skill-name}/SKILL.md`, add the skill name to the plugin `keywords`, bump/sync the plugin entry in `.claude-plugin/marketplace.json`, and reference it from agent frontmatter when needed. **Trigger-surfacing convention (#173)**: also add a user-facing catalog entry so the skill is discoverable — a row in the root `README.md` plugin skill table, plus the `docs/design/4-flow-catalog.md` per-flow list when it fits a flow. The SKILL.md `description` stays the single source of truth for trigger phrases (`check-trigger-regression.py` guards drops in thinking-tools); the catalog is a user-language view of it. Exclude DEV-ONLY/unregistered surfaces (`dev-harness`) from external catalogs (#217).
 - New agent: create `{plugin}/agents/{agent-name}.md`, add frontmatter (`name`, `description`, `model`, `skills`), add the agent name to `keywords`, and bump/sync the marketplace entry.
 - New plugin: create `{plugin-name}/`, add `{plugin-name}/.claude-plugin/plugin.json`, add skills/agents as needed, add the plugin entry to `.claude-plugin/marketplace.json`, and update README coverage.
 - Keep each plugin's `version`, `description`, and `keywords` synchronized between its `plugin.json` and `.claude-plugin/marketplace.json`.
