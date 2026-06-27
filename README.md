@@ -64,12 +64,11 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 | 커맨드 | 하는 일 |
 |---|---|
-| `/save-session` | 세션 노트 작성 (record / handoff / quick) |
+| `/save-session` | 세션 노트 작성 (record / quick) |
 | `/vault-link` | 프로젝트를 특정 vault 위치에 바인딩 |
-| `/handoff` | 다음 세션 이어가기용 프롬프트 생성 |
 | `/vault-commit` | vault 변경사항 커밋 |
 
-이 외에 `/vault-manifest-refresh`, 그리고 세션 생명주기 안전망 훅 5종이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
+이 외에 `/vault-manifest-refresh`, 그리고 결정형 훅 3종(SessionStart 매니페스트 갱신 + 접근·쓰기 가드, 턴당 LLM 비용 0)이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
 
 ```bash
 claude plugin install vault-bridge@Lyainc-claude-kit
@@ -83,7 +82,17 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 > claude plugin install feedback-loop@Lyainc-claude-kit
 > ```
 
-기능을 작업 흐름별로 보고 싶으면 [4-흐름 카탈로그](docs/design/4-flow-catalog.md)(사고/기획 · 작업/폴리싱 · 시각화 · 지식관리)를 참고하세요.
+### 무엇부터 써볼까 — 작업 흐름별 진입점
+
+플러그인 말고 *하려는 일* 기준으로 고르고 싶으면 이 표부터 보세요. (새 세션을 열면 Claude가 처음 몇 번 이 진입점을 자연스럽게 안내해요. 끄려면 `CLAUDE_KIT_WELCOME_DISABLE=1`.)
+
+| 하려는 일 | 진입점 |
+|---|---|
+| 아이디어 펼치고 스펙으로 굳히기 (사고·기획) | `diverse-sampling` · `spec-first` · `unknown-discovery` |
+| 결과물 검토·반증·다듬기 (작업·폴리싱) | `expert-panel` · `adversarial-review` · `doc-polish` |
+| 작업을 기록·검색으로 남기기 (지식관리) | `/save-session` · `capture` · `note` |
+
+흐름과 내부 5-레이어의 직교 매핑 근거는 [4-흐름 카탈로그](docs/design/4-flow-catalog.md) 참조.
 
 ## 빠른 시작 — vault second brain
 
