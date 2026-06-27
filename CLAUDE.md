@@ -406,7 +406,7 @@ Within `thinking-tools`:
 2. `plugin.json`의 `keywords`에 스킬명 추가
 3. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
 4. 에이전트가 해당 스킬을 사용해야 하면: 에이전트 `.md`의 `skills:` frontmatter에 추가
-5. **트리거 안내 컨벤션 (#173)** — 사용자 대면 카탈로그에 진입점을 추가해 발견성을 확보합니다: 루트 `README.md`의 플러그인 스킬 표(이럴 때 → 스킬), 그리고 4-흐름에 맞으면 `docs/design/4-flow-catalog.md`의 "흐름별 대표 기능". 트리거 문구의 단일 소스는 SKILL.md `description`이고(thinking-tools는 `check-trigger-regression.py`가 드롭을 강제 감지), 카탈로그는 그걸 사용자 언어로 노출하는 뷰입니다. 단 DEV-ONLY/미등록 표면(`dev-harness`)은 외부 카탈로그에서 제외합니다(#217).
+5. **트리거 안내 컨벤션 (#173)** — 사용자 대면 카탈로그에 진입점을 추가해 발견성을 확보합니다: 루트 `README.md`의 플러그인 스킬 표(이럴 때 → 스킬) **(필수)**, 그리고 `docs/design/4-flow-catalog.md`의 "흐름별 대표 기능" **(4-흐름에 맞을 때만)**. 트리거 문구의 단일 소스는 SKILL.md `description`이고(thinking-tools는 `check-trigger-regression.py`가 드롭을 강제 감지), 카탈로그는 그걸 사용자 언어로 노출하는 뷰입니다. 단 DEV-ONLY/미등록 표면(`dev-harness`)은 외부 카탈로그에서 제외합니다(#217).
 
 ## Adding a New Agent
 
