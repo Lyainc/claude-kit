@@ -351,7 +351,7 @@ url: ...                                       # capture only, optional
 
 ## vault-bridge Hooks & Commands
 
-vault-bridge registers 5 hook handlers + 5 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
+vault-bridge registers 5 hook handlers + 4 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
 
 **Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for **reads only**. Vault *reads* are delegated to the haiku `vault-searcher` agent; vault *writes* cannot be delegated — `pre-write-guard.sh` (default `enforce`) blocks subagent writes, so all writes are main-context user-initiated slash commands. The write-authoring slash commands are the runtime entry points for the output-adapter contract (`docs/design/output-adapter-contract.md` §2): `/save-session` is the `session` **③ delivery** adapter (row #5 — vault delivery, `gated`). The `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired from this plugin in G26 (decision G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside claude-kit. vault-bridge is claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the output layer is **distributed in-place**, so these delivery adapters live here rather than in a separate plugin.
 
