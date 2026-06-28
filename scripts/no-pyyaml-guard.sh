@@ -8,8 +8,8 @@
 #
 # Rule landed: "claude-kit Python scripts must NOT import PyYAML — parse frontmatter
 # with stdlib only." This is a REAL, stated-in-comments-but-unenforced convention
-# (invariant_guard.py:22 "Stdlib only (no PyYAML)", + 4 sibling files; all 146 .py
-# files comply, no guard enforced it). Classification (add-policy engine):
+# (several scripts declare "stdlib only, no PyYAML" in comments — e.g. generate-manifest.py —
+# and all repo .py files comply, but no guard enforced it). Classification (add-policy engine):
 #   layer = work-rule (how the work is done) ·
 #   tier  = HARD (the violation `import yaml` is deterministically grep-detectable) ·
 #   site  = hook (PreToolUse Write|Edit) — HARD ⇒ hook, per the engine's tier→site map.
@@ -67,7 +67,7 @@ if ! printf '%s' "$CONTENT" | grep -Eq '^[[:space:]]*(import[[:space:]]+yaml([[:
   exit 0
 fi
 
-reason="$(basename "$FILE_PATH") introduces a PyYAML import — claude-kit Python is stdlib-only (no PyYAML). Parse frontmatter with the stdlib pattern (see invariant_guard.py / generate-manifest.py). This keeps scripts dependency-free and runnable on a vanilla Python."
+reason="$(basename "$FILE_PATH") introduces a PyYAML import — claude-kit Python is stdlib-only (no PyYAML). Parse frontmatter with the stdlib pattern (see generate-manifest.py). This keeps scripts dependency-free and runnable on a vanilla Python."
 
 # Telemetry (G20 #258, best-effort): the rule fired — emit a rule_fire liveness event so
 # report.py can count how often this guard catches a violation. EMIT-ONLY (CON-5): a

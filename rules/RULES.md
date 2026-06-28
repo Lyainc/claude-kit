@@ -75,7 +75,7 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   premises intact (the review target is an uncommitted diff) and prevents
   unapproved outward-facing actions (a push or PR is an external, often irreversible
   publish). Two layers enforce it: (1) Workflow scripts that delegate implementation
-  MUST state this contract in the subagent prompt (see `feature-full.js`); (2) a
+  MUST state this contract in the subagent prompt; (2) a
   deterministic PreToolUse Bash guard, `scripts/subagent-git-guard.sh`, blocks subagent
   `git commit` / `git push` / `gh pr create` / `gh pr merge` at runtime (main-context
   git is untouched — the guard acts only when the call carries a subagent identifier).
@@ -93,12 +93,10 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   the transcript (confirmed: an omp-analysis workflow stranded 351k tokens of analysis
   behind `"Complete."`). Every spawn point MUST defend, strongest first: (1) **prefer a
   `schema`** — the subagent is *forced* to call `StructuredOutput`, so the validated object
-  returns, never a stray sign-off (what `feature-full.js` does with `IMPL_REPORT_SCHEMA` /
-  `VERDICT_SCHEMA` + a null guard); (2) when a schema is too rigid (free-form reports),
+  returns, never a stray sign-off; (2) when a schema is too rigid (free-form reports),
   **pin a final-message contract** in the prompt or agent definition — "your LAST assistant
   message IS the deliverable; never end on a content-free sign-off." This is a **repo-wide**
-  rule, not substrate-local: the substrate detail + the schema-first carrier live in
-  `dev-harness/README.md` ("Agent output contract"), and the native-agent application is
+  rule, not substrate-local: the native-agent application is
   each agent's own "Final Response Contract" section (`thinking-facilitator`,
   `vault-searcher`, `vault-knowledge-manager`, `vault-file-organizer`). Sibling to the #209
   git contract above — #209 governs a subagent's *git side effects*, this governs its

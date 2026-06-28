@@ -13,9 +13,7 @@ policy and the release procedure.
   **at `bump-version.py` call time** (the next release writes all manifests to one
   version), not at plugin introduction — a newly added marketplace plugin may carry its
   own initial version (e.g. `feedback-loop` started at `0.1.0`) until the next release
-  absorbs it. (`dev-harness` is DEV-ONLY — not marketplace-registered, not part of the
-  lockstep set — #217; the `version` field in its `plugin.json` is inert and does not
-  participate in lockstep.)
+  absorbs it.
 - **One tag per release**: `vX.Y.Z`. Plugin-scoped tags are not used.
 - **SemVer is judged across the whole repo**, not per plugin: pick the bump that matches
   the *largest* change shipped in the release.
@@ -76,7 +74,7 @@ the Conventional Commits since the previous tag. Good commit messages → good n
 
 **Commit → plugin mapping**: a commit lands in a plugin's section based on the files it
 touched (`thinking-tools/...` → the thinking-tools section). Commits touching only shared
-infra (`scripts/`, `dev-harness/`, `.github/`, `docs/`, root files) land in a final
+infra (`scripts/`, `.github/`, `docs/`, root files) land in a final
 **Repository / infrastructure** section. A commit spanning several plugins appears under
 each — so keep commits scoped to one plugin where practical.
 

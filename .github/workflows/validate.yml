@@ -27,7 +27,6 @@ jobs:
           python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
           python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
           python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
-          python3 -m json.tool dev-harness/.claude-plugin/plugin.json > /dev/null
           echo "All JSON manifests valid"
 
       - name: Check marketplace governance guards
@@ -112,14 +111,6 @@ jobs:
           python3 feedback-loop/scripts/test/test-report.py
           bash feedback-loop/scripts/test/test-event-logger.sh
           echo "feedback-loop telemetry checks OK"
-
-      - name: Run dev-harness unit tests
-        run: |
-          # #183 — Gap-ROUTE (4-way slice router) + Gap-INV (D5 constitutional
-          # invariant enforcement). Both also dogfood the real G16 goal-doc.
-          python3 dev-harness/scripts/test/test-router.py
-          python3 dev-harness/scripts/test/test-invariant.py
-          echo "dev-harness tests OK"
 
       - name: Run thinking-tools trigger regression
         run: |

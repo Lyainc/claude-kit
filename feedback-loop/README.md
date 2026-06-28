@@ -41,8 +41,7 @@ nothing imports it, nothing fetches it, nothing breaks when it is absent. This i
 externally-distributable half of layer ⑤: a public install must work for users who
 have never heard of local-harness. (Strong coupling to the machine base is therefore
 forbidden — it would break that portability.) Canonical statement of this boundary:
-[`docs/design/claude-kit-boundary.md`](../docs/design/claude-kit-boundary.md) §0; the
-dev-governance sibling carries the same §0 in `dev-harness/README.md`.
+[`docs/design/claude-kit-boundary.md`](../docs/design/claude-kit-boundary.md) §0.
 
 ## Privacy & cost — read this
 

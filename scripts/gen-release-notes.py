@@ -39,8 +39,6 @@ import subprocess
 import sys
 
 # Plugin source dirs, in display order. Keep in sync with marketplace.json plugins[].source.
-# dev-harness is intentionally absent: it is DEV-ONLY (not marketplace-registered, not
-# lockstep-released — #217). Its file changes fall under the infra section, not a plugin.
 PLUGIN_DIRS = [
     "thinking-tools",
     "obsidian-vault-manager",
