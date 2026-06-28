@@ -18,13 +18,12 @@ These name a *kind* of thing, are globally consistent, and are healthy. Keep the
 | Prefix | Meaning | Canonical source |
 |--------|---------|------------------|
 | `CON-N` | Constraint (boundary / architecture constraint) | `docs/design/claude-kit-boundary.md` |
-| `INV-N` | Invariant (goal-doc / harness invariant) | `docs/design/goal-doc-spec.md` |
 | `POL-N` | Policy (constitutional / policy rule) | `docs/design/claude-kit-boundary.md` |
 | `E1`–`E11` | Vault audit error type | `obsidian-vault-manager/reference/vault-audit-rules.md` |
 | `GN` | Goal-doc ID (unbounded series) | `docs/plans/goal-docs/` |
 
 **Notation.** Each global code is written in its canonical form verbatim, including
-the hyphen that is part of the prefix — `CON-2`, `INV-4`, `POL-1` — while E/G-series
+the hyphen that is part of the prefix — `CON-2`, `POL-1` — while E/G-series
 codes carry no hyphen: `E8`, `G16`.
 
 ## 2. Local tracking IDs (NOT globally registered — disciplined)

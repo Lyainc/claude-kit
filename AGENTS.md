@@ -73,7 +73,6 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 - `obsidian-vault-manager/`: Obsidian vault knowledge-management plugin with vault/project/note/inbox/archive/audit skills and vault organization agents.
 - `vault-bridge/`: Obsidian vault I/O bridge with the `vault-searcher` agent (read-only since v1.9.0), slash-command style workflows, hook scripts, slash command based session-note/capture creation, manifest caching, vault write governance (VAULT_BRIDGE_WRITE_CONTRACT), and portable vault location via `userConfig.vault_path` / `VAULT_BRIDGE_VAULT_PATH` (v1.13.0+).
 - `feedback-loop/`: layer ⑤ self-improvement plugin (measure→review→keep — NOT an execution engine; **externally distributed**, #217). Skills: `retro` (audit E8 promotion + 3-branch output + dedup + budget), `distill` (discovery half — user-confirmed distillation of reusable procedural techniques into a natural-language proposal; placement/authoring is add-policy's, #202), `add-policy` (landfill engine, G19/#255 — classifies a natural-language rule or distill proposal and places it into one of 3 sites: CLAUDE.md / hook / skill, behind a 1-click confirm, machine-neutral, never commits, user-authored skills inviolable) + absorbed telemetry (opt-in `CLAUDE_KIT_TELEMETRY=1`, deterministic event-logger hooks, zero per-turn LLM cost, local-only). One-way dependency (CON-5): reads leaf OUTPUT + telemetry events, never imports leaf code.
-- `dev-harness/`: layer ⑤ development-governance harness (**DEV-ONLY — not in marketplace.json, never installed by external users**, #217). Skills: `handoff-plan` (open-issue chunking by dependency + domain → user-confirmed epic candidates → goal-doc slice bindings) and `slice-router` (goal-doc execution router: #100 schema validation (INV-4) + 4-way work_type slice routing + D5 constitutional invariant enforcement, #183), plus `workflows/feature-full.js` (#201 DELEGATE carrier, structural CON-3). One-way dependency (CON-5): dev-harness → leaf plugins + feedback-loop (rule_fire emit-only); reverse imports forbidden. Thin entry, not a full OMC-strangler engine.
 
 ### Repository conventions
 
@@ -97,7 +96,7 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 ### Adding or changing plugin surfaces
 
 - New skill: create `{plugin}/skills/{skill-name}/SKILL.md`, add the skill name to the plugin `keywords`, bump/sync the plugin entry in `.claude-plugin/marketplace.json`, and reference it from agent frontmatter when needed.
-  - **Trigger-surfacing convention (#173)**: also add a user-facing catalog entry so the skill is discoverable — a row in the root `README.md` plugin skill table (required), plus the `docs/design/4-flow-catalog.md` per-flow list when it fits a flow (conditional). The SKILL.md `description` stays the single source of truth for trigger phrases (`check-trigger-regression.py` guards drops in thinking-tools); the catalog is a user-language view of it. Exclude DEV-ONLY/unregistered surfaces (`dev-harness`) from external catalogs (#217).
+  - **Trigger-surfacing convention (#173)**: also add a user-facing catalog entry so the skill is discoverable — a row in the root `README.md` plugin skill table (required), plus the `docs/design/4-flow-catalog.md` per-flow list when it fits a flow (conditional). The SKILL.md `description` stays the single source of truth for trigger phrases (`check-trigger-regression.py` guards drops in thinking-tools); the catalog is a user-language view of it.
 - New agent: create `{plugin}/agents/{agent-name}.md`, add frontmatter (`name`, `description`, `model`, `skills`), add the agent name to `keywords`, and bump/sync the marketplace entry.
 - New plugin: create `{plugin-name}/`, add `{plugin-name}/.claude-plugin/plugin.json`, add skills/agents as needed, add the plugin entry to `.claude-plugin/marketplace.json`, and update README coverage.
 - Keep each plugin's `version`, `description`, and `keywords` synchronized between its `plugin.json` and `.claude-plugin/marketplace.json`.
@@ -125,11 +124,9 @@ python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
-python3 -m json.tool dev-harness/.claude-plugin/plugin.json > /dev/null
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
 find feedback-loop/skills -name "SKILL.md" | sort
-find dev-harness/skills -name "SKILL.md" | sort
 
 # thinking-tools trigger-regression self-test (run after editing any SKILL.md description)
 python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
@@ -149,10 +146,6 @@ python3 scripts/gen-release-notes.py --self-test
 python3 feedback-loop/scripts/validate-schema.py --self-test
 python3 feedback-loop/scripts/test/test-report.py
 bash feedback-loop/scripts/test/test-event-logger.sh
-
-# dev-harness (layer ⑤, dev-only) slice router + D5 invariant guards (#183/#217)
-python3 dev-harness/scripts/test/test-router.py      # Expected: OK: all 11 cases passed
-python3 dev-harness/scripts/test/test-invariant.py   # Expected: OK: all 42 cases passed
 ```
 
 For `audit` definition-of-done checks:

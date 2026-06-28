@@ -4,7 +4,7 @@ This file provides guidance to Claude Code when **developing/contributing to thi
 
 Codex/OMX parity note: the Codex-active migration of this root guidance lives in `AGENTS.md`, with the surface-by-surface parity matrix in `docs/codex-claude-parity.md`.
 
-Design Principles & boundary: the single source of truth for the claude-kit↔harness boundary (evolutionary boundary A), the 5-layer model, the one-way dependency rule, and the constitutional/policy rule lists is `docs/design/claude-kit-boundary.md`. Downstream specs (#100 goal-doc schema, #122 thin harness, #125 3-tier rules) reference it — they do not redefine these rules here.
+Design Principles & boundary: the single source of truth for the claude-kit↔harness boundary (evolutionary boundary A), the 5-layer model, and the one-way dependency rule is `docs/design/claude-kit-boundary.md`.
 
 ## Project Overview
 
@@ -14,7 +14,6 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 5개 (capture, note, wiki, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`). wiki = v5 A-layer LLM wiki 컴파일(`vault/wiki/`, AI recall 主, provenance 추적, 게이트된 명시 액션).
 - **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 3종 (SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 4개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`; `/handoff`은 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, claude-kit 외부) + Python scripts (`generate-manifest.py`, `vault-commit-message.py`). vault 검색 + slash command 기반 session-note/capture 작성. (세션 생명주기 자동 훅 — Stop `/save-session` 제안 · SessionEnd 자동저장 — 은 G24에서 cut; session-note는 명시 `/save-session`으로만 작성.)
 - **feedback-loop** (`feedback-loop/`): layer ⑤ 자기개선 루프 (measure→review→keep, **실행/이터레이션 엔진 아님** — #217로 ⑤ 하네스에서 분리된 **외부 배포** 단위). 스킬 3개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산, #123 / distill — 세션 절차 기법의 user-confirmed **발견**: 자연어 제안 객체 emit, 저작은 안 함(매립은 add-policy 소유), SIS 이식, #202 / add-policy — **매립 엔진**(G19/#255): 자연어 규칙·distill 제안을 분류해 매립지 3개(CLAUDE.md/hook/skill) 중 한 곳에 1클릭 배치, 머신-중립·커밋 안 함, user-authored 스킬 inviolable) + telemetry 흡수 (event-logger hooks 8 event-type, report.py lifecycle, opt-in `CLAUDE_KIT_TELEMETRY=1` 아니면 silent·per-turn LLM 0·외부 유출 0). **단방향 의존(CON-5)**: feedback-loop은 leaf OUTPUT(audit·manifest·telemetry events)만 읽고 leaf code import 0; 외부 배포지만 ⑤ harness 계열(배포단위≠레이어).
-- **dev-harness** (`dev-harness/`): layer ⑤ 개발 거버넌스 (claude-kit 자체 빌드 전용 — **DEV-ONLY, marketplace 미등록**, #217). 스킬 2개 (handoff-plan — 열린 이슈 의존·도메인 청킹 → user-confirmed 에픽 후보 → goal-doc 슬라이스 바인딩, #171 / slice-router — goal-doc 실행 라우터: #100 스키마 검증(INV-4) + 4종 work_type 슬라이스 라우팅 + D5 헌법 invariant enforcement, #183). `workflows/feature-full.js` (#201): feature-full DELEGATE carrier — impl→critique를 별도 agent() 스테이지로 분리하는 workflow script (structural CON-3). **단방향 의존(CON-5)**: dev-harness → leaf(vault-bridge·obsidian-vault-manager) + feedback-loop(rule_fire emit-only 데이터 계약). 역방향 금지. 전체 OMC-strangler 아닌 thin 진입.
 
 ## Git Conventions
 
@@ -79,12 +78,6 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── skills/                          # retro (#123 — E8 승격 + 3갈래 출력 + dedup + 회고예산)
 │   ├── scripts/                         # telemetry: event-logger.sh, report.py, sequence.py, validate-schema.py, plugin-map.json + test/
 │   └── README.md                        # measure→review→keep, opt-in·local-only·per-turn LLM 0
-├── dev-harness/                         # layer ⑤ dev-거버넌스 (DEV-ONLY, marketplace 미등록 — #217)
-│   ├── .claude-plugin/plugin.json       # OPTIONAL (dev-only; marketplace 미등록 — anti-drift fence 강제)
-│   ├── skills/                          # handoff-plan (#171), slice-router (#183)
-│   ├── workflows/                       # feature-full.js (#201 DELEGATE carrier: impl→critique separate agent() stages)
-│   ├── scripts/                         # slice_router.py (Gap-ROUTE), invariant_guard.py (Gap-INV) + test/
-│   └── README.md                        # 단방향 의존(CON-5) dev-harness→leaf+feedback-loop 명시
 ├── docs/
 │   ├── design/                          # 설계 문서
 │   └── discussions/                     # 의사결정 토론 transcripts (`YYYYMMDD_topic/`)
@@ -109,7 +102,6 @@ python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
-python3 -m json.tool dev-harness/.claude-plugin/plugin.json > /dev/null
 
 # 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(block — #175 --strict 승격)
 python3 scripts/check-version-sync.py --self-test
@@ -203,18 +195,6 @@ python3 feedback-loop/scripts/test/test-report.py
 # event-logger meta-extractor unit test (extract_end_meta / extract_stop_meta)
 bash feedback-loop/scripts/test/test-event-logger.sh
 # Expected: OK: all event-logger meta-extractor cases passed
-
-# dev-harness slice router + D5 invariant guard (#183 — Gap-ROUTE + Gap-INV; #217 → dev-harness)
-# test-router: 4-way work_type routing (feature-full/decision-only/doc-only/bug-light)
-# + INV-4 block + native-fallback. test-invariant: one negative case per
-# constitutional invariant (INV-4 schema / INV-1 new-file-only / INV-2·3 isolated
-# critique / INV-5 one-way). Both also dogfood the real G16 goal-doc (repo-root, parents[1]).
-python3 dev-harness/scripts/test/test-router.py
-# Expected: OK: all 11 cases passed
-python3 dev-harness/scripts/test/test-invariant.py
-# Expected: OK: all 42 cases passed
-# (+5 static checks for #201 feature-full.js: agentType disjoint / VERDICT schema /
-#  separate agent() stages / CON-3 runtime assert / forbidden resume-breaking APIs)
 
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
@@ -406,7 +386,7 @@ Within `thinking-tools`:
 2. `plugin.json`의 `keywords`에 스킬명 추가
 3. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
 4. 에이전트가 해당 스킬을 사용해야 하면: 에이전트 `.md`의 `skills:` frontmatter에 추가
-5. **트리거 안내 컨벤션 (#173)** — 사용자 대면 카탈로그에 진입점을 추가해 발견성을 확보합니다: 루트 `README.md`의 플러그인 스킬 표(이럴 때 → 스킬) **(필수)**, 그리고 `docs/design/4-flow-catalog.md`의 "흐름별 대표 기능" **(4-흐름에 맞을 때만)**. 트리거 문구의 단일 소스는 SKILL.md `description`이고(thinking-tools는 `check-trigger-regression.py`가 드롭을 강제 감지), 카탈로그는 그걸 사용자 언어로 노출하는 뷰입니다. 단 DEV-ONLY/미등록 표면(`dev-harness`)은 외부 카탈로그에서 제외합니다(#217).
+5. **트리거 안내 컨벤션 (#173)** — 사용자 대면 카탈로그에 진입점을 추가해 발견성을 확보합니다: 루트 `README.md`의 플러그인 스킬 표(이럴 때 → 스킬) **(필수)**, 그리고 `docs/design/4-flow-catalog.md`의 "흐름별 대표 기능" **(4-흐름에 맞을 때만)**. 트리거 문구의 단일 소스는 SKILL.md `description`이고(thinking-tools는 `check-trigger-regression.py`가 드롭을 강제 감지), 카탈로그는 그걸 사용자 언어로 노출하는 뷰입니다.
 
 ## Adding a New Agent
 

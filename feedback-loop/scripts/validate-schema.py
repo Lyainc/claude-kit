@@ -52,8 +52,8 @@ VALID_EVENTS = {
     "skill_invoke", "agent_spawn", "command_run",
     "session_start", "session_end", "stop",
     # rule_fire — #216 c8 / #217: a work-rules guard firing (check-*.py violation
-    # or task-end checklist reminder). feedback-loop OWNS this schema; dev-harness
-    # rule-checks only EMIT to it (a data contract, never a code import — CON-5 safe).
+    # or task-end checklist reminder). feedback-loop OWNS this schema; work-rules
+    # guards (scripts/*.sh) only EMIT to it (a data contract, never a code import — CON-5 safe).
     # meta is free-form per the envelope rule; conventional keys: rule_id (str),
     # severity ('hard'|'soft'), file (str), count (int). All optional.
     "rule_fire",

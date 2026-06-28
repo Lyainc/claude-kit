@@ -39,7 +39,7 @@ fi
 # Is there uncommitted work in rule-GOVERNED paths? (deterministic; no work -> no reminder).
 # Governed: scripts/, rules/, CI workflows, plugin manifests, and skill/agent markdown bodies.
 dirty=$(git -C "$root" status --porcelain 2>/dev/null \
-  | grep -aE '(^| )(scripts/|rules/|feedback-loop/|dev-harness/|\.github/workflows/|.*/skills/.*\.md|.*/agents/.*\.md|.*plugin\.json|\.claude-plugin/marketplace\.json)' \
+  | grep -aE '(^| )(scripts/|rules/|feedback-loop/|\.github/workflows/|.*/skills/.*\.md|.*/agents/.*\.md|.*plugin\.json|\.claude-plugin/marketplace\.json)' \
   | head -1 || true)
 
 [ -z "$dirty" ] && exit 0

@@ -1,4 +1,6 @@
-# claude-kit goal-docs — 열린 이슈 청킹 맵
+# claude-kit goal-docs — 열린 이슈 청킹 맵 (ARCHIVE)
+
+> **⛔ ARCHIVE (2026-06-29) — 역사 기록이에요.** goal-doc#100 스키마 + `slice-router` 실행 경로는 dogfood에서 실사용 부적합으로 **철회(CUT)**됐어요(`docs/discussions/20260629_loop-cut/`). 아래 청킹 맵·`## /goal 사용법`은 2026-06-03 당시 계획이라 더는 작동 경로가 아니에요 — 현재 실행 계획 그릇은 **narrative START-PROMPT**(머신 레벨 `session-close` ④가 저작, native `/goal`에 직접 입력)예요. G1–G27 문서는 프로젝트가 어떻게 지어졌는지의 아카이브로 보존해요.
 
 > 작성일: 2026-06-03 · 소스: 열린 이슈 30건(#94~#130) · Epic 추적: #108
 
