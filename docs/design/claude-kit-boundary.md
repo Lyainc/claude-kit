@@ -31,6 +31,8 @@ claude-kit은 **①인지 ②결정화·출력 ③딜리버리 ④지식베이�
 
 claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`·Workflow·agents·hooks)가 직접 담당해요 — 자체 흡수 하네스는 2026-06-29 CUT으로 철회됐어요(위 §1 갱신).
 
+**⑤ 슬라이스 루프 완료조건 계약 (#285)**: 슬라이스 루프 입력인 START-PROMPT(session-close ④가 저작, 이 레포 외부)는 native `/goal` 평가자가 판정해요. 그 평가자는 **대화에 surfaced된 증거로만 완료를 판정**하고 파일·명령을 독립 실행하지 않아요([공식](https://code.claude.com/docs/en/goal)). 따라서 START-PROMPT의 `완료조건`은 surfaced-evidence 3레버(L1 단일 도구호출 반증 · L2 독립 리뷰 게이트 · L3 auto mode+턴 상한)를 만족해야 평가 가능해요 — 표준 정본은 #285.
+
 ### 3. 의존 방향 — 단방향 (harness → leaf)
 
 - **harness → leaf만 허용.** harness(현재 OMC, 목표 native 기반 경량 하네스)가 claude-kit 스킬을 호출하는 leaf capability 관계예요.
