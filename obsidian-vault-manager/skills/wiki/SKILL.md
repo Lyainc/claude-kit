@@ -1,6 +1,6 @@
 ---
 name: wiki
-description: "Compile domain knowledge learned during work into a ~/vault/wiki/ page — the LLM wiki (A layer), optimized for AI recall, not human reading. A gated, explicit compile action (never always-on): you invoke it when you've learned something worth keeping. Routes by the cross-repo test (U7) and compounds onto existing pages instead of duplicating. Examples: '/wiki Defuddle CLI extracts the first H1 as the title', '이거 위키에 정리해줘', '방금 알아낸 거 wiki로 저장'. KR triggers: 'wiki에 정리', '위키 페이지로', '알아낸 거 저장', '도메인 지식 컴파일'. EN triggers: 'compile to wiki', 'save to wiki', 'add wiki page'."
+description: "Compile domain knowledge learned during work into a ~/vault/wiki/ page (the LLM wiki, A layer for AI recall). Gated, explicit compile — never always-on. Examples: '/wiki Defuddle CLI extracts the first H1 as the title', '이거 위키에 정리해줘', '방금 알아낸 거 wiki로 저장'. KR triggers: 'wiki에 정리', '위키 페이지로', '알아낸 거 저장', '도메인 지식 컴파일'. EN triggers: 'compile to wiki', 'save to wiki', 'add wiki page'."
 allowed-tools: Read Write Bash Glob
 model: sonnet
 ---
@@ -51,13 +51,13 @@ State the routing decision briefly before continuing, so the user can correct it
 
 The wiki *compounds* — a topic that already has a page is **updated**, never duplicated.
 
-1. List existing wiki pages and match by slug / title / tags:
-   ```bash
-   ls ~/vault/wiki/ 2>/dev/null
-   ```
-   Optionally consult the manifest for title/summary matches:
+1. Find existing pages on the same topic. **Primary: the manifest** — when it exists and is reasonably fresh, match `type:wiki` entries on title + tags (catches same-topic pages on a different slug, e.g. `defuddle.md` vs `defuddle-cli.md`, which slug-only matching misses):
    ```bash
    cat ~/vault/.vault-bridge/manifest.json 2>/dev/null   # match type:wiki entries on title/tags
+   ```
+   **Fallback (manifest absent):** list pages and match by slug / filename:
+   ```bash
+   ls ~/vault/wiki/ 2>/dev/null
    ```
 2. **Existing page on the same topic** → plan an **update/merge**: integrate the new knowledge into the existing page (add/refine sections, keep it coherent) and extend the `provenance:` trail with the new originating query. Do NOT create a `-v2`.
 3. **No existing page** → plan a **new** page `~/vault/wiki/{slug}.md`. `{slug}` = 2–4 kebab-case words from the topic.
@@ -80,12 +80,12 @@ Then write after confirmation. (The compounding KB rewards one human glance — 
 created: YYYY-MM-DD
 tags: [{domain}]              # at least one domain tag; no `wiki` literal needed, type carries it
 type: wiki
-provenance: <one line: the query / exploration that produced this page>
+provenance: <one line: the query / exploration that produced this page; multiple updates joined with `; `>
 ---
 ```
 
 - **No `status:` field.** The status machine (raw→draft→evergreen) is the B layer's (human review). A is outside it (v5 §4.1) — wiki pages are AI-authored, provenance-tracked, not review-status pages.
-- **`provenance:` is required and always written** — it records *which exploration produced this page* (U3 traceability: a bad synthesis can be traced back to its source). For an update, append the new originating query to the existing provenance rather than overwriting it.
+- **`provenance:` is required and always written** — it records *which exploration produced this page* (U3 traceability: a bad synthesis can be traced back to its source). For an update, append the new originating query to the existing provenance with the `; ` delimiter (`provenance: query-A; query-B`) rather than overwriting it — keep the canonical single-line, `; `-joined format so it stays consistent across update cycles.
 
 ---
 
