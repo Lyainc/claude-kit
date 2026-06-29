@@ -68,12 +68,18 @@ def _extract_declared_modes(modes_block: str) -> list[dict]:
 
 
 def _find_compose_line(text: str) -> str:
-    """Return the line(s) containing the 'compose silently' declaration."""
-    lines = []
+    """Return the FIRST line containing the 'compose silently' declaration.
+
+    Only the first match is returned (not all joined): downstream checks do `in`
+    tests on this string, so joining multiple lines would let a citation mention on
+    one line and an inline-summary mention on another both pass against the combined
+    string even when no single line carries both — a false positive. SKILL.md keeps
+    the declaration on one line; if it splits, the checks should fail loudly.
+    """
     for line in text.splitlines():
         if "compose silently" in line:
-            lines.append(line.strip())
-    return "\n".join(lines)
+            return line.strip()
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -83,6 +89,10 @@ def _find_compose_line(text: str) -> str:
 def check_modes_declared(modes: list[dict]) -> tuple[bool, str]:
     """At least the two canonical modes must be declared."""
     names = {m["name"] for m in modes}
+    # COUPLED to the bold mode labels in expert-panel/SKILL.md "## Execution Modes"
+    # (the `- **격리 실행** (...)` / `- **요약 출력** (...)` bullets). If a mode is
+    # intentionally renamed there, update this set too — otherwise this gate silently
+    # stops checking that mode (a rename without an update here is a false-OK).
     required = {"격리 실행", "요약 출력"}
     missing = required - names
     if missing:
