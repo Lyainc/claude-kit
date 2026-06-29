@@ -67,25 +67,15 @@ Zero mutation. Produce a deduped, priority-sorted item list.
 1. **Read config**: `RETRO_BUDGET` (default 10), `VAULT_AUDIT_PROMOTION_REFS`
    (default 3), `VAULT_AUDIT_PROMOTION_ACCESS` (default 5). Resolve vault root:
    `VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault` (expand `~`).
-   Then **stamp the pipeline start** for the Phase-4 `duration_ms` datum. Each
-   Bash call is a fresh shell (env vars do not persist between calls), so the
-   start time must live on disk, not in a variable. Gate it on the SAME condition
-   as the Phase-4 emit — telemetry opt-in AND a resolvable events dir — so no stamp
-   is orphaned in `/tmp` when telemetry output is unreachable (the Phase-4 `rm -f`
-   only runs inside that same branch). The events dir follows the single shared rule
-   (same as `feedback-loop/scripts/event-logger.sh`): env override, else the
-   user-writable `.claude-kit/telemetry/events` under the project root — never the
-   plugin install cache:
+   Then **stamp the pipeline start** for the Phase-4 `duration_ms` datum (each Bash
+   call is a fresh shell, so the start time must live on disk, not in a variable):
    ```bash
-   PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
-   EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${PROJ_ROOT}/.claude-kit/telemetry/events}"
-   # `:-unknown` fallback is benign: retro runs single-session per sid, and this stamp is
-   # written here but read back in the separate Phase-4 shell — a `$$`-suffix can't survive
-   # across invocations, so sid-less concurrent retros only theoretically share the path.
-   [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ] && \
-     python3 -c 'import time;print(int(time.time()*1000))' \
-       > "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true
+   bash feedback-loop/scripts/retro-telemetry.sh stamp
    ```
+   The helper owns the events-dir rule + opt-in gate (shared with
+   `feedback-loop/scripts/event-logger.sh`): it no-ops unless telemetry is opted in
+   AND the events dir is resolvable — the SAME branch the Phase-4 emit + stamp cleanup
+   run inside, so no stamp is orphaned in `/tmp` when telemetry output is unreachable.
 
 2. **E8 promotion candidates** (PROMOTE source). Read the vault-bridge manifest
    (the same source `/audit` uses — do NOT re-derive):
@@ -217,48 +207,19 @@ opts in (offer them, do not run silently).
    No silent drop.
 2. **Report** (Korean): processed / promoted / deduped / budget_used + the
    remainder breakdown above.
-3. **Emit telemetry** (best-effort, opt-in). Only when `CLAUDE_KIT_TELEMETRY=1`
-   AND the events dir is resolvable. The dir follows the single shared rule
-   (`${CLAUDE_KIT_TELEMETRY_DIR:-${PROJ_ROOT}/.claude-kit/telemetry/events}`); `PROJ_ROOT`
-   is anchored to `${CLAUDE_PROJECT_ROOT:-$PWD}` (NOT bare `$PWD`) so an in-session
-   `cd` cannot silently misdirect the append — this mirrors the vault-bridge hook
-   convention (every hook resolves `PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"`). Append ONE
-   schema-valid line whose `meta` carries the four retro fields **plus
-   `duration_ms`** (the envelope `meta` is the only schema-required part;
-   `report.py` latency reads `duration_ms`, so emitting it surfaces retro's own
-   execution cost in the latency table — the other keys never pollute it).
-   `duration_ms` = pipeline wall-clock from the Phase-1 start stamp; when the
-   stamp is missing it falls back to `null`, which is schema-valid (the latency
-   collector treats null as "no datum"). Silent on any failure; skip if the line
-   ≥ 3500B:
+3. **Emit telemetry** (best-effort, opt-in). Pass the four retro counters to the
+   helper; it owns the shared opt-in gate + events-dir rule (so the emit only fires
+   when `CLAUDE_KIT_TELEMETRY=1` AND the events dir is resolvable), appends ONE
+   schema-valid `skill_invoke` line whose `meta` carries those counters **plus
+   `duration_ms`** (now − the Phase-1 start stamp; `null` when the stamp is
+   missing/corrupt, which is schema-valid — the latency collector treats null as "no
+   datum"), enforces the 3500B PIPE_BUF guard, and removes the start stamp:
    ```bash
-   PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$PWD}"
-   EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${PROJ_ROOT}/.claude-kit/telemetry/events}"
-   if [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ]; then
-     # duration_ms = now − Phase-1 start stamp; null when the stamp is unavailable.
-     START_MS=$(cat "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true)
-     END_MS=$(python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || true)
-     # Require both to be all-digits before arithmetic — a corrupt/non-numeric
-     # stamp must fall back to null, not resolve to 0 and emit a bogus duration.
-     if [[ "$START_MS" =~ ^[0-9]+$ ]] && [[ "$END_MS" =~ ^[0-9]+$ ]]; then DURATION_MS=$((END_MS - START_MS)); else DURATION_MS=null; fi
-     LINE=$(jq -nc \
-       --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
-       --arg sid "${CLAUDE_SESSION_ID:-unknown}" --arg cwd "$PROJ_ROOT" \
-       --argjson processed "$PROCESSED" --argjson promoted "$PROMOTED" \
-       --argjson deduped "$DEDUPED" --argjson budget "$BUDGET_USED" \
-       --argjson duration "$DURATION_MS" \
-       '{ts:$ts, session_id:$sid, cwd:$cwd, plugin:"feedback-loop",
-         event:"skill_invoke", name:"retro", qualified_name:"feedback-loop:retro",
-         trigger:"explicit", outcome:"success", tool_use_id:"",
-         meta:{retro_items_processed:$processed, items_promoted:$promoted,
-               items_deduped:$deduped, budget_used:$budget, duration_ms:$duration}}' 2>/dev/null)
-     [ -n "$LINE" ] && [ "${#LINE}" -lt 3500 ] && \
-       printf '%s\n' "$LINE" >> "${EVENTS_DIR}/events-$(date -u +%Y-%m-%d).jsonl" 2>/dev/null
-     rm -f "/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms" 2>/dev/null || true
-   fi
+   bash feedback-loop/scripts/retro-telemetry.sh emit "$PROCESSED" "$PROMOTED" "$DEDUPED" "$BUDGET_USED"
    ```
-   `budget_used` = items processed (≤ `RETRO_BUDGET`); `duration_ms` is the retro
-   pipeline wall-clock (null if the start stamp was unavailable).
+   `report.py` latency reads `duration_ms`, so emitting it surfaces retro's own
+   execution cost in the latency table; the other meta keys never pollute it.
+   `budget_used` = items processed (≤ `RETRO_BUDGET`).
 
 ---
 
@@ -275,8 +236,9 @@ opts in (offer them, do not run silently).
 ## Rules
 
 - Silent promotion / issue filing / rule handoff is FORBIDDEN — all are user-confirmed.
-- The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed. Memory output is a `/capture` suggestion and rule output is an `/add-policy` suggestion — never a direct vault write or rule-file `Edit`.
-- `add-policy` owns rule classification + placement (the discover→land split).
+- The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed.
+- Memory output is a `/capture` suggestion — never a direct vault write.
+- Rule output is an `/add-policy` suggestion — never a rule-file `Edit`; `add-policy` owns rule classification + placement (the discover→land split).
 - Never re-implement audit/promotion classification — read leaf output, re-confirm thresholds, act.
 - Dedup before processing; enforce the budget; report the remainder (no silent drop).
 - CON-5: read leaf artifacts only; never modify leaf-plugin code; no reverse dependency.

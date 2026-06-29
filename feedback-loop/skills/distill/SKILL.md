@@ -1,6 +1,6 @@
 ---
 name: distill
-description: "User-confirmed DISCOVERY of REUSABLE PROCEDURAL TECHNIQUES in the current session — the discovery half of the ⑤ self-improvement loop. Judges what is class-level reusable (vs a one-off), whether an existing skill already covers it, or whether nothing is worth capturing, and emits a natural-language proposal (what / why / session-provenance / inviolability judgment) for the add-policy landfill engine to place. Placement and authoring are add-policy's job, not distill's. SIS-derived (claude-self-improving-skills). Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: declarative knowledge (facts/decisions/session records) = vault /capture or /note, NOT distill; placing/authoring a confirmed rule = add-policy (sibling); mechanical skill authoring = skill-creator; this skill is the RETROSPECTIVE DISCOVERY layer that decides whether/what is worth keeping. Example: '/distill' or '이 세션 기법 증류해줘'."
+description: "User-confirmed DISCOVERY of REUSABLE PROCEDURAL TECHNIQUES in the current session — the discovery half of the ⑤ self-improvement loop. Judges what is class-level reusable (vs a one-off), whether an existing skill already covers it, or whether nothing is worth capturing, and emits a natural-language proposal (what / why / session-provenance / inviolability judgment); placement and authoring are the sibling add-policy landfill engine's job, not distill's. SIS-derived (claude-self-improving-skills). Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: declarative knowledge (facts/decisions/session records) = vault /capture or /note, NOT distill; placing/authoring a confirmed rule = add-policy (sibling); mechanical skill authoring = skill-creator. Example: '/distill' or '이 세션 기법 증류해줘'."
 model: inherit
 allowed-tools: Read Bash Glob Grep AskUserQuestion
 ---
@@ -116,7 +116,7 @@ name the classification grid — those are `add-policy`'s.
 Present each candidate via AskUserQuestion (Korean): the technique, *why* it is worth
 keeping, the proposed `name` (a **proposal label**, not a placement commitment — class-level,
 naming the *situation/capability*, e.g. `flaky-test-triage`, not `fix-the-thing-from-today`), and a
-situation-first one-line `description`. The `name` is only a proposal: `add-policy` holds final
+situation-first one-line `description`. The `name` is only a proposal. `add-policy` holds final
 naming authority and MAY rename it at placement time. The single question is the **discovery gate**: "shall we hand this
 proposal to the landfill engine?" The user picks which proposals to forward
 (multi-select) or skips all. **The placement decision (which site / patch vs new) is NOT

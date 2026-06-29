@@ -107,9 +107,11 @@ jobs:
       - name: Check feedback-loop telemetry scripts
         run: |
           bash -n feedback-loop/scripts/event-logger.sh
+          bash -n feedback-loop/scripts/retro-telemetry.sh
           python3 feedback-loop/scripts/validate-schema.py --self-test
           python3 feedback-loop/scripts/test/test-report.py
           bash feedback-loop/scripts/test/test-event-logger.sh
+          bash feedback-loop/scripts/test/test-retro-telemetry.sh
           echo "feedback-loop telemetry checks OK"
 
       - name: Run thinking-tools trigger regression
