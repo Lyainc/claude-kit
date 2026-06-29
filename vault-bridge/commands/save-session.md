@@ -35,7 +35,7 @@ Check whether `$ARGUMENTS` contains any handoff-mode token (case-insensitive):
 If any token matches, output the following and stop:
 
 > `/save-session`은 handoff 모드를 지원하지 않아요 — 과거형 세션 노트만 기록해요.
-> 다음 세션 인수인계는 머신 레벨 `session-close` 스킬이 담당해요 (claude-kit에 포함되지 않는 개인 킷, G25/G26).
+> 다음 세션 인수인계는 외부 `session-close` 스킬을 사용하세요 (claude-kit 미포함).
 
 ---
 
