@@ -105,8 +105,7 @@ python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
 
 # 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(block — #175 --strict 승격)
 python3 scripts/check-version-sync.py --self-test
-# Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check + dev-drift fence)
-# (#217 anti-drift fence: a dev-only token — e.g. dev-harness — appearing in marketplace.plugins[] FAILs)
+# Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check)
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단)
 # marketplace.json은 plugin.json에서 derived — drift 시 `--fix`로 plugin.json 기준 동기화:

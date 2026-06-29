@@ -34,36 +34,8 @@ import sys
 # Fields that must stay identical between a marketplace plugin entry and its plugin.json.
 SYNCED_FIELDS = ("name", "version", "description", "keywords")
 
-# Anti-distribution-drift fence (#217 D2): dev-only directories must NEVER appear in
-# marketplace.plugins[] (a marketplace entry = external distribution). This promotes
-# "dev-harness is not registered" from a mere absence into a CI-enforced fence.
-DEV_ONLY_TOKENS = ("dev-harness",)
-
-
-def _source_leaf(source):
-    """Final path segment of a marketplace source (e.g. './dev-harness/' → 'dev-harness')."""
-    return source.strip().strip("/").split("/")[-1] if source else ""
-
-
-def detect_dev_drift(plugins):
-    """Return a list of violation strings for any dev-only token that leaked into
-    marketplace.plugins[].
-
-    Matches on the plugin `name` OR the final path SEGMENT of `source` — anchored, NOT a
-    substring (so a future legit `./dev-harness-v2/` is not false-blocked by the
-    `dev-harness` token)."""
-    violations = []
-    for entry in plugins:
-        name = entry.get("name", "")
-        source = entry.get("source", "")
-        leaf = _source_leaf(source)
-        for tok in DEV_ONLY_TOKENS:
-            if tok == name or tok == leaf:
-                violations.append(
-                    f"dev-only '{tok}' must NOT be registered in marketplace.json "
-                    f"(entry name={name!r} source={source!r}) — it is dev-only, never distributed"
-                )
-    return violations
+# (The #217 anti-drift fence guarded the now-retired dev-harness dir; removed with the
+#  ⑤ self-build harness CUT (#282) — no dev-only directory remains to guard.)
 
 
 def _git_toplevel():
@@ -116,13 +88,6 @@ def check_root(root):
         return False, report
 
     ok = True
-
-    # Anti-distribution-drift fence: dev-only tokens must never be marketplace-registered.
-    dev_drift = detect_dev_drift(plugins)
-    if dev_drift:
-        report["violations"].extend(dev_drift)
-        report["dev_drift"] = True
-        ok = False
 
     for entry in plugins:
         name = entry.get("name", "<unnamed>")
@@ -234,27 +199,6 @@ def run_self_test():
                 f"  {label}: expected {expected_fields}, got {got_fields}"
             )
 
-    # Anti-distribution-drift fence (#217 D2): dev-only tokens in marketplace.plugins[]
-    # must be detected (by name OR by source path); a clean list must produce none.
-    drift_cases = [
-        ("clean (no dev token)",
-         [{"name": "feedback-loop", "source": "./feedback-loop/"}], 0),
-        ("dev-harness by name",
-         [{"name": "dev-harness", "source": "./dev-harness/"}], 1),
-        ("dev-harness by source only",
-         [{"name": "renamed", "source": "./dev-harness/"}], 1),
-        ("mixed clean + drift",
-         [{"name": "vault-bridge", "source": "./vault-bridge/"},
-          {"name": "dev-harness", "source": "./dev-harness/"}], 1),
-        # Anchored match (not substring): a future legit dev-harness-v2 must NOT false-block.
-        ("dev-harness-v2 not false-blocked",
-         [{"name": "dev-harness-v2", "source": "./dev-harness-v2/"}], 0),
-    ]
-    for label, plugins, expected_n in drift_cases:
-        got_n = len(detect_dev_drift(plugins))
-        if got_n != expected_n:
-            failures.append(f"  dev-drift '{label}': expected {expected_n}, got {got_n}")
-
     # Test missing manifest vs drift exit code modes
     import tempfile
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -295,7 +239,7 @@ def run_self_test():
         print("\n".join(failures))
         return 1
     print(f"OK: all {len(cases)} version-sync self-test cases passed "
-          f"(+ missing-manifest mode + --fix reconcile check + dev-drift fence)")
+          f"(+ missing-manifest mode + --fix reconcile check)")
     return 0
 
 
