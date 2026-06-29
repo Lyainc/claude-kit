@@ -66,7 +66,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── skills/                          # 5개 스킬 (capture, note, wiki, audit, base)
 │   ├── agents/                          # 2개 에이전트
 │   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, obsidian-bases-schema.md
-│   └── scripts/                         # ovm-primitives.sh, audit-validate.py, gen-fixture.sh
+│   └── scripts/                         # ovm-primitives.sh + test/ (audit-validate.py, gen-fixture.sh, ...)
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
@@ -195,6 +195,12 @@ python3 feedback-loop/scripts/test/test-report.py
 bash feedback-loop/scripts/test/test-event-logger.sh
 # Expected: OK: all event-logger meta-extractor cases passed
 
+# retro-telemetry helper regression (#294 — retro Phase-1 stamp + Phase-4 emit
+# extracted from the SKILL.md inline bash to scripts/retro-telemetry.sh; this
+# pins the schema-shaped emit line + duration null-fallback against drift).
+bash feedback-loop/scripts/test/test-retro-telemetry.sh
+# Expected: OK: all retro-telemetry cases passed
+
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
 python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
@@ -225,6 +231,7 @@ bash thinking-tools/scripts/test/test-session-start-welcome.sh
 bash -n vault-bridge/hooks/*.sh
 bash -n thinking-tools/hooks/session-start-welcome.sh   # #117 first-run onboarding hint
 bash -n feedback-loop/scripts/event-logger.sh
+bash -n feedback-loop/scripts/retro-telemetry.sh   # #294 retro stamp/emit helper
 bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
 bash -n scripts/subagent-git-guard.sh     # #209 subagent git side-effect deny hook
 bash -n scripts/no-pyyaml-guard.sh        # #259 no-PyYAML guard (add-policy dogfood + rule_fire emitter)
