@@ -57,9 +57,9 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 - **CON-1**(vault writes: new-file-only, user-initiated slash command only) → vault 목적지 어댑터는 서브에이전트가 자동 호출 불가. 라우터는 어댑터를 *준비*시키되 쓰기는 메인 컨텍스트 슬래시 커맨드(`/note`·`/save-session`)로만 개시. 어댑터 반환 `status: gated`가 이 경계의 런타임 표식.
 - **CON-3**(self-approval 금지) → 출력이 *critique/검증* 산출일 때 저작≠리뷰 분리. 단 이건 ⑤ 실행/게이트 영역(`omc-to-native-substrate.md` §4.2 Gap-INV)이지 출력 어댑터 영역이 아니에요 — 이 문서는 *출력*만 다루고 critique 격리는 #122/#134로 위임.
 
-> vault가 아닌 목적지(`repo_path`·`stdout`·`local_ephemeral`·`github`)는 CON-1 게이트 대상이 아니에요. 특히 `/handoff`는 vault를 **안 건드리고** 로컬 gitignored `resume.md` 또는 stdout만 산출하므로 `gated`가 아니라 `success`예요(§2 #4 주의). (⚠️ `/handoff`는 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, 이 레포 외부.)
+> vault가 아닌 목적지(`repo_path`·`stdout`·`local_ephemeral`·`github`)는 CON-1 게이트 대상이 아니에요. 특히 `/handoff`는 vault를 **안 건드리고** 로컬 gitignored `resume.md` 또는 stdout만 산출하므로 `gated`가 아니라 `success`예요(§2 #4 주의). (`/handoff`는 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, 이 레포 외부.)
 
-> **START-PROMPT는 native `/goal` 평가자 입력 (#285)**: retired `/handoff`(row #4)·`/save-session`(row #5)이 산출하던 다음-세션 인계 산출물 = START-PROMPT는 이제 session-close ④(이 레포 외부)가 저작하고, native `/goal` 평가자가 소비해요. 그 평가자는 **surfaced된 증거로만 완료를 판정**하므로 START-PROMPT `완료조건`은 surfaced-evidence 3레버를 만족해야 해요. 표준 정본·3레버 체크리스트는 #285, 경계 anchor는 `claude-kit-boundary.md` §1.5.
+> **START-PROMPT는 native `/goal` 평가자 입력 (#285)**: retired `/handoff`(row #4)·`/save-session`(row #5)이 산출하던 다음-세션 인계 산출물 = START-PROMPT는 이제 session-close ④(이 레포 외부)가 저작하고, native `/goal` 평가자가 소비해요. 표준 정본·경계 anchor는 #285 + `claude-kit-boundary.md` §2.5.
 
 ---
 
@@ -72,7 +72,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 | 1 | `html` | `visualize` | **graphify** (`/graphify` 스킬 → AST+의미추출 파이프라인) | ②(graphify html 산출 · ① 인접 §2 주의) | 슬래시 커맨드 + 서브에이전트 fan-out | `repo_path` (`graphify-out/graph.html`+`graph.json`+`GRAPH_REPORT.md`) | `success` |
 | 2 | `note` | `capture` | **OVM note** (`/note` 스킬, evergreen/decision) | ② 출력 leaf (OVM 경유) | user-initiated 슬래시 커맨드 | `vault` (`notes/{slug}.md` 또는 `notes/decision-YYYY-MM-DD-{slug}.md`) | **`gated`** (CON-1) |
 | 3 | `goal-doc` | `crystallize` | **spec-first** (요구사항 결정화) | ② 출력 leaf | 모델 호출 스킬 (Socratic 게이트) | `repo_path` (`docs/specs/{slug}.yaml` Seed) | `success` · **Seed↔goal-doc 재프레임=#111** (§2 주의) |
-| 4 | `handoff` | `handoff` | **`/handoff`** (vault-bridge 커맨드 — ⚠️ G26에서 retire, 머신 레벨 `session-close` 스킬로 이관·이 레포 외부) | vault-bridge 커맨드 (로컬 핸드오프 · **vault 비경유** → ③ "vault 운반"에 미해당) | user-initiated 슬래시 커맨드 (`disable-model-invocation`) | `local_ephemeral` (`.claude-kit/vault-bridge/resume.md`, gitignored) 또는 `stdout` | `success` (**vault 미사용 → CON-1 비대상**) |
+| 4 | `handoff` | `handoff` | **`/handoff`** (vault-bridge 커맨드 — G26에서 retire, 머신 레벨 `session-close` 스킬로 이관·이 레포 외부) | vault-bridge 커맨드 (로컬 핸드오프 · **vault 비경유** → ③ "vault 운반"에 미해당) | user-initiated 슬래시 커맨드 (`disable-model-invocation`) | `local_ephemeral` (`.claude-kit/vault-bridge/resume.md`, gitignored) 또는 `stdout` | `success` (**vault 미사용 → CON-1 비대상**) |
 | 5 | `session` | `record` | **`/save-session`** (vault-bridge 커맨드) | ③ 딜리버리 (vault 운반) | user-initiated 슬래시 커맨드 | `vault` (`inbox/session-YYYY-MM-DD[-vN].md`) | **`gated`** (CON-1) |
 | 6 | `md` | `author` | **doc-concretize** (신규 MD 구조화 저작) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (임의 `.md`) | `success` |
 | 7 | `md` | `edit` | **doc-polish** (기존 MD 린트·개선, Editor-not-Writer) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (기존 `.md` in-place Edit) | `success` |
@@ -173,7 +173,7 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 | #101 Acceptance | 충족 위치 |
 |-----------------|----------|
 | **계약 doc** (슬라이스가 출력 스킬을 호출하는 균일 인터페이스: 입력 intent/format/payload/destination, 출력 artifact path + 상태) | §1(4-튜플 입력 + 2-튜플 출력) |
-| **포맷×동작 매트릭스** (html=graphify, note=OVM note, goal-doc=spec-first, handoff=/handoff [⚠️ G26 retire → 머신 레벨 `session-close`], session=/save-session, md저작=doc-concretize, md편집=doc-polish, issue=gh CLI) | §2(8매핑 표) |
+| **포맷×동작 매트릭스** (html=graphify, note=OVM note, goal-doc=spec-first, handoff=/handoff [G26 retire → 머신 레벨 `session-close`], session=/save-session, md저작=doc-concretize, md편집=doc-polish, issue=gh CLI) | §2(8매핑 표) |
 | **net-new gap 목록**(≤2, 유력 issue-authoring) | §4(issue-authoring 1건 + 명시 배제) |
 | (정합) `goal-doc-spec` §3.5 산출 체이닝 런타임 계약 | §3(`artifact_path(N)→payload(N+1)` + 타입 호환) |
 | (정합) #133 issue-authoring 경계 중복 0 | §5.2(소유권 분할표) |
