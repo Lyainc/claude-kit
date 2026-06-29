@@ -2,8 +2,11 @@
 name: expert-panel
 
 description: |
-  Facilitate expert panel discussions (thesis-antithesis-synthesis).
-  Produces consensus + action items.
+  Facilitate expert panel discussions (thesis-antithesis-synthesis): multiple expert
+  personas debate a decision, each argued in an isolated subagent so positions are
+  independently reasoned (not one model agreeing with itself), optionally grounded in
+  vault citations, converging to consensus + action items. Use when a decision needs
+  several perspectives weighed against each other, not a single answer.
 
   Trigger when user mentions: 전문가 토론, 찬반 토론, 다관점 분석, 합의 도출, 트레이드오프 정리,
   expert panel, multi-perspective review, "전문가 관점에서 검토해줘", "다양한 관점에서 평가해줘".
