@@ -167,20 +167,6 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 - Korean: `일반 응답으로 대체되었습니다.`
 - English: `Falling back to standard response.`
 
-## Model Capabilities
-
-### Extended Thinking (Opus)
-
-- 구조화 데이터 처리를 thinking 단계에서 수행
-- 출력에는 변환된 자연어만 포함
-- 확률 calibration 더 정확
-
-### Standard Mode (Sonnet)
-
-- 명시적 지시로 구조화 데이터 은닉
-- "NEVER output XML/JSON to user" 강조
-- 파싱 실패 시 즉시 fallback
-
 ## Expression Quality Enhancement
 
 `doc-concretize` focuses on **content creation** (logic, structure, completeness). For **expression quality** (clarity, readability, style refinement), run `doc-polish` as a follow-up step:
