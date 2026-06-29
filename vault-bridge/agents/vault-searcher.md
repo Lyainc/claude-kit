@@ -91,7 +91,7 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 1. **Check manifest existence**: `[ -f "{vault_root}/.vault-bridge/manifest.json" ]`
 2. **If manifest exists**:
    a. Read `{vault_root}/.vault-bridge/manifest.json`.
-   b. Filter entries using any combination of: `type`, `tags` (contains domain keyword), `workstream`, `path` prefix matching `.vault-link` `vault_path`, or `status`.
+   b. Filter entries using any combination of: `type`, `tags` (contains domain keyword), `workstream`, `path` prefix matching `.vault-link` `vault_path`, or `status`. (`wiki/` entries are always included regardless of path-prefix scoping — the A-layer wiki is repo-transcending domain knowledge, same as the standard scan in #272.)
    c. Sort candidates: `status=active` first, then by recall-weight signals already in
       the manifest entry — `access_count` descending (count of git commits touching the
       file in the **last 7 days** = recent activity, not all-time work), then
@@ -107,10 +107,11 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 
 **Procedure** (standard, used when manifest is absent or stale):
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
-   - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always appended** (#272: the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`)
+   - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always appended**.
+     - [#272: the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`]
    - No pointer or resolution failed → `search_root = ~/vault/wiki/` (primary — A-layer domain knowledge, AI-recall first) + `~/vault/notes/` (primary) + `~/vault/inbox/` (secondary — raw inputs may carry domain context before promotion)
 2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
-   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree, then run a second pass over `{vault_root}/wiki/` (CLI `path=wiki`, or fold `wiki/` into the mdfind/grep `search_root` below) so wiki pages are never excluded by scoping (#272).
+   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree, then run a second pass over `{vault_root}/wiki/` (CLI `path=wiki`; the mdfind/grep fallback below already covers `wiki/` via the `search_root` set in step 1) so wiki pages are never excluded by scoping (#272).
    - If CLI is unavailable/fails/times out, search adaptively within `search_root`:
      - macOS (`uname -s` = `Darwin`): `mdfind -onlyin {search_root} "{domain}"` (결과 없으면 grep fallback)
      - Other / fallback: `grep -rl "{domain}" {search_root} --include="*.md"`
