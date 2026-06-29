@@ -2,12 +2,12 @@
 name: spec-first
 description: |
   Crystallize vague ideas into machine-readable Seed specs via Socratic interview
-  and Ambiguity gating. Vendor-neutral Ouroboros-style workflow.
+  and Ambiguity gating. Vendor-neutral, spec-driven workflow.
 
   Trigger when user mentions: spec-first, 명세 만들기, 아이디어를 스펙으로, 요구사항 명확화, 아이디어를 명세로,
   seed 생성, ambiguity gate, requirements crystallize.
   Routing: 단순 문서 구체화는 doc-concretize, YAML Seed 스펙이 필요할 때만 spec-first.
-allowed-tools: AskUserQuestion Read Write Glob Skill
+allowed-tools: AskUserQuestion Read Write Glob
 model: sonnet
 ---
 

@@ -79,17 +79,8 @@ its own subsection.
 | "여러 대안" | "여러 대안을 만들어줘" |
 | "alternatives" | "Give me some alternatives" |
 
-**Confirmation Prompt** (via AskUserQuestion):
-```
-다양성 향상 기법(Verbalized Sampling)을 적용할까요?
-
-- 여러 대안을 생성하여 그 중 하나를 선택합니다
-- 창의적 작업에 효과적이지만 토큰 소비가 높습니다
-
-Options:
-1. 적용 (Apply VS)
-2. 일반 응답 (Standard response)
-```
+**Confirmation Prompt**: fire the **Mode A** prompt (via AskUserQuestion) — see
+[reference.md → Confirmation Prompts](reference.md#confirmation-prompts).
 
 ### Mode B — Enhance (Requires Confirmation)
 
@@ -111,32 +102,9 @@ Mode B triggers are implicit — confirm before running, since Mode B consumes m
 > `enhance` trigger is intentional (required by the Mode B spec); the implicit gating is the
 > safeguard that makes its breadth harmless.
 
-**Mode B Confirmation Prompt** (via AskUserQuestion):
-```
-작성 다양성 향상(Verbalized Sampling → doc-concretize)을 적용할까요?
-
-- 다양한 작성 방향을 생성한 뒤 선택된 방향을 구조화 문서로 구체화합니다
-- 창의·개방형 작성에 효과적이지만 토큰 소비가 높습니다 (기본 5개 방향 생성 + doc-concretize 저작)
-
-Options:
-1. 적용 — 자동 선택 (Apply; weighted-random direction)
-2. 방향 직접 선택 (보고 고름 → 방향 확정 후 doc-concretize 저작 — "전부 보여줘"와 동일)
-3. 일반 응답 (Standard response)
-```
-
-**Mode Disambiguation Prompt** (via AskUserQuestion — for ambiguous input like "다양하게 써줘";
-the pick resolves the mode AND doubles as confirmation, so step 4 does not prompt again):
-```
-어떤 작업이 맞을까요?
-
-- Mode A (탐색): 여러 아이디어·대안을 생성해 그중 하나를 고름
-- Mode B (작성 향상): 다양한 작성 방향을 생성 후 doc-concretize로 구체화 (토큰 소비 높음)
-
-Options:
-1. Mode A — 아이디어 탐색
-2. Mode B — 작성 향상 (적용 확정)
-3. 일반 응답 (Standard response)
-```
+**Mode B Confirmation Prompt** and **Mode Disambiguation Prompt** (for ambiguous input like
+"다양하게 써줘" — its pick resolves the mode AND doubles as confirmation, so Phase 0 step 4 does
+not prompt again): see [reference.md → Confirmation Prompts](reference.md#confirmation-prompts).
 
 ## Core Workflow
 
