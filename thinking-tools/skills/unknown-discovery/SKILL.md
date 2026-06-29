@@ -69,21 +69,21 @@ Quick Mode output format:
 ### Phase 0: Context Analysis
 <!-- Active during Phase 0 only -->
 
-1. 대상 분석 (프로젝트/문서/아이디어)
-2. 도메인 확인 (Tech/Biz/Creative/Custom) → AskUserQuestion으로 사용자 확인
-3. 성숙도 감지 (Idea/Plan/Execution):
-   - **자동 감지 우선**: 사용자 입력 컨텍스트에서 성숙도 신호를 분석하여 자동 판별 (상세: [reference.md](reference.md) §9)
-     - 구체적 수치/일정 없음, "~할 것 같다" → Idea
-     - 마일스톤/리소스/일정 언급 → Plan
-     - 진행 상황/이슈/메트릭 언급 → Execution
-   - **불명확 시에만** AskUserQuestion으로 사용자에게 확인
-4. 성숙도에 따라 Exploration Depth 가중치 조정
-5. 인터뷰 계획 수립
+1. Analyze the target (project / document / idea).
+2. Confirm the domain (Tech/Biz/Creative/Custom) → confirm with the user via AskUserQuestion.
+3. Detect maturity (Idea/Plan/Execution):
+   - **Auto-detect first**: infer maturity from signals in the user's input context (detail: [reference.md](reference.md) §9)
+     - No concrete numbers/timeline, "~할 것 같다" hedging → Idea
+     - Milestones / resources / schedule mentioned → Plan
+     - Progress / issues / metrics mentioned → Execution
+   - **Only when unclear**, confirm with the user via AskUserQuestion.
+4. Adjust Exploration Depth weights based on maturity.
+5. Build the interview plan.
 
 ### Phase 1: Iterative Interview Loop
 <!-- Active during Phase 1 only -->
 
-**Dynamic Area Targeting**: 매 라운드 Exploration Depth가 가장 낮은 영역을 자동 타겟팅한다 (상세: [reference.md](reference.md) §7).
+**Dynamic Area Targeting**: each round auto-targets the area with the lowest Exploration Depth (detail: [reference.md](reference.md) §7).
 
 **Round Counter Display**: Each interview round shows explicit progress:
 ```
@@ -92,13 +92,13 @@ Quick Mode output format:
 - Round count is approximate (soft limit 12-15, hard limit 20)
 - Display updates at every question transition
 
-- 첫 라운드: 항상 Assumptions (모든 발견의 기초)
-- 이후: 점수 기반 최저 영역 타겟
-- 동점 시: Assumptions > Trade-offs > Edge Cases > Blindspots
+- First round: always Assumptions (the basis of every finding)
+- After: target the lowest-scoring area
+- On a tie: Assumptions > Trade-offs > Edge Cases > Blindspots
 
-**Core Areas** (질문 패턴):
+**Core Areas** (question patterns — the Korean prompts below are user-facing):
 
-| Area | 기본 질문 패턴 | 질문 수 |
+| Area | Base question pattern (user-facing) | Q count |
 |------|---------------|---------|
 | Assumptions | "이것이 성립하려면 어떤 전제가 필요한가요?" | 2-3 |
 | Trade-offs | "이 선택으로 포기하게 되는 것은?" | 2-3 |
@@ -107,24 +107,24 @@ Quick Mode output format:
 
 **Interview Rules**:
 
-1. 영역당: 기본 질문 1 → 후속 질문 1 → Why chain 1 (총 3Q)
-2. Checkpoint: 매 영역 완료 시 진행 상황 요약 + STATE 블록 출력 (Exploration Depth 포함)
-3. 불확실성 신호 감지 시 해당 영역 점수 10% 차감 + 1Q 추가 (상세: [reference.md](reference.md) §3, §6)
-4. Core 4의 Depth ≥ 65% 도달 시: Extended 영역 진입 여부를 사용자에게 확인
+1. Per area: base question 1 → follow-up 1 → Why chain 1 (3Q total)
+2. Checkpoint: on completing each area, output a progress summary + STATE block (including Exploration Depth)
+3. On detecting an uncertainty signal, dock that area's score 10% and add 1Q (detail: [reference.md](reference.md) §3, §6)
+4. When the Core 4 reach Depth ≥ 65%, ask the user whether to enter Extended areas
 
-**Exploration Depth Scoring**: 매 체크포인트마다 4개 영역의 탐색 깊이를 0-100%로 평가하고 가중 평균을 표시한다 (상세: [reference.md](reference.md) §6).
+**Exploration Depth Scoring**: at each checkpoint, score the four areas' exploration depth 0-100% and display the weighted average (detail: [reference.md](reference.md) §6).
 
 ```
-Round N | Area: {current_area} (최저 영역 타겟팅) | 진행 중/충분
+Round N | Area: {current_area} (targeting lowest area) | 진행 중/충분
 ```
 
-**Challenge Modes**: 인터뷰 중 특정 시점에 관점 전환 질문을 삽입한다 (각 1회, 1-2Q). 상세: [reference.md](reference.md) §8.
+**Challenge Modes**: insert a perspective-shift question at a specific point in the interview (once each, 1-2Q). Detail: [reference.md](reference.md) §8.
 
-| Mode | 진입 조건 | 목적 |
+| Mode | Entry condition | Purpose |
 |------|----------|------|
-| Inverter | 라운드 3+ | 핵심 가정 뒤집기 |
-| Outsider | 라운드 5+ | 외부자 시각 확보 |
-| Pre-mortem | 라운드 7+ / Depth 60%+ | 미래 실패 역추적 |
+| Inverter | Round 3+ | Invert a core assumption |
+| Outsider | Round 5+ | Gain an outsider's view |
+| Pre-mortem | Round 7+ / Depth 60%+ | Back-trace a future failure |
 
 **Extended Areas** (user-selected):
 - Feasibility | Stakeholders | Counterfactual | Dependencies
