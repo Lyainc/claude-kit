@@ -70,11 +70,8 @@ def _extract_declared_modes(modes_block: str) -> list[dict]:
 def _find_compose_line(text: str) -> str:
     """Return the FIRST line containing the 'compose silently' declaration.
 
-    Only the first match is returned (not all joined): downstream checks do `in`
-    tests on this string, so joining multiple lines would let a citation mention on
-    one line and an inline-summary mention on another both pass against the combined
-    string even when no single line carries both — a false positive. SKILL.md keeps
-    the declaration on one line; if it splits, the checks should fail loudly.
+    First match only (not joined): joining lines would let separate mentions pass a
+    single-string `in` test that no one line satisfies — a false positive.
     """
     for line in text.splitlines():
         if "compose silently" in line:
