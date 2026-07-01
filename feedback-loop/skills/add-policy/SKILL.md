@@ -1,6 +1,6 @@
 ---
 name: add-policy
-description: "The landfill engine of the ⑤ self-improvement loop: take ONE work-policy / convention / rule — stated by the user in natural language, or handed off as a distill proposal — infer its classification, and place it in one of three native landfill sites (a CLAUDE.md reminder, a deterministic hook guard, or an invocable skill) behind a single 1-click confirmation. Leaves every change in the working tree; never commits. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: distill (sibling) DISCOVERS what is worth keeping and emits the proposal; add-policy LANDS it — distill never fills the placement, add-policy never re-judges what to keep. Declarative knowledge (facts/decisions) = vault /capture·/note, not a policy. Example: '/add-policy' or '이 규칙 어디다 넣을지 분류해줘'."
+description: "The landfill engine of the ⑤ self-improvement loop: take ONE work-policy / convention / rule — stated by the user in natural language, or handed off as a distill proposal — infer its classification, and place it in one of three native landfill sites (an always-read reminder — CLAUDE.md for stance/voice or the ~/.claude/rules work-rule catalogue — a deterministic hook guard, or an invocable skill) behind a single 1-click confirmation. Leaves every change in the working tree; never commits. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: distill (sibling) DISCOVERS what is worth keeping and emits the proposal; add-policy LANDS it — distill never fills the placement, add-policy never re-judges what to keep. Declarative knowledge (facts/decisions) = vault /capture·/note, not a policy. Example: '/add-policy' or '이 규칙 어디다 넣을지 분류해줘'."
 model: inherit
 allowed-tools: Read Edit Write Bash Glob Grep AskUserQuestion
 ---
@@ -80,22 +80,46 @@ is what makes classification reliable and keeps the engine portable.
 
 | Site | What it is | Tier absorbed | Form | Conflict-check target |
 |------|-----------|---------------|------|----------------------|
-| **CLAUDE.md** | an always-read reminder rule | **SOFT** (the model reads it and follows) | one prose line/paragraph appended | that CLAUDE.md's current rules |
+| **reminder**<br>(CLAUDE.md or `~/.claude/rules`) | an always-read reminder rule; the channel is **layer-determined** (see below) | **SOFT** (the model reads it and follows) | one prose line/paragraph appended to the layer's channel | the chosen channel's current rules |
 | **hook** | deterministic auto-enforcement | **HARD** (a PreToolUse-style guard blocks) | a working guard script + a registration entry in the project/user `hooks` configuration Claude Code loads — emitted to the working tree only, never self-activated | existing hook matchers/scripts |
 | **skill** | an invocable procedure | (n/a — a procedure, not a tier) | `~/.claude/skills/<name>/SKILL.md` | existing skills (patch > extend > new) |
 
 **Tier folds into the site, so the user never picks an axis:**
 
 - *layer* answers "what kind of rule" (internal reasoning),
-- *tier* answers "auto-enforced or just reminded" → **HARD ⇒ hook, SOFT ⇒ CLAUDE.md**,
+- *tier* answers "auto-enforced or just reminded" → **HARD ⇒ hook, SOFT ⇒ reminder** (the
+  reminder *channel* is then routed by layer — below),
 - the scope/channel question ("which CLAUDE.md? which config?") is the site choice itself.
 
 **Layer → tier default (engine inference, reduces variance):** *judgment* and *expression*
-are **always SOFT** (a CLAUDE.md reminder — they are not deterministically guardable). A
-*work-rule* is **HARD (→ hook) iff its violation is deterministically detectable**, else
-SOFT (→ CLAUDE.md): "leave deletes recoverable / never `rm`" is detectable → hook; "run
-Python through the project runner" stated as a habit is a reminder → CLAUDE.md. This is the
-engine's tier inference from what/why, never a user-supplied axis.
+are **always SOFT** (a reminder — they are not deterministically guardable). A *work-rule*
+is **HARD (→ hook) iff its violation is deterministically detectable**, else SOFT (→
+reminder): "leave deletes recoverable / never `rm`" is detectable → hook; "run Python
+through the project runner" stated as a habit is a reminder. This is the engine's tier
+inference from what/why, never a user-supplied axis.
+
+**SOFT reminder channel — routed by layer (one mapping, NOT a fourth site):** a SOFT rule
+is a reminder, but *which* always-read file it lands in depends on its layer:
+
+- **judgment / expression** (stance·voice — what you decide, how you phrase) → the
+  top-level **`~/.claude/CLAUDE.md`** persona block.
+- **work-rule** (how you do the work) → the machine **work-rule catalogue
+  `~/.claude/rules`** *if it exists*; **otherwise fall back to `~/.claude/CLAUDE.md`**.
+
+The engine already computes the layer (§2); it only routes the SOFT channel by it — no new
+site, no new axis. The fallback is **non-negotiable: never hardcode the machine's `rules/`
+structure**. Detect it (`[ -d "$HOME/.claude/rules" ]`) and degrade to CLAUDE.md on a
+vanilla machine where `~/.claude/rules` is absent — a confident write into a non-existent
+catalogue is the exact breakage this guards against. (Receiver/audience match, §4: a
+work-rule's reader is the work-rule catalogue, a persona rule's reader is CLAUDE.md.)
+
+**Thin pointer + backing detail (when the catalogue channel is used):** machine-level
+reminders ride in *every* session's context, so the always-on surface must stay thin. When
+a work-rule lands in `~/.claude/rules`, put the detail in the catalogue (its native form)
+and keep `~/.claude/CLAUDE.md` to at most a one-line pointer — add no pointer if the
+catalogue is already pointed at. This mirrors the catalogue's own thin-list-routes-to-detail
+shape (a thin CLAUDE.md on top, the backing detail below). Never paste the full rule prose
+into the always-read CLAUDE.md.
 
 **1-click confirmation**: present the *decision*, not the grid. Show the user where it
 will land, the exact text/diff that will be added, and one short line of why-here — then
@@ -212,7 +236,9 @@ discovery-side placement-fit judgment). The check depends on the site:
   the frontmatter); a newly created skill carries a top-level `provenance: distilled`.
 - **hook site**: the guard script is syntactically valid (`bash -n`) and the registration
   entry is well-formed JSON (a matcher plus a command array).
-- **CLAUDE.md site**: the rule was actually appended (a non-empty addition to the file).
+- **reminder site**: the rule was actually appended to the **routed channel** — CLAUDE.md
+  for stance/voice, `~/.claude/rules` for a work-rule (or the CLAUDE.md fallback when the
+  catalogue is absent) — a non-empty addition to that file.
 
 Example for a freshly written skill (best-effort, Korean report on failure):
 
@@ -230,8 +256,10 @@ in-skill self-check, never a registered harness hook (CON-2).
 
 - Classify, then place. Classification is user-confirmed (one 1-click step); placement is
   deterministic once classified.
-- Three sites only: CLAUDE.md (SOFT reminder) / hook (HARD guard) / skill (procedure). A
-  user-shell receiver is out-of-band (not a fourth site) = command emission only.
+- Three sites only: reminder (SOFT) / hook (HARD guard) / skill (procedure). The reminder
+  *channel* is layer-routed — stance/voice → `~/.claude/CLAUDE.md`, work-rule →
+  `~/.claude/rules` if present else CLAUDE.md fallback (never hardcode the machine's `rules/`
+  structure). A user-shell receiver is out-of-band (not a fourth site) = command emission only.
 - Tier (HARD/SOFT) is inferred by the engine from the rule's what/why, never asked of the
   user (the classification axes are never exposed as a form to fill).
 - User-authored skills are **inviolable**: never overwrite a `provenance: user-authored`

@@ -112,7 +112,10 @@ jobs:
           python3 feedback-loop/scripts/test/test-report.py
           bash feedback-loop/scripts/test/test-event-logger.sh
           bash feedback-loop/scripts/test/test-retro-telemetry.sh
-          echo "feedback-loop telemetry checks OK"
+          # G28 add-policy layer-routing (SOFT channel by layer + vanilla fallback).
+          python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
+          python3 feedback-loop/scripts/test/test-add-policy-routing.py
+          echo "feedback-loop telemetry + add-policy-routing checks OK"
 
       - name: Run thinking-tools trigger regression
         run: |
