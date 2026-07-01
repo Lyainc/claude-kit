@@ -4,7 +4,15 @@
 G28 ① + ③. The engine (feedback-loop/skills/add-policy/SKILL.md) is a prose skill,
 so this is a static-content check — it does not execute LLM logic. It pins the four
 claims G28 added to §3, guarding against a future edit silently dropping the machine
-work-rule catalogue routing or the vanilla fallback:
+work-rule catalogue routing or the vanilla fallback.
+
+Checks 2 (vanilla fallback) + 3 (no-hardcode/detect) ARE the #300 acceptance sign-off:
+the engine is prose with no runtime code path, so "does it degrade on a vanilla machine
+where ~/.claude/rules is absent" is guaranteed by proving the SKILL.md instructs the
+detect-then-fall-back branch — not by simulating `[ -d ]` (that would test bash, not the
+engine). This static guard is the durable form of that verification.
+
+The four pinned claims:
 
 1. The SOFT reminder channel is routed by LAYER (both branches described):
    - stance/voice (judgment/expression) -> ~/.claude/CLAUDE.md
