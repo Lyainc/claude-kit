@@ -17,7 +17,7 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 
 ## Git Conventions
 
-- **Commits**: English, Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`)
+- **Commits**: English, Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `chore:`, `enhance:`, `test:`, `nit:`)
 - **PR descriptions**: Korean
 - **Branches**: `feat/`, `fix/`, `docs/`, `refactor/` prefixes
 
