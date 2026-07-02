@@ -144,11 +144,22 @@ Search the entire vault by keyword and load note contents.
    page surfaces above an equally-matched but cold one. Grep/CLI-fallback candidates have
    no manifest signal, so they keep the plain order. The full-vault `mdfind`/`grep`
    fallback already covers `wiki/` (it scans all of `~/vault`).
-4. Output preview: filename + first 2 lines + location + tags + modification date.
+4. Output preview: filename + first 2 lines + location + tags + modification date. For a
+   `type: wiki` hit, also surface its `verified:` date and whether it carries an `anchor:`
+   (see Rules — staleness signal).
 5. Load full note content when user selects a number (default 10 results).
 
 ## Rules
 
+- **Wiki staleness hedge (#305)**: `type: wiki` pages carry `verified:` (last-touched date) and,
+  when checkable, `anchor:` (a source file/URL the dominant claim traces to). When you return a
+  wiki page's content, mention its `verified:` age alongside it — this is the only staleness
+  signal a source-free (no `anchor:`) page has, since nothing else flags it as possibly outdated.
+  Don't silently present an old, anchor-free wiki claim as current fact; a plain "as of {verified}"
+  note is enough to let the caller hedge. Prefer `verified:` over the file's raw modification
+  date for this — the vault is git-committed (`/vault-commit`) and a clone/checkout resets
+  filesystem mtimes to the checkout time, so mtime can understate a page's real age while
+  `verified:` (committed frontmatter) survives that.
 - **Never modify existing files**: this agent has no access to the Write tool. Do not overwrite or append to existing files.
 - **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests session-note / plan creation, return a draft text and instruct the user to invoke `/save-session` (which runs inline in main context).
 - **Vault only**: Never access paths outside `~/vault/`. No `~/dev/`, no project directories outside vault.
