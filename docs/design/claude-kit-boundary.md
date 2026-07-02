@@ -31,6 +31,28 @@ claude-kit은 **①인지 ②결정화·출력 ③딜리버리 ④지식베이�
 
 claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`·Workflow·agents·hooks)가 직접 담당해요 — 자체 흡수 하네스는 2026-06-29 CUT으로 철회됐어요(위 §1 갱신).
 
+> **③↔④ 경계 판정 기준 (2026-07-02, #304)**: 레이어 번호는 "누가 뭘 하나"를 안 알려줘서, 사서/브리지
+> 한 줄 테스트를 판정 기준으로 채택했어요 — **"이게 프로젝트가 존재한다는 걸 알아야 하나?"** 몰라도
+> 됨 → **사서(④ OVM)**, 볼트 코퍼스만 다뤄요. 한쪽에 프로젝트가 없으면 무의미 → **브리지(③ vault-bridge)**,
+> 프로젝트↔볼트 양쪽 레퍼런스를 동시에 쥔 유일한 컴포넌트예요. wiki의 U7 route(다른 레포에서도
+> 참인가 라우팅)는 크로싱 판단=③ 브리지 로직, compile/dedup=④ 사서 코어인 **합법적 straddler**로
+> 명시해요. 그리고 A-only 재설계 이후 브리지 정체성은 **pull-mostly**로 바뀌어요 — repo→vault로
+> 문서를 복사해 나르는 ferry(원본이 바뀌면 drift하는 stale 원인, G21/G24/G26으로 이미 대부분 철거)는
+> 금지, repo-세션에서 사실을 우려내는 wiki compile(mirror가 없어 구조상 drift 불가)은 유지, A↔B(wiki↔
+> second brain) 연동은 링크only(복사 금지)예요. 근거: `docs/design/vault-role-redefinition-draft.md`
+> (retired, 판정 evidence trail 보존).
+>
+> **`/vault-link` 판정 (#304 L1)**: **유지한다 (제거하지 않음)**. 애초 가설은 "서브폴더 배치용이라
+> 사서 관심사, 진짜 볼트-선택 라우팅은 미구현이라 A-only엔 불필요"였지만, 코드 확인 결과 틀렸어요 —
+> `.vault-link`는 `vault-searcher`의 recall scoping(세션 복원 + 도메인 컨텍스트 모드의 search_root
+> 결정)에 쓰이는 살아있는 브리지 기능이고, 실제로 `claude-kit`·`PhototicketMaker` 두 프로젝트가 지금
+> 이 스코핑에 걸려 있어요. 제거하면 두 프로젝트의 recall이 전체 vault 스캔으로 퇴화해 다른 프로젝트
+> 노트가 섞이는 실제 회귀가 나요. 이 스코핑은 B(second brain)에만 걸리고 A(wiki)는 `.vault-link`
+> 스코핑과 무관하게 항상 recall에 포함되므로(#272 예외), 유지 여부가 #267 B-probation 판정
+> (~2026-07-13)과 엮이지 않아요 — 유지 비용이 0이라 그 판정을 기다릴 필요 없이 지금 확정. 실제
+> defer 대상은 원래부터 미구현이던 세션-레벨 다중 vault-ROOT 셀렉터(여러 독립 볼트 중 선택)뿐이고,
+> 이건 YAGNI로 계속 defer해요.
+
 **§2.5 — ⑤ 슬라이스 루프 완료조건 계약 (#285)**: 슬라이스 루프 입력인 START-PROMPT(session-close ④가 저작, 이 레포 외부)는 native `/goal` 평가자가 판정해요. 그 평가자는 **대화에 surfaced된 증거로만 완료를 판정**하고 파일·명령을 독립 실행하지 않아요([공식](https://code.claude.com/docs/en/goal)). 따라서 START-PROMPT의 `완료조건`은 surfaced-evidence 3레버(L1 단일 도구호출 반증 · L2 독립 리뷰 게이트 · L3 auto mode+턴 상한)를 만족해야 평가 가능해요 — 표준 정본은 #285.
 
 ### 3. 의존 방향 — 단방향 (harness → leaf)
