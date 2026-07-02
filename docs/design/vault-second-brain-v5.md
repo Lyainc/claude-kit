@@ -78,11 +78,23 @@ v4는 "인간이 채우는 second-brain"을 전제했으나, 측정·증언·디
 type: wiki                 # v4 §2.2 opt-in — 관리·recall 가시성 위해 부여
 created: YYYY-MM-DD
 tags: [{domain}]
+anchor: {local path/URL}   # optional — 체크 가능한 소스 있을 때만(#305 cache/store 분류축). 없으면 source-free
+verified: YYYY-MM-DD       # 모든 write(신규·update)마다 자동 스탬프 — 능동 "검증"이 아니라 last-touched 신호
 provenance: {session/query}  # U3 추적용 必 — 어느 탐구가 이 페이지를 낳았나
 ```
 
 - **status machine 밖**: A엔 인간 검토 액션이 없다(AI 저작). raw→draft→evergreen은 B의 일(인간 검토 선언).
   A는 provenance 추적 AI 페이지지 검토-status 페이지가 아니다.
+- **staleness 3겹 방어 (#305)**: 분류 단위는 페이지+dominant-type(경계 mixed는 claim 승격으로 defer). `anchor:`
+  유무가 cache(소스-앵커드)/store(소스-프리) 축. cache 페이지는 wiki 스킬 compile 시점에 `anchor` 파일의
+  mtime을 `verified:`와 비교하는 lazy check(변했을 때만 재컴파일 — ferry 부활 아님, §3 pull-mostly 정합).
+  store 페이지는 검증 불가를 인정하고 `verified:` 나이를 recall 경로(vault-searcher)에서 노출해 LLM 헤지를
+  유도. `verified:`는 인간도 AI도 능동 갱신하지 않는다 — compile/update 시 자동 스탬프라 B 대역폭 재발도
+  U3 자기검증 순환도 없다.
+- **왜 파일시스템 mtime이 아니라 프론트매터 필드인가**: vault는 `/vault-commit`으로 git에 커밋되는 저장소라
+  clone/checkout/restore가 파일 mtime을 체크아웃 시점으로 재설정해버린다 — fs mtime은 vault 이관 시 날아가는
+  신호. `verified:`를 커밋되는 콘텐츠(프론트매터)에 두면 그 이관을 버틴다. vault-searcher가 이미 노출하는
+  "modification date"(fs mtime)와는 별개 신호 — 겹치는 게 아니라 mtime이 못 버티는 자리를 메운다.
 
 ### 4.2 먹이 = query-driven compounding (게이트된 명시 `--save`)
 

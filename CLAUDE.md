@@ -347,6 +347,8 @@ tags: [{type}, {domain}]                       # required
 type: capture|note|decision|session|plan|wiki  # required — type opt-in (v4 §2.2): files without `type:` are invisible to claude-kit
 status: raw|draft|evergreen|archived           # required for note/decision (status machine, v4 §3.3); session/capture/plan: optional; wiki: OMITTED (A is outside the status machine, v5 §4.1)
 provenance: <query/session>                    # wiki only, required (v5 §4.1 U3 traceability — the exploration that produced the page)
+anchor: <local path/URL>                       # wiki only, optional — present only for source-anchored (cache-type) pages; absent = source-free (store-type). Staleness classification axis (#305)
+verified: YYYY-MM-DD                           # wiki only, auto-stamped on every write — last-touched, not an active verification; exposes page age for staleness hedging (#305)
 source: web-clipper|manual|...                 # capture only, optional
 url: ...                                       # capture only, optional
 ```

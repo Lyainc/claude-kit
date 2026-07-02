@@ -60,6 +60,7 @@ The wiki *compounds* — a topic that already has a page is **updated**, never d
    ls ~/vault/wiki/ 2>/dev/null
    ```
 2. **Existing page on the same topic** → plan an **update/merge**: integrate the new knowledge into the existing page (add/refine sections, keep it coherent) and extend the `provenance:` trail with the new originating query. Do NOT create a `-v2`.
+   - **Lazy anchor check (#305 staleness defense)**: if the existing page has an `anchor:` field, and that anchor is a local path, `stat` it and compare its mtime against the page's `verified:` date. Anchor unchanged since `verified:` → the anchored claim is still current, skip re-deriving it (just fold in the new knowledge and bump `verified:` at write time). Anchor changed → recompile the anchored claim from the current session context, same as any other update. If the anchor is a URL instead of a local path, skip the mtime comparison entirely and always recompile as a normal update — checking a URL for changes means fetching it, and that fetch is exactly the ferry-style re-pull this design avoids (§3 pull-mostly). This is a lazy check on an already-local anchor, never a network round-trip.
 3. **No existing page** → plan a **new** page `~/vault/wiki/{slug}.md`. `{slug}` = 2–4 kebab-case words from the topic.
 4. A `-v2`/`-v3` suffix is ONLY for a genuinely *different* topic that collides on slug — never for the same topic (that's an update).
 
@@ -80,20 +81,23 @@ Then write after confirmation. (The compounding KB rewards one human glance — 
 created: YYYY-MM-DD
 tags: [{domain}]              # at least one domain tag; no `wiki` literal needed, type carries it
 type: wiki
+anchor: <local path/URL>      # optional — only when this page's dominant claim traces to one checkable source; omit for source-free pages
+verified: YYYY-MM-DD          # always written, auto-stamped to today on every write (new or update)
 provenance: <one line: the query / exploration that produced this page; multiple updates joined with `; `>
 ---
 ```
 
 - **No `status:` field.** The status machine (raw→draft→evergreen) is the B layer's (human review). A is outside it (v5 §4.1) — wiki pages are AI-authored, provenance-tracked, not review-status pages.
 - **`provenance:` is required and always written** — it records *which exploration produced this page* (U3 traceability: a bad synthesis can be traced back to its source). For an update, append the new originating query to the existing provenance with the `; ` delimiter (`provenance: query-A; query-B`) rather than overwriting it — keep the canonical single-line, `; `-joined format so it stays consistent across update cycles.
+- **`anchor:`/`verified:` (#305 staleness defense)** — classification unit is the page (dominant-type, not per-claim): a page with one checkable source anchor (a local file this vault/session can `stat`) gets `anchor:` set; a page synthesized from judgment/discussion with no single checkable source stays anchor-free. `verified:` is written on every compile (new page or update), unconditionally — it is a last-touched timestamp, not an active verification act, so neither a human nor the model is ever asked to "re-verify" a page on a schedule.
 
 ---
 
 ## Phase 5 — WRITE
 
 1. `mkdir -p ~/vault/wiki/` (directory guard).
-2. **New page**: write `~/vault/wiki/{slug}.md` with the frontmatter above and the compiled body.
-3. **Update**: rewrite the existing page with merged content and the extended `provenance:`. Preserve the original `created:` date; do not reset it.
+2. **New page**: write `~/vault/wiki/{slug}.md` with the frontmatter above and the compiled body. Stamp `verified:` to today.
+3. **Update**: rewrite the existing page with merged content and the extended `provenance:`. Preserve the original `created:` date; do not reset it. Stamp `verified:` to today regardless of whether the anchor check (Phase 3) found the anchor changed or unchanged — the page was touched, so the freshness signal moves forward either way.
 4. Output only the created/updated file path and whether it was new or merged. No follow-up questions.
 
 ---
@@ -104,6 +108,7 @@ provenance: <one line: the query / exploration that produced this page; multiple
 - **U7 route first.** Repo-structure knowledge is redirected to AGENTS.md/deepinit, never written to wiki. The wiki holds only cross-repo domain knowledge.
 - **Compound, don't duplicate.** Same topic → update the existing page. `-v2` is only for a slug collision between genuinely different topics.
 - **Always write `provenance:`.** Every wiki page carries the exploration that produced it.
+- **Always stamp `verified:` to today on write.** No exceptions, no schedule, no "re-verify" step — it is a last-touched signal, not a verification action (#305).
 - **No `status:` on wiki pages.** A is outside the status machine.
 - **Filename**: `{slug}.md`, lowercase kebab — matches the `wiki/` naming convention enforced by `pre-write-guard.sh`.
 - **Vault writes only inside `~/vault/wiki/`.** This skill never touches repo files (AGENTS.md redirect is guidance, not a write).
