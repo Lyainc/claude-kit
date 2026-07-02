@@ -1,14 +1,14 @@
 # vault 역할 재정의 초안 — 사서/브리지 + A-only 브리지 = pull-mostly
 
-**Status**: draft · **Created**: 2026-07-01 · **관련**: #215 · #94
+**Status**: retired (2026-07-02, #304) — 승격 완료, SSOT는 `claude-kit-boundary.md` §2 · **Created**: 2026-07-01 · **관련**: #215 · #94 · #267
 **Source**: 이 세션 대화 3건(플러그인 합병 → 사서/브리지 metaphor → ferry/A-only) +
 `docs/discovery/vault-role-redefinition/DISCOVERY_REPORT.md`(unknown-discovery + expert-panel)
 **입력 설계**: `vault-second-brain-v5.md` · `20260612_vault-llm-wiki-redesign/RESOLUTIONS-draft.md`(U5) ·
 `20260623_vault-debloat-reckoning/DECISION.md`
 
-> 이 문서는 **초안이고 커밋 보류**예요. `claude-kit-boundary.md`가 5-레이어·경계·의존방향의 단일
-> 출처(SSOT)라, 이 draft는 그걸 **참조·정교화**만 하지 재정의하지 않아요. 합의가 굳으면 boundary
-> 문서 §③④에 승격하고 이 draft는 retire. linchpin(L1·L2)은 owner 판정 대상.
+> 이 문서는 **retired**예요. `claude-kit-boundary.md`가 5-레이어·경계·의존방향의 단일 출처(SSOT)이고,
+> 이 draft의 저위험 확정(§1~3) + linchpin L1·L2 판정이 전부 그 문서 §2에 승격 완료됐어요. 이 파일은
+> 판정 근거(discovery·코드 확인 evidence trail)를 보존하는 참고 기록으로만 남아요.
 
 ---
 
@@ -96,21 +96,34 @@ DECISION.md의 dual-source 금지("복사·동기화 금지, 단방향 promotion
 
 ## 4. /vault-link + 바인딩 재판정
 
-- 현 용도(notes/{project}/ 서브폴더 배치)는 **볼트 *안에서* 어디**라 사실 사서 관심사 — 브리지 도구가
-  사서 일에 쓰이고 있었다.
+- 현 용도(notes/{project}/ 서브폴더 배치)는 **볼트 *안에서* 어디**라 사실 사서 관심사로 보였다 — 브리지
+  도구가 사서 일에 쓰이고 있었다는 초기 가설.
 - 진짜 브리지 액션인 "여러 볼트 중 이 프로젝트는 어느 볼트냐"(볼트 선택 라우팅)는 **코드상 미구현**:
   볼트 루트는 3단 우선순위(`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`)로
-  단일 해석이고 `.vault-link`는 그 하나의 볼트 내부 서브폴더만 고른다.
+  단일 해석이다.
 - A(wiki)는 레포-초월/전역이라 A-only에서 프로젝트 바인딩 자체가 불필요. 하나의 전역 wiki를 모든
-  프로젝트가 똑같이 읽는다.
+  프로젝트가 똑같이 읽는다(`vault-searcher`가 `.vault-link` 스코핑과 무관하게 `wiki/`를 항상 포함,
+  #272 예외).
 
-→ **`/vault-link`(프로젝트별 포인터 파일)는 제거 대상.** 살아남을 니즈(업무 볼트 vs 개인 볼트 격리)가
-있다면 그건 *세션-레벨 볼트 셀렉터*지 프로젝트별 파일이 아님 — 이건 YAGNI로 defer.
+⚠️ **판정 교정 (2026-07-02, #304 L1 owner 판정 — 코드 확인 결과)**: 위 첫 전제가 **틀렸다.**
+`.vault-link`는 서브폴더 배치용 파일이 아니라 `vault-searcher.md`의 recall scoping(Mode 1 세션 복원 +
+Mode 2 도메인 컨텍스트, search_root 결정)에 쓰이는 **살아있는 브리지 기능**이다 — "프로젝트를 알아야
+하나?" 한 줄 테스트를 실제로 통과한다. 그리고 가정이 아니라 실측: `claude-kit`(`20_Projects/claude-kit`)과
+`PhototicketMaker` 두 프로젝트가 지금 이 스코핑에 라이브로 걸려 있다(`find ~/dev -name .vault-link`로 확인).
+제거하면 두 프로젝트의 recall이 전체 vault-wide 스캔으로 퇴화해 다른 프로젝트 노트가 섞여 노이즈가 는다 —
+공짜 정리가 아니라 실제 회귀.
+
+→ **`/vault-link`는 유지한다 (제거 철회).** 유지 비용은 0(이미 동작 중인 코드)이고 이 스코핑은 오직
+B(second brain, 프로젝트별 세션/결정 노트)에만 걸려 있어 A(wiki)의 존속과 무관하다 — 그래서 #267
+B-probation 판정(~2026-07-13)을 기다릴 필요 없이 지금 판정할 수 있다(아래 긴장 재조정 참조).
+실제로 defer할 대상은 원래부터 미구현이던 **세션-레벨 다중 vault-ROOT 셀렉터**(여러 개의 독립 볼트
+자체를 선택하는 기능, 업무 볼트 vs 개인 볼트 같은 축)뿐이며 이건 YAGNI로 계속 defer.
 
 ⚠️ **결론 교정 (discovery 발견 3)**: 원래 "vault-link·/save-session·notes/가 B-probation 커플드라
 B와 함께 죽는다"는 **두-볼트 분리로 정정.** LLM Wiki(A)와 Second brain(B)은 목적이 다른 별개 공간이라,
-`/save-session`이 인간 second-brain 입력이면 A와 무관하게 자기 목적으로 산다. 죽는 건 `/vault-link`
-(바인딩)이지 second-brain 입력 경로 전체가 아니다. B-probation(L1)과의 긴장은 재조정 필요.
+`/save-session`이 인간 second-brain 입력이면 A와 무관하게 자기 목적으로 산다. 위 판정 교정으로 `/vault-link`
+자체도 안 죽는다 — B-probation(L1)과의 긴장은 "제거를 늦추느냐"가 아니라 애초에 **제거하지 않는 것으로
+해소**된다(B가 probation을 통과하든 archive되든 스코핑 코드를 유지하는 데 드는 비용이 없다).
 
 ---
 
@@ -138,18 +151,20 @@ repo→vault ferry를 죽여도 stale은 사라지지 않고 **mirror 없는 A �
 - 브리지 = pull-mostly, ferry(문서 복사 운반) 제거(§3).
 
 **linchpin (owner 판정 필요):**
-- **L1**: `/vault-link` 제거 + 세션-레벨 볼트 셀렉터 defer 여부(§4).
+- **L1**: ✅ **판정 완료 (2026-07-02, #304)** — `/vault-link` **유지**(제거 철회, §4 판정 교정 참조).
+  근거는 recall-hit 측정(telemetry Option B, 미구현)이 아니라 **코드 확인**(`vault-searcher.md`의
+  scoping 의존 + 실사용 2개 프로젝트) — 그래서 측정 게이트를 기다리지 않고도 트리거 가능했다.
+  defer 대상은 세션-레벨 다중 vault-ROOT 셀렉터뿐(YAGNI 유지).
 - **L2**: ✅ **판정 완료 (2026-07-02, #305)** — 3겹 방어 채택(§5 그대로), 분류 단위 = **페이지 +
   dominant-type**(경계 mixed는 claim 단위 승격으로 defer), 최종검증일 갱신 주체 = **자동 last-touched
   타임스탬프**(인간도 AI도 능동 갱신 안 함 — B 대역폭 재발도 U3 순환도 회피). `anchor:`/`verified:`
   필드로 `docs/design/vault-second-brain-v5.md` §4.1 + `obsidian-vault-manager/skills/wiki/SKILL.md`
   + `vault-bridge/agents/vault-searcher.md`에 구현 완료. #305 acceptance 4개 전부 충족.
-- **배경**: L1 등 나머지 판정은 recall-hit 측정(telemetry Option B, 미구현)에 걸려 있어 지금은 증거로
-  트리거 불가 — L2를 제외하고 잠정.
 
 ---
 
 ## 다음
 
-owner가 L1·L2 판정 → 확정분을 `claude-kit-boundary.md` §③④에 승격 → 이 draft retire.
-staleness 3겹 방어는 별도 설계 트랙(#215 하위)으로 분리 권장.
+L1·L2 판정 완료 → 확정분(§1~3 저위험 확정 + L1·L2)을 `claude-kit-boundary.md` §2(5-레이어 모델)에
+승격했다 — 이 draft는 **retired**, SSOT는 `claude-kit-boundary.md`. staleness 3겹 방어는 별도 설계
+트랙(#215 하위)으로 분리 권장.
