@@ -104,7 +104,7 @@ jobs:
           python3 vault-bridge/scripts/test/test-vault-commit-message.py
           echo "vault-bridge tests OK"
 
-      - name: Check feedback-loop telemetry scripts
+      - name: Check feedback-loop telemetry + add-policy scripts
         run: |
           bash -n feedback-loop/scripts/event-logger.sh
           bash -n feedback-loop/scripts/retro-telemetry.sh
