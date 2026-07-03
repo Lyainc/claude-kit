@@ -5,7 +5,7 @@ model: inherit
 allowed-tools: Read Edit Write Bash Glob Grep AskUserQuestion
 ---
 
-**User language: Korean.** All user-facing output (the classification readout, AskUserQuestion prompts, confirmation messages, command suggestions) MUST be in Korean. Instructions below are English for LLM parsing.
+**User language: Korean for dialogue, English for written artifacts.** All user-facing DIALOGUE (the classification readout, AskUserQuestion prompts, confirmation messages, command suggestions) MUST be in Korean. The prose the engine actually WRITES into a landfill site — the CLAUDE.md/rules-catalogue reminder line, a hook script and its comments, a skill's SKILL.md body — MUST be in English instead: that text is read by a future LLM session, not the user, so it follows claude-kit's own Language Policy for skill/rule content (English for LLM-optimized parsing), not the user-facing-output rule. Instructions below are English for LLM parsing.
 
 # add-policy — the landfill engine (layer ⑤)
 
@@ -204,6 +204,9 @@ that site's present content.
 
 ## 7. Output contract
 
+- **Language of the written content itself: English**, regardless of the site (reminder
+  prose, hook script comments, skill SKILL.md body) — see the language directive above.
+  Only the confirmation dialogue around it is Korean.
 - Every change is left **in the working tree**. **No commit / push / PR** — the main
   context owns git.
 - For the **hook** site, the engine emits the guard script *and* the registration diff to
