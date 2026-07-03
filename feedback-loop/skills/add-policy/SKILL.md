@@ -5,7 +5,22 @@ model: inherit
 allowed-tools: Read Edit Write Bash Glob Grep AskUserQuestion
 ---
 
-**User language: Korean for dialogue, English for written artifacts.** All user-facing DIALOGUE (the classification readout, AskUserQuestion prompts, confirmation messages, command suggestions) MUST be in Korean. The prose the engine actually WRITES into a landfill site — the CLAUDE.md/rules-catalogue reminder line, a hook script and its comments, a skill's SKILL.md body — MUST be in English instead: that text is read by a future LLM session, not the user, so it follows claude-kit's own Language Policy for skill/rule content (English for LLM-optimized parsing), not the user-facing-output rule. Instructions below are English for LLM parsing.
+**User language: Korean for dialogue; written-artifact language depends on the site.** All
+user-facing DIALOGUE (the classification readout, AskUserQuestion prompts, confirmation
+messages, command suggestions) MUST be in Korean. For the prose the engine actually WRITES:
+
+- **`~/.claude/rules` catalogue, a hook script + its comments, a skill's SKILL.md body**:
+  English. These are pure procedural/LLM-executed artifacts with no reader-language identity
+  of their own — they follow claude-kit's own Language Policy for skill/rule content, not the
+  user-facing-output rule.
+- **`~/.claude/CLAUDE.md`**: match that file's **own existing language**, don't force English.
+  Unlike the sites above, this file is the user's actual stance/voice persona document — for a
+  Korean-voice user it is written in Korean prose (including judgment/expression rules about
+  *how to speak*), so an English insertion breaks the file's own convention and can be
+  self-contradictory (an English line dictating Korean tone). Read the target file first and
+  write the new line in the language it is already in.
+
+Instructions below are English for LLM parsing.
 
 # add-policy — the landfill engine (layer ⑤)
 
@@ -192,11 +207,16 @@ missing directory the same as "no existing skills found" (nothing to conflict wi
 
 ## 6. Conflict check (target = the landfill site's current rules)
 
-**New site (no prior conflict possible)**: on a brand-new machine the reminder target may
-not exist at all yet — e.g. `~/.claude/CLAUDE.md` absent because `~/.claude/rules` is also
-absent and nothing has ever been landed there. If the read errors because the file is
-missing, there is nothing to conflict with: skip straight to writing, and **create the file
-(`Write`)** with the new rule instead of appending (`Edit`) to a file that isn't there.
+**New site (no prior conflict possible)**: check whether the target file **exists** first —
+`[ -f "$TARGET" ]`, the same deterministic check §5 uses for the skill site — never infer
+"missing" from a read *error*, since a read can fail for reasons other than absence
+(permissions, a transient tool error), and misdiagnosing one of those as "missing" would skip
+the conflict check and **overwrite existing content** instead of appending to it. If the
+existence check confirms the file genuinely isn't there yet (a brand-new machine, e.g. no
+`~/.claude/CLAUDE.md` at all), there is nothing to conflict with: skip straight to writing,
+and **create the file (`Write`)** with the new rule instead of appending (`Edit`). If the
+file exists but reading it still fails for some other reason, stop and report the failure —
+do not guess.
 
 Otherwise, before adding, read the **current contents of the chosen site** (not any private
 catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) and check:
@@ -214,9 +234,10 @@ that site's present content.
 
 ## 7. Output contract
 
-- **Language of the written content itself: English**, regardless of the site (reminder
-  prose, hook script comments, skill SKILL.md body) — see the language directive above.
-  Only the confirmation dialogue around it is Korean.
+- **Language of the written content itself**: English for the rules catalogue, a hook
+  script, or a skill body; for `~/.claude/CLAUDE.md` match that file's own existing
+  language instead — see the language directive above. The confirmation dialogue around
+  the write is always Korean regardless of site.
 - Every change is left **in the working tree**. **No commit / push / PR** — the main
   context owns git.
 - For the **hook** site, the engine emits the guard script *and* the registration diff to
