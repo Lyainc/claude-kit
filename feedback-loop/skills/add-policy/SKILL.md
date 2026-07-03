@@ -177,7 +177,11 @@ The engine respects the discovery judgment; it does not re-run it, but it *does*
 the block. Verify before writing: read the target's frontmatter and confirm provenance.
 Read-only `Bash`/`Grep` is the natural way to inspect provenance across candidate skills
 (e.g. grep the frontmatter of `~/.claude/skills/*/SKILL.md`) — the same read-only use
-`distill` retains for its discovery checks.
+`distill` retains for its discovery checks. **Check `[ -d "$HOME/.claude/skills" ]` first**:
+on a vanilla machine with no prior distilled/personal skills, that directory doesn't exist
+yet, and a glob against a missing directory errors instead of matching nothing — treat a
+missing directory the same as "no existing skills found" (nothing to conflict with,
+`mkdir -p` it and create the new skill), not as a scan failure.
 
 > **Migration note (old `metadata.provenance`)**: skills written by the *previous* distill
 > carried a nested `metadata.provenance: distilled`, not a top-level key. The engine reads
