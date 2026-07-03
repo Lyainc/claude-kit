@@ -188,7 +188,13 @@ Read-only `Bash`/`Grep` is the natural way to inspect provenance across candidat
 
 ## 6. Conflict check (target = the landfill site's current rules)
 
-Before adding, read the **current contents of the chosen site** (not any private
+**New site (no prior conflict possible)**: on a brand-new machine the reminder target may
+not exist at all yet — e.g. `~/.claude/CLAUDE.md` absent because `~/.claude/rules` is also
+absent and nothing has ever been landed there. If the read errors because the file is
+missing, there is nothing to conflict with: skip straight to writing, and **create the file
+(`Write`)** with the new rule instead of appending (`Edit`) to a file that isn't there.
+
+Otherwise, before adding, read the **current contents of the chosen site** (not any private
 catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) and check:
 
 - **Duplicate**: if the site already states the same rule, strengthen that entry instead
