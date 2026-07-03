@@ -55,6 +55,8 @@ claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`
 
 **§2.5 — ⑤ 슬라이스 루프 완료조건 계약 (#285)**: 슬라이스 루프 입력인 START-PROMPT(session-close ④가 저작, 이 레포 외부)는 native `/goal` 평가자가 판정해요. 그 평가자는 **대화에 surfaced된 증거로만 완료를 판정**하고 파일·명령을 독립 실행하지 않아요([공식](https://code.claude.com/docs/en/goal)). 따라서 START-PROMPT의 `완료조건`은 surfaced-evidence 3레버(L1 단일 도구호출 반증 · L2 독립 리뷰 게이트 · L3 auto mode+턴 상한)를 만족해야 평가 가능해요 — 표준 정본은 #285.
 
+**§2.5-1 — on-the-loop 게이트 (#309 P3)**: 위 3레버는 완료조건 *판정*을 다루고, 이 게이트는 판정 도중의 *비가역 액션*(merge·삭제·배포·이슈 종료 등)을 다뤄요. 무인/headless 실행이라고 확인 체크포인트가 자동 생략되면 안 돼요 — 정본은 local-harness `rules/README.md` P7. #309의 BUDGET·stall 레버(P1·P2)는 실제 폭주·정체 증거가 나오기 전까진 backlog(gated) 그대로예요.
+
 ### 3. 의존 방향 — 단방향 (harness → leaf)
 
 - **harness → leaf만 허용.** harness(현재 OMC, 목표 native 기반 경량 하네스)가 claude-kit 스킬을 호출하는 leaf capability 관계예요.
