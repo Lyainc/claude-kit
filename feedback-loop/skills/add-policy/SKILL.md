@@ -144,8 +144,8 @@ ask a single confirmation:
 ## 분류 결과
 - 규칙: <one-line summary>
 - 들어갈 곳: <CLAUDE.md | hook | skill> — <one-line reason: HARD라 자동강제 / SOFT라 리마인드 / 절차라 호출형>
-- 추가될 내용: <the exact prose / guard / skill stub>
-- 충돌: <none | sibling of an existing rule | contradicts an existing rule (explain)>
+- 추가/변경될 내용: <the exact prose / guard / skill stub to add, OR the existing entry's before → after if this is an edit>
+- 충돌: <none | sibling of an existing rule | edits an existing entry (show before→after) | contradicts an existing rule (explain)>
 ```
 
 Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" The user confirms or
@@ -224,14 +224,23 @@ catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) 
 
 - **Duplicate**: if the site already states the same rule, strengthen that entry instead
   of adding a second (DRY).
-- **Contradiction**: if it conflicts with an existing rule, do NOT write — report the
-  contradiction to the user and stop.
+- **Edit (explicit modification of an existing entry)**: if the request clearly targets one
+  existing entry and asks to change it — "이 규칙 Pn을 이렇게 바꿔줘" / "update rule X to say
+  Y" — treat it as an in-place edit of that entry, not a new append. Show the entry's
+  **before → after** text in the §3 confirmation instead of new prose to add, so the user
+  approves the exact rewrite. This is the first-class path for what used to only surface as
+  a side effect of Duplicate (strengthen) or, worse, get misread as Contradiction and
+  refused outright.
+- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
+  that rule as an explicit edit (it just disagrees, it doesn't ask to change the entry), do
+  NOT write — report the contradiction to the user and stop.
 - **Sibling**: if it is one half of an existing rule's pair, link them with a one-line
   "sibling to <that rule>" rather than duplicating context.
 
-The engine does not maintain a numbered catalogue; it appends in each site's **native
-form** (CLAUDE.md prose / a hook script / a skill SKILL.md) and conflict-checks against
-that site's present content.
+The engine does not maintain a numbered catalogue; for a new rule it appends in each
+site's **native form** (CLAUDE.md prose / a hook script / a skill SKILL.md), and for an
+**Edit**-classified rule it rewrites the targeted entry in place instead — always
+conflict-checked against that site's present content.
 
 ## 7. Output contract
 
@@ -271,9 +280,12 @@ discovery-side placement-fit judgment). The check depends on the site:
   the frontmatter); a newly created skill carries a top-level `provenance: distilled`.
 - **hook site**: the guard script is syntactically valid (`bash -n`) and the registration
   entry is well-formed JSON (a matcher plus a command array).
-- **reminder site**: the rule was actually appended to the **routed channel** — CLAUDE.md
-  for stance/voice, `~/.claude/rules` for a work-rule (or the CLAUDE.md fallback when the
-  catalogue is absent) — a non-empty addition to that file.
+- **reminder site**: for a new rule, it was actually appended to the **routed channel** —
+  CLAUDE.md for stance/voice, `~/.claude/rules` for a work-rule (or the CLAUDE.md fallback
+  when the catalogue is absent) — a non-empty addition to that file. For an
+  **Edit**-classified rule, verify the rewrite instead: the old entry text is gone and the
+  approved new text is present — an edit isn't guaranteed to grow the file, so "non-empty
+  addition" is not the right check here.
 
 Example for a freshly written skill (best-effort, Korean report on failure):
 

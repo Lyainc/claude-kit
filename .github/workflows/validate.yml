@@ -115,6 +115,9 @@ jobs:
           # G28 add-policy layer-routing (SOFT channel by layer + vanilla fallback).
           python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-routing.py
+          # #303 add-policy §6 conflict-check Edit bucket (explicit edit of an existing entry).
+          python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
+          python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
           echo "feedback-loop telemetry + add-policy-routing checks OK"
 
       - name: Run thinking-tools trigger regression
