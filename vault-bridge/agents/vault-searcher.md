@@ -159,7 +159,9 @@ Search the entire vault by keyword and load note contents.
   note is enough to let the caller hedge. Prefer `verified:` over the file's raw modification
   date for this — the vault is git-committed (`/vault-commit`) and a clone/checkout resets
   filesystem mtimes to the checkout time, so mtime can understate a page's real age while
-  `verified:` (committed frontmatter) survives that.
+  `verified:` (committed frontmatter) survives that. A legacy `type: wiki` page written before
+  #305 may have no `verified:` field at all — don't invent a date; say the age is unknown
+  instead of silently omitting the hedge.
 - **Never modify existing files**: this agent has no access to the Write tool. Do not overwrite or append to existing files.
 - **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests session-note / plan creation, return a draft text and instruct the user to invoke `/save-session` (which runs inline in main context).
 - **Vault only**: Never access paths outside `~/vault/`. No `~/dev/`, no project directories outside vault.

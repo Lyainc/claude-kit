@@ -55,7 +55,7 @@ A distill proposal NEVER carries the placement slots (the classification grid) p
 
 - **Tier is inferred by the engine from what/why, never supplied.** The proposal does not
   carry an enforceability/tier hint. Whether a rule is *deterministically guardable* (→ a
-  hook) or *something a human must be reminded of* (→ CLAUDE.md) is judged by the engine
+  hook) or *something a human must be reminded of* (→ reminder) is judged by the engine
   from the rule's **content**. This is not a missing input — it is the engine's designed
   responsibility: the user is not asked to name an axis; the tool infers it.
 - **The inviolability judgment is respected, not re-made.** The judgment "is X
@@ -72,9 +72,9 @@ validated default so the engine is not an empty shell, but it is meant to be ada
 user's rule falls into exactly one, independent of who fills it in):
 
 - **judgment** — what you *decide/assess* (e.g. "don't agree without evidence"). Pure
-  judgment/honesty rules usually live in a CLAUDE.md persona block, not a guard.
-- **expression** — how you *say/phrase* things (tone, address, wording). Lives in a
-  CLAUDE.md voice block.
+  judgment/honesty rules usually live in the reminder site's persona block, not a guard.
+- **expression** — how you *say/phrase* things (tone, address, wording). Lives in the
+  reminder site's voice block.
 - **work-rule** — how you *do the work* (e.g. "run Python through the project's runner",
   "leave deletes recoverable"). The most landfill-shaped layer.
 
@@ -208,7 +208,8 @@ missing directory the same as "no existing skills found" (nothing to conflict wi
 ## 6. Conflict check (target = the landfill site's current rules)
 
 **New site (no prior conflict possible)**: check whether the target file **exists** first —
-`[ -f "$TARGET" ]`, the same deterministic check §5 uses for the skill site — never infer
+`[ -f "$TARGET" ]`, the same existence-check principle §5 uses for the skill site (there a
+directory, `[ -d "$HOME/.claude/skills" ]`) — never infer
 "missing" from a read *error*, since a read can fail for reasons other than absence
 (permissions, a transient tool error), and misdiagnosing one of those as "missing" would skip
 the conflict check and **overwrite existing content** instead of appending to it. If the

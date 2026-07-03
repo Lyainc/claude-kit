@@ -171,6 +171,7 @@ def _self_test() -> int:
 
     # On the pre-G28 fixture, every rules/fallback/hardcode claim must be absent.
     for check in (
+        check_stance_voice_to_claude_md,
         check_workrule_to_rules,
         check_vanilla_fallback,
         check_no_hardcode,
