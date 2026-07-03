@@ -59,7 +59,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 > vault가 아닌 목적지(`repo_path`·`stdout`·`local_ephemeral`·`github`)는 CON-1 게이트 대상이 아니에요. 특히 `/handoff`는 vault를 **안 건드리고** 로컬 gitignored `resume.md` 또는 stdout만 산출하므로 `gated`가 아니라 `success`예요(§2 #4 주의). (`/handoff`는 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, 이 레포 외부.)
 
-> **START-PROMPT는 native `/goal` 평가자 입력 (#285)**: retired `/handoff`(row #4)·`/save-session`(row #5)이 산출하던 다음-세션 인계 산출물 = START-PROMPT는 이제 session-close ④(이 레포 외부)가 저작하고, native `/goal` 평가자가 소비해요. 표준 정본·경계 anchor는 #285 + `claude-kit-boundary.md` §2.5.
+> **START-PROMPT는 native `/goal` 평가자 입력 (#285)**: retired `/handoff`(row #4)·`/save-session`(row #5)이 산출하던 다음-세션 인계 산출물 = START-PROMPT는 이제 session-close ④(이 레포 외부)가 저작하고, native `/goal` 평가자가 소비해요. 표준 정본·경계 anchor는 #285 + `claude-kit-boundary.md` §2.5. 무인 실행 중 비가역 액션의 on-the-loop 게이트는 #309 P3 + `claude-kit-boundary.md` §2.5-1.
 
 ---
 
