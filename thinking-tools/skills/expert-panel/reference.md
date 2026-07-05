@@ -6,6 +6,7 @@
 
 - [Phase 0: 토론 준비 (상세)](#phase-0-토론-준비-상세)
 - [Phase 1: 토픽별 라운드 진행 (상세)](#phase-1-토픽별-라운드-진행-상세)
+- [STATE Block 복원 상세](#state-block-복원-상세)
 - [Phase 2: 기록 관리 (상세)](#phase-2-기록-관리-상세)
 - [Phase 3: 모더레이터 권한 (상세)](#phase-3-모더레이터-권한-상세)
 - [Output Structure](#output-structure)
@@ -169,6 +170,32 @@
 - 합의 도달 (반대 1명 이하)
 - 모더레이터가 논의에 발전이 없다고 판단
 - 구조적 한계 인정 → 미해결 이슈로 이관
+
+---
+
+## STATE Block 복원 상세
+
+SKILL.md의 STATE Block Contract에서 참조됨 — 필드별 write/read 지점, 격리 모드의 다중 라운드 추적, compaction 복원 기본값을 정의한다. 블록 템플릿과 core rules는 SKILL.md / [`../../reference/state-contract.md`](../../reference/state-contract.md) 참조. 압축된 격리 모드 세션을 재개하기 전에 이 섹션을 로드한다.
+
+**Field write/read points**:
+- `Mode` — set at Phase 0 (mode detection); read at Phase 2 item 1 (transcript skip in summary-only mode).
+- `Independent` — updated during Phase 1 Independent Statements; `k==N` means collection complete (single format; no separate "complete" token).
+- `Rebuttal` (isolated mode only) — topic `n`, exchange index `e{i}` (`e1` = independent, `e2`/`e3` = up to 2 rebuttal exchanges), and `{k}/{N}` experts collected in the current exchange — updated after each expert is collected, so `k` may be partial mid-exchange (e.g. `e1:1/3` after the first of three). Bounded counters only — never statement prose. Empty/omitted in inline mode. In isolated mode the `Rebuttal` cursor is the authoritative loop-position source — recorded in the STATE block in **all** modes (including isolated + summary-only, since it is not a transcript); `Independent` is the inline-mode tracker and only a redundant mirror at `e1`. On any divergence (e.g. a partial write interrupted by compaction), `Rebuttal` wins (it also distinguishes `e2`/`e3`).
+- `Citation` — written per topic after the vault-searcher call attempt (or inline fallback). Three values: `grounded` = at least one expert cited a source for a numeric/factual claim; `unverified` = grounding *was available* (vault-searcher reachable, or an in-scope doc) and consulted, but no source was found / experts fell back to inline judgment despite availability; `skipped` = vault-searcher was *unavailable* (not installed / Agent call failed) so grounding was never attempted — inline fallback, behavior identical to pre-grounding. Read by the escalation signal: a topic with consensus AND `Citation: unverified` is escalated/deepened rather than marked easy; `grounded` and `skipped` never escalate (see SKILL.md → Citation Contract).
+- `Votes` — populated only by the Tie-Breaking Mechanism (after round 3); empty before tie-break.
+- `Topic-status` — closed enum, exactly these 6 values; no free-text. `tie-broken` = resolved via the Tie-Breaking Mechanism (weighted vote always yields a winner; a margin < 2 is recorded as "Conditional" in SUMMARY.md but the status stays `tie-broken`). There is no separate `deadlock` value — the vote is total, so a topic never ends unresolved.
+
+**Multi-round support (isolated mode) — verified**: the block tracks two nested loops, and isolated-mode multi-round debate is fully supported by them:
+- *Outer loop* = topic rounds, located by `Round: {r}/3` (the 3-round ceiling — see SKILL.md → Round Limits).
+- *Inner loop* = the isolated-mode exchange loop inside one round's Q&A/Rebuttal step, located by `Rebuttal: [t{n}:e{i}:{k}/{N}]`.
+
+The `Rebuttal` cursor intentionally carries only topic index `t{n}` + exchange index `e{i}` — **not** the round index `r`. It does not need one: the exchange loop re-enters fresh at `e1` every new topic round (independent statements are re-collected per round, preserving anti-anchoring), so the pair `(Round={r}, Rebuttal=[t{n}:e{i}:…])` — both fields in the same STATE block — uniquely locates the loop position across rounds. On compaction restore, read `Round` for the topic-round position and `Rebuttal` for the in-progress exchange; together they resume multi-round isolated debate without ambiguity. (Single-round and inline modes use the same fields; inline simply leaves `Rebuttal` empty.)
+
+**Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
+Topic-status → `pending`; Votes → treat as no-vote / no-consensus; Independent → `0` (re-collect, preserves anti-anchoring);
+Mode flags → both `off` (full output — over-producing transcripts is safer than losing user content);
+Citation → `skipped` (a missing citation state most often means grounding was never attempted this session — e.g. no vault-bridge — so defaulting to `skipped` avoids spuriously escalating every restored topic; if vault-searcher IS available this session, re-attempt grounding on the resumed topic instead of trusting the default).
+In isolated mode the in-progress exchange is restored from the `Rebuttal` cursor — NOT from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode, so they do not exist mid-loop). When `Rebuttal` shows `e{i}` with `i>=2`, independent collection is already complete: do NOT apply the `Independent → 0` re-collect default above (that default applies only while the loop is still at `e1`) — re-running E1 would discard completed rebuttal progress. Conversely, when `Rebuttal` shows `e1`, independent collection is still in progress, so the `Independent → 0` re-collect default applies as usual — any partial e1 statements are re-collected from scratch, preserving anti-anchoring.
 
 ---
 
