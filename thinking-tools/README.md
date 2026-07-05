@@ -23,7 +23,6 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `doc-polish` | Validate and improve existing MD docs — 3-layer QA (Editor) | 검사해줘, 다듬어줘, polish, lint |
 | `expert-panel` | Expert panel discussions with dialectical analysis | expert panel, design review, 전문가 토론 |
 | `unknown-discovery` | Discover blind spots through Socratic interviews | 맹점, 놓친 것, blind spot, 심층 인터뷰 |
-| `thought-chain` | Orchestrate multiple skills into a sequential pipeline ([rationale](docs/thought-chain-rationale.md)) | thought chain, 종합 분석, 전체 파이프라인 |
 | `adversarial-review` | Stress-test claims with 1:1 attack rounds and Survival Score | 반증, 공격, 검증, adversarial review, 주장 반박 |
 | `build-spec` | Crystallize vague ideas into machine-readable Seed specs via Socratic interview + Ambiguity gating | 스펙 구체화, build spec, seed 스펙, 모호함 해소 |
 
