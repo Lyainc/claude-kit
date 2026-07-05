@@ -1,4 +1,4 @@
-# Spec First — Creative Domain Question Bank
+# Build Spec — Creative Domain Question Bank
 
 Use these as the basis for Phase 1 interview questions in creative projects.
 Select the most relevant question per dimension per round. Adapt to user's specific context.

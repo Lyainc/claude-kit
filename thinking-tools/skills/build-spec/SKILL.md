@@ -1,17 +1,17 @@
 ---
-name: spec-first
+name: build-spec
 description: |
   Crystallize vague ideas into machine-readable Seed specs via Socratic interview
   and Ambiguity gating. Vendor-neutral, spec-driven workflow.
 
-  Trigger when user mentions: spec-first, 명세 만들기, 아이디어를 스펙으로, 요구사항 명확화, 아이디어를 명세로,
+  Trigger when user mentions: build-spec, 명세 만들기, 아이디어를 스펙으로, 요구사항 명확화, 아이디어를 명세로,
   seed 생성, ambiguity gate, requirements crystallize.
-  Routing: 단순 문서 구체화는 doc-concretize, YAML Seed 스펙이 필요할 때만 spec-first.
+  Routing: 단순 문서 구체화는 doc-concretize, YAML Seed 스펙이 필요할 때만 build-spec.
 allowed-tools: AskUserQuestion Read Write Glob
 model: sonnet
 ---
 
-# Spec First
+# Build Spec
 
 ## Language Behavior
 
@@ -25,7 +25,7 @@ model: sonnet
 | Skill | Mode | When |
 |-------|------|------|
 | unknown-discovery | Diagnostic — find blind spots in existing plans | Plan/idea already exists |
-| **spec-first** | **Constructive — clarify vague idea into structured spec** | **No plan yet** |
+| **build-spec** | **Constructive — clarify vague idea into structured spec** | **No plan yet** |
 | diverse-sampling | Creative — generate diverse alternatives | Exploring multiple directions |
 | expert-panel | Evaluative — multi-perspective debate | Options exist, need judgment |
 | adversarial-review | Attack — stress-test a specific claim | Claim/proposal exists |
@@ -76,7 +76,7 @@ Quick Mode output format:
      - e.g. "이 플러그인 레포에 기능 추가하려고" / "~/projects/foo 프로젝트에" → brownfield detected
      - but "이 login.ts 동작을 명세로" → a single source file, not a repo root → greenfield default
    - If no files found → greenfield default (no question)
-3. **Maturity**: always starts at Idea level (the point of spec-first is to move from idea to spec)
+3. **Maturity**: always starts at Idea level (the point of build-spec is to move from idea to spec)
 4. **Set dimension weights** (see Ambiguity Scoring below)
 5. **Load question template** based on domain: `templates/questions/{domain}.md`
 
@@ -162,11 +162,11 @@ When gate opens OR user explicitly exits:
 
 ### Phase 4: Handoff (out of scope)
 
-The Seed YAML is the terminal deliverable. spec-first crystallizes *what* to build
+The Seed YAML is the terminal deliverable. build-spec crystallizes *what* to build
 (goal / constraints / success-criteria); *how* to build it — slice ordering, execution
 loop, E2E verification — belongs to whatever tool consumes the Seed. The Seed is a
 portable, vendor-neutral artifact: hand it to an agent, a build loop, or a human
-implementer. spec-first does not invoke or assume any specific execution runtime.
+implementer. build-spec does not invoke or assume any specific execution runtime.
 
 ## Termination Conditions
 
@@ -190,7 +190,7 @@ Output a STATE block after every interview round and at every gate check.
 
 ```
 <!-- STATE:CHECKPOINT -->
-skill: spec-first
+skill: build-spec
 phase: {0|1|2|3|4}
 target: {name} | domain: {tech|biz|creative} | brownfield: {true|false}
 round: {N} | refine_generation: {N or 0}
@@ -243,7 +243,7 @@ scoring_rationale:
 {list}
 
 ───
-*spec-first 완료 · Round {N}*
+*build-spec 완료 · Round {N}*
 ```
 
 ## Known Limitations

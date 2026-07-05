@@ -10,7 +10,7 @@ description: |
 
   Trigger when user mentions: 구체화, 문서화, 체계적 정리, 개념 정리, 아이디어 문서화, 글로 정리,
   doc-concretize, concretize, "이 개념을 문서로 정리해줘".
-  Routing: 기존 MD 파일 개선은 doc-polish, YAML 스펙 생성은 spec-first.
+  Routing: 기존 MD 파일 개선은 doc-polish, YAML 스펙 생성은 build-spec.
 allowed-tools: Read Write AskUserQuestion WebFetch
 ---
 

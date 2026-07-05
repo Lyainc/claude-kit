@@ -29,7 +29,7 @@
         "thought-chain",
         "thinking-facilitator",
         "adversarial-review",
-        "spec-first"
+        "build-spec"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",

@@ -2,7 +2,7 @@
 
 **Status**: design (decision · accepted) · **Created**: 2026-06-04 · **Issue**: #102 · **Epic**: #108
 **선행**: #99(`docs/design/claude-kit-boundary.md` — 경계 A·CON-5·leaf vendor-neutral) · #100(`docs/design/goal-doc-spec.md` — work_type) · #101(`docs/design/output-adapter-contract.md` — 직계 입력, §5.1 #102 경계)
-**하류 소비처**: #103(doc-concretize/doc-polish 행선지 U-1) · #124(diverse-sampling Mode B 호출 경로, #103 경유 2차) · #111-4(spec-first 물리 분리) · #138(mirror drift 가드 위치) · issue-authoring 빌드 위치
+**하류 소비처**: #103(doc-concretize/doc-polish 행선지 U-1) · #124(diverse-sampling Mode B 호출 경로, #103 경유 2차) · #111-4(build-spec 물리 분리) · #138(mirror drift 가드 위치) · issue-authoring 빌드 위치
 **Source**: `docs/discussions/20260602_claude-kit-layer-redesign/UNRESOLVED.md` U-2/U-1 · `SUMMARY.md` C-2/C-5 · `docs/plans/goal-docs/G2-goal-doc-output-contract.md` 쟁점 표
 
 > **위치(물리 구조만)**: 이 ADR은 ②(결정화·출력) 레이어의 **물리 구조만** 결정해요. 출력 자산을 *어떻게 균일하게 호출하는지*의 **논리 계약**은 #101이 이미 닫았고(`output-adapter-contract.md` §5.1 — 어댑터 계약은 구조 독립적, #102 어느 결과에도 불변), 이 ADR은 그걸 입력으로 받아 *물리 귀속*만 확정해요. 헌법(CON-*)/정책(POL-*) 규칙은 `claude-kit-boundary.md`가 단일 출처고, 이 문서는 **참조만** 하고 재정의하지 않아요.
@@ -19,11 +19,11 @@
 |------------|---------------|--------|------------------|
 | graphify(html) | **user-level 스킬** (`~/.claude/skills/graphify/`, claude-kit 마켓플레이스 **미등록**) | 시각화 | *이동 아님* — 신규 채택 여부라는 별개 결정 |
 | OVM note | obsidian-vault-manager (vault 도메인 플러그인) | vault 지식 | 도메인 분리 이동 (note↔vault 응집 파괴) |
-| spec-first / doc-concretize / doc-polish | thinking-tools (인지 플러그인) | 인지·저작 | thinking-tools에서 추출 (이미 한 곳) |
+| build-spec / doc-concretize / doc-polish | thinking-tools (인지 플러그인) | 인지·저작 | thinking-tools에서 추출 (이미 한 곳) |
 | handoff / save-session | vault-bridge 커맨드 | 세션·딜리버리 (#101 §2: ③ 딜리버리·vault 운반) | *② 아님* — ③ 결합이라 ② 통합 부적합 |
 | gh(issue) | 외부 CLI | GitHub (전송=gh 외부 / 본문 *저작*=issue-authoring ② leaf, #133) | *이동 아님* — 외부 전송 도구 |
 
-> **이동 대상의 실제 범위 (정직성)**: claude-kit 마켓플레이스 플러그인은 **3개**(thinking-tools · obsidian-vault-manager · vault-bridge)뿐이에요. graphify는 user-level 스킬이라 단일 통합 시 "이동"이 아니라 "신규 채택"이고, gh는 외부 도구, handoff/save-session은 #101 §2가 vault-bridge 커맨드/③ 딜리버리로 귀속해요. 즉 단일화의 *실질 이동 대상*은 thinking-tools의 doc-concretize/doc-polish/spec-first(± OVM note) 정도로 좁아요. 이 좁은 집합이 §2.2 단일 반증의 정직한 입력이에요 — 비용은 "5곳 통합"보다 작지만, *바로 그 좁음*이 C-2 위반으로 이어진다는 게 §2.2의 핵심이에요.
+> **이동 대상의 실제 범위 (정직성)**: claude-kit 마켓플레이스 플러그인은 **3개**(thinking-tools · obsidian-vault-manager · vault-bridge)뿐이에요. graphify는 user-level 스킬이라 단일 통합 시 "이동"이 아니라 "신규 채택"이고, gh는 외부 도구, handoff/save-session은 #101 §2가 vault-bridge 커맨드/③ 딜리버리로 귀속해요. 즉 단일화의 *실질 이동 대상*은 thinking-tools의 doc-concretize/doc-polish/build-spec(± OVM note) 정도로 좁아요. 이 좁은 집합이 §2.2 단일 반증의 정직한 입력이에요 — 비용은 "5곳 통합"보다 작지만, *바로 그 좁음*이 C-2 위반으로 이어진다는 게 §2.2의 핵심이에요.
 
 work_type = decision-only예요 → 산출 = **결정 + 근거 ADR, 코드 없음**(#102 Acceptance: "결정 + 근거 ADR"). 이 ADR이 실행(파일 이동·스캐폴딩)을 하는 게 아니라 *어느 물리 구조를 채택할지*만 못박아요.
 
@@ -33,9 +33,9 @@ work_type = decision-only예요 → 산출 = **결정 + 근거 ADR, 코드 없�
 
 | 선택지 | 정의 | 장점 | 단점 |
 |--------|------|------|------|
-| **1. 단일 플러그인** | ② 출력 자산을 신규 단일 "output" 플러그인으로 물리 통합 | A) 런타임 호출 균일성 — 단 #101 §5.1이 이미 구조 독립으로 충족(§2.2). B) **소스 co-location/유지보수 응집**(한 디렉토리 발견·편집, 매니페스트·버전·trigger 한 곳 관리) — 단일이 실제로 주는 별개 이점(§2.2 인정 후 기각) | 실질 이동 대상(thinking-tools의 doc-*/spec-first ± OVM note) 추출 + 도메인 응집 파괴(note↔vault, doc-*↔인지 코어) + 새 마켓 엔트리. **결정타**: 비용 줄이려 좁게 추출할수록(doc-*/spec-first만) 정확히 **C-2가 금지한 thin doc-tools 플러그인**(약한 응집)이 됨 — 비용 최소화 ≡ C-2 위반(§2.2) |
+| **1. 단일 플러그인** | ② 출력 자산을 신규 단일 "output" 플러그인으로 물리 통합 | A) 런타임 호출 균일성 — 단 #101 §5.1이 이미 구조 독립으로 충족(§2.2). B) **소스 co-location/유지보수 응집**(한 디렉토리 발견·편집, 매니페스트·버전·trigger 한 곳 관리) — 단일이 실제로 주는 별개 이점(§2.2 인정 후 기각) | 실질 이동 대상(thinking-tools의 doc-*/build-spec ± OVM note) 추출 + 도메인 응집 파괴(note↔vault, doc-*↔인지 코어) + 새 마켓 엔트리. **결정타**: 비용 줄이려 좁게 추출할수록(doc-*/build-spec만) 정확히 **C-2가 금지한 thin doc-tools 플러그인**(약한 응집)이 됨 — 비용 최소화 ≡ C-2 위반(§2.2) |
 | **2. 분산 (논리 계약)** | 기존 자산을 각자 도메인 플러그인에 유지. "출력 레이어"의 실체 = 물리 플러그인이 아니라 #101 논리적 어댑터 계약(균일 호출 인터페이스) | 재배치 비용 0 · **C-2(thin 금지) 정합** · C-5 정합 · 도메인 응집 보존 | "출력 레이어"가 물리적으로 안 보여 발견성/응집이 약함(완화: #101 어댑터 계약 doc이 논리적 단일 진입점, /goal 슬라이스 바인딩이 스킬을 *이름*으로 호출하므로 물리 위치는 발견성과 무관) |
-| **3. OVM-fold (전체)** | ② 출력 자산을 obsidian-vault-manager에 **전체 흡수**(whole-layer fold) | 기존 플러그인 재사용(신설 0) | html(graphify)·YAML Seed(spec-first)를 vault 도메인에 넣으면 경계 붕괴 — #102가 닫는 건 이 *전체* fold뿐. ※ doc-* **부분** md-fold는 option 3이 아니라 분산의 sub-variant(§2.3)이고 #103이 자산 도메인 적합성으로 정함 — 여기서 선결정 안 함 |
+| **3. OVM-fold (전체)** | ② 출력 자산을 obsidian-vault-manager에 **전체 흡수**(whole-layer fold) | 기존 플러그인 재사용(신설 0) | html(graphify)·YAML Seed(build-spec)를 vault 도메인에 넣으면 경계 붕괴 — #102가 닫는 건 이 *전체* fold뿐. ※ doc-* **부분** md-fold는 option 3이 아니라 분산의 sub-variant(§2.3)이고 #103이 자산 도메인 적합성으로 정함 — 여기서 선결정 안 함 |
 
 ---
 
@@ -58,7 +58,7 @@ work_type = decision-only예요 → 산출 = **결정 + 근거 ADR, 코드 없�
 - **축 A — 런타임 호출 균일성**: #101 §5.1이 "어댑터 계약은 구조 독립적"으로 못박아 *논리 계약으로 이미 충족*돼요. 물리 통합 없이도 라우터(#122)는 균일 호출이 가능해요(4-튜플 입력·2-튜플 출력은 스킬이 어느 플러그인에 살든 불변). 발견성도 무관해요 — /goal 바인딩이 스킬을 *이름*으로 가리키거든요. **이 축에선 단일이 줄 게 없어요.**
 - **축 B — 소스 co-location/유지보수 응집**: 기여자가 ② 자산을 한 디렉토리에서 발견·편집하고 매니페스트·버전·trigger 회귀를 한 곳에서 관리하는 이점. **이건 #101이 충족 못 하는 별개 축이고, 단일이 실제로 줘요.** ADR이 이걸 "이동 비용"으로만 계상하고 "도착 후 이점"으로 인정 안 하면 over-claim이에요 — 그래서 여기서 인정해요.
 
-그런데도 단일이 지는 이유는 **축 B의 이득이 C-2에 걸려 실현 불가**하기 때문이에요. §0에서 봤듯 실 이동 대상은 thinking-tools의 doc-*/spec-first(± note)로 좁아요(graphify=user-level 스킬·gh=외부·handoff/save-session=③). 그런데 이동 비용을 줄이려고 단일을 *좁게* 뽑을수록(doc-*/spec-first만) 그게 정확히 **C-2가 만장일치로 금지한 "thin 2-스킬 doc-tools 플러그인(약한 응집)"**이 돼요 — 즉 **비용 최소화 ≡ C-2 위반**이 같은 방향이에요. 게다가 축 B로 얻는 응집은 *약한 응집*(html·yaml·md·note가 한 칸에 어색하게 모인)이고, 잃는 응집은 *강한 응집*(note↔vault 도메인, doc-*↔① 인지 코어)이라 순손실이에요. → **단일 패배 — load-bearing 근거는 C-2(약한 응집), C-5는 보조**.
+그런데도 단일이 지는 이유는 **축 B의 이득이 C-2에 걸려 실현 불가**하기 때문이에요. §0에서 봤듯 실 이동 대상은 thinking-tools의 doc-*/build-spec(± note)로 좁아요(graphify=user-level 스킬·gh=외부·handoff/save-session=③). 그런데 이동 비용을 줄이려고 단일을 *좁게* 뽑을수록(doc-*/build-spec만) 그게 정확히 **C-2가 만장일치로 금지한 "thin 2-스킬 doc-tools 플러그인(약한 응집)"**이 돼요 — 즉 **비용 최소화 ≡ C-2 위반**이 같은 방향이에요. 게다가 축 B로 얻는 응집은 *약한 응집*(html·yaml·md·note가 한 칸에 어색하게 모인)이고, 잃는 응집은 *강한 응집*(note↔vault 도메인, doc-*↔① 인지 코어)이라 순손실이에요. → **단일 패배 — load-bearing 근거는 C-2(약한 응집), C-5는 보조**.
 
 ### 2.3 OVM-fold 반증 — 전체 fold vs 부분 fold 분리
 
@@ -66,7 +66,7 @@ OVM-fold는 두 형태로 갈라야 정직해요 — 전체 fold와 doc-* 부분
 
 **먼저 사실 인정**: OVM은 *이미* ② 출력 leaf를 호스트해요 — note는 `boundary` line 25·#101 §2 #2에서 ②출력 leaf로 확정돼 있는데 OVM에 살거든요. 그러니 "OVM=vault 도메인 only, ②는 못 들어옴"이라는 범주 벽은 프로젝트 자체 설계로 이미 뚫려 있어요. md-authoring에 한정하면 `boundary` §4 file-over-app("지식은 plain Markdown에 상주")과 OVM note의 구조화 md 저작 core는 doc-concretize와 *겹치기*까지 해요. 그래서 "도메인 불일치"를 *전면* 단정하는 건 부정확해요(U-1 원문도 "불일치 *가능*"이지 확정이 아님).
 
-- **(3a) 전체 fold** — graphify(html)·spec-first(YAML Seed)까지 vault 도메인에 흡수. 이건 명백히 도메인 경계 붕괴라 **#102가 기각**해요. 누구도 html/yaml을 vault에 넣자고 하지 않으니 이게 option 3의 실 패배 지점이에요.
+- **(3a) 전체 fold** — graphify(html)·build-spec(YAML Seed)까지 vault 도메인에 흡수. 이건 명백히 도메인 경계 붕괴라 **#102가 기각**해요. 누구도 html/yaml을 vault에 넣자고 하지 않으니 이게 option 3의 실 패배 지점이에요.
 - **(3b) 부분 md-fold** — doc-concretize/doc-polish만 OVM으로. 이건 option 3(전체 fold)이 *아니라* 분산의 sub-variant(자산이 신규 monolith가 아니라 기존 도메인 플러그인에 사는 건 동일)지만, doc-*에 대해선 **기각**해요. 비대칭이 fold가 아니라 잔류를 가리키거든요: note는 destination=vault(CON-1 gated)라 진짜 vault-resident지만, doc-*는 destination=repo_path(#101 §2 #6/#7, non-gated)라 OVM이 호스트하는 *vault-destined ②*에 안 맞아요. 게다가 doc-concretize는 ① 인지 코어 결합(C-2 "구조화 저작")이라 ④/vault로 빼면 코어가 단절돼요. → doc-* 행선지는 §2.5에서 **in-place reframe**으로 지정.
 
 > **CON-1 논거 정정**: "repo-local 출력은 vault write가 아니라 CON-1 정신 불일치"는 약한 근거예요 — OVM은 *이미* vault write(note, CON-1 gated)와 non-vault 동작(audit)을 한 플러그인에서 운영하고, #101 §1.3이 "vault 아닌 목적지는 CON-1 비대상"을 정상 처리하거든요. 정확한 반박은 "destination 비대칭(vault/repo)이 한 플러그인에 공존하면 fold의 유일 장점인 *응집*이 실현 안 됨"이에요.
@@ -103,7 +103,7 @@ G3 goal-doc(`docs/plans/goal-docs/G3-output-layer-structure.md` line 33)은 "#10
 |------|------|----------------------|------|
 | **#103 (doc-concretize/doc-polish 행선지, U-1)** | U-1 ← U-2 | 분산 확정 → 행선지 **지정: in-place reframe(thinking-tools 잔류, 역할 재정의)**(§2.5; G3 line 58 (a) 권고 정합). 신규 doc-tools 플러그인(C-2 thin 금지)·OVM-fold·물리 이동 모두 기각(회귀 위험↑·가치↓). 비대칭: concretize=구조화 저작(① 인지 코어 결합) · polish=md 린트라 같은 칸 금지. #103은 SKILL.md description reframe + thought-chain 링크/매니페스트 검증만 실행 | **unblocked — 행선지 1곳 확정(G3 DoD line 33 충족)** |
 | **#124 (diverse-sampling Mode B → doc-concretize 하위호출 경로)** | #102 → #103 (2차 의존) | 분산 + #103 in-place reframe → diverse-sampling→doc-concretize가 **intra-plugin Skill 호출**(둘 다 thinking-tools)이라 #124 크로스플러그인 의존 우려 *소멸*(G3 쟁점표 line 60). 단 호출 경로 라인은 #103 행선지 확정값에 종속(머지 후 박제)이라 **#102 직접 게이트 아님 — #103 경유 2차 의존** | **대기 — #103 머지 후 경로 확정(placeholder 미잔존 검증)** |
-| **#111-4 (spec-first 물리 분리)** | #102 | 분산/흡수 결정 → standalone 플러그인 신설 = 껍데기 → **폐기**(G2 쟁점 표 #111-4: "분산/흡수면 폐기"; (b)보류 → 폐기 확정). spec-first는 현 위치(`thinking-tools/skills/spec-first`) 유지, plugin.json/marketplace.json 등록·디렉토리 레이아웃·버전 동기화 불필요 | **폐기 확정 — 게이트 해소** |
+| **#111-4 (build-spec 물리 분리)** | #102 | 분산/흡수 결정 → standalone 플러그인 신설 = 껍데기 → **폐기**(G2 쟁점 표 #111-4: "분산/흡수면 폐기"; (b)보류 → 폐기 확정). build-spec는 현 위치(`thinking-tools/skills/build-spec`) 유지, plugin.json/marketplace.json 등록·디렉토리 레이아웃·버전 동기화 불필요 | **폐기 확정 — 게이트 해소** |
 | **#138 (mirror drift 가드 위치)** | #102(논리적 영향) · 형식 Refs #101/#133/#134 | 분산 → issue-authoring 소유권 분할 거울 표가 `output-adapter-contract.md` §5.2 · `execution-skill-inventory.md` §4 두 doc에 물리 분산 유지 → grep 기반 drift 가드가 적합(CLAUDE.md Validation 또는 #134 게이트 체인 흡수). 단일 통합이었다면 한 doc에 합쳐 가드가 불필요했을 수 — 분산이 가드 필요를 *확정* | **unblocked — 가드 = 분산 doc 간 grep** |
 | **issue-authoring 빌드 위치** | #102 + #133(② 귀속 firm) | 분산 → ② 출력 leaf 귀속은 #133 firm이나 *물리적으로 어느 플러그인에 빌드*할지는 thin 신규 금지(C-2) 하에 기존 ② 도메인 플러그인 후보로 별도 후속 결정. #133=귀속 판정만, 빌드 위치=미정 | **대기 — 빌드 시 위치 후속(C-2 적용)** |
 

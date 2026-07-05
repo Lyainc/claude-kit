@@ -20,7 +20,7 @@
     "thought-chain",
     "thinking-facilitator",
     "adversarial-review",
-    "spec-first"
+    "build-spec"
   ],
   "hooks": {
     "SessionStart": [

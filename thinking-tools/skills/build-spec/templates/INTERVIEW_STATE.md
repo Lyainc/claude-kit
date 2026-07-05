@@ -1,4 +1,4 @@
-# Spec First — Interview State Template
+# Build Spec — Interview State Template
 
 ## Usage
 
@@ -16,7 +16,7 @@ Restore by reading this file at the start of a new session.
 
 ```
 <!-- STATE:CHECKPOINT -->
-skill: spec-first
+skill: build-spec
 phase: {0|1|2|3|4}
 target: {name} | domain: {tech|biz|creative} | brownfield: {true|false}
 round: {N} | refine_generation: {0|N}
@@ -36,7 +36,7 @@ When saving to file (`docs/specs/{target}/state.md`):
 
 ```markdown
 ---
-skill: spec-first
+skill: build-spec
 target: {name}
 domain: {tech|biz|creative}
 saved_at: {ISO-datetime}

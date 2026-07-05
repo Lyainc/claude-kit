@@ -40,7 +40,7 @@ printf '%d' "$((count + 1))" > "$counter_file" 2>/dev/null || true
 # when it fits (fresh session / "뭐 할 수 있어?"), which also honors the design's
 # "no forced action" principle. Static text, no double-quotes → hand-written JSON,
 # no jq dependency.
-msg='{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"[claude-kit onboarding hint] claude-kit plugins are installed. If this session is starting fresh without a specific task, or the user asks what they can do, briefly surface these work-flow entry points to the user in Korean (do NOT force it if they already have a task in hand): 사고·기획 → spec-first, diverse-sampling, unknown-discovery; 검토·반증 → expert-panel, adversarial-review, doc-polish; 기록·지식관리 → /save-session, capture, note. Full table: README 무엇부터 써볼까 섹션. The user can silence this with CLAUDE_KIT_WELCOME_DISABLE=1."}}'
+msg='{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"[claude-kit onboarding hint] claude-kit plugins are installed. If this session is starting fresh without a specific task, or the user asks what they can do, briefly surface these work-flow entry points to the user in Korean (do NOT force it if they already have a task in hand): 사고·기획 → build-spec, diverse-sampling, unknown-discovery; 검토·반증 → expert-panel, adversarial-review, doc-polish; 기록·지식관리 → /save-session, capture, note. Full table: README 무엇부터 써볼까 섹션. The user can silence this with CLAUDE_KIT_WELCOME_DISABLE=1."}}'
 printf '%s\n' "$msg"
 
 exit 0

@@ -17,7 +17,7 @@
 
 | 단계/용도 | 후보 스킬 | #133 이슈 분류 |
 |-----------|----------|---------------|
-| spec(명세화) | spec-first | ② 기존 재사용 |
+| spec(명세화) | build-spec | ② 기존 재사용 |
 | impl(구현) | (신설 후보) 또는 native agents | native 우선 판정 |
 | critique(비평) | adversarial-review | ① 기존 재사용 |
 | 디버깅 | debug(5 Whys RCA + 유사 패턴 스캔 + 구조 개선) | 신설 후보 |
@@ -43,7 +43,7 @@
 
 | 단계 | 타겟 | 판정 | native 우선 근거 | 레이어 귀속(NEW 시) |
 |------|------|------|-----------------|---------------------|
-| **spec** | spec-first | **REUSE** | ② 기존 출력 leaf. Socratic 게이트(Ambiguity ≤ 0.2)는 native에 등가 없음 → 재사용이 정답, native 위임 부적합 | (기존 ②) |
+| **spec** | build-spec | **REUSE** | ② 기존 출력 leaf. Socratic 게이트(Ambiguity ≤ 0.2)는 native에 등가 없음 → 재사용이 정답, native 위임 부적합 | (기존 ②) |
 | **impl** | native `executor` agent | **NATIVE** | `executor`는 `substrate` §1 **C3**(19종 named agent 중 명시)에 실재. §3 **C3 = ✅ Full**: `agentType`이 OMC와 동일 레지스트리에서 해석 → `executor` 직접 호출 + 모델 티어 N8 + worktree 격리 N1/N3. claude-kit 신설 0 | — (native, leaf 아님) |
 | **critique** | adversarial-review(claim/설계) + native `code-reviewer`/`verifier`(code diff) | **REUSE(①) + NATIVE** | adversarial-review = ① 기존 leaf(주장 공격·survival verdict). code diff 비평은 native code-reviewer/verifier(C3 ✅). 격리(INV-2/INV-3)는 Gap-INV(#122/#134) 강제 | (기존 ①) |
 | **debug** | native `debugger` agent (1차) / 신설 debug-method(보류) | **NATIVE(기본값) · NEW(gap 미입증 시 보류)** | `debugger`는 `substrate` §1 **C3**(19종 named agent 중 `debugger` 명시)·§2 **N3**(agentType 레지스트리)에 실재 — 추측 아님. stack-trace/RCA 오케스트레이션 커버. "5 Whys RCA 구조화"가 native 대비 gap인지 *미입증* → 기본 NATIVE, NEW는 보류 | ①(인지 — 추론 구조화) |
@@ -65,7 +65,7 @@
 
 | `goal-doc-spec` §3.6 `candidate-or` | 해소된 바인딩 | §3 표기 정합 |
 |----------------------------------|--------------|-------------|
-| spec = `spec-first` | spec-first (REUSE, ② 기존) — 변동 없음 | §3.3 단일 형태 ✅ |
+| spec = `build-spec` | build-spec (REUSE, ② 기존) — 변동 없음 | §3.3 단일 형태 ✅ |
 | impl = `executor\|native(#133)` | **native `executor` agent** (NATIVE 위임, claude-kit 신설 0). `candidate-or`의 `native` 가지 채택 | §3.2 `candidate-or` → resolution ✅ |
 | critique = `adversarial-review\|code-reviewer(#133)` | **payload 타입별 분기**: claim/설계 → adversarial-review(① REUSE); code diff → native `code-reviewer`/`verifier`(NATIVE) | §3.2 `candidate-or` → resolution ✅ |
 

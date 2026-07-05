@@ -92,10 +92,10 @@ native `/goal`은 freeform 완료조건만 평가하고(§2 N2), 구조화 goal-
 
 | 워크타입 | 슬라이스 시퀀스 | 바인딩(예시) |
 |----------|----------------|-------------|
-| 기능개발 full | spec → impl → critique (각 별도 스킬) | spec=spec-first, impl=executor/native agents 위임(#133 판정), critique=code-reviewer/verifier |
+| 기능개발 full | spec → impl → critique (각 별도 스킬) | spec=build-spec, impl=executor/native agents 위임(#133 판정), critique=code-reviewer/verifier |
 | 버그수정 경량 | goal-doc 생략, debug 직행 | debug 스킬(#133) |
 | 의사결정 | 실행 없음 | expert-panel / adversarial-review 산출만 |
-| 문서작성 | 출력 전용 | doc-concretize / doc-polish / spec-first |
+| 문서작성 | 출력 전용 | doc-concretize / doc-polish / build-spec |
 
 > native 위임 우선: impl 등은 #133 스킬 인벤토리가 "native agents·기존 leaf로 충분한지" 먼저 판정 → 충분하면 신설 안 함. 하네스는 *바인딩 결정 로직*만 소유(`test-slice-router.py`로 hermetic 검증 예정 — #122 S2 산출물, 아직 미존재).
 

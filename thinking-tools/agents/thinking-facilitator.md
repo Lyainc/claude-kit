@@ -18,7 +18,7 @@ skills:
   - unknown-discovery
   - thought-chain
   - adversarial-review
-  - spec-first
+  - build-spec
 ---
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
@@ -39,7 +39,7 @@ Analyze user request
 ├── Creative/diversity needed? ───────────────▶ diverse-sampling
 │   (brainstorming, alternatives, ideas)
 │
-├── Vague idea to crystallize into a spec? ────▶ spec-first
+├── Vague idea to crystallize into a spec? ────▶ build-spec
 │   (seed 생성, 명세 만들기, 아이디어 구체화)
 │
 ├── Blind spots/risks to discover? ───────────▶ unknown-discovery
@@ -72,7 +72,7 @@ Analyze user request
 
 | Skill | Strong Signals | Weak Signals |
 |-------|---------------|--------------|
-| spec-first | seed 생성, 명세 만들기, 아이디어 구체화, ambiguity gate | requirements, 스펙으로, 구체화 |
+| build-spec | seed 생성, 명세 만들기, 아이디어 구체화, ambiguity gate | requirements, 스펙으로, 구체화 |
 | diverse-sampling | brainstorming, diverse ideas, VS, alternatives | what's better, options, other ways |
 | unknown-discovery | blind spot, missed items, what's missing | review this, is it okay, any issues |
 | expert-panel | expert discussion, pros/cons, trade-offs | advantages/disadvantages, evaluate, opinions, 단일 주제 평가 |

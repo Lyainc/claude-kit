@@ -1,4 +1,4 @@
-# Spec First — Biz Domain Question Bank
+# Build Spec — Biz Domain Question Bank
 
 Use these as the basis for Phase 1 interview questions in business/product projects.
 Select the most relevant question per dimension per round. Adapt to user's specific context.
