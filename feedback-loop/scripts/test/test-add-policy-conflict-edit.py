@@ -65,9 +65,15 @@ def check_edit_bucket_named(text: str) -> tuple[bool, str]:
 def check_edit_distinct_from_contradiction(text: str) -> tuple[bool, str]:
     """Contradiction must be scoped to exclude an explicit edit request."""
     lower = text.lower()
-    if "contradiction" not in lower:
+    contradiction_pos = lower.find("**contradiction")
+    if contradiction_pos == -1:
         return False, "Contradiction outcome missing entirely"
-    if "not target" not in lower and "not an explicit edit" not in lower and "does not target" not in lower:
+    # Scope to the Contradiction bullet's own text (up to the next top-level bullet),
+    # not the whole document — matches check_edit_bucket_named's next_bullet scoping,
+    # so an unrelated "not target"/"does not target" elsewhere can't false-positive.
+    next_bullet = lower.find("\n- **", contradiction_pos + 1)
+    bullet_text = lower[contradiction_pos:next_bullet] if next_bullet != -1 else lower[contradiction_pos:contradiction_pos + 600]
+    if "not target" not in bullet_text and "not an explicit edit" not in bullet_text and "does not target" not in bullet_text:
         return False, (
             "Contradiction isn't scoped to exclude explicit-edit requests — an edit "
             "request could still be misclassified as a refusal"
@@ -76,9 +82,15 @@ def check_edit_distinct_from_contradiction(text: str) -> tuple[bool, str]:
 
 def check_confirmation_template_lists_edit(text: str) -> tuple[bool, str]:
     """§3's 충돌 confirmation field must enumerate the edit outcome."""
-    if "충돌" not in text:
+    field_pos = text.find("충돌:")
+    if field_pos == -1:
         return False, "충돌 confirmation field missing from the §3 template"
-    if "edits an existing entry" not in text.lower() and "edit" not in text.split("충돌")[-1][:200].lower():
+    # Scope to the 충돌 field's own line, not text.split("충돌")[-1] (the whole
+    # document tail from the LAST occurrence) — a second unrelated "충돌" mention
+    # added anywhere later in the file would otherwise silently validate the wrong text.
+    line_end = text.find("\n", field_pos)
+    field_line = text[field_pos:line_end if line_end != -1 else len(text)].lower()
+    if "edit" not in field_line:
         return False, "충돌 field doesn't enumerate the edit outcome"
     return True, "충돌 field enumerates the edit outcome"
 
