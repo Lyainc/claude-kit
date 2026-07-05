@@ -6,7 +6,7 @@ All thinking-tools skills that produce structured output files should include th
 
 ```yaml
 ---
-skill: <skill-name>           # e.g., spec-first, unknown-discovery, adversarial-review
+skill: <skill-name>           # e.g., build-spec, unknown-discovery, adversarial-review
 schema_version: 1             # bump on breaking changes to this schema
 version: <skill-version>      # from SKILL.md frontmatter
 generated: <ISO-date>         # YYYY-MM-DD
@@ -35,7 +35,7 @@ output:
 
 ## Per-Skill Extensions
 
-### spec-first
+### build-spec
 
 ```yaml
 ambiguity:

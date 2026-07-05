@@ -1,4 +1,4 @@
-# Spec First — Reference
+# Build Spec — Reference
 
 ## 1. Ambiguity Scoring Rubric (A1 — Y/N Checklist)
 

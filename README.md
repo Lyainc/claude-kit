@@ -34,7 +34,7 @@ claude-kit은 이걸 *도구*로 만들어요. **사고**(`thinking-tools`)로 �
 | 내 주장·계획의 약점을 찾고 싶을 때 | `adversarial-review` — 반증 + Survival Score |
 | 결정을 다관점으로 검토하고 싶을 때 | `expert-panel` — 전문가 패널 토론 |
 | 놓친 맹점을 발견하고 싶을 때 | `unknown-discovery` — 블라인드 스팟 인터뷰 |
-| 모호한 생각을 문서·스펙으로 정리할 때 | `doc-concretize` · `spec-first` |
+| 모호한 생각을 문서·스펙으로 정리할 때 | `doc-concretize` · `build-spec` |
 | 다 쓴 문서를 다듬고 싶을 때 | `doc-polish` |
 
 `thinking-facilitator` 에이전트가 요청을 분석해 알맞은 스킬로 자동 안내해요. (여러 스킬을 한 번에 잇고 싶으면 `thought-chain`.)
@@ -88,7 +88,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 | 하려는 일 | 진입점 |
 |---|---|
-| 아이디어 펼치고 스펙으로 굳히기 (사고·기획) | `diverse-sampling` · `spec-first` · `unknown-discovery` |
+| 아이디어 펼치고 스펙으로 굳히기 (사고·기획) | `diverse-sampling` · `build-spec` · `unknown-discovery` |
 | 결과물 검토·반증·다듬기 (작업·폴리싱) | `expert-panel` · `adversarial-review` · `doc-polish` |
 | 작업을 기록·검색으로 남기기 (지식관리) | `/save-session` · `capture` · `note` |
 

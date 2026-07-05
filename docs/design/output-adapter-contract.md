@@ -11,7 +11,7 @@
 
 ## 0. 이 계약이 푸는 문제 — 왜 어댑터인가
 
-claude-kit ②(결정화·출력) 레이어의 출력 자산은 **이질적**이에요. graphify는 다단계 파이프라인 커맨드, `note`/`save-session`은 user-initiated 슬래시 커맨드, doc-concretize/doc-polish/spec-first는 모델 호출 스킬, gh는 셸 CLI예요. 입력도 제각각(폴더 경로 / 토픽 문자열 / 직전 산출물 / 구조화 Seed)이고 출력 목적지도 제각각(repo-local / vault / GitHub / stdout)이에요.
+claude-kit ②(결정화·출력) 레이어의 출력 자산은 **이질적**이에요. graphify는 다단계 파이프라인 커맨드, `note`/`save-session`은 user-initiated 슬래시 커맨드, doc-concretize/doc-polish/build-spec는 모델 호출 스킬, gh는 셸 CLI예요. 입력도 제각각(폴더 경로 / 토픽 문자열 / 직전 산출물 / 구조화 Seed)이고 출력 목적지도 제각각(repo-local / vault / GitHub / stdout)이에요.
 
 goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: <skill>` 한 줄로 가리키는데, **그 바인딩이 가리키는 호출 계약이 없으면 표기법이 공허**해요(G2 배경 §). 그래서 가치는 **신규 스킬이 아니라 "어떤 출력이든 균일하게 호출하는 어댑터 계약"**이에요 — SUMMARY.md **C-5 만장일치**:
 
@@ -36,7 +36,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 > **`intent`×`format`이 "동작×포맷"**: §2 매핑표가 정확히 이 곱집합의 의미 있는 셀만 채워요. `format`이 1차 키, `intent`가 한 포맷 내 분기(md·issue에서만 실분기 발생)예요.
 
-> **`format=goal-doc`의 실제 산출물 주의**: 이 enum 값의 매핑 타겟 spec-first의 실제 산출물은 YAML Seed(`docs/specs/{slug}.yaml`)이지 `goal-doc-spec` 8필드 문서가 아니에요 — *intent 수준* 정합이고, Seed→goal-doc 재프레임은 **#111 소관**이에요(§2 #3 주의 참조). 라우터(#122)는 enum만 보지 말고 §2 #3 주의를 함께 읽어야 해요.
+> **`format=goal-doc`의 실제 산출물 주의**: 이 enum 값의 매핑 타겟 build-spec의 실제 산출물은 YAML Seed(`docs/specs/{slug}.yaml`)이지 `goal-doc-spec` 8필드 문서가 아니에요 — *intent 수준* 정합이고, Seed→goal-doc 재프레임은 **#111 소관**이에요(§2 #3 주의 참조). 라우터(#122)는 enum만 보지 말고 §2 #3 주의를 함께 읽어야 해요.
 
 > **`intent=file-issue` 명명 의도**: 다른 intent 값은 단일 동사형(`visualize`·`capture`·`author`)인데 `file-issue`만 동사+목적어형이에요 — `format=issue`와의 충돌을 피하면서 *기계적 파일링*(gh 생성/종료, §2 #8)을 본문 *저작*(issue-authoring, §4.1)과 구분하려는 의도적 명명이에요.
 
@@ -71,14 +71,14 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 |---|----------|----------|---------------------|--------|--------------|-------------------|--------------|
 | 1 | `html` | `visualize` | **graphify** (`/graphify` 스킬 → AST+의미추출 파이프라인) | ②(graphify html 산출 · ① 인접 §2 주의) | 슬래시 커맨드 + 서브에이전트 fan-out | `repo_path` (`graphify-out/graph.html`+`graph.json`+`GRAPH_REPORT.md`) | `success` |
 | 2 | `note` | `capture` | **OVM note** (`/note` 스킬, evergreen/decision) | ② 출력 leaf (OVM 경유) | user-initiated 슬래시 커맨드 | `vault` (`notes/{slug}.md` 또는 `notes/decision-YYYY-MM-DD-{slug}.md`) | **`gated`** (CON-1) |
-| 3 | `goal-doc` | `crystallize` | **spec-first** (요구사항 결정화) | ② 출력 leaf | 모델 호출 스킬 (Socratic 게이트) | `repo_path` (`docs/specs/{slug}.yaml` Seed) | `success` · **Seed↔goal-doc 재프레임=#111** (§2 주의) |
+| 3 | `goal-doc` | `crystallize` | **build-spec** (요구사항 결정화) | ② 출력 leaf | 모델 호출 스킬 (Socratic 게이트) | `repo_path` (`docs/specs/{slug}.yaml` Seed) | `success` · **Seed↔goal-doc 재프레임=#111** (§2 주의) |
 | 4 | `handoff` | `handoff` | **`/handoff`** (vault-bridge 커맨드 — G26에서 retire, 머신 레벨 `session-close` 스킬로 이관·이 레포 외부) | vault-bridge 커맨드 (로컬 핸드오프 · **vault 비경유** → ③ "vault 운반"에 미해당) | user-initiated 슬래시 커맨드 (`disable-model-invocation`) | `local_ephemeral` (`.claude-kit/vault-bridge/resume.md`, gitignored) 또는 `stdout` | `success` (**vault 미사용 → CON-1 비대상**) |
 | 5 | `session` | `record` | **`/save-session`** (vault-bridge 커맨드) | ③ 딜리버리 (vault 운반) | user-initiated 슬래시 커맨드 | `vault` (`inbox/session-YYYY-MM-DD[-vN].md`) | **`gated`** (CON-1) |
 | 6 | `md` | `author` | **doc-concretize** (신규 MD 구조화 저작) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (임의 `.md`) | `success` |
 | 7 | `md` | `edit` | **doc-polish** (기존 MD 린트·개선, Editor-not-Writer) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (기존 `.md` in-place Edit) | `success` |
 | 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) | 외부 도구 (③ GitHub 딜리버리) | 셸 Bash | `github` (이슈 URL) | `success` · **본문 *저작*은 gap → §4 issue-authoring** |
 
-> **매핑 정직성 주의 (#3 goal-doc=spec-first)**: spec-first의 *실제 산출물*은 요구사항 3요소(`goal`/`constraints`/`success_criteria`)를 담은 **YAML Seed**(`docs/specs/{slug}.yaml`)지, `goal-doc-spec` §1~§2의 frontmatter 8필드+본문 5섹션 **goal-doc이 아니에요**. 매핑 `goal-doc=spec-first`는 *"명세 결정화 출력"이라는 intent 수준* 정합이고, Seed→goal-doc 산출물 재프레임(spec-first를 ② goal-doc 출력 스킬로 포지셔닝/개명할지)은 **#111(spec-first reconcile)의 소관**이에요 — 이 문서는 그걸 **재정의하지 않고 위임만** 해요. 따라서 goal-doc 저작은 §4 net-new gap이 *아니에요*(기존 #111 트랙이 소유).
+> **매핑 정직성 주의 (#3 goal-doc=build-spec)**: build-spec의 *실제 산출물*은 요구사항 3요소(`goal`/`constraints`/`success_criteria`)를 담은 **YAML Seed**(`docs/specs/{slug}.yaml`)지, `goal-doc-spec` §1~§2의 frontmatter 8필드+본문 5섹션 **goal-doc이 아니에요**. 매핑 `goal-doc=build-spec`는 *"명세 결정화 출력"이라는 intent 수준* 정합이고, Seed→goal-doc 산출물 재프레임(build-spec를 ② goal-doc 출력 스킬로 포지셔닝/개명할지)은 **#111(build-spec reconcile)의 소관**이에요 — 이 문서는 그걸 **재정의하지 않고 위임만** 해요. 따라서 goal-doc 저작은 §4 net-new gap이 *아니에요*(기존 #111 트랙이 소유).
 
 > **매핑 정직성 주의 (#1 graphify)**: graphify는 코퍼스→지식그래프 산출이라 ①(인지: 연결 발견)과 ②(출력: html/json) 경계에 걸쳐요. 출력 어댑터 관점에선 `html` 포맷 산출 타겟이고, 산출물(`graph.html`)이 §3 체이닝의 `file` 참조로 흘러요.
 
@@ -134,7 +134,7 @@ C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설*
 
 1:1 정합을 흐리지 않으려고, gap처럼 보이나 net-new가 아닌 항목을 명시 배제해요:
 
-- **goal-doc 저작 (spec-first Seed↔goal-doc)**: §2 #3 주의대로 Seed→goal-doc 재프레임은 **#111의 기존 트랙**이지 #101 신설 gap이 아니에요. spec-first는 이미 존재하는 ② 자산이고, 포지셔닝/개명은 #111이 소유.
+- **goal-doc 저작 (build-spec Seed↔goal-doc)**: §2 #3 주의대로 Seed→goal-doc 재프레임은 **#111의 기존 트랙**이지 #101 신설 gap이 아니에요. build-spec는 이미 존재하는 ② 자산이고, 포지셔닝/개명은 #111이 소유.
 - **debug · quality**(⑤ 실행 스킬 신설 후보): 이건 *출력 포맷* gap이 아니라 **⑤ 실행 스킬** 축이라 #133 소관이에요. 출력 어댑터(이 문서)의 net-new에 안 셈 — 축이 다름(§5.2).
 
 > **결론**: #101 출력-포맷 축의 net-new = **issue-authoring 1건**(≤2 충족, C-5 "≤1-2" 준수). debug/quality는 #133 실행-스킬 축의 별도 후보이고, 두 축이 만나는 유일 지점이 issue(=②, §5.2)예요.
@@ -173,7 +173,7 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 | #101 Acceptance | 충족 위치 |
 |-----------------|----------|
 | **계약 doc** (슬라이스가 출력 스킬을 호출하는 균일 인터페이스: 입력 intent/format/payload/destination, 출력 artifact path + 상태) | §1(4-튜플 입력 + 2-튜플 출력) |
-| **포맷×동작 매트릭스** (html=graphify, note=OVM note, goal-doc=spec-first, handoff=/handoff [G26 retire → 머신 레벨 `session-close`], session=/save-session, md저작=doc-concretize, md편집=doc-polish, issue=gh CLI) | §2(8매핑 표) |
+| **포맷×동작 매트릭스** (html=graphify, note=OVM note, goal-doc=build-spec, handoff=/handoff [G26 retire → 머신 레벨 `session-close`], session=/save-session, md저작=doc-concretize, md편집=doc-polish, issue=gh CLI) | §2(8매핑 표) |
 | **net-new gap 목록**(≤2, 유력 issue-authoring) | §4(issue-authoring 1건 + 명시 배제) |
 | (정합) `goal-doc-spec` §3.5 산출 체이닝 런타임 계약 | §3(`artifact_path(N)→payload(N+1)` + 타입 호환) |
 | (정합) #133 issue-authoring 경계 중복 0 | §5.2(소유권 분할표) |

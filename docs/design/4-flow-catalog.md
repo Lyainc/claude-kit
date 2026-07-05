@@ -18,7 +18,7 @@
 | **지식관리** (Knowledge Management) | 작업 이력을 세션/볼트로 보존 및 검색 | ③딜리버리, ④지식베이스 |
 
 ### 흐름별 대표 기능
-- **사고/기획**: `spec-first`, `diverse-sampling`, `unknown-discovery` 등 (①인지, ②결정화)
+- **사고/기획**: `build-spec`, `diverse-sampling`, `unknown-discovery` 등 (①인지, ②결정화)
 - **작업/폴리싱**: `doc-polish`, `expert-panel`, `adversarial-review` 등 (①인지, ②결정화)
 - **시각화**: `graphify(html)` (계획 — *claude-kit 플러그인에 미수록*; 현재는 사용자 글로벌 스킬로만 존재) 등 (②결정화)
 - **지식관리**: `vault-bridge`, `obsidian-vault-manager` 플러그인의 전체 기능 (③딜리버리, ④지식베이스)

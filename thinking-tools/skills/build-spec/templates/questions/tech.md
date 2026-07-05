@@ -1,4 +1,4 @@
-# Spec First — Tech Domain Question Bank
+# Build Spec — Tech Domain Question Bank
 
 Use these as the basis for Phase 1 interview questions in technical projects.
 Select the most relevant question per dimension per round. Adapt to user's specific context.

@@ -1,4 +1,4 @@
-# Spec First — Examples
+# Build Spec — Examples
 
 ## Example 1: Greenfield Tech — Task CLI Tool
 
@@ -70,7 +70,7 @@ Goal clarity: 0.90 (G2 Y로 전환 → 4/4 = 1.0 → cap 0.90)
 ```yaml
 ---
 # Output conforms to thinking-tools/reference/common-schema.md
-skill: spec-first
+skill: build-spec
 schema_version: 1
 version: 0.1.0
 generated: 2026-05-19
@@ -81,7 +81,7 @@ output:
   type: spec
   structure: templates/SEED_SPEC.yaml
 
-# spec-first extensions
+# build-spec extensions
 spec_version: 1
 created: 2026-05-19
 target: task-cli-tool
@@ -136,7 +136,7 @@ clarity_breakdown:    # per-dimension CLARITY score
 metadata:
   interview_rounds: 4
   questions_asked: 5
-  generated_by: thinking-tools/spec-first
+  generated_by: thinking-tools/build-spec
 ---
 ```
 

@@ -35,7 +35,7 @@ thinking-tools는 **이미 4.8-friendly하게 설계돼 있다.** 공식 가이�
 | `doc-polish` | LLM trope blacklist 기반 *입력 문서* 검사 | ✅ 검사 기준은 모델 무관 → 영향 없음 |
 | `doc-concretize` | step-by-step 재귀 작성 | ✅ self-contained |
 | `thought-chain` | 4-stage 파이프라인 | ✅ 명시적 stage 정의 |
-| `spec-first` | STATE block after every round | ✅ 정형 checkpoint, progress scaffolding 아님 |
+| `build-spec` | STATE block after every round | ✅ 정형 checkpoint, progress scaffolding 아님 |
 | `diverse-sampling` | **"Model Capabilities" 섹션의 Opus/Sonnet 이분법** | ⚠️ **유일한 실질 변경 후보** (§4) |
 
 ## 4. 실질 변경 후보 (Tier 1, 1건)
@@ -71,7 +71,7 @@ thinking-tools는 **이미 4.8-friendly하게 설계돼 있다.** 공식 가이�
 
 4.8 특성에 비춰 **바꾸지 않는 것이 맞는** 항목 — 과잉수정 방지용으로 근거를 남긴다.
 
-- **STATE block "after every round"** (adversarial-review, spec-first): 가이드가 제거를 권한 *"after every 3 tool calls, summarize"* 류 progress scaffolding이 아니다. Survival Score·인터뷰 게이트를 추적하는 **정형 산출물**이며 제거 시 기능이 손실된다.
+- **STATE block "after every round"** (adversarial-review, build-spec): 가이드가 제거를 권한 *"after every 3 tool calls, summarize"* 류 progress scaffolding이 아니다. Survival Score·인터뷰 게이트를 추적하는 **정형 산출물**이며 제거 시 기능이 손실된다.
 - **NEVER/MUST 제약**: 전수 확인 결과 전부 안전·경계 제약(`NEVER commit without approval`, `NEVER call vault-searcher`, `NEVER changes content meaning`)이다. 4.8이 충실히 따르는 것이 바람직하다. tool 강제 트리거 안티패턴이 아니다.
 - **`--deep` subagent spawn** (expert-panel, adversarial-review): 명시적 플래그로 제어되어 4.8의 "덜 spawn" 경향과 무관하다. default 모드는 단일 컨텍스트 내 페르소나 분리라 subagent를 쓰지 않는다.
 - **doc-polish trope blacklist**: 입력 문서 기준 검사라 생성 모델과 무관하다. 4.8 prose(sparing emoji, direct)와 충돌하지 않는다.
