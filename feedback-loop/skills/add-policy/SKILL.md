@@ -208,8 +208,8 @@ missing directory the same as "no existing skills found" (nothing to conflict wi
 ## 6. Conflict check (target = the landfill site's current rules)
 
 **New site (no prior conflict possible)**: check whether the target file **exists** first —
-`[ -f "$TARGET" ]`, the same existence-check principle §5 uses for the skill site (there a
-directory, `[ -d "$HOME/.claude/skills" ]`) — never infer
+`[ -f "$TARGET" ]`, the same existence-check principle §5 uses for the skill site (there it's
+a directory check, `[ -d "$HOME/.claude/skills" ]`) — never infer
 "missing" from a read *error*, since a read can fail for reasons other than absence
 (permissions, a transient tool error), and misdiagnosing one of those as "missing" would skip
 the conflict check and **overwrite existing content** instead of appending to it. If the
@@ -277,7 +277,9 @@ discovery-side placement-fit judgment). The check depends on the site:
 
 - **skill site**: frontmatter parses and carries `name` / `description` / `allowed-tools`;
   `name` is kebab-case and matches the directory name; the body is non-empty (more than
-  the frontmatter); a newly created skill carries a top-level `provenance: distilled`.
+  the frontmatter); a newly created skill carries a top-level `provenance: distilled` (this
+  sub-clause is for a newly created skill only — when the write is an Edit of a pre-existing
+  skill, provenance is already set, not newly stamped, so it doesn't apply there).
 - **hook site**: the guard script is syntactically valid (`bash -n`) and the registration
   entry is well-formed JSON (a matcher plus a command array).
 - **reminder site**: for a new rule, it was actually appended to the **routed channel** —
