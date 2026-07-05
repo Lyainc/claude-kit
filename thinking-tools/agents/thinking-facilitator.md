@@ -16,7 +16,6 @@ skills:
   - doc-polish
   - expert-panel
   - unknown-discovery
-  - thought-chain
   - adversarial-review
   - build-spec
 ---
@@ -47,10 +46,6 @@ Analyze user request
 │
 ├── Multi-perspective discussion/evaluation? ──▶ expert-panel
 │   (pros/cons, expert opinions, trade-offs)
-│   NOTE: expert-panel = single topic, multi-perspective debate (reach consensus)
-│         thought-chain = full end-to-end pipeline (discovery→debate→documentation)
-│         "전문가 토론" alone → expert-panel
-│         "처음부터 끝까지 분석" → thought-chain
 │
 ├── Claim attack/survival verdict needed? ─────▶ adversarial-review
 │   (반증, 공격, steelman, survival score)
@@ -60,9 +55,6 @@ Analyze user request
 │
 ├── Document quality check needed? ────────────▶ doc-polish
 │   (proofreading, polishing, quality check)
-│
-├── Comprehensive analysis needed? ────────────▶ thought-chain
-│   (end-to-end, full pipeline)
 │
 └── Unclear ────────────────────────────────────▶ AskUserQuestion
     (confirm what type of analysis is needed)
@@ -79,14 +71,13 @@ Analyze user request
 | adversarial-review | 반증, 공격, steelman, survival score, 악마의 변호인 | claim attack, 약점, 검증, 논리 허점 |
 | doc-concretize | concretize, document, organize, write it up | explain, elaborate |
 | doc-polish | polish, proofread, lint, quality check | fix this, correct this (document target) |
-| thought-chain | comprehensive analysis, full pipeline, end-to-end | in depth, thorough analysis, 파이프라인 전체 |
 
 ### Multi-Skill Detection
 
 When multiple skill signals are detected in a single request:
 
 1. **2 skills detected**: Confirm priority with user, then execute sequentially
-2. **3+ skills detected**: Propose `thought-chain` pipeline
+2. **3+ skills detected**: Confirm priority with user, then execute sequentially (same as the 2-skill case, just a longer order)
 3. **Unclear**: Confirm intent via AskUserQuestion
 
 ## Session Behavior
@@ -145,16 +136,16 @@ assistant: "두 가지 신호가 감지됐어요 — unknown-discovery(누락 �
 이 순서로 진행할까요?"
 <commentary>
 Two skill signals detected (unknown-discovery + expert-panel).
-2-skill case: confirm execution order before starting — do NOT collapse to thought-chain.
+2-skill case: confirm execution order before starting, then run each skill in sequence.
 </commentary>
 </example>
 
 <example>
 user: "이 설계 분석해줘"
-assistant: [AskUserQuestion — options: 대안 탐색(diverse-sampling) / 맹점 발견(unknown-discovery) / 전문가 찬반(expert-panel) / 주장 반증(adversarial-review) / 전체 파이프라인(thought-chain)]
+assistant: [AskUserQuestion — options: 대안 탐색(diverse-sampling) / 맹점 발견(unknown-discovery) / 전문가 찬반(expert-panel) / 주장 반증(adversarial-review)]
 <commentary>
 "분석해줘" carries no skill signal. Always clarify intent via AskUserQuestion
-before routing — defaulting to thought-chain on ambiguity is a routing error.
+before routing — defaulting to any single skill on ambiguity is a routing error.
 </commentary>
 </example>
 
@@ -177,7 +168,6 @@ assistant: "두 가지 신호가 감지됐어요 — doc-concretize(문서 구�
 <commentary>
 Ambiguous multi-trigger: "구체화" matches doc-concretize, "검토해줘" matches unknown-discovery.
 2-skill case → confirm execution order with user before starting.
-Do NOT default to thought-chain; that requires 3+ signals or explicit full-pipeline request.
 </commentary>
 </example>
 

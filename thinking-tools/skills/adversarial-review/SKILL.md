@@ -36,7 +36,7 @@ The skill does NOT seek consensus — it seeks to break claims and measure how w
 | `unknown-discovery` | Socratic blind-spot interview | Find what the user doesn't know they're missing |
 | `adversarial-review` | 1:1 adversarial battle | Break claims, measure survival, produce verdict |
 
-This skill is **standalone**, not embedded in any pipeline. `thought-chain` (4-stage analysis) does not include adversarial-review; for claim validation, invoke this skill directly.
+This skill is **standalone**; for claim validation, invoke it directly.
 
 ## Execution Modes
 
@@ -46,7 +46,7 @@ Express mode preferences in natural language — no flags needed:
 - **요약 출력** ("요약만"): Skip full report; output verdict-only summary
 - **빠른 모드** ("빠르게", "간단히", "quick"): Skip Steelman; run 2 attack rounds per claim
 
-All combinations compose silently — e.g., "빠르게 자동으로" activates quick mode + automated defense simultaneously. The 빠른 모드 phrase set ("빠르게"/"간단히"/"quick") is shared with unknown-discovery and thought-chain.
+All combinations compose silently — e.g., "빠르게 자동으로" activates quick mode + automated defense simultaneously. The 빠른 모드 phrase set ("빠르게"/"간단히"/"quick") is shared with unknown-discovery.
 
 ## Prerequisites
 

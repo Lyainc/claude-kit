@@ -37,7 +37,7 @@ claude-kit은 이걸 *도구*로 만들어요. **사고**(`thinking-tools`)로 �
 | 모호한 생각을 문서·스펙으로 정리할 때 | `doc-concretize` · `build-spec` |
 | 다 쓴 문서를 다듬고 싶을 때 | `doc-polish` |
 
-`thinking-facilitator` 에이전트가 요청을 분석해 알맞은 스킬로 자동 안내해요. (여러 스킬을 한 번에 잇고 싶으면 `thought-chain`.)
+`thinking-facilitator` 에이전트가 요청을 분석해 알맞은 스킬로 자동 안내해요.
 
 ```bash
 claude plugin install thinking-tools@Lyainc-claude-kit
