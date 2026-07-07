@@ -163,7 +163,7 @@ Search the entire vault by keyword and load note contents.
   #305 may have no `verified:` field at all — don't invent a date; say the age is unknown
   instead of silently omitting the hedge.
 - **Never modify existing files**: this agent has no access to the Write tool. Do not overwrite or append to existing files.
-- **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests session-note / plan creation, return a draft text and instruct the user to invoke `/save-session` (which runs inline in main context).
+- **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests a session summary, instruct them to invoke `/save-session` (runs inline in main context, saves `type:capture` to `inbox/` immediately — no draft/confirmation step, no plan-creation support).
 - **Vault only**: Never access paths outside `~/vault/`. No `~/dev/`, no project directories outside vault.
 - Exclude `private` / `sensitive` tagged notes unless user explicitly requests them.
 - When results are large, show top items and offer "더 보려면 알려주세요".
@@ -262,7 +262,7 @@ assistant: [Mode 3 Keyword Search — manifest pre-filter on title/summary for "
 If manifest hits ≥1: uses those candidates directly, skips grep.
 If no manifest hits: mdfind -onlyin ~/vault "React hooks" (macOS) or grep fallback.
 Returns top 10 results as numbered list: filename + first 2 lines + tags + mtime.
-Reminds user: vault-searcher is read-only — to save new notes use /save-session or /note.]
+Reminds user: vault-searcher is read-only — to capture raw ore use /save-session or /capture, to author an evergreen note use /note.]
 <commentary>
 Mode 3 keyword search: manifest pre-filter first, adaptive search fallback.
 Write reminder surfaced on search results — user may want to capture findings.
