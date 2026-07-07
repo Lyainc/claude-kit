@@ -203,8 +203,10 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 
 ## 12. 보류분 결정 (DECISION.md "보류" 2건 통합)
 
-- **save-session record/quick → inbox/ writer 유지.** `type: session`을 inbox/에 씀(raw). B(인간 검증 durable)가
-  아님. B 직행하면 "덤프 파이프"가 B로 부활 → **inbox/ 운반 유지**(③ delivery CON-1 어댑터), 내용은 promotion으로
+- **save-session → inbox/ writer 유지, 단 재정정(2026-07-08, `docs/specs/save-session-ore-repurpose.yaml` D1).** record/quick
+  모드와 `type: session` 산출은 폐기됐고, `/save-session`은 이제 `type: capture`를 inbox/에 씀(raw, `/capture`와
+  동일 산출물). B(인간 검증 durable)가 아닌 건 그대로 — B 직행하면 "덤프 파이프"가 B로 부활 → **inbox/ 운반
+  유지**(③ delivery CON-1 어댑터) 원칙은 안 바뀌었고, 내용은 Model X(access_count 기준)로 promotion 후보로
   나중 *채굴* 가능하나 직접 B-surface 아님. #215 "축소" 결정과 정합(전면 kill 아님).
 - **manifest → KEEP + 재용도.** ③ delivery staleness 추적 → **④ wiki recall 인덱스**로 재정의. #211 작업2
   (access-ranking) CLOSED — importance-ordered recall 지원. vault-searcher가 읽음.

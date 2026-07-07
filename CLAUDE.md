@@ -382,14 +382,14 @@ vault-bridge registers 5 hook handlers + 4 slash commands. All hooks are **deter
 
 **Slash commands** (`commands/*.md`):
 
-- **`/save-session`**: executes the session-note recipe inline in main context (record/quick mode selection). As of v1.9.0, no longer delegates to vault-searcher — vault writes are user-initiated slash commands only.
+- **`/save-session`**: captures a session summary as `type:capture` raw ore into `~/vault/inbox/`, inline in main context — no mode selection, save-immediately (repurposed 2026-07-08 from session-note authoring, `docs/specs/save-session-ore-repurpose.yaml`). Vault writes are user-initiated slash commands only.
 - **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault location.
 - **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).
 - **`/vault-commit`**: commits uncommitted vault changes with user-approved message.
 
 (`/handoff` was retired in G26 — the next-session continuation function moved to the machine-level `session-close` skill, outside claude-kit.)
 
-The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse guards) and explicit slash commands ensure zero per-turn LLM cost, no loops, and a clear user-driven path for session notes. The session-lifecycle auto-hooks (Stop `/save-session` suggestion, SessionEnd safety-net auto-save) were cut in G24 — session notes are now written only via the explicit `/save-session` command.
+The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse guards) and explicit slash commands ensure zero per-turn LLM cost, no loops, and a clear user-driven path for capture ore. The session-lifecycle auto-hooks (Stop `/save-session` suggestion, SessionEnd safety-net auto-save) were cut in G24 — captures are now written only via the explicit `/save-session` (or `/capture`) command.
 
 ## Cross-Plugin MECE Boundaries
 
@@ -398,7 +398,7 @@ Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping doma
 | Area | obsidian-vault-manager | vault-bridge |
 |------|----------------------|--------------|
 | Note creation | `note` skill (evergreen notes + decision records, `notes/`) | N/A |
-| Session record | N/A (use vault-bridge's session-note) | `/save-session` slash command (inline in main context — record/quick modes) |
+| Session record | N/A (use vault-bridge's `/save-session`) | `/save-session` slash command (inline in main context — `type:capture` to `inbox/`, no mode selection) |
 | Domain context search | `vault-knowledge-manager` (direct mdfind/grep, OVM-internal) | `vault-searcher` Mode 2 (external, read-only lightweight) |
 
 Within `thinking-tools`:
