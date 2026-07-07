@@ -201,6 +201,12 @@ def test_capture_candidate_surfaced() -> None:
         e8 = [f for f in result["findings"] if f["type"] == "E8_promotion_candidate"]
         assert len(e8) == 1, f"expected 1 E8 finding for recalled capture ore, got {len(e8)}"
         assert e8[0]["path"] == "inbox/capture-2026-04-01-topic.md"
+        # capture has no status field to flip — detail must not tell the user
+        # to do a status edit; it must point at /note or /wiki instead.
+        assert "status→evergreen" not in e8[0]["detail"], \
+            f"capture E8 detail must not suggest a status flip, got {e8[0]['detail']!r}"
+        assert "/note" in e8[0]["detail"] or "/wiki" in e8[0]["detail"], \
+            f"capture E8 detail should point at /note or /wiki, got {e8[0]['detail']!r}"
     print("PASS test_capture_candidate_surfaced")
 
 
@@ -225,6 +231,8 @@ def test_access_count_trigger() -> None:
         e8 = [f for f in result["findings"] if f["type"] == "E8_promotion_candidate"]
         assert len(e8) == 1, f"expected 1 E8 finding via access_count, got {len(e8)}"
         assert "access=5" in e8[0]["detail"]
+        assert "status→evergreen" in e8[0]["detail"], \
+            f"note E8 detail should still suggest a status flip, got {e8[0]['detail']!r}"
     print("PASS test_access_count_trigger")
 
 

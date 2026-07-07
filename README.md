@@ -65,7 +65,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 | 커맨드 | 하는 일 |
 |---|---|
-| `/save-session` | 세션 노트 작성 (record / quick) |
+| `/save-session` | 세션 요약을 원석(`type:capture`)으로 `~/vault/inbox/`에 저장 (`/capture`와 동일한 산출물, 즉시저장·무확인) |
 | `/vault-link` | 프로젝트를 특정 vault 위치에 바인딩 |
 | `/vault-commit` | vault 변경사항 커밋 |
 
@@ -128,7 +128,7 @@ Claude Code를 재시작하면 적용됩니다.
 /vault-link
 ```
 
-`.vault-link` 파일이 생성되면 이후 `/save-session`이 이 프로젝트 경로로 자동 저장됩니다.
+`.vault-link` 파일은 `vault-searcher`의 recall scoping(세션 복원·도메인 컨텍스트 검색 범위)에 쓰입니다. `/save-session`은 `.vault-link`와 무관하게 항상 `~/vault/inbox/`에 저장합니다.
 
 ### 4. 첫 캡처
 
@@ -138,7 +138,7 @@ Claude Code를 재시작하면 적용됩니다.
 
 `~/vault/inbox/capture-YYYY-MM-DD-{slug}.md`로 저장됩니다. URL을 전달하면 본문을 자동 추출해요 (`defuddle` 설치 시).
 
-### 5. 세션 노트 저장
+### 5. 세션을 원석으로 저장
 
 작업 마무리 시:
 
@@ -146,7 +146,7 @@ Claude Code를 재시작하면 적용됩니다.
 /save-session
 ```
 
-record / handoff / quick 모드 중 선택 후 `~/vault/inbox/` 또는 연결된 프로젝트 폴더에 저장됩니다.
+세션 요약을 `type:capture`로 즉시 `~/vault/inbox/`에 저장합니다(무확인, `/capture`와 동일한 산출물).
 
 ## 마이그레이션
 
@@ -190,7 +190,18 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 - 과거 `session-wrapup` 태그/파일명의 노트는 그대로 유지 (migration script 제공하지 않음)
 - 필요 시 수동으로 `type: session` frontmatter 추가 또는 그대로 아카이브
 
-자세한 session-note 3-mode(`record` / `handoff` / `quick`) 설명은 [`vault-bridge/README.md`](vault-bridge/README.md) 참조.
+### `/save-session`: session-note 저작 → capture-ore 문 (vault-bridge, 2026-07-08)
+
+**Breaking change**: 위 표의 record/handoff/quick 3-mode 라우팅은 다시 폐기되었습니다. `/save-session`은 이제 session note를 저작하지 않고, 세션 요약을 `type:capture`로 `~/vault/inbox/`에 즉시 저장합니다 — `/capture`와 동일한 산출물이에요(`docs/specs/save-session-ore-repurpose.yaml`).
+
+| 기존 동작 | 신규 동작 |
+|---|---|
+| record/handoff/quick 모드 선택 (AskUserQuestion) | 모드 선택 없음 — 단일 캡처 흐름 |
+| `.vault-link` 프로젝트 경로에 저장 | 항상 `~/vault/inbox/`에 저장 |
+| 저장 전 draft 확인(AskUserQuestion) | 즉시저장, 무확인 |
+| `type: session` (파일명 `session-*.md`) | `type: capture` (파일명 `capture-*.md`) |
+
+**기존 파일 처리**: 과거 `type: session` 노트는 그대로 유지 (migration script 제공하지 않음). 다음 세션 인수인계는 이 표와 무관하게 머신 레벨 `session-close` 스킬이 담당합니다(claude-kit 미포함).
 
 ## 문제 해결
 

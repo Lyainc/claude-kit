@@ -350,6 +350,7 @@ def _promotion_candidates_from_manifest(vault: Path) -> list:
             continue
         results.append({
             "rel": rel,
+            "type": f.get("type", ""),
             "refs_in": f.get("references_in", 0),
             "access_count": f.get("access_count", 0),
         })
@@ -620,13 +621,18 @@ def classify(bundle: dict) -> dict:
             f"top folder '{top}/' is not canonical (inbox/notes/assets/wiki)")
 
     # E8: promotion candidates from manifest (schema_version ≥ 3 only).
-    # note/decision files that meet refs_in or access_count thresholds —
-    # surfaced so the user can manually upgrade status to evergreen.
+    # note/decision meeting refs_in or access_count thresholds — manual
+    # status→evergreen. capture meeting access_count only (Model X, no
+    # references_in signal) — recalled ore, no status field to flip; the
+    # next action is /note or /wiki, not a status edit.
     for cand in _promotion_candidates_from_manifest(bundle["vault"]):
         r = cand["refs_in"]
         a = cand["access_count"]
-        add("E8_promotion_candidate", cand["rel"],
-            f"refs_in={r}, access={a} (manual: status→evergreen)")
+        if cand["type"] == "capture":
+            detail = f"refs_in={r}, access={a} (recalled capture ore — consider /note or /wiki to promote)"
+        else:
+            detail = f"refs_in={r}, access={a} (manual: status→evergreen)"
+        add("E8_promotion_candidate", cand["rel"], detail)
 
     # E9: tag/property vocabulary inconsistency (#119). Vault-LEVEL findings —
     # path is "" because the inconsistency is a property of the vault, not of
