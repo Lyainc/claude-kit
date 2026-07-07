@@ -1,6 +1,8 @@
 # spec-first 분리 — 결정 및 인계 (2026-06-02)
 
 > **상태 (2026-06-03 갱신)**: 미해결 4개 항목(명명·웹검증·인터뷰중복·구조실행)은 전부 **#111**로 이관·통합됨. spec-first는 아직 `thinking-tools/skills/spec-first`에 물리적으로 존재(분리 미실행). 06-02 저녁 레이어 재설계가 spec-first를 goal-doc 출력 스킬(②)로 재프레임 → 별도 플러그인 분리 여부 자체가 **#102(단일 vs 분산)** 결정에 게이트됨. 아래 결정·근거·정의는 그 맥락에서 읽을 것. 분리가 확정되면 실행, 분산/흡수면 §미해결 4 폐기.
+>
+> **최종 결과 (2026-07-07 확인, #102/#111 둘 다 CLOSED)**: #102는 "분산 유지"(별도 플러그인 신설 안 함)로 결정됐고, #111은 spec-first를 **`build-spec`으로 리네이밍**하는 걸로 닫혔어요 — "분리"도 "폐기"도 아니라 제3의 결과(개명 후 thinking-tools 잔류)예요. `thinking-tools/skills/spec-first`는 이제 없고 `thinking-tools/skills/build-spec`이 그 자리를 대신해요. 아래 §미해결 4개 항목은 이 리네임 시점에 함께 해소된 걸로 보세요.
 
 ouroboros 대조 분석 중 spec-first의 정체성을 재검토한 결과, thinking-tools에서 분리하기로 결정. 이 문서는 분리 트랙 전체를 정리한다. (thinking-tools 잔여 7개 고도화는 `thinking-tools-enhancement-2026-06-02.md`.)
 

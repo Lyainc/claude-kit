@@ -125,6 +125,13 @@ B와 함께 죽는다"는 **두-볼트 분리로 정정.** LLM Wiki(A)와 Second
 자체도 안 죽는다 — B-probation(L1)과의 긴장은 "제거를 늦추느냐"가 아니라 애초에 **제거하지 않는 것으로
 해소**된다(B가 probation을 통과하든 archive되든 스코핑 코드를 유지하는 데 드는 비용이 없다).
 
+⚠️ **재정정 (D1, 2026-07-08, owner 승인 — `docs/specs/save-session-ore-repurpose.yaml` c9)**: 위
+"`/save-session`은 자기 목적으로 독자 생존한다"는 결론은 **뒤집혔다.** `/save-session`은 더 이상 session
+note를 저작하지 않고 session 요약을 `type:capture`로 `inbox/`에 적재하는 캡처 문으로 재목적화됐다 —
+`/capture`와 같은 원석 산출물이다. 같은 문단의 `/vault-link` 존속 판정(L1)은 이 재정정과 **무관하게
+그대로 유효**하다(`/vault-link`는 recall scoping 기능이지 session-note 저작과 별개). 상세: `docs/design/
+claude-kit-boundary.md` §2, `vault-bridge/commands/save-session.md`.
+
 ---
 
 ## 5. A staleness — 발굴이 연 미해결 crux

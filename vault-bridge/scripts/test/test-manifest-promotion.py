@@ -149,8 +149,8 @@ ok("refs 2 + access 4 → False",
 
 print()
 
-# ── Case 4: inbox/ file → promotion_candidate = None ────────────────────
-print("Case 4: inbox/ file (type:capture) → promotion_candidate = None")
+# ── Case 4: inbox/ capture — access_count-only eligibility (Model X) ─────
+print("Case 4: inbox/ file (type:capture) — eligible via access_count only")
 
 with tempfile.TemporaryDirectory() as tmp:
     vault = Path(tmp)
@@ -176,12 +176,22 @@ type: capture
     capture = next((f for f in manifest["files"] if "capture" in f["path"]), None)
     ok("capture found in manifest", capture is not None)
     if capture:
-        ok("capture promotion_candidate is None (not eligible)",
-           capture["promotion_candidate"] is None,
+        ok("capture promotion_candidate is False (access_count 0, below threshold)",
+           capture["promotion_candidate"] is False,
            f"got {capture['promotion_candidate']}")
         ok("capture references_out = 3",
            capture["references_out"] == 3,
            f"got {capture['references_out']}")
+
+    # references_in does NOT count for capture, even above the refs threshold —
+    # only access_count is a fair recall signal for inbox ore (Model X, c5/c6).
+    ok("capture: refs_in alone (no access) → False",
+       _compute_promotion_candidate("capture", 10, 0) is False,
+       "capture must not become a candidate via references_in")
+    ok("capture: access_count >= threshold → True",
+       _compute_promotion_candidate("capture", 0, PROMOTION_ACCESS_THRESHOLD) is True)
+    ok("capture: access_count below threshold → False",
+       _compute_promotion_candidate("capture", 0, PROMOTION_ACCESS_THRESHOLD - 1) is False)
 
 print()
 

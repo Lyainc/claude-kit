@@ -20,7 +20,7 @@ These name a *kind* of thing, are globally consistent, and are healthy. Keep the
 | `CON-N` | Constraint (boundary / architecture constraint) | `docs/design/claude-kit-boundary.md` |
 | `POL-N` | Policy (constitutional / policy rule) | `docs/design/claude-kit-boundary.md` |
 | `E1`–`E11` | Vault audit error type | `obsidian-vault-manager/reference/vault-audit-rules.md` |
-| `GN` | Goal-doc ID (unbounded series) | `docs/plans/goal-docs/` |
+| `GN` | Goal-doc ID (closed series, G1–G29 — retired concept, no new entries) | `docs/plans/goal-docs/` |
 
 **Notation.** Each global code is written in its canonical form verbatim, including
 the hyphen that is part of the prefix — `CON-2`, `POL-1` — while E/G-series

@@ -40,6 +40,9 @@ Single source of truth: [`docs/design/claude-kit-boundary.md`](../../../docs/des
   leaf plugin, so editing it introduces no reverse harness→leaf dependency. Every
   *other* vault write (the memory branch) is surfaced as a `/capture` or
   `/save-session` slash command for the USER to run — `retro` does not write it.
+  (Both now write `type:capture` in `inbox/`: `/capture` for ad-hoc snippets,
+  `/save-session` for a session-scoped summary — vault-bridge no longer authors
+  session notes, `docs/specs/save-session-ore-repurpose.yaml` D1.)
 - **User-confirmed gate (silent forbidden)**: promotion, issue filing, and rule
   additions are all proposed as candidates and applied ONLY on explicit user
   confirmation. Silent auto-fix / auto-file / auto-promote is forbidden.
@@ -166,7 +169,7 @@ opts in (offer them, do not run silently).
 | Branch | Source | Mechanism | Default |
 |--------|--------|-----------|---------|
 | **액션 (action)** | repeat/waste patterns | git issue via `gh` — `scope: harness` → harness-level issue, `scope: local` → this-repo issue | **ON** (confirm before filing) |
-| **기억 (memory)** | session insights | surface the exact `/capture …` or `/save-session` command for the USER to run (user-initiated slash; `retro` does NOT write vault) | off (offer) |
+| **기억 (memory)** | session insights | surface the exact `/capture …` or `/save-session` command for the USER to run — both write `type:capture` in `inbox/` (user-initiated slash; `retro` does NOT write vault) | off (offer) |
 | **규칙 (rule)** | validated patterns | surface a ready-to-run `/add-policy` invocation (propose-only handoff — `add-policy` classifies + places; `retro` does NOT `Edit`) | off (offer) |
 
 > **`/distill` suggestion (propose-only, #202):** when the session surfaced a

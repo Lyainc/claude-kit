@@ -4,6 +4,8 @@
 **확정**: #122 thin 레이어 범위 (이 문서가 그 게이트)
 **Status**: design · **Created**: 2026-06-03
 
+> **갱신 (2026-06-29 CUT) — 이 문서는 역사 기록이에요.** 여기서 설계한 자체 경량 하네스(goal-doc 스키마 + slice-router + dev-harness)는 dogfood 실패로 전량 철회됐어요. 현재 상태·단일 출처는 `docs/design/claude-kit-boundary.md` §1 갱신 노트 + 트래킹 이슈 #282 + PR #283예요. ⑤ 실행은 지금 native `/goal` + narrative START-PROMPT(session-close ④) + leaf 스킬 관례가 대신하고, 아래 본문의 N1~N3/goal-doc 언급은 그 판단이 나온 과정의 기록으로만 보존해요 — 새로 goal-doc이나 slice-router를 만들 근거로 쓰지 마세요.
+
 ---
 
 ## 0. 방향 (adversarial 통과 형태)

@@ -1,5 +1,7 @@
 # Session-Note 통합 설계안
 
+> **⚠️ SUPERSEDED (2026-07-07) — 이 문서는 역사 기록이에요.** 여기서 설계한 `wrapup`/`vault-daily` 스킬, `vault-searcher` Mode-4의 record/handoff/quick 분기, Stop-hook 자동 제안은 전혀 이 형태로 지어지지 않았어요. 실제로 자리잡은 건 훨씬 단순한 구조 — 세션 기록은 **`/save-session` 슬래시 커맨드 하나**(`vault-bridge/commands/save-session.md`, `session` format의 출력 어댑터, `docs/design/output-adapter-contract.md` 정합)가 담당하고, `vault-bridge/reference/session-note-recipe.md`에 위임해요. 이 문서가 상상하지 못한 인수인계/continuation 기능은 이제 claude-kit 바깥의 머신 레벨 `session-close` 스킬이 가져갔어요(G26). 아래 본문은 그 결정에 이르기까지의 설계 사고 기록으로만 읽으세요 — 새로 구현할 근거로 쓰지 마세요.
+
 > 작성일: 2026-04-12
 > 도출 과정: Unknown Discovery (7개 발견) → Expert Panel (6개 합의) → Doc Concretize
 > **2026-04-13 업데이트**: `vault-daily` 스킬이 제거되어 `daily` 타입은 더 이상 생성되지 않습니다. 본 문서의 `daily` 관련 항목은 과거 설계 기록으로 보존.

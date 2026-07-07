@@ -5,6 +5,8 @@
 **하류 소비처**: #122 Gap-ROUTE(impl/critique/debug 바인딩 결정) · #134(게이트 체인 — critique 격리) · #101(`docs/design/output-adapter-contract.md` — issue-authoring 경계)
 **Source**: #133 이슈 + 2026-06-03 결정(spec/impl/critique 각각 별도 스킬) + `docs/adversarial-review/2026-06-03-harness-ownership.md`(strong-form 기각·native 위임 우선)
 
+> **갱신 (2026-06-29 CUT) — 이 문서는 역사 기록이에요.** 이 인벤토리가 근거로 삼은 goal-doc 슬라이스 바인딩 스키마(`goal-doc-spec.md`)는 삭제됐고, 자체 하네스(slice-router 등)는 전량 철회됐어요 — 단일 출처는 `docs/design/claude-kit-boundary.md` §1 + #282/#283. spec/impl/critique를 각각 별도 스킬로 두는 실제 관행(build-spec 등)은 지금도 유효하지만, 그 바인딩을 goal-doc 슬라이스 표기법으로 파싱하는 건 더 이상 안 해요.
+
 > **위치(native 위임 우선 판정)**: 이 문서는 ⑤ 실행 슬라이스가 호출할 스킬 각각이 **(a) 기존 leaf 재사용 / (b) native agent 위임 / (c) 신설** 중 무엇인지 *판정*해요. 판정 기준은 `omc-to-native-substrate.md` §6.2 게이트 — **native가 이미 주는 capability는 자체 빌드 금지**, 신설은 native·기존이 못 채우는 부분에 한정(C-5 만장일치 "신설 최소화"). 헌법/단방향 규칙은 `claude-kit-boundary.md` 단일 출처 **참조만**.
 
 ---

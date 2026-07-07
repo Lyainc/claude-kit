@@ -5,6 +5,8 @@
 **선행**: #122(thin 하네스 — 게이트 오케스트레이션 주체) · #132(`docs/design/omc-to-native-substrate.md` §4.2 Gap-INV·§5 P4) · #133(`docs/design/execution-skill-inventory.md` — quality/critique 스킬 판정) · #123(`feedback-loop/skills/retro/SKILL.md` — retro 로직, #217로 이전) · #183(`dev-harness/scripts/invariant_guard.py` — `check_isolated_critique` enforce, #217로 이전)
 **소비처**: slice-router 스킬(#183 — SKILL.md `Phase 3 — ENFORCE`가 게이트 ② 발동 절차) · ⑤ 실행 루프 dogfood(P4 feature-dev goal-doc e2e)
 
+> **갱신 (2026-06-29 CUT) — 이 문서는 역사 기록이에요.** 여기서 오케스트레이션 주체로 삼은 slice-router·goal-doc 루프는 전량 철회됐어요 — 단일 출처는 `docs/design/claude-kit-boundary.md` §1 + #282/#283. 4지점 게이트가 실제로 엮던 개별 enforce 로직(invariant_guard·retro 등)은 각자 제자리(#217 이관분 포함)에서 유효하지만, 이 문서가 명세한 "goal-doc 루프 안에서 언제 발동"이라는 오케스트레이션 그림 자체는 더 이상 실행되지 않아요.
+
 > **이 문서는 게이트의 *오케스트레이션*만 명세해요 — 게이트 *수단*은 재정의하지 않아요.**
 > 4지점 게이트가 호출하는 실제 enforce 로직·스킬 정의는 모두 기존 자산에 있고, 이 문서는 그걸 "언제·어디서·어떤 조건으로" 발동할지만 엮어요(thin orchestration). 단일 출처:
 > - 슬라이스 critique enforce = `dev-harness/scripts/invariant_guard.py` `check_isolated_critique` (#183, #217로 이전)

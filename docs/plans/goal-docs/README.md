@@ -62,12 +62,8 @@ Wave 5                                   G7 (#123/#121)
 | G9 | #119(E9) backlog 라벨 해제 결정 — E9 vocabulary 기준이 #127 tag 추론의 선행 |
 | G12 | 전부 backlog/deferred — 각 항목 해제 조건은 [G12-backlog-gates](G12-backlog-gates.md) 참조 |
 
-## `/goal` 사용법
+## `/goal` 사용법 (archived — 더 이상 유효하지 않음)
 
-각 문서는 `/goal` 입력으로 바로 쓸 수 있어요. 예:
+> 아래는 2026-06-03 당시의 사용법 기록이에요. `/goal <파일 경로>`로 이 문서들을 직접 실행하는 방식은 #282/#283(2026-06-29 CUT)으로 철회됐어요 — 손으로 쓴 goal-doc이 스키마 검증을 통과하지 못했고 라우터가 실제 goal을 라우팅한 적이 없어요. **새 goal-doc을 이 패턴으로 만들지 마세요.** 지금 쓰는 그릇은 native `/goal` + narrative START-PROMPT(session-close ④)예요.
 
-```
-/goal docs/plans/goal-docs/G8-ovm-audit-deterministic.md
-```
-
-문서 안의 **슬라이스 순서**가 실행 단위 분해 + 스킬/에이전트 바인딩이고, **E2E 자가검증** 블록이 에이전트가 스스로 돌려 완료를 확인하는 명령이에요. 대부분 기존 테스트(`check-trigger-regression.py`, `audit-validate.py --dod`, `vault-bridge/scripts/test/*.py`, `json.tool`)를 재사용해요.
+~~각 문서는 `/goal` 입력으로 바로 쓸 수 있어요. 예: `/goal docs/plans/goal-docs/G8-ovm-audit-deterministic.md`~~ (철회됨)

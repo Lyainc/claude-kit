@@ -16,8 +16,8 @@ tags: [unified-plan, claude-kit, dogfooding, telemetry, thought-chain, setup-wiz
 |---|---|---|
 | W1 | Telemetry Instrumentation (Phase 1 dogfooding) | ✅ 완료 — `event-logger.sh` + 8 hook + report/sequence/validate-schema |
 | W2 | vault-bridge enforcement 잔여 (Phase 2.B + Phase 4) | ✅ enforce flip + 버전 범프 완료 (D5 preflight PASS). Phase 4 1주 측정은 dogfooding으로 흡수 |
-| W3 | thought-chain Checkpoint & Vault Integration | ✅ 완료 (`acd1fbc`, 5-option checkpoint) — 단 이후 재설계 **#105**에서 dissolve 대상이 됨 |
-| W4 | Setup Wizard (claude-kit-welcome 신설) | ⏸ 미착수 → **#117 backlog**. 06-02 재설계 미언급, 재평가 전 보류 |
+| W3 | thought-chain Checkpoint & Vault Integration | ✅ 완료 (`acd1fbc`, 5-option checkpoint) — 단 이후 재설계 **#105**에서 dissolve 대상이 됨. **(2026-07-07 확인: #105 CLOSED, thought-chain 스킬 자체가 완전히 해체됨 — 이 W3 "완료"는 이제 지어졌다가 통째로 없어진 기능의 기록일 뿐, 살아있는 코드가 아니에요.)** |
+| W4 | Setup Wizard (claude-kit-welcome 신설) | ⏸ 미착수 → **#117 backlog**. 06-02 재설계 미언급, 재평가 전 보류. **(2026-07-07 확인: #117 CLOSED — 재평가 결과 마법사는 안 짓기로 하고 훨씬 작은 `session-start-welcome.sh` 힌트만 shipped, `docs/design/setup-wizard.md` SUPERSEDED 배너 참조.)** |
 
 ## ADR (요지)
 

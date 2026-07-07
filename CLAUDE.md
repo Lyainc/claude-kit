@@ -268,7 +268,7 @@ python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
 
 # E8 promotion candidate finding regression
 python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
-# Expected: OK: all 8 cases passed
+# Expected: OK: all 9 cases passed
 
 # E2 auto-fix tag inference regression (#127)
 python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test

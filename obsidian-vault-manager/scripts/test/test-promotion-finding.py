@@ -143,10 +143,44 @@ def test_no_manifest_no_crash() -> None:
     print("PASS test_no_manifest_no_crash")
 
 
-# ── Test 5: capture/session type → None in manifest → not surfaced as E8 ─────
+# ── Test 5: never-eligible type (session) → None in manifest → not surfaced ──
 
 def test_non_note_type_not_surfaced() -> None:
-    """Manifest carries promotion_candidate=None for capture/session — not True."""
+    """Manifest carries promotion_candidate=None for session/plan — not True.
+
+    `capture` is NOT in this never-eligible set (Model X — access_count-driven
+    eligibility, see test_capture_candidate_surfaced below); session/plan stay
+    permanently None per v4 §3.3 (can never become evergreen).
+    """
+    with tempfile.TemporaryDirectory() as tmp_str:
+        vault = Path(tmp_str)
+        _make_vault(vault)
+        (vault / "inbox" / "session-2026-04-01-topic.md").write_text(
+            "---\ncreated: 2026-04-01\ntags: [session]\ntype: session\n---\n\n# Session\n"
+        )
+        _write_manifest(vault, [
+            {
+                "path": "inbox/session-2026-04-01-topic.md",
+                "type": "session",
+                "references_in": 10,
+                "access_count": 20,
+                "promotion_candidate": None,
+            }
+        ])
+        bundle = collect(vault)
+        result = classify(bundle)
+        e8 = [f for f in result["findings"] if f["type"] == "E8_promotion_candidate"]
+        assert len(e8) == 0, f"session with promotion_candidate=None should yield 0 E8, got {len(e8)}"
+    print("PASS test_non_note_type_not_surfaced")
+
+
+# ── Test 5b: capture ore, Model X access-count eligibility → surfaced ────────
+
+def test_capture_candidate_surfaced() -> None:
+    """type:capture with promotion_candidate=True (as generate-manifest.py's
+    access_count-driven Model X now computes) DOES surface as E8 — display-only,
+    audit/retro never auto-fixes it (docs/specs/save-session-ore-repurpose.yaml c5).
+    """
     with tempfile.TemporaryDirectory() as tmp_str:
         vault = Path(tmp_str)
         _make_vault(vault)
@@ -157,16 +191,17 @@ def test_non_note_type_not_surfaced() -> None:
             {
                 "path": "inbox/capture-2026-04-01-topic.md",
                 "type": "capture",
-                "references_in": 10,
-                "access_count": 20,
-                "promotion_candidate": None,
+                "references_in": 0,
+                "access_count": 5,
+                "promotion_candidate": True,
             }
         ])
         bundle = collect(vault)
         result = classify(bundle)
         e8 = [f for f in result["findings"] if f["type"] == "E8_promotion_candidate"]
-        assert len(e8) == 0, f"capture with promotion_candidate=None should yield 0 E8, got {len(e8)}"
-    print("PASS test_non_note_type_not_surfaced")
+        assert len(e8) == 1, f"expected 1 E8 finding for recalled capture ore, got {len(e8)}"
+        assert e8[0]["path"] == "inbox/capture-2026-04-01-topic.md"
+    print("PASS test_capture_candidate_surfaced")
 
 
 # ── Test 6: access_count trigger path ────────────────────────────────────────
@@ -249,7 +284,8 @@ if __name__ == "__main__":
     test_pre_v3_manifest_skipped()
     test_no_manifest_no_crash()
     test_non_note_type_not_surfaced()
+    test_capture_candidate_surfaced()
     test_access_count_trigger()
     test_multiple_candidates_each_become_finding()
     test_phantom_manifest_entry_not_surfaced()
-    print("\nOK: all 8 cases passed")
+    print("\nOK: all 9 cases passed")

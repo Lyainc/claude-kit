@@ -7,6 +7,8 @@
 
 > **위치(논리 계약, 물리 구조 아님)**: 이 문서는 슬라이스가 출력 스킬을 *어떻게 균일하게 호출하는지*의 **논리적 계약**만 정의해요. ②를 단일 플러그인으로 묶을지 분산할지의 **물리 구조 확정은 #102(G3 wave)** 게이트라 여기서 안 다뤄요(계약은 구조 독립적 — #101 Acceptance는 #102 결정 없이 충족). 헌법(CON-*)/정책(POL-*) 규칙은 `docs/design/claude-kit-boundary.md`가 단일 출처고, 이 문서는 그걸 **참조만** 하고 재정의하지 않아요.
 
+> **`goal-doc-spec.md` 인용 주의 (2026-06-29 CUT)**: 위 **선행**·**Source**가 가리키는 `docs/design/goal-doc-spec.md`는 자체 하네스 철회(#282/#283, `claude-kit-boundary.md` §1)로 삭제됐어요. 이 문서 자체(어댑터 계약)는 지금도 유효하고 CLAUDE.md가 여전히 참조하는 현재 문서지만, `goal-doc-spec.md`를 향한 인용은 더 이상 열리는 파일이 없는 역사 참조로만 읽으세요.
+
 ---
 
 ## 0. 이 계약이 푸는 문제 — 왜 어댑터인가
@@ -73,7 +75,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 | 2 | `note` | `capture` | **OVM note** (`/note` 스킬, evergreen/decision) | ② 출력 leaf (OVM 경유) | user-initiated 슬래시 커맨드 | `vault` (`notes/{slug}.md` 또는 `notes/decision-YYYY-MM-DD-{slug}.md`) | **`gated`** (CON-1) |
 | 3 | `goal-doc` | `crystallize` | **build-spec** (요구사항 결정화) | ② 출력 leaf | 모델 호출 스킬 (Socratic 게이트) | `repo_path` (`docs/specs/{slug}.yaml` Seed) | `success` · **Seed↔goal-doc 재프레임=#111** (§2 주의) |
 | 4 | `handoff` | `handoff` | **`/handoff`** (vault-bridge 커맨드 — G26에서 retire, 머신 레벨 `session-close` 스킬로 이관·이 레포 외부) | vault-bridge 커맨드 (로컬 핸드오프 · **vault 비경유** → ③ "vault 운반"에 미해당) | user-initiated 슬래시 커맨드 (`disable-model-invocation`) | `local_ephemeral` (`.claude-kit/vault-bridge/resume.md`, gitignored) 또는 `stdout` | `success` (**vault 미사용 → CON-1 비대상**) |
-| 5 | `session` | `record` | **`/save-session`** (vault-bridge 커맨드) | ③ 딜리버리 (vault 운반) | user-initiated 슬래시 커맨드 | `vault` (`inbox/session-YYYY-MM-DD[-vN].md`) | **`gated`** (CON-1) |
+| 5 | `session` | `record` | **`/save-session`** (vault-bridge 커맨드 — session 요약을 `type:capture` 원석으로 재목적화, D1) | ③ 딜리버리 (vault 운반) | user-initiated 슬래시 커맨드 | `vault` (`inbox/capture-YYYY-MM-DD[-slug][-vN].md`) | **`gated`** (CON-1) |
 | 6 | `md` | `author` | **doc-concretize** (신규 MD 구조화 저작) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (임의 `.md`) | `success` |
 | 7 | `md` | `edit` | **doc-polish** (기존 MD 린트·개선, Editor-not-Writer) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (기존 `.md` in-place Edit) | `success` |
 | 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) | 외부 도구 (③ GitHub 딜리버리) | 셸 Bash | `github` (이슈 URL) | `success` · **본문 *저작*은 gap → §4 issue-authoring** |
@@ -81,6 +83,8 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 > **매핑 정직성 주의 (#3 goal-doc=build-spec)**: build-spec의 *실제 산출물*은 요구사항 3요소(`goal`/`constraints`/`success_criteria`)를 담은 **YAML Seed**(`docs/specs/{slug}.yaml`)지, `goal-doc-spec` §1~§2의 frontmatter 8필드+본문 5섹션 **goal-doc이 아니에요**. 매핑 `goal-doc=build-spec`는 *"명세 결정화 출력"이라는 intent 수준* 정합이고, Seed→goal-doc 산출물 재프레임(build-spec를 ② goal-doc 출력 스킬로 포지셔닝/개명할지)은 **#111(build-spec reconcile)의 소관**이에요 — 이 문서는 그걸 **재정의하지 않고 위임만** 해요. 따라서 goal-doc 저작은 §4 net-new gap이 *아니에요*(기존 #111 트랙이 소유).
 
 > **매핑 정직성 주의 (#1 graphify)**: graphify는 코퍼스→지식그래프 산출이라 ①(인지: 연결 발견)과 ②(출력: html/json) 경계에 걸쳐요. 출력 어댑터 관점에선 `html` 포맷 산출 타겟이고, 산출물(`graph.html`)이 §3 체이닝의 `file` 참조로 흘러요.
+
+> **매핑 정직성 주의 (#5 session=save-session, 2026-07-08 D1)**: `/save-session`의 *실제 산출물*은 더 이상 session note가 아니라 `/capture`와 같은 `type:capture` 원석이에요(`inbox/capture-YYYY-MM-DD[-slug].md`) — session-note 저작 자체가 재목적화로 폐기됐어요(`docs/design/claude-kit-boundary.md` §2 D1, `docs/specs/save-session-ore-repurpose.yaml`). `format: session`이라는 이름표는 이제 *산출물 형식*이 아니라 *호출 경로*(어느 슬래시 커맨드를 거치는가)만 가리켜요 — §2 #2(`note`=OVM `/note`, evergreen 산출)와는 별개의 target(raw ore vs evergreen)이니 혼동하지 마세요.
 
 ---
 

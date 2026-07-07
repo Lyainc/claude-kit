@@ -79,6 +79,14 @@ docs/private/
 docs/discussions/
 docs/adversarial-review/
 
+# Exception to the docs/plans/ "master plans get committed" carve-out above:
+# goal-doc (the /goal-input planning format) was retired 2026-06-29 (#282/#283) —
+# native /goal + narrative START-PROMPT replaced it. G1-G18 + README already
+# tracked before this line are kept as historical record (untouched, no
+# retroactive untrack). This line only stops any NEW file under this dir from
+# ever entering git — the concept is dead, nothing new should be committed here.
+docs/plans/goal-docs/
+
 # Python bytecode (generated when scripts are imported, e.g. during local testing)
 __pycache__/
 *.pyc
