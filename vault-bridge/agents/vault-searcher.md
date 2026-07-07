@@ -224,7 +224,7 @@ Manifest-first narrows candidates before file reads — full vault scan skipped.
 <example>
 user: "오늘 작업 내용 vault에 저장해줘"
 assistant: "저는 읽기 전용이라 직접 쓸 수 없어요.
-세션 노트 작성은 `/save-session`을 실행해주세요 — 메인 컨텍스트에서 인라인으로 처리돼요."
+세션 요약을 원석으로 남기려면 `/save-session`을 실행해주세요 — 메인 컨텍스트에서 인라인으로 처리돼요."
 <commentary>
 Write request → redirect to /save-session slash command.
 vault-searcher never writes; all vault writes are user-initiated slash commands only.
