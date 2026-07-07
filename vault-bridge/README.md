@@ -48,31 +48,22 @@ Search the entire vault by keyword. If Obsidian CLI is available and responsive,
 "이전에 정리한 배포 파이프라인 문서"
 ```
 
-## Write Workflow (since v1.9.0)
+## Write Workflow (since v1.9.0, capture door since 2026-07-08)
 
-vault-searcher is read-only. All vault writes route through user-initiated slash commands executed inline in main context. The session-note flow (`/save-session`) supports two modes:
-
-| Mode | When to use | Sections |
-|------|------------|----------|
-| `record` | Past summary of completed work | Summary, Done, Related Files, Reference Context |
-| `quick` | Minimal capture | Summary, Related Files |
+vault-searcher is read-only. All vault writes route through user-initiated slash commands executed inline in main context. `/save-session` (repurposed 2026-07-08, `docs/specs/save-session-ore-repurpose.yaml`) no longer authors a session note — it writes a `type:capture` summary of the session straight to `~/vault/inbox/`, the same artifact shape as `/capture` (obsidian-vault-manager). No mode selection, no path confirmation, no save confirmation — it saves immediately, mirroring `/capture`'s "save immediately" design.
 
 For committing vault changes to git, use `/vault-commit`. Next-session handoff is no longer a vault-bridge command — see [Session Handoff](#session-handoff).
-
-Use `/save-session` to trigger session note creation from the main context. The command handles type/mode selection, path confirmation, same-date collision resolution, and final save confirmation inline.
 
 ```
 /save-session
 "세션 정리해줘"
 "작업 기록 남겨줘"
 "session note 생성"
-"세션 노트 --quick"
-"세션 저장 --hours 3"
 ```
 
 ## Session Handoff
 
-Next-session handoff is **no longer a vault-bridge command**. The `/handoff` command and its `resume.md` mechanism were retired in G26 (decision G25 D4); the handoff function — authoring a next-session continuation / START-PROMPT — now lives in the machine-level `session-close` skill, part of the owner's personal kit and **not shipped in this plugin**. Use `/save-session` here to record a past-tense session note into the vault; the next-session continuation is handled outside claude-kit.
+Next-session handoff is **no longer a vault-bridge command**. The `/handoff` command and its `resume.md` mechanism were retired in G26 (decision G25 D4); the handoff function — authoring a next-session continuation / START-PROMPT — now lives in the machine-level `session-close` skill, part of the owner's personal kit and **not shipped in this plugin**. Use `/save-session` here to capture a past-tense session summary into the vault; the next-session continuation is handled outside claude-kit.
 
 ## Optional Obsidian CLI integration
 
@@ -174,7 +165,7 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 
 ## Vault-Project Link
 
-`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) searches and determines the `/save-session` save path automatically — zero user intervention required.
+`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) and session-restore (Mode 1) searches. It does **not** affect `/save-session`, which always writes to `~/vault/inbox/` regardless of `.vault-link` (2026-07-08 repurposing — see [Write Workflow](#write-workflow-since-v190-capture-door-since-2026-07-08)).
 
 ### Schema
 
@@ -202,9 +193,8 @@ vault-searcher walks upward from CWD (git-style) until it finds `.vault-link`. T
 | Surface | Without `.vault-link` | With `.vault-link` |
 |---------|-----------------------|--------------------|
 | **vault-searcher Mode 2 (Domain Context Load)** | Searches all of `~/vault/` | Searches only `{vault_root}/{vault_path}/` |
-| **`/save-session`** | Saves to `~/vault/inbox/` | Saves to `{vault_root}/{vault_path}/` |
 
-vault-searcher Modes 1 and 3 (Session Restore, Keyword Search) are unaffected by `.vault-link` scope.
+vault-searcher Mode 3 (Keyword Search) is unaffected by `.vault-link` scope. `/save-session` always writes to `~/vault/inbox/`, `.vault-link` or not (2026-07-08 repurposing).
 
 ### Recovery
 
@@ -246,30 +236,7 @@ vault-bridge v1.5.0 introduced vault write governance; v1.9.0 narrows vault-sear
 
 ### Same-date collision handling
 
-If `session-2026-04-18.md` already exists, `/save-session` tries `-v2`, `-v3`, … up to `-v9`. A collision confirmation is shown before creating `-v2` or higher. The existing file is never touched.
-
-## Structured Error Protocol
-
-When a vault write fails or is forbidden, `/save-session` (or another vault-write slash command) emits a structured error block to the user. Since v1.9.0 the block originates from the slash command running in main context — vault-searcher itself no longer writes and therefore no longer issues these errors.
-
-```
-<vault-bridge-error>
-kind: permission | path_invalid | convention_violation | name_collision | disabled
-path: {attempted_path}
-detail: {human-readable explanation}
-suggestion: {alternative action}
-</vault-bridge-error>
-```
-
-**Error kind reference**:
-
-| kind | When | Example |
-|------|------|---------|
-| `permission` | Write target is in a forbidden zone | Tried to write `notes/oauth.md` directly (OVM territory) |
-| `path_invalid` | `.vault-link` resolution failed completely, no fuzzy candidates | `vault_path` points to non-existent directory |
-| `convention_violation` | Filename does not conform to the required pattern for that directory | `inbox/random-file.md` (missing type prefix and date) |
-| `name_collision` | All `-v2` through `-v9` suffixes are already taken | `session-2026-04-18-v9.md` already exists |
-| `disabled` | `VAULT_BRIDGE_DISABLE=1` is set | Kill switch active |
+If `capture-2026-04-18-{slug}.md` already exists, `/save-session` (and `/capture`) tries `-v2`, `-v3`, … The existing file is never touched, and no confirmation is shown — both commands save immediately.
 
 ## File Naming Convention
 
@@ -369,13 +336,13 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 
 ## Notes
 
-- Filename: `session-YYYY-MM-DD.md` (type-first convention)
-- Frontmatter: `created`, `tags: [session, {project}]`, `type: session` (no `status` field — `status: active` applies to `plan` artifacts only)
+- `/save-session` filename: `capture-YYYY-MM-DD-{slug}.md` (type-first convention, same as `/capture`)
+- `/save-session` frontmatter: `created`, `tags: [capture, session]`, `type: capture` (no `status` field — captures never carry one)
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24; the `/handoff` command + `resume.md` mechanism were retired in G26 — see [Session Handoff](#session-handoff).)
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
-- **`/save-session` command**: explicit user trigger for inline session note creation (main context) with mode selection (record/quick)
+- **`/save-session` command**: explicit user trigger for inline capture-ore creation (main context) — `type:capture` in `~/vault/inbox/`, no mode selection, save-immediately
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
 ## Session Auto-Commit
@@ -421,7 +388,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 
 | Command | Description |
 |---------|-------------|
-| `/save-session` | Inline session note creation in main context — mode selection (record/quick), path confirmation, collision resolution |
+| `/save-session` | Inline capture-ore creation in main context — `type:capture` to `~/vault/inbox/`, no mode selection, save-immediately |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |

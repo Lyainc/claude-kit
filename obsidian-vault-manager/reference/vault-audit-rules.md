@@ -214,10 +214,10 @@ for each record in frontmatter_records where path startswith "notes/":
 ## E8 — `promotion_candidate` [Info]
 
 **Rule**: A note flagged `promotion_candidate: true` in the vault-bridge manifest (`schema_version ≥ 3`). The flag is computed by `vault-bridge/scripts/generate-manifest.py` (PR 4c), **not** by the audit CLASSIFY phase — audit consumes it as a read-side signal (no detection pseudocode here).
-**Source**: `manifest.json` `files[]` entries where `promotion_candidate == true` (set when `references_in ≥ VAULT_AUDIT_PROMOTION_REFS` (3) OR `access_count ≥ VAULT_AUDIT_PROMOTION_ACCESS` (5); `type: note` / `decision` only).
+**Source**: `manifest.json` `files[]` entries where `promotion_candidate == true` — `type: note`/`decision` via `references_in ≥ VAULT_AUDIT_PROMOTION_REFS` (3) OR `access_count ≥ VAULT_AUDIT_PROMOTION_ACCESS` (5); `type: capture` via `access_count` alone (Model X — inbox ore rarely gets wikilinked in, so `references_in` isn't a fair signal there).
 **Guard**: Absent or `schema_version < 3` manifest → no E8 findings (graceful skip). Manifest entries whose underlying files were deleted are skipped (phantom guard).
 
-**Rationale**: A note with high inbound references or frequent access is a candidate for manual promotion to `status: evergreen`. Surfaced as Info/P2 — the user decides; never auto-fixed.
+**Rationale**: A note with high inbound references or frequent access is a candidate for manual promotion to `status: evergreen`. A recalled `capture` has no `status` field to flip (v4 §3.3 — capture can never become evergreen directly); its finding instead points at `/note` or `/wiki` to promote. Surfaced as Info/P2 — the user decides; never auto-fixed.
 
 ## E9 — `tag_vocabulary_inconsistency` [Warning]
 
