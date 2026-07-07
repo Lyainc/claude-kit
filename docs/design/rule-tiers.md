@@ -1,5 +1,7 @@
 # Rule Management: 3-Tier Architecture & Safety Guards
 
+> **갱신 (2026-07-07) — 부분 stale.** §3의 "Goal-Doc(#100) 연동"은 완전히 죽었어요 — goal-doc-spec/dev-harness 전체가 #282/#283(2026-06-29)으로 철회됐거든요. 이 문서를 실제로 인용하던 `gate-chain.md`도 같은 이유로 역사 기록 처리됐어요. Tier 2에서 제안한 실행 메커니즘("vault `type:rule` frontmatter 노트")도 실제로는 안 지어졌고, 지금 진짜 작동하는 건 `feedback-loop/skills/add-policy/SKILL.md`(레이어별 매립: stance/voice→`~/.claude/CLAUDE.md`, work-rule→`~/.claude/rules` 또는 프로젝트 `rules/RULES.md`)예요 — §1~2의 3-tier 병합 순위(Project-local > User-global > Default) 자체 개념은 여전히 유효하지만, 그 구체 실행 수단은 add-policy가 정본이라고 보세요.
+
 이 문서는 시스템 전반에 적용되는 규칙(Rule)의 관리 아키텍처와 계층적 적용 우선순위, 그리고 안전한 실행을 위한 안전판(Safety Guards)을 정의합니다.
 
 > **주의:** 헌법(Constitution) 및 기본 정책(Policy) 목록 자체는 **Issue #99 Boundary 단일 출처** 문서를 참조하십시오. 본 문서에서는 규칙의 적용 및 관리 방식만 다루며, 구체적인 규칙을 절대 재정의하지 않습니다.

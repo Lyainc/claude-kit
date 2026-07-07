@@ -1,5 +1,7 @@
 # spec — telemetry per-skill lifecycle 파생 뷰 (#203 / G17)
 
+> **상태 (2026-07-07): ✅ SHIPPED.** #203 CLOSED — `feedback-loop/scripts/report.py`에 구현·머지됨(커밋 `d811c7c`). 아래는 구현 당시 스펙 기록(보존).
+
 spec 슬라이스 산출물 (메인 컨텍스트 작성, 2026-06-10). 구현 계약이에요 —
 impl 슬라이스는 이 스펙과 G17 goal-doc DoD를 그대로 따라요.
 

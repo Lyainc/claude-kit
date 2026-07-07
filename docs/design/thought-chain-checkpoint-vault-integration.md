@@ -10,7 +10,7 @@
 > Status: ~~Design — ready for implementation~~ SUPERSEDED
 > Owner: thinking-tools plugin
 > Created: 2026-05-12
-> Related: `thinking-tools/skills/thought-chain/SKILL.md`, `docs/thought-chain-rationale.md`
+> Related: `thinking-tools/skills/thought-chain/SKILL.md`, `docs/thought-chain-rationale.md` (both since removed — thought-chain itself was fully dissolved, #105, and its rationale doc with it)
 
 ## 1. Background
 

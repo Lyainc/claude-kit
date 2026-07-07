@@ -6,7 +6,9 @@
 
 이 문서는 사용자가 `claude-kit`의 기능을 직관적으로 사용할 수 있도록 4가지 주요 흐름(Flow)과 기존 5-레이어 간의 직교 매핑(Orthogonal Mapping)을 정의합니다. 
 
-이 매핑 모델은 **#117 setup-wizard**(신규 사용자 온보딩 마법사)에서 각 사용자의 작업 유형에 맞는 도구 세트를 제안하는 연결 지점(Connection Point)으로 사용됩니다.
+> **갱신 (2026-07-07)**: 아래 문장이 가리키던 #117의 multi-page 온보딩 마법사(setup-wizard, `claude-kit-welcome` 4번째 플러그인)는 실제로 만들어지지 않고 backlog로 닫혔어요(`docs/design/setup-wizard.md` SUPERSEDED 배너 참조). 실제 shipped된 건 훨씬 작은 `thinking-tools/hooks/session-start-welcome.sh`(1회성 discoverability 힌트, 위저드 규모 아님)뿐이라, 아래 "연결 지점" 서술은 실현 안 된 계획이에요 — 이 카탈로그 자체(4-흐름 매핑)는 여전히 유효하니 그 부분만 무시하세요.
+
+이 매핑 모델은 ~~**#117 setup-wizard**(신규 사용자 온보딩 마법사)에서 각 사용자의 작업 유형에 맞는 도구 세트를 제안하는 연결 지점(Connection Point)으로 사용됩니다.~~ (위 갱신 참조 — 실현 안 됨)
 
 ## 4-흐름 <-> 5-레이어 직교 매핑표
 

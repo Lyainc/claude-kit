@@ -7,8 +7,8 @@ vault v5 note: this manifest is also the ④ wiki recall index. `type: wiki`
 pages (the A layer, ~/vault/wiki/) are picked up automatically via type opt-in
 (`wiki` is not in EXCLUDED_DIRS), and the existing recall signals — access_count
 (7-day git touches) + references_in — rank them for vault-searcher with no
-manifest code change. `promotion_candidate` stays None for wiki (note/decision
-only): A is the recall layer, not a promotion source.
+manifest code change. `promotion_candidate` stays None for wiki (eligible types
+are note/decision/capture only): A is the recall layer, not a promotion source.
 
 Note on references_in vs references_out:
   references_in is per-source-file (a note linking [[X]] three times counts
@@ -570,16 +570,22 @@ def _compute_promotion_candidate(
     """
     Compute the promotion_candidate flag.
 
-    Only `note` and `decision` types are eligible. inbox/ files and all other
-    types return None (not applicable).
+    `note`/`decision` are eligible via references_in OR access_count. `capture`
+    is eligible via access_count only — inbox ore rarely gets wikilinked in, so
+    references_in is not a fair signal there. This only surfaces recalled
+    capture ore as a display-only E8 candidate (audit/retro never auto-fixes
+    it; retro's status-machine PROMOTE step still only flips note/decision).
+    All other types return None (not applicable).
 
     Thresholds (env-overridable):
       VAULT_AUDIT_PROMOTION_REFS   (default 3) — inbound link threshold
       VAULT_AUDIT_PROMOTION_ACCESS (default 5) — git 7-day access threshold
     """
-    if entry_type not in ("note", "decision"):
-        return None
-    return references_in >= PROMOTION_REFS_THRESHOLD or access_count >= PROMOTION_ACCESS_THRESHOLD
+    if entry_type in ("note", "decision"):
+        return references_in >= PROMOTION_REFS_THRESHOLD or access_count >= PROMOTION_ACCESS_THRESHOLD
+    if entry_type == "capture":
+        return access_count >= PROMOTION_ACCESS_THRESHOLD
+    return None
 
 
 def _iso_now() -> str:

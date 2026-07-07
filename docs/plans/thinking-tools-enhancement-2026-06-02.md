@@ -1,6 +1,8 @@
 # thinking-tools 고도화 방안 (2026-06-02)
 
 > **상태 (2026-06-03 갱신)**: C1(expert-panel STATE) ✅ 완료(`79781d1`). C2(saturation 일반화 + STATE 헤더 dedup) → **#107**로 진행 중. §4 폐기·보류 항목은 backlog 이슈로 이관(payload=폐기, 관점다양성→#114, Ontologist→#113). spec-first 분리(§1)는 **#111** 소유. 의사결정 원칙·telemetry 근거는 압축 보존.
+>
+> **추가 갱신 (2026-07-07)**: #107·#111·#114 전부 CLOSED(#111은 spec-first→build-spec 리네임으로 해소, `spec-first-extraction-2026-06-02.md` 참조). **#113만 아직 OPEN**(backlog, 3번째 doc primitive 게이트) — 이 문서에서 유일하게 살아있는 실이에요.
 
 ## 배경 · 범위
 

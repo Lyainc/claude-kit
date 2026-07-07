@@ -1,6 +1,8 @@
 # 구현 플랜: `/handoff` 커맨드 + `.claude-kit/` 통합
 
 > **상태 (2026-06-03 갱신): ✅ SHIPPED.** `/handoff` 커맨드·resume.md 생명주기(SessionStart 소비형)·`/save-session` redirect·`/save-plan-doc defer` resume 생성 전부 구현·배포됨(`vault-bridge/commands/handoff.md` 등 존재 확인). 계획상 1.11.0 범프는 이후 v2.0.0에 흡수. 아래는 구현 당시 설계 기록(보존).
+>
+> **추가 갱신 (2026-06-28, G26): ⛔ 이후 RETIRED.** 이 문서가 SHIPPED라고 확인한 `/handoff` 커맨드·`vault-bridge/commands/handoff.md`·resume.md 생명주기는 인수인계 기능 재설계로 전량 철회됐어요(PR #276). 인수인계 기능은 이제 머신 레벨 `session-close` 스킬(claude-kit 바깥)이 담당해요. 이 문서는 "한때 이렇게 만들었다"는 이력으로만 보세요 — `/handoff`를 다시 만들 근거로 쓰지 마세요.
 
 **작성일**: 2026-05-16  
 **버전 범프**: `1.10.0` → `1.11.0`  

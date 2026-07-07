@@ -34,15 +34,17 @@ thinking-tools는 **이미 4.8-friendly하게 설계돼 있다.** 공식 가이�
 | `unknown-discovery` | blind-spot 인터뷰 | ✅ 4.8 honesty와 시너지 |
 | `doc-polish` | LLM trope blacklist 기반 *입력 문서* 검사 | ✅ 검사 기준은 모델 무관 → 영향 없음 |
 | `doc-concretize` | step-by-step 재귀 작성 | ✅ self-contained |
-| `thought-chain` | 4-stage 파이프라인 | ✅ 명시적 stage 정의 |
+| ~~`thought-chain`~~ | ~~4-stage 파이프라인~~ | **행 무효 (2026-07-07): thought-chain 스킬 자체가 #105로 완전히 해체됐어요 — 이 판정은 더 이상 대상이 없어요.** |
 | `build-spec` | STATE block after every round | ✅ 정형 checkpoint, progress scaffolding 아님 |
 | `diverse-sampling` | **"Model Capabilities" 섹션의 Opus/Sonnet 이분법** | ⚠️ **유일한 실질 변경 후보** (§4) |
 
 ## 4. 실질 변경 후보 (Tier 1, 1건)
 
-### diverse-sampling: `Model Capabilities` 섹션 (SKILL.md L164–174)
+### diverse-sampling: `Model Capabilities` 섹션 (SKILL.md L164–174, 작성 당시 기준)
 
-현재 본문:
+> **주의 (2026-07-07)**: 아래 인용 라인 번호는 이 문서 작성 시점 기준이에요 — diverse-sampling SKILL.md가 그 뒤 편집되면서 지금은 이 섹션이 그 줄 번호에 없어요(파일이 총 375줄로 변경). 아래 인용문 자체(내용)는 그 변경 전 스냅샷이니, 지금 실제로 유효한지는 현재 SKILL.md를 직접 확인하세요.
+
+현재 본문 (작성 당시 스냅샷):
 
 ```
 ### Extended Thinking (Opus)
