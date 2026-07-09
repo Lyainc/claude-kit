@@ -7,10 +7,20 @@ a fixture or live vault. Outputs per-type finding counts and a flat list of
 finding records as JSON. Stdlib only.
 
 v4 layout: inbox/ + notes/ + assets/  (no 00_Inbox, 20_Projects, 30_Notes)
-Error types: E1-E11. E9 (#119) = tag/property vocabulary inconsistency, a
+Error types: E1-E12. E9 (#119) = tag/property vocabulary inconsistency, a
 vault-LEVEL check (findings carry path:""); only deterministic sub-checks ship
 (E9a singular/plural, E9b camel/snake property naming). E9c (semantic synonyms)
 is out of scope, deferred to a separate issue.
+
+E12 (#330) = wiki self-audit (v5 §7 U3). The rule has two halves, split on the
+audit's LLM-0 (deterministic-only) boundary — the SAME split E9 makes:
+  - E12a wiki staleness: `verified:` age > STALE_WIKI_DAYS. DETERMINISTIC (date
+    arithmetic) → SHIPS here as E12_wiki_stale.
+  - E12b cross-page semantic contradiction: two wiki pages asserting conflicting
+    claims. NON-deterministic (needs LLM judgment) → OUT of scope for the
+    reference impl, deferred to a `--deep` LLM opt-in exactly like E9c. Building a
+    fake-deterministic contradiction heuristic would only manufacture false
+    positives; staleness is the honest deterministic slice.
 
 Usage:
   python3 audit-validate.py <vault_root>          # JSON summary on stdout
@@ -38,6 +48,10 @@ STATUS_REQUIRED_TYPES = frozenset({"note", "decision"})
 # Stagnation thresholds (v4 §6.1 Step 2).
 STALE_INBOX_DAYS = 14
 STALE_DRAFT_DAYS = 30
+# E12 wiki staleness threshold (v5 §7 U3). A wiki page's `verified:` is auto-stamped
+# on every write (v5 §4.1) — a last-touched signal, not active verification — so age
+# past this bound flags a page that hasn't been re-compiled/re-touched in a quarter.
+STALE_WIKI_DAYS = 90
 # Inbox files with explicit non-raw status (e.g., session→active) are exempt from E6.
 INBOX_RAW_STATUSES = frozenset({"", "raw"})
 # Priority mapping per error type (v4 §6.1). P0 = 무결성, P1 = 정체, P2 = quality.
@@ -54,6 +68,7 @@ PRIORITY_BY_TYPE = {
     "E9_tag_vocabulary_inconsistency": "P2",
     "E10_misplaced_file": "P1",
     "E11_unstructured_path": "P1",
+    "E12_wiki_stale": "P1",
 }
 # E9 (#119) frequency threshold: report a vocabulary pair only when BOTH forms
 # appear in this many files or more (per-form file count). Suppresses one-off
@@ -323,6 +338,38 @@ def parse_created_date(value) -> Optional[date]:
         return None
 
 
+def detect_stale_wiki(fm_records: list, today: date, stale_days: int = STALE_WIKI_DAYS) -> list:
+    """E12a: return (rel, detail) for wiki/ pages whose `verified:` age > stale_days.
+
+    Deterministic reference-impl slice of the E12 wiki self-audit rule (v5 §7 U3).
+    Scoped to genuine wiki pages only (top folder `wiki/` AND `type: wiki`) so a
+    stray old `verified:` on a non-wiki file is never flagged. Pages with a
+    missing/unparseable `verified:` are SKIPPED: staleness is uncomputable without
+    it, and the field is auto-stamped on every wiki write (v5 §4.1) so absence is
+    near-impossible in practice (an absent field is a write-path bug, not a staleness
+    signal). Cross-page semantic contradiction (E12b) is the deferred `--deep` path.
+    """
+    findings: list = []
+    for rec in fm_records:
+        rel_path = Path(rec["rel"])
+        if not rel_path.parts or rel_path.parts[0] != "wiki":
+            continue
+        fm = rec.get("fm") or {}
+        if fm.get("type") != "wiki":
+            continue
+        verified = parse_created_date(fm.get("verified"))
+        if verified is None:
+            continue
+        age_days = (today - verified).days
+        if age_days > stale_days:
+            findings.append((
+                rec["rel"],
+                f"verified {age_days}d old > {stale_days}d (verified {fm.get('verified')}) "
+                f"— recompile or re-verify the page",
+            ))
+    return findings
+
+
 def _promotion_candidates_from_manifest(vault: Path) -> list:
     """Return manifest entries with promotion_candidate=True for E8 classification.
 
@@ -566,6 +613,11 @@ def classify(bundle: dict) -> dict:
                 add("E7_stale_draft", rec["rel"],
                     f"age {age_days}d > {STALE_DRAFT_DAYS}d (status:draft, created {fm.get('created')})")
 
+    # E12a: wiki staleness (v5 §7 U3) — deterministic slice of the wiki self-audit
+    # rule. Semantic cross-page contradiction (E12b) is the deferred --deep LLM path.
+    for rel, detail in detect_stale_wiki(bundle["fm_records"], today):
+        add("E12_wiki_stale", rel, detail)
+
     # E10 + E11 prep: set of files already flagged for E1/E2 (integrity defects).
     # Misplaced/unstructured checks skip these — fix integrity first.
     integrity_flagged = {
@@ -670,6 +722,7 @@ SEED_PREFIXES = {
     "E8_promotion_candidate": ("path", "audit-e8-"),
     "E10_misplaced_file": ("path", "audit-e10-"),
     "E11_unstructured_path": ("path", "audit-e11-"),
+    "E12_wiki_stale": ("path", "audit-e12-"),
 }
 
 

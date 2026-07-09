@@ -23,12 +23,13 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. |
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `inbox/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
+| E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. Display-only; cross-page semantic contradiction is the deferred `--deep` half (see E12). |
 
 > **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
-> **P1 = 정체/구조 (stagnation / structure)**: E6 and E7 surface unprocessed inputs and stalled drafts; E10 and E11 surface folder-structure drift. All are visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive / move).
+> **P1 = 정체/구조 (stagnation / structure)**: E6 and E7 surface unprocessed inputs and stalled drafts; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive / move / recompile).
 > **P2 = quality**: E5 orphan notes, E8 promotion candidates, and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
-> **Code numbering**: E9 (#119) is the tag/property vocabulary check below. Only its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship here; E9c (semantic synonyms) is **out of scope** and deferred to a separate issue (see the E9 section). E10/E11 are the structural checks per #128/#129.
+> **Code numbering**: E9 (#119) is the tag/property vocabulary check below. Only its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship here; E9c (semantic synonyms) is **out of scope** and deferred to a separate issue (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330) is the wiki self-audit: E12a staleness ships deterministically, E12b cross-page contradiction is deferred to `--deep` (same deterministic/semantic split as E9).
 
 The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
@@ -342,6 +343,38 @@ for each record in frontmatter_records:
 
 **Rationale**: Files outside the three-folder layout are invisible to folder-based routing and accumulate untracked. Moving them affects inbound wikilinks, so this is a **display-only** P1 warning — the user decides where they belong. The `_index.md` exempt guard is regression-covered: the test fixture seeds a root-level `_index.md` into the clean area and asserts `fp_on_clean.E11 == 0`.
 
+## E12 — `wiki_self_audit` [Warning]
+
+**Rule**: The `wiki/` A-layer (LLM-compiled domain knowledge, v5 §7 U3) needs its own freshness/consistency defense — Karpathy's LLM-wiki research names *staleness* as the primary cause of wiki abandonment, so without a mechanical lint the "review delegated to AI" delegation has nothing guarding it. The rule has **two halves, split on the audit's deterministic (LLM-0) boundary** — the exact split E9 already makes between its shipping sub-checks and the deferred E9c:
+
+| Sub-check | What it catches | Determinism | Status |
+|-----------|-----------------|-------------|--------|
+| **E12a** wiki staleness | a wiki page whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) | deterministic — date arithmetic only | **SHIPS** (`E12_wiki_stale`) |
+| **E12b** cross-page contradiction | two wiki pages asserting conflicting claims | **non-deterministic** — needs semantic LLM judgment | **deferred** to a `--deep` LLM opt-in (mirrors E9c) |
+
+**Why the split, not one rule**: the audit is a deterministic reference impl (`audit-validate.py` runs with LLM cost 0). Cross-page *semantic* contradiction cannot be decided by a mechanical rule — a keyword/regex proxy would only manufacture false positives against the audit's `fp_on_clean == 0` contract. Rather than fake determinism, E12b follows the E9c precedent: it is documented as the deferred `--deep` path (opt-in LLM judgment, out of the reference impl) and E12a — staleness — is the honest deterministic slice that ships now. This resolves the G23-S1 design fork ("deterministic audit vs. semantic contradiction detection") the same way #167 resolved it for E9.
+
+```python
+STALE_WIKI_DAYS = 90   # `verified:` is auto-stamped on every wiki write (v5 §4.1) —
+                       # a last-touched signal, NOT active verification.
+```
+
+**Source**: `frontmatter_records` (uses path + `type` + `verified` only).
+**Scope guard** (`detect_stale_wiki`): flags a page **only** when its top folder is `wiki/` AND `type: wiki` — a stray old `verified:` on a non-wiki file is never an E12. A page with a missing or unparseable `verified:` is **skipped** (staleness is uncomputable without it; the field is write-time auto-stamped, so absence is a write-path bug rather than a staleness signal — flagging it would be a false E12).
+
+**Detection pseudocode**:
+
+```
+for each record in frontmatter_records:
+  if path.parts[0] != "wiki": skip          # wiki/-scoped
+  if fm.type != "wiki": skip                # type:wiki only
+  verified = parse_date(fm.verified)
+  if verified is None: skip                 # missing/unparseable → uncomputable
+  if (today - verified).days > STALE_WIKI_DAYS: → wiki_stale
+```
+
+**Rationale**: A stale wiki page is a **display-only** P1 warning (staleness = 정체, same tier as E6/E7) — the next action (recompile / re-verify) is a semantic decision, never auto-fixed. Regression-covered by the DoD fixture (5 seeded `wiki/` pages with `verified: 2020-01-01` → `seeded_detected.E12 == 5`; 2 fresh pages stamped with the run date → `fp_on_clean.E12 == 0`, date-independent) plus a scoping unit test (`test-wiki-self-audit.py`).
+
 ## Auto-fix eligibility
 
 Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
@@ -350,7 +383,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → parent folder; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page is a semantic decision — display-only warning).
 
 ## Manifest Summary (display-only)
 

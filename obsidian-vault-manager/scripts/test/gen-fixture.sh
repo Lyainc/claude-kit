@@ -542,6 +542,55 @@ status: evergreen
 Root-level vault index — must be EXEMPT from E11 (regression guard for #129).
 EOF
 
+  # ── E12: wiki_self_audit — staleness (5 files) ────────────────────────────────
+  # v5 §7 U3 wiki self-audit. Deterministic slice = staleness: a wiki page whose
+  # `verified:` is older than STALE_WIKI_DAYS (90). `verified: 2020-01-01` keeps
+  # these stale regardless of run date (same date-independence trick as E6/E7).
+  # Full valid wiki frontmatter (created/tags/type:wiki/verified/provenance, NO
+  # status — v5 §4.1 puts wiki outside the status machine) so they trip ONLY E12:
+  # wiki/ is canonical (no E11), type:wiki→wiki/ is correct placement (no E10),
+  # filename is slug form (no E3), and E5 orphan is notes/-scoped (no E5).
+  # Semantic cross-page CONTRADICTION (E12b) is the deferred --deep LLM path — not
+  # seeded here (a deterministic fixture cannot exercise a non-deterministic check).
+  mkdir -p "$FIXTURE_DIR/wiki"
+  for i in $(seq 1 5); do
+    write_file "$FIXTURE_DIR/wiki/audit-e12-stale-$(printf '%03d' $i).md" <<EOF
+---
+created: 2020-01-01
+tags: [wiki, domain]
+type: wiki
+verified: 2020-01-01
+provenance: fixture-seed-e12-stale-${i}
+---
+
+# Audit E12 Stale Wiki ${i}
+
+Wiki page whose \`verified:\` is 2020 — age > STALE_WIKI_DAYS (90) → E12_wiki_stale.
+EOF
+  done
+
+  # E12 FP clean: fresh wiki pages whose `verified:` is TODAY → never stale.
+  # Uses `audit-clean-` prefix so it lands in fp_on_clean.E12 measurement, and a
+  # run-date-relative `verified:` so fp stays 0 no matter when the fixture is built
+  # (a hardcoded recent date would silently go stale once the run date drifts past
+  # the 90-day window — the exact date-dependence the DoD forbids).
+  _E12_TODAY="$(date +%Y-%m-%d)"
+  for i in 1 2; do
+    write_file "$FIXTURE_DIR/wiki/audit-clean-wiki-$(printf '%03d' $i).md" <<EOF
+---
+created: 2020-01-01
+tags: [wiki, domain]
+type: wiki
+verified: ${_E12_TODAY}
+provenance: fixture-seed-e12-clean-${i}
+---
+
+# Audit Clean Wiki ${i}
+
+Fresh wiki page (verified today) — must NOT trip E12_wiki_stale (fp guard).
+EOF
+  done
+
   # ── E9: tag_vocabulary_inconsistency (2 pairs, vault-wide) ────────────────────
   # E9 is a VAULT-LEVEL check (findings carry path:"") — DoD counts PAIRS, not
   # files. We seed two pairs, each form in 3 files (== E9_MIN_FILES) so the
@@ -698,8 +747,9 @@ PYEOF
   log "    E9 tag_vocabulary_inconsistency     : 2 pairs (api↔apis, sourceUrl↔source_url; 12 files, 3 per form)"
   log "    E10 misplaced_file                  : 5 files (type:session in notes/, ring-linked)"
   log "    E11 unstructured_path               : 5 files (2 root-direct + 3 in 20_Projects/)"
-  log "    Total seeded errors                 : 53 files + 12 E9 files (2 pairs)"
-  log "    Extra clean notes (FP base)         : 200 + audit-clean-no-promotion + root _index.md (E11 exempt guard)"
+  log "    E12 wiki_stale                      : 5 files (wiki/ verified:2020 > STALE_WIKI_DAYS; contradiction=--deep, deferred)"
+  log "    Total seeded errors                 : 58 files + 12 E9 files (2 pairs)"
+  log "    Extra clean notes (FP base)         : 200 + audit-clean-no-promotion + root _index.md (E11 exempt guard) + 2 fresh wiki (E12 fp guard)"
   log ""
 fi
 
