@@ -170,7 +170,9 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py \
 # Assert date-independent DoD invariants (CI `audit-dod` job runs this exact gate):
 python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 # Expected (G8+):
-#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E9:2, E10:5, E11:5}
+#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E9:2, E10:5, E11:5, E12:5}
+#     (E12 = wiki self-audit staleness, deterministic; cross-page contradiction is the
+#      deferred --deep LLM path — #330)
 #   dod.fp_on_clean per type = 0
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []

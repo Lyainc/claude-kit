@@ -39,6 +39,7 @@ EXPECTED_SEEDED = {
     "E9_tag_vocabulary_inconsistency": 2,
     "E10_misplaced_file": 5,
     "E11_unstructured_path": 5,
+    "E12_wiki_stale": 5,
 }
 
 
