@@ -1,6 +1,6 @@
 ---
 name: vault-knowledge-manager
-description: "Obsidian vault knowledge base manager. Handles note and decision creation, vault search, and audit coordination. Example: 'create a new note', 'search for kubernetes notes', 'run vault audit'. For session recording use vault-bridge's `/save-session` slash command instead — this agent does not manage session lifecycle."
+description: "Obsidian vault knowledge base manager. Handles note and decision creation, vault search, and audit coordination. Example: 'create a new note', 'search for kubernetes notes', 'run vault audit'. For session recording use `/capture` (raw ore) or `/wiki` (compiled knowledge) instead — this agent does not manage session lifecycle."
 model: sonnet
 color: magenta
 memory: project

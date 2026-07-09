@@ -1,7 +1,7 @@
 {
   "name": "vault-bridge",
   "version": "3.0.0",
-  "description": "Obsidian vault ↔ project bridge for Claude Code: manifest cache, haiku read-only vault-searcher agent (read/write asymmetry — vault reads delegable, writes are main-context only via the Write Role Contract), main-context write-primitive slash commands (/save-session, /vault-link, /vault-commit, /vault-manifest-refresh), and deterministic no-LLM SessionStart/PreToolUse hooks, with .vault-link project binding.",
+  "description": "Obsidian vault ↔ project bridge for Claude Code: manifest cache, haiku read-only vault-searcher agent (read/write asymmetry — vault reads delegable, writes are main-context only via the Write Role Contract), main-context write-primitive slash commands (/vault-link, /vault-commit, /vault-manifest-refresh), and deterministic no-LLM SessionStart/PreToolUse hooks, with .vault-link project binding.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -14,7 +14,6 @@
     "vault",
     "bridge",
     "vault-searcher",
-    "session-note",
     "search",
     "hooks",
     "vault-link",

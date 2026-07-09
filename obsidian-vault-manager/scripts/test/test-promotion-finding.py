@@ -179,7 +179,8 @@ def test_non_note_type_not_surfaced() -> None:
 def test_capture_candidate_surfaced() -> None:
     """type:capture with promotion_candidate=True (as generate-manifest.py's
     access_count-driven Model X now computes) DOES surface as E8 — display-only,
-    audit/retro never auto-fixes it (docs/specs/save-session-ore-repurpose.yaml c5).
+    audit/retro never auto-fixes it (display-only by design — promotion is
+    user-confirmed, never auto-applied).
     """
     with tempfile.TemporaryDirectory() as tmp_str:
         vault = Path(tmp_str)

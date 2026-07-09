@@ -1,6 +1,6 @@
 ---
 name: note
-description: "Create a structured, evergreen note (a lasting knowledge unit) or decision record in ~/vault/notes/. KR triggers: '노트로 정리', '에버그린 노트', '정식 노트로', '결정 기록', '노트 만들어줘'. EN triggers: 'create a note', 'evergreen note', 'write up a note', 'record a decision'. Examples: '/note kubernetes networking basics', '/note --type decision use-rust-over-go'. Routing — all four write vault md, so discriminate by intent: gardened evergreen knowledge → note (here); raw unprocessed memo to inbox → capture; this session's work log → /save-session; compiled domain knowledge for AI recall → wiki."
+description: "Create a structured, evergreen note (a lasting knowledge unit) or decision record in ~/vault/notes/. KR triggers: '노트로 정리', '에버그린 노트', '정식 노트로', '결정 기록', '노트 만들어줘'. EN triggers: 'create a note', 'evergreen note', 'write up a note', 'record a decision'. Examples: '/note kubernetes networking basics', '/note --type decision use-rust-over-go'. Routing — all three write vault md, so discriminate by intent: gardened evergreen knowledge → note (here); raw unprocessed memo or this session's work log to inbox → capture; compiled domain knowledge for AI recall → wiki."
 model: sonnet
 allowed-tools: Read Write Bash Glob
 ---
