@@ -240,7 +240,12 @@ catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) 
 The engine does not maintain a numbered catalogue; for a new rule it appends in each
 site's **native form** (CLAUDE.md prose / a hook script / a skill SKILL.md), and for an
 **Edit**-classified rule it rewrites the targeted entry in place instead — always
-conflict-checked against that site's present content.
+conflict-checked against that site's present content. If the chosen site's current content
+is already an index+detail split (a thin summary table/list of one-liners each linking to a
+per-entry file, e.g. a catalogue `README.md` → `policies/Pn.md`), match that shape — add one
+terse index row plus its linked detail file, not a new inline block — so the always-loaded
+index doesn't grow unbounded as entries accumulate. Never invent this split on a site that
+doesn't already use it.
 
 ## 7. Output contract
 
