@@ -1,5 +1,4 @@
 {
-  "save-session": "vault-bridge",
   "vault-link": "vault-bridge",
   "vault-manifest-refresh": "vault-bridge",
   "vault-commit": "vault-bridge",
@@ -16,6 +15,7 @@
 
   "capture": "obsidian-vault-manager",
   "note": "obsidian-vault-manager",
+  "wiki": "obsidian-vault-manager",
   "audit": "obsidian-vault-manager",
   "base": "obsidian-vault-manager",
   "vault-knowledge-manager": "obsidian-vault-manager",
