@@ -80,9 +80,9 @@ E1-E11 오류(frontmatter 누락, stale inbox/draft, promotion candidate 등)를
 | 영역 | obsidian-vault-manager | vault-bridge |
 | --- | --- | --- |
 | 사용 맥락 | vault 관리 세션 내부 | 외부 프로젝트에서 vault 접근 |
-| 쓰기 범위 | 노트 전체 생성·수정 (`inbox/`, `notes/`) | 새 session-note/capture/plan 생성만 (`inbox/`, `notes/{project}/`) |
+| 쓰기 범위 | 노트 전체 생성·수정 + 캡처·wiki (`inbox/`, `notes/`, `wiki/`) | vault 콘텐츠 쓰기 없음 — git 커밋(`/vault-commit`)·링크(`/vault-link`)만 |
 | 도메인 컨텍스트 로드 | `vault-knowledge-manager` 에이전트 (OVM 내부, mdfind/grep 직접 접근) | `vault-searcher` Mode 2 (읽기 전용, 외부 접근용) |
-| 세션 기록 | 해당 없음 (vault-bridge의 session-note 사용) | `/save-session` 슬래시 커맨드로 session-note 생성 (inline, main context) |
+| 세션 기록 | `/capture` (원석 → `inbox/`) · `wiki` (컴파일된 세션 지식 → `wiki/`) | 해당 없음 (세션 기록 커맨드 retire 2026-07-10 #331) |
 
 ## 사전 요구사항
 

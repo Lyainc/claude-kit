@@ -1,8 +1,8 @@
 # vault-bridge
 
-**Obsidian vault ↔ external project bridge** plugin for Claude Code. Access vault knowledge from external projects and record session notes back into the vault.
+**Obsidian vault ↔ external project bridge** plugin for Claude Code. Access vault knowledge from external projects; vault *content* writes are handled by obsidian-vault-manager (`/capture`, `/note`, `/wiki`), and git commits by this plugin's `/vault-commit`.
 
-> **Renamed from `vault-reader` (≤ v0.3.0) at v1.0.0.** The plugin's scope expanded beyond read-only search (session-note creation via `/save-session`, vault I/O hooks), so the name now reflects the two-way bridge role. See [Migration](#migration-from-vault-reader) below.
+> **Renamed from `vault-reader` (≤ v0.3.0) at v1.0.0.** The plugin's scope expanded beyond read-only search (session-note creation, vault I/O hooks), so the name now reflects the two-way bridge role. See [Migration](#migration-from-vault-reader) below.
 
 ## Install
 
@@ -48,22 +48,15 @@ Search the entire vault by keyword. If Obsidian CLI is available and responsive,
 "이전에 정리한 배포 파이프라인 문서"
 ```
 
-## Write Workflow (since v1.9.0, capture door since 2026-07-08)
+## Write Workflow
 
-vault-searcher is read-only. All vault writes route through user-initiated slash commands executed inline in main context. `/save-session` (repurposed 2026-07-08, `docs/specs/save-session-ore-repurpose.yaml`) no longer authors a session note — it writes a `type:capture` summary of the session straight to `~/vault/inbox/`, the same artifact shape as `/capture` (obsidian-vault-manager). No mode selection, no path confirmation, no save confirmation — it saves immediately, mirroring `/capture`'s "save immediately" design.
+vault-searcher is read-only, and vault-bridge no longer ships a content-authoring command. All vault *content* writes route through obsidian-vault-manager's user-initiated slash commands, executed inline in main context: `/capture` (raw ore → `~/vault/inbox/`), `/note` (evergreen note → `~/vault/notes/`), `/wiki` (compiled AI-recall domain knowledge → `~/vault/wiki/`). A past-tense session summary is just a `/capture`; distilled session knowledge for later AI recall compiles to `/wiki` (`/save-session` was retired 2026-07-10, #331).
 
-For committing vault changes to git, use `/vault-commit`. Next-session handoff is no longer a vault-bridge command — see [Session Handoff](#session-handoff).
-
-```
-/save-session
-"세션 정리해줘"
-"작업 기록 남겨줘"
-"session note 생성"
-```
+For committing vault changes to git, use vault-bridge's `/vault-commit`. Next-session handoff is no longer a vault-bridge command — see [Session Handoff](#session-handoff).
 
 ## Session Handoff
 
-Next-session handoff is **no longer a vault-bridge command**. The `/handoff` command and its `resume.md` mechanism were retired in G26 (decision G25 D4); the handoff function — authoring a next-session continuation / START-PROMPT — now lives in the machine-level `session-close` skill, part of the owner's personal kit and **not shipped in this plugin**. Use `/save-session` here to capture a past-tense session summary into the vault; the next-session continuation is handled outside claude-kit.
+Next-session handoff is **no longer a vault-bridge command**. The `/handoff` command and its `resume.md` mechanism were retired in G26 (decision G25 D4); the handoff function — authoring a next-session continuation / START-PROMPT — now lives in the machine-level `session-close` skill, part of the owner's personal kit and **not shipped in this plugin**. Use obsidian-vault-manager's `/capture` (or `/wiki` for compiled knowledge) to record a past-tense session into the vault; the next-session continuation is handled outside claude-kit.
 
 ## Optional Obsidian CLI integration
 
@@ -165,7 +158,7 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 
 ## Vault-Project Link
 
-`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) and session-restore (Mode 1) searches. It does **not** affect `/save-session`, which always writes to `~/vault/inbox/` regardless of `.vault-link` (2026-07-08 repurposing — see [Write Workflow](#write-workflow-since-v190-capture-door-since-2026-07-08)).
+`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) and session-restore (Mode 1) searches. It does **not** affect `/capture`, which always writes to `~/vault/inbox/` regardless of `.vault-link` (see [Write Workflow](#write-workflow)).
 
 ### Schema
 
@@ -194,7 +187,7 @@ vault-searcher walks upward from CWD (git-style) until it finds `.vault-link`. T
 |---------|-----------------------|--------------------|
 | **vault-searcher Mode 2 (Domain Context Load)** | Searches all of `~/vault/` | Searches only `{vault_root}/{vault_path}/` |
 
-vault-searcher Mode 3 (Keyword Search) is unaffected by `.vault-link` scope. `/save-session` always writes to `~/vault/inbox/`, `.vault-link` or not (2026-07-08 repurposing).
+vault-searcher Mode 3 (Keyword Search) is unaffected by `.vault-link` scope. `/capture` always writes to `~/vault/inbox/`, `.vault-link` or not.
 
 ### Recovery
 
@@ -236,7 +229,7 @@ vault-bridge v1.5.0 introduced vault write governance; v1.9.0 narrows vault-sear
 
 ### Same-date collision handling
 
-If `capture-2026-04-18-{slug}.md` already exists, `/save-session` (and `/capture`) tries `-v2`, `-v3`, … The existing file is never touched, and no confirmation is shown — both commands save immediately.
+If `capture-2026-04-18-{slug}.md` already exists, `/capture` tries `-v2`, `-v3`, … The existing file is never touched, and no confirmation is shown — it saves immediately.
 
 ## File Naming Convention
 
@@ -296,10 +289,10 @@ VAULT_BRIDGE_WRITE_CONTRACT=off claude
 | Aspect | vault-bridge | obsidian-vault-manager |
 | --- | --- | --- |
 | Use context | External project access | Internal vault management session |
-| Write scope | New session notes, captures, plans in Inbox/Projects | Full note/MOC/project management |
-| Role | Cross-session bridge (read + write) | Full knowledge management |
+| Write scope | No vault *content* writes — only `.vault-link` binding + git commits (`/vault-commit`) | Full note/MOC/project management + capture/wiki |
+| Role | Cross-session bridge (read + git commit) | Full knowledge management |
 
-- vault-bridge **never modifies or deletes existing vault files**. It only creates new files.
+- vault-bridge **never authors, modifies, or deletes vault content files** — content creation belongs to obsidian-vault-manager (`/capture`, `/note`, `/wiki`). Its only writes are the `.vault-link` pointer and git commits.
 - For full vault management (note creation, MOC updates, inbox review), use `obsidian-vault-manager`.
 
 ## Direct Access Guard
@@ -336,13 +329,10 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 
 ## Notes
 
-- `/save-session` filename: `capture-YYYY-MM-DD-{slug}.md` (type-first convention, same as `/capture`)
-- `/save-session` frontmatter: `created`, `tags: [capture, session]`, `type: capture` (no `status` field — captures never carry one)
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24; the `/handoff` command + `resume.md` mechanism were retired in G26 — see [Session Handoff](#session-handoff).)
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
-- **`/save-session` command**: explicit user trigger for inline capture-ore creation (main context) — `type:capture` in `~/vault/inbox/`, no mode selection, save-immediately
 - **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
 
 ## Session Auto-Commit
@@ -378,7 +368,7 @@ When vault-bridge writes session notes, captures, or plan files to a git-tracked
 
 ### Kill switch
 
-Set `VAULT_BRIDGE_DISABLE=1` to suppress the `/vault-commit` command. (The Stop-hook auto-suggestion of `/save-session` and `/vault-commit` was removed in G24 — run `/vault-commit` manually when the vault has uncommitted changes.)
+Set `VAULT_BRIDGE_DISABLE=1` to suppress the `/vault-commit` command. (The Stop-hook auto-suggestion of `/vault-commit` was removed in G24 — run `/vault-commit` manually when the vault has uncommitted changes.)
 
 ```bash
 VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
@@ -388,7 +378,6 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 
 | Command | Description |
 |---------|-------------|
-| `/save-session` | Inline capture-ore creation in main context — `type:capture` to `~/vault/inbox/`, no mode selection, save-immediately |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |
@@ -431,7 +420,7 @@ claude plugin uninstall vault-reader
 claude plugin install vault-bridge@Lyainc-claude-kit
 ```
 
-Behavior and trigger phrases are unchanged at the v1.0.0 migration boundary. The `vault-searcher` agent kept the same 4 modes (restore, domain context, keyword search, session-note creation) through v1.8.x; v1.9.0 narrowed it to 3 read-only modes (write operations moved into the `/save-session` slash command — same UX, executed inline in main context).
+Behavior and trigger phrases are unchanged at the v1.0.0 migration boundary. The `vault-searcher` agent kept the same 4 modes (restore, domain context, keyword search, session-note creation) through v1.8.x; v1.9.0 narrowed it to 3 read-only modes (write operations moved to user-initiated slash commands, executed inline in main context).
 
 If you reference the agent by qualified name in prompts or scripts, update `vault-reader:vault-searcher` → `vault-bridge:vault-searcher`.
 

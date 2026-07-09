@@ -1,6 +1,6 @@
 ---
 name: capture
-description: "Quick memo capture. Saves immediately to Inbox (~/vault/inbox/) and outputs file path only — no processing, no structuring. KR triggers: '메모해줘', '인박스에 저장', '방금 거 캡처', '캡처해줘', '받아적어줘'. EN triggers: 'capture this', 'quick memo', 'save to inbox', 'jot this down'. Example: '/capture API changes from today's meeting'. Routing: 정제된 evergreen 노트는 note, 세션 기록은 /save-session, 도메인 지식 컴파일은 wiki — capture는 가공 없는 raw 입력만."
+description: "Quick memo capture. Saves immediately to Inbox (~/vault/inbox/) and outputs file path only — no processing, no structuring. KR triggers: '메모해줘', '인박스에 저장', '방금 거 캡처', '캡처해줘', '받아적어줘'. EN triggers: 'capture this', 'quick memo', 'save to inbox', 'jot this down'. Example: '/capture API changes from today's meeting'. Routing: 정제된 evergreen 노트는 note, 도메인 지식 컴파일은 wiki — capture는 세션 기록을 포함한 가공 없는 raw 입력만."
 model: haiku
 allowed-tools: Read Write Bash
 ---

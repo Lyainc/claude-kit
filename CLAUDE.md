@@ -12,7 +12,7 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 7개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, adversarial-review, build-spec + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 5개 (capture, note, wiki, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`). wiki = v5 A-layer LLM wiki 컴파일(`vault/wiki/`, AI recall 主, provenance 추적, 게이트된 명시 액션).
-- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 3종 (SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 4개 (`/save-session`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`; `/handoff`은 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, claude-kit 외부) + Python scripts (`generate-manifest.py`, `vault-commit-message.py`). vault 검색 + slash command 기반 session-note/capture 작성. (세션 생명주기 자동 훅 — Stop `/save-session` 제안 · SessionEnd 자동저장 — 은 G24에서 cut; session-note는 명시 `/save-session`으로만 작성.)
+- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 3종 (SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit) + 슬래시 커맨드 3개 (`/vault-link`, `/vault-manifest-refresh`, `/vault-commit`; `/handoff`은 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, claude-kit 외부; `/save-session`은 #331에서 retire — 세션지식 경로가 wiki-first로 재정의되어 OVM `/wiki` + native memory로 이관) + Python scripts (`generate-manifest.py`, `vault-commit-message.py`). vault 검색 + git 커밋. vault 콘텐츠 쓰기(capture/note/wiki)는 OVM 소유. (세션 생명주기 자동 훅은 G24에서 cut.)
 - **feedback-loop** (`feedback-loop/`): layer ⑤ 자기개선 루프 (measure→review→keep, **실행/이터레이션 엔진 아님** — #217로 ⑤ 하네스에서 분리된 **외부 배포** 단위). 스킬 3개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산, #123 / distill — 세션 절차 기법의 user-confirmed **발견**: 자연어 제안 객체 emit, 저작은 안 함(매립은 add-policy 소유), SIS 이식, #202 / add-policy — **매립 엔진**(G19/#255): 자연어 규칙·distill 제안을 분류해 매립지 3개(CLAUDE.md/hook/skill) 중 한 곳에 1클릭 배치, 머신-중립·커밋 안 함, user-authored 스킬 inviolable) + telemetry 흡수 (event-logger hooks 8 event-type, report.py lifecycle, opt-in `CLAUDE_KIT_TELEMETRY=1` 아니면 silent·per-turn LLM 0·외부 유출 0). **단방향 의존(CON-5)**: feedback-loop은 leaf OUTPUT(audit·manifest·telemetry events)만 읽고 leaf code import 0; 외부 배포지만 ⑤ harness 계열(배포단위≠레이어).
 
 ## Git Conventions
@@ -365,9 +365,9 @@ url: ...                                       # capture only, optional
 
 ## vault-bridge Hooks & Commands
 
-vault-bridge registers 5 hook handlers + 4 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
+vault-bridge registers 5 hook handlers + 3 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
 
-**Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for **reads only**. Vault *reads* are delegated to the haiku `vault-searcher` agent; vault *writes* cannot be delegated — `pre-write-guard.sh` (default `enforce`) blocks subagent writes, so all writes are main-context user-initiated slash commands. The write-authoring slash commands are the runtime entry points for the output-adapter contract (`docs/design/output-adapter-contract.md` §2): `/save-session` is the `session` **③ delivery** adapter (row #5 — vault delivery, `gated`). The `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired from this plugin in G26 (decision G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside claude-kit. vault-bridge is claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the output layer is **distributed in-place**, so these delivery adapters live here rather than in a separate plugin.
+**Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for **reads only**. Vault *reads* are delegated to the haiku `vault-searcher` agent; vault *writes* cannot be delegated — `pre-write-guard.sh` (default `enforce`) blocks subagent writes, so all writes are main-context user-initiated slash commands. Both vault-content ③ delivery adapters that vault-bridge once carried are now retired: the `session` adapter (`docs/design/output-adapter-contract.md` §2 row #5 — formerly `/save-session`) was **retired 2026-07-10 (#331)** when the session-knowledge path was redefined wiki-first (session knowledge → OVM `/wiki` + native memory), and the `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired in G26 (decision G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside claude-kit. vault-bridge's remaining write command is `/vault-commit` (git commit); vault *content* authoring (capture/note/wiki) belongs to obsidian-vault-manager. vault-bridge is still claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the output layer is **distributed in-place**, so these delivery adapters live here rather than in a separate plugin.
 
 **Vault root configuration** (all hooks + Python scripts share the same 3-level priority):
 1. `VAULT_BRIDGE_VAULT_ROOT` env var — explicit runtime override (CI/scripts, highest priority)
@@ -382,14 +382,13 @@ vault-bridge registers 5 hook handlers + 4 slash commands. All hooks are **deter
 
 **Slash commands** (`commands/*.md`):
 
-- **`/save-session`**: captures a session summary as `type:capture` raw ore into `~/vault/inbox/`, inline in main context — no mode selection, save-immediately (repurposed 2026-07-08 from session-note authoring, `docs/specs/save-session-ore-repurpose.yaml`). Vault writes are user-initiated slash commands only.
 - **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault location.
 - **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).
 - **`/vault-commit`**: commits uncommitted vault changes with user-approved message.
 
 (`/handoff` was retired in G26 — the next-session continuation function moved to the machine-level `session-close` skill, outside claude-kit.)
 
-The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse guards) and explicit slash commands ensure zero per-turn LLM cost, no loops, and a clear user-driven path for capture ore. The session-lifecycle auto-hooks (Stop `/save-session` suggestion, SessionEnd safety-net auto-save) were cut in G24 — captures are now written only via the explicit `/save-session` (or `/capture`) command.
+The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse guards) and explicit slash commands ensure zero per-turn LLM cost, no loops. The session-lifecycle auto-hooks (Stop capture suggestion, SessionEnd safety-net auto-save) were cut in G24; capture ore is written only via obsidian-vault-manager's explicit `/capture` command.
 
 ## Cross-Plugin MECE Boundaries
 
@@ -398,7 +397,7 @@ Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping doma
 | Area | obsidian-vault-manager | vault-bridge |
 |------|----------------------|--------------|
 | Note creation | `note` skill (evergreen notes + decision records, `notes/`) | N/A |
-| Session record | N/A (use vault-bridge's `/save-session`) | `/save-session` slash command (inline in main context — `type:capture` to `inbox/`, no mode selection) |
+| Session record | `/capture` (raw session ore → `inbox/`) · `wiki` (compiled session knowledge → `wiki/`) — `/save-session` retired #331, wiki-first | N/A (session-record command retired 2026-07-10 #331; `/vault-commit` commits the vault) |
 | Domain context search | `vault-knowledge-manager` (direct mdfind/grep, OVM-internal) | `vault-searcher` Mode 2 (external, read-only lightweight) |
 
 Within `thinking-tools`:

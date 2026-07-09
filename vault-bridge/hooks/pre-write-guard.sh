@@ -96,7 +96,7 @@ if [ "$contract_mode" != "off" ]; then
   ' 2>/dev/null || true)
 
   if [ -n "$agent_id" ] && [ "$top_dir" != "assets" ]; then
-    contract_msg="Vault writes must be user-initiated slash commands (/save-session, /vault-commit). Subagent ($agent_id) vault write blocked. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
+    contract_msg="Vault writes must be user-initiated slash commands (/capture, /vault-commit). Subagent ($agent_id) vault write blocked. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
 
     if [ "$contract_mode" = "enforce" ]; then
       # Emit both permissionDecisionReason (for the deny dialog) AND systemMessage

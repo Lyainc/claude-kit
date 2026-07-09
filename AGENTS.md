@@ -188,7 +188,7 @@ python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 | Area | `obsidian-vault-manager` | `vault-bridge` |
 | --- | --- | --- |
 | Domain context load | `vault-knowledge-manager` agent (OVM-internal, direct mdfind/grep) | `vault-searcher` Mode 2 (external, read-only lightweight search) |
-| Session record | Not owned here | `/save-session` slash command (inline in main context — `type:capture` to `inbox/`, no mode selection) |
+| Session record | `/capture` (raw session ore → `inbox/`) · `wiki` (compiled session knowledge → `wiki/`) — `/save-session` retired #331, wiki-first | N/A (session-record command retired 2026-07-10 #331; `/vault-commit` commits the vault) |
 | Note creation | `note` skill (evergreen notes + decision records, `notes/`) | N/A |
 
 Within `thinking-tools`, route creative alternative generation to `diverse-sampling` and evaluative multi-perspective review to `expert-panel`.

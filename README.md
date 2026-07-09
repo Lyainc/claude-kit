@@ -61,11 +61,10 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 ### vault-bridge — 프로젝트 ↔ vault 브릿지
 
-외부 코드 프로젝트에서 vault에 접근하고, 세션 작업을 기록으로 남겨요. haiku 기반 읽기 전용 검색 에이전트 + 기록 슬래시 커맨드 + 결정형 훅(턴당 LLM 비용 0).
+외부 코드 프로젝트에서 vault에 접근하고, 변경사항을 git에 커밋해요. haiku 기반 읽기 전용 검색 에이전트 + 링크/커밋 슬래시 커맨드 + 결정형 훅(턴당 LLM 비용 0). vault 콘텐츠 쓰기(캡처·노트·wiki)는 obsidian-vault-manager가 담당해요.
 
 | 커맨드 | 하는 일 |
 |---|---|
-| `/save-session` | 세션 요약을 원석(`type:capture`)으로 `~/vault/inbox/`에 저장 (`/capture`와 동일한 산출물, 즉시저장·무확인) |
 | `/vault-link` | 프로젝트를 특정 vault 위치에 바인딩 |
 | `/vault-commit` | vault 변경사항 커밋 |
 
@@ -90,7 +89,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 |---|---|
 | 아이디어 펼치고 스펙으로 굳히기 (사고·기획) | `diverse-sampling` · `build-spec` · `unknown-discovery` |
 | 결과물 검토·반증·다듬기 (작업·폴리싱) | `expert-panel` · `adversarial-review` · `doc-polish` |
-| 작업을 기록·검색으로 남기기 (지식관리) | `/save-session` · `capture` · `note` |
+| 작업을 기록·검색으로 남기기 (지식관리) | `capture` · `note` · `wiki` |
 
 흐름과 내부 5-레이어의 직교 매핑 근거는 [4-흐름 카탈로그](docs/design/4-flow-catalog.md) 참조.
 
@@ -111,7 +110,7 @@ git commit -m "initial vault structure (v4)"
 ### 2. 플러그인 설치
 
 ```bash
-# 최소 설치 (vault 브릿지 + 세션 노트)
+# 최소 설치 (vault 검색·링크·커밋 브릿지)
 claude plugin install vault-bridge@Lyainc-claude-kit
 
 # vault 지식 관리 스킬까지 포함
@@ -128,7 +127,7 @@ Claude Code를 재시작하면 적용됩니다.
 /vault-link
 ```
 
-`.vault-link` 파일은 `vault-searcher`의 recall scoping(세션 복원·도메인 컨텍스트 검색 범위)에 쓰입니다. `/save-session`은 `.vault-link`와 무관하게 항상 `~/vault/inbox/`에 저장합니다.
+`.vault-link` 파일은 `vault-searcher`의 recall scoping(세션 복원·도메인 컨텍스트 검색 범위)에 쓰입니다. `/capture`는 `.vault-link`와 무관하게 항상 `~/vault/inbox/`에 저장합니다.
 
 ### 4. 첫 캡처
 
@@ -138,15 +137,15 @@ Claude Code를 재시작하면 적용됩니다.
 
 `~/vault/inbox/capture-YYYY-MM-DD-{slug}.md`로 저장됩니다. URL을 전달하면 본문을 자동 추출해요 (`defuddle` 설치 시).
 
-### 5. 세션을 원석으로 저장
+### 5. 세션 지식을 wiki로 컴파일
 
-작업 마무리 시:
+작업 마무리 시, 세션에서 얻은 도메인 지식을 AI recall용 wiki 페이지로 컴파일해요:
 
 ```
-/save-session
+/wiki
 ```
 
-세션 요약을 `type:capture`로 즉시 `~/vault/inbox/`에 저장합니다(무확인, `/capture`와 동일한 산출물).
+`~/vault/wiki/`에 축적됩니다(같은 토픽은 덮어쓰지 않고 compounding update). 가공 없는 원석만 남기려면 위의 `/capture`를 쓰세요. 로컬 세션 컨텍스트는 native memory가 자동으로 잡아요.
 
 ## 마이그레이션
 
@@ -175,33 +174,18 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 스킬 이름과 트리거는 동일하므로 사용법 변경은 없습니다.
 
-### `/wrapup` 스킬 제거 (obsidian-vault-manager v0.4.0)
+### 세션 기록 경로 재편 → wiki-first (2026-07-10, #331)
 
-**Breaking change**: obsidian-vault-manager의 `/wrapup` 스킬이 제거되고, 세션 기록은 `vault-bridge` 플러그인의 `/save-session` 슬래시 커맨드로 일원화되었습니다 (v1.0.0에서는 `vault-searcher` 에이전트 Mode 4에 위임했고, v1.9.0부터는 `/save-session`이 main context에서 inline 실행).
+**Breaking change**: 세션 기록 전용 커맨드가 단계적으로 정리되어 이제 없습니다. obsidian-vault-manager의 `/wrapup`(v0.4.0 제거) → vault-bridge의 세션 캡처 커맨드(2026-07-08 capture-ore로 재목적화) → **#331에서 그 커맨드마저 retire**. 세션 지식 경로가 wiki-first로 재정의되면서 지금은:
 
-| 기존 `/wrapup` 사용 | 신규 사용 |
+| 목적 | 경로 |
 |---|---|
-| `/wrapup` | `/save-session` 또는 "세션 정리해줘" / "세션 노트 만들어줘" — record/handoff/quick 3-mode 라우팅 후 inline 실행 |
-| `/wrapup --hours 3` | `/save-session` 프로시저가 대화 컨텍스트 + 최근 변경 파일(`find -mmin`)을 수집. 범위는 세션 내용 기반으로 자동 판단 |
-| `/wrapup --no-save` | `/save-session` Step 10의 AskUserQuestion에서 `[취소]` 선택 |
-| 자동 저장 (세션 종료 시) | SessionEnd hook이 meaningful work 감지 시 자동 quick-save (`session-YYYY-MM-DD.md`, `tags: [session, auto-saved]`) |
+| 로컬 세션 컨텍스트 | native memory (자동) |
+| 가공 없는 원석 캡처 | `/capture` (obsidian-vault-manager) → `~/vault/inbox/` |
+| 컴파일된 도메인 지식 (AI recall) | `/wiki` (obsidian-vault-manager) → `~/vault/wiki/` |
+| 다음 세션 인수인계 | 머신 레벨 `session-close` 스킬 (claude-kit 미포함) |
 
-**기존 파일 처리**:
-- 과거 `session-wrapup` 태그/파일명의 노트는 그대로 유지 (migration script 제공하지 않음)
-- 필요 시 수동으로 `type: session` frontmatter 추가 또는 그대로 아카이브
-
-### `/save-session`: session-note 저작 → capture-ore 문 (vault-bridge, 2026-07-08)
-
-**Breaking change**: 위 표의 record/handoff/quick 3-mode 라우팅은 다시 폐기되었습니다. `/save-session`은 이제 session note를 저작하지 않고, 세션 요약을 `type:capture`로 `~/vault/inbox/`에 즉시 저장합니다 — `/capture`와 동일한 산출물이에요(`docs/specs/save-session-ore-repurpose.yaml`).
-
-| 기존 동작 | 신규 동작 |
-|---|---|
-| record/handoff/quick 모드 선택 (AskUserQuestion) | 모드 선택 없음 — 단일 캡처 흐름 |
-| `.vault-link` 프로젝트 경로에 저장 | 항상 `~/vault/inbox/`에 저장 |
-| 저장 전 draft 확인(AskUserQuestion) | 즉시저장, 무확인 |
-| `type: session` (파일명 `session-*.md`) | `type: capture` (파일명 `capture-*.md`) |
-
-**기존 파일 처리**: 과거 `type: session` 노트는 그대로 유지 (migration script 제공하지 않음). 다음 세션 인수인계는 이 표와 무관하게 머신 레벨 `session-close` 스킬이 담당합니다(claude-kit 미포함).
+과거 `session-wrapup` 태그·`type: session` 노트는 그대로 유지(migration script 없음). 단계별 상세 이력은 [CHANGELOG.md](CHANGELOG.md).
 
 ## 문제 해결
 
