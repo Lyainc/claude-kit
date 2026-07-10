@@ -162,6 +162,14 @@ Verify before writing to the target. After writing, verify the artifact determin
 - **Sibling**: link them with a one-line note.
 """
 
+# Regression pin for the word-boundary fix (#320): a 충돌 line containing "expedited"
+# has "edit" as a mid-word substring but doesn't name the edit outcome. The old bare
+# substring check ("edit" in field_line) would false-positive-pass this.
+_CONFIRMATION_FIELD_SUBSTRING_FALSE_POSITIVE = """\
+## 분류 결과
+- 충돌: <none | sibling of an existing rule | contradicts an existing rule (expedited review)>
+"""
+
 
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
@@ -176,6 +184,9 @@ def _self_test() -> int:
 
     ok, _ = check_edit_bucket_named(_EDIT_WITHOUT_BEFORE_AFTER)
     cases.append(("edit-without-before-after: check_edit_bucket_named (expect FAIL)", not ok))
+
+    ok, _ = check_confirmation_template_lists_edit(_CONFIRMATION_FIELD_SUBSTRING_FALSE_POSITIVE)
+    cases.append(("substring-false-positive: check_confirmation_template_lists_edit (expect FAIL)", not ok))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
