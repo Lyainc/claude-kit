@@ -20,7 +20,7 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E6   | P1       | Stale inbox → raw input never processed; loses freshness, signals review needed. |
 | E7   | P1       | Stale draft → notes/ `status: draft` sitting too long; either promote to evergreen or archive. |
 | E8   | P2       | Promotion candidate → high inbound refs or access count; suggests manual `status: evergreen`. Manifest-sourced, never auto-fixed. |
-| E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. |
+| E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. E9a/E9b are deterministic; E9c semantic synonym ships as the skill-only `--deep` LLM opt-in (#167, see the `## E9` section below). |
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `inbox/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
 | E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
@@ -29,7 +29,7 @@ Every finding carries a `priority` field independent of severity. Priority drive
 > **P1 = 정체/구조 (stagnation / structure)**: E6 and E7 surface unprocessed inputs and stalled drafts; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive / move / recompile).
 > **P2 = quality**: E5 orphan notes, E8 promotion candidates, and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
-> **Code numbering**: E9 (#119) is the tag/property vocabulary check below. Only its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship here; E9c (semantic synonyms) is **out of scope** and deferred to a separate issue (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336) is the wiki self-audit: E12a staleness ships deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 (same deterministic/semantic split E9 draws around E9c — E12b is a step ahead of E9c in that it actually ships, since #167 remains open).
+> **Code numbering**: E9 (#119, #167) is the tag/property vocabulary check below. Its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship in `audit-validate.py`; E9c (semantic synonyms) ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336) is the wiki self-audit: E12a staleness ships deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 — the same deterministic/semantic split E9 draws around E9c, and both now ship behind the same `--deep` flag.
 
 The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
@@ -229,7 +229,7 @@ for each record in frontmatter_records where path startswith "notes/":
 | **E9a** singular/plural | a lowercase tag `t` and its regular `+s` plural `t+"s"` both used | `api` ↔ `apis`, `tag` ↔ `tags` |
 | **E9b** property naming | a frontmatter key in camelCase and its snake_case equivalent both used | `sourceUrl` ↔ `source_url` |
 
-**E9c** (semantic synonyms — `llm` ↔ `large-language-model`, `react` ↔ `reactjs`) is **out of scope** for #119: a fixed synonym dictionary over-fires and is costly to maintain. It is deferred to a separate issue (skill-only `--deep` opt-in; see #119 D10 design note for the source-overlap + common-neighbor approach).
+**E9c** (semantic synonyms — `llm` ↔ `large-language-model`, `react` ↔ `reactjs`) was **out of scope** for #119: a fixed synonym dictionary over-fires and is costly to maintain. It ships instead as a skill-only `--deep` LLM opt-in (#167, see the **E9c** subsection below), following the source-overlap + common-neighbor approach from #119's D10 design note.
 
 **Source**: `frontmatter_records` — but aggregated **vault-wide**, not per file. E9 is a single vault-level pass over every record's `tags` (E9a) and frontmatter keys (E9b); each detected pair is one finding.
 
@@ -278,6 +278,46 @@ for camel in sorted(key_files):
 **Guard**: non-string tag items are ignored (a malformed `tags:` is E2 territory). Files without `tags`/frontmatter contribute nothing. Each unordered pair is reported once (E9a dedup via `seen`).
 
 **Auto-fix**: none. Picking the canonical form (and rewriting every affected file) is a semantic decision with inbound-link and habit implications — E9 is display-only.
+
+### E9c — tag semantic synonym (`--deep`, skill-only, #167)
+
+**Where it lives**: `audit/SKILL.md` Phase 2.5, not `audit-validate.py`. There is no reference-impl function for E9c and none is planned — the judgment step needs LLM semantic reasoning over tag strings, which the deterministic reference impl structurally cannot do (same reasoning as E12b).
+
+**Candidate-pair prefilter** (deterministic, cheap — bounds the expensive judgment step to plausibly-related tags instead of every O(n²) pair of vault-wide tags). Reuses E9a/E9b's existing `E9_MIN_FILES` (3) floor, then applies the source-overlap + common-neighbor signals from #119's D10 design note:
+
+```
+tag_files = {}                                        # lowercase tag → set(file paths)
+for rec in frontmatter_records:
+  for t in (rec.fm.tags or []):
+    tag_files[lower(t)].add(rec.path)
+
+frequent_tags = {t for t in tag_files if len(tag_files[t]) >= E9_MIN_FILES}
+
+for (A, B) in unordered_pairs(frequent_tags):
+  if already_reported_as_E9a(A, B):
+    continue                                          # regular plural — deterministic, no LLM needed
+  co_occurs = any(A in rec.fm.tags and B in rec.fm.tags for rec in frontmatter_records)
+  neighbors_A = {t for rec in frontmatter_records if A in rec.fm.tags for t in rec.fm.tags} - {A}
+  neighbors_B = {t for rec in frontmatter_records if B in rec.fm.tags for t in rec.fm.tags} - {B}
+  common_neighbor = bool(neighbors_A & neighbors_B)
+  if co_occurs or common_neighbor:
+    candidate_pairs.append((A, B))
+```
+
+**LLM judgment**: for each candidate pair, judge from the tag strings and file counts alone (no file body reads) whether they name the **same concept** under two different spellings/phrasings — a true synonym — as opposed to two related-but-distinct concepts that merely tend to co-occur (e.g. a language and a tool commonly used with it).
+
+**FP guard — mandatory user-confirm gate**: every pair the judgment step flags is a *candidate*, never reported directly. `AskUserQuestion` confirms each candidate pair individually (one question per pair, batched ≤4 per call — mirrors E12b's confirm gate exactly); only confirmed pairs become findings. There is no `fp_on_clean == 0` contract for E9c (it is explicitly out of `--dod` scope, see below), so this confirm gate is the FP-mitigation mechanism, same as E12b.
+
+**Finding shape**: folded into the SAME `tag_vocabulary_inconsistency` bucket E9a/E9b already populate — no new error type, renders under the existing E9 vault-wide heading in REPORT:
+
+```
+{"error_type": "tag_vocabulary_inconsistency", "severity": "Warning", "priority": "P2",
+ "path": "", "detail": "<reason>", "auto_fix_eligible": false}
+```
+
+**Out of `--dod` scope**: `--dod` (`obsidian-vault-manager/scripts/test/assert-dod.py`) measures `audit-validate.py`'s deterministic detection against seeded fixtures (`seeded_detected`, `fp_on_clean`). E9c has no reference-impl function to measure and cannot be seeded/detected deterministically (its output depends on live LLM judgment), so it is not a `--dod` target and never will be — `dod.seeded_detected.E9` stays scoped to E9a/E9b pairs exactly as it was before #167. Acceptance for E9c instead is a fixture demonstration: see `obsidian-vault-manager/scripts/test/fixtures/e9c-deep-demo/`.
+
+**Never auto-fixed**: like E9a/E9b, picking the canonical form is the user's decision — display-only, same as every other E9 finding.
 
 ## E10 — `misplaced_file` [Warning]
 
