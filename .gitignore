@@ -78,6 +78,7 @@ docs/private/
 # (master plans), docs/specs/ (spec-first Seeds — refine re-input artifacts).
 docs/discussions/
 docs/adversarial-review/
+docs/discovery/
 
 # Exception to the docs/plans/ "master plans get committed" carve-out above:
 # goal-doc (the /goal-input planning format) was retired 2026-06-29 (#282/#283) —
