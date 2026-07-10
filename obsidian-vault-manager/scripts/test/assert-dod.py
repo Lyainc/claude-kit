@@ -5,7 +5,7 @@
 measures, it does not gate. This helper turns that measurement into a real gate: it reads
 the audit `--dod` JSON and fails (exit 1) if any date-independent invariant drifts.
 
-What is asserted (all deterministic across run dates — see CLAUDE.md `## Validation`):
+What is asserted (all deterministic across run dates — see docs/VALIDATION.md `## Validation`):
   - seeded_detected == the expected per-type counts (false-negative guard)
   - fp_on_clean == 0 for every type           (false-positive guard)
   - findings_missing_priority == 0            (every finding carries a priority)

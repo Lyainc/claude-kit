@@ -1,31 +1,31 @@
 #!/usr/bin/env python3
-"""check-test-exitcode.py — CLAUDE.md-registered test exit-code runner (slice S4).
+"""check-test-exitcode.py — docs/VALIDATION.md-registered test exit-code runner (slice S4).
 
-RULE: CLAUDE.md's `## Validation` section is the canonical list of regression-guard
+RULE: docs/VALIDATION.md's `## Validation` section is the canonical list of regression-guard
 commands for this repo. This tool extracts the actual runnable command strings from that
 section's fenced code blocks (skipping comments / pure-comment lines / inline-comment
 tails) and provides a runner that executes each command and asserts it exits 0, reporting
 every command whose exit code is nonzero.
 
-OBJECTIVE DAMAGE (c6): a test that is *registered* in CLAUDE.md but has silently broken
-(nonzero exit) is a dead regression guard — the protection it documents no longer holds,
-yet the docs still claim it does. That divergence is objective damage, not taste: the
-claimed safety net is a lie. CI already runs these tests directly; this script is a LOCAL
-pre-push convenience that runs the *documented* list as a single batch and fails if any
-documented command does not exit 0. It does not encode any style/format preference — it
-only runs what CLAUDE.md already declares runnable and checks the OS exit code.
+OBJECTIVE DAMAGE (c6): a test that is *registered* in docs/VALIDATION.md but has silently
+broken (nonzero exit) is a dead regression guard — the protection it documents no longer
+holds, yet the docs still claim it does. That divergence is objective damage, not taste:
+the claimed safety net is a lie. CI already runs these tests directly; this script is a
+LOCAL pre-push convenience that runs the *documented* list as a single batch and fails if
+any documented command does not exit 0. It does not encode any style/format preference —
+it only runs what docs/VALIDATION.md already declares runnable and checks the OS exit code.
 
 Note (scope): the extractor returns command strings verbatim so the runner executes the
-exact thing CLAUDE.md documents. It joins trailing-backslash continuations, strips inline
-comment tails, and skips blank / pure-comment lines. It does NOT try to model shell
+exact thing docs/VALIDATION.md documents. It joins trailing-backslash continuations, strips
+inline comment tails, and skips blank / pure-comment lines. It does NOT try to model shell
 semantics (env-var prefixes, pipes, redirects are passed straight to `bash -c`).
 
 Usage:
     python3 scripts/check-test-exitcode.py [--root DIR] [--list] [--json]
                                            [--timeout SEC] [--self-test]
 
-    --root DIR    Repo root (default: git toplevel, else CWD). Reads DIR/CLAUDE.md and
-                  runs each extracted command with cwd=DIR.
+    --root DIR    Repo root (default: git toplevel, else CWD). Reads DIR/docs/VALIDATION.md
+                  and runs each extracted command with cwd=DIR.
     --list        Print the extracted commands (one per line) and exit WITHOUT running
                   them. Fast, side-effect-free — use to inspect what would run.
     --timeout SEC Per-command timeout in seconds (default: 300). A timeout counts as a
@@ -37,7 +37,7 @@ Usage:
 Exit codes:
     0 = all extracted commands exited 0 (or --list / --self-test succeeded)
     1 = at least one command failed (nonzero exit / timeout), or self-test mismatch
-    2 = usage error / CLAUDE.md unreadable / no '## Validation' section
+    2 = usage error / docs/VALIDATION.md unreadable / no '## Validation' section
 """
 import argparse
 import json
@@ -111,18 +111,18 @@ def extract_commands(section_text):
 
 
 def get_commands(root):
-    """Read root/CLAUDE.md, locate ## Validation, return (commands, error_or_None)."""
-    claude_path = os.path.join(root, "CLAUDE.md")
-    if not os.path.isfile(claude_path):
-        return None, f"CLAUDE.md not found: {claude_path}"
+    """Read root/docs/VALIDATION.md, locate ## Validation, return (commands, error_or_None)."""
+    validation_path = os.path.join(root, "docs", "VALIDATION.md")
+    if not os.path.isfile(validation_path):
+        return None, f"docs/VALIDATION.md not found: {validation_path}"
     try:
-        with open(claude_path, encoding="utf-8") as fh:
+        with open(validation_path, encoding="utf-8") as fh:
             text = fh.read()
     except OSError as exc:
-        return None, f"CLAUDE.md unreadable: {exc}"
+        return None, f"docs/VALIDATION.md unreadable: {exc}"
     section = extract_validation_section(text)
     if section is None:
-        return None, "CLAUDE.md has no '## Validation' section"
+        return None, "docs/VALIDATION.md has no '## Validation' section"
     return extract_commands(section), None
 
 
@@ -223,7 +223,7 @@ def run_self_test():
 
 def main(argv=None):
     parser = argparse.ArgumentParser(
-        description="Run CLAUDE.md-registered Validation commands and assert exit 0"
+        description="Run docs/VALIDATION.md-registered Validation commands and assert exit 0"
     )
     parser.add_argument("--root", default=None, help="repo root to check")
     parser.add_argument("--list", action="store_true",
@@ -253,7 +253,7 @@ def main(argv=None):
         else:
             for cmd in commands:
                 print(cmd)
-            print(f"# {len(commands)} command(s) extracted from CLAUDE.md ## Validation "
+            print(f"# {len(commands)} command(s) extracted from docs/VALIDATION.md ## Validation "
                   "(not run)", file=sys.stderr)
         return 0
 
@@ -273,8 +273,8 @@ def main(argv=None):
             for r in report["failures"]:
                 why = "timeout" if r["timed_out"] else f"exit {r['exit']}"
                 print(f"  - [{why}] {r['command']}")
-            print("Fix: repair the broken test or remove it from CLAUDE.md's Validation "
-                  "section if it is intentionally retired.")
+            print("Fix: repair the broken test or remove it from docs/VALIDATION.md's "
+                  "Validation section if it is intentionally retired.")
 
     return 0 if report["ok"] else 1
 

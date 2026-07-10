@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """check-ci-coverage.py — CI test-coverage drift guard (#134).
 
-CLAUDE.md's `## Validation` section is the canonical list of regression tests for this
-repo. `.github/workflows/validate.yml` is what CI actually runs on push/PR. When a test
-gets added to CLAUDE.md but never wired into validate.yml, it silently stops being
-enforced. This guard diffs the two lists and reports tests that are registered (in
-CLAUDE.md) but NOT run in CI.
+docs/VALIDATION.md's `## Validation` section is the canonical list of regression tests
+for this repo. `.github/workflows/validate.yml` is what CI actually runs on push/PR. When
+a test gets added to docs/VALIDATION.md but never wired into validate.yml, it silently
+stops being enforced. This guard diffs the two lists and reports tests that are
+registered (in docs/VALIDATION.md) but NOT run in CI.
 
 Per G13 trade-off, this is a WARN guard (not a block): it exits 0 by default even when
 gaps exist, because coverage is being closed incrementally. Use --strict to make gaps a
@@ -25,7 +25,7 @@ import subprocess
 import sys
 
 # A "test command" is one of these shapes. Each maps to a stable id so the same logical
-# test in CLAUDE.md and validate.yml compares equal regardless of redirects/flags/env prefixes.
+# test in docs/VALIDATION.md and validate.yml compares equal regardless of redirects/flags/env prefixes.
 _PATTERNS = [
     (re.compile(r"python3\s+-m\s+json\.tool\s+(\S+)"), "json.tool:{}"),
     (re.compile(r"python3\s+(\S+\.py)"), "py:{}"),
@@ -78,9 +78,9 @@ def extract_test_ids(text):
     return ids
 
 
-def extract_validation_section(claude_md_text):
-    """Return the text of CLAUDE.md's `## Validation` section (fenced blocks only)."""
-    lines = claude_md_text.splitlines()
+def extract_validation_section(validation_md_text):
+    """Return the text of the `## Validation` section (fenced blocks only)."""
+    lines = validation_md_text.splitlines()
     start = None
     for i, line in enumerate(lines):
         if line.strip() == "## Validation":
@@ -106,25 +106,25 @@ def extract_validation_section(claude_md_text):
 
 
 def check_coverage(root):
-    """Return (ok, report). ok=True means every CLAUDE.md test is also run in CI."""
+    """Return (ok, report). ok=True means every docs/VALIDATION.md test is also run in CI."""
     report = {"root": root, "registered": [], "ci": [], "missing_in_ci": [], "ci_only": []}
-    claude_path = os.path.join(root, "CLAUDE.md")
+    validation_path = os.path.join(root, "docs", "VALIDATION.md")
     yml_path = os.path.join(root, ".github", "workflows", "validate.yml")
 
-    for label, path in (("CLAUDE.md", claude_path), ("validate.yml", yml_path)):
+    for label, path in (("docs/VALIDATION.md", validation_path), ("validate.yml", yml_path)):
         if not os.path.isfile(path):
             report["violations"] = [f"{label} not found: {path}"]
             report["fatal"] = True
             return False, report
 
-    with open(claude_path, encoding="utf-8") as fh:
-        claude_text = fh.read()
+    with open(validation_path, encoding="utf-8") as fh:
+        validation_text = fh.read()
     with open(yml_path, encoding="utf-8") as fh:
         yml_text = fh.read()
 
-    section = extract_validation_section(claude_text)
+    section = extract_validation_section(validation_text)
     if section is None:
-        report["violations"] = ["CLAUDE.md has no '## Validation' section"]
+        report["violations"] = ["docs/VALIDATION.md has no '## Validation' section"]
         report["fatal"] = True
         return False, report
 
@@ -185,7 +185,7 @@ def run_self_test():
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="CLAUDE.md ↔ validate.yml test-coverage guard")
+    parser = argparse.ArgumentParser(description="docs/VALIDATION.md ↔ validate.yml test-coverage guard")
     parser.add_argument("--root", default=None, help="repo root to check")
     parser.add_argument("--strict", action="store_true", help="exit non-zero on coverage gaps")
     parser.add_argument("--json", action="store_true", help="emit JSON report")
@@ -207,18 +207,18 @@ def main(argv=None):
     else:
         reg, ci = len(report["registered"]), len(report["ci"])
         covered = reg - len(report["missing_in_ci"])
-        print(f"CI coverage: {covered}/{reg} CLAUDE.md-registered tests run in validate.yml.")
+        print(f"CI coverage: {covered}/{reg} docs/VALIDATION.md-registered tests run in validate.yml.")
         if report["missing_in_ci"]:
             tag = "GAP" if args.strict else "WARN"
             print(f"{tag}: {len(report['missing_in_ci'])} registered test(s) NOT run in CI:")
             for t in report["missing_in_ci"]:
                 print(f"  - {t}")
             print("Fix: add these to .github/workflows/validate.yml, or remove from "
-                  "CLAUDE.md's Validation section if intentionally local-only.")
+                  "docs/VALIDATION.md's Validation section if intentionally local-only.")
         else:
             print("OK: every registered test is wired into CI.")
         if report["ci_only"]:
-            print(f"Note: {len(report['ci_only'])} CI step(s) not listed in CLAUDE.md "
+            print(f"Note: {len(report['ci_only'])} CI step(s) not listed in docs/VALIDATION.md "
                   "(informational): " + ", ".join(report["ci_only"]))
 
     if report.get("fatal"):
