@@ -219,6 +219,15 @@ python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # Expected: OK: all 3 add-policy-conflict-edit checks passed.
 
+# add-policy §6 index+detail split regression (#340 — when the target landfill site
+# already uses a thin index + per-entry detail-file shape, add-policy must match that
+# shape (one index row + a linked detail file) instead of appending a new inline block,
+# and must never invent this split on a site that doesn't already use it.)
+python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
+# Expected: OK: all 8 self-test cases passed
+python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
+# Expected: OK: all 4 add-policy-index-detail checks passed.
+
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
 python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
