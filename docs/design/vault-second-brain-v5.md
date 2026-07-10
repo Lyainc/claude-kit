@@ -1,4 +1,4 @@
-# Vault Second Brain 설계안 v5 — LLM-compiled wiki (A 主) + earned-promotion notes (B probation)
+# Vault Second Brain 설계안 v5 — LLM-compiled wiki (A 主) + earned-promotion notes (B judgment-based)
 
 > 작성일: 2026-06-23 · 상태: **초안 (linchpin L1·L2 owner 합의 완료, 구현은 별 세션)** · 커밋은 owner 확인 후
 > 대체 대상: `vault-second-brain-v4.md` (인간 저작 second-brain 모델)
@@ -14,9 +14,14 @@
 ## 0. 한 줄
 
 vault의 무게중심을 **인간 저작(v4)에서 LLM 컴파일(v5)로** 옮긴다. **A(wiki) = LLM이 자율 컴파일하는
-도메인 지식, AI recall이 主.** **B(notes) = promotion에서 살아남은 잔여물**이지 미리 짓는 레이어가 아니다 —
-인간-읽기 목적은 **default OFF, 한 달 재판**으로 존재를 증명해야 한다(L1). second-brain은 "인간이 나중에
-읽는다"에서 "AI가 인간 대신 읽고 recall한다"로 재정의된다.
+도메인 지식, AI recall이 主.** **B(notes) = promotion에서 살아남은 잔여물**이지 미리 짓는 레이어가 아니다.
+second-brain은 "인간이 나중에 읽는다"에서 "AI가 인간 대신 읽고 recall한다"로 재정의된다.
+
+> **2026-07-09/10 정정**: 이전 초안의 "B 인간-읽기는 default OFF, 한 달 재판으로 존재를 증명해야 한다(L1)"
+> 프레이밍은 owner가 측정-게이트 패러다임 자체를 폐기하면서 무효화됐다(#267 마지막 코멘트, §13 참조) — B는
+> 재판 통과 여부와 무관하게 지금 그대로 쓰고, 판단이 필요해지면 그때 git log/transcript 같은 기존 기록을
+> 사후에 뒤져 확인한다. A와 B는 애초에 **목적이 다른 별개 공간**(§3 레이어 표)이라 이 정정이 A쪽 설계엔
+> 영향이 없다 — B의 존폐가 A를 게이팅한 적이 없다(#354, discovery report 발견 3 교정).
 
 ---
 
@@ -35,7 +40,9 @@ v4는 "인간이 채우는 second-brain"을 전제했으나, 측정·증언·디
    B *읽기* 경로("Obsidian 열기")는 *쓰기*를 죽인 그 터미널 context-switch 마찰과 동일하다.
 
 → **결론**: A(LLM이 컴파일하는 도메인 지식 recall)는 실가치가 있고 vault를 정당화한다. B의 인간-읽기 목적은
-미검증이다. 그러므로 **A를 主로 풀로 짓고, B는 "증명해야 사는" probation 타겟**으로 둔다. (L1 owner 합의.)
+미검증이었다. 그래서 원래는 **A를 主로 풀로 짓고, B는 "증명해야 사는" probation 타겟**으로 두기로 했었다
+(L1 owner 합의) — 단 이 probation 프레이밍 자체는 §0/§13에 기록된 2026-07-09/10 owner 결정으로 이후
+폐기됐다. B가 미검증이라는 진단은 여전히 유효하지만, 그 해법이 "재판 통과해야 산다"는 아니게 됐다.
 
 ---
 
@@ -60,7 +67,7 @@ v4는 "인간이 채우는 second-brain"을 전제했으나, 측정·증언·디
 |---|---|---|---|---|
 | **repo** | 코드 + 코드구조맵(AGENTS.md) | AI+인간 | — | git repo |
 | **vault wiki A** | 도메인 지식(작업하다 알게 된 것) | **AI recall** + 인간 | AI 자율 compounding | `vault/wiki/` |
-| **vault notes B** | promotion 잔여물(고신호 큐레이션) | A 위생(必) + 인간(probation) | AI 초안+인간 확정 | `vault/notes/` |
+| **vault notes B** | promotion 잔여물(고신호 큐레이션) | A 위생(必) + 인간(판단 기반, §13) | AI 초안+인간 확정 | `vault/notes/` |
 | **rules** | work-policy("어떻게 일하나") | AI+인간 | 인간, 안정 | `~/.claude/rules`, `rules/RULES.md` |
 | **memory** | 프로젝트 사실 | AI | auto | `~/.claude/projects/.../memory` |
 
@@ -110,13 +117,15 @@ provenance: {session/query}  # U3 추적용 必 — 어느 탐구가 이 페이�
 
 ---
 
-## 5. B (notes) 설계 — earned promotion-residue, probation (L1)
+## 5. B (notes) 설계 — earned promotion-residue + judgment-based human-read layer
 
 B는 **미리 짓는 레이어가 아니라 promotion에서 살아남은 것**으로 정의된다. 두 목적을 분리한다:
 
 - **B-as-promotion-residue (A 위생용)**: A의 노이즈를 낮추는 고신호 큐레이션 잔여물. **인간이 안 읽어도
   A 위생(U3)으로 독립 정당.** → A→B promotion *메커니즘*은 KEEP.
-- **B-as-human-read-layer (인간 읽기)**: **재판 대상, default OFF.** §13 retrieval-into-work 테스트 통과해야 삶.
+- **B-as-human-read-layer (인간 읽기)**: 측정 게이트 없이 **판단 기반으로 유지**(2026-07-09/10 owner 결정,
+  §13) — 필요하면 그냥 열어서 쓰고, 판정이 필요해지면 그때 기존 기록을 사후에 뒤져 확인한다. "재판 통과해야
+  산다"는 프레이밍은 폐기됐다.
 
 ```yaml
 type: note | decision      # v4 §3.3 — note/decision만 evergreen 자격
@@ -124,6 +133,18 @@ status: raw|draft|evergreen|archived   # v4 status machine 그대로 (전이 주
 ```
 
 - B는 v4 status machine을 **그대로** 쓴다. status 변경 액션 = "내가 검토했다"(v4 §2.4) = promotion 게이트 의미.
+
+### 5.1 두-볼트(A/B) 목적 분리 (discovery 교정, #354)
+
+A(wiki)와 B(notes)는 **연동은 가능하되 목적이 다른 별개 공간**이다 — 이 둘을 하나의 승급 파이프라인처럼
+읽으면 안 된다.
+
+- **A**: LLM이 자율 컴파일하는 도메인 지식, AI recall이 소비자, 항상 살아있음(§4). B의 존폐·재판 결과와
+  무관하다.
+- **B**: promotion에서 살아남은 잔여물, 인간이 (재판 없이) 필요할 때 소비. A 위생 메커니즘(A→B promotion)은
+  B의 인간-읽기 용도가 죽어도 독립적으로 유지된다(§13 fallback과 동형).
+- 두 공간을 섞어 쓰지 않는다 — A에 인간 전용 서사를 넣거나 B에 AI self-compounding을 넣지 않는다. 연동은
+  다음 절의 링크only 원칙으로만 이뤄진다.
 
 ---
 
@@ -213,17 +234,21 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 
 ---
 
-## 13. 검증 계획 (1개월) + fallback
+## 13. 검증 계획 — 측정 게이트 폐기 (2026-07-09/10, #267)
 
-B 인간-읽기 목적의 재판. "열었나"(novelty/Hawthorne confound) 폐기, **retrieval-into-work**로 측정:
+원래 초안은 B 인간-읽기 목적을 1개월 관찰 클럭(retrieval-into-work ≥3 + 결정 변경 ≥1 통과 바, 미달 시
+archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을 공식 게이트로 돌리는 것 자체를 거부**했다
+(#267 마지막 코멘트, 2026-07-09): "계측하는 건 큰 의미가 없고 시도하면서 나중에 로그를 뒤져보는 게 낫지,
+이런 식으로 결정을 미루는 방향은 원하는 게 아니다." 같은 날 A recall 측정 게이트(§8 U4) 폐기 결정과 동일
+원칙이 B에도 확장 적용됐다.
 
-- **seed**: 기존 더미 1회 채굴분(decision만, AI 후보 + 인간 yes/no) + cold archive(hard delete 아님). 같은
-  큐레이션 content가 두 경로로 닿게: **ask-Claude(A recall) vs open-Obsidian(B browse).**
-- **측정**: organic retrieval = B/A 항목이 *실제* 작업 질문에 끌려 들어오고 세션 결과가 인용/변경. novelty browse 폐기.
-- **판별자**: 과거 결정 필요 시 owner가 어느 경로? 늘 A·B 안 브라우즈 → "mixing 원인" 반증, 수요=A. 깨끗한 B를
-  진짜 브라우즈하고 작업 바뀜 → "mixing→clean→read" 확증.
-- **통과 바**: browse 경로 retrieval-into-work ≥3 + 결정 변경 ≥1. 미만이면 B 인간-읽기 사망 → archive, **A-only 확정.**
-- **fallback**: B 인간-읽기 폐기해도 A→B promotion-residue 메커니즘(A 위생)은 유지. A는 독립적으로 정당.
+- **대체**: B는 필요하면 그냥 열어서 쓴다. 판단이 필요해지면(예: A-only로 완전히 좁힐지 재고) 그때
+  git log/session transcript 같은 **기존 기록을 사후에** 뒤져 확인한다 — 별도 seed/측정 인프라를 먼저
+  안 짓는다.
+- **폐기된 것**: 1개월 관찰 클럭, pass/fail 임계값(retrieval-into-work ≥3, 결정 변경 ≥1), seed/cold-archive
+  준비 절차. 이 문서의 이전 버전에 있던 해당 문구는 전부 무효.
+- **fallback은 유지**: B 인간-읽기가 (측정이 아니라 판단으로) 죽는다고 판정되는 날이 와도, A→B
+  promotion-residue 메커니즘(A 위생)은 독립적으로 계속 유지된다. A는 B 판정과 무관하게 항상 정당(§5.1).
 
 ---
 
@@ -231,6 +256,10 @@ B 인간-읽기 목적의 재판. "열었나"(novelty/Hawthorne confound) 폐기
 
 - **plain markdown 유지, no embedding/`.db`** — #211 reject 조항 + claude-kit-boundary.md file-over-app. Karpathy plain-md 정합.
 - **CON-5 단방향**: harness→leaf만. wiki는 leaf(OVM/vault-bridge) 내부. 역방향 금지.
+- **CON — A↔B = 링크only** (#354, discovery 발견 5 확정): A(wiki)와 B(notes)는 연동 시 **참조(wikilink)만,
+  복사·동기화 없음.** repo→vault ferry를 죽인 원래 결론(§2 pull-mostly)을 볼트 *레이어 간*에도 그대로
+  적용한 것 — A→B promotion(§6)도 이 원칙의 특수케이스라, distillation(재작성)이지 sync가 아니다. 역방향
+  (B→A로 인간 노트를 그대로 흡수)도 금지 — A는 AI가 탐구 과정에서 합성한 지식만 먹는다(§4.2).
 - **MECE**: wiki는 OVM(④) capability. vault-bridge(③)는 I/O 기판. 경계 무손상.
 - **비가역 회피**: 기존 더미는 hard delete 아닌 cold archive. 삭제는 trash 경유(`rm` 금지).
 
@@ -241,5 +270,23 @@ B 인간-읽기 목적의 재판. "열었나"(novelty/Hawthorne confound) 폐기
 - **구현은 별 세션** (goal G22 제약). 본 문서는 합의된 설계지 코드 변경 아님.
 - **U4 측정(recall hit)**: telemetry Option B 선행 게이트 — 지금 불가, #202 공동.
 - **#94**(commands→skills): 살아남는 커맨드 셋 확정 후(#215 mooted 해소).
-- **wiki self-audit E-rule 구체**(U3): audit 확장 구현 시 E-rule 번호·검출 로직 명세.
+- ~~**wiki self-audit E-rule 구체**(U3)~~ — **완료.** E12a(결정론 staleness, `verified:` 나이 >
+  `STALE_WIKI_DAYS`)는 #330/PR #334, E12b(cross-page 의미 모순, `--deep` opt-in)는 #336/PR #344로 각각
+  landed·merged.
 - **`--save` skill 인터페이스**(U5): OVM skill 진입점의 정확한 시그니처·게이트 UX.
+
+## 16. `/vault-link` 처리 방향 — KEEP, B 전용으로 스코프 확정 (#354)
+
+discovery 발견 4가 제기한 의문("A-only에선 전역 wiki라 프로젝트 바인딩 자체가 불필요해질 수 있다")을
+검토한 결론: **`/vault-link`는 유지한다.**
+
+- **실제 코드 역할 재확인**: `/vault-link`가 만드는 `.vault-link`는 "어느 볼트를 쓸지" 고르는 볼트-선택
+  라우팅이 **아니다** — 볼트 루트는 항상 하나(`VAULT_BRIDGE_VAULT_ROOT` > `VAULT_BRIDGE_VAULT_PATH` >
+  `~/vault` 3단 우선순위, 단일 해석). `.vault-link`의 `vault_path`가 실제로 하는 일은 **`notes/{project}/`
+  서브폴더로 검색 범위를 좁히는 것**뿐인데, `vault-searcher.md`(Mode 2)가 이 값을 읽어 `search_root`를
+  스코프한다 — 이미 살아서 쓰이는 메커니즘이지 죽은 코드가 아니다.
+- **A(wiki)는 원래부터 무관**: wiki는 §4처럼 항상 전역(레포 초월 도메인 지식)이라 애초에 프로젝트
+  바인딩 대상이 아니었다. `/vault-link`의 스코프는 처음부터 **B(notes/) 서브폴더 배치·검색 좁히기뿐**이고,
+  이 결정은 그 사실을 명문화하는 것이지 새로 좁히는 게 아니다.
+- **세션-레벨 볼트 셀렉터**(발견 4가 언급한 "진짜 남은 니즈")는 실사용 증거가 없어 YAGNI로 defer한다 —
+  필요해지면 그때 짓는다.
