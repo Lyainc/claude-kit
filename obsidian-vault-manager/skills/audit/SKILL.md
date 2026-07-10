@@ -2,7 +2,7 @@
 name: audit
 description: "Scan the vault for structural defects and surface a triage report. Detects 12 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), stale draft (E7), promotion candidates (E8), tag/property vocabulary inconsistencies (E9), misplaced files (E10), unstructured paths (E11), and stale wiki pages (E12a, stale `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
 model: haiku
-allowed-tools: Read Write Edit Bash Glob Grep
+allowed-tools: Read Write Edit Bash Glob Grep AskUserQuestion
 ---
 
 **User language: Korean.** All user-facing output (responses, AskUserQuestion prompts, confirmation messages, progress lines) MUST be in Korean.
@@ -168,24 +168,28 @@ Detailed detection criteria for all error types: see `reference/vault-audit-rule
 
    If zero candidate pairs, exit phase (no findings).
 
-3. For each candidate pair, Read both page bodies.
+3. Read each **unique** page in `wiki_pages` that appears in at least one candidate pair exactly once, and cache its body by path — a hub page in several candidate pairs is not re-read per pair.
 
-4. Judge each pair: do the two pages assert **conflicting claims about the same subject** (a fact, a number, a decision, a status that cannot both be true)? Complementary information, different scopes, or purely stylistic differences are NOT a contradiction — do not flag those.
+4. Judge each candidate pair using the cached bodies: do the two pages assert **conflicting claims about the same subject** (a fact, a number, a decision, a status that cannot both be true)? Complementary information, different scopes, or purely stylistic differences are NOT a contradiction — do not flag those.
 
 5. Stage every pair judged contradictory as a DEEP candidate. Do **not** add it to the findings list yet — Step 6 is the mandatory FP-mitigation gate.
 
-6. If any DEEP candidates exist, ask once (single `AskUserQuestion`, one option per pair if more than one):
+6. If any DEEP candidates exist, confirm each **individually** — a single generic accept/decline does not let the user keep one pair and drop another. `AskUserQuestion` takes up to 4 questions per call, so ask one question per candidate pair, batching in groups of ≤4 (sequential calls if there are more than 4):
    ```
    AskUserQuestion:
-     question: "다음 wiki 페이지 쌍이 상충하는 것 같아요 — 실제 상충으로 볼까요?"
-     context: |
-       • wiki/a.md ↔ wiki/b.md
-           상세: <one-line reason the pages conflict>
-     options:
-       - "실제 상충 — 보고에 포함"
-       - "상충 아님 — 무시"
+     questions:
+       - question: "wiki/a.md ↔ wiki/b.md — 이 쌍, 실제 상충으로 볼까요?"
+         header: "상충 확인"
+         options:
+           - label: "실제 상충 — 보고에 포함"
+             description: "<one-line reason the pages conflict>"
+           - label: "상충 아님 — 무시"
+             description: "판단 오류로 보고 이 쌍은 건너뜀"
+       - question: "wiki/c.md ↔ wiki/d.md — 이 쌍, 실제 상충으로 볼까요?"
+         header: "상충 확인"
+         options: [...]   # same two-option shape, one row per additional candidate pair
    ```
-   A candidate the user declines is dropped silently — no finding, no residual state.
+   Each pair's answer is independent. A candidate the user declines is dropped silently — no finding, no residual state.
 
 7. Every confirmed pair becomes one finding:
    ```
