@@ -275,6 +275,8 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
   landed·merged.
 - **`--save` skill 인터페이스**(U5): OVM skill 진입점의 정확한 시그니처·게이트 UX.
 
+---
+
 ## 16. `/vault-link` 처리 방향 — KEEP, B 전용으로 스코프 확정 (#354)
 
 discovery 발견 4가 제기한 의문("A-only에선 전역 wiki라 프로젝트 바인딩 자체가 불필요해질 수 있다")을
