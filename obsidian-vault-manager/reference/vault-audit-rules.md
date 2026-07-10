@@ -293,13 +293,18 @@ for rec in frontmatter_records:
 
 frequent_tags = {t for t in tag_files if len(tag_files[t]) >= E9_MIN_FILES}
 
+tag_neighbors = {}                                    # tag → set(co-occurring tags), precomputed once outside the pair loop
+for rec in frontmatter_records:
+  for t in (rec.fm.tags or []):
+    tag_neighbors.setdefault(t, set()).update(rec.fm.tags)
+for t in tag_neighbors:
+  tag_neighbors[t].discard(t)
+
 for (A, B) in unordered_pairs(frequent_tags):
-  if already_reported_as_E9a(A, B):
+  if already_reported_as_E9a(A, B):                   # lookup against vocabulary_pairs[] (SCAN's detect-vocabulary, E9a sub)
     continue                                          # regular plural — deterministic, no LLM needed
   co_occurs = any(A in rec.fm.tags and B in rec.fm.tags for rec in frontmatter_records)
-  neighbors_A = {t for rec in frontmatter_records if A in rec.fm.tags for t in rec.fm.tags} - {A}
-  neighbors_B = {t for rec in frontmatter_records if B in rec.fm.tags for t in rec.fm.tags} - {B}
-  common_neighbor = bool(neighbors_A & neighbors_B)
+  common_neighbor = bool(tag_neighbors.get(A, set()) & tag_neighbors.get(B, set()))
   if co_occurs or common_neighbor:
     candidate_pairs.append((A, B))
 ```
