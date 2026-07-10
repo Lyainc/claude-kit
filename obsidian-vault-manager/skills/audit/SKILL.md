@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 12 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), stale draft (E7), promotion candidates (E8), tag/property vocabulary inconsistencies (E9), misplaced files (E10), unstructured paths (E11), and stale wiki pages (E12, stale `verified:`). Example: '/audit'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 12 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), stale draft (E7), promotion candidates (E8), tag/property vocabulary inconsistencies (E9), misplaced files (E10), unstructured paths (E11), and stale wiki pages (E12a, stale `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep
 ---
@@ -124,7 +124,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 > **E3 suggestion**: when a filename violates the v4 convention, the finding `detail` includes `권장 파일명: {name}` (note→`{slug}.md`; decision/plan→`{type}-{date}-{slug}.md`; capture/session→`{type}-{date}.md`; missing type/created→no suggestion). Rename affects inbound links → suggestion only, never auto-applied.
 > **E5 candidates**: orphan findings carry a structured `candidates: [{path, shared_tags}]` field (top-3 `notes/` files by exact tag-intersection) and a `연결 후보: [[X]] (공유 태그: a, b)` detail. Empty-tags / no-shared-tag orphans render `연결 후보 없음 (공유 태그 없음)` with `candidates: []`.
 > **E10/E11**: folder-structure checks. E10 = `type` in the wrong canonical folder (e.g., `type: session` in `notes/`; v5 adds `type: wiki` → `wiki/`). E11 = file outside `inbox/notes/assets/wiki` (arbitrary folder or root-direct; `_index.md` exempt). Both are display-only — moving a file affects inbound links.
-> **E12 wiki self-audit** (#330, v5 §7 U3): flags a `wiki/` page (top folder `wiki/` AND `type: wiki`) whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) — staleness is the abandonment risk for the LLM wiki. A missing/unparseable `verified:` is skipped (uncomputable). Display-only (recompile/re-verify is a semantic decision). Only E12a (staleness) ships deterministically; E12b cross-page contradiction is the deferred `--deep` LLM path (mirrors E9c).
+> **E12 wiki self-audit** (#330, v5 §7 U3): flags a `wiki/` page (top folder `wiki/` AND `type: wiki`) whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) — staleness is the abandonment risk for the LLM wiki. A missing/unparseable `verified:` is skipped (uncomputable). Display-only (recompile/re-verify is a semantic decision). E12a (staleness) ships deterministically in CLASSIFY. E12b (cross-page semantic contradiction, #336) ships as the skill-only `--deep` LLM opt-in — see Phase 2.5 DEEP below (mirrors E9c's skill-only design).
 
 Detailed detection criteria for all error types: see `reference/vault-audit-rules.md` (canonical source).
 
@@ -142,7 +142,65 @@ Detailed detection criteria for all error types: see `reference/vault-audit-rule
 ]
 ```
 
-**Termination condition**: All dirty files classified. Proceed to REPORT.
+**Termination condition**: All dirty files classified. Proceed to Phase 2.5 if `--deep` was passed, otherwise directly to REPORT.
+
+---
+
+## Phase 2.5 — DEEP (opt-in, E12b cross-page contradiction)
+
+**Purpose**: Detect `wiki/` pages that assert conflicting claims about the same subject (#336). This is the **only** phase in this skill that reads file bodies and uses LLM judgment — SCAN, CLASSIFY, and REPORT stay LLM-cost-0 without `--deep`.
+
+**Inputs**: `frontmatter_records` and `wikilinks_by_file` from the scan bundle (already collected, no re-scan).
+
+**Tools used**: Read, AskUserQuestion.
+
+**Skip conditions** (exit phase immediately, no findings added):
+- `--deep` flag not passed.
+- Fewer than 2 records with top folder `wiki/` AND `fm.type == "wiki"`.
+
+**Procedure**:
+
+1. Collect `wiki_pages` = every `frontmatter_records` entry with top folder `wiki/` and `fm.type == "wiki"`.
+
+2. Build **candidate pairs** deterministically (no LLM, cheap prefilter — bounds the expensive judgment step to topically-related pages instead of every O(n²) pair): two wiki pages `(A, B)` are a candidate when EITHER holds:
+   - they share at least one tag (case-insensitive intersection of `fm.tags`), or
+   - one wikilinks to the other (via `wikilinks_by_file`).
+
+   If zero candidate pairs, exit phase (no findings).
+
+3. For each candidate pair, Read both page bodies.
+
+4. Judge each pair: do the two pages assert **conflicting claims about the same subject** (a fact, a number, a decision, a status that cannot both be true)? Complementary information, different scopes, or purely stylistic differences are NOT a contradiction — do not flag those.
+
+5. Stage every pair judged contradictory as a DEEP candidate. Do **not** add it to the findings list yet — Step 6 is the mandatory FP-mitigation gate.
+
+6. If any DEEP candidates exist, ask once (single `AskUserQuestion`, one option per pair if more than one):
+   ```
+   AskUserQuestion:
+     question: "다음 wiki 페이지 쌍이 상충하는 것 같아요 — 실제 상충으로 볼까요?"
+     context: |
+       • wiki/a.md ↔ wiki/b.md
+           상세: <one-line reason the pages conflict>
+     options:
+       - "실제 상충 — 보고에 포함"
+       - "상충 아님 — 무시"
+   ```
+   A candidate the user declines is dropped silently — no finding, no residual state.
+
+7. Every confirmed pair becomes one finding:
+   ```
+   {
+     "error_type": "wiki_contradiction",
+     "severity": "Warning",
+     "priority": "P1",
+     "path": "wiki/a.md ↔ wiki/b.md",
+     "detail": "human-readable reason",
+     "auto_fix_eligible": false
+   }
+   ```
+   Append it to the findings list produced by CLASSIFY (sorts under E12 in REPORT, alongside E12a staleness findings).
+
+**Termination condition**: All candidate pairs judged and either confirmed or declined. Proceed to REPORT with the (possibly unchanged) findings list.
 
 ---
 
@@ -319,6 +377,7 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 | `--dry-run` | Run SCAN→CLASSIFY→REPORT but skip OPTIONAL-FIX and mark-clean |
 | `--path <dir>` | Limit scan to a subdirectory (e.g., `--path notes`) |
 | `--reset-state` | Call `audit-state invalidate` on all vault files before scanning |
+| `--deep` | Opt-in LLM path (#336): after CLASSIFY, run Phase 2.5 DEEP to judge candidate `wiki/` page pairs for cross-page semantic contradiction (E12b). Off by default. |
 | `status` | Show current audit-state stats only (no scan) |
 
 ---
@@ -331,5 +390,7 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 - Auto-fix is OFF by default. OPTIONAL-FIX only runs after explicit "수정 실행" confirmation.
 - `audit-state mark-clean` MUST be called after every successfully processed file.
 - Dry-run mode outputs the REPORT but performs no mutations and does not call `mark-clean`.
-- The AskUserQuestion in OPTIONAL-FIX is the only allowed user interaction. No additional questions.
+- The AskUserQuestion in OPTIONAL-FIX is the only allowed user interaction, EXCEPT the Phase 2.5 DEEP confirm gate (`--deep` only, E12b).
+- Phase 2.5 DEEP never runs without `--deep`. Without it, this skill makes zero LLM judgment calls end to end.
+- Every DEEP candidate MUST pass the AskUserQuestion confirm gate before becoming a finding — no silent auto-report of a semantic judgment.
 - Severity levels: Critical (data integrity risk), Warning (quality/navigation risk), Info (style/convention).

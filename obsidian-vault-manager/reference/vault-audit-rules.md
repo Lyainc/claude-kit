@@ -23,13 +23,13 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. |
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `inbox/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
-| E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. Display-only; cross-page semantic contradiction is the deferred `--deep` half (see E12b in the `## E12 — wiki_self_audit` section below). |
+| E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
 
 > **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
 > **P1 = 정체/구조 (stagnation / structure)**: E6 and E7 surface unprocessed inputs and stalled drafts; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive / move / recompile).
 > **P2 = quality**: E5 orphan notes, E8 promotion candidates, and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
-> **Code numbering**: E9 (#119) is the tag/property vocabulary check below. Only its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship here; E9c (semantic synonyms) is **out of scope** and deferred to a separate issue (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330) is the wiki self-audit: E12a staleness ships deterministically, E12b cross-page contradiction is deferred to `--deep` (same deterministic/semantic split as E9).
+> **Code numbering**: E9 (#119) is the tag/property vocabulary check below. Only its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship here; E9c (semantic synonyms) is **out of scope** and deferred to a separate issue (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336) is the wiki self-audit: E12a staleness ships deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 (same deterministic/semantic split E9 draws around E9c — E12b is a step ahead of E9c in that it actually ships, since #167 remains open).
 
 The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
@@ -349,10 +349,40 @@ for each record in frontmatter_records:
 
 | Sub-check | What it catches | Determinism | Status |
 |-----------|-----------------|-------------|--------|
-| **E12a** wiki staleness | a wiki page whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) | deterministic — date arithmetic only | **SHIPS** (`E12_wiki_stale`) |
-| **E12b** cross-page contradiction | two wiki pages asserting conflicting claims | **non-deterministic** — needs semantic LLM judgment | **deferred** to a `--deep` LLM opt-in (mirrors E9c) |
+| **E12a** wiki staleness | a wiki page whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) | deterministic — date arithmetic only | **SHIPS** (`E12_wiki_stale`, `audit-validate.py`) |
+| **E12b** cross-page contradiction | two wiki pages asserting conflicting claims | **non-deterministic** — needs semantic LLM judgment | **SHIPS** (#336) as a skill-only `--deep` LLM opt-in (`wiki_contradiction`, mirrors E9c) |
 
-**Why the split, not one rule**: the audit is a deterministic reference impl (`audit-validate.py` runs with LLM cost 0). Cross-page *semantic* contradiction cannot be decided by a mechanical rule — a keyword/regex proxy would only manufacture false positives against the audit's `fp_on_clean == 0` contract. Rather than fake determinism, E12b follows the E9c precedent: it is documented as the deferred `--deep` path (opt-in LLM judgment, out of the reference impl) and E12a — staleness — is the honest deterministic slice that ships now. This resolves the G23-S1 design fork ("deterministic audit vs. semantic contradiction detection") the same way #167 resolved it for E9.
+**Why the split, not one rule**: the audit is a deterministic reference impl (`audit-validate.py` runs with LLM cost 0). Cross-page *semantic* contradiction cannot be decided by a mechanical rule — a keyword/regex proxy would only manufacture false positives against the audit's `fp_on_clean == 0` contract. Rather than fake determinism, E12b follows the E9c precedent: it never touches `audit-validate.py` or the `--dod` gate (both stay deterministic-only, unmodified by #336). Instead the LLM judgment lives entirely in `audit/SKILL.md` Phase 2.5, gated behind explicit `--deep` opt-in and a mandatory `AskUserQuestion` confirm step for false-positive mitigation. E12a — staleness — remains the honest deterministic slice `audit-validate.py` ships and is DoD-measured. This resolves the G23-S1 design fork ("deterministic audit vs. semantic contradiction detection") the same way #167 intends to resolve it for E9 (E9c itself remains unimplemented/open).
+
+### E12b — cross-page contradiction (`--deep`, skill-only, #336)
+
+**Where it lives**: `audit/SKILL.md` Phase 2.5 DEEP, not `audit-validate.py`. There is no reference-impl function for E12b and none is planned — the judgment step needs an LLM reading page bodies, which the deterministic reference impl structurally cannot do.
+
+**Candidate-pair prefilter** (deterministic, cheap — bounds the expensive judgment step instead of comparing every wiki page against every other):
+
+```
+wiki_pages = [r for r in frontmatter_records if r.path.parts[0] == "wiki" and r.fm.type == "wiki"]
+for (A, B) in unordered_pairs(wiki_pages):
+  shared_tags = set(lower(t) for t in A.fm.tags) & set(lower(t) for t in B.fm.tags)
+  links = A in wikilinks_by_file[B] or B in wikilinks_by_file[A]
+  if shared_tags or links:
+    candidate_pairs.append((A, B))
+```
+
+**LLM judgment**: for each candidate pair, Read both bodies and judge whether they assert conflicting claims about the same subject (a fact/number/decision/status that cannot both be true). Complementary information, different scopes, or stylistic differences are not a contradiction.
+
+**FP guard — mandatory user-confirm gate**: every pair the judgment step flags is a *candidate*, never reported directly. A single `AskUserQuestion` lists all candidates from the run and asks the user to confirm each as a real contradiction or dismiss it; only confirmed pairs become findings. This is the FP-mitigation mechanism for a check that is inherently non-deterministic — there is no `fp_on_clean == 0` contract for E12b (it is explicitly out of `--dod` scope, see below), so the confirm gate is what keeps it from spamming false positives instead of a fixed threshold.
+
+**Finding shape**: pair-level, like E9. `path` is a synthetic `"wiki/a.md ↔ wiki/b.md"` string (not empty — REPORT's generic path+detail bullet rendering already handles any non-empty path, no REPORT-phase code change needed):
+
+```
+{"error_type": "wiki_contradiction", "severity": "Warning", "priority": "P1",
+ "path": "wiki/a.md ↔ wiki/b.md", "detail": "<reason>", "auto_fix_eligible": false}
+```
+
+**Out of `--dod` scope**: `--dod` (`obsidian-vault-manager/scripts/test/assert-dod.py`) measures `audit-validate.py`'s deterministic detection against seeded fixtures (`seeded_detected`, `fp_on_clean`). E12b has no reference-impl function to measure and cannot be seeded/detected deterministically (its output depends on live LLM judgment), so it is not a `--dod` target and never will be — that gate stays scoped to E1–E11 + E12a exactly as it was before #336. Acceptance for E12b instead is a fixture demonstration: see `obsidian-vault-manager/scripts/test/fixtures/e12b-deep-demo/`.
+
+**Never auto-fixed**: like E12a, recompiling/reconciling a genuine contradiction is a semantic decision — display-only, same as every other E12 finding.
 
 ```python
 STALE_WIKI_DAYS = 90   # `verified:` is auto-stamped on every wiki write (v5 §4.1) —
@@ -383,7 +413,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → parent folder; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page is a semantic decision — display-only warning).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b contradiction, is a semantic decision — display-only warning).
 
 ## Manifest Summary (display-only)
 
