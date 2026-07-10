@@ -33,15 +33,21 @@ If `$ARGUMENTS` is empty or only a question (no knowledge to compile), ask the u
 
 ---
 
-## Phase 2 — U7 ROUTE (the cross-repo gate)
+## Phase 2 — U7 ROUTE (2-step decision tree, v5 §10)
 
-Before writing, apply the single routing test (v5 §10):
+Before writing, apply the two-step routing test (v5 §10) — a decision-check first, the domain-knowledge check second. This reflects the 3-way destination set v5 §3 declares (GitHub issue / wiki A / AGENTS.md), not a 2-way split.
 
-**"Is this true / useful in OTHER repos too?"**
+**Step 1 — is this a repo-bound decision (needs a GitHub-issue trail)?**
+
+- **Yes** — a design/architecture decision scoped to *this* repo. → **do NOT write a wiki page.** Redirect (emission only, no write): tell the user in Korean that repo-bound decisions go to a GitHub issue, not the wiki — e.g. "이건 이 레포의 설계 결정이라 wiki가 아니라 GitHub 이슈로 남기는 게 맞아요. 이슈로 만들까요?" Stop here for this fragment — do not proceed to Step 2.
+- **No** — not a decision (a fact, a lesson, a reusable model, or this-repo structure knowledge). → proceed to Step 2.
+
+**Step 2 — is this true / useful in OTHER repos too?**
 
 - **Yes** — repo-transcending *domain knowledge* (e.g. "Defuddle extracts the first H1 as the title", "Obsidian Bases `.base` files are YAML view definitions"). → proceed to DEDUP and write a wiki page.
 - **No** — *this repo's structure* (where things live, this project's wiring). → **do NOT write a wiki page.** Redirect (emission only, no write): tell the user in Korean that this belongs in the repo's `AGENTS.md` / deepinit, not the cross-repo wiki — e.g. "이건 이 레포 구조라 wiki(레포 초월 도메인 지식)가 아니라 AGENTS.md/deepinit에 넣는 게 맞아요. 거기 추가할까요?" The skill never writes outside the vault.
-- **Mixed** — split per fragment (one wiki page = one kind of knowledge). Write the cross-repo fragments to wiki; redirect the repo-structure fragments to AGENTS.md.
+
+**Mixed** — split per fragment (one wiki page = one kind of knowledge, one GitHub issue = one decision). Apply the two-step tree independently to each fragment: write cross-repo domain-knowledge fragments to wiki; redirect repo-structure fragments to AGENTS.md; redirect decision fragments to a GitHub issue. The skill only ever writes inside the wiki — issue creation and AGENTS.md edits are both emission-only guidance for the user to act on.
 
 State the routing decision briefly before continuing, so the user can correct it.
 
