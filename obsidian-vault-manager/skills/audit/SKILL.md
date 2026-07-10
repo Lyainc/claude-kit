@@ -226,11 +226,11 @@ Detailed detection criteria for all error types: see `reference/vault-audit-rule
 
 1. Build `tag_files` = lowercase tag → set(file paths), from every `frontmatter_records[].fm.tags` (same aggregation as E9a). Drop any tag used in fewer than `E9_MIN_FILES` (3) files — reuses E9a/E9b's existing FP floor so a one-off tag never reaches LLM judgment.
 
-2. Build **candidate pairs** deterministically (no LLM, cheap prefilter — mirrors E12b's shared-tag/wikilink prefilter, adapted to compare tags instead of pages; #167's D10 design note names these signals source-overlap + common-neighbor). Two distinct tags `(A, B)` that both survived Step 1 are a candidate when EITHER holds:
+2. Build **candidate pairs** deterministically (no LLM, cheap prefilter — mirrors E12b's shared-tag/wikilink prefilter, adapted to compare tags instead of pages; #167's D10 design note names these signals source-overlap + common-neighbor). First precompute a tag → co-occurring-tags map once, in a single pass over `frontmatter_records` (not per pair — that map is what Step 1's `tag_files` pass already walks, so build both together). Then, for every distinct pair `(A, B)` that both survived Step 1, it's a candidate when EITHER holds:
    - **source overlap**: at least one file's `tags` list contains BOTH `A` and `B`, or
-   - **common neighbor**: the set of *other* tags co-occurring with `A` (across all of `A`'s files) shares at least one tag with the set of *other* tags co-occurring with `B`.
+   - **common neighbor**: `A`'s entry in the precomputed map shares at least one tag with `B`'s entry.
 
-   Skip any pair already reported by E9a (regular singular/plural) — already deterministically handled, no LLM opinion needed. If zero candidate pairs, exit sub-check (no findings).
+   Skip any pair already reported by E9a — a lookup against `vocabulary_pairs[]` (produced by SCAN Phase's `detect-vocabulary` step), not a re-derivation. Regular singular/plural is already deterministically handled there, no LLM opinion needed. If zero candidate pairs, exit sub-check (no findings).
 
 3. Judge each candidate pair: do `A` and `B` name the **same concept** under two different spellings/phrasings (a true synonym), as opposed to two related-but-distinct concepts that merely tend to co-occur (e.g. a language and a tool commonly used with it)? Judge from the tag strings and their file counts alone.
 
