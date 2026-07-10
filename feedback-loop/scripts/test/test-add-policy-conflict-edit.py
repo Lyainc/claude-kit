@@ -28,6 +28,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import re
 import sys
 from pathlib import Path
 
@@ -46,17 +47,23 @@ def _load_skill() -> str:
 # prose, and the test's job is "is this claim still stated", not exact wording.
 # ---------------------------------------------------------------------------
 
+def _bullet_scope(lower: str, marker: str) -> str | None:
+    """Slice `lower` from `marker` to the next top-level bullet (`\\n- **`), or
+    +600 chars if there is no next bullet. None if `marker` isn't found. Scopes a
+    claim check to one bullet's own text instead of the whole document, so an
+    unrelated match elsewhere in the skill can't false-positive."""
+    marker_pos = lower.find(marker)
+    if marker_pos == -1:
+        return None
+    next_bullet = lower.find("\n- **", marker_pos + 1)
+    return lower[marker_pos:next_bullet] if next_bullet != -1 else lower[marker_pos:marker_pos + 600]
+
+
 def check_edit_bucket_named(text: str) -> tuple[bool, str]:
     """§6 must name Edit as its own conflict-check outcome, not folded into Duplicate."""
-    lower = text.lower()
-    edit_pos = lower.find("**edit")
-    if edit_pos == -1:
+    bullet_text = _bullet_scope(text.lower(), "**edit")
+    if bullet_text is None:
         return False, "Edit is not named as its own §6 conflict-check outcome"
-    # Scope the before/after check to the Edit bullet's own text (up to the next
-    # top-level bullet), not the whole document — "before"/"after" are ordinary
-    # English words that appear elsewhere in the skill unrelated to this claim.
-    next_bullet = lower.find("\n- **", edit_pos + 1)
-    bullet_text = lower[edit_pos:next_bullet] if next_bullet != -1 else lower[edit_pos:edit_pos + 600]
     if "before" not in bullet_text or "after" not in bullet_text:
         return False, "Edit outcome doesn't describe a before -> after diff"
     return True, "Edit named as a distinct §6 outcome with a before -> after diff"
@@ -64,15 +71,9 @@ def check_edit_bucket_named(text: str) -> tuple[bool, str]:
 
 def check_edit_distinct_from_contradiction(text: str) -> tuple[bool, str]:
     """Contradiction must be scoped to exclude an explicit edit request."""
-    lower = text.lower()
-    contradiction_pos = lower.find("**contradiction")
-    if contradiction_pos == -1:
+    bullet_text = _bullet_scope(text.lower(), "**contradiction")
+    if bullet_text is None:
         return False, "Contradiction outcome missing entirely"
-    # Scope to the Contradiction bullet's own text (up to the next top-level bullet),
-    # not the whole document — matches check_edit_bucket_named's next_bullet scoping,
-    # so an unrelated "not target"/"does not target" elsewhere can't false-positive.
-    next_bullet = lower.find("\n- **", contradiction_pos + 1)
-    bullet_text = lower[contradiction_pos:next_bullet] if next_bullet != -1 else lower[contradiction_pos:contradiction_pos + 600]
     if "not target" not in bullet_text and "not an explicit edit" not in bullet_text and "does not target" not in bullet_text:
         return False, (
             "Contradiction isn't scoped to exclude explicit-edit requests — an edit "
@@ -90,7 +91,7 @@ def check_confirmation_template_lists_edit(text: str) -> tuple[bool, str]:
     # added anywhere later in the file would otherwise silently validate the wrong text.
     line_end = text.find("\n", field_pos)
     field_line = text[field_pos:line_end if line_end != -1 else len(text)].lower()
-    if "edit" not in field_line:
+    if not re.search(r"\bedit", field_line):
         return False, "충돌 field doesn't enumerate the edit outcome"
     return True, "충돌 field enumerates the edit outcome"
 
