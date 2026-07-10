@@ -1,6 +1,6 @@
 # Discussion Summary
 
-> 저장 경로: `docs/discussions/{YYYYMMDD}_{name}/SUMMARY.md`
+> 저장 경로: `docs/discussions/{YYYYMMDD}_{name}/SUMMARY.md` (로컬 워킹 드래프트 — canonical 기록은 관련 GitHub 이슈 코멘트 + `#N` 백링크, SKILL.md § Phase 2: Recording 참고)
 
 **일시**: YYYY-MM-DD
 **검토 대상**: [문서/코드/기획안 명]

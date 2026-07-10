@@ -1,6 +1,6 @@
 # Transcript: [토픽명]
 
-> 저장 경로: `docs/discussions/{YYYYMMDD}_{name}/transcripts/{순번}_{topic}.md`
+> 저장 경로: `docs/discussions/{YYYYMMDD}_{name}/transcripts/{순번}_{topic}.md` (로컬 워킹 드래프트 — canonical 기록은 관련 GitHub 이슈 코멘트 + `#N` 백링크, SKILL.md § Phase 2: Recording 참고)
 
 **토픽 번호**: [N]
 **일시**: YYYY-MM-DD
