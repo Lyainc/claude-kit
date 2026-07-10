@@ -283,7 +283,9 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
 - ~~**wiki self-audit E-rule 구체**(U3)~~ — **완료.** E12a(결정론 staleness, `verified:` 나이 >
   `STALE_WIKI_DAYS`)는 #330/PR #334, E12b(cross-page 의미 모순, `--deep` opt-in)는 #336/PR #344로 각각
   landed·merged.
-- **`--save` skill 인터페이스**(U5): OVM skill 진입점의 정확한 시그니처·게이트 UX.
+- ~~**`--save` skill 인터페이스**(U5): OVM skill 진입점의 정확한 시그니처·게이트 UX.~~ — **완료.**
+  `obsidian-vault-manager/skills/wiki/SKILL.md`가 SYNTHESIZE → U7 ROUTE → DEDUP → PLAN → WRITE 5단계
+  파이프라인으로 이미 구현·landed — PLAN 단계가 쓰기 전 인간 확인("one human glance")을 게이트로 둔다.
 
 ---
 
