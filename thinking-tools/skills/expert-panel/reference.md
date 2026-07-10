@@ -203,7 +203,7 @@ In isolated mode the in-progress exchange is restored from the `Rebuttal` cursor
 
 ### 저장 규칙
 
-**저장 위치**: 프로젝트 루트의 `docs/discussions/` 폴더 — 이 경로는 로컬 워킹 드래프트일 뿐 canonical 기록이 아닙니다. git 추적 여부는 프로젝트마다 다르고(예: claude-kit은 2026-06-13부터 이 폴더를 gitignore — GitHub 이슈가 canonical 결정 기록), 논의가 GitHub 이슈와 연관되어 있다면 SUMMARY를 그 이슈에 `#N` 백링크와 함께 코멘트로도 남기세요. 아래 로컬 파일은 세션 중 작업용 자료로는 그대로 유효합니다.
+**저장 위치**: 프로젝트 루트의 `docs/discussions/` 폴더 — 이 경로는 로컬 워킹 드래프트일 뿐 canonical 기록이 아닙니다. git 추적 여부는 프로젝트마다 다르고(예: claude-kit은 2026-06-13부터 이 폴더를 gitignore — GitHub 이슈가 canonical 결정 기록), 논의가 GitHub 이슈와 연관되어 있다면 SUMMARY를 그 이슈에 `#N` 백링크와 함께 코멘트로도 남기는 걸 제안하세요 — 공유 이슈에 남는 코멘트는 남에게 보이는 액션이니, 유저 확인 후에만 포스팅합니다. 아래 로컬 파일은 세션 중 작업용 자료로는 그대로 유효합니다.
 
 ```
 {project-root}/
