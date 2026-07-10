@@ -104,9 +104,10 @@ gone *and* the door is closed.
   repo follows that convention — see `scripts/check-version-sync.py`,
   `scripts/check-ci-coverage.py`).
 - Add a failing-then-passing fixture/case proving the new guard catches the original defect.
-- Make it actually run: register the check in CLAUDE.md's `## Validation` list **and** in
-  `.github/workflows/validate.yml`. (`check-ci-coverage.py` exists precisely to catch a check
-  that is registered but never wired into CI — a guard you forget to run is no guard.)
+- Make it actually run: register the check in `docs/VALIDATION.md`'s `## Validation` list
+  **and** in `.github/workflows/validate.yml`. (`check-ci-coverage.py` exists precisely to
+  catch a check that is registered but never wired into CI — a guard you forget to run is
+  no guard.)
 
 Exit when: the new/tightened guard fails on the original bad state and passes on the fixed
 state, has a `--self-test`, and is wired into CI.
