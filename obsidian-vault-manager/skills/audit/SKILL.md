@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 12 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), stale draft (E7), promotion candidates (E8), tag/property vocabulary inconsistencies (E9), misplaced files (E10), unstructured paths (E11), and stale wiki pages (E12a, stale `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 12 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), stale draft (E7), promotion candidates (E8), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale wiki pages (E12a, stale `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep AskUserQuestion
 ---
@@ -120,7 +120,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | E12 | `wiki_self_audit` | Warning | P1 | `frontmatter_records` (`wiki/` path + `type: wiki` + `verified`) | — (display-only) |
 
 > **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6–E7, E10–E12 = P1 (정체·구조/stagnation·structure). E5, E8, E9 = P2 (quality signal). (E10/E11 are the structural checks per #128/#129; E12 is the wiki self-audit per #330.)
-> **E9 vocabulary** (#119): a **vault-level** check, not per-file — aggregates tags/keys across the whole vault and emits one finding per inconsistent pair with `path: ""`. E9a = a tag and its regular `+s` plural both used (`api`↔`apis`); E9b = a frontmatter key in camelCase and its snake_case equivalent both used (`sourceUrl`↔`source_url`). FP guard: report only when BOTH forms appear in ≥3 files. E9c (semantic synonyms) is out of scope (separate issue). Never auto-fixed — the canonical form is the user's choice.
+> **E9 vocabulary** (#119): a **vault-level** check, not per-file — aggregates tags/keys across the whole vault and emits one finding per inconsistent pair with `path: ""`. E9a = a tag and its regular `+s` plural both used (`api`↔`apis`); E9b = a frontmatter key in camelCase and its snake_case equivalent both used (`sourceUrl`↔`source_url`). FP guard: report only when BOTH forms appear in ≥3 files. E9c (semantic synonyms, e.g. `llm`↔`large-language-model`) ships as the skill-only `--deep` LLM opt-in (#167) — see Phase 2.5 below (mirrors E12b's skill-only design). Never auto-fixed — the canonical form is the user's choice.
 > **E3 suggestion**: when a filename violates the v4 convention, the finding `detail` includes `권장 파일명: {name}` (note→`{slug}.md`; decision/plan→`{type}-{date}-{slug}.md`; capture/session→`{type}-{date}.md`; missing type/created→no suggestion). Rename affects inbound links → suggestion only, never auto-applied.
 > **E5 candidates**: orphan findings carry a structured `candidates: [{path, shared_tags}]` field (top-3 `notes/` files by exact tag-intersection) and a `연결 후보: [[X]] (공유 태그: a, b)` detail. Empty-tags / no-shared-tag orphans render `연결 후보 없음 (공유 태그 없음)` with `candidates: []`.
 > **E10/E11**: folder-structure checks. E10 = `type` in the wrong canonical folder (e.g., `type: session` in `notes/`; v5 adds `type: wiki` → `wiki/`). E11 = file outside `inbox/notes/assets/wiki` (arbitrary folder or root-direct; `_index.md` exempt). Both are display-only — moving a file affects inbound links.
@@ -146,9 +146,13 @@ Detailed detection criteria for all error types: see `reference/vault-audit-rule
 
 ---
 
-## Phase 2.5 — DEEP (opt-in, E12b cross-page contradiction)
+## Phase 2.5 — DEEP (opt-in, `--deep`)
 
-**Purpose**: Detect `wiki/` pages that assert conflicting claims about the same subject (#336). This is the **only** phase in this skill that reads file bodies and uses LLM judgment — SCAN, CLASSIFY, and REPORT stay LLM-cost-0 without `--deep`.
+**Purpose**: Run every LLM-judgment check gated behind `--deep`. This is the **only** phase in this skill that reads file bodies or uses LLM judgment — SCAN, CLASSIFY, and REPORT stay LLM-cost-0 without `--deep`. Two independent sub-checks run here, each with its own candidate-pair prefilter and its own confirm gate: E12b (cross-page wiki contradiction, #336, below) and E9c (tag semantic synonym, #167, further down).
+
+### E12b — cross-page wiki contradiction
+
+**Purpose**: Detect `wiki/` pages that assert conflicting claims about the same subject (#336).
 
 **Inputs**: `frontmatter_records` and `wikilinks_by_file` from the scan bundle (already collected, no re-scan).
 
@@ -203,6 +207,64 @@ Detailed detection criteria for all error types: see `reference/vault-audit-rule
    }
    ```
    Append it to the findings list produced by CLASSIFY (sorts under E12 in REPORT, alongside E12a staleness findings).
+
+**Termination condition**: All candidate pairs judged and either confirmed or declined. Proceed to the E9c sub-check below.
+
+### E9c — tag semantic synonym
+
+**Purpose**: Detect two vault-wide tags that name the same concept under different spellings (e.g. `llm` ↔ `large-language-model`, `react` ↔ `reactjs`, #167). A fixed synonym dictionary was rejected in #119 as over-firing and costly to maintain, so this judgment is LLM-only, gated and confirmed the same way as E12b above.
+
+**Inputs**: `frontmatter_records` from the scan bundle (already collected, no re-scan) — the same vault-wide tag aggregation E9a already builds in `audit-validate.py`, re-derived here in-skill. E9c never touches that reference impl or the `--dod` gate.
+
+**Tools used**: AskUserQuestion (no Read needed — tag strings and file counts are enough context for the judgment; unlike E12b there are no file bodies to read).
+
+**Skip conditions** (exit sub-check immediately, no findings added):
+- `--deep` flag not passed.
+- Fewer than 2 distinct tags meet the `E9_MIN_FILES` (= 3) floor below.
+
+**Procedure**:
+
+1. Build `tag_files` = lowercase tag → set(file paths), from every `frontmatter_records[].fm.tags` (same aggregation as E9a). Drop any tag used in fewer than `E9_MIN_FILES` (3) files — reuses E9a/E9b's existing FP floor so a one-off tag never reaches LLM judgment.
+
+2. Build **candidate pairs** deterministically (no LLM, cheap prefilter — mirrors E12b's shared-tag/wikilink prefilter, adapted to compare tags instead of pages; #167's D10 design note names these signals source-overlap + common-neighbor). Two distinct tags `(A, B)` that both survived Step 1 are a candidate when EITHER holds:
+   - **source overlap**: at least one file's `tags` list contains BOTH `A` and `B`, or
+   - **common neighbor**: the set of *other* tags co-occurring with `A` (across all of `A`'s files) shares at least one tag with the set of *other* tags co-occurring with `B`.
+
+   Skip any pair already reported by E9a (regular singular/plural) — already deterministically handled, no LLM opinion needed. If zero candidate pairs, exit sub-check (no findings).
+
+3. Judge each candidate pair: do `A` and `B` name the **same concept** under two different spellings/phrasings (a true synonym), as opposed to two related-but-distinct concepts that merely tend to co-occur (e.g. a language and a tool commonly used with it)? Judge from the tag strings and their file counts alone.
+
+4. Stage every pair judged synonymous as a DEEP candidate. Do **not** add it to the findings list yet — Step 5 is the mandatory FP-mitigation gate (same contract as E12b Step 6).
+
+5. If any DEEP candidates exist, confirm each **individually**, exactly like E12b Step 6 — one `AskUserQuestion` per candidate pair, batched in groups of ≤4 (sequential calls if more than 4):
+   ```
+   AskUserQuestion:
+     questions:
+       - question: "'llm' (N개 파일) ↔ 'large-language-model' (M개 파일) — 같은 개념의 동의어로 볼까요?"
+         header: "동의어 확인"
+         options:
+           - label: "동의어 — 보고에 포함"
+             description: "<one-line reason the tags are synonymous>"
+           - label: "동의어 아님 — 무시"
+             description: "판단 오류로 보고 이 쌍은 건너뜀"
+       - question: "'X' (N개 파일) ↔ 'Y' (M개 파일) — 같은 개념의 동의어로 볼까요?"
+         header: "동의어 확인"
+         options: [...]   # same two-option shape, one row per additional candidate pair
+   ```
+   Each pair's answer is independent. A candidate the user declines is dropped silently — no finding, no residual state.
+
+6. Every confirmed pair becomes one finding, folded into the SAME `tag_vocabulary_inconsistency` bucket E9a/E9b already populate (renders under the existing E9 vault-wide heading in REPORT — no new error type):
+   ```
+   {
+     "error_type": "tag_vocabulary_inconsistency",
+     "severity": "Warning",
+     "priority": "P2",
+     "path": "",
+     "detail": "태그 의미 동의어(LLM 판단, --deep): 'llm' (N개 파일) ↔ 'large-language-model' (M개 파일) — <reason>",
+     "auto_fix_eligible": false
+   }
+   ```
+   Append it to the findings list produced by CLASSIFY.
 
 **Termination condition**: All candidate pairs judged and either confirmed or declined. Proceed to REPORT with the (possibly unchanged) findings list.
 
@@ -381,7 +443,7 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 | `--dry-run` | Run SCAN→CLASSIFY→REPORT but skip OPTIONAL-FIX and mark-clean |
 | `--path <dir>` | Limit scan to a subdirectory (e.g., `--path notes`) |
 | `--reset-state` | Call `audit-state invalidate` on all vault files before scanning |
-| `--deep` | Opt-in LLM path (#336): after CLASSIFY, run Phase 2.5 DEEP to judge candidate `wiki/` page pairs for cross-page semantic contradiction (E12b). Off by default. |
+| `--deep` | Opt-in LLM path (#336, #167): after CLASSIFY, run Phase 2.5 DEEP to judge candidate `wiki/` page pairs for cross-page semantic contradiction (E12b) and candidate tag pairs for semantic synonym (E9c). Off by default. |
 | `status` | Show current audit-state stats only (no scan) |
 
 ---
@@ -394,7 +456,7 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 - Auto-fix is OFF by default. OPTIONAL-FIX only runs after explicit "수정 실행" confirmation.
 - `audit-state mark-clean` MUST be called after every successfully processed file.
 - Dry-run mode outputs the REPORT but performs no mutations and does not call `mark-clean`.
-- The AskUserQuestion in OPTIONAL-FIX is the only allowed user interaction, EXCEPT the Phase 2.5 DEEP confirm gate (`--deep` only, E12b).
+- The AskUserQuestion in OPTIONAL-FIX is the only allowed user interaction, EXCEPT the Phase 2.5 DEEP confirm gates (`--deep` only, E12b and E9c).
 - Phase 2.5 DEEP never runs without `--deep`. Without it, this skill makes zero LLM judgment calls end to end.
 - Every DEEP candidate MUST pass the AskUserQuestion confirm gate before becoming a finding — no silent auto-report of a semantic judgment.
 - Severity levels: Critical (data integrity risk), Warning (quality/navigation risk), Info (style/convention).
