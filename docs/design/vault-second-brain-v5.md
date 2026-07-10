@@ -170,13 +170,22 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 
 ---
 
-## 8. U4 양≠가치 측정 — recall hit/재사용 (telemetry Option B 게이트)
+## 8. U4 recall/재사용 지표 — 측정 게이트 폐기, 1회 build-verify로 대체 (2026-07-10, #267)
 
-- 측정 대상: 페이지 수(성장) ❌ → **wiki 페이지 recall/재사용 이벤트**(vault-searcher가 wiki 페이지를 실제 hit한 횟수) ✅.
-- **의존**: cross-project 가시성 = telemetry **Option B**. Option A(in-repo)는 레포 밖 세션 못 봄 → wiki recall 측정 불가.
-  #202(retro 큐레이션)·#215 "양≠가치"가 같은 Option B 의존 공유.
-- **결론**: U4 측정은 Option B 선행 게이트 — **지금 못 지음.** 본 문서는 "지표 = recall hit/재사용, Option B 의존"
-  명세만 남기고 구현은 별 트랙(#202 공동).
+- **지표 정의(유효)**: 페이지 수(성장) ❌ → **wiki 페이지 recall/재사용 이벤트**(vault-searcher가 wiki 페이지를
+  실제 hit한 횟수) ✅. "양이 아니라 가치"라는 프레이밍 자체는 살아 있다 — 폐기된 건 이걸 재려던 절차다.
+- **폐기(#267 "방향 전환" 코멘트, 2026-07-10)**: 재측정 2주 타임박스·recall 인용 카운트·살림/retire
+  이원 갈래·"owner 자기관찰로 인용 ≥1 확정" 완료조건 — 코멘트가 이름 붙여 폐기한 이 판정 프레임 안에,
+  본 섹션이 전제해온 "telemetry **Option B**(cross-project 가시성)를 먼저 짓고 그 위에서 정식 계측"
+  틀 자체가 포함된다. owner: "개발 마일스톤을 다 측정기반으로 바꾸는 것"은 원하는 방향이 아니다.
+- **대체 = 1회 build-verify(완료)**: Option B 없이, vault-searcher recall-first 트리거를 land하고(PR #337)
+  평범한 도메인 질문 1회로 실제 발화하는지 end-to-end 확인 — 독립 서브에이전트가 트리거 조건 충족 +
+  답변이 실제 wiki/notes 파일과 일치(환각 아님) 둘 다 PASS 판정. 조직적 사용량 집계가 아니라 "작동하는지"만
+  보는 build-verify다.
+- **결론**: recall/재사용이라는 *지표 정의*는 이 문서에 여전히 유효하지만, 그걸 상시 계측하는 인프라
+  (telemetry Option B)는 더 이상 U4의 전제도 목표도 아니다. 필요해지면 그때 git log/session transcript
+  같은 기존 기록을 사후에 뒤진다(§13과 동일 원칙). #202(retro 큐레이션)는 자기 몫의 Option B 의존을 별도
+  트랙으로 그대로 유지한다.
 
 ---
 
@@ -268,7 +277,8 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
 ## 15. 미결 / 별 트랙 (구현 아님 — 본 문서는 설계)
 
 - **구현은 별 세션** (goal G22 제약). 본 문서는 합의된 설계지 코드 변경 아님.
-- **U4 측정(recall hit)**: telemetry Option B 선행 게이트 — 지금 불가, #202 공동.
+- ~~**U4 측정(recall hit)**~~ — **완료.** 측정 게이트 폐기, 1회 build-verify로 대체(§8, PR #337, #267).
+  상시 계측(telemetry Option B)은 여전히 미착수지만 더 이상 U4의 전제가 아니다.
 - **#94**(commands→skills): 살아남는 커맨드 셋 확정 후(#215 mooted 해소).
 - ~~**wiki self-audit E-rule 구체**(U3)~~ — **완료.** E12a(결정론 staleness, `verified:` 나이 >
   `STALE_WIKI_DAYS`)는 #330/PR #334, E12b(cross-page 의미 모순, `--deep` opt-in)는 #336/PR #344로 각각
