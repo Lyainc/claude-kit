@@ -147,11 +147,11 @@ url: ...                                       # capture only, optional
 
 **type opt-in** (v4 §2.2): a `type:` field is the marker that opts a note into claude-kit's management. Files without it remain invisible — users keep diary, book notes, free folders untouched.
 
-## vault-bridge Hooks & Commands
+## vault-bridge Hooks & Skills
 
-vault-bridge registers 5 hook handlers + 3 slash commands. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
+vault-bridge registers 5 hook handlers + 3 skills. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
 
-**Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for **reads only**. Vault *reads* are delegated to the haiku `vault-searcher` agent; vault *writes* cannot be delegated — `pre-write-guard.sh` (default `enforce`) blocks subagent writes, so all writes are main-context user-initiated skills. Both vault-content ③ delivery adapters that vault-bridge once carried are now retired: the `session` adapter (`docs/design/output-adapter-contract.md` §2 row #5 — formerly `/save-session`) was **retired 2026-07-10 (#331)** when the session-knowledge path was redefined wiki-first (session knowledge → OVM `/wiki` + native memory), and the `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired in G26 (decision G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside claude-kit. vault-bridge's remaining write command is `/vault-commit` (git commit); vault *content* authoring (capture/note/wiki) belongs to obsidian-vault-manager. vault-bridge is still claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the output layer is **distributed in-place**, so these delivery adapters live here rather than in a separate plugin.
+**Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for **reads only**. Vault *reads* are delegated to the haiku `vault-searcher` agent; vault *writes* cannot be delegated — `pre-write-guard.sh` (default `enforce`) blocks subagent writes, so all writes are main-context user-initiated skills. Both vault-content ③ delivery adapters that vault-bridge once carried are now retired: the `session` adapter (`docs/design/output-adapter-contract.md` §2 row #5 — formerly `/save-session`) was **retired 2026-07-10 (#331)** when the session-knowledge path was redefined wiki-first (session knowledge → OVM `/wiki` + native memory), and the `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired in G26 (decision G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside claude-kit. vault-bridge's remaining write skill is `/vault-commit` (git commit); vault *content* authoring (capture/note/wiki) belongs to obsidian-vault-manager. vault-bridge is still claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the output layer is **distributed in-place**, so these delivery adapters live here rather than in a separate plugin.
 
 **Vault root configuration** (all hooks + Python scripts share the same 3-level priority):
 1. `VAULT_BRIDGE_VAULT_ROOT` env var — explicit runtime override (CI/scripts, highest priority)
@@ -172,7 +172,7 @@ vault-bridge registers 5 hook handlers + 3 slash commands. All hooks are **deter
 
 (`/handoff` was retired in G26 — the next-session continuation function moved to the machine-level `session-close` skill, outside claude-kit.)
 
-The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse guards) and explicit slash commands ensure zero per-turn LLM cost, no loops. The session-lifecycle auto-hooks (Stop capture suggestion, SessionEnd safety-net auto-save) were cut in G24; capture ore is written only via obsidian-vault-manager's explicit `/capture` command.
+The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse guards) and explicit skills ensure zero per-turn LLM cost, no loops. The session-lifecycle auto-hooks (Stop capture suggestion, SessionEnd safety-net auto-save) were cut in G24; capture ore is written only via obsidian-vault-manager's explicit `/capture` skill.
 
 ## Cross-Plugin MECE Boundaries
 
