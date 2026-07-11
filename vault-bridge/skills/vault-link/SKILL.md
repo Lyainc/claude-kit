@@ -1,8 +1,7 @@
 ---
-description: Create or update a .vault-link pointer file that binds the current code repository to a specific vault project
-allowed-tools: Read, Write, Bash, Glob
-argument-hint: "[project-name]"
-disable-model-invocation: true
+name: vault-link
+description: "Create or update a .vault-link pointer file that binds the current code repository to a specific vault project under ~/vault/notes/. Invoke via /vault-link."
+allowed-tools: Read Write Bash Glob AskUserQuestion
 ---
 
 Create a `.vault-link` pointer file in the current working directory (CWD), binding this repository to a specific `~/vault/notes/` project sub-folder.

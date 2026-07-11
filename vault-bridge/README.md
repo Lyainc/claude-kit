@@ -333,11 +333,11 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24; the `/handoff` command + `resume.md` mechanism were retired in G26 — see [Session Handoff](#session-handoff).)
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
-- **`/vault-manifest-refresh` command**: force-regenerate the vault manifest cache; reports result in Korean
+- **`/vault-manifest-refresh` skill**: force-regenerate the vault manifest cache; reports result in Korean
 
 ## Session Auto-Commit
 
-vault-bridge v1.4.0 adds `/vault-commit`, a slash command that commits uncommitted vault changes to git with user approval.
+vault-bridge v1.4.0 adds `/vault-commit`, a skill that commits uncommitted vault changes to git with user approval.
 
 ### Purpose
 
@@ -374,9 +374,11 @@ Set `VAULT_BRIDGE_DISABLE=1` to suppress the `/vault-commit` command. (The Stop-
 VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 ```
 
-## Slash Commands
+## Skills
 
-| Command | Description |
+Migrated from `commands/*.md` to `skills/*/SKILL.md` in #94 — invocation (`/vault-link` etc.) and behavior are unchanged.
+
+| Skill | Description |
 |---------|-------------|
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
