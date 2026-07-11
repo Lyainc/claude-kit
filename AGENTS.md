@@ -90,7 +90,7 @@ This repository is `claude-kit`, a Claude Code plugin marketplace that is also o
 - `{plugin}/.claude-plugin/plugin.json`: plugin manifest.
 - `{plugin}/skills/*/SKILL.md`: skill definitions.
 - `{plugin}/agents/*.md`: Claude Code agent definitions.
-- `vault-bridge/commands/*.md`: Claude Code slash-command definitions that should map to Codex skills or documented fallbacks where possible.
+- `vault-bridge/skills/{vault-link,vault-manifest-refresh,vault-commit}/SKILL.md`: user-invoked-only skills (`disable-model-invocation: true`) that should map to Codex skills or documented fallbacks where possible.
 - `vault-bridge/hooks/*.sh`: deterministic hook helpers that need explicit smoke tests when ported or wrapped.
 
 ### Adding or changing plugin surfaces
