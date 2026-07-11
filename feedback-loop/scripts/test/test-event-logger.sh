@@ -2,16 +2,15 @@
 # feedback-loop/scripts/test/test-event-logger.sh
 #
 # Unit test for event-logger.sh's meta extractors (extract_end_meta /
-# extract_stop_meta) against SYNTHETIC hook payloads. This is the verification
-# vehicle for the unverified stop `.usage` key path (#153 Item 2): real Stop
-# payloads are not available here, so the contract is locked against synthetic
-# fixtures instead.
+# extract_stop_meta) against SYNTHETIC hook payloads.
 #
 # Coverage:
-#   - happy path (full tool_response.usage / .usage block)
-#   - missing tool_response  -> {duration_ms:null} (end) / {} (stop)
+#   - happy path (full tool_response.usage block)
+#   - missing tool_response  -> {duration_ms:null} (end)
 #   - missing usage          -> tokens omitted, duration preserved where present
 #   - jq-invalid payload     -> safe {} fallback (no stray output, no crash)
+#   - extract_stop_meta always -> {} (confirmed #168: real Stop payloads carry
+#     no usage/token field at any key path, see event-logger.sh's extractor)
 #
 # Standalone-runnable. Exits non-zero on any assertion failure.
 #
@@ -140,35 +139,25 @@ assert_json_eq "end:jq-invalid -> {} fallback" \
   '{}'
 
 # ============================================================================
-# extract_stop_meta — Stop-event turn-usage meta (#153 synthetic verification)
+# extract_stop_meta — Stop-event meta (#168 confirmed: no usage in real payload)
 # ============================================================================
 
-# Happy path: a .usage block with turn token totals (the UNVERIFIED key path —
-# this synthetic case is exactly what locks its current shape).
-stop_happy='{"usage":{"input_tokens":1500,"output_tokens":300}}'
-assert_json_eq "stop:happy .usage -> turn tokens" \
-  "$(extract_stop_meta "$stop_happy")" \
-  '{"turn_input_tokens":1500,"turn_output_tokens":300}'
-
-# Missing usage entirely -> empty meta {}.
-stop_no_usage='{"session_id":"x"}'
-assert_json_eq "stop:missing usage -> {}" \
-  "$(extract_stop_meta "$stop_no_usage")" \
+# A real Stop payload shape (session_id/transcript_path/cwd/prompt_id/
+# permission_mode/effort/hook_event_name/stop_hook_active/last_assistant_message/
+# background_tasks/session_crons, captured #168) carries no usage/token field.
+stop_real_shape='{"session_id":"x","transcript_path":"/x.jsonl","cwd":"/","prompt_id":"p","permission_mode":"default","effort":{"level":"xhigh"},"hook_event_name":"Stop","stop_hook_active":false,"last_assistant_message":"2","background_tasks":[],"session_crons":[]}'
+assert_json_eq "stop:real payload shape -> {}" \
+  "$(extract_stop_meta "$stop_real_shape")" \
   '{}'
 
-# Partial usage: only input present.
-stop_partial='{"usage":{"input_tokens":42}}'
-assert_json_eq "stop:partial usage -> only present token" \
-  "$(extract_stop_meta "$stop_partial")" \
-  '{"turn_input_tokens":42}'
+# Even a payload that happens to carry a .usage-shaped block -> still {}
+# (extractor no longer reads the payload at all; kept for signature compat).
+stop_with_usage_shaped_field='{"usage":{"input_tokens":1500,"output_tokens":300}}'
+assert_json_eq "stop:.usage-shaped field ignored -> {}" \
+  "$(extract_stop_meta "$stop_with_usage_shaped_field")" \
+  '{}'
 
-# Null token field -> omitted.
-stop_null='{"usage":{"input_tokens":null,"output_tokens":9}}'
-assert_json_eq "stop:null token field omitted" \
-  "$(extract_stop_meta "$stop_null")" \
-  '{"turn_output_tokens":9}'
-
-# jq-invalid payload -> safe {} fallback.
+# jq-invalid payload -> still {} (no crash; extractor doesn't touch the arg).
 stop_invalid='}{ broken'
 assert_json_eq "stop:jq-invalid -> {} fallback" \
   "$(extract_stop_meta "$stop_invalid")" \
