@@ -192,18 +192,21 @@ def run_self_test() -> int:
         "trigger": "explicit", "outcome": "success",
         "tool_use_id": "toolu_03GHI", "meta": {},
     })
-    # A stop event with populated turn-usage meta must validate cleanly AND must
-    # NOT trip the empty-meta warning even under --strict — stop is outside
+    # A stop event with a non-empty meta must validate cleanly AND must NOT trip
+    # the empty-meta warning even under --strict — stop is outside
     # META_EXPECTED_EVENTS, so the empty-meta invariant simply never applies to
-    # it. This case locks that: a real stop event carrying turn token totals is
-    # silent on both errors and warnings. (#153 stop-meta dogfooding.)
+    # it. This case locks that. The schema itself places no constraint on which
+    # keys a stop event's meta may carry (arbitrary keys shown here are
+    # illustrative only) — in practice extract_stop_meta (event-logger.sh)
+    # always emits {}, confirmed #168: real Stop payloads carry no usage/token
+    # field at any key path.
     stop_populated_meta = json.dumps({
         "ts": "2026-05-15T00:00:00Z",
         "session_id": "x", "cwd": "/", "plugin": "claude-kit",
         "event": "stop", "name": "", "qualified_name": "",
         "trigger": "auto", "outcome": "success",
         "tool_use_id": "",
-        "meta": {"turn_input_tokens": 1500, "turn_output_tokens": 300},
+        "meta": {"example_key_a": 1500, "example_key_b": 300},
     })
     # A rule_fire event (G20 #258) must validate cleanly, including its outcome="fired"
     # (outcome is unconstrained for non-end events) and its conventional meta keys. This
