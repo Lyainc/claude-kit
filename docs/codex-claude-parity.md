@@ -24,7 +24,7 @@ Create **operational parity**, not byte-for-byte identity. Claude Code and Codex
 | `{plugin}/skills/*/SKILL.md` | Claude Code skills | Codex plugin skills exposed with plugin prefixes or local `.codex/skills` wrappers | Active equivalent for installed plugins | Check skill list in Codex session; `find */skills -name SKILL.md` |
 | `feedback-loop/skills/*` (`retro`) + `feedback-loop/.claude-plugin/plugin.json` | Layer ⑤ self-improvement (measure→review→keep — #217): E8 retro promotion + opt-in local telemetry. **Externally distributed.** | Codex drives the same retro loop; `retro` is exposed as a Codex plugin skill or documented fallback. Parity is behavioral (same measure→improve closure), not a literal skill-name copy | Active equivalent for installed plugin | `find feedback-loop/skills -name SKILL.md`; `python3 -m json.tool feedback-loop/.claude-plugin/plugin.json` |
 | `{plugin}/agents/*.md` | Claude Code agents | Codex native agents/prompts when directly mapped; otherwise route to OMX roles | Partial equivalent | Inspect `.codex/agents` and skill descriptions |
-| `vault-bridge/commands/*.md` | Claude slash commands | Codex skills or documented command fallbacks | Partial equivalent | Confirm available skills; keep shell fallbacks for missing command UI |
+| `vault-bridge/skills/*/SKILL.md` (`vault-link`, `vault-manifest-refresh`, `vault-commit`; user-invoked only, `disable-model-invocation: true`) | Claude Code skills | Codex skills or documented command fallbacks | Partial equivalent | Confirm available skills; keep shell fallbacks for missing command UI |
 | `vault-bridge/hooks/*.sh` | Deterministic hook helpers | Codex hook bridge plus direct shell smoke tests | Partial equivalent | Run hook smoke tests before claiming parity |
 | `.omc/state`, `.omc/plans`, `.omc/logs` | OMC runtime state | `.omx/state`, `.omx/plans`, `.omx/logs` | Active equivalent | Inspect `.omx/` during workflows |
 | OMC `haiku` | Low-cost quick lookup lane | OMX `explore` / spark / low-effort lane | Equivalent class | Use `omx explore` for simple repo lookup |
@@ -57,7 +57,7 @@ Claude `.claude/settings.local.json` allowlists are not portable to Codex. Codex
 
 ### Slash commands
 
-Claude slash commands under `vault-bridge/commands/*.md` do not automatically become Codex slash commands. They need one of:
+Claude skills under `vault-bridge/skills/*/SKILL.md` (invoked as `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`) do not automatically become Codex slash commands. They need one of:
 
 1. a Codex skill wrapper,
 2. an OMX workflow mapping, or
@@ -82,7 +82,7 @@ python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/nu
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
-find vault-bridge/commands vault-bridge/hooks -type f | sort
+find vault-bridge/skills vault-bridge/hooks -type f | sort
 ```
 
 For vault-audit definition-of-done checks:
