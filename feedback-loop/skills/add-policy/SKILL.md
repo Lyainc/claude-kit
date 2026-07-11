@@ -237,15 +237,19 @@ catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) 
 - **Sibling**: if it is one half of an existing rule's pair, link them with a one-line
   "sibling to <that rule>" rather than duplicating context.
 
-The engine does not maintain a numbered catalogue; for a new rule it appends in each
-site's **native form** (CLAUDE.md prose / a hook script / a skill SKILL.md), and for an
-**Edit**-classified rule it rewrites the targeted entry in place instead — always
+The engine does not maintain a numbered catalogue **of its own** (this claim is about the
+engine's internal bookkeeping, not the target site's structure — the site it writes into may
+itself use a numbered catalogue, e.g. the `policies/Pn.md` shape below); for a new rule it
+appends in each site's **native form** (CLAUDE.md prose / a hook script / a skill SKILL.md),
+and for an **Edit**-classified rule it rewrites the targeted entry in place instead — always
 conflict-checked against that site's present content. If the chosen site's current content
 is already an index+detail split (a thin summary table/list of one-liners each linking to a
 per-entry file, e.g. a catalogue `README.md` → `policies/Pn.md`), match that shape — add one
 terse index row plus its linked detail file, not a new inline block — so the always-loaded
 index doesn't grow unbounded as entries accumulate. Never invent this split on a site that
-doesn't already use it.
+doesn't already use it. When an **Edit** targets an entry that already lives in such a split,
+rewrite **both** the index row's one-liner and its linked detail file whenever the change
+touches anything the index summary claims, so the two don't drift apart.
 
 ## 7. Output contract
 
