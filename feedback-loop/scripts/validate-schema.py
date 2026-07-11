@@ -162,8 +162,8 @@ def run_self_test() -> int:
     good_meta = json.dumps({
         "ts": "2026-05-15T00:00:00Z",
         "session_id": "x", "cwd": "/", "plugin": "vault-bridge",
-        "event": "skill_invoke", "name": "save-session",
-        "qualified_name": "vault-bridge:save-session",
+        "event": "skill_invoke", "name": "vault-commit",
+        "qualified_name": "vault-bridge:vault-commit",
         "trigger": "explicit", "outcome": "success",
         "tool_use_id": "toolu_01ABC",
         "meta": {
@@ -187,8 +187,8 @@ def run_self_test() -> int:
     empty_meta_end = json.dumps({
         "ts": "2026-05-15T00:00:00Z",
         "session_id": "x", "cwd": "/", "plugin": "vault-bridge",
-        "event": "skill_invoke", "name": "save-session",
-        "qualified_name": "vault-bridge:save-session",
+        "event": "skill_invoke", "name": "vault-commit",
+        "qualified_name": "vault-bridge:vault-commit",
         "trigger": "explicit", "outcome": "success",
         "tool_use_id": "toolu_03GHI", "meta": {},
     })
