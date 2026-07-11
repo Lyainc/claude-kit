@@ -1,7 +1,7 @@
 ---
-description: Commit uncommitted vault changes to git — shows diff summary, generates a commit message, and requires user approval before committing
-allowed-tools: Bash, AskUserQuestion
-disable-model-invocation: true
+name: vault-commit
+description: "Commit uncommitted vault changes to git — shows a diff summary, generates a commit message, and requires user approval before committing. Invoke via /vault-commit."
+allowed-tools: Bash AskUserQuestion
 ---
 
 Commit uncommitted changes in the vault git repository with user approval.
