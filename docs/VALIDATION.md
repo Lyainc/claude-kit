@@ -100,6 +100,16 @@ python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 python3 vault-bridge/scripts/test/test-vault-commit-message.py
 # Expected: OK: all cases passed (currently 14 cases)
 
+# vault-bridge agent trigger-regression check (#338 — sibling to the thinking-tools
+# check below, adapted for vault-bridge's single-line quoted `description: "..."`
+# agent frontmatter with inline "KR triggers: ... EN triggers: ..." labels).
+# Self-test the extractor:
+python3 vault-bridge/scripts/test/check-trigger-regression.py --self-test
+# Expected: OK: all 7 self-test cases passed
+# Diff trigger sets between a base ref and the working tree (exit 1 = removals found):
+python3 vault-bridge/scripts/test/check-trigger-regression.py origin/main
+# Removals are reported (not hard-gated) — reviewer decides if intentional.
+
 # feedback-loop telemetry schema self-test (#217 — telemetry absorbed into feedback-loop)
 python3 feedback-loop/scripts/validate-schema.py --self-test
 
