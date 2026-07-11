@@ -30,7 +30,7 @@
 
 | # | 시점 | 게이트 | 발동 조건(트리거) | native 우선 | 기존 자산(재정의 금지) | 하네스 역할 | 분류 |
 |---|------|--------|------------------|-------------|----------------------|------------|------|
-| ① | **커밋 단위** | 프리커밋 린터 | `git commit` 시점(커밋마다) | git `pre-commit` hook · Claude Code PreToolUse(Bash `git commit`) hook | CLAUDE.md Validation 결정적 스크립트군 (`check-version-sync.py`·`check-ci-coverage.py`·`invariant_guard.py validate`·`bash -n`) | 권장 린터 세트 매핑만(설치는 프로젝트) | **opt-in 정책** |
+| ① | **커밋 단위** | 프리커밋 린터 | `git commit` 시점(커밋마다) | git `pre-commit` hook · Claude Code PreToolUse(Bash `git commit`) hook | docs/VALIDATION.md 결정적 스크립트군 (`check-version-sync.py`·`check-ci-coverage.py`·`invariant_guard.py validate`·`bash -n`) | 권장 린터 세트 매핑만(설치는 프로젝트) | **opt-in 정책** |
 | ② | **슬라이스 단위** | fresh-eyes critique + 셀프 검증 | feature-full 라우트의 critique 슬라이스 진입 직전(slice-router **SKILL.md** `Phase 3 — ENFORCE` 절차) | native Agent(별도 컨텍스트 spawn, N3) | `invariant_guard.check_isolated_critique`(CON-3) + `check_new_file_only`(CON-1 셀프 검증) (#183) | active agent가 critique를 별도 Agent로 spawn + 게이트 절차에서 `check_isolated_critique` 호출(판정 로직 재구현 0) | **헌법(CON-3) — 조건부 immutable** |
 | ③ | **푸시 직전** | quality 스킬(린터보다 큰 단위) | `git push` 시점(opt-in) / CI(push·PR) | git `pre-push` hook · CI(`validate.yml`·`claude-code-review.yml`) | #133 quality 인벤토리(code-reviewer·verifier=native / doc-polish=② / adversarial-review·expert-panel=①) | payload별 인벤토리 스킬 소환만(quality 신설 0) | **opt-in 정책** |
 | ④ | **완료 후** | retro 자동 호출 | goal 완료조건 충족(`/goal` auto-clear) 또는 푸시 통과 후 | — (retro는 스킬) | retro 스킬(#123) — 트리거 + 2갈래 scope | retro 트리거만(로직은 #123 소유) | **자동 트리거(내부 user-confirmed)** |
@@ -76,7 +76,7 @@ retro(④)는 goal 완료 후 *자동으로 트리거*되지만, retro 내부의
 | 항목 | 내용 |
 |------|------|
 | native 우선 | git `pre-commit` hook(프로젝트 설치) 또는 Claude Code PreToolUse hook(Bash matcher `git commit` — 메인 컨텍스트 커밋 직전). CON-2(결정적 훅·턴당 LLM 0) 정합 — 셸 스크립트만. |
-| 기존 자산(매핑) | CLAUDE.md Validation 섹션의 **결정적·경량** 스크립트만: JSON validity(`python3 -m json.tool`), `check-version-sync.py`(drift block), `invariant_guard.py validate <goal-doc>`(INV-4), `invariant_guard.py --self-test`, `bash -n hooks/*.sh`. |
+| 기존 자산(매핑) | docs/VALIDATION.md의 **결정적·경량** 스크립트만: JSON validity(`python3 -m json.tool`), `check-version-sync.py`(drift block), `invariant_guard.py validate <goal-doc>`(INV-4), `invariant_guard.py --self-test`, `bash -n hooks/*.sh`. |
 | 하네스 역할 | "프리커밋 게이트엔 이 경량 세트"를 권장 매핑. 무거운 fixture 테스트(audit DoD·gen-fixture)는 ③/CI로 미뤄요 — 커밋마다 돌리기엔 느려서. |
 | opt-in | YES. 프로젝트가 hook 설치 안 하면 CI(`validate.yml`)가 동일 검증을 push·PR에서 커버. |
 
@@ -204,7 +204,7 @@ retro(④)는 goal 완료 후 *자동으로 트리거*되지만, retro 내부의
 | #134 Acceptance | 충족 위치 |
 |-----------------|----------|
 | `gate-chain.md`: 4지점 게이트 + 발동 조건 + opt-in 경로 + scope 처리 정책 + retro 2갈래 이슈 분리 | §1(마스터 표 — 시점·발동조건·opt-in) + §2(opt-in/헌법 분류) + §3(게이트별 발동조건) + §5.1(scope 처리) + §5.2(retro 2갈래) |
-| 각 게이트 수단이 native/기존(#122 critique, #123 retro)으로 매핑 | §1·§3 각 게이트의 "native 우선" + "기존 자산(매핑)" 행 — ②=`check_isolated_critique`(#183), ④=retro(#123), ①=CLAUDE.md 결정적 스크립트군, ③=#133 인벤토리+CI |
+| 각 게이트 수단이 native/기존(#122 critique, #123 retro)으로 매핑 | §1·§3 각 게이트의 "native 우선" + "기존 자산(매핑)" 행 — ②=`check_isolated_critique`(#183), ④=retro(#123), ①=docs/VALIDATION.md 결정적 스크립트군, ③=#133 인벤토리+CI |
 | quality 스킬 정의는 스킬 인벤토리와 공유(중복 정의 금지) | §4 — #133 §1·§3 판정 그대로 참조, 게이트 ③은 사용 규약만, quality 스킬 신설·재정의 0 |
 
 **헌법 정합**: CON-1(②셀프 검증 `check_new_file_only`)·CON-3(②격리 critique `check_isolated_critique`)·CON-5(전 게이트가 leaf 자산을 *읽고·호출*만, 역방향 의존 0 — retro·slice-router 모두 단방향) — `claude-kit-boundary.md` §5 단일 출처 참조, 재정의 없음.
