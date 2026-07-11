@@ -323,7 +323,9 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
 - **구현은 별 세션** (goal G22 제약). 본 문서는 합의된 설계지 코드 변경 아님.
 - ~~**U4 측정(recall hit)**~~ — **완료.** 측정 게이트 폐기, 1회 build-verify로 대체(§8, PR #337, #267).
   상시 계측(telemetry Option B)은 여전히 미착수지만 더 이상 U4의 전제가 아니다.
-- **#94**(commands→skills): 살아남는 커맨드 셋 확정 후(#215 mooted 해소).
+- ~~**#94**(commands→skills): 살아남는 커맨드 셋 확정 후(#215 mooted 해소).~~ — **완료.**
+  살아남는 셋(3개: `vault-link`/`vault-manifest-refresh`/`vault-commit`) 확정 조건이 이미 충족돼
+  있었고(2026-07-09 코멘트), PR #364로 `commands/*.md` → `skills/` 마이그레이션 완료.
 - ~~**wiki self-audit E-rule 구체**(U3)~~ — **완료.** E12a(결정론 staleness, `verified:` 나이 >
   `STALE_WIKI_DAYS`)는 #330/PR #334, E12b(cross-page 의미 모순, `--deep` opt-in)는 #336/PR #344로 각각
   landed·merged.
