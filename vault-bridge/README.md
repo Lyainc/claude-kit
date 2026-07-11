@@ -50,7 +50,7 @@ Search the entire vault by keyword. If Obsidian CLI is available and responsive,
 
 ## Write Workflow
 
-vault-searcher is read-only, and vault-bridge no longer ships a content-authoring command. All vault *content* writes route through obsidian-vault-manager's user-initiated slash commands, executed inline in main context: `/capture` (raw ore → `~/vault/inbox/`), `/note` (evergreen note → `~/vault/notes/`), `/wiki` (compiled AI-recall domain knowledge → `~/vault/wiki/`). A past-tense session summary is just a `/capture`; distilled session knowledge for later AI recall compiles to `/wiki` (`/save-session` was retired 2026-07-10, #331).
+vault-searcher is read-only, and vault-bridge no longer ships a content-authoring command. All vault *content* writes route through obsidian-vault-manager's user-initiated skills, executed inline in main context: `/capture` (raw ore → `~/vault/inbox/`), `/note` (evergreen note → `~/vault/notes/`), `/wiki` (compiled AI-recall domain knowledge → `~/vault/wiki/`). A past-tense session summary is just a `/capture`; distilled session knowledge for later AI recall compiles to `/wiki` (`/save-session` was retired 2026-07-10, #331).
 
 For committing vault changes to git, use vault-bridge's `/vault-commit`. Next-session handoff is no longer a vault-bridge command — see [Session Handoff](#session-handoff).
 
@@ -133,7 +133,7 @@ For a 142-file vault (typical):
 | Manifest-first | 1 manifest (~25 KB) + 3–5 target files | ~750–1,500 tokens |
 | **Reduction** | | **~97%** |
 
-### `/vault-manifest-refresh` command
+### `/vault-manifest-refresh` skill
 
 Force-regenerate the manifest on demand:
 
@@ -181,7 +181,7 @@ vault_root: /Users/me/work-vault    # optional; overrides default ~/vault/
 
 vault-searcher walks upward from CWD (git-style) until it finds `.vault-link`. The first file found is used. If `.vault-link.local` exists at the same level, its `vault_root` overrides the default `~/vault/`.
 
-### Effect on vault-searcher modes and slash commands
+### Effect on vault-searcher modes and skills
 
 | Surface | Without `.vault-link` | With `.vault-link` |
 |---------|-----------------------|--------------------|
@@ -193,7 +193,7 @@ vault-searcher Mode 3 (Keyword Search) is unaffected by `.vault-link` scope. `/c
 
 If the `vault_path` directory does not exist, vault-searcher checks `notes/` for candidates with edit distance ≤ 2 and asks the user to confirm. If no candidates are found, it falls back silently to full-vault scope and inbox save target.
 
-### `/vault-link` command
+### `/vault-link` skill
 
 Create or update `.vault-link` in the current directory:
 
@@ -201,7 +201,7 @@ Create or update `.vault-link` in the current directory:
 /vault-link
 ```
 
-The command scans `~/vault/notes/` and presents a selection list. For new projects, create the vault project note via `obsidian-vault-manager`'s `vault-knowledge-manager` agent first, then run `/vault-link` to bind it. It never auto-modifies `.gitignore` — only suggests adding `.vault-link.local` to it.
+The skill scans `~/vault/notes/` and presents a selection list. For new projects, create the vault project note via `obsidian-vault-manager`'s `vault-knowledge-manager` agent first, then run `/vault-link` to bind it. It never auto-modifies `.gitignore` — only suggests adding `.vault-link.local` to it.
 
 ### Kill switch
 
@@ -265,7 +265,7 @@ VAULT_BRIDGE_STRICT_NAMING=1 claude
 
 ## Write Role Policy
 
-vault-bridge v1.9.0 adds an explicit Write Role Policy enforced by `hooks/pre-write-guard.sh`. Vault writes must originate from the main context (user-initiated slash commands). Subagent vault writes — identified by a non-empty agent identifier in the `PreToolUse` payload — are **blocked by default** (or warned / disabled) per the `VAULT_BRIDGE_WRITE_CONTRACT` environment variable.
+vault-bridge v1.9.0 adds an explicit Write Role Policy enforced by `hooks/pre-write-guard.sh`. Vault writes must originate from the main context (user-initiated skills). Subagent vault writes — identified by a non-empty agent identifier in the `PreToolUse` payload — are **blocked by default** (or warned / disabled) per the `VAULT_BRIDGE_WRITE_CONTRACT` environment variable.
 
 | Mode | Behavior | When |
 |------|----------|------|
@@ -332,7 +332,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24; the `/handoff` command + `resume.md` mechanism were retired in G26 — see [Session Handoff](#session-handoff).)
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
-- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by slash commands). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
+- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by skills). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/vault-manifest-refresh` skill**: force-regenerate the vault manifest cache; reports result in Korean
 
 ## Session Auto-Commit
@@ -368,7 +368,7 @@ When vault-bridge writes session notes, captures, or plan files to a git-tracked
 
 ### Kill switch
 
-Set `VAULT_BRIDGE_DISABLE=1` to suppress the `/vault-commit` command. (The Stop-hook auto-suggestion of `/vault-commit` was removed in G24 — run `/vault-commit` manually when the vault has uncommitted changes.)
+Set `VAULT_BRIDGE_DISABLE=1` to suppress the `/vault-commit` skill. (The Stop-hook auto-suggestion of `/vault-commit` was removed in G24 — run `/vault-commit` manually when the vault has uncommitted changes.)
 
 ```bash
 VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
