@@ -33,7 +33,7 @@ jobs:
         run: |
           # version-sync is a BLOCK guard: drift between marketplace.json and any
           # plugin.json fails CI. check-ci-coverage is now a BLOCK guard too (--strict,
-          # promoted in #175 once coverage reached 0 gaps): any CLAUDE.md-registered
+          # promoted in #175 once coverage reached 0 gaps): any docs/VALIDATION.md-registered
           # test missing from this workflow fails CI.
           python3 scripts/check-version-sync.py --self-test
           
