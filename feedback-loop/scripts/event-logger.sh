@@ -56,13 +56,12 @@ PAYLOAD="$(cat 2>/dev/null || printf '{}')"
 # --- 3b. Optional raw-payload capture (dogfooding instrument) ---------------
 # Gate: CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1. When set, append the raw stdin
 # payload (verbatim, one JSON object per line) to a per-event-type dump file
-# under events/raw/. This is the #153 dogfooding hook: enable it for ONE real
-# session, end a turn, then inspect events/raw/stop.jsonl to confirm the actual
-# Stop hook payload shape (in particular whether turn token totals live under
-# `.usage.*` — see extract_stop_meta's TODO below). Silent + best-effort: any
-# failure (mkdir, write) falls through without affecting the logging path.
-# Like VAULT_BRIDGE_DUMP_PAYLOAD (README "History"), this is a temporary
-# instrument — disable it once the real shape is confirmed.
+# under events/raw/. This was the #153/#168 dogfooding hook used to confirm the
+# real Stop hook payload shape (see extract_stop_meta below — resolved). Kept
+# as a general capture instrument for future payload-shape questions on other
+# event types. Silent + best-effort: any failure (mkdir, write) falls through
+# without affecting the logging path. Like VAULT_BRIDGE_DUMP_PAYLOAD (README
+# "History"), enable it only for the ONE session you need to inspect.
 if [ "${CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD:-}" = "1" ]; then
   RAW_DIR="${LOG_DIR}/raw"
   if mkdir -p "$RAW_DIR" 2>/dev/null; then
@@ -124,42 +123,19 @@ extract_end_meta() {
   ' 2>/dev/null || printf '{}'
 }
 
-# Build the meta object for the Stop event. Turn token totals come from a
-# usage block on the Stop payload when present; absent/null keys are omitted.
+# Build the meta object for the Stop event.
 #
-# TODO(#153): the `.usage.*` key path below is UNVERIFIED against a real Claude
-# Code Stop hook payload — it was an educated guess, not confirmed against live
-# data (no live stop events were available at authoring time). It is currently
-# exercised only against SYNTHETIC payloads (scripts/test/test-event-logger.sh).
-#
-# WHAT MUST BE VERIFIED against a real Stop payload (resolves #153 Item 1):
-#   1. Does the Stop hook payload carry per-turn token usage AT ALL? (It may
-#      not — Stop fires when Claude finishes responding; the schema may expose
-#      no token totals, in which case this extractor should stay {} and the
-#      dogfooding finding is "Stop carries no usage; drop turn-token telemetry".)
-#   2. IF it does, WHICH key path holds it? Confirm `.usage.input_tokens` /
-#      `.usage.output_tokens` against the real shape, OR switch to the actual
-#      path. Documented candidates: `.usage.*` (current guess), `.turn_usage.*`,
-#      `.message.usage.*`, or top-level token fields.
-#   3. Are the field NAMES `input_tokens`/`output_tokens` (matching tool_response
-#      usage), or does Stop use different names (e.g. cumulative `*_token_count`)?
-#
-# HOW TO CAPTURE the real payload (no live stop data exists at authoring time):
-#   export CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1
-#   # run ONE real session, let a turn end, then:
-#   jq . "${CLAUDE_KIT_TELEMETRY_DIR:-.claude-kit/telemetry/events}"/raw/stop.jsonl
-# (the §3b dump block above writes the verbatim Stop stdin there). Once the real
-# shape is confirmed, adjust `.usage`/field names here AND sync the expected
-# values in scripts/test/test-event-logger.sh, then delete this TODO.
-# Do NOT blind-edit the live path until a real payload confirms it.
+# CONFIRMED (#168, resolves #153): a real Stop hook payload was captured via
+# CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1 against a live Claude Code session. Its
+# keys are session_id, transcript_path, cwd, prompt_id, permission_mode,
+# effort, hook_event_name, stop_hook_active, last_assistant_message,
+# background_tasks, session_crons — no usage/token field anywhere, not
+# `.usage.*`, `.turn_usage.*`, `.message.usage.*`, nor a top-level token field.
+# Stop simply carries no per-turn token usage, so turn-token telemetry is
+# dropped for this event type. This extractor is a confirmed no-op, kept only
+# as the single wiring point if a future Stop schema ever adds real usage data.
 extract_stop_meta() {
-  local payload="$1"
-  printf '%s' "$payload" | jq -c '
-    (.usage // {}) as $u
-    | {}
-      + (if ($u.input_tokens != null) then {turn_input_tokens: $u.input_tokens} else {} end)
-      + (if ($u.output_tokens != null) then {turn_output_tokens: $u.output_tokens} else {} end)
-  ' 2>/dev/null || printf '{}'
+  printf '{}'
 }
 
 # --- 6. Per-event field extraction -----------------------------------------
