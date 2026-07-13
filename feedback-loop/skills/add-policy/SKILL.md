@@ -146,6 +146,7 @@ ask a single confirmation:
 - 들어갈 곳: <CLAUDE.md | hook | skill> — <one-line reason: HARD라 자동강제 / SOFT라 리마인드 / 절차라 호출형>
 - 추가/변경될 내용: <the exact prose / guard / skill stub to add, OR the existing entry's before → after if this is an edit>
 - 충돌: <none | sibling of an existing rule | edits an existing entry (show before→after) | contradicts an existing rule (explain)>
+- memory 중복: <none | 이 규칙이 memory에도 있어요: <path> — 매립 후 그 항목은 지울게요 (§6)>
 ```
 
 Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" The user confirms or
@@ -205,7 +206,7 @@ missing directory the same as "no existing skills found" (nothing to conflict wi
 > fail-safe** (safe > overwrite). To let the engine revise an old distilled skill, add a
 > top-level `provenance: distilled` line to its frontmatter.
 
-## 6. Conflict check (target = the landfill site's current rules)
+## 6. Conflict check (target = the landfill site's current rules + native auto-memory)
 
 **New site (no prior conflict possible)**: check whether the target file **exists** first —
 `[ -f "$TARGET" ]`, the same existence-check principle §5 uses for the skill site (there it's
@@ -236,6 +237,37 @@ catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) 
   NOT write — report the contradiction to the user and stop.
 - **Sibling**: if it is one half of an existing rule's pair, link them with a one-line
   "sibling to <that rule>" rather than duplicating context.
+
+**The Duplicate scan also covers native auto-memory** — Claude Code's auto-memory
+(`~/.claude/projects/<proj>/memory/*.md`) stores `feedback`-type entries, which are *the same
+kind of thing this engine lands*: user guidance on how to work. Auto-memory writes are never
+checked against the reminder sites, so a rule already landed in CLAUDE.md / `~/.claude/rules`
+can sit duplicated in memory and neither side catches it — the landfill write is the one moment
+that can. So scan **both** the chosen site's current content **and** those `feedback` memories
+(read-only; both frontmatter shapes exist in the wild — a top-level `type:` and one nested under
+`metadata:`):
+
+```bash
+# find, not a glob: `~/.claude/projects` exists on any machine that ever ran Claude Code, but
+# `memory/` only appears once auto-memory has written something — an unmatched `*/memory/*.md`
+# glob aborts the command (zsh NOMATCH) instead of scanning nothing.
+[ -d "$HOME/.claude/projects" ] && find "$HOME/.claude/projects" -path '*/memory/*.md' \
+  -exec grep -lE '^[[:space:]]*type:[[:space:]]*feedback' {} + 2>/dev/null
+```
+
+- **Vanilla machine → silently skip.** No `~/.claude/projects` (or no `memory/` inside it) means
+  the user has no auto-memory: skip the memory scan and proceed, exactly as §5 treats a missing
+  `~/.claude/skills`. A missing directory is "nothing to conflict with", never a scan failure,
+  and never a reason to stop the landfill write.
+- **On a hit → surface it in the §3 1-click confirmation** ("이 규칙이 memory에도 있어요 — 매립 후
+  memory 항목은 지울게요"), and after the landfill write succeeds, remove that memory file **and
+  its one-line `MEMORY.md` index entry**, so the rule ends up in exactly one place. The removal
+  rides on the same single confirmation — no second prompt. Use a recoverable delete
+  (`trash-put` when available); if none is available, leave the file and report it for the user
+  to remove — never force-delete.
+- **Memory is an input, never a destination.** The landfill sites stay the **three** of §3 — a
+  rule is never *written* to memory. A `feedback` memory is a promotion queue that empties into
+  one of the three sites; this is a scan-scope extension, **not a fourth site**.
 
 The engine does not maintain a numbered catalogue **of its own** (this claim is about the
 engine's internal bookkeeping, not the target site's structure — the site it writes into may
@@ -297,6 +329,9 @@ discovery-side placement-fit judgment). The check depends on the site:
   **Edit**-classified rule, verify the rewrite instead: the old entry text is gone and the
   approved new text is present — an edit isn't guaranteed to grow the file, so "non-empty
   addition" is not the right check here.
+- **memory duplicate removal** (only when §6 found one): the duplicate memory file is gone and
+  its `MEMORY.md` index line with it. If the delete could not run, report that in Korean — never
+  claim a removal that didn't happen.
 
 Example for a freshly written skill (best-effort, Korean report on failure):
 
@@ -320,6 +355,9 @@ in-skill self-check, never a registered harness hook (CON-2).
   structure). A user-shell receiver is out-of-band (not a fourth site) = command emission only.
 - Tier (HARD/SOFT) is inferred by the engine from the rule's what/why, never asked of the
   user (the classification axes are never exposed as a form to fill).
+- Native auto-memory is a **duplicate-scan target and a promotion queue, not a fourth site**:
+  scan its `feedback` entries, land the rule in one of the three sites, then delete the memory
+  duplicate — and skip the scan silently when the memory directory doesn't exist (§6).
 - User-authored skills are **inviolable**: never overwrite a `provenance: user-authored`
   body; propose a sibling/reference instead.
 - The default taxonomy is an editable starting point, not a hardcoded ontology; personal

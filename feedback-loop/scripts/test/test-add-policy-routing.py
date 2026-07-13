@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 """Regression test: add-policy SOFT reminder channel is layer-routed with a vanilla fallback.
 
-G28 ① + ③. The engine (feedback-loop/skills/add-policy/SKILL.md) is a prose skill,
-so this is a static-content check — it does not execute LLM logic. It pins the four
-claims G28 added to §3, guarding against a future edit silently dropping the machine
-work-rule catalogue routing or the vanilla fallback.
+G28 ① + ③, extended by #377. The engine (feedback-loop/skills/add-policy/SKILL.md) is a
+prose skill, so most of this is a static-content check — it does not execute LLM logic. It
+pins the claims below, guarding against a future edit silently dropping the machine
+work-rule catalogue routing, the vanilla fallback, or (#377) the native-memory duplicate
+scan. The one exception is the #377 memory-scan snippet: SKILL.md ships that as *runnable
+bash*, so it is actually EXECUTED against temp-HOME fixtures (a prose grep is what let a
+zsh-NOMATCH abort slip through review in the first place).
 
 Checks 2 (vanilla fallback) + 3 (no-hardcode/detect) ARE the #300 acceptance sign-off:
 the engine is prose with no runtime code path, so "does it degrade on a vanilla machine
@@ -12,7 +15,7 @@ where ~/.claude/rules is absent" is guaranteed by proving the SKILL.md instructs
 detect-then-fall-back branch — not by simulating `[ -d ]` (that would test bash, not the
 engine). This static guard is the durable form of that verification.
 
-The four pinned claims:
+The pinned claims:
 
 1. The SOFT reminder channel is routed by LAYER (both branches described):
    - stance/voice (judgment/expression) -> ~/.claude/CLAUDE.md
@@ -20,6 +23,13 @@ The four pinned claims:
 2. Vanilla fallback: ~/.claude/rules ABSENT -> CLAUDE.md fallback (both states covered).
 3. No-hardcode clause: the machine rules/ structure is DETECTED, never hardcoded.
 4. Thin pointer + backing detail when the catalogue channel is used.
+5. (#377) §6's duplicate scan covers native auto-memory's `feedback` entries, surfaces the
+   hit in the §3 confirmation, and deletes the memory duplicate after landing — memory being
+   an input queue, NOT a fourth landfill site.
+6. (#377) Vanilla machine with no ~/.claude/projects memory directory -> the memory scan is
+   SILENTLY SKIPPED, never a scan failure.
+7. (#377) The §6 scan snippet, run for real: no projects dir / projects-but-no-memory-dir /
+   a populated memory dir. It must never abort, and must find only `feedback` entries.
 
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-routing.py
@@ -32,7 +42,11 @@ Exit codes:
 
 from __future__ import annotations
 
+import re
+import shutil
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -114,6 +128,108 @@ def check_not_fourth_site(text: str) -> tuple[bool, str]:
     return True, "routing framed as a channel mapping, not a fourth site"
 
 
+def check_memory_duplicate_scan(text: str) -> tuple[bool, str]:
+    """#377: the duplicate scan must cover native auto-memory's `feedback` entries."""
+    lower = text.lower()
+    if "memory" not in lower or "~/.claude/projects" not in lower:
+        return False, "native auto-memory (~/.claude/projects/<proj>/memory) not named as a scan target"
+    if "feedback" not in lower:
+        return False, "the `feedback`-type memory entry (the scan target) not named"
+    if "duplicate" not in lower:
+        return False, "memory scan not tied to the Duplicate check"
+    # The hit must reach the user (§3 confirmation) and leave exactly one copy behind.
+    # Memory-specific wording on purpose: a bare "delete" is already satisfied by pre-#377 prose.
+    if "memory 항목은 지울게요" not in text and "memory duplicate" not in lower:
+        return False, "post-landing removal of the memory duplicate not described"
+    # Invariant: memory is an input, never a landfill site.
+    if "not a fourth site" not in lower:
+        return False, "memory not framed as 'not a fourth site' — a reader may add it as a 4th landfill site"
+    return True, "memory `feedback` duplicate scan + removal described (memory stays an input)"
+
+
+def check_memory_vanilla_skip(text: str) -> tuple[bool, str]:
+    """#377: a machine with no memory directory must skip the scan silently."""
+    lower = text.lower()
+    if "$home/.claude/projects" not in lower and "~/.claude/projects" not in lower:
+        return False, "memory-directory existence check not described"
+    if "skip the memory scan" not in lower:
+        return False, "silent skip on a vanilla machine (no memory directory) not described"
+    # Memory-specific wording: §5's own "not as a scan failure" line predates #377.
+    if "never a scan failure" not in lower:
+        return False, "missing directory must be stated as 'nothing to conflict with', never a scan failure"
+    return True, "vanilla machine (no memory directory) -> memory scan silently skipped"
+
+
+_BASH_BLOCK_RE = re.compile(r"```bash\n(.*?)```", re.DOTALL)
+
+
+def _extract_memory_snippet(text: str) -> str | None:
+    """The one fenced bash block in SKILL.md that scans the memory directory."""
+    for block in _BASH_BLOCK_RE.findall(text):
+        if "/memory/" in block and "feedback" in block:
+            return block
+    return None
+
+
+def _run_snippet(snippet: str, home: Path, shell: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        [shell, "-c", snippet],
+        env={"HOME": str(home), "PATH": "/usr/bin:/bin:/usr/local/bin"},
+        capture_output=True,
+        text=True,
+        timeout=30,
+    )
+
+
+def check_memory_snippet_runs(text: str) -> tuple[bool, str]:
+    """#377: EXECUTE the §6 scan snippet — prose alone can't catch an aborting glob.
+
+    Three fixture HOMEs, under every shell available (the skill's snippet runs in whatever
+    shell the Bash tool uses — zsh on macOS, bash in CI — and an unmatched glob aborts under
+    zsh but not bash, so both must be exercised where present).
+    """
+    snippet = _extract_memory_snippet(text)
+    if snippet is None:
+        return False, "no runnable memory-scan bash snippet found in SKILL.md §6"
+
+    shells = [s for s in ("/bin/bash", "/bin/zsh") if Path(s).exists() or shutil.which(s)]
+    if not shells:
+        return True, "memory-scan snippet found (no shell available to execute it — skipped)"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        empty = Path(tmp) / "empty"                                  # no ~/.claude at all
+        (empty / ".claude").mkdir(parents=True)
+        no_mem = Path(tmp) / "no-mem"                                # projects/, but no memory/
+        (no_mem / ".claude" / "projects" / "-some-proj").mkdir(parents=True)
+        full = Path(tmp) / "full"                                    # a populated memory store
+        mem = full / ".claude" / "projects" / "-some-proj" / "memory"
+        mem.mkdir(parents=True)
+        (mem / "hit-nested.md").write_text(
+            "---\nname: x\nmetadata:\n  node_type: memory\n  type: feedback\n---\nbody\n"
+        )
+        (mem / "hit-toplevel.md").write_text("---\nname: y\ntype: feedback\n---\nbody\n")
+        (mem / "miss.md").write_text("---\nname: z\nmetadata:\n  type: project\n---\nbody\n")
+
+        for shell in shells:
+            for label, home in (("no ~/.claude/projects", empty), ("projects/ but no memory/", no_mem)):
+                p = _run_snippet(snippet, home, shell)
+                if p.returncode not in (0, 1) or p.stdout.strip() or p.stderr.strip():
+                    return False, (
+                        f"[{shell}] vanilla case ({label}) did not skip silently — "
+                        f"rc={p.returncode} stdout={p.stdout.strip()!r} stderr={p.stderr.strip()!r}"
+                    )
+
+            p = _run_snippet(snippet, full, shell)
+            found = {Path(line).name for line in p.stdout.split() if line}
+            if found != {"hit-nested.md", "hit-toplevel.md"}:
+                return False, (
+                    f"[{shell}] populated case: expected both `feedback` shapes and only those, "
+                    f"got {sorted(found)} (rc={p.returncode}, stderr={p.stderr.strip()!r})"
+                )
+
+    return True, f"§6 scan snippet executes correctly under {', '.join(shells)} (vanilla + populated)"
+
+
 _CHECKS = [
     check_stance_voice_to_claude_md,
     check_workrule_to_rules,
@@ -121,6 +237,9 @@ _CHECKS = [
     check_no_hardcode,
     check_thin_pointer,
     check_not_fourth_site,
+    check_memory_duplicate_scan,
+    check_memory_vanilla_skip,
+    check_memory_snippet_runs,
 ]
 
 
@@ -152,6 +271,18 @@ The fallback is non-negotiable: never hardcode the machine's rules/ structure. D
 
 Thin pointer + backing detail: put the detail in the catalogue and keep ~/.claude/CLAUDE.md
 to at most a one-line pointer / thin pointer.
+
+The Duplicate scan also covers native auto-memory: scan the `feedback` entries under
+~/.claude/projects/<proj>/memory/*.md. Vanilla machine with no such directory ->
+skip the memory scan silently; a missing directory is nothing to conflict with,
+never a scan failure. On a
+hit, surface it in the 1-click confirmation ("매립 후 memory 항목은 지울게요") and delete the
+duplicate memory file after the landfill write. Memory is an input queue, not a fourth site.
+
+```bash
+[ -d "$HOME/.claude/projects" ] && find "$HOME/.claude/projects" -path '*/memory/*.md' \\
+  -exec grep -lE '^[[:space:]]*type:[[:space:]]*feedback' {} + 2>/dev/null
+```
 """
 
 # Regression of the exact bug G28 fixes: SOFT always -> CLAUDE.md, no rules routing,
@@ -169,15 +300,8 @@ def _self_test() -> int:
         ok, _ = check(_PASSING)
         cases.append((f"passing: {check.__name__}", ok))
 
-    # On the pre-G28 fixture, every rules/fallback/hardcode claim must be absent.
-    for check in (
-        check_stance_voice_to_claude_md,
-        check_workrule_to_rules,
-        check_vanilla_fallback,
-        check_no_hardcode,
-        check_thin_pointer,
-        check_not_fourth_site,
-    ):
+    # On the pre-G28/pre-#377 fixture, every rules/fallback/hardcode/memory claim is absent.
+    for check in _CHECKS:
         ok, _ = check(_FAILING)
         cases.append((f"failing: {check.__name__} (expect FAIL)", not ok))
 
