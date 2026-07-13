@@ -144,11 +144,14 @@ bash feedback-loop/scripts/test/test-retro-telemetry.sh
 # static-content check on the live SKILL.md: the SOFT reminder channel is routed by layer
 # (stance/voice→~/.claude/CLAUDE.md, work-rule→~/.claude/rules) with a vanilla fallback
 # (rules absent→CLAUDE.md) and a never-hardcode-the-rules/-structure clause. Guards the
-# "both rules-present and rules-absent branches are described" claim against drift.)
+# "both rules-present and rules-absent branches are described" claim against drift.
+# #377 extends it to §6's native-memory duplicate scan — and since SKILL.md ships that scan
+# as runnable bash, the snippet is EXTRACTED and EXECUTED against temp-HOME fixtures
+# (no projects dir / projects-but-no-memory-dir / populated) under every shell present.)
 python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
-# Expected: OK: all 12 self-test cases passed
+# Expected: OK: all 18 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-routing.py
-# Expected: OK: all 6 add-policy-routing checks passed.
+# Expected: OK: all 9 add-policy-routing checks passed.
 
 # add-policy §6 conflict-check Edit bucket regression (#303 — an explicit "change this
 # existing entry" request is its own conflict-check outcome, distinct from Duplicate
