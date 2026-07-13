@@ -98,7 +98,9 @@ python3 scripts/gen-release-notes.py --self-test
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort
 
-# vault-bridge pre-write-guard regression (Write Role Contract + naming, incl. notes/*.base ext for #118 /base skill)
+# vault-bridge pre-write-guard regression (Write Role Contract + naming, incl. notes/*.base ext for #118
+# /base skill, and the #381 Bash bypass: subagent `echo > vault/x.md`/mv/tee/cd+redirect are denied while
+# reads — grep/cat/`cd vault && git status`/`cp vault/x.md /tmp/` — must stay FP-free)
 python3 vault-bridge/scripts/test/test-pre-write-guard.py
 
 # vault-bridge pre-access-guard regression (vault-searcher self-exemption + counter)

@@ -387,6 +387,109 @@ def case_kill_switch(errors: list[str], vault_root: str) -> None:
     _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
 
 
+# ---------------------------------------------------------------------------
+# Bash bypass cases (#381)
+#
+# The Write|Edit matcher alone left the Write Role Contract bypassable: a subagent
+# holding Bash could write the vault with `echo >`, `mv`, `tee`. The guard now also
+# fires on Bash and denies writes whose TARGET resolves inside the vault.
+#
+# FP=0 is the load-bearing property — reads must keep working. Every allow case below
+# is a read (or a write that lands outside the vault / in assets/), and a false deny
+# there would make the vault unreadable to subagents, which is the whole point of the
+# read/write asymmetry.
+#
+# KNOWN_EVASIONS (deliberately not caught — honest-subagent threat model, same as
+# scripts/subagent-git-guard.sh #209): indirection that takes the command as data —
+# `eval`, `sh -c "..."`, backticks, `xargs`, `python3 -c "open(...).write()"` — and
+# $(...)-computed target paths. Catching those statically costs false positives on
+# reads, which is the more expensive failure here.
+# ---------------------------------------------------------------------------
+
+def _make_bash_payload(command: str, agent_id_value: str | None = None, cwd: str | None = None) -> dict:
+    payload: dict = {"tool_name": "Bash", "tool_input": {"command": command}}
+    if agent_id_value:
+        payload["subagent_type"] = agent_id_value
+    if cwd:
+        payload["cwd"] = cwd
+    return payload
+
+
+def case_bash_subagent_writes_denied(errors: list[str], vault_root: str) -> None:
+    """Subagent Bash commands whose write target is inside the vault → deny."""
+    print("\ncase: bash_subagent_writes_denied")
+    v = vault_root
+    commands = [
+        f'echo "hello" > {v}/notes/x.md',                    # the #381 headline bypass
+        f'cat > {v}/notes/x.md <<EOF\nhello\nEOF',           # heredoc
+        f'printf "x" >> {v}/wiki/page.md',                   # append
+        f'mv /tmp/a.md {v}/notes/x.md',                      # move in
+        f'cp /tmp/a.md {v}/notes/x.md',                      # copy in
+        f'echo x | tee {v}/notes/x.md',                      # tee after a pipe
+        f'cd {v} && echo x > notes/y.md',                    # relative target after cd
+        f'sed -i "" s/a/b/ {v}/notes/x.md',                  # in-place edit
+        f'touch {v}/inbox/capture-2026-01-01.md',
+        f'mkdir -p {v}/notes/newdir',
+        f'rm {v}/notes/x.md',                                # deletion is a write too
+        f'sudo cp /tmp/a.md {v}/notes/x.md',                 # wrapper prefix
+    ]
+    for cmd in commands:
+        payload = _make_bash_payload(cmd, agent_id_value="vault-file-organizer", cwd="/tmp")
+        proc = _run(payload, vault_root=vault_root)
+        _assert(proc.returncode == 0, f"exit 0 (deny is a decision, not an error): {cmd!r}", errors)
+        _assert('"permissionDecision":"deny"' in proc.stdout.replace(" ", ""),
+                f"denied: {cmd!r} (got: {proc.stdout!r})", errors)
+
+
+def case_bash_reads_pass(errors: list[str], vault_root: str) -> None:
+    """FP=0: subagent Bash reads (and non-vault / assets writes) → clean pass."""
+    print("\ncase: bash_reads_pass")
+    v = vault_root
+    commands = [
+        f'grep -r foo {v}',                                  # search the vault
+        f'cat {v}/notes/x.md',                               # read a file
+        f'cd {v} && git status',                             # vault as cwd, read-only git
+        f'ls {v}/notes',
+        f'cp {v}/notes/x.md /tmp/',                          # vault is the SOURCE, not the target
+        f'echo "write to {v}/notes/x.md"',                   # path only mentioned, not written
+        f"grep '>' {v}/notes/x.md",                          # quoted > is not a redirection
+        'echo x > /tmp/outside.md',                          # write outside the vault
+        f'cp /tmp/a.png {v}/assets/a.png',                   # assets/ passthrough
+    ]
+    for cmd in commands:
+        payload = _make_bash_payload(cmd, agent_id_value="vault-searcher", cwd="/tmp")
+        proc = _run(payload, vault_root=vault_root)
+        _assert(proc.returncode == 0, f"exit 0: {cmd!r}", errors)
+        _assert(proc.stdout.strip() == "", f"stdout empty (no deny): {cmd!r} (got: {proc.stdout!r})", errors)
+
+
+def case_bash_main_context_allowed(errors: list[str], vault_root: str) -> None:
+    """Main context (no agent identifier) owns vault writes → Bash write passes."""
+    print("\ncase: bash_main_context_allowed")
+    payload = _make_bash_payload(f'echo x > {vault_root}/notes/x.md', cwd="/tmp")
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
+
+
+def case_bash_warn_and_off_modes(errors: list[str], vault_root: str) -> None:
+    """warn → allow + systemMessage; off → silent; kill switch → silent."""
+    print("\ncase: bash_warn_and_off_modes")
+    cmd = f'echo x > {vault_root}/notes/x.md'
+    payload = _make_bash_payload(cmd, agent_id_value="vault-file-organizer", cwd="/tmp")
+
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "warn"}, vault_root=vault_root)
+    _assert(proc.returncode == 0, "warn: exit 0", errors)
+    _assert("permissionDecision" not in proc.stdout, f"warn: no deny (got: {proc.stdout!r})", errors)
+    _assert("vault-bridge contract" in proc.stdout, f"warn: systemMessage present (got: {proc.stdout!r})", errors)
+
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "off"}, vault_root=vault_root)
+    _assert(proc.stdout.strip() == "", f"off: stdout empty (got: {proc.stdout!r})", errors)
+
+    proc = _run(payload, env_overrides={"VAULT_BRIDGE_DISABLE": "1"}, vault_root=vault_root)
+    _assert(proc.stdout.strip() == "", f"kill switch: stdout empty (got: {proc.stdout!r})", errors)
+
+
 def case_non_vault_path(errors: list[str]) -> None:
     """Subagent writing outside vault → exit 0, stdout empty (unchanged behavior)."""
     print("\ncase: non_vault_path")
@@ -450,6 +553,10 @@ def main() -> int:
         case_filename_violation_strict_naming(errors, vault_root)
         case_subagent_filename_violation_enforce(errors, vault_root)
         case_kill_switch(errors, vault_root)
+        case_bash_subagent_writes_denied(errors, vault_root)
+        case_bash_reads_pass(errors, vault_root)
+        case_bash_main_context_allowed(errors, vault_root)
+        case_bash_warn_and_off_modes(errors, vault_root)
 
     # Non-vault path test needs no vault_root provisioning
     case_non_vault_path(errors)
