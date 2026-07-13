@@ -46,9 +46,11 @@ FENCE_RE = re.compile(r"^\s*```(\w*)\s*$")
 EXEC_LANGS = {"", "bash", "sh", "shell", "console", "python", "python3"}
 
 # An interpreter invoking a path that reaches into a bundled script/hook directory.
+# `(?:-\S+\s+)*` skips interpreter flags — `python3 -u scripts/x.py`, `bash -x scripts/x.sh`
+# are the same defect and must not slip through on the flag alone.
 # `[^\s;|&]*` keeps the match on ONE argument — a trailing `; echo done` is not swallowed.
 INVOKE_RE = re.compile(
-    r"\b(?:bash|sh|python3?|uv\s+run)\s+[^\s;|&]*(?:scripts|hooks)/[^\s;|&]*\.(?:sh|py)\b"
+    r"\b(?:bash|sh|python3?|uv\s+run)\s+(?:-\S+\s+)*[^\s;|&]*(?:scripts|hooks)/[^\s;|&]*\.(?:sh|py)\b"
 )
 
 
@@ -123,9 +125,17 @@ and the schema lives in `../../reference/vault-audit-rules.md`. See feedback-loo
 {"path": "feedback-loop/scripts/report.py"}
 ```
 """
+    flagged_violating = """\
+# Retro
+```bash
+python3 -u feedback-loop/scripts/report.py
+bash -x feedback-loop/scripts/retro-telemetry.sh stamp
+```
+"""
     cases = [
         ("tagged bash, repo-relative", violating, 1),
         ("untagged block, repo-relative", untagged_violating, 1),
+        ("interpreter flag before the path", flagged_violating, 2),
         ("anchored on CLAUDE_PLUGIN_ROOT", clean_anchored, 0),
         ("prose mention only (no exec)", clean_prose, 0),
         ("non-executable fence (json)", clean_non_exec_block, 0),
