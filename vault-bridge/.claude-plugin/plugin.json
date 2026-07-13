@@ -18,8 +18,9 @@
     "hooks",
     "vault-link",
     "project-binding",
-    "git-commit",
-    "obsidian-cli"
+    "vault-commit",
+    "obsidian-cli",
+    "vault-manifest-refresh"
   ],
   "userConfig": {
     "vault_path": {
