@@ -1,8 +1,13 @@
 #!/usr/bin/env bash
-# vault-bridge PreToolUse hook — Vault file naming convention guard.
+# vault-bridge PreToolUse hook — Write Role Contract + vault file naming guard.
 #
-# Fires on every Write/Edit tool call. If the target path resolves to
-# inside ~/vault/, validates the filename against per-directory conventions.
+# Fires on every Write/Edit/Bash tool call.
+#   Write|Edit — if the target path resolves to inside ~/vault/, enforce the Write Role
+#                Contract (no subagent writes) and validate the filename convention.
+#   Bash       — enforce the Write Role Contract ONLY (#381): the Write|Edit matcher alone
+#                left the contract bypassable, since a subagent holding Bash could write the
+#                vault with `echo > ~/vault/x.md`, `mv`, `tee`. Same command-position
+#                detection discipline as scripts/subagent-git-guard.sh (#209).
 #
 # Default mode (log-only): exit 0 always; warnings emitted to stderr and
 # injected as a systemMessage. Never blocks user workflow.
@@ -31,9 +36,9 @@ payload=$(cat)
 # Extract tool_name
 tool_name=$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || true)
 
-# Only act on Write and Edit
+# Only act on Write, Edit and Bash
 case "$tool_name" in
-  Write|Edit) ;;
+  Write|Edit|Bash) ;;
   *) exit 0 ;;
 esac
 
@@ -51,6 +56,201 @@ fi
 
 # Resolve vault root to absolute path (handle symlinks)
 vault_abs=$(cd "$VAULT_ROOT" 2>/dev/null && pwd -P) || exit 0
+
+# ---------------------------------------------------------------------------
+# Write Role Contract — shared by the Write/Edit and Bash paths.
+# Policy: vault writes must originate from main context (user-initiated slash
+# commands). Subagent vault writes are out of policy.
+# Modes: enforce (default — deny), warn (log + systemMessage, allow), off (skip).
+# assets/ is a passthrough — no contract check (automated tools may write attachments).
+# Subagent identity fields mirror scripts/subagent-git-guard.sh; no identifier = main
+# context, which owns vault writes and is always allowed.
+# ---------------------------------------------------------------------------
+contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-enforce}"
+agent_id=$(printf '%s' "$payload" | jq -r '
+  .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
+' 2>/dev/null || true)
+
+# Emit the contract decision (deny in enforce mode, systemMessage in warn mode).
+emit_contract_violation() {
+  local detail="$1"
+  local msg="Vault writes must be user-initiated slash commands (/capture, /vault-commit). Subagent ($agent_id) vault write blocked${detail}. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
+
+  if [ "$contract_mode" = "enforce" ]; then
+    # Emit both permissionDecisionReason (for the deny dialog) AND systemMessage
+    # (so the user actually sees the revert/disable hint in their transcript).
+    jq -nc --arg reason "$msg" \
+      '{permissionDecision:"deny", permissionDecisionReason:$reason, systemMessage:("vault-bridge contract: " + $reason + " Set VAULT_BRIDGE_WRITE_CONTRACT=warn to allow, =off to disable.")}'
+  else
+    printf '[vault-bridge pre-write-guard] CONTRACT WARNING: %s\n' "$msg" >&2
+    jq -nc --arg msg "$msg" \
+      '{systemMessage: ("vault-bridge contract: " + $msg + " Set VAULT_BRIDGE_WRITE_CONTRACT=enforce to block, =off to disable.")}'
+  fi
+}
+
+# ---------------------------------------------------------------------------
+# Bash path (#381) — contract check only.
+#
+# ponytail: no filename-convention validation on Bash writes. One command can name
+# many targets, and in the default enforce mode the contract denies before a name
+# would matter; add per-target naming checks only if a warn-mode Bash write is ever
+# observed landing a non-conforming filename.
+# ---------------------------------------------------------------------------
+if [ "$tool_name" = "Bash" ]; then
+  [ "$contract_mode" = "off" ] && exit 0
+  [ -n "$agent_id" ] || exit 0
+
+  command_str=$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
+  [ -n "$command_str" ] || exit 0
+
+  cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null || true)
+
+  # Cheap pre-filter: any command that reaches the vault must name it (its root's
+  # basename appears in every absolute/~/$HOME form) — unless the call already runs
+  # from inside the vault, where a bare relative path suffices.
+  case "$command_str" in
+    *"$(basename "$vault_abs")"*) : ;;
+    *)
+      case "${cwd:-}" in
+        "$vault_abs"|"$vault_abs"/*) : ;;
+        *) exit 0 ;;
+      esac
+      ;;
+  esac
+
+  # Precise detection: tokenize quote-aware (shlex, non-POSIX so a quoted ">" stays
+  # quoted and is NOT a redirection), split into shell segments, and flag only writes
+  # whose TARGET resolves inside the vault. Reads pass: `grep -r x ~/vault`,
+  # `cat ~/vault/x.md`, `cd ~/vault && git status`, `cp ~/vault/x.md /tmp/` (vault is
+  # the source, not the destination).
+  #
+  # Threat model = honest subagent that ignored the prose contract (same as #209), not
+  # an adversary. Deliberately NOT defeated: indirection (eval, sh -c, backticks,
+  # xargs, `python3 -c "open(...)"`) and $(...)-computed paths. Those cannot be caught
+  # statically without false positives; they are the documented KNOWN_EVASIONS in
+  # scripts/test/test-pre-write-guard.py.
+  target=$(printf '%s' "$command_str" | VB_VAULT_ABS="$vault_abs" VB_CWD="${cwd:-}" python3 -c '
+import os, re, shlex, sys
+
+VAULT = os.environ["VB_VAULT_ABS"]
+cwd = os.environ.get("VB_CWD") or os.getcwd()
+cmd = sys.stdin.read()
+
+SEPS = {";", "&&", "||", "|", "&", "(", ")", "{", "}", "\n"}
+REDIR = re.compile(r"^\d*>>?$")
+# Wrapper/keyword prefixes that precede a real command (mirrors subagent-git-guard.sh).
+PREFIXES = {"sudo", "env", "command", "exec", "time", "nice", "ionice", "nohup", "stdbuf",
+            "setsid", "builtin", "if", "then", "elif", "else", "while", "until", "do", "!"}
+# Writers whose destination is the LAST positional arg (earlier ones are sources).
+DEST_LAST = {"mv", "cp", "rsync", "install", "ln"}
+# Writers where EVERY positional arg is a target.
+DEST_ALL = {"tee", "touch", "mkdir", "rmdir", "rm", "truncate", "sed"}
+ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
+# chr(39) is the single quote: this whole program is embedded in a shell -c
+# single-quoted string, so a literal one cannot appear anywhere below.
+QUOTES = chr(34) + chr(39)
+
+def unquote(t):
+    return t[1:-1] if len(t) > 1 and t[0] == t[-1] and t[0] in QUOTES else t
+
+def resolve(tok, base):
+    t = unquote(tok)
+    if not t or t.startswith("-"):
+        return None
+    return os.path.realpath(os.path.join(base, os.path.expanduser(os.path.expandvars(t))))
+
+def in_vault(tok, base):
+    p = resolve(tok, base)
+    if p is None:
+        return None
+    if p != VAULT and not p.startswith(VAULT + os.sep):
+        return None
+    # assets/ passthrough — attachments are exempt from the contract.
+    rel = os.path.relpath(p, VAULT)
+    if rel.split(os.sep)[0] == "assets":
+        return None
+    return p
+
+try:
+    lex = shlex.shlex(cmd, posix=False, punctuation_chars=True)
+    lex.whitespace_split = True
+    toks = list(lex)
+except ValueError:
+    sys.exit(0)  # unbalanced quotes — fail open
+
+segments, cur = [], []
+for t in toks:
+    if t in SEPS:
+        segments.append(cur)
+        cur = []
+    else:
+        cur.append(t)
+segments.append(cur)
+
+found = ""
+for seg in segments:
+    if found:
+        break
+    if not seg:
+        continue
+    # Redirection anywhere in the segment: `> path`, `>> path`, `2> path`.
+    for i, t in enumerate(seg):
+        if REDIR.match(t) and i + 1 < len(seg):
+            hit = in_vault(seg[i + 1], cwd)
+            if hit:
+                found = hit
+                break
+    if found:
+        break
+    # Command position: skip wrapper prefixes and FOO=bar assignments.
+    i = 0
+    while i < len(seg) and (os.path.basename(unquote(seg[i])) in PREFIXES or ASSIGN.match(seg[i])):
+        i += 1
+    if i >= len(seg):
+        continue
+    verb = os.path.basename(unquote(seg[i]))
+    args = seg[i + 1:]
+    positional = [a for a in args if not a.startswith("-")]
+
+    # `cd` inside the command moves the base for later segments relative paths resolve against.
+    if verb == "cd":
+        if positional:
+            p = resolve(positional[0], cwd)
+            if p:
+                cwd = p
+        continue
+    # sed only writes with -i.
+    if verb == "sed" and not any(a.startswith("-i") for a in args):
+        continue
+    # dd writes to of=PATH.
+    if verb == "dd":
+        for a in args:
+            if a.startswith("of="):
+                hit = in_vault(a[3:], cwd)
+                if hit:
+                    found = hit
+                    break
+        continue
+    if verb in DEST_LAST:
+        targets = positional[-1:]
+    elif verb in DEST_ALL:
+        targets = positional
+    else:
+        continue
+    for a in targets:
+        hit = in_vault(a, cwd)
+        if hit:
+            found = hit
+            break
+
+sys.stdout.write(found)
+' 2>/dev/null || true)
+
+  [ -n "${target:-}" ] || exit 0
+
+  emit_contract_violation " — command writes to ${target#"$vault_abs"/} via Bash"
+  exit 0
+fi
 
 # Extract file_path from tool_input
 tool_input=$(printf '%s' "$payload" | jq -r '.tool_input // {}' 2>/dev/null || echo '{}')
@@ -82,36 +282,12 @@ rel_path="${abs_path#"$vault_abs"/}"
 top_dir=$(printf '%s' "$rel_path" | cut -d'/' -f1)
 
 # ---------------------------------------------------------------------------
-# Write Role Contract enforcement
-# Policy: vault writes must originate from main context (user-initiated slash
-# commands). Subagent vault writes are out of policy.
-# Modes: enforce (default — deny), warn (log + systemMessage, allow), off (skip).
-# assets/ is a passthrough — no contract check (automated tools may write attachments).
+# Write Role Contract enforcement (Write/Edit path — see the shared block above)
 # ---------------------------------------------------------------------------
-contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-enforce}"
-
-if [ "$contract_mode" != "off" ]; then
-  agent_id=$(printf '%s' "$payload" | jq -r '
-    .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
-  ' 2>/dev/null || true)
-
-  if [ -n "$agent_id" ] && [ "$top_dir" != "assets" ]; then
-    contract_msg="Vault writes must be user-initiated slash commands (/capture, /vault-commit). Subagent ($agent_id) vault write blocked. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
-
-    if [ "$contract_mode" = "enforce" ]; then
-      # Emit both permissionDecisionReason (for the deny dialog) AND systemMessage
-      # (so the user actually sees the revert/disable hint in their transcript).
-      jq -nc --arg reason "$contract_msg" \
-        '{permissionDecision:"deny", permissionDecisionReason:$reason, systemMessage:("vault-bridge contract: " + $reason + " Set VAULT_BRIDGE_WRITE_CONTRACT=warn to allow, =off to disable.")}'
-      exit 0
-    else
-      # warn mode: log + systemMessage, fall through to filename validation
-      printf '[vault-bridge pre-write-guard] CONTRACT WARNING: %s\n' "$contract_msg" >&2
-      jq -nc --arg msg "$contract_msg" \
-        '{systemMessage: ("vault-bridge contract: " + $msg + " Set VAULT_BRIDGE_WRITE_CONTRACT=enforce to block, =off to disable.")}'
-      # do not exit — continue to filename validation below
-    fi
-  fi
+if [ "$contract_mode" != "off" ] && [ -n "$agent_id" ] && [ "$top_dir" != "assets" ]; then
+  emit_contract_violation ""
+  # enforce: the deny decision is final. warn: fall through to filename validation.
+  [ "$contract_mode" = "enforce" ] && exit 0
 fi
 
 # Extract filename (basename)

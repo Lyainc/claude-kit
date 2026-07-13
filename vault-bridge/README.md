@@ -267,6 +267,10 @@ VAULT_BRIDGE_STRICT_NAMING=1 claude
 
 vault-bridge v1.9.0 adds an explicit Write Role Policy enforced by `hooks/pre-write-guard.sh`. Vault writes must originate from the main context (user-initiated skills). Subagent vault writes — identified by a non-empty agent identifier in the `PreToolUse` payload — are **blocked by default** (or warned / disabled) per the `VAULT_BRIDGE_WRITE_CONTRACT` environment variable.
 
+The guard covers `Write`, `Edit` **and `Bash`** (#381). On the Bash path it denies commands whose write *target* resolves inside the vault — redirections (`echo x > ~/vault/notes/x.md`, `>>`, heredocs), `mv`/`cp`/`tee`/`touch`/`mkdir`/`rm`/`sed -i`/`dd of=`, including after a `cd ~/vault` — while every read passes (`grep -r x ~/vault`, `cat ~/vault/notes/x.md`, `cd ~/vault && git status`, `cp ~/vault/notes/x.md /tmp/` — the vault is the source there, not the target). `assets/` stays a passthrough.
+
+**Threat model: an honest subagent, not an adversary.** Detection is static and command-position-based (same discipline as this repo's `scripts/subagent-git-guard.sh`), so indirection that carries the command as data — `eval`, `sh -c "…"`, backticks, `xargs`, `python3 -c "open(...).write()"` — is deliberately *not* defeated: catching it would cost false denials on ordinary reads, which is the worse failure for a read-delegation layer. The guard closes the realistic bypass a well-behaved agent would reach for; it is not a sandbox.
+
 | Mode | Behavior | When |
 |------|----------|------|
 | `enforce` (default) | Emits `permissionDecision: deny` + a `systemMessage`; the subagent vault write is blocked | Default |
@@ -332,7 +336,7 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24; the `/handoff` command + `resume.md` mechanism were retired in G26 — see [Session Handoff](#session-handoff).)
 - **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
-- **PreToolUse hook (Write/Edit)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions AND enforces the Write Role policy — vault writes must be user-initiated (main context, executed by skills). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
+- **PreToolUse hook (Write/Edit/Bash)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions (Write/Edit only) AND enforces the Write Role policy on all three tools — a subagent's `echo > ~/vault/x.md` / `mv` / `tee` is denied like a `Write` would be (#381), while vault reads (`grep`, `cat`, `cd … && git status`) pass untouched — vault writes must be user-initiated (main context, executed by skills). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/vault-manifest-refresh` skill**: force-regenerate the vault manifest cache; reports result in Korean
 
 ## Session Auto-Commit
