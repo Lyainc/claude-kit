@@ -51,7 +51,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 |---|---|
 | `capture` | 즉시 메모 저장 (+ URL 본문 자동 추출) |
 | `note` | 노트 생성 + MOC·프로젝트 연결 |
-| `audit` | vault 구조 무결성 감사 (E1–E11 오류 + 승격 후보 추적) |
+| `audit` | vault 구조 무결성 감사 (E1–E12 오류 + 승격 후보 추적) |
 | `wiki` | 도메인 지식을 LLM wiki 페이지로 컴파일 (AI recall, 게이트된 명시 액션) |
 | `base` | 비파괴 Obsidian Bases(.base) 뷰 생성 |
 
