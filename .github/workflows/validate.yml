@@ -79,6 +79,8 @@ jobs:
           python3 scripts/check-language-policy.py
           python3 scripts/check-banned-words.py --self-test
           python3 scripts/check-banned-words.py
+          python3 scripts/check-plugin-root-paths.py --self-test
+          python3 scripts/check-plugin-root-paths.py
           python3 scripts/check-test-exitcode.py --self-test
           python3 scripts/run-linters.py --self-test
           # #209 subagent git side-effect deny hook: in-memory violation + clean (FP=0).
