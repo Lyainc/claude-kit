@@ -26,10 +26,18 @@ The pinned claims:
 5. (#377) §6's duplicate scan covers native auto-memory's `feedback` entries, surfaces the
    hit in the §3 confirmation, and deletes the memory duplicate after landing — memory being
    an input queue, NOT a fourth landfill site.
-6. (#377) Vanilla machine with no ~/.claude/projects memory directory -> the memory scan is
-   SILENTLY SKIPPED, never a scan failure.
-7. (#377) The §6 scan snippet, run for real: no projects dir / projects-but-no-memory-dir /
-   a populated memory dir. It must never abort, and must find only `feedback` entries.
+6. (#377) The scan LISTS candidates; a Duplicate is a CONTENT match. Conflating the two turns
+   "land any rule" into "delete every `feedback` memory on the machine". Scan scope follows
+   the chosen site (a project-scoped CLAUDE.md is not duplicated by another project's memory).
+7. (#377) The new delete path is recoverable (`trash-put`), never forced, and the MEMORY.md
+   index line is keyed by the deleted file's link target — not by its title.
+8. (#377) Vanilla machine with no ~/.claude/projects memory directory -> the memory scan is
+   SILENTLY SKIPPED, never a scan failure. Zero hits is likewise not a failure.
+9. (#377) The §6 scan snippet, run for real, against fixtures that include adversarial
+   near-misses (`type: feedback-loop`, `type: feedbackx`, `type: feedback` in a note's BODY,
+   MEMORY.md itself). It must never abort, must exit 0, and must match ONLY the two real
+   `feedback` frontmatter shapes — a fixture set that cannot distinguish the anchored,
+   frontmatter-scoped matcher from a bare `feedback` substring is not a guard.
 
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-routing.py
@@ -141,10 +149,43 @@ def check_memory_duplicate_scan(text: str) -> tuple[bool, str]:
     # Memory-specific wording on purpose: a bare "delete" is already satisfied by pre-#377 prose.
     if "memory 항목은 지울게요" not in text and "memory duplicate" not in lower:
         return False, "post-landing removal of the memory duplicate not described"
-    # Invariant: memory is an input, never a landfill site.
-    if "not a fourth site" not in lower:
-        return False, "memory not framed as 'not a fourth site' — a reader may add it as a 4th landfill site"
+    # Memory-specific wording: a bare "not a fourth site" already appears twice in pre-#377 prose
+    # (the SOFT-channel routing), so it cannot pin THIS claim.
+    if "memory is an input, never a destination" not in lower:
+        return False, "memory not framed as an input — a reader may add it as a 4th landfill site"
     return True, "memory `feedback` duplicate scan + removal described (memory stays an input)"
+
+
+def check_memory_candidate_vs_duplicate(text: str) -> tuple[bool, str]:
+    """#377 review BLOCKER: the grep LISTS candidates; a Duplicate is a CONTENT match.
+
+    Conflating the two turns "land any rule" into "delete every `feedback` memory on the
+    machine" (12 unrelated files on the author's own store). The prose must keep them apart,
+    and must scope the scan to the chosen site (a project-scoped CLAUDE.md is not duplicated
+    by another project's memory).
+    """
+    lower = text.lower()
+    if "candidate" not in lower:
+        return False, "the scan's output is not framed as CANDIDATES (a grep hit != a duplicate)"
+    if "only a content match" not in lower:
+        return False, "Duplicate not defined as a CONTENT match — a bare `type: feedback` would be deleted"
+    if "scan_root" not in lower:
+        return False, "scan scope not tied to the chosen site (SCAN_ROOT)"
+    if "project-scoped" not in lower:
+        return False, "project-scoped site -> that project's memory only: scope branch not described"
+    return True, "grep = candidates, Duplicate = content match; scan scope follows the site"
+
+
+def check_memory_delete_safety(text: str) -> tuple[bool, str]:
+    """#377 review: this PR introduces a DELETE path — pin its recoverable-delete clause."""
+    lower = text.lower()
+    if "trash-put" not in lower:
+        return False, "memory-duplicate removal does not mandate a recoverable delete (trash-put)"
+    if "never force-delete" not in lower or "never `rm`" not in lower:
+        return False, "the never-force-delete / never-`rm` guarantee on the memory delete path is missing"
+    if "link target" not in lower:
+        return False, "MEMORY.md index-line removal has no join key — an LLM could delete the wrong line"
+    return True, "memory delete is recoverable (trash-put), never forced; index line keyed by link target"
 
 
 def check_memory_vanilla_skip(text: str) -> tuple[bool, str]:
@@ -192,9 +233,11 @@ def check_memory_snippet_runs(text: str) -> tuple[bool, str]:
     if snippet is None:
         return False, "no runnable memory-scan bash snippet found in SKILL.md §6"
 
-    shells = [s for s in ("/bin/bash", "/bin/zsh") if Path(s).exists() or shutil.which(s)]
+    shells = [s for s in ("/bin/bash", "/bin/zsh", "/bin/sh") if Path(s).exists() or shutil.which(s)]
     if not shells:
-        return True, "memory-scan snippet found (no shell available to execute it — skipped)"
+        # Never pass vacuously: "could not verify" is a failure, not a skip. Python is running,
+        # so /bin/sh exists in any environment this test can be invoked from.
+        return False, "no shell available to execute the snippet — cannot verify, so cannot pass"
 
     with tempfile.TemporaryDirectory() as tmp:
         empty = Path(tmp) / "empty"                                  # no ~/.claude at all
@@ -204,16 +247,27 @@ def check_memory_snippet_runs(text: str) -> tuple[bool, str]:
         full = Path(tmp) / "full"                                    # a populated memory store
         mem = full / ".claude" / "projects" / "-some-proj" / "memory"
         mem.mkdir(parents=True)
+        # Two real `feedback` shapes: a top-level `type:` and one nested under `metadata:`.
         (mem / "hit-nested.md").write_text(
             "---\nname: x\nmetadata:\n  node_type: memory\n  type: feedback\n---\nbody\n"
         )
         (mem / "hit-toplevel.md").write_text("---\nname: y\ntype: feedback\n---\nbody\n")
-        (mem / "miss.md").write_text("---\nname: z\nmetadata:\n  type: project\n---\nbody\n")
+        # Adversarial near-misses. Without these, a bare `feedback` substring match passes this
+        # check as happily as the real anchored, frontmatter-scoped one (proven in review).
+        (mem / "miss-other-type.md").write_text("---\nname: z\nmetadata:\n  type: project\n---\nbody\n")
+        (mem / "miss-prefix.md").write_text("---\nname: a\ntype: feedback-loop\n---\nbody\n")
+        (mem / "miss-suffix.md").write_text("---\nname: b\ntype: feedbackx\n---\nbody\n")
+        (mem / "miss-body.md").write_text(          # frontmatter says project; BODY quotes the type
+            "---\nname: c\ntype: project\n---\nAn example entry looks like:\ntype: feedback\n"
+        )
+        (mem / "MEMORY.md").write_text(             # the index is not itself a memory
+            "---\ntype: feedback\n---\n- [x](hit-toplevel.md) — hook\n"
+        )
 
         for shell in shells:
             for label, home in (("no ~/.claude/projects", empty), ("projects/ but no memory/", no_mem)):
                 p = _run_snippet(snippet, home, shell)
-                if p.returncode not in (0, 1) or p.stdout.strip() or p.stderr.strip():
+                if p.returncode != 0 or p.stdout.strip() or p.stderr.strip():
                     return False, (
                         f"[{shell}] vanilla case ({label}) did not skip silently — "
                         f"rc={p.returncode} stdout={p.stdout.strip()!r} stderr={p.stderr.strip()!r}"
@@ -223,11 +277,26 @@ def check_memory_snippet_runs(text: str) -> tuple[bool, str]:
             found = {Path(line).name for line in p.stdout.split() if line}
             if found != {"hit-nested.md", "hit-toplevel.md"}:
                 return False, (
-                    f"[{shell}] populated case: expected both `feedback` shapes and only those, "
-                    f"got {sorted(found)} (rc={p.returncode}, stderr={p.stderr.strip()!r})"
+                    f"[{shell}] populated case: expected exactly the two `feedback` frontmatter "
+                    f"shapes, got {sorted(found)} (rc={p.returncode}, stderr={p.stderr.strip()!r})"
+                )
+            # Zero hits is a normal result, not a failure: an LLM reads the exit code.
+            if p.returncode != 0:
+                return False, f"[{shell}] populated case exited {p.returncode} — a hit must not look like a failure"
+
+        empty_mem = Path(tmp) / "empty-mem"          # memory/ exists, but nothing `feedback` in it
+        em = empty_mem / ".claude" / "projects" / "-some-proj" / "memory"
+        em.mkdir(parents=True)
+        (em / "only-project.md").write_text("---\nname: p\ntype: project\n---\nbody\n")
+        for shell in shells:
+            p = _run_snippet(snippet, empty_mem, shell)
+            if p.returncode != 0 or p.stdout.strip():
+                return False, (
+                    f"[{shell}] zero-hit case must exit 0 with no output (it is not a failure) — "
+                    f"rc={p.returncode} stdout={p.stdout.strip()!r}"
                 )
 
-    return True, f"§6 scan snippet executes correctly under {', '.join(shells)} (vanilla + populated)"
+    return True, f"§6 scan snippet executes correctly under {', '.join(shells)} (vanilla + zero-hit + populated)"
 
 
 _CHECKS = [
@@ -238,6 +307,8 @@ _CHECKS = [
     check_thin_pointer,
     check_not_fourth_site,
     check_memory_duplicate_scan,
+    check_memory_candidate_vs_duplicate,
+    check_memory_delete_safety,
     check_memory_vanilla_skip,
     check_memory_snippet_runs,
 ]
@@ -273,15 +344,24 @@ Thin pointer + backing detail: put the detail in the catalogue and keep ~/.claud
 to at most a one-line pointer / thin pointer.
 
 The Duplicate scan also covers native auto-memory: scan the `feedback` entries under
-~/.claude/projects/<proj>/memory/*.md. Vanilla machine with no such directory ->
+~/.claude/projects/<proj>/memory/*.md. Step 1 lists CANDIDATES; step 2 reads each and
+compares it to the rule being landed — only a content match is a duplicate. SCAN_ROOT
+follows the site: a machine-global site scans all projects, a project-scoped CLAUDE.md
+scans that project's memory only. Vanilla machine with no such directory ->
 skip the memory scan silently; a missing directory is nothing to conflict with,
 never a scan failure. On a
 hit, surface it in the 1-click confirmation ("매립 후 memory 항목은 지울게요") and delete the
-duplicate memory file after the landfill write. Memory is an input queue, not a fourth site.
+duplicate memory file after the landfill write — its MEMORY.md index line is the one whose
+markdown link target is that file's basename. Use trash-put; never force-delete, never `rm`.
+Memory is an input, never a destination: an input queue, not a fourth site.
 
 ```bash
-[ -d "$HOME/.claude/projects" ] && find "$HOME/.claude/projects" -path '*/memory/*.md' \\
-  -exec grep -lE '^[[:space:]]*type:[[:space:]]*feedback' {} + 2>/dev/null
+SCAN_ROOT="$HOME/.claude/projects"
+[ -d "$SCAN_ROOT" ] && find "$SCAN_ROOT" -path '*/memory/*.md' -not -name 'MEMORY.md' -exec awk '
+  FNR==1 { n=0 }
+  /^---[[:space:]]*$/ { n++ }
+  n==1 && /^[[:space:]]*type:[[:space:]]*feedback[[:space:]]*$/ { print FILENAME }
+' {} + 2>/dev/null | sort -u || true
 ```
 """
 

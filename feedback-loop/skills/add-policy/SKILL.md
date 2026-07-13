@@ -146,7 +146,8 @@ ask a single confirmation:
 - 들어갈 곳: <CLAUDE.md | hook | skill> — <one-line reason: HARD라 자동강제 / SOFT라 리마인드 / 절차라 호출형>
 - 추가/변경될 내용: <the exact prose / guard / skill stub to add, OR the existing entry's before → after if this is an edit>
 - 충돌: <none | sibling of an existing rule | edits an existing entry (show before→after) | contradicts an existing rule (explain)>
-- memory 중복: <none | 이 규칙이 memory에도 있어요: <path> — 매립 후 그 항목은 지울게요 (§6)>
+- memory 중복: <none | 이 규칙이 memory에도 있어요: <path...> — 매립 후 그 항목은 지울게요 (§6)>
+  (내용이 실제로 겹치는 것만. `type: feedback`이라고 다 중복인 건 아니에요 — §6 step 2)
 ```
 
 Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" The user confirms or
@@ -243,28 +244,51 @@ catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) 
 kind of thing this engine lands*: user guidance on how to work. Auto-memory writes are never
 checked against the reminder sites, so a rule already landed in CLAUDE.md / `~/.claude/rules`
 can sit duplicated in memory and neither side catches it — the landfill write is the one moment
-that can. So scan **both** the chosen site's current content **and** those `feedback` memories
-(read-only; both frontmatter shapes exist in the wild — a top-level `type:` and one nested under
-`metadata:`):
+that can. So scan **both** the chosen site's current content **and** those `feedback` memories.
+
+This is **two steps, and conflating them is a data-loss bug**: the command below only **lists
+candidate files** (every `feedback` memory in scope — on a real machine that is routinely a dozen
+unrelated ones). A *Duplicate* is decided in step 2, by **reading each candidate and comparing
+its content to the rule being landed**. Only a content match is a hit. A file that merely has
+`type: feedback` is not a duplicate and is never touched.
+
+**Step 1 — list candidates** (read-only). Scope follows the chosen landfill site: a
+machine-global site (`~/.claude/CLAUDE.md`, `~/.claude/rules`) is duplicated by a memory in
+**any** project, so scan all of them; a **project-scoped** `CLAUDE.md` is only duplicated by
+**that project's own** memory — another project's memory is neither a duplicate nor yours to
+delete. Set `SCAN_ROOT` accordingly:
 
 ```bash
-# find, not a glob: `~/.claude/projects` exists on any machine that ever ran Claude Code, but
+# Machine-global site -> all projects. Project-scoped CLAUDE.md -> that project's dir only:
+#   SCAN_ROOT="$HOME/.claude/projects/<current-project-dir>"
+SCAN_ROOT="$HOME/.claude/projects"
+# `find`, not a glob: `~/.claude/projects` exists on any machine that ever ran Claude Code, but
 # `memory/` only appears once auto-memory has written something — an unmatched `*/memory/*.md`
 # glob aborts the command (zsh NOMATCH) instead of scanning nothing.
-[ -d "$HOME/.claude/projects" ] && find "$HOME/.claude/projects" -path '*/memory/*.md' \
-  -exec grep -lE '^[[:space:]]*type:[[:space:]]*feedback' {} + 2>/dev/null
+# `awk`, not `grep`: the type must be read from the FRONTMATTER (n==1 = between the `---`
+# fences), or `type: feedback` quoted in a note's body matches. Trailing `$` on the value, or
+# `type: feedback-loop` matches. `|| true`: zero hits is a normal result, not a failure.
+[ -d "$SCAN_ROOT" ] && find "$SCAN_ROOT" -path '*/memory/*.md' -not -name 'MEMORY.md' -exec awk '
+  FNR==1 { n=0 }
+  /^---[[:space:]]*$/ { n++ }
+  n==1 && /^[[:space:]]*type:[[:space:]]*feedback[[:space:]]*$/ { print FILENAME }
+' {} + 2>/dev/null | sort -u || true
 ```
+
+**Step 2 — read each candidate and judge.** Same Duplicate/Sibling/Contradiction/Edit call as
+above, against the rule being landed. Most candidates will be unrelated; say so and move on.
 
 - **Vanilla machine → silently skip.** No `~/.claude/projects` (or no `memory/` inside it) means
   the user has no auto-memory: skip the memory scan and proceed, exactly as §5 treats a missing
   `~/.claude/skills`. A missing directory is "nothing to conflict with", never a scan failure,
-  and never a reason to stop the landfill write.
-- **On a hit → surface it in the §3 1-click confirmation** ("이 규칙이 memory에도 있어요 — 매립 후
-  memory 항목은 지울게요"), and after the landfill write succeeds, remove that memory file **and
-  its one-line `MEMORY.md` index entry**, so the rule ends up in exactly one place. The removal
-  rides on the same single confirmation — no second prompt. Use a recoverable delete
-  (`trash-put` when available); if none is available, leave the file and report it for the user
-  to remove — never force-delete.
+  and never a reason to stop the landfill write. Zero candidates is the same: not a failure.
+- **On a content-match hit → surface it in the §3 1-click confirmation** ("이 규칙이 memory에도
+  있어요 — 매립 후 memory 항목은 지울게요"), and after the landfill write succeeds, remove that
+  memory file **and its `MEMORY.md` index line — the line whose markdown link target is that
+  file's basename** (never match on the title or the description text; those repeat), so the rule
+  ends up in exactly one place. The removal rides on the same single confirmation — no second
+  prompt. Use a recoverable delete (`trash-put` when available); if none is available, leave the
+  file and report it for the user to remove — **never force-delete, never `rm`**.
 - **Memory is an input, never a destination.** The landfill sites stay the **three** of §3 — a
   rule is never *written* to memory. A `feedback` memory is a promotion queue that empties into
   one of the three sites; this is a scan-scope extension, **not a fourth site**.

@@ -147,11 +147,14 @@ bash feedback-loop/scripts/test/test-retro-telemetry.sh
 # "both rules-present and rules-absent branches are described" claim against drift.
 # #377 extends it to §6's native-memory duplicate scan — and since SKILL.md ships that scan
 # as runnable bash, the snippet is EXTRACTED and EXECUTED against temp-HOME fixtures
-# (no projects dir / projects-but-no-memory-dir / populated) under every shell present.)
+# (no projects dir / projects-but-no-memory-dir / zero-hit / populated) under every shell
+# present. The populated fixture carries adversarial near-misses — `type: feedback-loop`,
+# `type: feedbackx`, `type: feedback` quoted in a note's BODY, and MEMORY.md itself — so a
+# loosened regex fails the check instead of passing it.)
 python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
-# Expected: OK: all 18 self-test cases passed
+# Expected: OK: all 22 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-routing.py
-# Expected: OK: all 9 add-policy-routing checks passed.
+# Expected: OK: all 11 add-policy-routing checks passed.
 
 # add-policy §6 conflict-check Edit bucket regression (#303 — an explicit "change this
 # existing entry" request is its own conflict-check outcome, distinct from Duplicate
