@@ -49,9 +49,9 @@ python3 scripts/check-banned-words.py --self-test
 python3 scripts/check-banned-words.py
 # Expected: OK: banned-words clean — N file(s) checked, no violations (terms from rules/banned-terms.txt)
 python3 scripts/check-plugin-root-paths.py --self-test
-# Expected: OK: all 5 check-plugin-root-paths self-test cases passed
+# Expected: OK: all 6 check-plugin-root-paths self-test cases passed
 python3 scripts/check-plugin-root-paths.py
-# Expected: OK: plugin-root-paths clean — 18 SKILL.md checked, every bundled-script
+# Expected: OK: plugin-root-paths clean — N SKILL.md checked, every bundled-script
 #   invocation is ${CLAUDE_PLUGIN_ROOT}-anchored
 # A SKILL.md code block runs with CWD = the CONSUMER's project, so a repo-relative call like
 # `python3 feedback-loop/scripts/report.py 2>/dev/null` resolves ONLY inside this checkout —
