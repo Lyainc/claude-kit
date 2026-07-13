@@ -73,7 +73,7 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    Then **stamp the pipeline start** for the Phase-4 `duration_ms` datum (each Bash
    call is a fresh shell, so the start time must live on disk, not in a variable):
    ```bash
-   bash feedback-loop/scripts/retro-telemetry.sh stamp
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/retro-telemetry.sh" stamp
    ```
    The helper owns the events-dir rule + opt-in gate (shared with
    `feedback-loop/scripts/event-logger.sh`): it no-ops unless telemetry is opted in
@@ -96,8 +96,8 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    surface repeat-waste patterns (the report/sequence scripts self-resolve the
    events dir via the same shared rule):
    ```bash
-   python3 feedback-loop/scripts/report.py 2>/dev/null        # outcome/error mix, latency (default 7d window)
-   python3 feedback-loop/scripts/sequence.py --n=2 --top=20 2>/dev/null # repeated n-grams (review-round churn)
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/report.py" 2>/dev/null        # outcome/error mix, latency (default 7d window)
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/sequence.py" --n=2 --top=20 2>/dev/null # repeated n-grams (review-round churn)
    ```
    Plus this session's observable waste (repeated failed tool calls, repeated
    review rounds, repeated same-error retries). Each signal:
@@ -218,7 +218,7 @@ opts in (offer them, do not run silently).
    missing/corrupt, which is schema-valid — the latency collector treats null as "no
    datum"), enforces the 3500B PIPE_BUF guard, and removes the start stamp:
    ```bash
-   bash feedback-loop/scripts/retro-telemetry.sh emit "$PROCESSED" "$PROMOTED" "$DEDUPED" "$BUDGET_USED"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/retro-telemetry.sh" emit "$PROCESSED" "$PROMOTED" "$DEDUPED" "$BUDGET_USED"
    ```
    `report.py` latency reads `duration_ms`, so emitting it surfaces retro's own
    execution cost in the latency table; the other meta keys never pollute it.
