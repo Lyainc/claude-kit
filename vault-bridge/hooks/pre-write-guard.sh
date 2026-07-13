@@ -91,8 +91,8 @@ emit_contract_violation() {
 # ---------------------------------------------------------------------------
 # Bash path (#381) — contract check only.
 #
-# ponytail: no filename-convention validation on Bash writes. One command can name
-# many targets, and in the default enforce mode the contract denies before a name
+# Deliberate scope limit: no filename-convention validation on Bash writes. One command
+# can name many targets, and in the default enforce mode the contract denies before a name
 # would matter; add per-target naming checks only if a warn-mode Bash write is ever
 # observed landing a non-conforming filename.
 # ---------------------------------------------------------------------------
@@ -137,7 +137,12 @@ cwd = os.environ.get("VB_CWD") or os.getcwd()
 cmd = sys.stdin.read()
 
 SEPS = {";", "&&", "||", "|", "&", "(", ")", "{", "}", "\n"}
-REDIR = re.compile(r"^\d*>>?$")
+# Output redirections. shlex(punctuation_chars=True) merges a contiguous run of ();<>|&
+# into ONE token, so the compound Bash forms arrive glued: `&>`, `&>>`, `>&`, `>|`. They
+# are ordinary idioms an honest subagent reaches for (`script.sh &> ~/vault/log.md`), so
+# missing them left the whole guard open — cover every token whose operator part contains
+# a `>`, with an optional fd digit and/or `&` in front.
+REDIR = re.compile(r"^(\d*&?>>?\|?|>&)$")
 # Wrapper/keyword prefixes that precede a real command (mirrors subagent-git-guard.sh).
 PREFIXES = {"sudo", "env", "command", "exec", "time", "nice", "ionice", "nohup", "stdbuf",
             "setsid", "builtin", "if", "then", "elif", "else", "while", "until", "do", "!"}
@@ -232,7 +237,16 @@ for seg in segments:
                     break
         continue
     if verb in DEST_LAST:
-        targets = positional[-1:]
+        # GNU coreutils -t DIR / --target-directory=DIR moves the destination OUT of the
+        # last-positional slot (every positional is then a source), so check the flag first.
+        targets = []
+        for k, a in enumerate(args):
+            if a in ("-t", "--target-directory") and k + 1 < len(args):
+                targets = [args[k + 1]]
+            elif a.startswith("--target-directory="):
+                targets = [a.split("=", 1)[1]]
+        if not targets:
+            targets = positional[-1:]
     elif verb in DEST_ALL:
         targets = positional
     else:
