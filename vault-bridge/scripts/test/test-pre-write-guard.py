@@ -432,6 +432,18 @@ def case_bash_subagent_writes_denied(errors: list[str], vault_root: str) -> None
         f'mkdir -p {v}/notes/newdir',
         f'rm {v}/notes/x.md',                                # deletion is a write too
         f'sudo cp /tmp/a.md {v}/notes/x.md',                 # wrapper prefix
+        # Compound redirects (#387): shlex(punctuation_chars=True) glues these into ONE
+        # token, so the first-cut `^\d*>>?$` regex missed them — and `&>` is exactly what an
+        # honest agent reaches for to capture a script's output.
+        f'script.sh &> {v}/notes/log.md',
+        f'script.sh &>> {v}/notes/log.md',
+        f'script.sh >& {v}/notes/log.md',
+        f'echo x >| {v}/notes/x.md',
+        f'script.sh 2> {v}/notes/err.md',                    # fd-prefixed
+        # GNU coreutils target-directory flags (#387): the destination is NOT the last
+        # positional arg here — every positional is a source.
+        f'mv -t {v}/notes /tmp/a.md /tmp/b.md',
+        f'cp --target-directory={v}/notes /tmp/a.md',
     ]
     for cmd in commands:
         payload = _make_bash_payload(cmd, agent_id_value="vault-file-organizer", cwd="/tmp")
@@ -455,6 +467,9 @@ def case_bash_reads_pass(errors: list[str], vault_root: str) -> None:
         f"grep '>' {v}/notes/x.md",                          # quoted > is not a redirection
         'echo x > /tmp/outside.md',                          # write outside the vault
         f'cp /tmp/a.png {v}/assets/a.png',                   # assets/ passthrough
+        f'grep -r foo {v} 2>&1',                             # fd dup, not a file target (#387)
+        f'script.sh &> /tmp/log.md < {v}/notes/x.md',        # compound redirect, but outside the vault
+        f'mv -t /tmp {v}/notes/x.md',                        # -t target is outside; vault is the source
     ]
     for cmd in commands:
         payload = _make_bash_payload(cmd, agent_id_value="vault-searcher", cwd="/tmp")
