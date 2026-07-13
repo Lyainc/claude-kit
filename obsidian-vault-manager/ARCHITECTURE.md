@@ -53,7 +53,7 @@ Claude uses skills when relevant, or you can invoke one directly."
 
 | 작업 유형 | 담당 | 모델 |
 |-----------|------|------|
-| 판단이 필요한 작업 (도메인 분류, MOC 설계, 노트 작성) | vault-knowledge-manager | Sonnet |
+| 판단이 필요한 작업 (도메인 분류, audit 해석, 노트·결정 초안 작성 — 쓰기는 사용자가 스킬로) | vault-knowledge-manager | Sonnet |
 | 기계적 작업 (파일 이동, 이름 변경, 아카이브) | vault-file-organizer | Haiku |
 
 Karpathy의 핵심 인사이트: "idle tokens mean you're the bottleneck."
