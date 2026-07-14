@@ -245,7 +245,10 @@ for seg in segments:
                 targets = [args[k + 1]]
             elif a.startswith("--target-directory="):
                 targets = [a.split("=", 1)[1]]
-            elif a.startswith("-t") and a != "-t":
+            elif verb != "rsync" and a.startswith("-t") and a != "-t":
+                # rsync -t/--times is a boolean (preserve timestamps) with no
+                # target-directory equivalent — unlike mv/cp/install/ln, -tDIR is
+                # never a destination there.
                 targets = [a[2:]]
         if not targets:
             targets = positional[-1:]

@@ -32,9 +32,21 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _DESC_RE = re.compile(r'^description:\s*"(.*)"\s*$', re.MULTILINE)
 _KR_RE = re.compile(r"KR triggers:\s*(.*?)(?:\s*EN triggers:|$)")
+
+
+def _quoted_token(quote: str) -> str:
+    """Regex for one quoted trigger token. Closes at a QUOTE only when that quote is
+    NOT immediately followed by a word character — so an internal contraction
+    apostrophe (e.g. "what's") is content, not a false end-of-token delimiter, while
+    the real closing quote (followed by `,`, `.`, whitespace, or end) still ends it."""
+    q = re.escape(quote)
+    return rf"{q}(?:(?!{q}(?!\w)).)*{q}(?!\w)"
+
+
+_EN_TOKEN = rf"(?:{_quoted_token(chr(39))}|{_quoted_token(chr(34))})"
 # Anchored to the quoted, comma-separated trigger list itself (not `.*$`) so trailing
 # prose after the list (e.g. a future "Notes: ..." clause) is never silently absorbed.
-_EN_RE = re.compile(r"EN triggers:\s*((?:'[^']*'|\"[^\"]*\")(?:,\s*(?:'[^']*'|\"[^\"]*\"))*)")
+_EN_RE = re.compile(rf"EN triggers:\s*({_EN_TOKEN}(?:,\s*{_EN_TOKEN})*)")
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
@@ -189,6 +201,22 @@ body
     cases.append(("EN capture stops at trigger list", "vault search" in trailing))
     cases.append(("trailing clause not absorbed as a trigger",
                   not any("Notes" in t for t in trailing)))
+
+    # fresh-eyes review of #396: an internal contraction apostrophe (ordinary English,
+    # e.g. "what's") must not be mistaken for the token's closing quote and truncate —
+    # or drop — the trigger, nor swallow the tokens after it.
+    apostrophe_desc = """---
+name: demo
+description: "Purpose line. EN triggers: 'vault search', 'what's in the vault', 'domain context'."
+model: haiku
+---
+body
+"""
+    apostrophe_triggers = extract_triggers(apostrophe_desc)
+    cases.append(("apostrophe trigger captured whole",
+                  "what's in the vault" in apostrophe_triggers))
+    cases.append(("trigger after apostrophe trigger not dropped",
+                  "domain context" in apostrophe_triggers))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
