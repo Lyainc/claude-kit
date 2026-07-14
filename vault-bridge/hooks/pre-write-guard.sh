@@ -254,6 +254,11 @@ for seg in segments:
                     # its cluster. Whatever follows "t" in the same token is its inline
                     # value (-tDIR); if "t" is the last char, the value is the next
                     # token (-rt DIR, -vt DIR).
+                    # KNOWN GAP (#401, same non-adversarial threat model as the Bash
+                    # KNOWN_EVASIONS below): a cluster where another value-taking short
+                    # flag precedes "t" (cp -St, cp -Zt) actually hands the remainder to
+                    # THAT flag under real getopt, not to -t. No caller in this repo
+                    # builds such a cluster, so it is left undetected rather than modeled.
                     idx = a.index("t", 1)
                     rest = a[idx + 1:]
                     if rest:
