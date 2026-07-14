@@ -32,7 +32,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _DESC_RE = re.compile(r'^description:\s*"(.*)"\s*$', re.MULTILINE)
 _KR_RE = re.compile(r"KR triggers:\s*(.*?)(?:\s*EN triggers:|$)")
-_EN_RE = re.compile(r"EN triggers:\s*(.*)$")
+# Anchored to the quoted, comma-separated trigger list itself (not `.*$`) so trailing
+# prose after the list (e.g. a future "Notes: ..." clause) is never silently absorbed.
+_EN_RE = re.compile(r"EN triggers:\s*((?:'[^']*'|\"[^\"]*\")(?:,\s*(?:'[^']*'|\"[^\"]*\"))*)")
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
@@ -174,6 +176,19 @@ body
     cases.append(("detects EN removal", "find in vault" in removed))
     cases.append(("retained KR trigger not flagged", "노트 찾아줘" not in removed))
     cases.append(("retained EN trigger not flagged", "vault search" not in removed))
+
+    # #373: a trailing clause after the EN trigger list must not be absorbed as noise.
+    trailing_clause = """---
+name: demo
+description: "Purpose line. KR triggers: '노트 찾아줘'. EN triggers: 'vault search', 'domain context'. Notes: internal caveat."
+model: haiku
+---
+body
+"""
+    trailing = extract_triggers(trailing_clause)
+    cases.append(("EN capture stops at trigger list", "vault search" in trailing))
+    cases.append(("trailing clause not absorbed as a trigger",
+                  not any("Notes" in t for t in trailing)))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
