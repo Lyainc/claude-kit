@@ -450,6 +450,9 @@ def case_bash_subagent_writes_denied(errors: list[str], vault_root: str) -> None
                                                                # not target-directory (fresh-eyes review)
         f'rsync -t /tmp/a.md {v}/notes/x.md',                 # bare -t, same rsync semantics
                                                                # (fresh-eyes review round 2)
+        f'cp -rt {v}/notes /tmp/a.md',                        # #399: -t at cluster END (-r before -t),
+                                                               # value is the next token, not inline
+        f'cp -vt {v}/notes /tmp/a.md',                        # #399: same, different leading flag
     ]
     for cmd in commands:
         payload = _make_bash_payload(cmd, agent_id_value="vault-file-organizer", cwd="/tmp")
@@ -476,6 +479,7 @@ def case_bash_reads_pass(errors: list[str], vault_root: str) -> None:
         f'grep -r foo {v} 2>&1',                             # fd dup, not a file target (#387)
         f'script.sh &> /tmp/log.md < {v}/notes/x.md',        # compound redirect, but outside the vault
         f'mv -t /tmp {v}/notes/x.md',                        # -t target is outside; vault is the source
+        f'cp -rt /tmp {v}/notes/x.md',                       # #399: cluster -rt, target outside vault
     ]
     for cmd in commands:
         payload = _make_bash_payload(cmd, agent_id_value="vault-searcher", cwd="/tmp")

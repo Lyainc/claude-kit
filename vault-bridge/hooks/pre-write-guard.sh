@@ -249,8 +249,17 @@ for seg in segments:
                     targets = [args[k + 1]]
                 elif a.startswith("--target-directory="):
                     targets = [a.split("=", 1)[1]]
-                elif a.startswith("-t") and a != "-t":
-                    targets = [a[2:]]
+                elif a.startswith("-") and not a.startswith("--") and len(a) > 1 and "t" in a[1:]:
+                    # GNU getopt: a value-taking short option must be the last flag in
+                    # its cluster. Whatever follows "t" in the same token is its inline
+                    # value (-tDIR); if "t" is the last char, the value is the next
+                    # token (-rt DIR, -vt DIR).
+                    idx = a.index("t", 1)
+                    rest = a[idx + 1:]
+                    if rest:
+                        targets = [rest]
+                    elif k + 1 < len(args):
+                        targets = [args[k + 1]]
         if not targets:
             targets = positional[-1:]
     elif verb in DEST_ALL:
