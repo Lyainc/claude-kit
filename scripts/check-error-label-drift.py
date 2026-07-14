@@ -38,7 +38,7 @@ import subprocess
 import sys
 
 RULES_REL = os.path.join("obsidian-vault-manager", "reference", "vault-audit-rules.md")
-SCAN_EXT = (".md", ".py", ".sh", ".json")
+SCAN_EXT = (".md", ".py", ".sh", ".json", ".yml", ".yaml")
 # docs/plans/** and docs/discussions/** are dated historical records (plans-in-progress,
 # decision-session transcripts) — an "E1-E9" there is a fact about what was true at
 # authoring time, never a live claim about the current taxonomy.
@@ -48,7 +48,7 @@ EXCLUDE_PREFIXES = ("docs/plans/", "docs/discussions/")
 _SELF_REL = "scripts/check-error-label-drift.py"
 
 _HEADER_RE = re.compile(r"^##\s+E(\d+)\b", re.MULTILINE)
-_RANGE_RE = re.compile(r"E1[–-]E(\d+)")
+_RANGE_RE = re.compile(r"E1\s*[–-]\s*E(\d+)")
 
 
 def _git_toplevel():
@@ -185,6 +185,8 @@ def run_self_test():
          []),
         ("hyphen-variant-stale", "v4, E1-E11 fixtures only, nothing past that here.",
          [{"label": "E1-E11", "expected": "E1-E12"}]),
+        ("spaced-variant-stale", "audit detects E1 - E11 errors.",
+         [{"label": "E1 - E11", "expected": "E1-E12"}]),
     ]
     for name, text, expected in cases:
         got = [{"label": v["label"], "expected": v["expected"]} for v in find_violations_in_text(text, max_e)]
@@ -204,6 +206,8 @@ def run_self_test():
             fh.write("The audit skill covers E1–E12.\n")
         with open(os.path.join(td, "stale.md"), "w", encoding="utf-8") as fh:
             fh.write("The audit skill covers E1–E11.\n")
+        with open(os.path.join(td, "stale.yml"), "w", encoding="utf-8") as fh:
+            fh.write("# covers E1-E11 only\n")
 
         ok, report = check_labels(td)
         if ok:
@@ -211,11 +215,12 @@ def run_self_test():
         if report.get("max_e") != 12:
             failures.append(f"  filesystem: expected max_e=12, got {report.get('max_e')}")
         viol_files = sorted({v["file"] for v in report["violations"]})
-        if viol_files != ["stale.md"]:
-            failures.append(f"  filesystem: expected only stale.md flagged, got {viol_files}")
+        if viol_files != ["stale.md", "stale.yml"]:
+            failures.append(f"  filesystem: expected stale.md + stale.yml flagged, got {viol_files}")
 
-        # Now fix stale.md and remove it; clean tree must report ok=True (fp_on_clean == 0).
+        # Now fix stale.md/.yml and remove them; clean tree must report ok=True (fp_on_clean == 0).
         os.remove(os.path.join(td, "stale.md"))
+        os.remove(os.path.join(td, "stale.yml"))
         ok2, report2 = check_labels(td)
         if not ok2 or report2["violations"]:
             failures.append(f"  filesystem: expected clean tree ok=True, got {report2['violations']}")

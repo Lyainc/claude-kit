@@ -245,6 +245,8 @@ for seg in segments:
                 targets = [args[k + 1]]
             elif a.startswith("--target-directory="):
                 targets = [a.split("=", 1)[1]]
+            elif a.startswith("-t") and a != "-t":
+                targets = [a[2:]]
         if not targets:
             targets = positional[-1:]
     elif verb in DEST_ALL:
