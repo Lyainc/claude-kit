@@ -48,7 +48,7 @@ EXCLUDE_PREFIXES = ("docs/plans/", "docs/discussions/")
 _SELF_REL = "scripts/check-error-label-drift.py"
 
 _HEADER_RE = re.compile(r"^##\s+E(\d+)\b", re.MULTILINE)
-_RANGE_RE = re.compile(r"E1\s*[–-]\s*E(\d+)")
+_RANGE_RE = re.compile(r"E1[ \t]*[–-][ \t]*E(\d+)")
 
 
 def _git_toplevel():
@@ -187,6 +187,13 @@ def run_self_test():
          [{"label": "E1-E11", "expected": "E1-E12"}]),
         ("spaced-variant-stale", "audit detects E1 - E11 errors.",
          [{"label": "E1 - E11", "expected": "E1-E12"}]),
+        # #397: a line ending in "E1" immediately followed by a bulleted "- E9 ..." line
+        # (no blank line between, so iter_paragraphs joins them into one paragraph) must
+        # NOT be misread as the single range token "E1\n- E9" — `\s*` around the dash
+        # used to cross the newline; the fix restricts it to same-line whitespace only.
+        ("bulleted-line-not-a-range",
+         "See E1\n- E9 for details.",
+         []),
     ]
     for name, text, expected in cases:
         got = [{"label": v["label"], "expected": v["expected"]} for v in find_violations_in_text(text, max_e)]
