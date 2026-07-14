@@ -23,6 +23,12 @@ name: Auto Release
 on:
   pull_request:
     types: [closed]
+    # BASE-branch filter, and it is load-bearing. Chained PRs are normal here (CLAUDE.md:
+    # "child PR base = parent's feature branch"), so without this a `release` label on a
+    # PR merging into a *feature* branch would still fire — and since `decide` deliberately
+    # checks out `main`, it would release whatever happens to sit on main, unrelated to the
+    # PR that merged. An unintended tag + published release is not cheap to undo.
+    branches: [main]
   push:
     branches: [main]
 
@@ -37,9 +43,13 @@ jobs:
   decide:
     # The label path only makes sense for a PR that actually merged; the push path is the
     # backstop and runs on every commit that lands on main.
+    # The base-ref check is redundant with the `branches:` filter above, on purpose: this
+    # job releases `main` regardless of which PR woke it, so "did this PR actually target
+    # main" is worth asserting where the decision is made, not only where it is routed.
     if: >-
       github.event_name == 'push' ||
       (github.event.pull_request.merged == true &&
+       github.event.pull_request.base.ref == 'main' &&
        contains(github.event.pull_request.labels.*.name, 'release'))
     runs-on: ubuntu-latest
     outputs:
