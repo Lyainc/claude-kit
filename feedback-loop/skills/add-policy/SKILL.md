@@ -266,13 +266,20 @@ SCAN_ROOT="$HOME/.claude/projects"
 # `memory/` only appears once auto-memory has written something — an unmatched `*/memory/*.md`
 # glob aborts the command (zsh NOMATCH) instead of scanning nothing.
 # `awk`, not `grep`: the type must be read from the FRONTMATTER (n==1 = between the `---`
-# fences), or `type: feedback` quoted in a note's body matches. Trailing `$` on the value, or
-# `type: feedback-loop` matches. `|| true`: zero hits is a normal result, not a failure.
+# fences), or `type: feedback` quoted in a note's body matches. Line 1 must BE the opening
+# `---`, else n starts at 9 and never reaches 1 — otherwise a file with no frontmatter at all
+# would let its first body `---` (a horizontal rule) open a fake frontmatter. Trailing `$` on
+# the value, or `type: feedback-loop` matches. `|| true`: a missing SCAN_ROOT is not a failure.
+# NO `2>/dev/null`: a dead awk or an unreadable file must be VISIBLE. The pipe already fixes
+# the exit code at `sort`'s, so stderr is the only channel left that can say "this scan is
+# incomplete" — and a duplicate check that fails silently reports "no duplicates", which is
+# the wrong direction to fail. If anything lands on stderr, treat the scan as INCONCLUSIVE and
+# say so; do not report "memory 중복: none".
 [ -d "$SCAN_ROOT" ] && find "$SCAN_ROOT" -path '*/memory/*.md' -not -name 'MEMORY.md' -exec awk '
-  FNR==1 { n=0 }
+  FNR==1 { n = ($0 ~ /^---[[:space:]]*$/) ? 0 : 9 }
   /^---[[:space:]]*$/ { n++ }
   n==1 && /^[[:space:]]*type:[[:space:]]*feedback[[:space:]]*$/ { print FILENAME }
-' {} + 2>/dev/null | sort -u || true
+' {} + | sort -u || true
 ```
 
 **Step 2 — read each candidate and judge.** Same Duplicate/Sibling/Contradiction/Edit call as
@@ -282,6 +289,11 @@ above, against the rule being landed. Most candidates will be unrelated; say so 
   the user has no auto-memory: skip the memory scan and proceed, exactly as §5 treats a missing
   `~/.claude/skills`. A missing directory is "nothing to conflict with", never a scan failure,
   and never a reason to stop the landfill write. Zero candidates is the same: not a failure.
+- **But a scan that ERRORED is not a scan that found nothing.** The pipe fixes the exit code at
+  `sort`'s, so a dead `awk` or an unreadable memory file shows up only on **stderr**. If
+  anything is on stderr, the memory scan is **inconclusive** — say so in the §3 confirmation
+  ("memory 스캔 실패 — 중복 여부 확인 못 했어요") instead of reporting `none`. A duplicate check
+  must never fail in the direction of "no duplicates".
 - **On a content-match hit → surface it in the §3 1-click confirmation** ("이 규칙이 memory에도
   있어요 — 매립 후 memory 항목은 지울게요"), and after the landfill write succeeds, remove that
   memory file **and its `MEMORY.md` index line — the line whose markdown link target is that
