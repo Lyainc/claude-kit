@@ -32,21 +32,15 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 
 _DESC_RE = re.compile(r'^description:\s*"(.*)"\s*$', re.MULTILINE)
 _KR_RE = re.compile(r"KR triggers:\s*(.*?)(?:\s*EN triggers:|$)")
-
-
-def _quoted_token(quote: str) -> str:
-    """Regex for one quoted trigger token. Closes at a QUOTE only when that quote is
-    NOT immediately followed by a word character — so an internal contraction
-    apostrophe (e.g. "what's") is content, not a false end-of-token delimiter, while
-    the real closing quote (followed by `,`, `.`, whitespace, or end) still ends it."""
-    q = re.escape(quote)
-    return rf"{q}(?:(?!{q}(?!\w)).)*{q}(?!\w)"
-
-
-_EN_TOKEN = rf"(?:{_quoted_token(chr(39))}|{_quoted_token(chr(34))})"
-# Anchored to the quoted, comma-separated trigger list itself (not `.*$`) so trailing
-# prose after the list (e.g. a future "Notes: ..." clause) is never silently absorbed.
-_EN_RE = re.compile(rf"EN triggers:\s*({_EN_TOKEN}(?:,\s*{_EN_TOKEN})*)")
+# Greedy to the RIGHTMOST quote in the remainder (not per-token quote-balancing), so an
+# apostrophe inside a trigger phrase ("what's", "users' guide") is never mistaken for a
+# token boundary — splitting the captured block on `,` downstream doesn't care about
+# quotes at all, only the block's own extent needs to exclude trailing unquoted prose
+# (e.g. a future "Notes: ..." clause), which the rightmost-quote anchor still does as
+# long as that prose itself contains no quote character.
+# ponytail: known ceiling — a trailing clause that itself contains a quote (rare) would
+# get absorbed too; not worth a stricter parser until that shape actually shows up.
+_EN_RE = re.compile(r"EN triggers:\s*(['\"].*['\"])")
 
 
 def _git(*args: str) -> subprocess.CompletedProcess:
@@ -217,6 +211,22 @@ body
                   "what's in the vault" in apostrophe_triggers))
     cases.append(("trigger after apostrophe trigger not dropped",
                   "domain context" in apostrophe_triggers))
+
+    # fresh-eyes review round 2: a WORD-FINAL (possessive) apostrophe — immediately
+    # before the closing quote+comma, not mid-word — is a different position than the
+    # contraction case above and must not drop the trigger after it either.
+    possessive_desc = """---
+name: demo
+description: "Purpose line. EN triggers: 'users' preferences', 'domain context'."
+model: haiku
+---
+body
+"""
+    possessive_triggers = extract_triggers(possessive_desc)
+    cases.append(("possessive-apostrophe trigger captured whole",
+                  "users' preferences" in possessive_triggers))
+    cases.append(("trigger after possessive-apostrophe trigger not dropped",
+                  "domain context" in possessive_triggers))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:

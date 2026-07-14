@@ -448,6 +448,8 @@ def case_bash_subagent_writes_denied(errors: list[str], vault_root: str) -> None
         f'mv -t{v}/notes /tmp/a.md',                          # short-form, no space (#390)
         f'rsync -tv /tmp/a.md {v}/notes/x.md',                # rsync -t is boolean (--times),
                                                                # not target-directory (fresh-eyes review)
+        f'rsync -t /tmp/a.md {v}/notes/x.md',                 # bare -t, same rsync semantics
+                                                               # (fresh-eyes review round 2)
     ]
     for cmd in commands:
         payload = _make_bash_payload(cmd, agent_id_value="vault-file-organizer", cwd="/tmp")

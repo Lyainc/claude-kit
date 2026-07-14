@@ -240,16 +240,17 @@ for seg in segments:
         # GNU coreutils -t DIR / --target-directory=DIR moves the destination OUT of the
         # last-positional slot (every positional is then a source), so check the flag first.
         targets = []
-        for k, a in enumerate(args):
-            if a in ("-t", "--target-directory") and k + 1 < len(args):
-                targets = [args[k + 1]]
-            elif a.startswith("--target-directory="):
-                targets = [a.split("=", 1)[1]]
-            elif verb != "rsync" and a.startswith("-t") and a != "-t":
-                # rsync -t/--times is a boolean (preserve timestamps) with no
-                # target-directory equivalent — unlike mv/cp/install/ln, -tDIR is
-                # never a destination there.
-                targets = [a[2:]]
+        # rsync -t/--times is a boolean (preserve timestamps) with no target-directory
+        # equivalent at all — unlike mv/cp/install/ln, none of -t/-tDIR/--target-directory
+        # is ever a destination there, so rsync is excluded from every prong below.
+        if verb != "rsync":
+            for k, a in enumerate(args):
+                if a in ("-t", "--target-directory") and k + 1 < len(args):
+                    targets = [args[k + 1]]
+                elif a.startswith("--target-directory="):
+                    targets = [a.split("=", 1)[1]]
+                elif a.startswith("-t") and a != "-t":
+                    targets = [a[2:]]
         if not targets:
             targets = positional[-1:]
     elif verb in DEST_ALL:
