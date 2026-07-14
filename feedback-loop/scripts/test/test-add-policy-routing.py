@@ -32,7 +32,9 @@ The pinned claims:
 7. (#377) The new delete path is recoverable (`trash-put`), never forced, and the MEMORY.md
    index line is keyed by the deleted file's link target — not by its title.
 8. (#377) Vanilla machine with no ~/.claude/projects memory directory -> the memory scan is
-   SILENTLY SKIPPED, never a scan failure. Zero hits is likewise not a failure.
+   SILENTLY SKIPPED, never a scan failure. Zero hits is likewise not a failure. But an ERRORED
+   scan is not an empty one: the pipe fixes the exit code at `sort`'s, so stderr is the only
+   channel left, and an inconclusive scan must be reported as such — never as "no duplicates".
 9. (#377) The §6 scan snippet, run for real, against fixtures that include adversarial
    near-misses (`type: feedback-loop`, `type: feedbackx`, `type: feedback` in a note's BODY,
    MEMORY.md itself). It must never abort, must exit 0, and must match ONLY the two real
@@ -50,6 +52,7 @@ Exit codes:
 
 from __future__ import annotations
 
+import os
 import re
 import shutil
 import subprocess
@@ -71,6 +74,16 @@ def _load_skill() -> str:
 # Checks — each returns (ok, message). Substring-based on purpose: the claim is
 # prose, and the test's job is "is this claim still stated", not exact wording.
 # ---------------------------------------------------------------------------
+
+def _prose(text: str) -> str:
+    """Prose wraps across lines — a claim must be findable regardless of where it broke.
+
+    Line-wrapping split "neither a duplicate nor yours to\ndelete" and silently failed a
+    check whose claim WAS present. Prose checks match against this; the snippet check does
+    NOT (it needs the raw fenced block).
+    """
+    return re.sub(r"\s+", " ", text).lower()
+
 
 def check_stance_voice_to_claude_md(text: str) -> tuple[bool, str]:
     """stance/voice must be routed to ~/.claude/CLAUDE.md."""
@@ -138,7 +151,7 @@ def check_not_fourth_site(text: str) -> tuple[bool, str]:
 
 def check_memory_duplicate_scan(text: str) -> tuple[bool, str]:
     """#377: the duplicate scan must cover native auto-memory's `feedback` entries."""
-    lower = text.lower()
+    lower = _prose(text)
     if "memory" not in lower or "~/.claude/projects" not in lower:
         return False, "native auto-memory (~/.claude/projects/<proj>/memory) not named as a scan target"
     if "feedback" not in lower:
@@ -147,7 +160,7 @@ def check_memory_duplicate_scan(text: str) -> tuple[bool, str]:
         return False, "memory scan not tied to the Duplicate check"
     # The hit must reach the user (§3 confirmation) and leave exactly one copy behind.
     # Memory-specific wording on purpose: a bare "delete" is already satisfied by pre-#377 prose.
-    if "memory 항목은 지울게요" not in text and "memory duplicate" not in lower:
+    if "memory 항목은 지울게요" not in lower and "memory duplicate" not in lower:
         return False, "post-landing removal of the memory duplicate not described"
     # Memory-specific wording: a bare "not a fourth site" already appears twice in pre-#377 prose
     # (the SOFT-channel routing), so it cannot pin THIS claim.
@@ -164,24 +177,47 @@ def check_memory_candidate_vs_duplicate(text: str) -> tuple[bool, str]:
     and must scope the scan to the chosen site (a project-scoped CLAUDE.md is not duplicated
     by another project's memory).
     """
-    lower = text.lower()
-    if "candidate" not in lower:
-        return False, "the scan's output is not framed as CANDIDATES (a grep hit != a duplicate)"
+    lower = _prose(text)
+    # Memory-specific literals only. A bare "candidate" already appears in pre-#377 prose
+    # (§5's provenance scan), so it cannot pin this claim — proven in review.
+    if "list candidates" not in lower:
+        return False, "the scan's output is not framed as CANDIDATES (a scan hit != a duplicate)"
     if "only a content match" not in lower:
         return False, "Duplicate not defined as a CONTENT match — a bare `type: feedback` would be deleted"
+    if "is not a duplicate and is never touched" not in lower:
+        return False, "a non-matching candidate is not explicitly protected from the delete path"
     if "scan_root" not in lower:
         return False, "scan scope not tied to the chosen site (SCAN_ROOT)"
-    if "project-scoped" not in lower:
+    if "neither a duplicate nor yours to delete" not in lower:
         return False, "project-scoped site -> that project's memory only: scope branch not described"
-    return True, "grep = candidates, Duplicate = content match; scan scope follows the site"
+    return True, "scan = candidates, Duplicate = content match; scan scope follows the site"
+
+
+def check_memory_scan_fails_loud(text: str) -> tuple[bool, str]:
+    """#377 re-review: the pipe fixes rc at `sort`'s, so a dead awk must at least reach stderr.
+
+    A duplicate check whose failure mode is "reports zero duplicates" fails in the wrong
+    direction — it would green-light a landfill write that leaves the duplicate in place.
+    """
+    lower = _prose(text)
+    if "inconclusive" not in lower:
+        return False, "a failed memory scan is not distinguished from a clean one (must be INCONCLUSIVE, not `none`)"
+    if "stderr" not in lower:
+        return False, "stderr is the only failure channel left after the pipe, and it is not named"
+    # The user-facing half: a bash comment saying "inconclusive" changes nothing on its own.
+    if "memory 스캔 실패" not in lower:
+        return False, "an inconclusive scan is not surfaced to the user in the §3 confirmation"
+    return True, "an errored memory scan is reported as inconclusive, never as `none`"
 
 
 def check_memory_delete_safety(text: str) -> tuple[bool, str]:
     """#377 review: this PR introduces a DELETE path — pin its recoverable-delete clause."""
-    lower = text.lower()
+    lower = _prose(text)
     if "trash-put" not in lower:
         return False, "memory-duplicate removal does not mandate a recoverable delete (trash-put)"
-    if "never force-delete" not in lower or "never `rm`" not in lower:
+    # The combined literal, not "never `rm`" alone — that one already appears in pre-#377
+    # prose (§2's HARD/SOFT example), so on its own it pins nothing. Proven in review.
+    if "never force-delete, never `rm`" not in lower:
         return False, "the never-force-delete / never-`rm` guarantee on the memory delete path is missing"
     if "link target" not in lower:
         return False, "MEMORY.md index-line removal has no join key — an LLM could delete the wrong line"
@@ -190,7 +226,7 @@ def check_memory_delete_safety(text: str) -> tuple[bool, str]:
 
 def check_memory_vanilla_skip(text: str) -> tuple[bool, str]:
     """#377: a machine with no memory directory must skip the scan silently."""
-    lower = text.lower()
+    lower = _prose(text)
     if "$home/.claude/projects" not in lower and "~/.claude/projects" not in lower:
         return False, "memory-directory existence check not described"
     if "skip the memory scan" not in lower:
@@ -260,6 +296,10 @@ def check_memory_snippet_runs(text: str) -> tuple[bool, str]:
         (mem / "miss-body.md").write_text(          # frontmatter says project; BODY quotes the type
             "---\nname: c\ntype: project\n---\nAn example entry looks like:\ntype: feedback\n"
         )
+        (mem / "miss-no-frontmatter.md").write_text(  # NO frontmatter: a body `---` (horizontal
+            "# Schema notes\n\nSome prose.\n\n---\n\n"  # rule) must not open a fake frontmatter
+            "A feedback memory looks like:\ntype: feedback\n"
+        )
         (mem / "MEMORY.md").write_text(             # the index is not itself a memory
             "---\ntype: feedback\n---\n- [x](hit-toplevel.md) — hook\n"
         )
@@ -296,6 +336,23 @@ def check_memory_snippet_runs(text: str) -> tuple[bool, str]:
                     f"rc={p.returncode} stdout={p.stdout.strip()!r}"
                 )
 
+        # A scan that COULDN'T read a memory must not look like a scan that found none. The pipe
+        # fixes rc at `sort`'s, so stderr is the only channel left — it must not be suppressed.
+        if os.geteuid() != 0:                        # root reads 000 anyway; the case is moot
+            unread = Path(tmp) / "unreadable"
+            um = unread / ".claude" / "projects" / "-some-proj" / "memory"
+            um.mkdir(parents=True)
+            secret = um / "unreadable.md"
+            secret.write_text("---\nname: q\ntype: feedback\n---\nbody\n")
+            secret.chmod(0o000)
+            for shell in shells:
+                p = _run_snippet(snippet, unread, shell)
+                if not p.stderr.strip():
+                    return False, (
+                        f"[{shell}] an unreadable memory file was dropped SILENTLY — a duplicate "
+                        "check must not fail in the direction of 'no duplicates' (drop 2>/dev/null)"
+                    )
+
     return True, f"§6 scan snippet executes correctly under {', '.join(shells)} (vanilla + zero-hit + populated)"
 
 
@@ -309,6 +366,7 @@ _CHECKS = [
     check_memory_duplicate_scan,
     check_memory_candidate_vs_duplicate,
     check_memory_delete_safety,
+    check_memory_scan_fails_loud,
     check_memory_vanilla_skip,
     check_memory_snippet_runs,
 ]
@@ -344,12 +402,14 @@ Thin pointer + backing detail: put the detail in the catalogue and keep ~/.claud
 to at most a one-line pointer / thin pointer.
 
 The Duplicate scan also covers native auto-memory: scan the `feedback` entries under
-~/.claude/projects/<proj>/memory/*.md. Step 1 lists CANDIDATES; step 2 reads each and
-compares it to the rule being landed — only a content match is a duplicate. SCAN_ROOT
-follows the site: a machine-global site scans all projects, a project-scoped CLAUDE.md
-scans that project's memory only. Vanilla machine with no such directory ->
-skip the memory scan silently; a missing directory is nothing to conflict with,
-never a scan failure. On a
+~/.claude/projects/<proj>/memory/*.md. Step 1: list candidates. Step 2: read each and compare
+it to the rule being landed — only a content match is a duplicate; a file that merely has
+`type: feedback` is not a duplicate and is never touched. SCAN_ROOT follows the site: a
+machine-global site scans all projects; for a project-scoped CLAUDE.md, another project's
+memory is neither a duplicate nor yours to delete. Vanilla machine with no such directory ->
+skip the memory scan silently; a missing directory is nothing to conflict with, never a scan
+failure. But an errored scan is not an empty one: anything on stderr means the scan is
+INCONCLUSIVE, never `none` — "memory 스캔 실패" in the confirmation. On a
 hit, surface it in the 1-click confirmation ("매립 후 memory 항목은 지울게요") and delete the
 duplicate memory file after the landfill write — its MEMORY.md index line is the one whose
 markdown link target is that file's basename. Use trash-put; never force-delete, never `rm`.
@@ -358,10 +418,10 @@ Memory is an input, never a destination: an input queue, not a fourth site.
 ```bash
 SCAN_ROOT="$HOME/.claude/projects"
 [ -d "$SCAN_ROOT" ] && find "$SCAN_ROOT" -path '*/memory/*.md' -not -name 'MEMORY.md' -exec awk '
-  FNR==1 { n=0 }
+  FNR==1 { n = ($0 ~ /^---[[:space:]]*$/) ? 0 : 9 }
   /^---[[:space:]]*$/ { n++ }
   n==1 && /^[[:space:]]*type:[[:space:]]*feedback[[:space:]]*$/ { print FILENAME }
-' {} + 2>/dev/null | sort -u || true
+' {} + | sort -u || true
 ```
 """
 
