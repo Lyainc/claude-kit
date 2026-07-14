@@ -90,6 +90,11 @@ python3 scripts/bump-version.py --self-test
 # Expected: OK: all bump-version self-test cases passed
 python3 scripts/gen-release-notes.py --self-test
 # Expected: OK: all gen-release-notes self-test cases passed
+# 릴리스 트리거 정책 (#382): `release` 라벨 = 주 트리거, 미릴리스 user-visible 커밋 10개 =
+# 백스톱, docs/chore는 세지도 트리거하지도 않음. bump는 커밋에서 도출(breaking>feat>나머지).
+# 순수 함수로 핀 — git 없이 합성 커밋 리스트로 정책 자체를 테스트한다.
+python3 scripts/next-version.py --self-test
+# Expected: OK: all 23 self-test cases passed
 
 # 플러그인 스펙 전체 검증 (frontmatter·hooks 스키마 포함)
 # claude plugin validate  # Claude Code 설치 환경에서 실행

@@ -33,6 +33,47 @@ policy and the release procedure.
 version into all manifests at once via `scripts/bump-version.py`, so they can never
 diverge across a release.
 
+## When a release is cut (#382)
+
+The version policy above says *what number* to pick. This says *when* — the part that was
+missing, and the reason `v3.0.0` sat **79 commits** behind `main` with three unreleased
+breaking changes. A version string that never moves is a version string that lies: the
+client has no signal to invalidate its cache, so an installed `3.0.0` stayed permanently
+stale, still exposing a `thought-chain` skill that no longer existed in source.
+
+**Premise — `main` is always releasable.** An unfinished feature does **not** land on
+`main`. It grows on a feature branch (session PRs target *that* branch, chained-PR style),
+and merges to `main` only once it is complete and coherent. This repo ships markdown
+skills that Claude auto-discovers the moment a `SKILL.md` exists — there is no feature
+flag to hide a half-wired skill behind, so the branch *is* the flag. Everything below
+depends on this premise: it is what lets a release fire without ever asking "is the
+feature done yet?" Break it, and no trigger — label, count, or clock — is safe.
+
+**Primary trigger — the `release` label.** Put the `release` label on a PR and merging it
+cuts a release. The decision rides on the merge you are already performing, at the one
+moment you have full context on whether the work forms a shippable whole; it never
+becomes a separate ritual to forget (which is precisely how the 79-commit drift happened).
+An explicit label always releases — even a docs-only PR, because an explicit human "ship
+this" outranks the default.
+
+**Backstop — 10 unreleased user-visible commits.** If `feat`/`fix`/`perf`/`refactor` (or
+anything breaking) accumulate to 10 since the last tag, CI releases with no label at all.
+`docs`/`chore`/`test`/`ci`/`build`/`style` are never counted and never trigger — they ride
+along in the next release. The backstop is what makes the old failure *structurally*
+impossible rather than merely discouraged; it is safe only because of the premise above
+(the 10 commits it ships are, by construction, all complete work).
+
+**Deliberately not done: a CI warning** ("breaking changes since the last tag, consider
+releasing"). A warning needs a human to act on it, and a human failing to act is the exact
+failure being fixed. An ignored warning is worse than none — it makes the drift feel
+watched.
+
+The bump is derived from the same commits (largest change wins: breaking → major, `feat` →
+minor, otherwise patch). `scripts/next-version.py` is the executable form of all of the
+above (`--self-test` pins it); `.github/workflows/auto-release.yml` is the wiring, and it
+calls the manual workflow below to actually cut. The manual route stays open as the escape
+hatch — ship something right now without waiting for a label or the backstop.
+
 ## Cutting a release
 
 1. **Make sure `main` is green** — the `Plugin Validation` workflow must be passing on

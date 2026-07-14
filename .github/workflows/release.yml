@@ -12,6 +12,11 @@ name: Release
 #
 # dry-run does steps 1 + 3 in-memory only and prints the notes to the job summary —
 # no commit, no tag, no release.
+#
+# Two callers: a human from the Actions tab (workflow_dispatch — the escape hatch, for
+# shipping something right now), and auto-release.yml (workflow_call), which decides the
+# version from the commits and fires on the `release` label or the backstop. This file
+# only EXECUTES a release; when to cut one is next-version.py's call. See RELEASING.md.
 
 on:
   workflow_dispatch:
@@ -27,6 +32,19 @@ on:
         default: false
       prerelease:
         description: "Mark the GitHub Release as a pre-release"
+        required: false
+        type: boolean
+        default: false
+  workflow_call:
+    inputs:
+      version:
+        required: true
+        type: string
+      dry_run:
+        required: false
+        type: boolean
+        default: false
+      prerelease:
         required: false
         type: boolean
         default: false
