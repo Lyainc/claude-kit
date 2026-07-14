@@ -1,0 +1,75 @@
+name: Auto Release
+
+# WHEN to cut a release. (HOW is release.yml, which this calls.)
+#
+# The policy — premise, primary trigger, backstop — is stated in RELEASING.md and
+# executed by scripts/next-version.py; this workflow is only the wiring that runs it.
+#
+#   - `release` label on a merged PR  -> release now, version derived from the commits.
+#   - >= 10 unreleased user-visible commits (feat/fix/perf/refactor/breaking) -> release
+#     anyway, label or not. docs/chore never count and never trigger; they ride along.
+#
+# Why the backstop exists: v3.0.0 sat 79 commits behind main (three of them breaking)
+# because releasing was a separate ritual with no trigger, so nobody ever did it. A CI
+# *warning* would not have fixed that — a warning still needs a human to act, which is
+# exactly the step that failed. This releases without asking.
+#
+# Loop safety: the release pushes its own `chore(release): vX.Y.Z` commit to main, which
+# re-fires the `push` trigger below. next-version.py sees zero commits since the (new)
+# tag and holds, so the loop terminates on the first iteration. The `concurrency` group
+# additionally serialises a label-triggered run against a backstop-triggered one, and the
+# second finds the tag already cut and holds.
+
+on:
+  pull_request:
+    types: [closed]
+  push:
+    branches: [main]
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  decide:
+    # The label path only makes sense for a PR that actually merged; the push path is the
+    # backstop and runs on every commit that lands on main.
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.merged == true &&
+       contains(github.event.pull_request.labels.*.name, 'release'))
+    runs-on: ubuntu-latest
+    outputs:
+      release: ${{ steps.decide.outputs.release }}
+      version: ${{ steps.decide.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Always judge main, never the PR's merge ref — on the pull_request event the
+          # default checkout is the pre-merge state, which would miss the commits we are
+          # deciding about. Full history + tags for the since-last-tag walk.
+          ref: main
+          fetch-depth: 0
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Decide
+        id: decide
+        run: |
+          LABELED=()
+          if [ "${{ github.event_name }}" = "pull_request" ]; then LABELED=(--labeled); fi
+          python3 scripts/next-version.py "${LABELED[@]}" | tee -a "$GITHUB_OUTPUT"
+
+  release:
+    needs: decide
+    if: needs.decide.outputs.release == 'true'
+    uses: ./.github/workflows/release.yml
+    with:
+      version: ${{ needs.decide.outputs.version }}
+    permissions:
+      contents: write

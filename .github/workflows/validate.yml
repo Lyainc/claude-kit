@@ -61,9 +61,11 @@ jobs:
           python3 scripts/check-ci-coverage.py --self-test
           python3 scripts/check-ci-coverage.py --strict
 
-          # Release tooling self-tests (lockstep bump + per-plugin notes generation).
+          # Release tooling self-tests (lockstep bump + per-plugin notes generation +
+          # the release-trigger policy: label / backstop / bump derivation).
           python3 scripts/bump-version.py --self-test
           python3 scripts/gen-release-notes.py --self-test
+          python3 scripts/next-version.py --self-test
           echo "Governance guards OK"
 
       - name: Check work-rules guards (#216)
