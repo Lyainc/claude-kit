@@ -41,7 +41,7 @@ This skill is **standalone**; for claim validation, invoke it directly.
 ## Execution Modes
 
 Express mode preferences in natural language — no flags needed:
-- **자동 방어** ("내가 방어 안 할게", "자동으로 돌려줘"): Defender is spawned as a separate Agent subagent instead of prompting the user — same mechanical isolation as isolated Judge, regardless of the 격리 실행 toggle (see Phase 1 Automated Defense Quality Floor)
+- **자동 방어** ("내가 방어 안 할게", "자동으로 돌려줘"): Defender is spawned as a separate Agent subagent instead of prompting the user — same mechanical isolation as isolated Judge (independence rationale and cost note: see Phase 1 Automated Defense Quality Floor)
 - **격리 실행** ("엄격하게", "격리해서"): Judge spawned as a separate Agent subagent (stronger isolation)
 - **요약 출력** ("요약만"): Skip full report; output verdict-only summary
 - **빠른 모드** ("빠르게", "간단히", "quick"): Skip Steelman; run 2 attack rounds per claim
@@ -106,6 +106,7 @@ In standard mode, visibility is best-effort (prompt contract only — the LLM sh
 Spawn Defender as a separate Agent subagent — not inline generation — regardless of the 격리 실행 toggle. An inline auto-defender shares context with the Attacker turn that just produced the attack, which biases it toward a generic, half-hearted rebuttal; a dedicated subagent call removes that bias the same way isolated Judge removes evaluation bias.
 Pass `{claim text + full steelman (including Phase 0 Agreement Points + Learned Points) + current round attack only}` as the subagent prompt — the same inputs the Role Visibility Contract already grants Defender, just delivered via a dedicated call.
 Prompt-quality floor: generate the strongest good-faith rebuttal a motivated defender would make — engage the attack's specific point directly, draw on the steelman's Agreement/Learned Points as ammunition, never concede or hedge prematurely. This keeps Survival Score reflecting the claim's actual strength rather than an under-motivated auto-defender's laziness.
+**Cost note**: unlike Phase 0.5's one-shot vault-searcher call (bounded at ≤ +1500 tokens), 자동 방어 spawns a fresh Defender subagent every attack round — up to 5 rounds × N claims per session. No explicit token ceiling is enforced here; the isolation guarantee is worth the added subagent calls since 자동 방어 is opt-in.
 
 1. **Attacker** persona presents the attack
 2. **AskUserQuestion** collects user defense (always show "skip this claim" as an option); in automated defense mode, the Defender subagent generates the response instead (see Automated Defense Quality Floor above)
