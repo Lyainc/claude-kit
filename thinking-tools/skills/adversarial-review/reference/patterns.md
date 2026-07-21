@@ -9,6 +9,13 @@ See the main [SKILL.md](../SKILL.md) for the core workflow.
 
 Use these templates per vector in Phase 1. Adapt bracketed values to the claim under review.
 
+Every bracketed slot is filled from the Attacker's **domain angle** — the rank-1 entry of
+[../../../reference/personas.md](../../../reference/personas.md) selected once per claim (see
+[SKILL.md → Phase 1](../SKILL.md#phase-1-attack-rounds)). That entry's evaluation criterion decides
+*what kind* of gap, evidence, scenario, or boundary is asked for: a `P1` angle demands threat-model
+evidence and a worst-case breach scenario, a `P7` angle demands unit-cost evidence and a 10x-spend
+scenario. The vectors and role labels are unchanged — only the angle varies by claim.
+
 ```
 [Logical Integrity]
 "이 주장은 '{premise}'에서 '{conclusion}'을 도출합니다.
@@ -96,7 +103,30 @@ When multiple conditions fire in the same round, apply the **first match** (high
 
 Used in Phase 2 (standard mode). Skipped in summary output mode ("요약만", "간단히").
 
+The frontmatter block is required on every export — it is what makes the report machine-readable
+for a downstream skill (schema: [../../../reference/common-schema.md](../../../reference/common-schema.md)).
+
 ```markdown
+---
+# Output conforms to thinking-tools/reference/common-schema.md
+skill: adversarial-review
+schema_version: 1
+version: {skill-version}
+generated: {YYYY-MM-DD}
+input:
+  target: {review target name}
+  options: []              # modes used, e.g. ["빠른 모드", "자동 방어"]
+output:
+  type: review
+  structure: reference/patterns.md#final-report-template
+claims_tested: {N}
+verdicts:
+  survived: {N}
+  collapsed: {N}
+  pending: {N}
+angle: {P-id|adhoc}        # Attacker domain angle (reference/personas.md rank 1)
+---
+
 ## Adversarial Review Report
 
 **Date**: {date}
