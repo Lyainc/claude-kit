@@ -4,8 +4,8 @@
 > 도출 과정: critic 토론 7라운드 + 외부 PKM 레퍼런스 검증 + 외부 도구 4개 검토 + 자기 비판 리뷰
 > 상태: **SUPERSEDED by [`vault-second-brain-v5.md`](vault-second-brain-v5.md)** (2026-06-23, #215 — LLM wiki A 主 + B probation).
 > v5가 인간 저작 second-brain 전제를 "LLM 컴파일 + 인간 승급만"으로 전환. v4의 type opt-in·status machine·recall 중심·git
-> 통합·거부목록은 v5가 **계승**. 이 문서는 역사 기록으로 보존(원 상태: 설계 확정, 구현 대기).
-> 관련 문서: `docs/plans/vault-second-brain-v4-migration.md`
+> 통합·거부목록은 v5가 **계승**. 이 문서는 CLAUDE.md의 Vault File Conventions(폴더 레이아웃 §3.1 ·
+> type opt-in §2.2 · 파일명 §3.6)가 인용하는 현행 근거라 보존해요. 마이그레이션 가이드는 이관 완료 후 삭제됐어요.
 
 ## 1. 정의
 
@@ -405,7 +405,7 @@ stand-alone 위반. 영감만 받음.
 ## 12. 다음 단계
 
 1. 본 설계 문서 리뷰 + 확정
-2. 마이그레이션 가이드 (`docs/plans/vault-second-brain-v4-migration.md`)
+2. 마이그레이션 가이드 (이관 완료 후 삭제)
 3. 구현 PR 시리즈:
    - vault-bridge: 폴더 패턴 갱신, manifest 스키마 확장
    - OVM: 7 → 3 스킬 정리

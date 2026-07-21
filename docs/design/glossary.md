@@ -19,8 +19,8 @@ These name a *kind* of thing, are globally consistent, and are healthy. Keep the
 |--------|---------|------------------|
 | `CON-N` | Constraint (boundary / architecture constraint) | `docs/design/claude-kit-boundary.md` |
 | `POL-N` | Policy (constitutional / policy rule) | `docs/design/claude-kit-boundary.md` |
-| `E1`–`E11` | Vault audit error type | `obsidian-vault-manager/reference/vault-audit-rules.md` |
-| `GN` | Goal-doc ID (closed series, G1–G29 — retired concept, no new entries) | `docs/plans/goal-docs/` |
+| `E1`–`E12` | Vault audit error type (E12a/E12b = wiki staleness, #330/#336) | `obsidian-vault-manager/reference/vault-audit-rules.md` |
+| `GN` | Goal-doc ID (closed series, G1–G29 — retired concept #282/#283, docs deleted 2026-07-21) | GitHub issues |
 
 **Notation.** Each global code is written in its canonical form verbatim, including
 the hyphen that is part of the prefix — `CON-2`, `POL-1` — while E/G-series
