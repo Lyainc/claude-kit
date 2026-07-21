@@ -112,8 +112,10 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 Verify above is written and checked by the same context, which is exactly the self-verification
 loop that lets a draft pass its own bar. So once all segments are assembled, run the same 4-item
 checklist over the whole document in a **separate Agent subagent** — pass only
-`{the assembled document + the intent/audience one-liner + the 4 Verify items}`, and never the
-drafting rationale. It returns per-segment pass/fail plus the failing line. Failures go back into
+`{the assembled document, each segment prefixed with its own `[S{n}] {segment title}` marker + the
+intent/audience one-liner + the 4 Verify items}`, and never the drafting rationale. Without those
+markers the subagent has to guess segment boundaries from headings, which is not the same partition.
+It returns pass/fail per `S{n}` plus the failing line. Failures go back into
 [Reflect] (same max-3-attempts rule). One call per document, not per segment. **Agent call fails**
 → verify inline against the same checklist and tell the user the final pass was not isolated.
 

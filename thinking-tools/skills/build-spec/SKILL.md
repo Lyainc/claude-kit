@@ -7,7 +7,7 @@ description: |
   Trigger when user mentions: build-spec, 명세 만들기, 아이디어를 스펙으로, 요구사항 명확화, 아이디어를 명세로,
   seed 생성, ambiguity gate, requirements crystallize.
   Routing: 단순 문서 구체화는 doc-concretize, YAML Seed 스펙이 필요할 때만 build-spec.
-allowed-tools: AskUserQuestion Read Write Glob Grep
+allowed-tools: AskUserQuestion Read Write Glob Grep Agent Bash
 model: sonnet
 ---
 
@@ -77,6 +77,7 @@ Quick Mode output format:
      - but "이 login.ts 동작을 명세로" → a single source file, not a repo root → greenfield default
    - If no files found → greenfield default (no question)
    - **Brownfield content intake**: once brownfield is confirmed, `Grep` the repo for the target's own keywords (feature name, module, config key) before asking Context Clarity questions. Existence of a manifest only tells you it is brownfield; X1-X3 (integration surface / affected components / conflicts, `reference.md` §1) can only be scored Y off what the code actually says. Ground the questions in the hits ("`auth/session.ts` already does X — does the new path replace it or sit beside it?"). 0 hits → ask X1-X3 as plain questions.
+   - **Open-issue backlog scan**: still in the same brownfield intake, read the repo's open issue backlog — `gh issue list --state open --limit 100 --json number,title,body`, then filter it by the target's own keywords. Code and manifests only carry what already shipped; a repo's *decided-but-unbuilt* constraints live in the backlog, so X3 (conflicts) has no source without it. Record the verdict in `context.backlog_scan` as either the conflicting issue numbers (`#N` each, with one line on what conflicts) or an explicit no-conflict statement — an empty field is not a pass. `gh` absent, no GitHub remote, or any non-zero exit → skip silently and score X3 off the code alone.
 3. **Maturity**: always starts at Idea level (the point of build-spec is to move from idea to spec)
 4. **Set dimension weights** (see Ambiguity Scoring below)
 5. **Load question template** based on domain: `templates/questions/{domain}.md`
@@ -148,6 +149,44 @@ The ✓/✗ per dimension is the user-facing progress signal — it shows *which
 **Gate open**: Ambiguity ≤ 0.20 + all floors met + 2 consecutive rounds.
 **Gate closed**: continue interview. Auto-select lowest-clarity dimension.
 
+**Isolated gate verdict**: the interviewer asking, scoring, and then declaring its own gate open is a
+1-in-3-roles loop — the same self-verification bias `adversarial-review` removes by spawning its Judge
+as a separate `Agent` subagent, and `unknown-discovery` removes for Depth scoring. So the verdict that
+actually opens the gate comes from a subagent, not from this context.
+
+- **When**: only on rounds where the inline score already suggests the gate is about to open (inline
+  Ambiguity ≤ 0.20 and every floor met). Every other round stays inline — cheap by default, the
+  expensive call only where it changes an outcome.
+- **Input**: `{the Q&A transcript for each active dimension + the reference.md §1 checklist for those
+  dimensions}` only. Not the running scores, not the rationale that produced them, not the gate state
+  — a judge shown the score it is meant to check is not isolated.
+- **Output**: per checklist item, `Y/N` + a one-line reason, and a `clarity` value **per dimension**.
+  Never a single Ambiguity number: floors are hard gates that bind independently of the weighted sum
+  (`reference.md` §2), so a verdict collapsed to one number silently deletes them. The gate is then
+  recomputed from the returned per-dimension values, and it is that recomputed result — not the inline
+  one — that counts toward `consecutive_gate`.
+- **Agent call fails / unavailable** → score inline against the same checklist and set
+  `scoring_isolated: false` in STATE. Do not announce the fallback; the session looks identical either way.
+
+### Phase 2.5: Blind-spot Pass
+
+Runs **exactly once**, after the gate opens and before the Seed is written. Never before the gate: put
+it earlier and every finding becomes new interview rounds, which doubles the interview and gets the
+skill abandoned in real use. After the gate it reads an already-sharp spec, so its questions are sharper too.
+
+The clarity gate only scores dimensions that were *asked*. A dimension nobody raised is not scored low —
+it is not scored at all, so all four dimensions can sit at 0.9 while the spec still collides with a
+decision made elsewhere. This pass is what looks at the unasked.
+
+- One `Agent` call. Pass `{the drafted Seed fields + the Phase 0 backlog scan result}` and ask for **at
+  most 3** findings the interview never covered, each stated as a falsifiable question against the spec
+  and tagged with the `unknown-discovery` Core area it belongs to (assumptions / trade-offs / edge-cases
+  / blind-spots).
+- Present all of them in **one** `AskUserQuestion` (multiSelect): keep or dismiss. Kept findings land in
+  the Seed's `blindspots:` list; if the user answers one inline, fold that answer into the matching
+  constraint or success criterion instead. No new interview round either way.
+- STATE records `blindspot_pass: {done|skipped}`. **Agent call fails** → skip silently, mark `skipped`.
+
 ### Phase 3: Seed Emit
 
 When gate opens OR user explicitly exits:
@@ -157,17 +196,41 @@ When gate opens OR user explicitly exits:
    - `{slug}` = kebab-case of target name, e.g., `task-cli-tool`
    - If file exists: append `-v2`, `-v3`
 3. Display summary and file path
-4. The Seed file is the terminal deliverable — downstream execution handoff is out of scope
+4. The Seed file is the terminal deliverable — downstream *execution* handoff is out of scope (Phase 4
+   is an output adapter, not a runtime)
 
 **Seed spec schema**: see `templates/SEED_SPEC.yaml`
 
-### Phase 4: Handoff (out of scope)
+### Phase 4: Issue Adapter (opt-in)
 
-The Seed YAML is the terminal deliverable. build-spec crystallizes *what* to build
-(goal / constraints / success-criteria); *how* to build it — slice ordering, execution
-loop, E2E verification — belongs to whatever tool consumes the Seed. The Seed is a
-portable, vendor-neutral artifact: hand it to an agent, a build loop, or a human
-implementer. build-spec does not invoke or assume any specific execution runtime.
+The Seed YAML stays the terminal deliverable and still assumes no execution runtime. build-spec
+crystallizes *what* to build (goal / constraints / success-criteria); *how* to build it — slice
+ordering, execution loop, E2E verification — belongs to whatever consumes the Seed, and build-spec
+still invokes no build loop or agent runtime.
+
+What Phase 4 adds is one **output adapter**, which is a rendering of the same fields, not a runtime.
+A GitHub issue body carries exactly the Seed's information under different headings
+(`docs/design/output-adapter-contract.md` §2 row 8 already registers `format=issue` ×
+`destination=github` and marks body *authoring* as the gap this fills).
+
+Offer it once, right after the Seed file is written: "이 Seed로 GitHub 이슈를 열까요?" Decline → build-spec
+ends at Phase 3, exactly as before.
+
+**Field mapping** — the adapter is this table plus `gh issue create`, nothing else:
+
+| Seed field | Issue section |
+|---|---|
+| `goal.statement` + `context.existing_stack` | `## 배경` |
+| `context.integration_points` | `## 스코프` (one row per integration point) |
+| `constraints[]`, `hard: true` first, each with its `rationale` | `## 제약` |
+| `success_criteria[]` | `## Acceptance` — one `- [ ]` per criterion, `measurable_via` inline |
+| `context.backlog_scan` + `context.dependencies` | `## 의존 / 참조` — conflicting issues as `#N` so GitHub back-links them, or the explicit no-conflict verdict |
+| `blindspots[]` kept in Phase 2.5 | `## 열린 질문` — omit the whole section when empty |
+
+Show the assembled body and get approval before creating anything, then
+`gh issue create --title "{target}" --body-file <path>`. Report the returned URL.
+`gh` absent or no GitHub remote → write the body to `docs/specs/{slug}-issue.md` and say so; never
+create an issue without the approval step.
 
 ## Termination Conditions
 
@@ -197,6 +260,7 @@ target: {name} | domain: {tech|biz|creative} | brownfield: {true|false}
 round: {N} | refine_generation: {N or 0}
 clarity: [goal:{score:.2f}] [constraint:{score:.2f}] [success:{score:.2f}] [context:{score:.2f}]
 ambiguity: {value:.2f} | gate: {open|closed} | consecutive_gate: {0|1|2+}
+scoring_isolated: {true|false} | blindspot_pass: {done|skipped|pending}
 scoring_rationale:
   goal: "{last rationale}"
   constraint: "{last rationale}"
@@ -249,7 +313,14 @@ scoring_rationale:
 
 ## Known Limitations
 
-- **Strict judge mode**: deferred to Phase D. LLM self-scoring of Ambiguity may be inconsistent without an independent judge. Users can override scores by providing explicit corrections during the interview.
+- **Isolated verdict is gate-only**: per-round scoring stays inline; only the round that would open the
+  gate is re-judged in a subagent (Phase 2). A mid-interview score can still drift — it just cannot open
+  the gate on its own. Users can override scores by providing explicit corrections during the interview.
+- **Blind-spot pass is one shot**: three findings, one call, no follow-up round (constraint: the
+  interview length must not grow). It is a last sweep, not a second interview — a spec needing real
+  blind-spot work should go through `unknown-discovery` directly.
+- **Backlog scan reads titles and bodies, not comments**: an issue whose current state lives in its
+  comment timeline can still read as unconflicting.
 
 ## References
 

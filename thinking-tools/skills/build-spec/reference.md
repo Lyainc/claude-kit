@@ -36,7 +36,7 @@ For each dimension, evaluate after receiving the user's answer. Mark Y/N and wri
 |---|----------|---------|
 | X1 | 기존 스택/시스템과의 통합 포인트가 파악됐나? | Integration surface described (API, database, module) |
 | X2 | 기존 코드의 어느 부분에 영향을 주는지 알 수 있나? | Affected components or files identified |
-| X3 | 기존 의존성·제약과 새 기능의 충돌 가능성 검토됐나? | Potential conflicts acknowledged or ruled out |
+| X3 | 기존 의존성·제약과 새 기능의 충돌 가능성 검토됐나? | Potential conflicts acknowledged or ruled out **against both the code and the open-issue backlog** (SKILL.md Phase 0 backlog scan). Backlog unavailable → code alone is enough for Y |
 
 ---
 
@@ -44,6 +44,7 @@ For each dimension, evaluate after receiving the user's answer. Mark Y/N and wri
 
 - Never assign 0.0 (no answer means unknown, not impossible) or 1.0 (always some residual ambiguity).
 - Floor values are hard gates — even if overall Ambiguity ≤ 0.20, a dimension below its floor blocks the gate.
+- The isolated gate judge (SKILL.md Phase 2) therefore returns **per-dimension clarity**, never one Ambiguity number. Collapsing the verdict to a single weighted sum deletes the floors without anyone noticing: brownfield Goal 0.9 / Constraint 0.9 / Success 0.9 / Context 0.5 gives Ambiguity 0.16 — under the 0.20 threshold — while Context sits below its 0.60 floor. The floors exist precisely because the sum can be bought with the dimensions that were easy to answer.
 - For "빠르게" (quick) mode: evaluate G1-G4 only; gate = Goal ≥ 0.75 (skip other dimensions).
 - If user provides a very detailed answer covering multiple dimensions at once: score all relevant dimensions simultaneously.
 
