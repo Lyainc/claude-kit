@@ -111,7 +111,7 @@ Quick Mode output format:
 1. Per area: base question 1 → follow-up 1 → Why chain 1 (3Q total)
 2. Checkpoint: on completing each area, output a progress summary + STATE block (including Exploration Depth)
 3. On detecting an uncertainty signal, mark that area's checklist item D5 as N (that is the 10% deduction) and add 1Q (detail: [reference.md](reference.md) §3, §6)
-4. When the Core 4 reach Depth ≥ 65%, ask the user whether to enter Extended areas
+4. When the Core 4 clear the Depth Gate (≥ 65% **and** D4 = Y in every entered area — [reference.md](reference.md) §6), ask the user whether to enter Extended areas
 
 **Exploration Depth Scoring** (isolated, checklist-based): at each checkpoint, score the four areas via the **6-item Y/N checklist** in [reference.md](reference.md) §6 — `area_score = Σ(weight of each Y item)`, never a free 0-100% judgement — and record each item's Y/N plus a one-line reason in the STATE block's `scoring_rationale`.
 
@@ -162,7 +162,7 @@ Round N | Area: {current_area} (targeting lowest area) | 진행 중/충분
 
 | Condition | Detection | Action |
 |-----------|-----------|--------|
-| **Depth Gate** | Exploration Depth ≥ 65% | Phase 2 진입 제안 (사용자 동의 필요) |
+| **Depth Gate** | Exploration Depth ≥ 65% **AND** D4(발견 1건 이상 도출) = Y in every entered Core area | Phase 2 진입 제안 (사용자 동의 필요) |
 | **Explicit Done** | "done", "stop", "enough", "완료", "충분해", "끝", "그만" | Depth 경고 표시 후 Phase 2 진행 |
 | **Saturation** | 3 consecutive: short response + repetition + avoidance | Depth 표시 + confirm |
 | **Depth Limit** | Each Core 4 area at 2-depth | Ask about Extended areas |
