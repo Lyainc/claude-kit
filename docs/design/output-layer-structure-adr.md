@@ -81,7 +81,7 @@ U-2 잠정 우세(분산)가 어드버서리얼 압력 하에서도 유지돼요
 
 ### 2.5 #103 concretize/polish 행선지 지정 (G3 DoD line 33)
 
-G3 goal-doc(`docs/plans/goal-docs/G3-output-layer-structure.md` line 33)은 "#102 ADR이 #103의 concretize/polish 행선지를 **명시적으로 지정**(어느 플러그인/디렉토리에 안착)해야 #103 게이트가 풀림"을 #102 완료 조건으로 못박아요. 분산 결정의 직접 귀결로 행선지를 지정해요:
+G3 goal-doc(line 33 — #108 wave의 로컬 작업물이라 비커밋, 상단 "삭제된 문서 인용 주의" 참고)은 "#102 ADR이 #103의 concretize/polish 행선지를 **명시적으로 지정**(어느 플러그인/디렉토리에 안착)해야 #103 게이트가 풀림"을 #102 완료 조건으로 못박아요. 분산 결정의 직접 귀결로 행선지를 지정해요:
 
 - **지정: in-place reframe** — doc-concretize·doc-polish는 **`thinking-tools/skills/`에 잔류**, 역할만 재정의해요(concretize = 구조화 저작/① 인지 코어 보존, doc-polish = md 린트/quality·lint 표면). 물리 이동·신규 플러그인·OVM-fold 전부 안 함.
 - **근거** (G3 쟁점표 line 58 (a) 권고와 정합): 분산 = "논리적 계약"이라 물리 이동이 *불필요*해요 — #101 출력 어댑터 계약만 만족하면 위치는 thinking-tools여도 무방하거든요. 반대로 이동/fold는 thought-chain 링크·매니페스트·README 표면을 전부 건드려 회귀 위험↑·가치↓예요. §2.3 비대칭(note=vault-destined / doc-*=repo_path·non-gated, concretize=① 인지 코어 결합)도 잔류를 가리켜요.

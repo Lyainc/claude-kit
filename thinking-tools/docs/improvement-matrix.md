@@ -7,8 +7,6 @@ schema_version: 1
 last_reviewed: 2026-04-19
 next_review: 2026-07-19
 owners: [thinking-tools]
-source_discussions:
-  - docs/discussions/20260419_ouroboros-integration/
 audiences:
   weaknesses: contributors
   directions: users + contributors
@@ -16,7 +14,8 @@ audiences:
 
 # Thinking-Tools Improvement Matrix
 
-tracking_continued_from: `docs/discussions/20260419_ouroboros-integration/` (frozen 2026-04-19)
+출처: ouroboros-integration 토론(2026-04-19 frozen) — 토론 문서는 로컬 작업물이라 비커밋이고,
+어느 fresh clone에서도 안 열려요. 아래 W/M 표가 그 논의의 살아남은 기록이에요.
 
 W(약점) 섹션은 contributor 전용 — 구현 부채 추적.
 M(방향성) 섹션은 user + contributor — 중장기 전략 방향.
@@ -78,4 +77,4 @@ D는 M의 구체 인스턴스이거나 직접 활용 작업. 중복 아닌 의�
 
 ---
 
-*Source: `docs/discussions/20260419_ouroboros-integration/analysis.md` + `panel-position-c/SUMMARY.md` (frozen 2026-04-19)*
+*Source: ouroboros-integration 토론의 analysis + panel-position-c SUMMARY (2026-04-19 frozen, 비커밋 로컬 작업물)*

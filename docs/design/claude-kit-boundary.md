@@ -1,7 +1,7 @@
 # claude-kit ↔ harness 경계 (진화형 경계 A) + Design Principles 단일 출처
 
 **Status**: design (foundation) · **Created**: 2026-06-04 · **Issue**: #99 · **Epic**: #108
-**Source**: `docs/discussions/20260602_claude-kit-layer-redesign/` (SUMMARY.md C-1, UNRESOLVED.md U-5) + `docs/adversarial-review/2026-06-03-harness-ownership.md`
+**Source**: #108 레이어 재설계 논의 (C-1 · U-5) + harness-ownership 어드버서리얼 리뷰(2026-06-03) — 두 근거 문서 모두 로컬 작업물이라 비커밋
 
 > **이 문서는 단일 출처(single source of truth)예요.** claude-kit↔harness 경계, 5-레이어 모델, 의존 방향, 그리고 아래 `## Design Principles`의 **헌법(constitutional) / 정책(policy) 규칙 목록**은 여기서만 *정의*돼요. 다른 문서·이슈(#125 3-tier 규칙 등)는 이 목록을 **참조만** 하고 재정의하지 않아요. CLAUDE.md operating_principles의 "State each rule once" 원칙을 이 문서가 구현해요. 규칙이 두 곳에 적히면 drift·모순이 나거든요.
 
@@ -15,7 +15,7 @@ claude-kit은 **①인지 ②결정화·출력 ③딜리버리 ④지식베이�
 
 > **현재** OMC(또는 Claude Code 네이티브)가 ⑤를 담당하나, claude-kit은 Claude Code 네이티브 기능(dynamic Workflow, `/goal`, agents, hooks)을 **substrate로 한 경량 하네스**로 ⑤를 **strangler 점진(route-by-route) 이관**하는 트랙을 갖는다.
 
-방향 근거: `docs/adversarial-review/2026-06-03-harness-ownership.md`에서 strong-form(전면 OMC 자체 대체 = 옵션 B)이 기각된 뒤 채택된 narrow path예요. 자체 빌드는 native가 강제 못 하는 invariant(헌법) enforcement에 한정돼요(아래 §4 헌법 블록). 동작 중인 OMC를 from-scratch 엔진으로 전면 교체하는 건 lock-in 실측 증거 0건 + native supersession 매몰비용으로 기각됐어요.
+방향 근거: harness-ownership 어드버서리얼 리뷰(2026-06-03, 비커밋 로컬 작업물)에서 strong-form(전면 OMC 자체 대체 = 옵션 B)이 기각된 뒤 채택된 narrow path예요. 자체 빌드는 native가 강제 못 하는 invariant(헌법) enforcement에 한정돼요(아래 §4 헌법 블록). 동작 중인 OMC를 from-scratch 엔진으로 전면 교체하는 건 lock-in 실측 증거 0건 + native supersession 매몰비용으로 기각됐어요.
 
 > **갱신 (2026-06-29 CUT)**: ⑤를 흡수하려던 자체 경량 하네스(goal-doc#100 스키마 + `slice-router` 라우터, `dev-harness` 플러그인)는 dogfood에서 **실사용 부적합**으로 철회됐어요 — 손으로 쓴 goal-doc이 INV-4 스키마를 통과 못 했거든요(slice-router는 실제 goal을 한 번도 라우팅 못 함). ⑤ 실행은 이제 native `/goal`이 직접 담당하고, 슬라이스 계획은 narrative START-PROMPT(session-close ④), 각 인지·출력 작업은 leaf 스킬 관례 호출이에요. strangler 결론 = native 위임으로 충분, 자체 하네스 불요. 전말: 트래킹 이슈 #282 + PR #283 (discussion 노트는 .gitignore상 비커밋이라 정본은 GitHub 이슈).
 
