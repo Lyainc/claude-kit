@@ -8,7 +8,7 @@ description: |
   Trigger when user mentions: 맹점, 놓친 것, 빠진 것, 심층 분석, 인터뷰해줘, 누락된 것, 맹점 검토,
   blind spot, unknown unknown, "내가 놓치고 있는 게 뭐야?", "이 기획에서 빠진 게 있을까?".
   Routing: 1:1 주장 공격은 adversarial-review, 다관점 합의는 expert-panel.
-allowed-tools: AskUserQuestion Read Write
+allowed-tools: AskUserQuestion Read Write Agent Grep Glob
 ---
 
 # Unknown Discovery
@@ -71,6 +71,7 @@ Quick Mode output format:
 
 1. Analyze the target (project / document / idea).
 2. Confirm the domain (Tech/Biz/Creative/Custom) → confirm with the user via AskUserQuestion.
+2a. **Repo Context Intake** (when the target is a codebase / an idea about one): `Glob("{README.md,CLAUDE.md,package.json,pyproject.toml,plugin.json,go.mod,Cargo.toml}")`, then `Grep` the hits for the target's own keywords. Feed what you find into the interview as *grounded* questions ("README says X is the only supported path — what happens when Y?") instead of abstract ones. Detail: [reference.md](reference.md) §15. No hits / not a codebase → skip silently, interview proceeds as a pure conversation.
 3. Detect maturity (Idea/Plan/Execution):
    - **Auto-detect first**: infer maturity from signals in the user's input context (detail: [reference.md](reference.md) §9)
      - No concrete numbers/timeline, "~할 것 같다" hedging → Idea
@@ -109,10 +110,15 @@ Quick Mode output format:
 
 1. Per area: base question 1 → follow-up 1 → Why chain 1 (3Q total)
 2. Checkpoint: on completing each area, output a progress summary + STATE block (including Exploration Depth)
-3. On detecting an uncertainty signal, dock that area's score 10% and add 1Q (detail: [reference.md](reference.md) §3, §6)
+3. On detecting an uncertainty signal, mark that area's checklist item D5 as N (that is the 10% deduction) and add 1Q (detail: [reference.md](reference.md) §3, §6)
 4. When the Core 4 reach Depth ≥ 65%, ask the user whether to enter Extended areas
 
-**Exploration Depth Scoring**: at each checkpoint, score the four areas' exploration depth 0-100% and display the weighted average (detail: [reference.md](reference.md) §6).
+**Exploration Depth Scoring** (isolated, checklist-based): at each checkpoint, score the four areas via the **6-item Y/N checklist** in [reference.md](reference.md) §6 — `area_score = Σ(weight of each Y item)`, never a free 0-100% judgement — and record each item's Y/N plus a one-line reason in the STATE block's `scoring_rationale`.
+
+Scoring runs in a **separate Agent subagent**, not inline — the interviewer scoring its own interview is the same self-verification bias that isolated Judge removes in `adversarial-review`. Pass the subagent only `{the area's Q&A transcript + the §6 checklist + the findings claimed for that area}`; it returns the 6 Y/N marks, the reasons, and the area score. The same call verifies the "발견 1건 이상 도출" item, so a claimed finding is confirmed by a context that never saw it being produced.
+
+- One call per checkpoint (4 Core areas → ~4-6 calls per session); batch all areas due at the same checkpoint into one call.
+- **Agent call fails / unavailable** → score inline against the same checklist and mark `scoring_isolated: false` in STATE. Do not announce the fallback; the session must look identical either way.
 
 ```
 Round N | Area: {current_area} (targeting lowest area) | 진행 중/충분
@@ -202,6 +208,12 @@ Target: {name} | Domain: {domain} | Maturity: {idea|plan|execution} | Phase: {ph
 Progress: [assumptions:{status}:{score}%] [trade-offs:{status}:{score}%] [edge-cases:{status}:{score}%] [blindspots:{status}:{score}%]
 Depth: {weighted_avg}% | Q: {count} | CP: {count}
 Challenges: [inverter:{done|pending}] [outsider:{done|pending}] [pre-mortem:{done|pending}]
+scoring_isolated: {true|false}
+scoring_rationale:
+  assumptions: "[D1:Y][D2:Y][D3:N][D4:Y][D5:Y][D6:N] — {one-line reason}"
+  trade-offs: "{same shape}"
+  edge-cases: "{same shape}"
+  blindspots: "{same shape}"
 
 Discoveries:
 1. [{C|I|N}] {finding} — {description}
@@ -215,6 +227,8 @@ Detailed format: [templates/INTERVIEW_STATE.md](templates/INTERVIEW_STATE.md)
 | Tool | When | Example |
 |------|------|---------|
 | AskUserQuestion | Domain selection, each interview question, checkpoints | "Which domain best fits?" |
+| Agent | Isolated Depth scoring + finding verification at each checkpoint | Pass area Q&A + §6 checklist, get Y/N marks back |
+| Glob / Grep | Phase 0 Repo Context Intake only (§15) | `Glob("{README.md,CLAUDE.md,...}")` → grep for target keywords |
 | (None) | Deep thinking, synthesis | Internal processing |
 
 ## Output Format

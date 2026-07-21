@@ -11,7 +11,7 @@ description: |
   Trigger when user mentions: 구체화, 문서화, 체계적 정리, 개념 정리, 아이디어 문서화, 글로 정리,
   doc-concretize, concretize, "이 개념을 문서로 정리해줘".
   Routing: 기존 MD 파일 개선은 doc-polish, YAML 스펙 생성은 build-spec.
-allowed-tools: Read Write AskUserQuestion WebFetch
+allowed-tools: Read Write AskUserQuestion WebFetch Agent
 ---
 
 # Document Concretization
@@ -108,6 +108,15 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 - Fact uncertain → call AskUserQuestion or WebFetch
 ```
 
+**Isolated final Verify** (required before the document is handed to the user): the per-segment
+Verify above is written and checked by the same context, which is exactly the self-verification
+loop that lets a draft pass its own bar. So once all segments are assembled, run the same 4-item
+checklist over the whole document in a **separate Agent subagent** — pass only
+`{the assembled document + the intent/audience one-liner + the 4 Verify items}`, and never the
+drafting rationale. It returns per-segment pass/fail plus the failing line. Failures go back into
+[Reflect] (same max-3-attempts rule). One call per document, not per segment. **Agent call fails**
+→ verify inline against the same checklist and tell the user the final pass was not isolated.
+
 **Critical Issues** (require user approval):
 - Core premise has multiple interpretations
 - Conflicting information discovered
@@ -147,6 +156,7 @@ For each segment, execute **Build → Verify → Reflect** cycle:
 |------|------|---------|
 | AskUserQuestion | Clarify ambiguous concepts, Critical Issues | "Did you mean X or Y?" |
 | WebFetch | Fact-check (numbers, quotes, external info) | Verify statistics |
+| Agent | Isolated final Verify pass over the assembled document | Pass document + 4 Verify items, get per-segment pass/fail |
 
 ## Output Format
 
