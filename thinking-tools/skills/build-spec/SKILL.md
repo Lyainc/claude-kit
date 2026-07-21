@@ -7,7 +7,7 @@ description: |
   Trigger when user mentions: build-spec, 명세 만들기, 아이디어를 스펙으로, 요구사항 명확화, 아이디어를 명세로,
   seed 생성, ambiguity gate, requirements crystallize.
   Routing: 단순 문서 구체화는 doc-concretize, YAML Seed 스펙이 필요할 때만 build-spec.
-allowed-tools: AskUserQuestion Read Write Glob
+allowed-tools: AskUserQuestion Read Write Glob Grep
 model: sonnet
 ---
 
@@ -76,6 +76,7 @@ Quick Mode output format:
      - e.g. "이 플러그인 레포에 기능 추가하려고" / "~/projects/foo 프로젝트에" → brownfield detected
      - but "이 login.ts 동작을 명세로" → a single source file, not a repo root → greenfield default
    - If no files found → greenfield default (no question)
+   - **Brownfield content intake**: once brownfield is confirmed, `Grep` the repo for the target's own keywords (feature name, module, config key) before asking Context Clarity questions. Existence of a manifest only tells you it is brownfield; X1-X3 (integration surface / affected components / conflicts, `reference.md` §1) can only be scored Y off what the code actually says. Ground the questions in the hits ("`auth/session.ts` already does X — does the new path replace it or sit beside it?"). 0 hits → ask X1-X3 as plain questions.
 3. **Maturity**: always starts at Idea level (the point of build-spec is to move from idea to spec)
 4. **Set dimension weights** (see Ambiguity Scoring below)
 5. **Load question template** based on domain: `templates/questions/{domain}.md`
