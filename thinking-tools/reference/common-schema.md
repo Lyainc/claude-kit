@@ -61,6 +61,7 @@ verdicts:
   survived: <N>
   collapsed: <N>
   pending: <N>
+angle: <P-id|adhoc>           # Attacker domain angle — a personas.md entry ID
 ```
 
 ### expert-panel

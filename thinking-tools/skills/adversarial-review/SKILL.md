@@ -92,6 +92,18 @@ After the Steelman is finalized for a claim and **before Phase 1 begins**, attem
 
 ### Phase 1: Attack Rounds
 
+**Attacker domain angle** (selected once per claim, before Round 1): run the Selection Rule in
+[../../reference/personas.md](../../reference/personas.md) on the finalized Steelman text and take
+**rank 1** — that entry's evaluation criterion becomes the angle the Attacker attacks from, applied
+across all 4 vectors (a Security-angle Evidence Attack asks for threat-model evidence; a Cost-angle
+one asks for unit-cost evidence). Record the ID in the STATE block `Angle` field.
+
+This is the **only** contact point with the shared pool. The fixed role labels below — Attacker,
+Judge, Steelman Coach — are roles, not domain personas; they are never selected from the pool and
+never change per topic. Because rank 1 is always inside `expert-panel`'s cut for the same text, both
+skills provably point at the same pool entry for a given claim. When nothing matches, the Attacker
+uses one ad-hoc angle and the STATE block records `adhoc` — the fallback is stated, never silent.
+
 Cycle through 4 attack vectors in order. Each round:
 
 **Role Visibility Contract** (information asymmetry by design):
@@ -164,6 +176,8 @@ Steelman v2 rules and priority examples: [reference/patterns.md](reference/patte
 Full report template and summary output mode format: [reference/patterns.md](reference/patterns.md#final-report-template)
 **Export option**: After report, offer to save via Write tool to `docs/adversarial-review/{date}-{topic}.md`.
 
+**Exported files carry the common output schema** ([../../reference/common-schema.md](../../reference/common-schema.md)): the report template's frontmatter emits the common block plus this skill's `claims_tested` / `verdicts` extension, so a downstream skill can read the verdict counts without parsing the prose body. `output.type` is `review`; `input.target` is the review target name. Emit the block on every export — an exported report without it is not machine-readable.
+
 ## STATE Block Contract
 
 > **Core Rules**: See [../../reference/state-contract.md](../../reference/state-contract.md)
@@ -174,14 +188,14 @@ Numeric fields (dimension scores, Weighted Score) serve compaction restoration a
 ```
 <!-- STATE:CHECKPOINT -->
 Target: {name} | Claims: {N} | Phase: {0|1|2}
-Current Claim: {idx}/{N} | Round: {r}/5
+Current Claim: {idx}/{N} | Round: {r}/5 | Angle: {P-id|adhoc}
 Survival: [logic:{score}%] [evidence:{score}%] [counter:{score}%] [scope:{score}%]
 Resilience: {탄탄|보통|취약} | Weighted Score: {weighted_avg}% | Attacks: {count} | Defenses: {success}/{total}
 Verdict-so-far: [claim1:survived|collapsed|pending] [claim2:...] ...
 <!-- /STATE -->
 ```
 
-Compaction: restore all dimension scores and round counters; default missing scores to 50%; resume from indicated round.
+Compaction: restore all dimension scores and round counters; default missing scores to 50%; resume from indicated round. A missing `Angle` is recovered by re-running the Selection Rule on the same Steelman text — it is deterministic, so recomputation returns the identical entry.
 
 ## Output Format
 
@@ -199,6 +213,11 @@ Compaction: restore all dimension scores and round counters; default missing sco
 | Attacker | Presents adversarial attacks in Phase 1 |
 | Judge | Independent evaluation of defense quality |
 
+These three are **fixed roles, independent of the topic** — they are not domain personas and are not
+drawn from [../../reference/personas.md](../../reference/personas.md). Only the Attacker's *domain
+angle* comes from that pool (see [Phase 1](#phase-1-attack-rounds)); the label stays `Attacker`
+regardless of which entry was selected.
+
 Round header: `[Round {r}/5 — {Vector}] Claim {idx}/{N} | Resilience: {탄탄|보통|취약}`.
 Full round display format with Judge scoring line: [reference/patterns.md](reference/patterns.md#round-display-format)
 
@@ -206,6 +225,8 @@ Full round display format with Judge scoring line: [reference/patterns.md](refer
 
 - [Attack patterns, templates & report formats](reference/patterns.md)
 - [Session example (Phase 0 → Phase 1 → Phase 2)](examples/sample.md)
+- [Shared persona pool (Attacker domain angle)](../../reference/personas.md)
+- [Common output schema (export frontmatter)](../../reference/common-schema.md)
 
 ## Korean I/O Directive
 

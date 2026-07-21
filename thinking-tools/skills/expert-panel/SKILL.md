@@ -45,22 +45,31 @@ All combinations compose silently — including any combination with citation gr
 | **Optimistic Practitioner** | Advocates benefits + feasibility | Implementation experience, delivery numbers ("3주 내 가능", "X% 개선") | Forward-leaning, solution-first |
 | **Critical Practitioner** | Identifies risk + limitations, proposes alternatives | Failure precedents, risk probabilities, tech-debt cost | Skeptical, evidence-demanding |
 
-### Variable (User-specified)
+### Variable (Selected from the shared pool)
 
 | Role | Description |
 |------|-------------|
-| **Expert Panel** | 3+ domain experts specified by user (e.g., Security, UX, Performance, Legal, LLM) |
+| **Expert Panel** | 3–5 domain experts selected from [../../reference/personas.md](../../reference/personas.md) by that file's deterministic tag-matching Selection Rule — same topic text, same panel, every run |
 
-**Important — role-prompt differentiation is the diversity source**: This panel's diversity comes from differentiated **role prompts**, not from extra spawns or higher temperature (rationale: [reference.md → 다양성 원천](reference.md)). Each role — fixed and variable — must carry a **distinct stance**, **distinct evaluation criteria** (a different measurable axis per role, e.g. Security→CVSS, Performance→p99/O(n), UX→task-completion rate), and a **distinct voice**. Roles that share the same criteria collapse into one opinion. When two roles agree too readily, re-validate the conclusion against each role's *own* criteria — easy agreement may be conformity, not aligned evidence (see Anti-conformity directive in [Phase 1](#phase-1-topic-rounds) and isolated-mode early-stop). Full per-role differentiation guidance + the rejected full-spawn-default alternative: [reference.md](reference.md).
+Run the Selection Rule per topic in Phase 0 and record the resulting IDs in the STATE block
+`Personas` field. The pool is a **default, not a closed list**: a topic matching no entry proceeds
+with ad-hoc personas labeled `{Domain} Expert (ad-hoc)`, counted in `adhoc:{n}` so the fallback is
+visible rather than silent. A user who names the experts explicitly overrides the rule — record
+that as `adhoc:{n}` for any named expert absent from the pool.
+
+**Important — role-prompt differentiation is the diversity source**: This panel's diversity comes from differentiated **role prompts**, not from extra spawns or higher temperature (rationale: [reference.md → 다양성 원천](reference.md)). Each role — fixed and variable — must carry a **distinct stance**, **distinct evaluation criteria** (a different measurable axis per role, e.g. Security→CVSS, Performance→p99/O(n), UX→task-completion rate), and a **distinct voice**. Roles that share the same criteria collapse into one opinion — for variable roles those three come pre-differentiated from the shared pool ([../../reference/personas.md](../../reference/personas.md)), so an ad-hoc persona is the only place the differentiation has to be authored per session. When two roles agree too readily, re-validate the conclusion against each role's *own* criteria — easy agreement may be conformity, not aligned evidence (see Anti-conformity directive in [Phase 1](#phase-1-topic-rounds) and isolated-mode early-stop). Full per-role differentiation guidance + the rejected full-spawn-default alternative: [reference.md](reference.md).
 
 ### Expert Selection Guide
 
+The Selection Rule already produces the panel; this guide explains what it enforces and when to
+depart from it.
+
 | Criteria | Recommendation |
 |----------|---------------|
-| Topic count | Min 3 experts, max 7 (diminishing returns beyond 7) |
-| Domain overlap | At least 1 expert per major topic area |
-| Perspective balance | Include at least 1 implementation-focused + 1 strategy-focused expert |
-| Rotation | For 5+ topics, rotate 1-2 experts per topic to maintain focus |
+| Panel size | 3–5 (the Selection Rule's floor and ceiling); above 5 the added expert repeats an existing criterion |
+| Domain overlap | Guaranteed by tag matching — each selected entry carries a distinct evaluation criterion |
+| Perspective balance | If every selected entry is implementation-focused, add one strategy-focused ad-hoc persona (counted in `adhoc:{n}`) |
+| Rotation | Automatic — the rule re-runs per topic, so a multi-topic session rotates experts by topic text, not by hand |
 
 **When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert with user confirmation.
 
@@ -89,7 +98,7 @@ When an expert states a **numeric or factual claim** (statistics, performance fi
 
 ### Phase 0: Preparation
 1. Analyze the review target → split into topics
-2. Confirm expert panel composition
+2. Run the [personas.md](../../reference/personas.md) Selection Rule on each topic's text → panel composition (confirm with the user only when they asked to pick the experts themselves)
 3. Generate discussion agenda
 
 ### Phase 1: Topic Rounds
@@ -120,6 +129,7 @@ dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). Th
 <!-- STATE:CHECKPOINT -->
 Topic: {idx}/{total} | Phase: {0|1|2} | Round: {r}/3
 Mode: [isolated:{on|off}] [summary-only:{on|off}]
+Personas: [{P-id} ...] adhoc:{n}
 Independent: {k}/{N}
 Rebuttal: [t{n}:e{i}:{k}/{N}]
 Topic-status: [t{n}:{pending|thesis-reached|antithesis-reached|synthesis-reached|consensus-reached|tie-broken}] ...
@@ -129,7 +139,7 @@ Tie-break: [used:{yes|no}] [margin:{n|—}]
 <!-- /STATE -->
 ```
 
-**Field semantics, isolated-mode multi-round loop tracking, and compaction-restore defaults**: see [reference.md → STATE Block 복원 상세](reference.md) — load it before resuming a compacted isolated-mode session. Load-bearing invariants (kept here so restore is safe even before that load): `Rebuttal` is the authoritative isolated-mode loop cursor and **wins over `Independent` on any divergence**; on compaction, restore from the most recent STATE block, defaulting missing fields to the low-loss side — Mode flags → `off` (full output), Citation → `skipped`, Topic-status → `pending`, Votes → no-consensus, `Independent → 0` (re-collect) **only while `Rebuttal` is at `e1`** (at `e2`/`e3` independent collection is already done — re-running E1 would discard rebuttal progress).
+**Field semantics, isolated-mode multi-round loop tracking, and compaction-restore defaults**: see [reference.md → STATE Block 복원 상세](reference.md) — load it before resuming a compacted isolated-mode session. Load-bearing invariants (kept here so restore is safe even before that load): `Rebuttal` is the authoritative isolated-mode loop cursor and **wins over `Independent` on any divergence**; on compaction, restore from the most recent STATE block, defaulting missing fields to the low-loss side — Mode flags → `off` (full output), Citation → `skipped`, Topic-status → `pending`, Votes → no-consensus, `Independent → 0` (re-collect) **only while `Rebuttal` is at `e1`** (at `e2`/`e3` independent collection is already done — re-running E1 would discard rebuttal progress). A missing `Personas` field is recovered by re-running the Selection Rule on the same topic text — it is deterministic, so recomputation returns the identical set (ad-hoc personas are the exception: they are session-local, so recover those from the transcript instead).
 
 **Tie-Breaking Mechanism**:
 When consensus cannot be reached after 3 rounds:
@@ -250,8 +260,11 @@ Use clean, professional formatting without emoji:
 | UX전문가 | UX Expert |
 | (기타 도메인) | {Domain} Expert |
 
+Pool-selected experts use the `Label` column of [../../reference/personas.md](../../reference/personas.md) verbatim; ad-hoc experts append ` (ad-hoc)`.
+
 ## References
 
+- **Shared persona pool**: See [../../reference/personas.md](../../reference/personas.md)
 - **Detailed procedures**: See [reference.md](reference.md)
 - **Conversation examples**: See [examples.md](examples.md)
 - **Output templates**: See `templates/` folder
