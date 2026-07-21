@@ -187,7 +187,8 @@ decision made elsewhere. This pass is what looks at the unasked.
 - Present all of them in **one** `AskUserQuestion` (multiSelect): keep or dismiss. Kept findings land in
   the Seed's `blindspots:` list; if the user answers one inline, fold that answer into the matching
   constraint or success criterion instead. No new interview round either way.
-- STATE records `blindspot_pass: {done|skipped}`. **Agent call fails** → skip silently, mark `skipped`.
+- STATE records `blindspot_pass: {done|skipped|pending}` — `pending` until the gate opens, then `done`,
+  or `skipped` when the `Agent` call fails (skip silently in that case).
 
 ### Phase 3: Seed Emit
 
