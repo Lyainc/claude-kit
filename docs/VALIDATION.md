@@ -156,6 +156,14 @@ bash feedback-loop/scripts/test/test-event-logger.sh
 bash feedback-loop/scripts/test/test-retro-telemetry.sh
 # Expected: OK: all retro-telemetry cases passed
 
+# events-dir resolution regression gate. The fallback was once plain `$PWD`, so a
+# hook firing from a subdirectory built its own .claude-kit/telemetry/ there (5 stray
+# copies accumulated, one under .github/ISSUE_TEMPLATE/). The rule is duplicated
+# across 4 leaf-standalone scripts, so this asserts all of them together — a partial
+# revert would silently split writers from readers.
+bash feedback-loop/scripts/test/test-events-dir-resolution.sh
+# Expected: OK: all events-dir resolution cases passed
+
 # add-policy layer-routing regression (G28 — add-policy is a prose skill, so this is a
 # static-content check on the live SKILL.md: the SOFT reminder channel is routed by layer
 # (stance/voice→~/.claude/CLAUDE.md, work-rule→~/.claude/rules) with a vanilla fallback

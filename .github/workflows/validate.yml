@@ -134,6 +134,7 @@ jobs:
           python3 feedback-loop/scripts/test/test-report.py
           bash feedback-loop/scripts/test/test-event-logger.sh
           bash feedback-loop/scripts/test/test-retro-telemetry.sh
+          bash feedback-loop/scripts/test/test-events-dir-resolution.sh
           # G28 add-policy layer-routing (SOFT channel by layer + vanilla fallback).
           python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-routing.py
