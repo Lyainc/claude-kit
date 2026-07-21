@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -28,8 +29,19 @@ def resolve_events_dir() -> Path:
     env = os.environ.get("CLAUDE_KIT_TELEMETRY_DIR")
     if env:
         return Path(env)
-    proj = os.environ.get("CLAUDE_PROJECT_ROOT") or os.getcwd()
+    proj = os.environ.get("CLAUDE_PROJECT_ROOT") or _git_toplevel() or os.getcwd()
     return Path(proj) / ".claude-kit" / "telemetry" / "events"
+
+
+def _git_toplevel() -> str | None:
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return out.stdout.strip() or None
+    except Exception:
+        return None
 
 
 EVENTS_DIR = resolve_events_dir()

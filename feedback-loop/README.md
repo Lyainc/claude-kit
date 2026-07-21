@@ -73,8 +73,9 @@ ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
 ```
 
 - `CLAUDE_KIT_TELEMETRY_DIR` — explicit override (highest priority).
-- otherwise `${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events` (falls back to
-  the current working directory when `CLAUDE_PROJECT_ROOT` is unset).
+- otherwise `${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events` (falls back to the
+  git toplevel, then the CWD, when `CLAUDE_PROJECT_ROOT` is unset — plain CWD would
+  scatter event dirs across subdirectories when a hook fires from one).
 
 `.claude-kit/` is gitignored, so events are never committed.
 
