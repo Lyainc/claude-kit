@@ -124,7 +124,7 @@ verdicts:
   survived: {N}
   collapsed: {N}
   pending: {N}
-angle: {P-id|adhoc}        # Attacker domain angle (reference/personas.md rank 1)
+angle: {P-id|adhoc}        # Attacker domain angle — thinking-tools/reference/personas.md rank 1
 ---
 
 ## Adversarial Review Report

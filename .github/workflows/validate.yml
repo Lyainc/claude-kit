@@ -171,6 +171,8 @@ jobs:
           # #228 — guards the "all combinations compose silently" claim in expert-panel SKILL.md.
           python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
           python3 thinking-tools/scripts/test/test-mode-compose.py
+          python3 thinking-tools/scripts/test/test-persona-selection.py --self-test
+          python3 thinking-tools/scripts/test/test-persona-selection.py
           echo "expert-panel mode-compose OK"
 
       - name: Run session-start onboarding hook regression
