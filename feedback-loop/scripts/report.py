@@ -15,6 +15,7 @@ import argparse
 import json
 import math
 import os
+import subprocess
 import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
@@ -30,13 +31,26 @@ def resolve_events_dir() -> Path:
 
     Single shared rule (mirrors event-logger.sh + retro):
         ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
-    CLAUDE_PROJECT_ROOT falls back to CWD when unset (CLI / test invocation).
+    CLAUDE_PROJECT_ROOT falls back to the git toplevel, then CWD (CLI / test
+    invocation). Plain CWD alone reads the wrong dir when invoked from a
+    subdirectory — the same slip that scattered write-side dirs across 5 subdirs.
     """
     env = os.environ.get("CLAUDE_KIT_TELEMETRY_DIR")
     if env:
         return Path(env)
-    proj = os.environ.get("CLAUDE_PROJECT_ROOT") or os.getcwd()
+    proj = os.environ.get("CLAUDE_PROJECT_ROOT") or _git_toplevel() or os.getcwd()
     return Path(proj) / ".claude-kit" / "telemetry" / "events"
+
+
+def _git_toplevel() -> str | None:
+    try:
+        out = subprocess.run(
+            ["git", "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=5,
+        )
+        return out.stdout.strip() or None
+    except Exception:
+        return None
 
 
 EVENTS_DIR = resolve_events_dir()
