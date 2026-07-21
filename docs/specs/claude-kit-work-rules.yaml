@@ -22,7 +22,7 @@ refine_generation: 1   # v1 = 플러그인화 전제. v2(this) = adversarial-rev
 # ── refine 사유 ──────────────────────────────────────────────
 # v1(플러그인 엔진 + 3층 + 통합 루프)이 adversarial-review에서 thin harness 정합성에
 # 붕괴(C5 collapsed). + 사용자가 OMC 의존 제거를 요구. 두 힘이 설계를 minimal core로
-# 축소시킴. 전체 트레일: docs/adversarial-review/2026-06-12-work-rules-minimal-core.md
+# 축소시킴. 전체 트레일: work-rules-minimal-core 어드버서리얼 리뷰(2026-06-12) — 비커밋 로컬 작업물
 # ─────────────────────────────────────────────────────────────
 
 goal:

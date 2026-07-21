@@ -34,6 +34,9 @@ def resolve_events_dir() -> Path:
 
 
 def _git_toplevel() -> str | None:
+    # Deliberately duplicated in report.py. feedback-loop scripts are standalone
+    # entrypoints (CON-5 leaf-standalone) — no shared module exists to import, and
+    # adding one for 10 lines would break that convention.
     try:
         out = subprocess.run(
             ["git", "rev-parse", "--show-toplevel"],
