@@ -85,7 +85,7 @@ where it was first noticed. A root cause usually has several downstream expressi
 one and leaving siblings inconsistent is how the *next* repeat is born.
 
 - Enumerate every artifact touched by this cause (all plugins, both `plugin.json` and
-  `marketplace.json`, every doc/mirror pair such as CLAUDE.md ↔ AGENTS.md, every fixture).
+  `marketplace.json`, every doc/mirror pair such as a SKILL.md ↔ its README row, every fixture).
 - Fix them to a single consistent state.
 - Prefer reusing an existing mechanism over inventing one. If a `scripts/check-*.py` already
   owns this domain, *tighten* it rather than adding a parallel checker.

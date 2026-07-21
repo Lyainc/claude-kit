@@ -2,8 +2,6 @@
 
 This file provides guidance to Claude Code when **developing/contributing to this repository**. Runtime behavior rules (how Claude should act when these plugins are active in external projects) live in each plugin's agent/skill `description` fields, which are the single source of truth for runtime delegation.
 
-Codex/OMX parity note: the Codex-active migration of this root guidance lives in `AGENTS.md`, with the surface-by-surface parity matrix in `docs/codex-claude-parity.md`.
-
 Design Principles & boundary: the single source of truth for the claude-kit↔harness boundary (evolutionary boundary A), the 5-layer model, and the one-way dependency rule is `docs/design/claude-kit-boundary.md`.
 
 ## Project Overview
@@ -31,7 +29,7 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 - **Chained PRs** (child PR base = parent's feature branch):
   - Before merging parent with `--delete-branch`: update child's base to `main` first (`gh pr edit <child> --base main`). GitHub auto-closes PRs whose base branch is deleted, and closed PRs cannot have their base changed — recreate the PR instead.
   - After parent rebase-merges, child branch likely has SHAs that diverged from main (rebase merge rewrites them). Rebase locally with `git rebase --onto origin/main <old-parent-tip>` to drop the now-duplicate commits, then `git push --force-with-lease`.
-- **WIP across rebases**: stash unrelated WIP (`.gitignore`, `AGENTS.md`, untracked files etc.) with `git stash push -u -m <msg> -- <paths>` before rebasing, restore after. Rebasing with a dirty tree fails.
+- **WIP across rebases**: stash unrelated WIP (`.gitignore`, untracked files etc.) with `git stash push -u -m <msg> -- <paths>` before rebasing, restore after. Rebasing with a dirty tree fails.
 - **PR descriptions**: Korean. Reference the master plan or vault spec when applicable so the trail stays searchable.
 
 ## Language Policy
@@ -78,11 +76,12 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── skills/                          # retro (#123 — E8 승격 + 3갈래 출력 + dedup + 회고예산)
 │   ├── scripts/                         # telemetry: event-logger.sh, report.py, sequence.py, validate-schema.py, plugin-map.json + test/
 │   └── README.md                        # measure→review→keep, opt-in·local-only·per-turn LLM 0
-├── docs/
-│   ├── design/                          # 설계 문서
-│   └── discussions/                     # 의사결정 토론 transcripts (`YYYYMMDD_topic/`)
+├── docs/                                # 살아있는 계약만 — 완료된 계획·죽은 설계는 삭제(근거는 GitHub 이슈)
+│   ├── design/                          # 현행 설계 계약 (boundary SSOT, 어댑터 계약, vault v4/v5, 4-흐름)
+│   ├── specs/                           # spec-first Seed (YAML)
+│   ├── VALIDATION.md                    # 검증 명령 단일 출처 (CI가 이 파일을 읽음)
+│   └── discussions/                     # 스킬이 쓰는 로컬 워킹 드래프트 (gitignored)
 ├── CLAUDE.md
-├── AGENTS.md                            # Codex/OMX parity (canonical: CLAUDE.md, mirror: AGENTS.md)
 └── README.md
 ```
 
