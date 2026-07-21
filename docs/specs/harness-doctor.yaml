@@ -144,11 +144,11 @@ success_criteria:
 
   - id: ac5
     description: >-
-      추상 규칙이 local-harness rules/ 카탈로그에 P11로 등재되고, README 표에서
+      추상 규칙이 local-harness rules/ 카탈로그에 P12로 등재되고, README 표에서
       참조된다.
     verifiable: true
     measurable_via: >-
-      rules/policies/P11.md 존재 + rules/README.md 정책 표에 행 추가 +
+      rules/policies/P12.md 존재 + rules/README.md 정책 표에 행 추가 +
       Layer/Tier/Scope 기재 (work-rule / HARD-candidate / broad).
 
 context:
@@ -162,8 +162,8 @@ context:
     - 각 도구 패키지의 템플릿 원본 (해시 대조의 기준값)
   integration_points:
     - ~/.claude/settings.json hooks.SessionStart (5번째 훅으로 등록)
-    - rules/README.md 정책 표 (P11 행)
-    - rules/policies/P11.md (신규)
+    - rules/README.md 정책 표 (P12 행)
+    - rules/policies/P12.md (신규 — P11은 'destructive git ops auto-stash'가 선점, 2026-07-22 확인)
 
 # 명시적 비목표 (스코프 크립 방지)
 non_goals:
