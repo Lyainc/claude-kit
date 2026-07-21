@@ -276,7 +276,7 @@ wiki에는 쓰지 않는다. 이 레포에 안 묶인 판단(범용 방법론 �
 
 ## 12. 보류분 결정 (DECISION.md "보류" 2건 통합)
 
-- **save-session → inbox/ writer 유지, 단 재정정(2026-07-08, `docs/specs/save-session-ore-repurpose.yaml` D1).** record/quick
+- **save-session → inbox/ writer 유지, 단 재정정(2026-07-08 D1, 커밋 `f59f580`; 이후 #331로 커맨드 자체 retire).** record/quick
   모드와 `type: session` 산출은 폐기됐고, `/save-session`은 이제 `type: capture`를 inbox/에 씀(raw, `/capture`와
   동일 산출물). B(인간 검증 durable)가 아닌 건 그대로 — B 직행하면 "덤프 파이프"가 B로 부활 → **inbox/ 운반
   유지**(③ delivery CON-1 어댑터) 원칙은 안 바뀌었고, 내용은 Model X(access_count 기준)로 promotion 후보로
