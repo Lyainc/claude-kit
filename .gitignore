@@ -28,67 +28,7 @@ local/
 .local/
 .test/
 
-# Claude Code local settings (user-specific, not shared)
-.claude/
-
-# Gemini CLI local state/temp files
-.gemini/
-
-# OMX runtime state (local-only, regenerable)
-.omx/
-
-# Codex / OMX project surfaces (local-only, not shared via this repo)
-
-# Gemini CLI integration metadata (local-only)
-GEMINI.md
-
-# Graphify output (regenerable analysis artifacts, any depth)
-graphify-out/
-
-# Telemetry — feedback-loop events are local dogfooding data (user-writable dir).
-# The events output path is ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
-# which already falls under the .claude-kit/ ignore below; config/scripts stay tracked.
-
-# Serena IDE context provider
-.serena/
-
-# Conductor local config
-.conductor/
-
-# Vault bridge local path pointers (personal machine paths, not shared)
-.vault-link
-.vault-link.local
-
-# Local-only .claude-kit/ scratch: vault-bridge resume.md (ephemeral handoff) +
-# feedback-loop telemetry events (.claude-kit/telemetry/events/, opt-in dogfooding data).
-.claude-kit/
-
-# Sensitive or temporary documents (docs/ is now tracked by default)
-# Add specific files here if needed, e.g.:
-.antrophics_official_skills/
-.anthropics_official_skills/
-docs/private/
-
-# Decision/discussion trails are NOT committed — GitHub issues are the canonical
-# decision record (handoff + backlog + task list). These dirs are local working
-# material; provenance pointers in issues mark them "(local, untracked)".
-# NOTE: ~104 files already tracked under these dirs are a legacy bulk-import
-# (commit abc4f36, 2026-06-05); kept for history (no rewrite), no new files added.
-# Carve-outs that DO get committed: docs/design/ (living contracts), docs/plans/
-# (master plans), docs/specs/ (spec-first Seeds — refine re-input artifacts).
-docs/discussions/
-docs/adversarial-review/
-docs/discovery/
-
-# Exception to the docs/plans/ "master plans get committed" carve-out above:
-# goal-doc (the /goal-input planning format) was retired 2026-06-29 (#282/#283) —
-# native /goal + narrative START-PROMPT replaced it. G1-G18 + README already
-# tracked before this line are kept as historical record (untouched, no
-# retroactive untrack). This line only stops any NEW file under this dir from
-# ever entering git — the concept is dead, nothing new should be committed here.
-docs/plans/goal-docs/
-
-# Python bytecode (generated when scripts are imported, e.g. during local testing)
+# Python bytecode / tool caches
 __pycache__/
 *.pyc
 .pytest_cache/
@@ -96,11 +36,36 @@ __pycache__/
 .ruff_cache/
 .venv/
 venv/
-.codex/*
-!.codex/agents/
-!.codex/agents/**
-!.codex/skills/
-!.codex/skills/**
-.codex/skills/.system/**
-!.codex/prompts/
-!.codex/prompts/**
+
+# Per-tool local state (user-specific or regenerable, never shared).
+# .claude/ = Claude Code local settings; .claude-kit/ = vault-bridge scratch +
+# feedback-loop telemetry events; graphify-out/ = regenerable analysis output.
+.claude/
+.claude-kit/
+.gemini/
+GEMINI.md
+.serena/
+.conductor/
+.codex/
+.omx/
+.omc/
+graphify-out/
+.anthropics_official_skills/
+
+# Vault bridge local path pointers (personal machine paths, not shared)
+.vault-link
+.vault-link.local
+
+# docs/ is tracked by default. Exceptions below.
+docs/private/
+
+# Skill working-draft output — GitHub issues are the canonical decision record,
+# so these trails stay local. Written by expert-panel (discussions/),
+# adversarial-review, and unknown-discovery (discovery/), so they keep reappearing.
+docs/discussions/
+docs/adversarial-review/
+docs/discovery/
+
+# goal-doc planning format, retired 2026-06-29 (#282/#283) — native /goal +
+# narrative START-PROMPT replaced it. Nothing new should land here.
+docs/plans/goal-docs/

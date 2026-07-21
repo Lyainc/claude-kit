@@ -1,0 +1,161 @@
+---
+# Output conforms to thinking-tools/reference/common-schema.md
+skill: build-spec
+schema_version: 1
+version: 4.0.1
+generated: 2026-07-21
+input:
+  target: build-spec-workflow-integration
+  options: []
+output:
+  type: spec
+  structure: templates/SEED_SPEC.yaml
+
+# build-spec extensions
+spec_version: 1
+created: 2026-07-21
+target: build-spec-workflow-integration
+domain: tech
+brownfield: true
+refine_generation: 0
+
+goal:
+  statement: >
+    build-spec이 Seed를 GitHub 이슈 본문으로 내보내고, 그 저작 과정에서 맹점 패스와
+    독립 게이트 판정과 백로그 조회를 거치게 해서, #282 CUT 이후 하류를 잃은 저작기에
+    실사용 소비자를 붙인다. 수혜자는 이 레포에서 이슈를 여는 사람과, native /goal로
+    스펙 주도 작업을 하는 외부 사용자.
+  clarity_score: 0.90
+
+constraints:
+  - id: c1
+    type: technical
+    description: >
+      새 플러그인이나 새 스킬을 신설하지 않는다. 네 변경 모두 기존 build-spec
+      스킬 안에 얹는다.
+    hard: true
+    rationale: >
+      #102 ADR의 C-2(thin 신규 플러그인 금지). 새 스킬을 만들면 #113의
+      "3번째 저작 primitive → doc-authoring 플러그인 신설" 트리거가 발동해
+      #140과 정면 충돌한다. 기존 스킬에 얹으면 충돌 자체가 발생하지 않는다.
+
+  - id: c2
+    type: technical
+    description: >
+      Seed 코어는 특정 실행 런타임을 가정하지 않는다. Phase 3의 산출물은
+      지금처럼 포터블한 YAML로 남는다.
+    hard: true
+    rationale: >
+      SKILL.md Phase 4 원문이 지목하는 vendor-neutral의 실제 대상이 execution
+      runtime이다. 이 제약은 유지된다.
+
+  - id: c3
+    type: other
+    description: >
+      이슈 트래커 중립성은 제약이 아니다. GitHub 이슈 저작을 어댑터로 붙이는 것은
+      기존 계약 위반이 아니다.
+    hard: false
+    rationale: >
+      2026-07-21 재검토 결과. docs/design/output-adapter-contract.md §2 row 8이
+      이미 `issue` 포맷과 `github` destination을 등록했고, 같은 행이 "본문 저작은
+      gap → §4 issue-authoring"으로 이 자리를 비워둔 것으로 명시한다. vendor-neutral
+      원칙을 이슈 트래커까지 확장 적용한 것은 범위 혼동이었다.
+
+  - id: c4
+    type: technical
+    description: >
+      인터뷰 라운드 수를 늘리지 않는다. 맹점 패스는 게이트 통과 직후 Seed 방출 직전
+      1회로 고정한다.
+    hard: true
+    rationale: >
+      12라운드 상한이 이미 있고, 인터뷰가 길어지면 실사용에서 버려진다. 게이트 전에
+      맹점 패스를 넣으면 라운드가 두 배가 되고, 게이트 후 1회는 선명해진 스펙을
+      입력으로 받아 질문이 더 날카로워진다.
+
+  - id: c5
+    type: resource
+    description: >
+      게이트 독립 판정은 매 라운드가 아니라 게이트가 열릴 것 같은 라운드에만 건다.
+    hard: false
+    rationale: >
+      서브에이전트 spawn 비용. vault plan-2026-04-19-thinking-tools-ouroboros-execution
+      §13이 같은 완화책(기본 저비용 + 고비용은 opt-in)을 이미 채택했다.
+
+  - id: c6
+    type: technical
+    description: >
+      기존에 등록된 가드와 테스트를 깨뜨리지 않는다.
+    hard: true
+    rationale: 불변 제약. scripts/check-*.py 전수가 회귀 신호다.
+
+success_criteria:
+  - id: ac1
+    description: >
+      고친 build-spec으로 새 이슈를 하나 저작해 gh issue create까지 완료하고,
+      그 이슈 URL이 존재한다.
+    verifiable: true
+    measurable_via: >
+      이슈 URL 하나. 한 번의 도구 호출로 반증 가능(#285 L1). 이 증거 하나가 네 변경
+      전부의 통과를 함의한다 — 어댑터가 없으면 본문이 안 나오고, 맹점 패스와 독립
+      판정이 없으면 게이트가 안 열리고, 백로그 조회가 없으면 충돌 기록이 비어 있다.
+
+  - id: ac2
+    description: >
+      그 이슈 본문에 Seed의 goal / constraints / success_criteria가 각각 배경·스코프 /
+      제약 / Acceptance로 매핑돼 있다.
+    verifiable: true
+    measurable_via: 이슈 본문과 Seed YAML 대조
+
+  - id: ac3
+    description: >
+      저작 과정에서 Phase 0이 열린 이슈 백로그를 조회했고, 기존 이슈와의 충돌 또는
+      무충돌 판정이 본문에 기록됐다.
+    verifiable: true
+    measurable_via: 이슈 본문의 기존 이슈 참조 항목 존재 여부
+
+  - id: ac4
+    description: >
+      게이트 판정이 격리 서브에이전트에서 나왔고 STATE 블록에 그 사실이 기록됐다.
+    verifiable: true
+    measurable_via: STATE 블록의 판정 출처 필드
+
+  - id: ac5
+    description: 등록된 가드와 테스트가 전수 통과한다.
+    verifiable: true
+    measurable_via: scripts/check-test-exitcode.py 단일 exit code
+
+context:
+  existing_stack:
+    - thinking-tools/skills/build-spec (SKILL.md, reference.md, templates/)
+    - gh CLI (이슈 생성)
+    - thinking-tools/skills/unknown-discovery (맹점 패스 재사용)
+    - Agent tool (격리 판정 서브에이전트)
+  dependencies:
+    - docs/design/output-adapter-contract.md §2 row 8 — issue 포맷·github destination 계약
+    - docs/design/claude-kit-boundary.md §3 — leaf 내부 스킬 간 호출 허용 근거
+    - rules/RULES.md §3 — haiku verifier 유예 조항, 이 이슈가 승격 조건 충족 사례
+  integration_points:
+    - Phase 0 — 백로그 조회 추가
+    - Phase 2 — 게이트 판정 격리
+    - Phase 3 직전 — 맹점 패스 1회
+    - Phase 3 이후 — 이슈 출력 어댑터 (신규 계층)
+
+ambiguity:
+  overall: 0.10
+  gate_passed: true
+
+clarity_breakdown:
+  goal: 0.90
+  constraint: 0.90
+  success: 0.90
+  context: 0.90
+
+metadata:
+  interview_rounds: 2
+  questions_asked: 4
+  generated_by: thinking-tools/build-spec
+  source_session: >
+    2026-07-21. 워크플로 5개 논점 분석 → adversarial-review(session-close 승격,
+    survived 65%) → 이 Seed. 논점 1·2·4를 P9 응집 단위로 묶은 결과.
+    관련 이슈 #140 #113 #285 #217, vault ouroboros 리서치 3건(W1/W2/§6.3).
+---
