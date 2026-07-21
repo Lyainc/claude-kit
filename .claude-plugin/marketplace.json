@@ -1,6 +1,6 @@
 {
   "name": "Lyainc-claude-kit",
-  "version": "4.0.1",
+  "version": "4.1.0",
   "description": "Claude Code productivity toolkit marketplace",
   "owner": {
     "name": "Lyainc",
@@ -12,7 +12,7 @@
   "plugins": [
     {
       "name": "thinking-tools",
-      "version": "4.0.1",
+      "version": "4.1.0",
       "description": "Claude Code thinking-tools plugin: 7 skills for structured reasoning, debate, document polish, blind-spot detection, and idea crystallization, plus a thinking-facilitator agent.",
       "author": {
         "name": "Lyainc",
@@ -37,7 +37,7 @@
     },
     {
       "name": "obsidian-vault-manager",
-      "version": "4.0.1",
+      "version": "4.1.0",
       "description": "Obsidian vault knowledge management plugin (v4/v5): capture / note / wiki / audit / base skills + 2 agents for a minimal second-brain workflow. wiki compiles learned domain knowledge into the AI-recall-primary vault/wiki/ A layer (gated explicit action, provenance-tracked; v5). audit detects E1–E12 structural defects (incl. E9 tag/property vocabulary) and promotion candidates. base generates non-destructive Obsidian Bases (.base) views. type-optin; ovm-primitives shell API.",
       "author": {
         "name": "Lyainc",
@@ -74,7 +74,7 @@
     },
     {
       "name": "vault-bridge",
-      "version": "4.0.1",
+      "version": "4.1.0",
       "description": "Obsidian vault ↔ project bridge for Claude Code: manifest cache, haiku read-only vault-searcher agent (read/write asymmetry — vault reads delegable, writes are main-context only via the Write Role Contract), main-context write-primitive skills (/vault-link, /vault-commit, /vault-manifest-refresh), and deterministic no-LLM SessionStart/PreToolUse hooks, with .vault-link project binding.",
       "author": {
         "name": "Lyainc",
@@ -100,7 +100,7 @@
     },
     {
       "name": "feedback-loop",
-      "version": "4.0.1",
+      "version": "4.1.0",
       "description": "claude-kit self-improvement loop (layer ⑤, measure→review→keep — NOT an execution/iteration engine): the retro skill re-confirms vault promotion candidates (audit E8) behind a user-confirmed gate and routes findings to action/memory/rule outputs, the distill skill (SIS-derived) user-confirms distillation of reusable procedural techniques from a session into a natural-language proposal (the discovery half of the loop), and the add-policy skill is the landfill half — it classifies one natural-language rule (user-stated or a distill proposal) and lands it in one of three native sites (a layer-routed reminder — `~/.claude/CLAUDE.md` or `~/.claude/rules` — a deterministic hook guard, or an invocable skill) behind a 1-click confirmation, machine-neutral and never committing. All on top of an opt-in local telemetry logger (deterministic event-logger hooks, zero per-turn LLM cost — CON-2). Telemetry is OFF unless CLAUDE_KIT_TELEMETRY=1: the hooks invoke each session but silent-exit without it (no data written, nothing transmitted off-machine). When enabled, events append to a user-writable local dir only. One-way dependency (CON-5): feedback-loop reads leaf OUTPUT (audit findings / vault manifest / telemetry events) and never imports leaf code; no leaf depends back on it.",
       "author": {
         "name": "Lyainc",
