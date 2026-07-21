@@ -14,8 +14,7 @@ audiences:
 
 # Thinking-Tools Improvement Matrix
 
-출처: ouroboros-integration 토론(2026-04-19 frozen) — 토론 문서는 로컬 작업물이라 비커밋이고,
-어느 fresh clone에서도 안 열려요. 아래 W/M 표가 그 논의의 살아남은 기록이에요.
+출처: ouroboros-integration 토론(2026-04-19 frozen, 비커밋 로컬 작업물) — 아래 W/M 표가 그 논의의 살아남은 기록이에요.
 
 W(약점) 섹션은 contributor 전용 — 구현 부채 추적.
 M(방향성) 섹션은 user + contributor — 중장기 전략 방향.
