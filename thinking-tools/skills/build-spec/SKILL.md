@@ -221,11 +221,16 @@ ends at Phase 3, exactly as before.
 | Seed field | Issue section |
 |---|---|
 | `goal.statement` + `context.existing_stack` | `## 배경` |
-| `context.integration_points` | `## 스코프` (one row per integration point) |
+| `context.integration_points` | `## 스코프` — one row per integration point |
 | `constraints[]`, `hard: true` first, each with its `rationale` | `## 제약` |
 | `success_criteria[]` | `## Acceptance` — one `- [ ]` per criterion, `measurable_via` inline |
 | `context.backlog_scan` + `context.dependencies` | `## 의존 / 참조` — conflicting issues as `#N` so GitHub back-links them, or the explicit no-conflict verdict |
-| `blindspots[]` kept in Phase 2.5 | `## 열린 질문` — omit the whole section when empty |
+| `blindspots[]` kept in Phase 2.5 | `## 열린 질문` |
+
+**Omit any section whose source field is empty**, heading included — an empty `## 스코프` or
+`## 의존 / 참조` is the normal greenfield case (`context.*` is brownfield-only), and `## 열린 질문`
+is empty whenever the blind-spot pass found nothing or was skipped. A rendered-but-empty heading
+reads as "we looked and there was nothing", which is a different claim from "this does not apply here".
 
 Show the assembled body and get approval before creating anything, then
 `gh issue create --title "{target}" --body-file <path>`. Report the returned URL.
