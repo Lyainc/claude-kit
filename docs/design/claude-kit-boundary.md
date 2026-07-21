@@ -39,8 +39,8 @@ claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`
 > 명시해요. 그리고 A-only 재설계 이후 브리지 정체성은 **pull-mostly**로 바뀌어요 — repo→vault로
 > 문서를 복사해 나르는 ferry(원본이 바뀌면 drift하는 stale 원인, G21/G24/G26으로 이미 대부분 철거)는
 > 금지, repo-세션에서 사실을 우려내는 wiki compile(mirror가 없어 구조상 drift 불가)은 유지, A↔B(wiki↔
-> second brain) 연동은 링크only(복사 금지)예요. 근거: `docs/design/vault-role-redefinition-draft.md`
-> (retired, 판정 evidence trail 보존).
+> second brain) 연동은 링크only(복사 금지)예요. 근거: #304 (판정 근거였던
+> `vault-role-redefinition-draft.md`는 승격 완료 후 삭제 — 이 문서가 SSOT).
 >
 > **`/vault-link` 판정 (#304 L1)**: **유지한다 (제거하지 않음)**. 애초 가설은 "서브폴더 배치용이라
 > 사서 관심사, 진짜 볼트-선택 라우팅은 미구현이라 A-only엔 불필요"였지만, 코드 확인 결과 틀렸어요 —
@@ -57,8 +57,7 @@ claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`
 > 나왔던 "`/save-session`은 B층 자기 목적으로 독자 생존한다"는 별도 결론은 **뒤집혔어요** — owner
 > 승인(`docs/specs/save-session-ore-repurpose.yaml` c9)으로 `/save-session`이 session-note 저작을
 > 그만두고 session 요약을 `type:capture`로 `inbox/`에 적재하는 캡처 문으로 재목적화됐어요(`/capture`와
-> 동일한 원석 산출물). 상세 근거·재정정 텍스트: `docs/design/vault-role-redefinition-draft.md` L122-126
-> 근처. 출력 어댑터 매핑도 같이 갱신됨 — `docs/design/output-adapter-contract.md` §2 row #5.
+> 동일한 원석 산출물). 상세 근거·재정정 텍스트: #304 논의 + 위 spec c9. 출력 어댑터 매핑도 같이 갱신됨 — `docs/design/output-adapter-contract.md` §2 row #5.
 
 **§2.5 — ⑤ 슬라이스 루프 완료조건 계약 (#285)**: 슬라이스 루프 입력인 START-PROMPT(session-close ④가 저작, 이 레포 외부)는 native `/goal` 평가자가 판정해요. 그 평가자는 **대화에 surfaced된 증거로만 완료를 판정**하고 파일·명령을 독립 실행하지 않아요([공식](https://code.claude.com/docs/en/goal)). 따라서 START-PROMPT의 `완료조건`은 surfaced-evidence 3레버(L1 단일 도구호출 반증 · L2 독립 리뷰 게이트 · L3 auto mode+턴 상한)를 만족해야 평가 가능해요 — 표준 정본은 #285.
 

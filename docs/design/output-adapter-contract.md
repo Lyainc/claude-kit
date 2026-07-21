@@ -1,19 +1,19 @@
 # 출력 어댑터 계약 — 균일 호출 인터페이스 + 포맷×동작 매핑 + net-new gap
 
 **Status**: design · **Created**: 2026-06-04 · **Issue**: #101 · **Epic**: #108
-**선행**: #99(경계 A — `docs/design/claude-kit-boundary.md`), #100(`docs/design/goal-doc-spec.md` §3.5 산출 체이닝)
-**하류 소비처**: #102(출력 레이어 물리 구조 — 이 *논리* 계약을 입력) · #103/#104(② 출력 레이어 조립) · #122 Gap-ROUTE(라우터가 이 어댑터로 슬라이스를 위임) · #133(`docs/design/execution-skill-inventory.md` — issue-authoring 경계)
-**Source**: `docs/discussions/20260602_claude-kit-layer-redesign/SUMMARY.md` C-5(신설 최소화 만장일치) · `docs/plans/goal-docs/G2-goal-doc-output-contract.md` S3(어댑터 슬라이스) · `docs/design/goal-doc-spec.md` §3.5
+**선행**: #99(경계 A — `docs/design/claude-kit-boundary.md`)
+**하류 소비처**: #102(출력 레이어 물리 구조 — 이 *논리* 계약을 입력) · #103/#104(② 출력 레이어 조립) · #122 Gap-ROUTE(라우터가 이 어댑터로 슬라이스를 위임) · #133(issue-authoring 경계)
+**Source**: #108 레이어 재설계 논의 C-5(신설 최소화 만장일치) · G2 어댑터 슬라이스 · goal-doc-spec §3.5
 
 > **위치(논리 계약, 물리 구조 아님)**: 이 문서는 슬라이스가 출력 스킬을 *어떻게 균일하게 호출하는지*의 **논리적 계약**만 정의해요. ②를 단일 플러그인으로 묶을지 분산할지의 **물리 구조 확정은 #102(G3 wave)** 게이트라 여기서 안 다뤄요(계약은 구조 독립적 — #101 Acceptance는 #102 결정 없이 충족). 헌법(CON-*)/정책(POL-*) 규칙은 `docs/design/claude-kit-boundary.md`가 단일 출처고, 이 문서는 그걸 **참조만** 하고 재정의하지 않아요.
 
-> **`goal-doc-spec.md` 인용 주의 (2026-06-29 CUT)**: 위 **선행**·**Source**가 가리키는 `docs/design/goal-doc-spec.md`는 자체 하네스 철회(#282/#283, `claude-kit-boundary.md` §1)로 삭제됐어요. 이 문서 자체(어댑터 계약)는 지금도 유효하고 CLAUDE.md가 여전히 참조하는 현재 문서지만, `goal-doc-spec.md`를 향한 인용은 더 이상 열리는 파일이 없는 역사 참조로만 읽으세요.
+> **삭제된 문서 인용 주의**: 본문이 인용하는 `goal-doc-spec.md`(#282/#283 하네스 철회로 2026-06-29 삭제) · `execution-skill-inventory.md` · `omc-to-native-substrate.md` · G2 goal-doc · 레이어 재설계 토론 문서는 **더 이상 열리는 파일이 없어요**(2026-07-21 정리). 이 문서 자체(어댑터 계약)는 지금도 유효하고 CLAUDE.md가 참조하는 현행 문서예요 — 위 인용들은 논증의 출처 표시로만 읽고, 근거가 필요하면 함께 적힌 이슈 번호로 찾으세요.
 
 ---
 
 ## 0. 이 계약이 푸는 문제 — 왜 어댑터인가
 
-claude-kit ②(결정화·출력) 레이어의 출력 자산은 **이질적**이에요. graphify는 다단계 파이프라인 커맨드, `note`/`save-session`은 user-initiated 슬래시 커맨드, doc-concretize/doc-polish/build-spec는 모델 호출 스킬, gh는 셸 CLI예요. 입력도 제각각(폴더 경로 / 토픽 문자열 / 직전 산출물 / 구조화 Seed)이고 출력 목적지도 제각각(repo-local / vault / GitHub / stdout)이에요.
+claude-kit ②(결정화·출력) 레이어의 출력 자산은 **이질적**이에요. graphify는 다단계 파이프라인 커맨드, `note`/`capture`는 user-initiated 슬래시 커맨드, doc-concretize/doc-polish/build-spec는 모델 호출 스킬, gh는 셸 CLI예요. 입력도 제각각(폴더 경로 / 토픽 문자열 / 직전 산출물 / 구조화 Seed)이고 출력 목적지도 제각각(repo-local / vault / GitHub / stdout)이에요.
 
 goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: <skill>` 한 줄로 가리키는데, **그 바인딩이 가리키는 호출 계약이 없으면 표기법이 공허**해요(G2 배경 §). 그래서 가치는 **신규 스킬이 아니라 "어떤 출력이든 균일하게 호출하는 어댑터 계약"**이에요 — SUMMARY.md **C-5 만장일치**:
 
@@ -56,8 +56,8 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 `destination = vault`인 어댑터(note·session)는 **항상 `status: gated`로 시작**해요. 근거는 `claude-kit-boundary.md`의 헌법 규칙이고 여기서 재정의하지 않아요:
 
-- **CON-1**(vault writes: new-file-only, user-initiated slash command only) → vault 목적지 어댑터는 서브에이전트가 자동 호출 불가. 라우터는 어댑터를 *준비*시키되 쓰기는 메인 컨텍스트 슬래시 커맨드(`/note`·`/save-session`)로만 개시. 어댑터 반환 `status: gated`가 이 경계의 런타임 표식.
-- **CON-3**(self-approval 금지) → 출력이 *critique/검증* 산출일 때 저작≠리뷰 분리. 단 이건 ⑤ 실행/게이트 영역(`omc-to-native-substrate.md` §4.2 Gap-INV)이지 출력 어댑터 영역이 아니에요 — 이 문서는 *출력*만 다루고 critique 격리는 #122/#134로 위임.
+- **CON-1**(vault writes: new-file-only, user-initiated slash command only) → vault 목적지 어댑터는 서브에이전트가 자동 호출 불가. 라우터는 어댑터를 *준비*시키되 쓰기는 메인 컨텍스트 슬래시 커맨드(`/note`·`/capture`·`/wiki`)로만 개시. 어댑터 반환 `status: gated`가 이 경계의 런타임 표식.
+- **CON-3**(self-approval 금지) → 출력이 *critique/검증* 산출일 때 저작≠리뷰 분리. 단 이건 ⑤ 실행/게이트 영역(#132 Gap-INV)이지 출력 어댑터 영역이 아니에요 — 이 문서는 *출력*만 다루고 critique 격리는 #122/#134로 위임.
 
 > vault가 아닌 목적지(`repo_path`·`stdout`·`local_ephemeral`·`github`)는 CON-1 게이트 대상이 아니에요. 특히 `/handoff`는 vault를 **안 건드리고** 로컬 gitignored `resume.md` 또는 stdout만 산출하므로 `gated`가 아니라 `success`예요(§2 #4 주의). (`/handoff`는 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, 이 레포 외부.)
 
@@ -75,7 +75,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 | 2 | `note` | `capture` | **OVM note** (`/note` 스킬, evergreen/decision) | ② 출력 leaf (OVM 경유) | user-initiated 슬래시 커맨드 | `vault` (`notes/{slug}.md` 또는 `notes/decision-YYYY-MM-DD-{slug}.md`) | **`gated`** (CON-1) |
 | 3 | `goal-doc` | `crystallize` | **build-spec** (요구사항 결정화) | ② 출력 leaf | 모델 호출 스킬 (Socratic 게이트) | `repo_path` (`docs/specs/{slug}.yaml` Seed) | `success` · **Seed↔goal-doc 재프레임=#111** (§2 주의) |
 | 4 | `handoff` | `handoff` | **`/handoff`** (vault-bridge 커맨드 — G26에서 retire, 머신 레벨 `session-close` 스킬로 이관·이 레포 외부) | vault-bridge 커맨드 (로컬 핸드오프 · **vault 비경유** → ③ "vault 운반"에 미해당) | user-initiated 슬래시 커맨드 (`disable-model-invocation`) | `local_ephemeral` (`.claude-kit/vault-bridge/resume.md`, gitignored) 또는 `stdout` | `success` (**vault 미사용 → CON-1 비대상**) |
-| 5 | `session` | `record` | **`/save-session`** (vault-bridge 커맨드 — session 요약을 `type:capture` 원석으로 재목적화, D1) | ③ 딜리버리 (vault 운반) | user-initiated 슬래시 커맨드 | `vault` (`inbox/capture-YYYY-MM-DD[-slug][-vN].md`) | **`gated`** (CON-1) |
+| 5 | ~~`session`~~ | ~~`record`~~ | ~~**`/save-session`**~~ — **RETIRED (#331, 2026-07-10)**: 세션지식 경로가 wiki-first로 재정의돼 OVM `/wiki` + native memory로 이관. 원석 캡처는 OVM `/capture`가 담당 | — | — | — | — |
 | 6 | `md` | `author` | **doc-concretize** (신규 MD 구조화 저작) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (임의 `.md`) | `success` |
 | 7 | `md` | `edit` | **doc-polish** (기존 MD 린트·개선, Editor-not-Writer) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (기존 `.md` in-place Edit) | `success` |
 | 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) | 외부 도구 (③ GitHub 딜리버리) | 셸 Bash | `github` (이슈 URL) | `success` · **본문 *저작*은 gap → §4 issue-authoring** |
@@ -84,7 +84,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 > **매핑 정직성 주의 (#1 graphify)**: graphify는 코퍼스→지식그래프 산출이라 ①(인지: 연결 발견)과 ②(출력: html/json) 경계에 걸쳐요. 출력 어댑터 관점에선 `html` 포맷 산출 타겟이고, 산출물(`graph.html`)이 §3 체이닝의 `file` 참조로 흘러요.
 
-> **매핑 정직성 주의 (#5 session=save-session, 2026-07-08 D1)**: `/save-session`의 *실제 산출물*은 더 이상 session note가 아니라 `/capture`와 같은 `type:capture` 원석이에요(`inbox/capture-YYYY-MM-DD[-slug].md`) — session-note 저작 자체가 재목적화로 폐기됐어요(`docs/design/claude-kit-boundary.md` §2 D1, `docs/specs/save-session-ore-repurpose.yaml`). `format: session`이라는 이름표는 이제 *산출물 형식*이 아니라 *호출 경로*(어느 슬래시 커맨드를 거치는가)만 가리켜요 — §2 #2(`note`=OVM `/note`, evergreen 산출)와는 별개의 target(raw ore vs evergreen)이니 혼동하지 마세요.
+> **행 #5 폐기 경위 (2026-07-08 D1 → 2026-07-10 #331)**: 먼저 D1이 `/save-session`을 session-note 저작에서 `type:capture` 원석 캡처로 재목적화했고(`claude-kit-boundary.md` §2 D1, `docs/specs/save-session-ore-repurpose.yaml`), 이틀 뒤 #331이 커맨드 자체를 retire했어요 — 원석 캡처는 이미 OVM `/capture`가 하고 있어 중복이었거든요. 세션 지식은 이제 OVM `/wiki`(컴파일) + native memory로 갑니다. 즉 `session`은 더 이상 유효한 format enum 값이 아니에요.
 
 ---
 
@@ -160,15 +160,15 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 | 책임 | 소유 doc | 내용 |
 |------|---------|------|
 | gap *선언* + 어댑터 *매핑* (`issue=gh CLI` + 본문 저작 빈틈) | **#101** (이 문서 §2 #8 + §4.1) | "issue-authoring이 net-new gap이다" + 호출 규약 |
-| 실행스킬 *판정* + *레이어 귀속* (재사용/native/신설, ②) | **#133** (`execution-skill-inventory.md` §4) | "gh CLI=외부 재사용, issue-authoring=신설 ② leaf" |
+| 실행스킬 *판정* + *레이어 귀속* (재사용/native/신설, ②) | **#133** | "gh CLI=외부 재사용, issue-authoring=신설 ② leaf" |
 
 두 doc은 서로 **참조만** 하고 상대 영역을 재정의하지 않아요. net-new gap은 #101이 *한 번* 선언하고, 레이어 귀속은 #133이 *한 번* 판정해요(`boundary` line 25/38 단일 출처 인용). → 중복 0.
 
-> **의사결정 기록(거울 표 유지)**: 위 분할표는 `execution-skill-inventory.md` §4에도 거울로 존재해요. 이 **§5.2를 정규 출처**로 두고 #133 §4는 *의도적 거울*(각 doc 독립 가독성 목적)이에요 — issue-authoring 스펙이 바뀌면 양쪽을 수동 동기화해요. 거울이 *중복(drift 리스크)*이 아닌 근거: 각 doc은 자기 *축*(#101=출력-포맷 / #133=실행-스킬)에서 firm한 칸만 선언하고 상대 칸은 참조 표식이라, **firm 규칙 자체는 각 1회만 정의**돼요(동기화 대상은 표현이지 규칙 정의가 아님). 유지 비용은 2축 분할이 안정적이라 낮아요.
+> **의사결정 기록(거울 표 해소)**: 이 분할표는 한때 #133 문서 §4에 거울로도 존재했고 수동 동기화 대상이었어요. 그 문서가 goal-doc 하네스 철회(#282/#283)로 삭제되면서 **이 §5.2가 유일한 출처**가 됐어요 — 동기화 부담도 drift 리스크도 함께 사라졌어요.
 
 ### 5.3 #122 Gap-ROUTE와의 경계
 
-라우터(`omc-to-native-substrate.md` §4.1)는 `work_type`→슬라이스 시퀀스를 결정한 뒤, 각 슬라이스 바인딩을 **이 어댑터 계약으로 호출**해요. 즉 어댑터 = 라우터가 이질적 출력 자산을 균일 호출하는 인터페이스 layer. resolution(타겟 실재)·체이닝 타입 호환은 §3.2대로 라우터 런타임 책임.
+라우터(#132 Gap-ROUTE)는 `work_type`→슬라이스 시퀀스를 결정한 뒤, 각 슬라이스 바인딩을 **이 어댑터 계약으로 호출**해요. 즉 어댑터 = 라우터가 이질적 출력 자산을 균일 호출하는 인터페이스 layer. resolution(타겟 실재)·체이닝 타입 호환은 §3.2대로 라우터 런타임 책임.
 
 ---
 
@@ -177,7 +177,7 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 | #101 Acceptance | 충족 위치 |
 |-----------------|----------|
 | **계약 doc** (슬라이스가 출력 스킬을 호출하는 균일 인터페이스: 입력 intent/format/payload/destination, 출력 artifact path + 상태) | §1(4-튜플 입력 + 2-튜플 출력) |
-| **포맷×동작 매트릭스** (html=graphify, note=OVM note, goal-doc=build-spec, handoff=/handoff [G26 retire → 머신 레벨 `session-close`], session=/save-session, md저작=doc-concretize, md편집=doc-polish, issue=gh CLI) | §2(8매핑 표) |
+| **포맷×동작 매트릭스** (html=graphify, note=OVM note, goal-doc=build-spec, handoff=/handoff [G26 retire → 머신 레벨 `session-close`], session=/save-session [#331 retire → OVM `/wiki`+memory], md저작=doc-concretize, md편집=doc-polish, issue=gh CLI) | §2(8매핑 표) |
 | **net-new gap 목록**(≤2, 유력 issue-authoring) | §4(issue-authoring 1건 + 명시 배제) |
 | (정합) `goal-doc-spec` §3.5 산출 체이닝 런타임 계약 | §3(`artifact_path(N)→payload(N+1)` + 타입 호환) |
 | (정합) #133 issue-authoring 경계 중복 0 | §5.2(소유권 분할표) |
@@ -186,4 +186,4 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 
 ---
 
-**참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·② 레이어 표·issue ② 귀속 line 25/38) · `docs/design/goal-doc-spec.md`(§3.2 토큰 문법·§3.4 조건분기·§3.5 산출 체이닝·§3.6 work_type 기본 바인딩) · `docs/design/omc-to-native-substrate.md`(§4.1 Gap-ROUTE) · `docs/design/execution-skill-inventory.md`(#133 issue-authoring 귀속) · `docs/plans/goal-docs/G2-goal-doc-output-contract.md`(S3 어댑터 슬라이스) · `docs/discussions/20260602_claude-kit-layer-redesign/SUMMARY.md`(C-5) · #99/#100/#102/#111/#122/#133.
+**참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·② 레이어 표·issue ② 귀속 line 25/38) · #99/#100/#102/#111/#122/#132/#133. (goal-doc-spec·omc-to-native-substrate·execution-skill-inventory·G2 goal-doc·레이어 재설계 토론 문서는 goal-doc 하네스 철회(#282/#283)와 함께 삭제됐어요 — 근거는 각 이슈 번호로 찾으세요.)

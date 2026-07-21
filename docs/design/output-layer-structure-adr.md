@@ -1,13 +1,13 @@
 # 출력 레이어 물리 구조 ADR — 단일 플러그인 vs 분산(논리 계약)
 
 **Status**: design (decision · accepted) · **Created**: 2026-06-04 · **Issue**: #102 · **Epic**: #108
-**선행**: #99(`docs/design/claude-kit-boundary.md` — 경계 A·CON-5·leaf vendor-neutral) · #100(`docs/design/goal-doc-spec.md` — work_type) · #101(`docs/design/output-adapter-contract.md` — 직계 입력, §5.1 #102 경계)
+**선행**: #99(`docs/design/claude-kit-boundary.md` — 경계 A·CON-5·leaf vendor-neutral) · #101(`docs/design/output-adapter-contract.md` — 직계 입력, §5.1 #102 경계)
 **하류 소비처**: #103(doc-concretize/doc-polish 행선지 U-1) · #124(diverse-sampling Mode B 호출 경로, #103 경유 2차) · #111-4(build-spec 물리 분리) · #138(mirror drift 가드 위치) · issue-authoring 빌드 위치
-**Source**: `docs/discussions/20260602_claude-kit-layer-redesign/UNRESOLVED.md` U-2/U-1 · `SUMMARY.md` C-2/C-5 · `docs/plans/goal-docs/G2-goal-doc-output-contract.md` 쟁점 표
+**Source**: #108 레이어 재설계 논의 (U-2/U-1 · C-2/C-5) — 토론 문서는 로컬 작업물이라 비커밋
 
 > **위치(물리 구조만)**: 이 ADR은 ②(결정화·출력) 레이어의 **물리 구조만** 결정해요. 출력 자산을 *어떻게 균일하게 호출하는지*의 **논리 계약**은 #101이 이미 닫았고(`output-adapter-contract.md` §5.1 — 어댑터 계약은 구조 독립적, #102 어느 결과에도 불변), 이 ADR은 그걸 입력으로 받아 *물리 귀속*만 확정해요. 헌법(CON-*)/정책(POL-*) 규칙은 `claude-kit-boundary.md`가 단일 출처고, 이 문서는 **참조만** 하고 재정의하지 않아요.
 
-> **`goal-doc-spec.md` 인용 주의 (2026-06-29 CUT)**: 위 **선행**이 가리키는 `docs/design/goal-doc-spec.md`는 자체 하네스 철회(#282/#283, `claude-kit-boundary.md` §1)로 삭제됐어요. 이 ADR의 결정(②의 물리 구조) 자체는 그와 독립적으로 지금도 유효하니, `goal-doc-spec.md` 인용만 더 이상 열리는 파일이 없는 역사 참조로 읽으세요.
+> **삭제된 문서 인용 주의**: 본문이 인용하는 `goal-doc-spec.md`(#282/#283 하네스 철회로 2026-06-29 삭제) · `execution-skill-inventory.md` · G2/G3 goal-doc · 레이어 재설계 토론 문서는 **더 이상 열리는 파일이 없어요**(2026-07-21 정리). 이 ADR의 결정(②의 물리 구조) 자체는 그와 독립적으로 유효해요 — 인용은 출처 표시로만 읽고, 근거는 함께 적힌 이슈 번호로 찾으세요.
 
 ---
 
@@ -106,7 +106,7 @@ G3 goal-doc(`docs/plans/goal-docs/G3-output-layer-structure.md` line 33)은 "#10
 | **#103 (doc-concretize/doc-polish 행선지, U-1)** | U-1 ← U-2 | 분산 확정 → 행선지 **지정: in-place reframe(thinking-tools 잔류, 역할 재정의)**(§2.5; G3 line 58 (a) 권고 정합). 신규 doc-tools 플러그인(C-2 thin 금지)·OVM-fold·물리 이동 모두 기각(회귀 위험↑·가치↓). 비대칭: concretize=구조화 저작(① 인지 코어 결합) · polish=md 린트라 같은 칸 금지. #103은 SKILL.md description reframe + thought-chain 링크/매니페스트 검증만 실행 | **unblocked — 행선지 1곳 확정(G3 DoD line 33 충족)** |
 | **#124 (diverse-sampling Mode B → doc-concretize 하위호출 경로)** | #102 → #103 (2차 의존) | 분산 + #103 in-place reframe → diverse-sampling→doc-concretize가 **intra-plugin Skill 호출**(둘 다 thinking-tools)이라 #124 크로스플러그인 의존 우려 *소멸*(G3 쟁점표 line 60). 단 호출 경로 라인은 #103 행선지 확정값에 종속(머지 후 박제)이라 **#102 직접 게이트 아님 — #103 경유 2차 의존** | **대기 — #103 머지 후 경로 확정(placeholder 미잔존 검증)** |
 | **#111-4 (build-spec 물리 분리)** | #102 | 분산/흡수 결정 → standalone 플러그인 신설 = 껍데기 → **폐기**(G2 쟁점 표 #111-4: "분산/흡수면 폐기"; (b)보류 → 폐기 확정). build-spec는 현 위치(`thinking-tools/skills/build-spec`) 유지, plugin.json/marketplace.json 등록·디렉토리 레이아웃·버전 동기화 불필요 | **폐기 확정 — 게이트 해소** |
-| **#138 (mirror drift 가드 위치)** | #102(논리적 영향) · 형식 Refs #101/#133/#134 | 분산 → issue-authoring 소유권 분할 거울 표가 `output-adapter-contract.md` §5.2 · `execution-skill-inventory.md` §4 두 doc에 물리 분산 유지 → grep 기반 drift 가드가 적합(CLAUDE.md Validation 또는 #134 게이트 체인 흡수). 단일 통합이었다면 한 doc에 합쳐 가드가 불필요했을 수 — 분산이 가드 필요를 *확정* | **unblocked — 가드 = 분산 doc 간 grep** |
+| **#138 (mirror drift 가드 위치)** | #102(논리적 영향) · 형식 Refs #101/#133/#134 | 분산 → issue-authoring 소유권 분할 거울 표가 두 doc에 물리 분산 유지 → grep 기반 drift 가드가 적합. **후속(2026-07-21)**: 거울의 다른 쪽(#133 문서)이 #282/#283으로 삭제돼 `output-adapter-contract.md` §5.2가 단일 출처가 됐어요 — drift 가드 필요 자체가 소멸 | **해소 — 거울이 없어져 가드 불필요** |
 | **issue-authoring 빌드 위치** | #102 + #133(② 귀속 firm) | 분산 → ② 출력 leaf 귀속은 #133 firm이나 *물리적으로 어느 플러그인에 빌드*할지는 thin 신규 금지(C-2) 하에 기존 ② 도메인 플러그인 후보로 별도 후속 결정. #133=귀속 판정만, 빌드 위치=미정 | **대기 — 빌드 시 위치 후속(C-2 적용)** |
 
 ---
@@ -138,4 +138,4 @@ G3 goal-doc(`docs/plans/goal-docs/G3-output-layer-structure.md` line 33)은 "#10
 
 ---
 
-**참조**: `docs/design/output-adapter-contract.md`(§5.1 #102 경계 · §5.2 거울 표) · `docs/design/claude-kit-boundary.md`(§3 CON-5 단방향 · §5 헌법/정책 · leaf vendor-neutral) · `docs/design/execution-skill-inventory.md`(§4 issue-authoring ② 귀속) · `docs/discussions/20260602_claude-kit-layer-redesign/UNRESOLVED.md`(U-1/U-2) · `SUMMARY.md`(C-2/C-5) · `docs/plans/goal-docs/G2-goal-doc-output-contract.md`(쟁점 표) · `docs/plans/goal-docs/G3-output-layer-structure.md`(line 33 #103 행선지 DoD · line 58 in-place 권고 · line 60 #124) · #99/#100/#101/#103/#111/#124/#133/#138.
+**참조**: `docs/design/output-adapter-contract.md`(§5.1 #102 경계 · §5.2 소유권 분할표) · `docs/design/claude-kit-boundary.md`(§3 CON-5 단방향 · §5 헌법/정책 · leaf vendor-neutral) · #99/#100/#101/#103/#111/#124/#133/#138.
