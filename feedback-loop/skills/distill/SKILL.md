@@ -146,8 +146,9 @@ a sibling, not a fourth always-on branch.)
 
 ## Scope rationale (thin-gate)
 
-`distill` sits OUTSIDE the `omc-to-native-substrate.md` §4 two-gap list
-(slice→skill routing + invariant enforcement). It is admitted not as ⑤
+`distill` sits OUTSIDE the ⑤-harness two-gap list of #132 (slice→skill routing
++ invariant enforcement; that harness was itself withdrawn in #282/#283, so the
+gap list survives only as the admission argument here). It is admitted not as ⑤
 orchestration but as a **measure→improve family extension** — the same family and
 home as `retro` (#123 precedent), which is why it ships in `feedback-loop`. Deferred
 companions (recorded in #202, not built): a retro **curation phase** (stale/archive

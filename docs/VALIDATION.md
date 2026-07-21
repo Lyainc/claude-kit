@@ -67,8 +67,8 @@ python3 scripts/check-plugin-root-paths.py
 # A SKILL.md code block runs with CWD = the CONSUMER's project, so a repo-relative call like
 # `python3 feedback-loop/scripts/report.py 2>/dev/null` resolves ONLY inside this checkout —
 # for every plugin-installed user it silently no-ops. Found live in retro/SKILL.md (4 call
-# sites, shipped in v4.0.0). Scans source plugins only (dirs with a plugin.json), so the
-# vendored .codex/ caches are never touched. Markdown `../../reference/*.md` links are NOT
+# sites, shipped in v4.0.0). Scans source plugins only (dirs with a plugin.json), so any
+# vendored third-party plugin cache is never touched. Markdown `../../reference/*.md` links are NOT
 # flagged — those resolve relative to the SKILL.md file and stay correct once installed.
 python3 scripts/check-test-exitcode.py --self-test
 # Expected: OK: all check-test-exitcode self-test cases passed

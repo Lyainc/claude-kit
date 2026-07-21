@@ -78,8 +78,8 @@ def plugin_roots(root: Path):
     """Source plugins only — a top-level dir carrying a plugin manifest.
 
     Keyed off the manifest rather than a hardcoded name list so a new plugin is picked up
-    for free, and so the vendored `.codex/` plugin caches (someone else's SKILL.md files,
-    which we neither own nor may edit) never reach the scanner.
+    for free, and so any vendored third-party plugin cache (someone else's SKILL.md files,
+    which we neither own nor may edit) never reaches the scanner.
     """
     return sorted(
         d for d in root.iterdir()
