@@ -84,7 +84,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 > **매핑 정직성 주의 (#1 graphify)**: graphify는 코퍼스→지식그래프 산출이라 ①(인지: 연결 발견)과 ②(출력: html/json) 경계에 걸쳐요. 출력 어댑터 관점에선 `html` 포맷 산출 타겟이고, 산출물(`graph.html`)이 §3 체이닝의 `file` 참조로 흘러요.
 
-> **행 #5 폐기 경위 (2026-07-08 D1 → 2026-07-10 #331)**: 먼저 D1이 `/save-session`을 session-note 저작에서 `type:capture` 원석 캡처로 재목적화했고(`claude-kit-boundary.md` §2 D1, `docs/specs/save-session-ore-repurpose.yaml`), 이틀 뒤 #331이 커맨드 자체를 retire했어요 — 원석 캡처는 이미 OVM `/capture`가 하고 있어 중복이었거든요. 세션 지식은 이제 OVM `/wiki`(컴파일) + native memory로 갑니다. 즉 `session`은 더 이상 유효한 format enum 값이 아니에요.
+> **행 #5 폐기 경위 (2026-07-08 D1 → 2026-07-10 #331)**: 먼저 D1이 `/save-session`을 session-note 저작에서 `type:capture` 원석 캡처로 재목적화했고(`claude-kit-boundary.md` §2 D1, 커밋 `f59f580`), 이틀 뒤 #331이 커맨드 자체를 retire했어요 — 원석 캡처는 이미 OVM `/capture`가 하고 있어 중복이었거든요. 세션 지식은 이제 OVM `/wiki`(컴파일) + native memory로 갑니다. 즉 `session`은 더 이상 유효한 format enum 값이 아니에요.
 
 ---
 
