@@ -218,6 +218,16 @@ python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
 python3 thinking-tools/scripts/test/test-mode-compose.py
 # Expected: OK: all 9 mode-compose checks passed. (static check against the live SKILL.md)
 
+# persona-pool selection guard (#418) — executes reference/personas.md's Selection Rule
+# against the live tag table: Latin tags must be word-start-safe (raw substring matching
+# had `ui` hitting "build", `db` hitting "feedback", `doc` hitting "docker"), no
+# single-character Hangul tags, fixture topics select the expected personas, and the
+# 5-entry ceiling / 3-expert floor hold. Run after editing the pool's tag list.
+python3 thinking-tools/scripts/test/test-persona-selection.py --self-test
+# Expected: OK: all 7 test-persona-selection self-test cases passed
+python3 thinking-tools/scripts/test/test-persona-selection.py
+# Expected: OK: all persona-selection checks passed (10 pool entries, 7 topic fixtures, ...)
+
 # session-start onboarding hook regression (#117) — first-run discoverability hint
 # hosted in thinking-tools SessionStart (vault-independent entry plugin; C-2 forbids a
 # 4th "welcome" plugin). Verifies 3-session grace, kill switch, corrupt-counter recovery,
