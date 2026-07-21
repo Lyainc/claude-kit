@@ -34,7 +34,7 @@ ID 재활용 금지. 항목 완료 시 `status: resolved`, `resolved_in:` 기재
 
 | ID | 약점 | 설명 | affected skills | Status | Priority | resolved_in | 근거 (2026-07-22 대조) |
 |----|------|------|-----------------|--------|----------|-------------|------------------------|
-| W1 | 자가검증 순환 | Verify 단계를 같은 컨텍스트·모델이 수행 — "65% 찍고 넘어가자" 유혹, blind spot 미탐지 | doc-concretize, unknown-discovery | open | P1 | — | doc-concretize의 Build→Verify→Reflect와 unknown-discovery의 Depth 채점이 여전히 같은 컨텍스트에서 돌아요. 격리 실행은 expert-panel(#270)·adversarial-review(#115, PR #403)에만 들어갔고 W1이 지목한 두 스킬은 못 받았어요 |
+| W1 | 자가검증 순환 | Verify 단계를 같은 컨텍스트·모델이 수행 — "65% 찍고 넘어가자" 유혹, blind spot 미탐지 | doc-concretize, unknown-discovery | open | P1 | — | doc-concretize의 Build→Verify→Reflect와 unknown-discovery의 Depth 채점이 여전히 같은 컨텍스트에서 돌아요. 격리 실행은 expert-panel(PR #77 도입, PR #145 확장)·adversarial-review(#115, PR #403)에만 들어갔고 W1이 지목한 두 스킬은 못 받았어요 |
 | W2 | 게이트 수학 약함 | Depth/Ambiguity 게이트 점수를 LLM이 자가 평가 — 일관성 보장 없음, 근거 미기록 | unknown-discovery, build-spec | open | P2 | — | build-spec 쪽은 해소 — Y/N 이진 체크리스트로 `clarity = Y수/문항수`를 계산하고 `scoring_rationale`에 근거를 남겨요(`build-spec/SKILL.md` §Ambiguity Scoring). unknown-discovery의 Exploration Depth는 아직 LLM이 0–100%를 자유 채점해서 일관성 보장이 없어요 |
 | W3 | 상태 휘발성 | STATE 블록이 컨텍스트 compaction 시 손실 위험, 스킬마다 포맷 상이 | 전 스킬 | resolved | P1 | PR #179 | `reference/state-contract.md`가 compaction 복원 규칙과 `<!-- STATE:CHECKPOINT -->` 마커를 단일화했고, adversarial-review·unknown-discovery·expert-panel이 이 파일을 인용해요. build-spec만 같은 규칙을 자체 사본으로 들고 있는데 포맷은 동일이라 잔여 부채는 중복뿐이에요 |
 | W4 | 출력 조합성 | Markdown 서사체 출력 — 후속 스킬 파싱 어려움, 스킬 체이닝 비친화적 | unknown-discovery, adversarial-review | open | P2 | — | unknown-discovery는 `templates/DISCOVERY_REPORT.md`에 common-schema frontmatter를 붙였지만, adversarial-review의 SKILL.md엔 common-schema 인용이 0건이라 리뷰 출력이 아직 파싱 불가한 서사체예요 |
@@ -49,7 +49,7 @@ ID 재활용 금지. 항목 완료 시 `status: resolved`, `resolved_in:` 기재
 
 | ID | 방향 | 설명 | Status | Priority | 관련 W | 근거 (2026-07-22 대조) |
 |----|------|------|--------|----------|--------|------------------------|
-| M1 | 페르소나 라이브러리 | 재사용 가능 전문가 페르소나 풀 정의 — expert-panel·adversarial-review 공유 사용, temperature variation으로 진짜 다양성 확보 | open | P2 | W8 | 전제로 걸어둔 sub-agent spawn 지원은 해소됐어요(expert-panel 격리 실행 #270, adversarial-review 자동 방어 격리 #115/PR #403). 라이브러리 자체는 미착수 |
+| M1 | 페르소나 라이브러리 | 재사용 가능 전문가 페르소나 풀 정의 — expert-panel·adversarial-review 공유 사용, temperature variation으로 진짜 다양성 확보 | open | P2 | W8 | 전제로 걸어둔 sub-agent spawn 지원은 해소됐어요(expert-panel 격리 실행 PR #77 도입·PR #145 멀티턴 반박 확장, adversarial-review 자동 방어 격리 #115/PR #403). 라이브러리 자체는 미착수 |
 | M2 | 발산 전략 승격 | diverse-sampling을 단순 대안 생성에서 tournament·mutation 기반 창의적 탐색으로 — Ouroboros Contrarian 패턴 도입 | open | P2 | — | `diverse-sampling/`에 tournament·mutation 관련 서술이 0건 — 미착수. (repo 전역 `mutation` grep은 retro·audit 스킬의 "state mutation"에 걸리는데 M2와 무관한 용례예요) |
 | M3 | 비-코딩 영역 | Biz/Creative 도메인에서 질문 패턴·채점 루브릭 전문화 — 현재 Tech 편향 | in-progress | P3 | — | 질문 뱅크는 도메인별로 존재(`build-spec/templates/questions/{tech,biz,creative}.md`, PR #78). 채점 루브릭(Y/N 체크리스트)은 아직 도메인 구분 없이 공용이라 여기가 남은 절반 |
 | M4 | 투명성 기능화 (reframed) | **절반은 반대 방향으로 결정됨.** 점수 노출은 의도적으로 안 하기로 정리됐어요 — unknown-discovery는 수치 Depth를 compaction 복원·게이트 로직 전용으로 두고 사용자에겐 정성 표기만 보여주고(`unknown-discovery/SKILL.md` State Management), adversarial-review도 Survival Score를 수치가 아닌 정성 밴드(탄탄/보통/취약)로만 기록해요. 남은 건 diff-preview 쪽뿐 | reframed | P2 | W3 | `--show-scores`·diff-preview 모두 repo 히트 0건. 점수 노출 절반은 미착수가 아니라 폐기, diff-preview 절반만 살아있는 open 항목이에요 |
