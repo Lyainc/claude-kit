@@ -129,12 +129,20 @@ catalogue is the exact breakage this guards against. (Receiver/audience match, �
 work-rule's reader is the work-rule catalogue, a persona rule's reader is CLAUDE.md.)
 
 **Thin pointer + backing detail (when the catalogue channel is used):** machine-level
-reminders ride in *every* session's context, so the always-on surface must stay thin. When
-a work-rule lands in `~/.claude/rules`, put the detail in the catalogue (its native form)
-and keep `~/.claude/CLAUDE.md` to at most a one-line pointer — add no pointer if the
-catalogue is already pointed at. This mirrors the catalogue's own thin-list-routes-to-detail
-shape (a thin CLAUDE.md on top, the backing detail below). Never paste the full rule prose
-into the always-read CLAUDE.md.
+reminders ride in *every* session's context, so the always-on surface must stay thin. Two
+consequences, and the second is the one that gets missed:
+
+- When a work-rule lands in `~/.claude/rules`, put the detail in the catalogue (its native
+  form) and keep `~/.claude/CLAUDE.md` to at most a one-line pointer — add no pointer if the
+  catalogue is already pointed at. Never paste full rule prose into the always-read CLAUDE.md.
+- **Everything under `~/.claude/rules/` is loaded, not just its index.** Claude Code reads
+  *every* `.md` in that directory into every session, so a catalogue that splits a thin index
+  from per-entry detail files only saves context if the **detail files live outside the loaded
+  directory**. Follow the index's own links to find where they actually are, and write a new
+  one beside them. Never add a second `.md` inside `~/.claude/rules/` on the assumption that
+  "it's only the detail, it won't be read" — observed in practice, 12 detail files placed in
+  `rules/policies/` rode in every session (~41 KB) while the index claimed the split had
+  thinned the surface.
 
 **1-click confirmation**: present the *decision*, not the grid. Show the user where it
 will land, the exact text/diff that will be added, and one short line of why-here — then
@@ -222,7 +230,10 @@ file exists but reading it still fails for some other reason, stop and report th
 do not guess.
 
 Otherwise, before adding, read the **current contents of the chosen site** (not any private
-catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) and check:
+catalogue — read-only `Bash`/`Grep` to scan the site's existing rules/skills) and check.
+**If the site is an index+detail split, follow the index's links and read the detail files
+too** — they may sit outside the indexed directory (see §3), so scanning that directory alone
+returns one-line summaries and silently downgrades the check to a title comparison:
 
 - **Duplicate**: if the site already states the same rule, strengthen that entry instead
   of adding a second (DRY).
@@ -312,10 +323,13 @@ appends in each site's **native form** (CLAUDE.md prose / a hook script / a skil
 and for an **Edit**-classified rule it rewrites the targeted entry in place instead — always
 conflict-checked against that site's present content. If the chosen site's current content
 is already an index+detail split (a thin summary table/list of one-liners each linking to a
-per-entry file, e.g. a catalogue `README.md` → `policies/Pn.md`), match that shape — add one
+per-entry file, e.g. a catalogue `README.md` → `../policies/Pn.md`), match that shape — add one
 terse index row plus its linked detail file, not a new inline block — so the always-loaded
-index doesn't grow unbounded as entries accumulate. Never invent this split on a site that
-doesn't already use it. When an **Edit** targets an entry that already lives in such a split,
+index doesn't grow unbounded as entries accumulate. **Put the new detail file wherever the
+existing ones live, resolving the index's own link to find out** — a split whose detail sits
+outside the loaded directory is doing that deliberately (§3), and dropping a new entry inside
+the loaded directory instead quietly re-opens the leak the split exists to close. Never invent
+this split on a site that doesn't already use it. When an **Edit** targets an entry that already lives in such a split,
 rewrite **both** the index row's one-liner and its linked detail file whenever the change
 touches anything the index summary claims, so the two don't drift apart.
 
@@ -364,7 +378,10 @@ discovery-side placement-fit judgment). The check depends on the site:
   when the catalogue is absent) — a non-empty addition to that file. For an
   **Edit**-classified rule, verify the rewrite instead: the old entry text is gone and the
   approved new text is present — an edit isn't guaranteed to grow the file, so "non-empty
-  addition" is not the right check here.
+  addition" is not the right check here. On an index+detail split, also verify the **link
+  resolves** (`[ -f ]` on the path the new index row points at) and that the loaded directory
+  gained no new `.md` — a broken link or a leaked detail file are the two ways this split
+  fails silently.
 - **memory duplicate removal** (only when §6 found one): the duplicate memory file is gone and
   its `MEMORY.md` index line with it. If the delete could not run, report that in Korean — never
   claim a removal that didn't happen.
