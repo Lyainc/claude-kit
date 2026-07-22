@@ -144,41 +144,76 @@ _AIMED_AT_STEELMAN = re.compile(
 )
 
 # Planted prose for `--self-test`: without these, check 5 is the one check whose own regression
-# nothing catches — it only ever sees files that already pass. (name, text, should_pass)
+# nothing catches — it only ever sees files that already pass. Both `_CONSUMERS` scopings are
+# covered: `section=None` (the two SKILL.md files) and a `## ` section (personas.md).
+# (name, text, section, should_pass)
 _CONSUMER_CASES = [
     (
         "clean consumer",
         "Run the Selection Rule on the user's **original topic text**.\n",
+        None,
         True,
     ),
     (
         "lowercase rephrasing still aims at the Steelman",
         "Run the Selection Rule on the original topic text.\n\n"
         "In practice the Selection Rule is applied using the steelman.\n",
+        None,
         False,
     ),
     (
         "another preposition still aims at the Steelman",
         "Take rank 1 off the finalized Steelman; the Selection Rule needs the "
         "original topic text.\n",
+        None,
         False,
     ),
     (
         "shared input not named",
         "Run the Selection Rule on each topic and record the IDs.\n",
+        None,
         False,
     ),
     (
         "adjacent paragraphs must not concatenate into a violation",
         "The Selection Rule runs on the user's original topic text and never on\n\n"
         "the Steelman. That is what the Selection Rule guarantees.\n",
+        None,
         True,
     ),
     (
         "describing the Steelman is not aiming at it",
         "The Selection Rule takes the user's original topic text, *before* Steelman "
         "construction; a compacted session may no longer hold the Steelman verbatim.\n",
+        None,
         True,
+    ),
+    (
+        "section scope ignores prose outside the heading",
+        "## Rule\n\nThe input is the user's original topic text.\n\n"
+        "## Elsewhere\n\nA sloppy note says to run it on the Steelman instead.\n",
+        "Rule",
+        True,
+    ),
+    (
+        "violation inside the section is caught",
+        "## Rule\n\nThe input is the user's original topic text.\n\n"
+        "Rank 1 is taken from the finalized steelman.\n",
+        "Rule",
+        False,
+    ),
+    (
+        "section paragraphs must not concatenate into a violation",
+        "## Rule\n\nThe input is the user's original topic text; never run it on\n\n"
+        "the Steelman is model-authored, so it is out of scope.\n",
+        "Rule",
+        True,
+    ),
+    (
+        "missing section heading",
+        "## Other\n\nThe input is the user's original topic text.\n",
+        "Rule",
+        False,
     ),
 ]
 
@@ -196,14 +231,15 @@ def _fail(msgs: list[str], msg: str) -> None:
 def check_consumer(rel: str, text: str, section: str | None) -> list[str]:
     """5b for one consumer's text: names the shared input, never aims the rule at the Steelman.
 
-    Each rule-mentioning paragraph is matched on its own. Joining them first would let two
+    Each paragraph is matched on its own — `section` only narrows *which* text is scanned, it
+    never widens the match unit. Matching a multi-paragraph scope as one string would let two
     unrelated neighbours concatenate into a phrase that exists only because of the join.
     """
     if section:
         scope = _section(text, section)
         if not scope:
             return [f"{rel}: '## {section}' section not found"]
-        blocks = [scope]
+        blocks = scope.split("\n\n")
     else:
         blocks = [b for b in text.split("\n\n") if "Selection Rule" in b]
 
@@ -320,8 +356,8 @@ def run_self_test() -> int:
         if tag_matches(tag, hay) is not expected:
             failures.append(f"tag_matches({tag!r}, {hay!r}) != {expected}")
 
-    for name, text, should_pass in _CONSUMER_CASES:
-        got = check_consumer("<fixture>", text, None)
+    for name, text, section, should_pass in _CONSUMER_CASES:
+        got = check_consumer("<fixture>", text, section)
         if should_pass and got:
             failures.append(f"consumer fixture {name!r}: expected clean, got {got}")
         if not should_pass and not got:
