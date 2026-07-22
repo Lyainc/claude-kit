@@ -188,9 +188,8 @@ metadata:
   questions_asked: 3
   generated_by: thinking-tools/build-spec
   tracking_issue: https://github.com/Lyainc/claude-kit/issues/410
-  summary_artifact: https://claude.ai/code/artifact/a0acf97c-d2d2-4165-b090-b35cbb66d461
   source_session: >-
-    2026-07-22 claude-kit 세션 — graphify 재설치 검증에서 시작해 머신 전역 훅 감사로
+    2026-07-22 KST claude-kit 세션 — graphify 재설치 검증에서 시작해 머신 전역 훅 감사로
     확장. 실측 근거: homebrew 0.4.1 ↔ uv 0.9.22 섀도잉, git 훅 4개 레포 전부 4월판
     잔존, vault-bridge 캐시 5버전 공존(폐기된 Stop/SessionEnd 훅 3개 프로젝트에서 가동),
     스킬 버전 경고 수백 회 무시.
