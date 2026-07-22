@@ -51,7 +51,9 @@ All combinations compose silently — including any combination with citation gr
 |------|-------------|
 | **Expert Panel** | 3–5 domain experts selected from [../../reference/personas.md](../../reference/personas.md) by that file's deterministic tag-matching Selection Rule — same topic text, same panel, every run |
 
-Run the Selection Rule per topic in Phase 0 and record the resulting IDs in the STATE block
+Run the Selection Rule per topic in Phase 0 on the **user's original topic text** (title + statement
+as submitted — the same input `adversarial-review` uses, which is what makes the two skills land on
+the same entry) and record the resulting IDs in the STATE block
 `Personas` field. The pool is a **default, not a closed list**: a topic matching no entry proceeds
 with ad-hoc personas labeled `{Domain} Expert (ad-hoc)`, counted in `adhoc:{n}` so the fallback is
 visible rather than silent. A user who names the experts explicitly overrides the rule — record
@@ -61,17 +63,17 @@ that as `adhoc:{n}` for any named expert absent from the pool.
 
 ### Expert Selection Guide
 
-The Selection Rule already produces the panel; this guide explains what it enforces and when to
-depart from it.
+The Selection Rule produces the panel outright; this guide only explains what it already enforces.
+There is no judgment step here — the single departure is an explicit user override.
 
-| Criteria | Recommendation |
+| Criteria | What the rule enforces |
 |----------|---------------|
 | Panel size | 3–5 (the Selection Rule's floor and ceiling); above 5 the added expert repeats an existing criterion |
 | Domain overlap | Guaranteed by tag matching — each selected entry carries a distinct evaluation criterion |
-| Perspective balance | If every selected entry is implementation-focused, add one strategy-focused ad-hoc persona (counted in `adhoc:{n}`) |
+| Perspective balance | Carried by the tags themselves — a topic with strategy vocabulary matches `P9`. Never top up the panel because the selection *looks* implementation-heavy: "is this implementation-focused" is an LLM judgment, and one applied inconsistently makes two runs of one topic emit different `adhoc:{n}` (#423) |
 | Rotation | Automatic — the rule re-runs per topic, so a multi-topic session rotates experts by topic text, not by hand |
 
-**When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert with user confirmation.
+**When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert — **user confirmation required**, recorded in `adhoc:{n}`. This is the user-override path, not a selection judgment: without the user's explicit yes the rule's output stands unchanged.
 
 ## Citation Contract
 

@@ -93,15 +93,22 @@ After the Steelman is finalized for a claim and **before Phase 1 begins**, attem
 ### Phase 1: Attack Rounds
 
 **Attacker domain angle** (selected once per claim, before Round 1): run the Selection Rule in
-[../../reference/personas.md](../../reference/personas.md) on the finalized Steelman text and take
-**rank 1** — that entry's evaluation criterion becomes the angle the Attacker attacks from, applied
-across all 4 vectors (a Security-angle Evidence Attack asks for threat-model evidence; a Cost-angle
-one asks for unit-cost evidence). Record the ID in the STATE block `Angle` field.
+[../../reference/personas.md](../../reference/personas.md) on the **user's original topic text** —
+the claim exactly as submitted, before Phase 0 — and take **rank 1**. That entry's evaluation
+criterion becomes the angle the Attacker attacks from, applied across all 4 vectors (a Security-angle
+Evidence Attack asks for threat-model evidence; a Cost-angle one asks for unit-cost evidence). Record
+the ID in the STATE block `Angle` field.
+
+The input is the submitted claim, **not** the finalized Steelman, even though the Steelman is what
+gets attacked. The Steelman is model-authored, so selecting from it would make the angle vary
+run-to-run on one claim (measured 2026-07-22, #423) and break the shared-input guarantee with
+`expert-panel`. The domain does not change between a claim and its steelmanned form; only the
+framing does, and framing is what shifted the selection.
 
 This is the **only** contact point with the shared pool. The fixed role labels below — Attacker,
 Judge, Steelman Coach — are roles, not domain personas; they are never selected from the pool and
-never change per topic. Because rank 1 is always inside `expert-panel`'s cut for the same text, both
-skills provably point at the same pool entry for a given claim. When nothing matches, the Attacker
+never change per topic. Both skills run the rule on that same original text and every cut starts at
+rank 1, so the two point at the same pool entry for a given claim. When nothing matches, the Attacker
 uses one ad-hoc angle and the STATE block records `adhoc` — the fallback is stated, never silent.
 
 Cycle through 4 attack vectors in order. Each round:
@@ -195,7 +202,7 @@ Verdict-so-far: [claim1:survived|collapsed|pending] [claim2:...] ...
 <!-- /STATE -->
 ```
 
-Compaction: restore all dimension scores and round counters; default missing scores to 50%; resume from indicated round. A missing `Angle` is recovered by re-running the Selection Rule on the same Steelman text — it is deterministic, so recomputation returns the identical entry.
+Compaction: restore all dimension scores and round counters; default missing scores to 50%; resume from indicated round. A missing `Angle` is recovered by re-running the Selection Rule on the same original topic text — it is deterministic, so recomputation returns the identical entry (this is why the rule's input is the submitted claim: a compacted session may no longer hold the Steelman verbatim).
 
 ## Output Format
 
