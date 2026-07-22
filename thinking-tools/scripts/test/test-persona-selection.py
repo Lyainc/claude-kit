@@ -134,7 +134,53 @@ _CONSUMERS = [
 ]
 
 _INPUT_PHRASE = "original topic text"
-_AIMED_AT_STEELMAN = re.compile(r"(?:on|from|against) the [\w ]*Steelman")
+# Any directional preposition + an optional article/adjective run + `steelman`, case-insensitive:
+# "on the Steelman", "using the steelman", "off a finalized Steelman" all read the same way.
+# Deliberately NOT every preposition — the live prose says "may no longer hold the Steelman
+# verbatim" and "before Steelman construction", which describe the Steelman without aiming at it.
+_AIMED_AT_STEELMAN = re.compile(
+    r"\b(?:on|onto|upon|from|off|against|via|using|out of)\s+(?:\w+\s+){0,3}steelman",
+    re.I,
+)
+
+# Planted prose for `--self-test`: without these, check 5 is the one check whose own regression
+# nothing catches — it only ever sees files that already pass. (name, text, should_pass)
+_CONSUMER_CASES = [
+    (
+        "clean consumer",
+        "Run the Selection Rule on the user's **original topic text**.\n",
+        True,
+    ),
+    (
+        "lowercase rephrasing still aims at the Steelman",
+        "Run the Selection Rule on the original topic text.\n\n"
+        "In practice the Selection Rule is applied using the steelman.\n",
+        False,
+    ),
+    (
+        "another preposition still aims at the Steelman",
+        "Take rank 1 off the finalized Steelman; the Selection Rule needs the "
+        "original topic text.\n",
+        False,
+    ),
+    (
+        "shared input not named",
+        "Run the Selection Rule on each topic and record the IDs.\n",
+        False,
+    ),
+    (
+        "adjacent paragraphs must not concatenate into a violation",
+        "The Selection Rule runs on the user's original topic text and never on\n\n"
+        "the Steelman. That is what the Selection Rule guarantees.\n",
+        True,
+    ),
+    (
+        "describing the Steelman is not aiming at it",
+        "The Selection Rule takes the user's original topic text, *before* Steelman "
+        "construction; a compacted session may no longer hold the Steelman verbatim.\n",
+        True,
+    ),
+]
 
 
 def _section(text: str, heading: str) -> str:
@@ -145,6 +191,37 @@ def _section(text: str, heading: str) -> str:
 
 def _fail(msgs: list[str], msg: str) -> None:
     msgs.append(msg)
+
+
+def check_consumer(rel: str, text: str, section: str | None) -> list[str]:
+    """5b for one consumer's text: names the shared input, never aims the rule at the Steelman.
+
+    Each rule-mentioning paragraph is matched on its own. Joining them first would let two
+    unrelated neighbours concatenate into a phrase that exists only because of the join.
+    """
+    if section:
+        scope = _section(text, section)
+        if not scope:
+            return [f"{rel}: '## {section}' section not found"]
+        blocks = [scope]
+    else:
+        blocks = [b for b in text.split("\n\n") if "Selection Rule" in b]
+
+    # these files hard-wrap and bold mid-phrase
+    blocks = [re.sub(r"[\s*_`]+", " ", b) for b in blocks]
+
+    failures: list[str] = []
+    if not any(_INPUT_PHRASE in b for b in blocks):
+        _fail(failures, f"{rel}: the Selection Rule is invoked without naming its input "
+                        f"{_INPUT_PHRASE!r} — the two skills' inputs stop being provably the same")
+    for b in blocks:
+        aimed = _AIMED_AT_STEELMAN.search(b)
+        if aimed:
+            _fail(failures, f"{rel}: Selection Rule aimed at model-authored text "
+                            f"({aimed.group(0)!r}) — a Steelman varies run to run, so the "
+                            f"selection would too (#423)")
+            break
+    return failures
 
 
 def run_checks(pool) -> list[str]:
@@ -200,23 +277,7 @@ def check_shared_input(pool) -> list[str]:
         if not path.is_file():
             _fail(failures, f"{rel}: not found — the Selection Rule's consumer set moved")
             continue
-        text = path.read_text(encoding="utf-8")
-        if section:
-            scope = _section(text, section)
-            if not scope:
-                _fail(failures, f"{rel}: '## {section}' section not found")
-        else:
-            scope = "\n\n".join(b for b in text.split("\n\n") if "Selection Rule" in b)
-
-        scope = re.sub(r"[\s*_`]+", " ", scope)  # these files hard-wrap and bold mid-phrase
-        if _INPUT_PHRASE not in scope:
-            _fail(failures, f"{rel}: the Selection Rule is invoked without naming its input "
-                            f"{_INPUT_PHRASE!r} — the two skills' inputs stop being provably the same")
-        aimed = _AIMED_AT_STEELMAN.search(scope)
-        if aimed:
-            _fail(failures, f"{rel}: Selection Rule aimed at model-authored text "
-                            f"({aimed.group(0)!r}) — a Steelman varies run to run, so the "
-                            f"selection would too (#423)")
+        failures += check_consumer(rel, path.read_text(encoding="utf-8"), section)
 
     return failures
 
@@ -248,21 +309,30 @@ def run_self_test() -> int:
             failures.append(f"{name}: expected violations, got none")
 
     # matcher semantics
-    for tag, hay, expected in [
+    matcher_cases = [
         ("test", "latest release", False),
         ("test", "testing plan", True),
         ("db", "feedback loop", False),
         ("db", "db 마이그레이션", True),
         ("보안", "보안성 검토", True),
-    ]:
+    ]
+    for tag, hay, expected in matcher_cases:
         if tag_matches(tag, hay) is not expected:
             failures.append(f"tag_matches({tag!r}, {hay!r}) != {expected}")
+
+    for name, text, should_pass in _CONSUMER_CASES:
+        got = check_consumer("<fixture>", text, None)
+        if should_pass and got:
+            failures.append(f"consumer fixture {name!r}: expected clean, got {got}")
+        if not should_pass and not got:
+            failures.append(f"consumer fixture {name!r}: expected a violation, got none")
 
     if failures:
         for f in failures:
             print(f"FAIL: {f}")
         return 1
-    print(f"OK: all {len(cases) + 5} test-persona-selection self-test cases passed")
+    total = len(cases) + len(matcher_cases) + len(_CONSUMER_CASES)
+    print(f"OK: all {total} test-persona-selection self-test cases passed")
     return 0
 
 
