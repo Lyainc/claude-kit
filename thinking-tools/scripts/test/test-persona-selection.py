@@ -12,8 +12,10 @@ Checks:
 2. No single-character Hangul tags (`글` matches "구글", `톤` matches "버튼").
 3. Fixture topics select the expected personas (positive + negative).
 4. The cut rule honours the 5-entry ceiling / 3-entry floor.
-5. rank 1 (the adversarial-review angle) is always inside the expert-panel cut — the
-   structural guarantee behind #418's ac5.
+5. Both skills feed the rule the SAME input (the user's original topic text), and the
+   2026-07-22 measurement showing why that matters is pinned as a fixture (#423). The
+   previous form of this check ("rank 1 is inside the cut") was a tautology — every cut
+   starts at rank 1, so it could not fail on any pool or topic.
 
 Usage:
     python3 thinking-tools/scripts/test/test-persona-selection.py
@@ -100,6 +102,47 @@ _FIXTURES = [
 ]
 
 
+# The 2026-07-22 divergence measurement (#418 run log → #423). One claim, two texts: as the
+# user submitted it, and after Steelman construction. The selected sets differ — which is the
+# whole reason both skills must run the rule on the submitted text and never on the Steelman.
+# `topic` is verbatim from the run log; the Steelman text was not captured there, so `steelman`
+# is reconstructed to reproduce the recorded set (P6 out, P3/P7 in).
+_DIVERGENCE = {
+    "topic": (
+        "사내 API 게이트웨이에 OAuth 토큰 캐시를 도입해 인증 지연을 줄일지 결정한다. "
+        "로그인 요청마다 인증 서버를 호출하는 현재 구조는 p99 지연이 크고, 캐시를 두면 "
+        "성능은 좋아지지만 토큰 무효화가 늦어져 보안 위험이 생긴다."
+    ),
+    "topic_expected": ["P1", "P2", "P6"],
+    "steelman": (
+        "토큰 캐시 도입은 정당하다. 인증 서버 왕복을 없애 로그인 응답의 p99 지연을 줄이면 "
+        "사용자가 체감하는 대기가 짧아지고, 인증 서버 호출 비용도 함께 내려간다. 캐시 TTL을 "
+        "짧게 잡으면 토큰 무효화 지연은 그 TTL 안으로 갇히므로 보안 노출은 제한적이고, "
+        "남는 이득은 성능과 비용 양쪽에서 크다."
+    ),
+    "steelman_expected": ["P1", "P2", "P3", "P7"],
+}
+
+# Files that define or invoke the rule. Each must name the shared input and must not aim the
+# rule at the Steelman. `section` limits the scan to one `## ` section; None scans the
+# rule-mentioning paragraphs. Prose, so both checks are literal: a phrase that must appear and
+# a phrasing that must not. Discussing the Steelman is fine — "run it ON the Steelman" is not.
+_CONSUMERS = [
+    ("thinking-tools/reference/personas.md", "Selection Rule"),
+    ("thinking-tools/skills/expert-panel/SKILL.md", None),
+    ("thinking-tools/skills/adversarial-review/SKILL.md", None),
+]
+
+_INPUT_PHRASE = "original topic text"
+_AIMED_AT_STEELMAN = re.compile(r"(?:on|from|against) the [\w ]*Steelman")
+
+
+def _section(text: str, heading: str) -> str:
+    """The `## {heading}` section body, up to the next `## `."""
+    m = re.search(rf"^## {re.escape(heading)}\s*$(.*?)(?=^## |\Z)", text, re.M | re.S)
+    return m.group(1) if m else ""
+
+
 def _fail(msgs: list[str], msg: str) -> None:
     msgs.append(msg)
 
@@ -134,9 +177,46 @@ def run_checks(pool) -> list[str]:
         if len(ids) + adhoc < 3:
             _fail(failures, f"topic {topic!r}: {len(ids)}+{adhoc} below the 3-expert floor")
 
-        # 5: ac5 — the adversarial-review angle (rank 1) is inside the expert-panel cut
-        if ids and ids[0] not in ids[: min(5, len(ids))]:
-            _fail(failures, f"topic {topic!r}: rank 1 fell outside the cut")
+    return failures
+
+
+def check_shared_input(pool) -> list[str]:
+    """5: the two skills run the rule on one shared input, and the case proving it matters."""
+    failures: list[str] = []
+
+    # 5a: the pinned measurement still reproduces — derived text really does select differently
+    got = {k: select(pool, _DIVERGENCE[k])[0] for k in ("topic", "steelman")}
+    for k, ids in got.items():
+        if ids != _DIVERGENCE[f"{k}_expected"]:
+            _fail(failures, f"#423 divergence fixture ({k}): expected "
+                            f"{_DIVERGENCE[f'{k}_expected']}, got {ids}")
+    if got["topic"] == got["steelman"]:
+        _fail(failures, "#423 divergence fixture no longer diverges — re-measure it or drop it; "
+                        "as-is it no longer demonstrates why the input must be fixed")
+
+    # 5b: no consumer aims the rule at the Steelman, and each names the shared input
+    for rel, section in _CONSUMERS:
+        path = _REPO_ROOT / rel
+        if not path.is_file():
+            _fail(failures, f"{rel}: not found — the Selection Rule's consumer set moved")
+            continue
+        text = path.read_text(encoding="utf-8")
+        if section:
+            scope = _section(text, section)
+            if not scope:
+                _fail(failures, f"{rel}: '## {section}' section not found")
+        else:
+            scope = "\n\n".join(b for b in text.split("\n\n") if "Selection Rule" in b)
+
+        scope = re.sub(r"[\s*_`]+", " ", scope)  # these files hard-wrap and bold mid-phrase
+        if _INPUT_PHRASE not in scope:
+            _fail(failures, f"{rel}: the Selection Rule is invoked without naming its input "
+                            f"{_INPUT_PHRASE!r} — the two skills' inputs stop being provably the same")
+        aimed = _AIMED_AT_STEELMAN.search(scope)
+        if aimed:
+            _fail(failures, f"{rel}: Selection Rule aimed at model-authored text "
+                            f"({aimed.group(0)!r}) — a Steelman varies run to run, so the "
+                            f"selection would too (#423)")
 
     return failures
 
@@ -199,7 +279,7 @@ def main(argv=None) -> int:
         print(f"FAIL: parsed only {len(pool)} pool entries from {_POOL_PATH}")
         return 1
 
-    failures = run_checks(pool)
+    failures = run_checks(pool) + check_shared_input(pool)
     if failures:
         for f in failures:
             print(f"FAIL: {f}")
@@ -207,7 +287,7 @@ def main(argv=None) -> int:
     print(
         f"OK: all persona-selection checks passed "
         f"({len(pool)} pool entries, {len(_FIXTURES)} topic fixtures, "
-        f"{len(_DECOY_WORDS)} decoy words)"
+        f"{len(_DECOY_WORDS)} decoy words, {len(_CONSUMERS)} shared-input consumers)"
     )
     return 0
 

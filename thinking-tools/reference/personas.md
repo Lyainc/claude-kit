@@ -36,8 +36,15 @@ matching is defined in [Selection Rule](#selection-rule) step 2.
 
 ## Selection Rule
 
-Deterministic — no free LLM choice at any step. Given the topic text (for `expert-panel`, the topic
-title + statement; for `adversarial-review`, the finalized Steelman):
+Deterministic — no free LLM choice at any step. The input is always the **user's original topic
+text** — for `expert-panel` the topic title + statement, for `adversarial-review` the claim as
+submitted, *before* Steelman construction.
+
+Never run the rule on model-authored derived text. A Steelman is written by the LLM, so feeding it
+in re-opens the free choice this file exists to close: two runs of the same claim produce two
+Steelmans and can select two different entries. Measured 2026-07-22 (#423) — one claim scored
+`[P1 P2 P6]` as submitted and `[P1 P2 P3 P7]` after Steelman construction, a different set from the
+same source claim. `scripts/test/test-persona-selection.py` carries that pair as a fixture.
 
 1. **Normalize**: lowercase the topic text. This is the match string.
 2. **Match**: a tag matches by script —
@@ -72,8 +79,9 @@ title + statement; for `adversarial-review`, the finalized Steelman):
    them to this file.
 
 **Single-persona consumers** (`adversarial-review`'s Attacker angle) take **rank 1 only** — the
-top-ranked entry, or one ad-hoc persona when nothing matched. Since rank 1 is always inside the
-`expert-panel` cut for the same topic text, the two skills provably point at the same pool entry.
+top-ranked entry, or one ad-hoc persona when nothing matched. Every cut in step 5 starts at rank 1,
+so given the one input above the two skills point at the same pool entry — the guarantee rests on
+that shared input, not on the cut alone.
 
 ## Reporting the Selection
 

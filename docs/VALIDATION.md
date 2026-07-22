@@ -222,7 +222,9 @@ python3 thinking-tools/scripts/test/test-mode-compose.py
 # against the live tag table: Latin tags must be word-start-safe (raw substring matching
 # had `ui` hitting "build", `db` hitting "feedback", `doc` hitting "docker"), no
 # single-character Hangul tags, fixture topics select the expected personas, and the
-# 5-entry ceiling / 3-expert floor hold. Run after editing the pool's tag list.
+# 5-entry ceiling / 3-expert floor hold. Also guards the shared input (#423): both consuming
+# skills must run the rule on the user's original topic text, never on the model-authored
+# Steelman. Run after editing the pool's tag list or either skill's Selection Rule wording.
 python3 thinking-tools/scripts/test/test-persona-selection.py --self-test
 # Expected: OK: all 7 test-persona-selection self-test cases passed
 python3 thinking-tools/scripts/test/test-persona-selection.py
