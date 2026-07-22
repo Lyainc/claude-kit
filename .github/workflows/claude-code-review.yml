@@ -29,7 +29,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          # Full history: the validation suite the review runs includes
+          # check-trigger-regression.py's origin/main diff (validate.yml needs the same).
+          fetch-depth: 0
 
       - name: Run Claude Code Review
         id: claude-review
@@ -48,6 +50,24 @@ jobs:
             - Test coverage
 
             Use the repository's CLAUDE.md for guidance on style and conventions.
+
+            ## Verify by running, not by tracing
+
+            When this PR touches any test, script, hook, workflow, or `docs/VALIDATION.md`
+            file, RUN the repo's registered validation suite with your Bash tool before
+            writing the review:
+
+                python3 scripts/check-test-exitcode.py
+
+            `docs/VALIDATION.md` is this repo's single source of truth for validation
+            commands; that runner executes every command registered there and exits nonzero
+            if any of them fails (add `--json` for per-command exit codes and stderr tails).
+            Quote its actual output AND the exit code in your review comment. Any finding a
+            run would settle must be settled by running it — this command is allowlisted, so
+            never report it as unexecutable in the sandbox. One documented exception before
+            you call a failure a bug: `check-trigger-regression.py origin/main` exits 1 when
+            triggers were removed, and validate.yml treats that as report-only — judge
+            whether the removal was intentional instead of auto-tagging it P0.
 
             ## Severity gate (REQUIRED — classify every finding)
 
@@ -88,5 +108,11 @@ jobs:
           # or https://code.claude.com/docs/en/cli-reference for available options
           # gh issue create is allowed so P2 nits can be bundled into a single backlog issue
           # (deferred, never silently dropped); the prompt dedups to at most one issue per PR.
-          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*)"'
+          # check-test-exitcode.py is the ONE validation entry allowed: it runs every command
+          # registered in docs/VALIDATION.md (the single source of truth) in ~15s, so the review
+          # can settle test-behavior claims by running them instead of tracing statically.
+          # Allowlisting that one runner instead of ~70 individual commands keeps the list from
+          # drifting away from docs/VALIDATION.md, and stays read/verify-only — no write or
+          # network command is added here.
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(python3 scripts/check-test-exitcode.py:*)"'
 
