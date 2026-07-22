@@ -273,6 +273,10 @@ def main(argv=None):
             for r in report["failures"]:
                 why = "timeout" if r["timed_out"] else f"exit {r['exit']}"
                 print(f"  - [{why}] {r['command']}")
+                # Show WHY it failed here, not only under --json: the CI review job quotes
+                # this output, and a bare exit code costs it a second run to diagnose.
+                for line in (r.get("stderr_tail") or "").splitlines():
+                    print(f"      {line}")
             print("Fix: repair the broken test or remove it from docs/VALIDATION.md's "
                   "Validation section if it is intentionally retired.")
 
