@@ -84,7 +84,7 @@ Use **AskUserQuestion** to present the change summary and get user approval.
 Show the user:
 1. The list of changed files (grouped by status: modified / added / deleted / untracked)
 2. The auto-generated commit message
-3. Three options
+3. Four options
 
 **AskUserQuestion options**:
 
@@ -93,6 +93,7 @@ Show the user:
   "question": "vault에 미커밋 변경사항이 {N}개 있습니다.\n\n**변경 파일:**\n{file_list}\n\n**자동 생성 커밋 메시지:**\n`{auto_msg}`\n\n어떻게 진행할까요?",
   "options": [
     "이 메시지로 커밋",
+    "그룹별로 나눠서 커밋",
     "메시지 직접 입력 후 커밋",
     "커밋 안 함 (건너뛰기)"
   ]
@@ -100,6 +101,13 @@ Show the user:
 ```
 
 Where `{file_list}` lists each file on its own line with a status prefix (`수정:`, `추가:`, `삭제:`, `미추적:`).
+
+**When `{N}` ≥ 10, list the counts per path group above the file list** — a 30-line
+file list is scrolled past, not read, and the approval stops being a real one:
+
+```
+wiki/ 23 · notes/ 2 · inbox/ 4 · .obsidian/ 2 · 기타 1
+```
 
 ### Step 6 — Handle user choice
 
@@ -110,7 +118,36 @@ Run:
 git -C "{vault_root}" commit -m "{auto_msg}"
 ```
 
-**Option B — "메시지 직접 입력 후 커밋"** (index 1):
+**Option B — "그룹별로 나눠서 커밋"** (index 1):
+
+Split the staged changes into one commit per path group. Grouping is **deterministic —
+the first path segment, nothing else** (`wiki/`, `notes/`, `inbox/`, `assets/`, `.obsidian/`,
+…; a top-level file groups as `기타`). Never group by reading file *content*: the same
+staged set must produce the same commits on every run.
+
+1. Un-stage everything Step 4a staged, so each group can be staged alone:
+   ```bash
+   git -C "{vault_root}" reset HEAD
+   ```
+2. For each group, in the order listed by `git diff` (stable), stage only that group and
+   generate its own message with the Step 4c helper:
+   ```bash
+   git -C "{vault_root}" add -A -- "{group_prefix}"
+   git -C "{vault_root}" diff --cached --name-status \
+     | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/vault-commit-message.py" "{vault_root}"
+   git -C "{vault_root}" reset HEAD
+   ```
+   Collect `{group_prefix} → {group_msg}` pairs. Do not commit yet.
+3. Show the full plan (every group, its file count, and its message) and get **one**
+   confirmation covering all of them. The approval must name each message — an approval
+   of "커밋해줘" that never displayed the messages does not authorize them.
+4. On approval, run per group: `add -A -- {group_prefix}` then `commit -m "{group_msg}"`.
+5. Report every commit hash in Step 7, one line each.
+
+If any group's commit fails, **stop** — do not continue to the next group. Report which
+groups committed and which did not, so the partial state is visible rather than guessed at.
+
+**Option C — "메시지 직접 입력 후 커밋"** (index 2):
 
 Do NOT call AskUserQuestion (it does not support freeform text). Instead, output this prompt in Korean and wait for the next user turn:
 
@@ -121,7 +158,7 @@ On the next turn, treat the user's reply as `{custom_msg}` (single-line, trimmed
 git -C "{vault_root}" commit -m "{custom_msg}"
 ```
 
-**Option C — "커밋 안 함 (건너뛰기)"** (index 2):
+**Option D — "커밋 안 함 (건너뛰기)"** (index 3):
 
 Un-stage the changes that Step 4a staged for preview:
 ```bash
@@ -154,6 +191,8 @@ Output the stderr content and:
 
 - NEVER run `git commit` without explicit user approval in Step 5.
 - Step 4a runs `git add -A` before generating the diff — this is staging-for-preview only. The commit itself requires user approval.
+- **Grouping is by path prefix only** (Option B). Content-based classification would make two runs of the same staged set produce different commits.
+- **This skill does not filter derived or generated files.** Regenerable indexes (`.ovm/`, `.vault-bridge/manifest.json`) are excluded by the vault's `.gitignore`, so they never reach the staged set. Do not add an exclusion list here — a second list drifts from the first.
 - If the command is interrupted after Step 4a (timeout, crash, context limit) before Step 6 cleanup runs, the vault git index is left staged. Restore with `git -C {vault_root} reset HEAD`.
 - NEVER leave a partial state: if `commit` fails, report the failure clearly.
 - Respect `VAULT_BRIDGE_DISABLE=1` (Step 0).

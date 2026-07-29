@@ -299,6 +299,73 @@ def case_delete_file(errors: list[str]) -> None:
         _assert("old.md" in out, f"filename in message (got: {out!r})", errors)
 
 
+def case_new_wiki(errors: list[str]) -> None:
+    """New wiki page → 'wiki(create): {stem}' (not the untyped 'vault: add' fallback)"""
+    print("\ncase: new_wiki")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        # v5 A layer carries no `status:` — _write_note with status=None matches that.
+        rel = "wiki/defuddle-cli.md"
+        _write_note(vault_root, rel, "wiki")
+        diff = ["A\t" + rel]
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out.startswith("wiki(create):"), f"starts with wiki(create): (got: {out!r})", errors)
+        _assert("defuddle-cli" in out, f"stem in message (got: {out!r})", errors)
+
+
+def case_modify_wiki(errors: list[str]) -> None:
+    """Modified wiki page → 'wiki(update): {stem}' — never a promote/archive label"""
+    print("\ncase: modify_wiki")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        rel = "wiki/llm-wiki-pattern.md"
+        _write_note(vault_root, rel, "wiki", body="# old\n")
+        _commit_file(str(vault_root), rel, "add wiki page")
+        _write_note(vault_root, rel, "wiki", body="# compounded\n")
+        diff = ["M\t" + rel]
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out.startswith("wiki(update):"), f"starts with wiki(update): (got: {out!r})", errors)
+        _assert("promote" not in out and "archive" not in out,
+                f"no status-machine label on a wiki page (got: {out!r})", errors)
+
+
+def case_dominant_group_titles_commit(errors: list[str]) -> None:
+    """Many files of one kind must title the commit, not one 'more important' file.
+
+    Regression for the observed failure: 20 new wiki pages + 1 note edit was
+    titled `note(update): ...`, because the title came from an importance sort
+    that never counted files.
+    """
+    print("\ncase: dominant_group_titles_commit")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        diff = []
+        for i in range(20):
+            rel = f"wiki/page-{i:02d}.md"
+            _write_note(vault_root, rel, "wiki")
+            diff.append("A\t" + rel)
+        rel_note = "notes/background.md"
+        _write_note(vault_root, rel_note, "note", "evergreen", body="# old\n")
+        _commit_file(str(vault_root), rel_note, "add background")
+        _write_note(vault_root, rel_note, "note", "evergreen", body="# new\n")
+        diff.append("M\t" + rel_note)
+
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        lines = out.splitlines()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(lines[0] == "wiki: add 20 files",
+                f"title names the 20-file wiki group (got: {lines[0]!r})", errors)
+        _assert("note(update)" in out, f"the single note still appears in the body (got: {out!r})", errors)
+
+
 def case_rename_file(errors: list[str]) -> None:
     """Renamed file → 'vault: rename {old} → {new}'"""
     print("\ncase: rename_file")
@@ -340,6 +407,9 @@ def main() -> int:
     case_modify_decision_promote(errors)
     case_modify_session_with_status_change(errors)
     case_delete_file(errors)
+    case_new_wiki(errors)
+    case_modify_wiki(errors)
+    case_dominant_group_titles_commit(errors)
     case_rename_file(errors)
 
     print()

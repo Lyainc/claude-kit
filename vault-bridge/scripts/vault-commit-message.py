@@ -70,9 +70,10 @@ _IMPORTANCE = {
     "decision": 0,
     "plan": 1,
     "note": 2,
-    "session": 3,
-    "capture": 4,
-    "vault": 5,
+    "wiki": 3,
+    "session": 4,
+    "capture": 5,
+    "vault": 6,
 }
 
 
@@ -117,6 +118,9 @@ def _msg_for_added(vault_root: str, rel_path: str) -> str:
             return f"note(evergreen): {stem} (new)"
         else:
             return f"note(draft): {stem} (new)"
+    elif ftype == "wiki":
+        # v5 A layer — no status machine, so a wiki page has only create/update.
+        return f"wiki(create): {stem}"
     elif ftype == "session":
         return f"session: {stem} (new)"
     elif ftype == "capture":
@@ -170,8 +174,10 @@ def _msg_for_modified(vault_root: str, rel_path: str) -> str:
         elif new_status == "archived" and old_status != "archived":
             return f"{prefix}(archive): {stem}"
 
-    # Content change without status change
-    if new_type in ("note", "decision", "plan"):
+    # Content change without status change. `wiki` never reaches the transition
+    # block above (`_type_prefix` returns None) because the A layer carries no
+    # `status:` — it only ever lands here.
+    if new_type in ("note", "decision", "plan", "wiki"):
         return f"{new_type}(update): {stem}"
     else:
         return f"vault: update {Path(rel_path).name}"
@@ -191,9 +197,13 @@ def _msg_for_renamed(old_path: str, new_path: str) -> str:
 # Main
 # ---------------------------------------------------------------------------
 
-def _parse_diff_lines(lines: list[str], vault_root: str) -> list[str]:
-    """Parse git diff --cached --name-status lines into per-file messages."""
-    messages: list[str] = []
+def _parse_diff_lines(lines: list[str], vault_root: str) -> list[tuple[str, str]]:
+    """Parse `git diff --cached --name-status` lines into (op, message) records.
+
+    `op` is carried alongside the message so `_synthesize` can group by what
+    happened, not just by the message text it would otherwise have to re-parse.
+    """
+    records: list[tuple[str, str]] = []
 
     for line in lines:
         line = line.rstrip("\n")
@@ -206,38 +216,61 @@ def _parse_diff_lines(lines: list[str], vault_root: str) -> list[str]:
         status = parts[0].strip()
 
         if status == "A":
-            messages.append(_msg_for_added(vault_root, parts[1]))
+            records.append(("add", _msg_for_added(vault_root, parts[1])))
         elif status == "M":
-            messages.append(_msg_for_modified(vault_root, parts[1]))
+            records.append(("update", _msg_for_modified(vault_root, parts[1])))
         elif status == "D":
-            messages.append(_msg_for_deleted(parts[1]))
+            records.append(("delete", _msg_for_deleted(parts[1])))
         elif (status.startswith("R") or status.startswith("C")) and len(parts) >= 3:
-            messages.append(_msg_for_renamed(parts[1], parts[2]))
+            records.append(("rename", _msg_for_renamed(parts[1], parts[2])))
 
-    return messages
+    return records
 
 
-def _synthesize(messages: list[str]) -> str:
+def _kind(msg: str) -> str:
+    """Leading type token of a per-file message ('wiki(create): x' -> 'wiki')."""
+    return re.split(r"[(:]", msg, maxsplit=1)[0].strip()
+
+
+def _synthesize(records: list[tuple[str, str]]) -> str:
     """Synthesize per-file messages into a final commit message."""
-    if not messages:
+    if not records:
         return "vault: update notes"
 
-    # Sort by importance
-    sorted_msgs = sorted(messages, key=_importance)
+    sorted_msgs = sorted((msg for _, msg in records), key=_importance)
 
     if len(sorted_msgs) == 1:
         return sorted_msgs[0]
 
-    title = sorted_msgs[0]
-    bullets = "\n".join(f"- {m}" for m in sorted_msgs[1:])
+    # The title names the largest (kind, op) group rather than the single
+    # highest-importance file. Ranking by importance alone let one
+    # `note(update)` title a commit of twenty wiki pages, because the title was
+    # picked from a sort that never looked at how many files shared a kind.
+    # Count wins; ties fall back to importance, which keeps a 1-decision +
+    # 1-note commit titled by the decision.
+    groups: dict[tuple[str, str], list[int]] = {}
+    for op, msg in records:
+        g = groups.setdefault((_kind(msg), op), [0, 99])
+        g[0] += 1
+        g[1] = min(g[1], _importance(msg))
+    (kind, op), (count, _best) = max(groups.items(), key=lambda kv: (kv[1][0], -kv[1][1]))
+
+    if count > 1:
+        title = f"{kind}: {op} {count} files"
+        body = sorted_msgs
+    else:
+        title = sorted_msgs[0]
+        body = sorted_msgs[1:]
+
+    bullets = "\n".join(f"- {m}" for m in body)
     return f"{title}\n\n{bullets}"
 
 
 def main() -> int:
     vault_root = sys.argv[1] if len(sys.argv) > 1 else "."
     stdin_lines = sys.stdin.readlines()
-    messages = _parse_diff_lines(stdin_lines, vault_root)
-    print(_synthesize(messages))
+    records = _parse_diff_lines(stdin_lines, vault_root)
+    print(_synthesize(records))
     return 0
 
 
