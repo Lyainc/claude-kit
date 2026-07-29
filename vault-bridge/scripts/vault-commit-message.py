@@ -233,9 +233,8 @@ def _kind(msg: str) -> str:
 
 
 # Status transitions, the two sub-ops `_importance` scores below every type.
+# Neither value can collide with a git-status op (add/update/delete/rename).
 _TRANSITION_SUBOPS = ("promote", "archive")
-
-_TRANSITION_RE = re.compile(r"^[a-z]+\((promote|archive)\)")
 
 
 def _subop(msg: str, op: str) -> str:
@@ -250,9 +249,14 @@ def _subop(msg: str, op: str) -> str:
     new note is a status *value*, not a different operation, so both stay under
     the status letter; splitting them would fragment ordinary groups and undo
     the count-based titling this grouping exists for.
+
+    Detected the same way `_importance` detects them — one convention for what
+    marks a transition, so the two cannot drift apart.
     """
-    m = _TRANSITION_RE.match(msg)
-    return m.group(1) if m else op
+    for subop in _TRANSITION_SUBOPS:
+        if f"({subop})" in msg:
+            return subop
+    return op
 
 
 def _synthesize(records: list[tuple[str, str]]) -> str:
@@ -282,17 +286,25 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     #   3. first appearance in `records`, since dicts preserve insertion order.
     #      `git diff --cached --name-status` emits paths sorted, so this is
     #      stable for a given staged set rather than arbitrary.
-    groups: dict[tuple[str, str], list[int]] = {}
+    # Each group carries [count, best _importance, the message scoring it]. The
+    # representative is tracked rather than re-derived from `sorted_msgs`: a
+    # one-file winner must be titled by *its own* member. Today the global sort
+    # happens to agree, but only because `_importance` puts promote/archive
+    # below every type — reorder that map and a global sort would title a
+    # single-file winner with a losing group's message.
+    groups: dict[tuple[str, str], list] = {}
     for op, msg in records:
-        g = groups.setdefault((_kind(msg), _subop(msg, op)), [0, 99])
+        importance = _importance(msg)
+        g = groups.setdefault((_kind(msg), _subop(msg, op)), [0, 99, msg])
         g[0] += 1
-        g[1] = min(g[1], _importance(msg))
+        if importance < g[1]:
+            g[1], g[2] = importance, msg
 
-    def _rank(item: tuple[tuple[str, str], list[int]]) -> tuple[bool, int, int]:
-        (_kind_, subop_), (count_, best_) = item
+    def _rank(item: tuple[tuple[str, str], list]) -> tuple[bool, int, int]:
+        (_, subop_), (count_, best_, _rep) = item
         return (subop_ in _TRANSITION_SUBOPS, count_, -best_)
 
-    (kind, subop), (count, _best) = max(groups.items(), key=_rank)
+    (kind, subop), (count, _best, representative) = max(groups.items(), key=_rank)
 
     if count > 1:
         # Name the remainder too — a bare "wiki: add 20 files" on a 34-file
@@ -301,8 +313,9 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
         title = f"{kind}: {subop} {count} files" + (f" (+{rest} more)" if rest else "")
         body = sorted_msgs
     else:
-        title = sorted_msgs[0]
-        body = sorted_msgs[1:]
+        title = representative
+        body = list(sorted_msgs)
+        body.remove(representative)
 
     bullets = "\n".join(f"- {m}" for m in body)
     return f"{title}\n\n{bullets}"
