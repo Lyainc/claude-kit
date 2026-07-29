@@ -80,6 +80,11 @@ _IMPORTANCE = {
 def _importance(msg: str) -> int:
     # Status transitions (promote/archive) are highest priority within their type
     # — surface them as the title in multi-file commits.
+    #
+    # These two literals are the same set as `_TRANSITION_SUBOPS`, which
+    # `_synthesize` groups and ranks by. They stay separate because each needs a
+    # distinct score here, not a membership test — so adding a third transition
+    # means editing both places.
     if "(promote)" in msg:
         return -2  # higher than any type
     if "(archive)" in msg:
@@ -286,6 +291,7 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     #   3. first appearance in `records`, since dicts preserve insertion order.
     #      `git diff --cached --name-status` emits paths sorted, so this is
     #      stable for a given staged set rather than arbitrary.
+    #
     # Each group carries [count, best _importance, the message scoring it]. The
     # representative is tracked rather than re-derived from `sorted_msgs`: a
     # one-file winner must be titled by *its own* member. Today the global sort
