@@ -361,9 +361,63 @@ def case_dominant_group_titles_commit(errors: list[str]) -> None:
         out = proc.stdout.strip()
         lines = out.splitlines()
         _assert(proc.returncode == 0, "exit 0", errors)
-        _assert(lines[0] == "wiki: add 20 files",
-                f"title names the 20-file wiki group (got: {lines[0]!r})", errors)
+        _assert(lines[0] == "wiki: add 20 files (+1 more)",
+                f"title names the 20-file wiki group and the remainder (got: {lines[0]!r})", errors)
         _assert("note(update)" in out, f"the single note still appears in the body (got: {out!r})", errors)
+
+
+def case_title_omits_remainder_when_none(errors: list[str]) -> None:
+    """A single-group commit gets no '(+N more)' suffix — there is no remainder."""
+    print("\ncase: title_omits_remainder_when_none")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        diff = []
+        for i in range(3):
+            rel = f"wiki/only-{i}.md"
+            _write_note(vault_root, rel, "wiki")
+            diff.append("A\t" + rel)
+        proc = _run_script(str(vault_root), diff)
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out.splitlines()[0] == "wiki: add 3 files",
+                f"no remainder suffix (got: {out.splitlines()[0]!r})", errors)
+
+
+def case_tie_broken_by_diff_order(errors: list[str]) -> None:
+    """Equal count AND equal importance → first appearance in the diff wins.
+
+    `git diff --cached --name-status` emits sorted paths, so this third-level
+    fallback is stable for a given staged set. Pinned here because nothing else
+    in the suite reaches it — the (kind, op) split is what makes it reachable
+    at all, since both groups here are `wiki`.
+    """
+    print("\ncase: tie_broken_by_diff_order")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        # 3 wiki updates, committed first so HEAD has them
+        for i in range(3):
+            _write_note(vault_root, f"wiki/b{i}.md", "wiki", body="# old\n")
+        _git(str(vault_root), "add", "-A")
+        _git(str(vault_root), "commit", "-m", "seed")
+        for i in range(3):
+            _write_note(vault_root, f"wiki/b{i}.md", "wiki", body="# new\n")
+        # 3 wiki adds
+        for i in range(3):
+            _write_note(vault_root, f"wiki/a{i}.md", "wiki")
+
+        adds = [f"A\twiki/a{i}.md" for i in range(3)]
+        updates = [f"M\twiki/b{i}.md" for i in range(3)]
+
+        # Sorted-path order (what git actually emits): a* before b* → add wins.
+        out = _run_script(str(vault_root), adds + updates).stdout.strip()
+        _assert(out.splitlines()[0] == "wiki: add 3 files (+3 more)",
+                f"sorted order titles by the first group (got: {out.splitlines()[0]!r})", errors)
+        # Reversed input proves the fallback is order-driven, not arbitrary.
+        out_rev = _run_script(str(vault_root), updates + adds).stdout.strip()
+        _assert(out_rev.splitlines()[0] == "wiki: update 3 files (+3 more)",
+                f"reversed order titles by the other group (got: {out_rev.splitlines()[0]!r})", errors)
 
 
 def case_rename_file(errors: list[str]) -> None:
@@ -410,6 +464,8 @@ def main() -> int:
     case_new_wiki(errors)
     case_modify_wiki(errors)
     case_dominant_group_titles_commit(errors)
+    case_title_omits_remainder_when_none(errors)
+    case_tie_broken_by_diff_order(errors)
     case_rename_file(errors)
 
     print()
