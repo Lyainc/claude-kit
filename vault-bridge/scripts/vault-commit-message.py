@@ -232,6 +232,29 @@ def _kind(msg: str) -> str:
     return re.split(r"[(:]", msg, maxsplit=1)[0].strip()
 
 
+# Status transitions, the two sub-ops `_importance` scores below every type.
+_TRANSITION_SUBOPS = ("promote", "archive")
+
+_TRANSITION_RE = re.compile(r"^[a-z]+\((promote|archive)\)")
+
+
+def _subop(msg: str, op: str) -> str:
+    """The sub-op a message groups under.
+
+    A promote and an ordinary content edit are both git status `M`, so keying
+    the group on the status letter alone put `note(promote): x {draft→evergreen}`
+    and `note(update): y` in one bucket — the transition then disappeared into a
+    generic "note: update 2 files".
+
+    Only promote/archive are split out. `note(draft)` vs `note(evergreen)` on a
+    new note is a status *value*, not a different operation, so both stay under
+    the status letter; splitting them would fragment ordinary groups and undo
+    the count-based titling this grouping exists for.
+    """
+    m = _TRANSITION_RE.match(msg)
+    return m.group(1) if m else op
+
+
 def _synthesize(records: list[tuple[str, str]]) -> str:
     """Synthesize per-file messages into a final commit message."""
     if not records:
@@ -242,7 +265,7 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     if len(sorted_msgs) == 1:
         return sorted_msgs[0]
 
-    # The title names the largest (kind, op) group rather than the single
+    # The title names the largest (kind, sub-op) group rather than the single
     # highest-importance file. Ranking by importance alone let one
     # `note(update)` title a commit of twenty wiki pages, because the title was
     # picked from a sort that never looked at how many files shared a kind.
@@ -257,16 +280,16 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     #      stable for a given staged set rather than arbitrary.
     groups: dict[tuple[str, str], list[int]] = {}
     for op, msg in records:
-        g = groups.setdefault((_kind(msg), op), [0, 99])
+        g = groups.setdefault((_kind(msg), _subop(msg, op)), [0, 99])
         g[0] += 1
         g[1] = min(g[1], _importance(msg))
-    (kind, op), (count, _best) = max(groups.items(), key=lambda kv: (kv[1][0], -kv[1][1]))
+    (kind, subop), (count, _best) = max(groups.items(), key=lambda kv: (kv[1][0], -kv[1][1]))
 
     if count > 1:
         # Name the remainder too — a bare "wiki: add 20 files" on a 34-file
         # commit reads, in `git log --oneline`, as if the other 14 do not exist.
         rest = len(records) - count
-        title = f"{kind}: {op} {count} files" + (f" (+{rest} more)" if rest else "")
+        title = f"{kind}: {subop} {count} files" + (f" (+{rest} more)" if rest else "")
         body = sorted_msgs
     else:
         title = sorted_msgs[0]
