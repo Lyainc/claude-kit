@@ -270,8 +270,12 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     # `note(update)` title a commit of twenty wiki pages, because the title was
     # picked from a sort that never looked at how many files shared a kind.
     #
-    # Three tie-break levels, in order — all three are load-bearing, so a change
+    # Four ranking levels, in order — all four are load-bearing, so a change
     # here needs the tie cases in test-vault-commit-message.py to stay green:
+    #   0. a status transition present at all, since `_importance` scores
+    #      promote/archive below every type precisely to say "this outranks
+    #      everything". Count-based titling was introduced to stop one
+    #      *ordinary* file outranking twenty, not to demote a transition.
     #   1. file count, descending
     #   2. best _importance within the group — keeps a 1-decision + 1-note
     #      commit titled by the decision
@@ -283,7 +287,12 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
         g = groups.setdefault((_kind(msg), _subop(msg, op)), [0, 99])
         g[0] += 1
         g[1] = min(g[1], _importance(msg))
-    (kind, subop), (count, _best) = max(groups.items(), key=lambda kv: (kv[1][0], -kv[1][1]))
+
+    def _rank(item: tuple[tuple[str, str], list[int]]) -> tuple[bool, int, int]:
+        (_kind_, subop_), (count_, best_) = item
+        return (subop_ in _TRANSITION_SUBOPS, count_, -best_)
+
+    (kind, subop), (count, _best) = max(groups.items(), key=_rank)
 
     if count > 1:
         # Name the remainder too — a bare "wiki: add 20 files" on a 34-file
