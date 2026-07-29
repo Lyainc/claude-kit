@@ -126,35 +126,43 @@ the first path segment, nothing else** (`wiki/`, `notes/`, `inbox/`, `assets/`, 
 commits on every run.
 
 **A top-level file (no `/` in its path) has no directory prefix**, so it cannot be staged
-by one. Those files form a final group whose pathspec is the **explicit file list**, not a
-label — writing `add -- 기타` fails with `fatal: pathspec '기타' did not match any files`
-and, by the stop-on-failure rule below, aborts the whole split. Stage them as:
+by one. Those files form a final group named `기타` whose pathspec is the **explicit list of
+its members**, never the label itself — `add -- 기타` fails with `fatal: pathspec '기타' did
+not match any files` and, by the stop-on-failure rule below, aborts the whole split.
 
-```bash
-git -C "{vault_root}" diff --cached --name-only | grep -v /   # the 기타 member list
-```
-
-1. Un-stage everything Step 4a staged, so each group can be staged alone:
+1. **Read the groups off the still-staged set**, before anything un-stages it — this
+   listing is the only place the membership exists, and every later step consumes it:
+   ```bash
+   git -C "{vault_root}" diff --cached --name-only
+   ```
+   Group each path by its first segment; paths with no `/` are the `기타` members. Record
+   `기타`'s member paths verbatim. Running this *after* step 2 returns nothing, and the
+   `기타` group then vanishes from the plan with no error — top-level files would be
+   silently left out of every commit.
+2. Un-stage everything Step 4a staged, so each group can be staged alone:
    ```bash
    git -C "{vault_root}" reset HEAD
    ```
-   Capture the Step 4b path list *before* this reset — after it there is no staged set left
-   to derive the groups from.
-2. For each group, in the order listed by `git diff` (stable), stage only that group and
-   generate its own message with the Step 4c helper. `{group_pathspec}` is the directory
-   prefix for a normal group, or the explicit file list for `기타`:
+3. For each group, in the order listed in step 1 (git emits sorted paths, so it is stable),
+   stage only that group and generate its own message with the Step 4c helper.
+   `{group_pathspec}` is the directory prefix for a normal group; for `기타` it is the
+   recorded member paths, **each passed as its own quoted argument** — vault filenames
+   contain spaces and Hangul, and an unquoted list splits one name into two bad pathspecs:
    ```bash
-   git -C "{vault_root}" add -A -- {group_pathspec}
+   # the add line takes ONE of these two forms, depending on the group:
+   git -C "{vault_root}" add -A -- "wiki/"                      # normal group: the prefix
+   git -C "{vault_root}" add -A -- "README.md" "2026 계획.md"    # 기타: each member, quoted
+
    git -C "{vault_root}" diff --cached --name-status \
      | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/vault-commit-message.py" "{vault_root}"
    git -C "{vault_root}" reset HEAD
    ```
    Collect `{group} → {group_msg}` pairs. Do not commit yet.
-3. Show the full plan (every group, its file count, and its message) and get **one**
+4. Show the full plan (every group, its file count, and its message) and get **one**
    confirmation covering all of them. The approval must name each message — an approval
    of "커밋해줘" that never displayed the messages does not authorize them.
-4. On approval, run per group: `add -A -- {group_pathspec}` then `commit -m "{group_msg}"`.
-5. Report every commit hash in Step 7, one line each.
+5. On approval, run per group: `add -A -- {group_pathspec}` then `commit -m "{group_msg}"`.
+6. Report every commit hash in Step 7, one line each.
 
 If any group's commit fails, **stop** — do not continue to the next group. Report which
 groups committed and which did not, so the partial state is visible rather than guessed at.
