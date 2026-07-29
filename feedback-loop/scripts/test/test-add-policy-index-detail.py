@@ -41,10 +41,19 @@ def _load_skill() -> str:
     return _SKILL_PATH.read_text(encoding="utf-8")
 
 
+_SECTION_6_RE = re.compile(r"^## 6\.\s.*?(?=^## 7\.\s)", re.MULTILINE | re.DOTALL)
+
+
+def _section_6_span(text: str) -> tuple[int, int] | None:
+    """Where §6 starts and ends, or None if the header pair is not found."""
+    match = _SECTION_6_RE.search(text)
+    return match.span() if match else None
+
+
 def _section_6(text: str) -> str:
     """Slice out just §6 (between the '## 6.' and '## 7.' headers)."""
-    match = re.search(r"^## 6\.\s.*?(?=^## 7\.\s)", text, re.MULTILINE | re.DOTALL)
-    return match.group(0) if match else ""
+    span = _section_6_span(text)
+    return text[span[0]:span[1]] if span else ""
 
 
 # ---------------------------------------------------------------------------
@@ -112,13 +121,18 @@ def check_scoped_to_section_6(text: str) -> tuple[bool, str]:
     `.md` in the loaded directory). Both are halves of the same contract, so
     only the instruction phrases are scoped here.
     """
-    section = _section_6(text)
-    if not section.strip():
+    span = _section_6_span(text)
+    if span is None or not text[span[0]:span[1]].strip():
         return False, "§6 section boundary not found (header drift?)"
-    # A non-whitespace sentinel, not "": excising §6 butts §5's tail against §7's
-    # head, and `_states` spans whitespace, so a section ending in "match that"
-    # before one starting with "shape" would read as a leak that isn't there.
-    outside_6 = text.replace(section, "\n<<§6 excised>>\n")
+    # Excised by span, not by `str.replace(section, ...)`: replace is
+    # content-based, so a block that happened to repeat §6's text verbatim
+    # elsewhere would be cut too, quietly changing what "outside §6" means.
+    #
+    # The sentinel is non-whitespace on purpose — removing §6 butts §5's tail
+    # against §7's head, and `_states` spans whitespace, so a section ending in
+    # "match that" before one starting with "shape" would read as a leak that
+    # isn't there.
+    outside_6 = text[:span[0]] + "\n<<§6 excised>>\n" + text[span[1]:]
     for phrase in _INSTRUCTION_PHRASES:
         if _states(outside_6, phrase):
             return False, f"§6 instruction ('{phrase}') leaked outside §6"
@@ -242,6 +256,33 @@ detail file, and never inventing this splitter is not the guard either.
 Some unrelated §7 content.
 """
 
+# §9 quotes §6 verbatim, header line and all. Content-based excision would cut
+# both copies and report no leak; a span excision cuts only the real §6 and sees
+# the quoted instruction sitting outside it.
+_SECTION_6_QUOTED_ELSEWHERE = """\
+## 6. Conflict check (target = the landfill site's current rules)
+
+If the chosen site's current content is already an index+detail split, match that
+shape — add one terse index row plus its linked detail file, not a new inline block.
+Never invent this split on a site that doesn't already use it.
+
+## 7. Output contract
+
+Some unrelated §7 content.
+
+## 9. Appendix — the §6 rule, quoted
+
+## 6. Conflict check (target = the landfill site's current rules)
+
+If the chosen site's current content is already an index+detail split, match that
+shape — add one terse index row plus its linked detail file, not a new inline block.
+Never invent this split on a site that doesn't already use it.
+
+## 7. Output contract
+
+Some unrelated §7 content.
+"""
+
 # §3 resolves the index link for placement and §8 verifies the written split.
 # Both name the shape outside §6 without carrying the instruction — not a leak.
 _NAMED_OUTSIDE_6 = """\
@@ -298,6 +339,11 @@ def _self_test() -> int:
     for check in (check_match_shape_instruction, check_never_invent_guard):
         ok, _ = check(_NEAR_MISS)
         cases.append((f"near-miss: {check.__name__} (expect FAIL)", not ok))
+
+    # A verbatim copy of §6 elsewhere must not hide a leak (#442): span excision
+    # cuts only the real §6, so the quoted instruction is still seen outside it.
+    ok, _ = check_scoped_to_section_6(_SECTION_6_QUOTED_ELSEWHERE)
+    cases.append(("§6 quoted elsewhere: check_scoped_to_section_6 (expect FAIL)", not ok))
 
     # Nor may a phrase match inside a longer word at either outer edge (#442).
     for check in (
