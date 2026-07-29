@@ -384,6 +384,43 @@ def case_title_omits_remainder_when_none(errors: list[str]) -> None:
                 f"no remainder suffix (got: {out.splitlines()[0]!r})", errors)
 
 
+def _promote_note(vault_root: Path, rel: str, git_root: str) -> None:
+    """Commit a draft note, then leave it at evergreen — a raw promote on disk."""
+    _write_note(vault_root, rel, "note", "draft")
+    _commit_file(git_root, rel, f"seed {rel}")
+    _write_note(vault_root, rel, "note", "evergreen")
+
+
+def case_transitions_keep_their_own_group(errors: list[str]) -> None:
+    """A promote must not share a bucket with an ordinary same-type edit.
+
+    Both are git status `M`, and `_kind` reduces `note(promote)` and
+    `note(update)` to the same token, so keying on the status letter alone made
+    3 promotes + 1 edit title itself "note: update 4 files" (#439).
+    """
+    print("\ncase: transitions_keep_their_own_group")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        diff = []
+        for i in range(3):
+            rel = f"notes/promoted-{i}.md"
+            _promote_note(vault_root, rel, str(vault_root))
+            diff.append("M\t" + rel)
+        rel_edit = "notes/edited.md"
+        _write_note(vault_root, rel_edit, "note", "evergreen", body="# old\n")
+        _commit_file(str(vault_root), rel_edit, "seed edited")
+        _write_note(vault_root, rel_edit, "note", "evergreen", body="# new\n")
+        diff.append("M\t" + rel_edit)
+
+        out = _run_script(str(vault_root), diff).stdout.strip()
+        lines = out.splitlines()
+        _assert(lines[0] == "note: promote 3 files (+1 more)",
+                f"the 3 promotes title the commit (got: {lines[0]!r})", errors)
+        _assert("note(update): edited" in out,
+                f"the ordinary edit is still in the body (got: {out!r})", errors)
+
+
 def case_tie_broken_by_diff_order(errors: list[str]) -> None:
     """Equal count AND equal importance → first appearance in the diff wins.
 
@@ -465,6 +502,7 @@ def main() -> int:
     case_modify_wiki(errors)
     case_dominant_group_titles_commit(errors)
     case_title_omits_remainder_when_none(errors)
+    case_transitions_keep_their_own_group(errors)
     case_tie_broken_by_diff_order(errors)
     case_rename_file(errors)
 
