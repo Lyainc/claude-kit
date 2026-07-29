@@ -472,6 +472,50 @@ def case_count_still_wins_between_ordinary_groups(errors: list[str]) -> None:
                 f"count decides among ordinary groups (got: {out.splitlines()[0]!r})", errors)
 
 
+def case_single_file_winner_titled_by_its_own_group(errors: list[str]) -> None:
+    """A one-file winning group must be titled by *its own* member.
+
+    The winner is chosen per group, so the title has to come from that group.
+    Reading it off a global importance sort only agrees while `_importance`
+    happens to rank promote/archive below every type; this pins the behaviour to
+    the group choice instead. Constructed so a losing group holds the globally
+    best-scoring message: the decision (importance 0) beats the archive (-1)
+    only under the *reversed* map applied below.
+    """
+    print("\ncase: single_file_winner_titled_by_its_own_group")
+    src = (Path(__file__).resolve().parents[1] / "vault-commit-message.py").read_text(encoding="utf-8")
+    reordered = src.replace('"decision": 0,', '"decision": -9,')
+    if reordered == src:
+        _assert(False, "could not reorder _IMPORTANCE for the probe", errors)
+        return
+
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        probe = vault_root / "probe.py"
+        probe.write_text(reordered, encoding="utf-8")
+
+        # Winner: one archived note — it wins on the transition key, so its
+        # group has count 1 and the title must come from the representative.
+        # Loser: one decision, which the reordered map scores best overall, so a
+        # global sort would put it first and title the commit with it.
+        rel_gone = "notes/gone.md"
+        _write_note(vault_root, rel_gone, "note", "evergreen")
+        _commit_file(str(vault_root), rel_gone, "seed gone")
+        _write_note(vault_root, rel_gone, "note", "archived")
+        rel_dec = "notes/decision-2026-05-28-x.md"
+        _write_note(vault_root, rel_dec, "decision")
+        diff = ["M\t" + rel_gone, "A\t" + rel_dec]
+
+        out = subprocess.run(
+            [sys.executable, str(probe), str(vault_root)],
+            input="\n".join(diff) + "\n", capture_output=True, text=True,
+        ).stdout.strip()
+        _assert(out.splitlines()[0] == "note(archive): gone",
+                f"the winning group titles it even when a loser scores better "
+                f"(got: {out.splitlines()[0]!r})", errors)
+
+
 def case_tie_broken_by_diff_order(errors: list[str]) -> None:
     """Equal count AND equal importance → first appearance in the diff wins.
 
@@ -556,6 +600,7 @@ def main() -> int:
     case_transitions_keep_their_own_group(errors)
     case_lone_transition_outranks_count(errors)
     case_count_still_wins_between_ordinary_groups(errors)
+    case_single_file_winner_titled_by_its_own_group(errors)
     case_tie_broken_by_diff_order(errors)
     case_rename_file(errors)
 
