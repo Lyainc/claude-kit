@@ -281,14 +281,14 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     #
     # Four ranking levels, in order — all four are load-bearing, so a change
     # here needs the tie cases in test-vault-commit-message.py to stay green:
-    #   0. a status transition present at all, since `_importance` scores
+    #   1. a status transition present at all, since `_importance` scores
     #      promote/archive below every type precisely to say "this outranks
     #      everything". Count-based titling was introduced to stop one
     #      *ordinary* file outranking twenty, not to demote a transition.
-    #   1. file count, descending
-    #   2. best _importance within the group — keeps a 1-decision + 1-note
+    #   2. file count, descending
+    #   3. best _importance within the group — keeps a 1-decision + 1-note
     #      commit titled by the decision
-    #   3. first appearance in `records`, since dicts preserve insertion order.
+    #   4. first appearance in `records`, since dicts preserve insertion order.
     #      `git diff --cached --name-status` emits paths sorted, so this is
     #      stable for a given staged set rather than arbitrary.
     #
