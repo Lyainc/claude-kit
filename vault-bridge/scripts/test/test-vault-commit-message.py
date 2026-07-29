@@ -421,6 +421,57 @@ def case_transitions_keep_their_own_group(errors: list[str]) -> None:
                 f"the ordinary edit is still in the body (got: {out!r})", errors)
 
 
+def case_lone_transition_outranks_count(errors: list[str]) -> None:
+    """One promote among several same-type edits still titles the commit.
+
+    `_importance` scores promote/archive below every type to say "this outranks
+    everything". Count-based titling exists to stop one *ordinary* file
+    outranking twenty; it must not demote a transition (#439).
+    """
+    print("\ncase: lone_transition_outranks_count")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        rel_promoted = "notes/promoted.md"
+        _promote_note(vault_root, rel_promoted, str(vault_root))
+        diff = ["M\t" + rel_promoted]
+        for i in range(5):
+            rel = f"notes/edited-{i}.md"
+            _write_note(vault_root, rel, "note", "evergreen", body="# old\n")
+            _commit_file(str(vault_root), rel, f"seed {rel}")
+            _write_note(vault_root, rel, "note", "evergreen", body="# new\n")
+            diff.append("M\t" + rel)
+
+        out = _run_script(str(vault_root), diff).stdout.strip()
+        lines = out.splitlines()
+        _assert(lines[0] == "note(promote): promoted {draft→evergreen}",
+                f"the lone promote titles the commit (got: {lines[0]!r})", errors)
+        _assert(out.count("note(update)") == 5,
+                f"all five edits stay in the body (got: {out!r})", errors)
+
+
+def case_count_still_wins_between_ordinary_groups(errors: list[str]) -> None:
+    """With no transition present, count still decides — #437's fix is intact."""
+    print("\ncase: count_still_wins_between_ordinary_groups")
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        diff = []
+        for i in range(4):
+            rel = f"wiki/page-{i}.md"
+            _write_note(vault_root, rel, "wiki")
+            diff.append("A\t" + rel)
+        # A decision scores _importance 0 — better than wiki's 3 — so only the
+        # count keeps it out of the title.
+        rel_dec = "notes/decision-2026-05-28-pick.md"
+        _write_note(vault_root, rel_dec, "decision")
+        diff.append("A\t" + rel_dec)
+
+        out = _run_script(str(vault_root), diff).stdout.strip()
+        _assert(out.splitlines()[0] == "wiki: add 4 files (+1 more)",
+                f"count decides among ordinary groups (got: {out.splitlines()[0]!r})", errors)
+
+
 def case_tie_broken_by_diff_order(errors: list[str]) -> None:
     """Equal count AND equal importance → first appearance in the diff wins.
 
@@ -503,6 +554,8 @@ def main() -> int:
     case_dominant_group_titles_commit(errors)
     case_title_omits_remainder_when_none(errors)
     case_transitions_keep_their_own_group(errors)
+    case_lone_transition_outranks_count(errors)
+    case_count_still_wins_between_ordinary_groups(errors)
     case_tie_broken_by_diff_order(errors)
     case_rename_file(errors)
 
