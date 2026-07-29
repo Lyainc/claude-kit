@@ -10,6 +10,12 @@ appending a new inline block, and must never invent this split on a site that
 doesn't already use it. Guards against a future SKILL.md edit silently dropping
 either half of that contract.
 
+Scope (#440): the *instruction* is what must stay in §6. Naming the shape
+elsewhere is expected — §3 resolves the index's link to place an entry, §8
+verifies the written split — so those mentions are not leaks. And because
+SKILL.md is hard-wrapped, claims are matched by phrase across whitespace, never
+as contiguous substrings; a reflow must not read as a deletion.
+
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
     python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
@@ -102,7 +108,10 @@ def check_scoped_to_section_6(text: str) -> tuple[bool, str]:
     section = _section_6(text)
     if not section.strip():
         return False, "§6 section boundary not found (header drift?)"
-    outside_6 = text.replace(section, "")
+    # A non-whitespace sentinel, not "": excising §6 butts §5's tail against §7's
+    # head, and `_states` spans whitespace, so a section ending in "match that"
+    # before one starting with "shape" would read as a leak that isn't there.
+    outside_6 = text.replace(section, "\n<<§6 excised>>\n")
     for phrase in _INSTRUCTION_PHRASES:
         if _states(outside_6, phrase):
             return False, f"§6 instruction ('{phrase}') leaked outside §6"
@@ -195,6 +204,22 @@ this split on a site that doesn't already use it.
 Some unrelated §7 content.
 """
 
+# One word off in each instruction phrase ("the"/"that", "that"/"this"). The
+# claims are absent, but only just — this bounds how far `_states` may be
+# loosened. Widen it to `.*` or drop a word from a phrase and this fixture is
+# the case that goes red; every other fixture stays green.
+_NEAR_MISS = """\
+## 6. Conflict check (target = the landfill site's current rules)
+
+If the chosen site's current content is already an index+detail split, match the
+shape — add one terse index row plus its linked detail file, not a new inline block.
+Never invent that split on a site that doesn't already use it.
+
+## 7. Output contract
+
+Some unrelated §7 content.
+"""
+
 # §3 resolves the index link for placement and §8 verifies the written split.
 # Both name the shape outside §6 without carrying the instruction — not a leak.
 _NAMED_OUTSIDE_6 = """\
@@ -245,6 +270,12 @@ def _self_test() -> int:
 
     ok, _ = check_scoped_to_section_6(_NAMED_OUTSIDE_6)
     cases.append(("shape named in §3/§8 is not a leak: check_scoped_to_section_6", ok))
+
+    # The other edge of the same fix: `_states` spans whitespace, and nothing
+    # more. A one-word-off phrase must still read as absent.
+    for check in (check_match_shape_instruction, check_never_invent_guard):
+        ok, _ = check(_NEAR_MISS)
+        cases.append((f"near-miss: {check.__name__} (expect FAIL)", not ok))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
