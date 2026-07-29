@@ -122,26 +122,38 @@ git -C "{vault_root}" commit -m "{auto_msg}"
 
 Split the staged changes into one commit per path group. Grouping is **deterministic —
 the first path segment, nothing else** (`wiki/`, `notes/`, `inbox/`, `assets/`, `.obsidian/`,
-…; a top-level file groups as `기타`). Never group by reading file *content*: the same
-staged set must produce the same commits on every run.
+…). Never group by reading file *content*: the same staged set must produce the same
+commits on every run.
+
+**A top-level file (no `/` in its path) has no directory prefix**, so it cannot be staged
+by one. Those files form a final group whose pathspec is the **explicit file list**, not a
+label — writing `add -- 기타` fails with `fatal: pathspec '기타' did not match any files`
+and, by the stop-on-failure rule below, aborts the whole split. Stage them as:
+
+```bash
+git -C "{vault_root}" diff --cached --name-only | grep -v /   # the 기타 member list
+```
 
 1. Un-stage everything Step 4a staged, so each group can be staged alone:
    ```bash
    git -C "{vault_root}" reset HEAD
    ```
+   Capture the Step 4b path list *before* this reset — after it there is no staged set left
+   to derive the groups from.
 2. For each group, in the order listed by `git diff` (stable), stage only that group and
-   generate its own message with the Step 4c helper:
+   generate its own message with the Step 4c helper. `{group_pathspec}` is the directory
+   prefix for a normal group, or the explicit file list for `기타`:
    ```bash
-   git -C "{vault_root}" add -A -- "{group_prefix}"
+   git -C "{vault_root}" add -A -- {group_pathspec}
    git -C "{vault_root}" diff --cached --name-status \
      | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/vault-commit-message.py" "{vault_root}"
    git -C "{vault_root}" reset HEAD
    ```
-   Collect `{group_prefix} → {group_msg}` pairs. Do not commit yet.
+   Collect `{group} → {group_msg}` pairs. Do not commit yet.
 3. Show the full plan (every group, its file count, and its message) and get **one**
    confirmation covering all of them. The approval must name each message — an approval
    of "커밋해줘" that never displayed the messages does not authorize them.
-4. On approval, run per group: `add -A -- {group_prefix}` then `commit -m "{group_msg}"`.
+4. On approval, run per group: `add -A -- {group_pathspec}` then `commit -m "{group_msg}"`.
 5. Report every commit hash in Step 7, one line each.
 
 If any group's commit fails, **stop** — do not continue to the next group. Report which

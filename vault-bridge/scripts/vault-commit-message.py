@@ -246,8 +246,15 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     # highest-importance file. Ranking by importance alone let one
     # `note(update)` title a commit of twenty wiki pages, because the title was
     # picked from a sort that never looked at how many files shared a kind.
-    # Count wins; ties fall back to importance, which keeps a 1-decision +
-    # 1-note commit titled by the decision.
+    #
+    # Three tie-break levels, in order — all three are load-bearing, so a change
+    # here needs the tie cases in test-vault-commit-message.py to stay green:
+    #   1. file count, descending
+    #   2. best _importance within the group — keeps a 1-decision + 1-note
+    #      commit titled by the decision
+    #   3. first appearance in `records`, since dicts preserve insertion order.
+    #      `git diff --cached --name-status` emits paths sorted, so this is
+    #      stable for a given staged set rather than arbitrary.
     groups: dict[tuple[str, str], list[int]] = {}
     for op, msg in records:
         g = groups.setdefault((_kind(msg), op), [0, 99])
@@ -256,7 +263,10 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     (kind, op), (count, _best) = max(groups.items(), key=lambda kv: (kv[1][0], -kv[1][1]))
 
     if count > 1:
-        title = f"{kind}: {op} {count} files"
+        # Name the remainder too — a bare "wiki: add 20 files" on a 34-file
+        # commit reads, in `git log --oneline`, as if the other 14 do not exist.
+        rest = len(records) - count
+        title = f"{kind}: {op} {count} files" + (f" (+{rest} more)" if rest else "")
         body = sorted_msgs
     else:
         title = sorted_msgs[0]
