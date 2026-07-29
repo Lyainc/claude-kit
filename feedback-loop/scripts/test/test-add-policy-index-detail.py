@@ -59,9 +59,16 @@ def _section_6(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _states(text: str, phrase: str) -> bool:
-    """True if `text` states `phrase`, ignoring how the prose happens to wrap."""
-    pattern = r"\s+".join(re.escape(word) for word in phrase.split())
-    return re.search(pattern, text, re.IGNORECASE) is not None
+    """True if `text` states `phrase`, ignoring how the prose happens to wrap.
+
+    `\\s+` between words also enforces a boundary at every internal gap, so the
+    only unguarded edges are the phrase's outer two — without `\\b` there,
+    "index row" matched "re**index row**" and "detail file" matched
+    "a **detail file**name". Every phrase checked here starts and ends with a
+    word character, which is what makes `\\b` the right anchor for both edges.
+    """
+    core = r"\s+".join(re.escape(word) for word in phrase.split())
+    return re.search(rf"\b{core}\b", text, re.IGNORECASE) is not None
 
 
 # The two phrases that carry the *instruction*. These are what must not float
@@ -220,6 +227,21 @@ Never invent that split on a site that doesn't already use it.
 Some unrelated §7 content.
 """
 
+# Every checked phrase embedded in a longer word at one edge or the other:
+# "reindex row", "shapeshift", "filename", "splitter". `\s+` alone guards the
+# internal gaps, so these are the cases that need `\b` on the outer two edges.
+_SUBSTRING_BAIT = """\
+## 6. Conflict check (target = the landfill site's current rules)
+
+Reindexing a reindex row is unrelated to any index+detail splitter, and the
+match that shapeshifts is not the shape to match; a detail filename is not a
+detail file, and never inventing this splitter is not the guard either.
+
+## 7. Output contract
+
+Some unrelated §7 content.
+"""
+
 # §3 resolves the index link for placement and §8 verifies the written split.
 # Both name the shape outside §6 without carrying the instruction — not a leak.
 _NAMED_OUTSIDE_6 = """\
@@ -276,6 +298,15 @@ def _self_test() -> int:
     for check in (check_match_shape_instruction, check_never_invent_guard):
         ok, _ = check(_NEAR_MISS)
         cases.append((f"near-miss: {check.__name__} (expect FAIL)", not ok))
+
+    # Nor may a phrase match inside a longer word at either outer edge (#442).
+    for check in (
+        check_index_detail_shape_named,
+        check_match_shape_instruction,
+        check_never_invent_guard,
+    ):
+        ok, _ = check(_SUBSTRING_BAIT)
+        cases.append((f"substring-bait: {check.__name__} (expect FAIL)", not ok))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
