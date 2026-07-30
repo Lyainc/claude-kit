@@ -79,8 +79,9 @@ text/diff to be added, one short line of why-here — then ask a single confirma
 - memory 중복: <none | memory에도 있어요: <path...> — 매립 후 그 항목은 지울게요 (§6)>
 ```
 
-Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" **Never write without
-confirmation.** If any axis cannot be settled, do NOT place it arbitrarily — hold the
+Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" — unless 필요성 came back
+anything but 통과, and then the gate's recommendation is the first option and the question
+carries it: "이건 안 넣는 게 나아 보이는데, 그래도 넣을까요?" **Never write without confirmation.** If any axis cannot be settled, do NOT place it arbitrarily — hold the
 classification and report what is ambiguous ("don't know" beats a confident-wrong placement).
 
 ## 4. User-shell receiver — the destination outside the three sites
@@ -199,15 +200,17 @@ is already read, so it costs no extra lookup. Four questions:
 
 1. Has what this rule prevents **actually happened**, or does it only look likely? Speculative
    → recommend not landing.
-2. Does an existing or more general entry already imply it → absorb it above (Duplicate/Edit).
+2. Does an existing or more general entry already imply it → strengthen that entry instead
+   (Duplicate/Edit above), adding none.
 3. Is **something else already asking the same question** — a hook, a CI guard, an existing
    confirmation checkpoint, the tool itself? A doubled gate is dead weight.
 4. Does one clause on a neighbouring entry do the job, with no new entry → that form.
 
 Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
-**recommends only**: it renders as the **first option of the §3 AskUserQuestion**, **adds no
-second prompt**, and never blocks a landing the user asked for explicitly — a tool does not veto
-an explicit request. It weighs the **artifact's cost** (must this be a *new* always-loaded entry?), never the rule's **reuse
+**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
+second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
+one arriving as a distill proposal. A tool does not veto the work it was told to do. It weighs
+the **artifact's cost** (must this be a *new* always-loaded entry?), never the rule's **reuse
 value**, which stays distill's.
 
 For a new rule the engine appends in each site's **native form** (CLAUDE.md prose / a hook
