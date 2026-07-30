@@ -275,7 +275,7 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 # Left as known ceilings deliberately: each of the three preceding rounds of tightening
 # here introduced a NEW silent false negative, so further regex churn for shapes with no
 # observed occurrences is the losing side of that trade.
-CODE_FENCE = re.compile(r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[ \t]*$', re.S | re.M)
+CODE_FENCE = re.compile(r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[`~]*[ \t\r]*$', re.S | re.M)
 UNCLOSED_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*\Z', re.S | re.M)
 INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)')
 

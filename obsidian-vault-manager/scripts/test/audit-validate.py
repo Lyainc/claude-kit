@@ -102,7 +102,7 @@ WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 # reporting real broken links and manufactures E5 orphans. See ovm-primitives.sh for the
 # full rationale — a closed fence opens and closes at any indent, only a column-0 fence
 # runs to EOF unclosed, and an inline span never crosses a blank line.
-CODE_FENCE = re.compile(r"^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[ \t]*$", re.S | re.M)
+CODE_FENCE = re.compile(r"^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[`~]*[ \t\r]*$", re.S | re.M)
 UNCLOSED_FENCE = re.compile(r"^(?P<f>```+|~~~+)[^\n]*\n.*\Z", re.S | re.M)
 INLINE_CODE = re.compile(r"(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)")
 
