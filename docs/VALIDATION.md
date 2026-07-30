@@ -201,13 +201,16 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
 python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # Expected: OK: all 12 add-policy-routing checks passed.
 
-# add-policy §6 conflict-check Edit bucket regression (#303 — an explicit "change this
-# existing entry" request is its own conflict-check outcome, distinct from Duplicate
-# (strengthen) and Contradiction (refuse); guards against it collapsing back into either.)
+# add-policy §6 conflict-check Edit bucket + Supersede exit regression (#303 — an explicit
+# "change this existing entry" request is its own conflict-check outcome, distinct from
+# Duplicate (strengthen) and Contradiction (refuse); guards against it collapsing back into
+# either. #429 adds the exit path: every other verdict leaves the entry count flat, so the
+# catalogue grew monotonically; Supersede absorbs the redundant entry and retires it in the
+# SAME write, on the SAME confirmation, and a retired number is never reused.)
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 7 self-test cases passed
+# Expected: OK: all 17 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
-# Expected: OK: all 3 add-policy-conflict-edit checks passed.
+# Expected: OK: all 6 add-policy-conflict-edit checks passed.
 
 # add-policy §6 index+detail split regression (#340 — when the target landfill site
 # already uses a thin index + per-entry detail-file shape, add-policy must match that
