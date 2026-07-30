@@ -41,6 +41,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" audit-state list-dirty-since
    ```
    Files absent from sidecar (untracked) are treated as dirty. Files with `status: clean` are skipped unless `--force` was passed.
+   **Exit 3 = the state file is unusable** (#443): the original was copied to `<path>.corrupt-<ISO8601>` and nothing was written back. STOP the audit and report the sidecar path in Korean, telling the user to delete or repair `audit-state.json` before re-running — never treat exit 3 as an empty state and carry on.
 
 3. Emit a scan-start status line in Korean: indicate that the vault audit is starting, and report the number of files targeted along with an estimated scan time.
 

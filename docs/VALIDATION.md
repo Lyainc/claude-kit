@@ -283,6 +283,15 @@ python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
 python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 # Expected: OK: all cases passed
 
+# audit-state corrupt-input handling (#443) — parse failure and shape mismatch take the
+# SAME path: exit 3, original copied to `audit-state.json.corrupt-<ISO8601>`, the state
+# file itself untouched, no `.bak` rotation. The two-ops case is the single-slot `.bak`
+# regression guard (the old fallback wrote an empty state and the 2nd write erased the
+# original). A healthy state file is the FP guard: exit 0, no sidecar.
+python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
+# Expected: OK: all cases passed
+
+
 # audit DoD 측정 (mechanical reference impl)
 # gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py
 # and patches access_count=5 for the E8 access-target seed.
