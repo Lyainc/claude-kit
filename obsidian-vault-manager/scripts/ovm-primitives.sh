@@ -634,8 +634,11 @@ def die_corrupt(path, reason):
     try:
         with open(path, 'rb') as f:
             original = f.read()
+        # glob.escape: VAULT_ROOT is a user env var and a folder named `vault [backup]`
+        # is legal — unescaped, `[u]` reads as a character class, no existing sidecar is
+        # ever found, and the per-file storm comes straight back.
         sidecar = next(
-            (p for p in sorted(glob.glob(path + '.corrupt-*'))
+            (p for p in sorted(glob.glob(glob.escape(path) + '.corrupt-*'))
              if os.path.isfile(p) and open(p, 'rb').read() == original),
             None)
         if sidecar is None:
