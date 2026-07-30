@@ -252,16 +252,22 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 # (leading indent allowed; an unterminated one runs to EOF), then inline spans of any
 # backtick run-length.
 #
-# An inline span may cross a single newline but NEVER a blank line — CommonMark says so,
-# and without that bound a lone stray backtick in prose pairs with the next span far
-# below and deletes every real wikilink in between. That trades a visible 33% FP rate
-# for a SILENT false-negative rate on a Critical check, which is the worse bargain.
-CODE_FENCE = re.compile(
-    r'^(?P<i>[ \t]*)(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=i)?(?P=f)[^\n]*$|\Z)', re.S | re.M)
+# Every bound below exists because over-masking is SILENT: a swallowed region stops E4
+# reporting genuinely broken links (and turns their targets into fresh E5 orphans), which
+# is strictly worse than the 33% FP rate being fixed — nothing surfaces to disbelieve.
+#   - a closed fence may open AND close at any indent, independently (CommonMark allows
+#     the closing marker its own indent; demanding column 0 made one mis-indented closer
+#     swallow the rest of the file)
+#   - only a column-0 fence may run to EOF unclosed; an indented one ends with its
+#     containing list item or quote, so EOF would be a link-eater
+#   - an inline span may cross a single newline but never a blank line, or a lone stray
+#     backtick in prose pairs with the next span far below and deletes everything between
+CODE_FENCE = re.compile(r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[^\n]*$', re.S | re.M)
+UNCLOSED_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*\Z', re.S | re.M)
 INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)')
 
 def mask_code(text):
-    return INLINE_CODE.sub('', CODE_FENCE.sub('', text))
+    return INLINE_CODE.sub('', UNCLOSED_FENCE.sub('', CODE_FENCE.sub('', text)))
 
 def parse_wikilink(raw):
     """Parse [[target]], [[target|alias]], [[target#heading]], [[note#^block]]."""

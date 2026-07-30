@@ -7,13 +7,18 @@ were syntax examples that were ALREADY backticked, so no user-side workaround ex
 the extractors simply did not distinguish code from prose. E4 is Critical/P0 and heads
 the report, so a third of the top block was noise.
 
-Both extractors are duplicates of each other, so this file drives BOTH over the same
-fixtures (the #165 parity pattern):
+The two extractors carry duplicate `mask_code` copies, so this file drives BOTH over the
+same fixture (the #165 parity pattern):
   PART A — ovm-primitives.sh `extract-wikilinks` via subprocess
   PART B — audit-validate.py `collect()` in-process, plus a `mask_code` unit battery
 
+What is gated is masking parity, not extractor parity: the two `WIKILINK_PATTERN`s differ
+(the shell one takes an embed prefix and splits `|`/`#` afterwards), which predates #434
+and is out of scope here.
+
 Real links outside code must survive untouched — masking that eats real links trades a
-33% FP rate for a silent FN rate, which is worse.
+33% FP rate for a silent FN rate, which is worse: a swallowed region also strips the
+inbound-link map, so the eaten target turns into a fresh E5 orphan on top of the missed E4.
 
 Run: python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
   → "OK: all cases passed" (exit 0) / "FAILED: N assertion(s) failed" (exit 1).
@@ -178,6 +183,18 @@ def case_mask_code_unit(errors: list) -> None:
         ("span may cross one newline", "a `co\nde` b", "a  b"),
         ("indented fence is masked", "a\n\n   ```\n   [[x]]\n\n   more\n   ```\n\nb\n",
          "a\n\n\n\nb\n"),
+        # Over-masking is the silent failure: a region wrongly swallowed stops E4 from
+        # reporting real broken links AND makes their targets look like fresh E5 orphans.
+        ("closing fence may carry its own indent",
+         "```bash\necho hi\n  ```\n\nkeep [[x]]\n", "\n\nkeep [[x]]\n"),
+        ("indented unclosed fence stops at its block, not EOF",
+         "- step:\n\n  ```bash\n  echo hi\n\nkeep [[x]] and `lit`.\n",
+         "- step:\n\n  ```bash\n  echo hi\n\nkeep [[x]] and .\n"),
+        ("column-0 unclosed fence still runs to EOF",
+         "a\n```\n[[x]]\nkeep nothing\n", "a\n"),
+        ("a backtick in frontmatter does not kill the note",
+         "---\ntype: note\nd: uses ` for code\n---\n\nkeep [[x]]\n\nand `code`.\n",
+         "---\ntype: note\nd: uses ` for code\n---\n\nkeep [[x]]\n\nand .\n"),
     ]:
         _assert(mask_code(text) == expected,
                 f"mask_code [{label}]: {mask_code(text)!r} == {expected!r}", errors)
