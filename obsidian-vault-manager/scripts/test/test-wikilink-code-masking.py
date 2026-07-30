@@ -217,6 +217,11 @@ def case_mask_code_unit(errors: list) -> None:
          "a\n```\n[[x]]\nkeep nothing\n", "a\n"),
         ("a closing fence is a bare line, not a later fence's opener",
          "```\n[[x]]\n```\n\nkeep [[y]]\n", "\n\nkeep [[y]]\n"),
+        # The literal-parity gate above catches one-sided drift, but this pins the
+        # CommonMark semantics behaviourally: a closer carrying an info string is not a
+        # closer, so the block stays open and [[real]] is code, not a link.
+        ("a closer with an info string is not a closer",
+         "```\nx\n``` js\n[[real]]\n", ""),
         ("a backtick in frontmatter does not kill the note",
          "---\ntype: note\nd: uses ` for code\n---\n\nkeep [[x]]\n\nand `code`.\n",
          "---\ntype: note\nd: uses ` for code\n---\n\nkeep [[x]]\n\nand .\n"),
