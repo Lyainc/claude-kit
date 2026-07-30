@@ -153,6 +153,17 @@ jobs:
       # Accepted consequence: a fork PR, which never receives CLAUDE_CODE_OAUTH_TOKEN, now
       # ends red here rather than green — correct (nothing reviewed it), and this repo has
       # no fork contributors, so it is not worth a branch to soften.
+      #
+      # KNOWN RED, and do NOT weaken this step to make it go away: any PR that edits THIS
+      # file fails here. claude-code-action refuses to run when the review workflow on the
+      # PR head differs from the copy on the default branch ("Workflow validation failed …
+      # must … have identical content to the version on the repository's default branch")
+      # — and it exits SUCCESS while skipping, which is the silent-skip this whole step
+      # exists to expose. Measured on PR #463, the one that introduced the step: the action
+      # reported success in 4s having reviewed nothing, and this step turned it red. The red
+      # is accurate, not a false positive: nothing reviewed that PR, so it must be merged on
+      # the other checks plus a human/local review. Once merged, head and default match again
+      # and the next PR reviews normally.
       - name: Verify a review comment was posted (no silent pass)
         if: always()
         env:
