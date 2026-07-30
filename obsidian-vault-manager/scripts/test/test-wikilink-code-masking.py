@@ -36,7 +36,9 @@ _mod = importlib.util.module_from_spec(_spec)  # type: ignore[arg-type]
 _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 collect = _mod.collect
-mask_code = _mod.mask_code
+# Resolved leniently: if the fix is reverted this reports a named assertion failure
+# instead of an AttributeError at import time, which says nothing about what regressed.
+mask_code = getattr(_mod, "mask_code", None)
 
 # A note shaped like the real offenders: design docs whose backticked examples were the
 # 27 FPs. `real-note` is the only genuine link and must survive both extractors.
@@ -52,6 +54,12 @@ Inline examples are already backticked: `[[Note]]`, `[[link|alias]]`, `![[embed]
 and `[[path/to/file1]]`. A double-backtick span with a literal tick: ``[[weird`]]``.
 
 A genuine link to [[real-note]] sits in prose and must survive.
+
+To mark code you wrap it in a ` character — a lone tick in prose must not pair with
+the next span far below and swallow everything between, including [[third-real-note]].
+
+An inline span may cross one newline, so `[[wrapped-
+example]]` is still code.
 
 ```markdown
 [[fenced-example]]
@@ -80,9 +88,9 @@ FP_TARGETS = {
     "Note", "link", "embed", "path/to/file1", "weird`",
     "fenced-example", "fenced-embed", "tilde-fenced",
     "four-backtick-fence", "still-inside", "unterminated",
-    '"$VAR" == "x"',
+    '"$VAR" == "x"', "wrapped-\nexample",
 }
-REAL_TARGETS = {"real-note", "second-real-note"}
+REAL_TARGETS = {"real-note", "second-real-note", "third-real-note"}
 
 
 def _assert(cond: bool, desc: str, errors: list) -> None:
@@ -136,7 +144,7 @@ def case_primitives_extract(errors: list) -> None:
 
 
 def case_audit_validate_collect(errors: list) -> None:
-    """PART B — the reference impl, same fixture, and no E4 finding on it."""
+    """PART B — the reference impl over the same fixture."""
     with tempfile.TemporaryDirectory() as td:
         vault = seed_vault(Path(td))
         bundle = collect(vault)
@@ -151,6 +159,9 @@ def case_mask_code_unit(errors: list) -> None:
     closing marker). Harmless for extraction, so the expectations keep it rather than
     growing the regex to trim whitespace nothing reads.
     """
+    if mask_code is None:
+        _assert(False, "audit-validate.py exports mask_code (#434 fix is present)", errors)
+        return
     for label, text, expected in [
         ("inline span dropped", "a `[[x]]` b", "a  b"),
         ("bare prose untouched", "see [[x]] here", "see [[x]] here"),
@@ -160,6 +171,13 @@ def case_mask_code_unit(errors: list) -> None:
         ("shorter fence inside longer one", "````\n```\n[[x]]\n````\nb\n", "\nb\n"),
         ("empty span is not a code span", "``", "``"),
         ("unclosed inline tick untouched", "a `[[x]] b", "a `[[x]] b"),
+        # The false-negative guard: a span must not reach across a blank line to find
+        # its partner, or a stray tick eats every real link in between.
+        ("stray tick does not pair across a blank line",
+         "a ` tick\n\nkeep [[x]]\n\nthen `code` end", "a ` tick\n\nkeep [[x]]\n\nthen  end"),
+        ("span may cross one newline", "a `co\nde` b", "a  b"),
+        ("indented fence is masked", "a\n\n   ```\n   [[x]]\n\n   more\n   ```\n\nb\n",
+         "a\n\n\n\nb\n"),
     ]:
         _assert(mask_code(text) == expected,
                 f"mask_code [{label}]: {mask_code(text)!r} == {expected!r}", errors)
