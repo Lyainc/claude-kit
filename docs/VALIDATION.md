@@ -195,6 +195,22 @@ bash feedback-loop/scripts/test/test-events-dir-resolution.sh
 python3 feedback-loop/scripts/test/test-sequence.py
 # Expected: OK: all 10 sequence lifecycle-pair checks passed.
 
+# retro E8 manifest-read regression (#460). retro read the manifest with `cat`; the harness
+# persists a large Bash result and passes the model a 2 KB PREVIEW, so on a 121 KB / 168-file
+# vault exactly 3 entries arrived and retro reported "승격 후보 없음" from a 1.8% scan —
+# indistinguishable from a real full scan (the #456/#451 silent-fail-open shape). Static prose
+# would not have caught it (the SKILL.md text was right, the runtime behaviour wasn't), so the
+# filter is a real script and this EXECUTES it: absent/unparseable -> exit 3 (skip PROMOTE,
+# never "0 candidates"), 0-of-168 -> exit 0 with `scanned`, and `promotion_candidate: true` +
+# `status: archived` is NOT a candidate (the leaf flag ignores status, #435). Plus static
+# checks so the call site cannot drift back to `cat`. `status` is emitted but NOT screened:
+# it is the one field PROMOTE re-reads from the note, so filtering the manifest's possibly
+# stale copy could silently drop a candidate — the same under-report the script exists to
+# close. Malformed-but-parseable input takes exit 3 too; a traceback would be a fourth
+# branch retro has no instruction for.
+python3 feedback-loop/scripts/test/test-e8-candidates.py
+# Expected: OK: all 19 e8-candidates checks passed.
+
 # add-policy layer-routing regression (G28 — add-policy is a prose skill, so this is a
 # static-content check on the live SKILL.md: the SOFT reminder channel is routed by layer
 # (stance/voice→~/.claude/CLAUDE.md, work-rule→~/.claude/rules) with a vanilla fallback
