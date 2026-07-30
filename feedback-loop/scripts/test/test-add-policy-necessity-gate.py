@@ -72,28 +72,37 @@ def _normalise(text: str) -> str:
     return " ".join(text.split())
 
 
+# §6 first, then the block inside it. Both of `_gate_block`'s anchors live in the file being
+# pinned, so on a whole-file search a verbatim copy of the contract pasted into §4 (followed by
+# "For a new rule the engine appends...") became the slice: equality passed against the decoy
+# while §6's real gate was free to be a hard blocker. Whole-block equality is total over the
+# slice; it says nothing about whether the slice is the one the engine executes. Same shape as
+# test-add-policy-conflict-edit.py's `_verdict_scope`.
+_SECTION_6_RE = re.compile(r"^## 6\.\s.*?(?=^## 7\.\s)", re.MULTILINE | re.DOTALL)
 # The BOLD block marker, not the bare phrase: "necessity gate" also appears in the frontmatter
-# description and in the intro, so anchoring on it widened the slice to most of the file and the
-# scoping this helper claims would have been fiction.
+# description and in the intro, so anchoring on that widened the slice to most of the section.
 _GATE_START = "**necessity gate"
-# The gate block ends where the write-form paragraph begins; if that anchor ever moves,
-# the fallback window keeps the slice from silently swallowing the rest of the file.
+# The gate block ends where the write-form paragraph begins; if that anchor ever moves, the
+# fallback window keeps the slice from silently swallowing the rest of the section.
 _GATE_END = "for a new rule the engine appends"
 
 
 def _gate_block(text: str) -> str:
-    """Slice out the §6 necessity-gate block, or "" if it isn't there.
+    """Slice out §6's necessity-gate block, or "" if it isn't there.
 
-    Scoped, not whole-document: `## Rules` restates the gate in summary form, so a
-    whole-document match would pass on the summary alone while the block itself —
-    the part the engine actually executes — had been deleted.
+    Scoped twice: to §6 (a copy elsewhere in the file is not the gate the engine runs), then
+    to the block (`## Rules` restates the gate in summary form, so a section-wide match would
+    pass on the summary while the executable block was gone). A document with no `## 6.`/
+    `## 7.` header pair falls back to itself, for the bare in-memory fixtures.
     """
-    lower = text.lower()
+    match = _SECTION_6_RE.search(text)
+    scope = match.group(0) if match else text
+    lower = scope.lower()
     start = lower.find(_GATE_START)
     if start == -1:
         return ""
     end = lower.find(_GATE_END, start)
-    return text[start:end] if end != -1 else text[start:start + 2000]
+    return scope[start:end] if end != -1 else scope[start:start + 2000]
 
 
 # The WHOLE gate block is pinned VERBATIM — equality, not a suffix match. Three review rounds
@@ -197,45 +206,6 @@ def check_gate_block_verbatim(text: str) -> tuple[bool, str]:
     return True, "necessity-gate block matches its pinned contract text verbatim"
 
 
-# The 1-click invariant is universal across this skill, so it is checked over the WHOLE file,
-# not just the pinned blocks: a contradiction placed in §6's preamble is the one an engine
-# reading top to bottom acts on first, and it sits outside every pin. Noun-anchored, not
-# verb-anchored — "prompt / question / confirmation" is the small closed set the invariant is
-# actually about, where the verbs ("blocks", "stops", "halts", "vetoes") are open-ended.
-_EXTRA_PROMPT_RE = re.compile(
-    r"(?:second|separate|another|its\s+own|a\s+new)\s+(?:prompt|question|confirmation)",
-    re.IGNORECASE,
-)
-# The negation may sit a few words back ("never confirmed on its own second question"), so the
-# window is six words, not three. Wider than that starts swallowing an unrelated "no" from the
-# previous sentence; the pinned blocks are the backstop where this one is deliberately loose.
-_NEGATED_BEFORE_RE = re.compile(
-    r"(?:never|no|not|without|instead\s+of)\W+(?:\w+\W+){0,6}$", re.IGNORECASE
-)
-
-
-def check_no_unnegated_extra_prompt(text: str) -> tuple[bool, str]:
-    """Every mention of an extra prompt/question/confirmation in SKILL.md must be negated.
-
-    Both the gate and Supersede ride the ONE confirmation §3 asks. Their own pins cover
-    their own text; this covers everywhere else — §6's preamble above them, `## Rules`
-    below, a new section later — where a future edit could grant a second prompt without
-    touching a pinned block.
-    """
-    offenders = []
-    for match in _EXTRA_PROMPT_RE.finditer(text):
-        window = " ".join(text[max(0, match.start() - 60):match.start()].split()) + " "
-        if not _NEGATED_BEFORE_RE.search(window):
-            line = text.count("\n", 0, match.start()) + 1
-            offenders.append(f"line {line}: {match.group(0)!r}")
-    if offenders:
-        return False, (
-            "an extra prompt/question/confirmation is asserted without a negation, which "
-            f"breaks the 1-click invariant: {offenders}"
-        )
-    return True, "every extra prompt/question/confirmation in the skill is negated (1-click)"
-
-
 def check_distill_boundary(text: str) -> tuple[bool, str]:
     """Artifact cost is the gate's question; reuse value stays distill's.
 
@@ -289,7 +259,6 @@ _CHECKS = [
     check_four_questions,
     check_three_outcomes,
     check_gate_block_verbatim,
-    check_no_unnegated_extra_prompt,
     check_distill_boundary,
     check_confirmation_surfaces_the_recommendation,
 ]
@@ -364,20 +333,6 @@ _MISSING_QUESTION_3 = _PASSING.replace(
     "",
 )
 
-# A second prompt granted somewhere the pins don't reach — §6's preamble, which an engine
-# reading top to bottom hits BEFORE the pinned bullet and block.
-_EXTRA_PROMPT_ELSEWHERE = _PASSING.replace(
-    "## 1. Input contract",
-    "## 1. Input contract\n\nA verdict that removes an entry is destructive, so it is confirmed\n"
-    "on its own second question, separately from the §3 addition.",
-)
-# The same sentence, negated. The check must not fire on prose that FORBIDS the extra prompt.
-_EXTRA_PROMPT_NEGATED = _PASSING.replace(
-    "## 1. Input contract",
-    "## 1. Input contract\n\nA retirement is never confirmed on its own second question — it\n"
-    "rides the §3 addition.",
-)
-
 # The gate is summarised in `## Rules` but the executable block is gone. A whole-document
 # matcher passes this; the scoped slice must not.
 _SUMMARY_ONLY = """\
@@ -413,10 +368,29 @@ for _name, _fixture in (
     ("_REFLOWED_GATE", _REFLOWED_GATE),
     ("_MISSING_QUESTION_3", _MISSING_QUESTION_3),
     ("_ONE_GENERIC_REFUSAL", _ONE_GENERIC_REFUSAL),
-    ("_EXTRA_PROMPT_ELSEWHERE", _EXTRA_PROMPT_ELSEWHERE),
-    ("_EXTRA_PROMPT_NEGATED", _EXTRA_PROMPT_NEGATED),
 ):
     assert _fixture != _PASSING, f"{_name} is identical to _PASSING — its .replace() no-opped"
+
+
+# A verbatim copy of the contract parked in §4, with §6's real gate replaced by a hard
+# blocker. On a whole-file search the pin read the copy and passed; scoped to §6 it must not.
+_DECOY_ELSEWHERE = """\
+## 4. User-shell receiver
+
+%s
+For a new rule the engine appends in each site's native form.
+
+## 6. Conflict check (target = the landfill site's current rules)
+
+**The necessity check — after the conflict check.** Four questions decide it, and if any of
+them says no the engine does NOT write: it reports the finding and stops, exactly as a
+Contradiction does.
+
+For a new rule the engine appends in each site's native form.
+
+## 7. Output contract
+""" % _GATE_CONTRACT
+assert "## 6." in _DECOY_ELSEWHERE and _GATE_CONTRACT in _DECOY_ELSEWHERE
 
 
 def _self_test() -> int:
@@ -427,15 +401,8 @@ def _self_test() -> int:
         cases.append((f"passing: {check.__name__}", ok))
 
     for check in _CHECKS:
-        if check is check_no_unnegated_extra_prompt:
-            continue  # file-wide invariant: a file with no gate grants no extra prompt either
         ok, _ = check(_FAILING)
         cases.append((f"no-gate: {check.__name__} (expect FAIL)", not ok))
-
-    ok, _ = check_no_unnegated_extra_prompt(_EXTRA_PROMPT_ELSEWHERE)
-    cases.append(("extra-prompt-outside-the-pins: check_no_unnegated_extra_prompt (expect FAIL)", not ok))
-    ok, _ = check_no_unnegated_extra_prompt(_EXTRA_PROMPT_NEGATED)
-    cases.append(("extra-prompt-negated: check_no_unnegated_extra_prompt (still OK)", ok))
 
     for name, fixture in (
         ("refusing", _REFUSING_GATE),
@@ -444,6 +411,9 @@ def _self_test() -> int:
     ):
         ok, _ = check_gate_block_verbatim(fixture)
         cases.append((f"{name}-gate: check_gate_block_verbatim (expect FAIL)", not ok))
+
+    ok, _ = check_gate_block_verbatim(_DECOY_ELSEWHERE)
+    cases.append(("decoy-copy-outside-§6: check_gate_block_verbatim (expect FAIL)", not ok))
 
     ok, _ = check_gate_block_verbatim(_REFLOWED_GATE)
     cases.append(("reflowed-gate: check_gate_block_verbatim (still OK)", ok))
