@@ -69,7 +69,11 @@ _join_continuations = _ci._join_continuations
 # (prose, stray words) is ignored — we only run what looks like an actual command.
 _CMD_HEAD = re.compile(
     r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*"      # zero+ ENV=val prefixes
-    r"(python3|bash|find|rm|claude)\b"          # a known command head
+    r"(python3|bash|find|rm|claude|uv)\b"       # a known command head
+    # `uv` earns its place: check-skill-token-budget is registered as
+    # `uv run --with tiktoken python3 ...` so CI and local run the identical command. Without
+    # it here the line is not a command, so the suite silently stopped running that guard
+    # while still reporting "all exited 0" — the same silent-skip failure #447 is about.
 )
 
 

@@ -222,62 +222,9 @@ This prevents the Moderator from being anchored by the Q&A thread and ensures in
 - Record unresolved issues separately
 
 ## Output Format
+### Output Format details
 
-### Discussion Style
-
-Use clean, professional formatting without emoji:
-
-| Element | Format | Example |
-|---------|--------|---------|
-| Topic header | `### TOPIC N: {title}` | `### TOPIC 1: 인증 방식` |
-| Speaker | `**[Role]**:` | `**[Optimistic Practitioner]**:` |
-| Conclusion | `**결론**:` or `**결론**: 보류` | `**결론**: JWT + Refresh Token 방식 합의` |
-| Footer | `───` + metadata | `*3개 토픽 논의 완료 · 2개 합의, 1개 보류*` |
-
-### Output Integrity Principle
-
-**Presentation Layer** (Unicode/ASCII decorative elements allowed):
-- Footer separators (`───`)
-- Metadata tables
-- Progress/status indicators
-
-**Content Layer** (Unicode/ASCII decorative elements prohibited):
-- Generated text content itself
-- Results that users will directly use
-- Examples: brand names, document body, discussion conclusions
-
-**Exceptions**:
-- Original source already contains special characters
-- User explicitly requests emoji/special characters
-
-### Role Labels (English)
-
-| Korean | English |
-|--------|---------|
-| 긍정적 실무자 | Optimistic Practitioner |
-| 부정적 실무자 | Critical Practitioner |
-| 모더레이터 | Moderator |
-| 보안전문가 | Security Expert |
-| 성능전문가 | Performance Expert |
-| UX전문가 | UX Expert |
-| (기타 도메인) | {Domain} Expert |
-
-Pool-selected experts use the `Label` column of [../../reference/personas.md](../../reference/personas.md) verbatim; ad-hoc experts append ` (ad-hoc)`.
-
-## References
-
-- **Shared persona pool**: See [../../reference/personas.md](../../reference/personas.md)
-- **Detailed procedures**: See [reference.md](reference.md)
-- **Conversation examples**: See [examples.md](examples.md)
-- **Output templates**: See `templates/` folder
-
-## Quick Start
-
-```
-User: "이 API 설계 문서를 보안/성능/UX 전문가 관점에서 검토해줘"
-
-→ Phase 0: 토픽 분할 (인증, 페이지네이션, 에러처리)
-→ Phase 1: 각 토픽별 찬반 토론 진행
-→ Phase 2: 합의사항 및 미해결 이슈 기록
-→ Output: SUMMARY.md + transcripts/
-```
+Discussion style, the output-integrity principle (no invented citations, no emoji), the
+Korean→English role-label table, and the Quick Start example live in
+[reference.md](reference.md) — read it when writing the output files. Conversation examples:
+[examples.md](examples.md); output templates: `templates/`.

@@ -20,6 +20,8 @@ jobs:
         with:
           python-version: "3.12"
 
+      - uses: astral-sh/setup-uv@v6
+
       - name: Validate JSON manifests
         run: |
           python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
@@ -86,6 +88,13 @@ jobs:
           python3 scripts/check-error-label-drift.py
           python3 scripts/check-plugin-root-paths.py --self-test
           python3 scripts/check-plugin-root-paths.py
+          # SKILL.md compaction budget (#454). tiktoken is fetched ephemerally by `uv run
+          # --with`, so it is a dependency of this one command and of nothing else — no
+          # manifest entry, no plugin runtime cost. Same invocation locally and in CI, on
+          # purpose: the guard refuses to report a verdict without an exact token count, so a
+          # drift between the two would show up as exit 2 rather than as a quiet disagreement.
+          uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
+          uv run --with tiktoken python3 scripts/check-skill-token-budget.py
           python3 scripts/check-test-exitcode.py --self-test
           python3 scripts/run-linters.py --self-test
           # #209 subagent git side-effect deny hook: in-memory violation + clean (FP=0).
