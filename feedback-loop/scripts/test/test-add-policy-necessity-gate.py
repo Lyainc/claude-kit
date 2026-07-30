@@ -194,9 +194,11 @@ def check_gate_block_verbatim(text: str) -> tuple[bool, str]:
     invariant (no second prompt) and the never-blocks guarantee on both inbound paths
     against a contradicting clause set beside them — above, below or inside.
     """
-    if "## 6." in text and _SECTION_6_RE.search(text) is None:
-        # Without this the slice silently falls back to whole-file and this suite stays green
-        # on a renamed `## 7.` heading, leaving the diagnosis to a sibling file.
+    if text.lstrip().startswith("---") and _SECTION_6_RE.search(text) is None:
+        # Frontmatter, not a `## 6.` mention: the precondition has to identify the REAL skill
+        # file, or drift in both headings at once falls back to whole-file and this suite stays
+        # green while a sibling reds. The bare in-memory fixtures carry no frontmatter, so they
+        # keep the fallback they need.
         return False, "§6 section boundary not found (header drift?)"
     block = _gate_block(text)
     if not block:
@@ -416,9 +418,16 @@ def _self_test() -> int:
         ok, _ = check_gate_block_verbatim(fixture)
         cases.append((f"{name}-gate: check_gate_block_verbatim (expect FAIL)", not ok))
 
-    ok, msg = check_gate_block_verbatim(_DECOY_ELSEWHERE.replace("## 7. Output", "## 7 Output"))
-    cases.append(("header-drift: check_gate_block_verbatim names the boundary (expect FAIL)",
-                  (not ok) and "boundary not found" in msg))
+    # Both single- and double-heading drift, on a document with frontmatter (the real file's
+    # shape). The second is the case the `## 6.`-mention precondition delegated to a sibling.
+    _fm = "---\nname: add-policy\n---\n\n" + _DECOY_ELSEWHERE
+    for name, drifted in (
+        ("§7-renamed", _fm.replace("## 7. Output", "## 7 Output")),
+        ("both-headings-renamed", _fm.replace("## 7. Output", "## 7 Output").replace("## 6. ", "## 6 ")),
+    ):
+        ok, msg = check_gate_block_verbatim(drifted)
+        cases.append((f"header-drift ({name}): names the boundary (expect FAIL)",
+                      (not ok) and "boundary not found" in msg))
 
     ok, _ = check_gate_block_verbatim(_DECOY_ELSEWHERE)
     cases.append(("decoy-copy-outside-§6: check_gate_block_verbatim (expect FAIL)", not ok))
