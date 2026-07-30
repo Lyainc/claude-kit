@@ -228,7 +228,7 @@ python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # explicitly. Also pins the distill boundary — artifact cost is the gate's question, reuse
 # value stays distill's — without which the skill contradicts its own description.)
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py --self-test
-# Expected: OK: all 23 self-test cases passed
+# Expected: OK: all 24 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
 # Expected: OK: all 6 add-policy-necessity-gate checks passed.
 

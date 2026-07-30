@@ -194,6 +194,10 @@ def check_gate_block_verbatim(text: str) -> tuple[bool, str]:
     invariant (no second prompt) and the never-blocks guarantee on both inbound paths
     against a contradicting clause set beside them — above, below or inside.
     """
+    if "## 6." in text and _SECTION_6_RE.search(text) is None:
+        # Without this the slice silently falls back to whole-file and this suite stays green
+        # on a renamed `## 7.` heading, leaving the diagnosis to a sibling file.
+        return False, "§6 section boundary not found (header drift?)"
     block = _gate_block(text)
     if not block:
         return False, "no necessity gate block found in the SKILL.md body"
@@ -411,6 +415,10 @@ def _self_test() -> int:
     ):
         ok, _ = check_gate_block_verbatim(fixture)
         cases.append((f"{name}-gate: check_gate_block_verbatim (expect FAIL)", not ok))
+
+    ok, msg = check_gate_block_verbatim(_DECOY_ELSEWHERE.replace("## 7. Output", "## 7 Output"))
+    cases.append(("header-drift: check_gate_block_verbatim names the boundary (expect FAIL)",
+                  (not ok) and "boundary not found" in msg))
 
     ok, _ = check_gate_block_verbatim(_DECOY_ELSEWHERE)
     cases.append(("decoy-copy-outside-§6: check_gate_block_verbatim (expect FAIL)", not ok))
