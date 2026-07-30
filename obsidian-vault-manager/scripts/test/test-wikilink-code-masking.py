@@ -26,6 +26,7 @@ Run: python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
 
 import importlib.util
 import json
+import re
 import os
 import subprocess
 import sys
@@ -157,6 +158,28 @@ def case_audit_validate_collect(errors: list) -> None:
         check_targets(targets, "audit-validate", errors)
 
 
+def case_masker_patterns_are_identical(errors: list) -> None:
+    """Drift gate: the three masking patterns are duplicated verbatim in the shell
+    primitive's heredoc, which cannot be imported. Every round of fixes so far has had to
+    edit both copies in lockstep, and the behavioural fixture only catches divergence it
+    happens to exercise — so compare the literals directly."""
+    shell = _PRIM_SH.read_text(encoding="utf-8")
+    for name in ("CODE_FENCE", "UNCLOSED_FENCE", "INLINE_CODE"):
+        mine = getattr(_mod, name, None)
+        if mine is None:
+            _assert(False, f"parity [{name}]: audit-validate.py defines it", errors)
+            continue
+        # Both copies write the pattern as a single r'...' / r"..." literal.
+        m = re.search(rf"^{name} = re\.compile\(\s*r'(.*?)'", shell, re.M | re.S)
+        _assert(m is not None, f"parity [{name}]: found in ovm-primitives.sh", errors)
+        if m:
+            _assert(m.group(1) == mine.pattern,
+                    f"parity [{name}]: shell literal == audit-validate literal\n"
+                    f"        shell: {m.group(1)!r}\n"
+                    f"        audit: {mine.pattern!r}",
+                    errors)
+
+
 def case_mask_code_unit(errors: list) -> None:
     """Unit battery — the masker's own edge cases, independent of the fixture.
 
@@ -192,6 +215,8 @@ def case_mask_code_unit(errors: list) -> None:
          "- step:\n\n  ```bash\n  echo hi\n\nkeep [[x]] and .\n"),
         ("column-0 unclosed fence still runs to EOF",
          "a\n```\n[[x]]\nkeep nothing\n", "a\n"),
+        ("a closing fence is a bare line, not a later fence's opener",
+         "```\n[[x]]\n```\n\nkeep [[y]]\n", "\n\nkeep [[y]]\n"),
         ("a backtick in frontmatter does not kill the note",
          "---\ntype: note\nd: uses ` for code\n---\n\nkeep [[x]]\n\nand `code`.\n",
          "---\ntype: note\nd: uses ` for code\n---\n\nkeep [[x]]\n\nand .\n"),
@@ -202,7 +227,8 @@ def case_mask_code_unit(errors: list) -> None:
 
 def main() -> int:
     errors: list = []
-    for case in (case_primitives_extract, case_audit_validate_collect, case_mask_code_unit):
+    for case in (case_primitives_extract, case_audit_validate_collect,
+                 case_masker_patterns_are_identical, case_mask_code_unit):
         print(f"\n{case.__name__}:")
         case(errors)
     print()
