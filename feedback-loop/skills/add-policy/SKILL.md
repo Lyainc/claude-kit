@@ -1,6 +1,6 @@
 ---
 name: add-policy
-description: "The landfill engine of the ⑤ self-improvement loop: take ONE work-policy / convention / rule — stated by the user in natural language, or handed off as a distill proposal — infer its classification, and place it in one of three native landfill sites (an always-read reminder — CLAUDE.md for stance/voice or the ~/.claude/rules work-rule catalogue — a deterministic hook guard, or an invocable skill) behind a single 1-click confirmation. Leaves every change in the working tree; never commits. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: distill (sibling) DISCOVERS what is worth keeping and emits the proposal; add-policy LANDS it — distill never fills the placement, add-policy never re-judges what to keep. Declarative knowledge (facts/decisions) = vault /capture·/note, not a policy. Example: '/add-policy' or '이 규칙 어디다 넣을지 분류해줘'."
+description: "The landfill engine of the ⑤ self-improvement loop: take ONE work-policy / convention / rule — stated by the user in natural language, or handed off as a distill proposal — infer its classification, and place it in one of three native landfill sites (an always-read reminder — CLAUDE.md for stance/voice or the ~/.claude/rules work-rule catalogue — a deterministic hook guard, or an invocable skill) behind a single 1-click confirmation. Leaves every change in the working tree; never commits. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: distill (sibling) DISCOVERS what is worth keeping and emits the proposal; add-policy LANDS it — distill never fills the placement, add-policy never re-judges the rule's reuse value (it does judge whether the artifact is needed — the §6 necessity gate). Declarative knowledge (facts/decisions) = vault /capture·/note, not a policy. Example: '/add-policy' or '이 규칙 어디다 넣을지 분류해줘'."
 model: inherit
 allowed-tools: Read Edit Write Bash Glob Grep AskUserQuestion
 ---
@@ -15,8 +15,9 @@ is already in. ([reference.md](reference.md) §0)
 `add-policy` is the **landfill half** of the recursive-improvement loop: it takes one
 work-policy/rule, answers **"where does this go, and in what form?"**, and writes it there on a
 single confirmation. Classification is a judgment and is user-confirmed; placement, once
-classified, is deterministic. Its sibling `distill` is the **discovery half** — what is worth
-keeping. The two never overlap.
+classified, is deterministic. Its sibling `distill` is the **discovery half** — whether a rule
+is worth keeping at all. The two never overlap: distill judges a rule's **reuse value**, the
+§6 necessity gate judges whether landing it needs a **new artifact**.
 
 ## 1. Input contract — what the engine accepts
 
@@ -75,6 +76,7 @@ text/diff to be added, one short line of why-here — then ask a single confirma
 - 들어갈 곳: <CLAUDE.md | hook | skill> — <HARD라 자동강제 / SOFT라 리마인드 / 절차라 호출형>
 - 추가/변경될 내용: <the exact prose/guard/skill stub, OR the entry's before → after if this is an edit>
 - 충돌: <none | sibling of an existing rule | edits an existing entry (before→after) | contradicts an existing rule (explain)>
+- 필요성: <통과 | 기존 항목으로 충분 | 안 넣는 게 나음 — <이유 한 줄>>
 - 은퇴: <none | Pn이 이 규칙에 흡수돼요 — 같은 쓰기에서 은퇴시킬게요>
 - memory 중복: <none | 이 규칙이 memory에도 있어요: <path...> — 매립 후 그 항목은 지울게요 (§6)>
 ```
@@ -191,6 +193,22 @@ move on.
   recoverable delete (`trash-put`); if unavailable, leave the file and report it — **never
   force-delete, never `rm`**.
 
+**Necessity gate — after the conflict check, before the §3 confirmation.** The site's content
+is already read, so it costs no extra lookup. Four questions:
+
+1. Has what this rule prevents **actually happened**, or does it only look likely? Speculative
+   → recommend not landing.
+2. Does an existing or more general entry already imply it → absorb it above (Duplicate/Edit).
+3. Is **something else already asking the same question** — a hook, a CI guard, an existing
+   confirmation checkpoint, the tool itself? A doubled gate is dead weight.
+4. Does one clause on a neighbouring entry do the job, with no new entry → that form.
+
+Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
+**recommends only**: it renders as the **first option of the §3 AskUserQuestion**, **adds no
+second prompt**, and never blocks a landing the user asked for explicitly — a tool does not veto
+an explicit request. It weighs the **artifact's cost** (must this be a *new* always-loaded
+entry?), never the rule's **reuse value**, which stays distill's.
+
 For a new rule the engine appends in each site's **native form** (CLAUDE.md prose / a hook
 script / a skill SKILL.md); an **Edit** rewrites the targeted entry in place — always
 conflict-checked against that site's present content. If the site's content is already an
@@ -244,6 +262,10 @@ registered harness hook (CON-2). Worked `bash` example: [reference.md](reference
   `~/.claude/rules` if present else CLAUDE.md fallback (never hardcode the machine's `rules/`
   structure). A user-shell receiver is command emission only, not a fourth site.
 - Tier (HARD/SOFT) is inferred from the rule's what/why, never asked of the user.
+- The **necessity gate** (§6) runs before every landing — four questions, three outcomes
+  (pass / absorb / recommend not landing). It **recommends only**: first option of the same
+  1-click confirmation, no second prompt, never blocks an explicit request; it judges the
+  artifact's cost, never reuse value.
 - **Supersede** (§6) is the exit path: a rule that makes an existing entry redundant absorbs
   and retires it **in the same write**, on the same confirmation. A retired number is never
   reused.

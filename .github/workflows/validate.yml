@@ -151,6 +151,9 @@ jobs:
           # + #429 Supersede (retire the redundant entry in the same write, same confirmation).
           python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
+          # #450 add-policy necessity gate (four questions, three outcomes, recommends only).
+          python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py --self-test
+          python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
           # #340 add-policy §6 index+detail split (match an existing site's index+detail shape).
           python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
