@@ -35,9 +35,11 @@ The budget is left at a flat 5,000 rather than discounted for that uncertainty �
 file near the line is to move rationale out, not to tune the threshold. Two consequences worth
 knowing before you edit a skill that is already close: a pass at 4,990 is NOT proof the real
 Claude count is under 5,000, and a file with only tens of tokens of headroom turns the next
-one-paragraph edit into a CI failure. After the #447 split the three fixed files sit at
+one-paragraph edit into a CI failure. After the #447 split the three fixed files sat at
 4,930 / 4,840 / 4,753 — 1.4% to 4.9% of headroom, deliberately not more, because the material
 left in them is contract text pinned by regression suites rather than prose that can be moved.
+#450/#429 then added two features to `add-policy` and paid for them by moving rationale to its
+reference.md, landing at 4,936 — the same 1.3% of headroom, not a raised ceiling.
 Treat a CI failure on one of them as "move rationale out", never as "raise the number".
 
 There IS a char-class estimator (~4.4 ASCII chars per token, ~1.2 tokens per non-ASCII char),

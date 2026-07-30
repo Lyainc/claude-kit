@@ -59,6 +59,19 @@ def _load_skill() -> str:
 # prose, and the test's job is "is this claim still stated", not exact wording.
 # ---------------------------------------------------------------------------
 
+# The §6 verdict bullets, and nothing else. §8's post-write self-check now carries its own
+# `- **Supersede**:` bullet, so a marker search over the whole document would silently retarget
+# there if §6's bullet were deleted — reporting "doesn't retire in the same write" for a verdict
+# that is missing outright. Fixtures are bare bullet fragments with no headers, so a document
+# without the header pair falls back to itself.
+_SECTION_6_RE = re.compile(r"^## 6\.\s.*?(?=^## 7\.\s)", re.MULTILINE | re.DOTALL)
+
+
+def _verdict_scope(text: str) -> str:
+    match = _SECTION_6_RE.search(text)
+    return match.group(0) if match else text
+
+
 def _bullet_scope(lower: str, marker: str) -> str | None:
     """Slice `lower` from `marker` to the next top-level bullet (`\\n- **`), or
     +600 chars if there is no next bullet. None if `marker` isn't found. Scopes a
@@ -73,7 +86,7 @@ def _bullet_scope(lower: str, marker: str) -> str | None:
 
 def check_edit_bucket_named(text: str) -> tuple[bool, str]:
     """§6 must name Edit as its own conflict-check outcome, not folded into Duplicate."""
-    bullet_text = _bullet_scope(text.lower(), "**edit")
+    bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**edit")
     if bullet_text is None:
         return False, "Edit is not named as its own §6 conflict-check outcome"
     if "before" not in bullet_text or "after" not in bullet_text:
@@ -83,7 +96,7 @@ def check_edit_bucket_named(text: str) -> tuple[bool, str]:
 
 def check_edit_distinct_from_contradiction(text: str) -> tuple[bool, str]:
     """Contradiction must be scoped to exclude an explicit edit request."""
-    bullet_text = _bullet_scope(text.lower(), "**contradiction")
+    bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**contradiction")
     if bullet_text is None:
         return False, "Contradiction outcome missing entirely"
     if "not target" not in bullet_text and "not an explicit edit" not in bullet_text and "does not target" not in bullet_text:
@@ -108,9 +121,19 @@ def check_confirmation_template_lists_edit(text: str) -> tuple[bool, str]:
     return True, "충돌 field enumerates the edit outcome"
 
 
+# NEGATED polarity, not mere presence of the words. A bullet reading "ask the user to approve
+# the retirement in a separate prompt of its own" contains "separate prompt" and states the exact
+# design #429 rejects; a presence check passes it. `\s+` between the words because SKILL.md is
+# hard-wrapped — "never as a separate\n  prompt" is one phrase, not a deletion.
+_NO_EXTRA_PROMPT_RE = re.compile(
+    r"\b(?:never|no|without)\s+(?:as\s+)?(?:a\s+)?(?:separate|second)\s+prompt\b",
+    re.IGNORECASE,
+)
+
+
 def check_supersede_verdict_named(text: str) -> tuple[bool, str]:
     """#429: §6 must name Supersede as its own outcome, retiring the entry in the same write."""
-    bullet_text = _bullet_scope(text.lower(), "**supersede")
+    bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**supersede")
     if bullet_text is None:
         return False, "Supersede is not named as its own §6 conflict-check outcome"
     if "retire" not in bullet_text:
@@ -127,10 +150,10 @@ def check_supersede_verdict_named(text: str) -> tuple[bool, str]:
 
 def check_supersede_rides_one_confirmation(text: str) -> tuple[bool, str]:
     """#429: the retirement must ride on the existing confirmation, never a second prompt."""
-    bullet_text = _bullet_scope(text.lower(), "**supersede")
+    bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**supersede")
     if bullet_text is None:
         return False, "Supersede outcome missing entirely"
-    if "separate prompt" not in bullet_text and "second prompt" not in bullet_text:
+    if not _NO_EXTRA_PROMPT_RE.search(bullet_text):
         return False, (
             "Supersede doesn't state that the retirement rides on the same confirmation — "
             "the 1-click invariant the rest of the skill holds"
@@ -255,6 +278,28 @@ _SUPERSEDE_DEFERRED_WRITE = """\
 """
 
 
+# The keywords are all present, but the claim is inverted: the retirement gets its own prompt.
+# This is the mutation a presence-only check passes, which is what made the check vacuous.
+_SUPERSEDE_INVERTED = """\
+- **Supersede**: if landing this rule makes an existing entry redundant, absorb it and retire
+  the old entry **in the same write**, shown in the §3 confirmation as part of the diff, and
+  then ask the user to approve the retirement in a separate prompt of its own.
+  **A retired number is never reused.**
+- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
+  that rule as an explicit edit, do NOT write — report and stop.
+"""
+
+# The phrase straddles a line break, exactly as it does in the hard-wrapped SKILL.md. A plain
+# substring check reads this as deleted (#440); it must read as stated.
+_SUPERSEDE_WRAPPED = """\
+- **Supersede**: if landing this rule makes an existing entry redundant, absorb it and retire
+  the old entry **in the same write** — never as a separate
+  prompt. **A retired number is never reused.**
+- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
+  that rule as an explicit edit, do NOT write — report and stop.
+"""
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -279,6 +324,11 @@ def _self_test() -> int:
 
     ok, _ = check_supersede_verdict_named(_SUPERSEDE_DEFERRED_WRITE)
     cases.append(("supersede-deferred-write: check_supersede_verdict_named (expect FAIL)", not ok))
+
+    ok, _ = check_supersede_rides_one_confirmation(_SUPERSEDE_INVERTED)
+    cases.append(("supersede-inverted: check_supersede_rides_one_confirmation (expect FAIL)", not ok))
+    ok, _ = check_supersede_rides_one_confirmation(_SUPERSEDE_WRAPPED)
+    cases.append(("supersede-wrapped: check_supersede_rides_one_confirmation (still OK)", ok))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:

@@ -124,7 +124,7 @@ python3 scripts/gen-release-notes.py --self-test
 # 백스톱, docs/chore는 세지도 트리거하지도 않음. bump는 커밋에서 도출(breaking>feat>나머지).
 # 순수 함수로 핀 — git 없이 합성 커밋 리스트로 정책 자체를 테스트한다.
 python3 scripts/next-version.py --self-test
-# Expected: OK: all 23 self-test cases passed
+# Expected: OK: all 21 self-test cases passed
 
 # 플러그인 스펙 전체 검증 (frontmatter·hooks 스키마 포함)
 # claude plugin validate  # Claude Code 설치 환경에서 실행
@@ -208,7 +208,7 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # catalogue grew monotonically; Supersede absorbs the redundant entry and retires it in the
 # SAME write, on the SAME confirmation, and a retired number is never reused.)
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 17 self-test cases passed
+# Expected: OK: all 19 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # Expected: OK: all 6 add-policy-conflict-edit checks passed.
 
@@ -221,7 +221,7 @@ python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # explicitly. Also pins the distill boundary — artifact cost is the gate's question, reuse
 # value stays distill's — without which the skill contradicts its own description.)
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py --self-test
-# Expected: OK: all 21 self-test cases passed
+# Expected: OK: all 23 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
 # Expected: OK: all 7 add-policy-necessity-gate checks passed.
 
