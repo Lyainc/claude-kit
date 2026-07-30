@@ -205,6 +205,54 @@ SCAN_ROOT="$HOME/.claude/projects"
 ```
 
 
+## §6-gate — why the necessity gate exists, and why it only recommends (#450)
+
+SKILL.md §6 ships the four questions and the three outcomes. This is what they were derived from.
+
+**The engine had an entry path and no "don't land this" verdict.** Of §6's verdicts only
+Contradiction stops a write, and it stops it for *disagreeing with an existing rule* — a rule
+that contradicts nothing and is simply unnecessary passed straight through.
+
+**Measured failure — P14.** `local-harness` P14 landed on 2026-07-24 with two guards and was
+retired the next day (`local-harness/docs/decisions/2026-07-25-p14-hook-retirement.md`). Two of
+the retirement's three findings were knowable at landing time:
+
+- *The gate was doubled.* `session-close` ① already asked the same question with the owner's
+  confirmation in hand; the new guard re-asked it from a position with less information. P14's
+  own design document had named ① as the place that judgment belonged — question 3 is that
+  finding turned into a question.
+- *The predicate measured a different quantity.* The evidence was commit counts; the
+  implementation read PR *age*.
+
+Retirement cost five hand-assembled steps (trash the guard, unwire `settings.json`, delete the
+row, fix every inbound citation, write the decision record), with nothing checking coherence.
+`Supersede` does not catch this case: P14 was not displaced by a later rule, it should never
+have entered. Its firing record was one guard twice (both overridden, then merged) and the
+other zero times.
+
+**The standing cost is measured, not speculative.** `local-harness/rules/README.md` rides in
+every session in full: on 2026-07-23, framing 6,571 B against 3,704 B of actual policy — 64% of
+the per-session catalogue cost was not policy. The 2026-07-10 index+detail split put 12 detail
+files in `rules/policies/`, where the recursive loader picked all of them up (~41 KB per
+session) while the README claimed the split had thinned the surface. Accumulation runs ~1 policy
+per 3.3 days against 1 removal in 39 days.
+
+**Why recommendation-only.** A gate that can refuse turns 1 click into 2 and puts the tool in
+the position of vetting work the user explicitly asked for. Rejected alternatives: an isolated
+subagent verdict per landing (too heavy — revisit if the gate is observed rubber-stamping
+itself); a post-hoc audit skill or usage-based cleanup (no firing telemetry, and "decide after N
+weeks of observation" is a pattern this repo rejects — and post-hoc cleanup does not address the
+entry path at all); putting the gate in `distill` (the `/add-policy` direct-invocation path
+never passes through distill, and distill does not know the site's cost).
+
+**Why this is not distill's question.** `distill` asks what a rule is *worth* — is it reusable
+at class level. The gate asks what the *artifact* costs — must this be a **new** entry, is it
+worth an always-loaded line. Only the side that knows the site (catalogue size, hook surface,
+neighbouring entries) can answer the second. It is a placement judgment, not a value judgment,
+which is the same line #429 draws — hence the precision in SKILL.md's intro and in the
+`description`: add-policy never re-judges *reuse value*, but it does judge *artifact necessity*.
+
+
 ## §6-supersede — why the exit path is a §6 verdict (#429)
 
 SKILL.md §6 ships the verdict. The measurement behind it:
