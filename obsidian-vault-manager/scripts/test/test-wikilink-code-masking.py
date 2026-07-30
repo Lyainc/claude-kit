@@ -164,19 +164,28 @@ def case_masker_patterns_are_identical(errors: list) -> None:
     edit both copies in lockstep, and the behavioural fixture only catches divergence it
     happens to exercise — so compare the literals directly."""
     shell = _PRIM_SH.read_text(encoding="utf-8")
+    audit_src = _AUDIT_PY.read_text(encoding="utf-8")
     for name in ("CODE_FENCE", "UNCLOSED_FENCE", "INLINE_CODE"):
         mine = getattr(_mod, name, None)
         if mine is None:
             _assert(False, f"parity [{name}]: audit-validate.py defines it", errors)
             continue
-        # Both copies write the pattern as a single r'...' / r"..." literal.
-        m = re.search(rf"^{name} = re\.compile\(\s*r'(.*?)'", shell, re.M | re.S)
+        # Both copies write the pattern as a single r'...' / r"..." literal, optionally
+        # followed by flags. Flags are compared as source text too — a dropped re.M is
+        # invisible to a pattern-only check.
+        m = re.search(rf"^{name} = re\.compile\(\s*r'(.*?)'(.*?)\)$", shell, re.M)
+        a = re.search(rf'^{name} = re\.compile\(\s*r"(.*?)"(.*?)\)$', audit_src, re.M)
         _assert(m is not None, f"parity [{name}]: found in ovm-primitives.sh", errors)
-        if m:
+        _assert(a is not None, f"parity [{name}]: found in audit-validate.py", errors)
+        if m and a:
             _assert(m.group(1) == mine.pattern,
                     f"parity [{name}]: shell literal == audit-validate literal\n"
                     f"        shell: {m.group(1)!r}\n"
                     f"        audit: {mine.pattern!r}",
+                    errors)
+            _assert(m.group(2).strip() == a.group(2).strip(),
+                    f"parity [{name}]: flags agree "
+                    f"(shell {m.group(2).strip()!r} vs audit {a.group(2).strip()!r})",
                     errors)
 
 
@@ -217,6 +226,14 @@ def case_mask_code_unit(errors: list) -> None:
          "a\n```\n[[x]]\nkeep nothing\n", "a\n"),
         ("a closing fence is a bare line, not a later fence's opener",
          "```\n[[x]]\n```\n\nkeep [[y]]\n", "\n\nkeep [[y]]\n"),
+        # A closer may be LONGER than its opener (CommonMark: "at least as long"), and
+        # such a note renders correctly, so a reader gets no signal that E4 went blind on
+        # everything after it. The existing "shorter fence inside longer one" case covers
+        # the opposite nesting, which is how this got through.
+        ("a closer longer than its opener still closes",
+         "```bash\ndeploy\n````\n\nkeep [[x]]\n", "\n\nkeep [[x]]\n"),
+        ("a longer closer works for tildes too",
+         "~~~\nx\n~~~~\n\nkeep [[x]]\n", "\n\nkeep [[x]]\n"),
         # The literal-parity gate above catches one-sided drift, but this pins the
         # CommonMark semantics behaviourally: a closer carrying an info string is not a
         # closer, so the block stays open and [[real]] is code, not a link.
