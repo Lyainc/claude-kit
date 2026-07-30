@@ -201,6 +201,13 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
 python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # Expected: OK: all 12 add-policy-routing checks passed.
 
+# NOTE: three regions of add-policy/SKILL.md are pinned VERBATIM by these two suites — §6's
+# preamble and its Supersede verdict (here), and §6's necessity-gate block (necessity-gate).
+# Editing any of them, including a token-budget trim, FAILS CI by design: the failure names the
+# constant to update, and the paired edit belongs in the same commit. Patterns were tried first
+# and defeated four times (a presence check, a negation regex, a suffix anchor, and a file-wide
+# noun scan); every pattern is a blocklist of the last wording tried, so the text is the pin.
+
 # add-policy §6 conflict-check Edit bucket + Supersede exit regression (#303 — an explicit
 # "change this existing entry" request is its own conflict-check outcome, distinct from
 # Duplicate (strengthen) and Contradiction (refuse); guards against it collapsing back into
@@ -208,16 +215,10 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # catalogue grew monotonically; Supersede absorbs the redundant entry and retires it in the
 # SAME write, on the SAME confirmation, and a retired number is never reused.)
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 27 self-test cases passed
+# Expected: OK: all 29 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # Expected: OK: all 7 add-policy-conflict-edit checks passed.
 
-# NOTE: three regions of add-policy/SKILL.md are pinned VERBATIM by these two suites — §6's
-# preamble and its Supersede verdict (here), and §6's necessity-gate block (necessity-gate).
-# Editing any of them, including a token-budget trim, FAILS CI by design: the failure names the
-# constant to update, and the paired edit belongs in the same commit. Patterns were tried first
-# and defeated four times (a presence check, a negation regex, a suffix anchor, and a file-wide
-# noun scan); every pattern is a blocklist of the last wording tried, so the text is the pin.
 # add-policy necessity-gate regression (#450 — before #450 the engine had an entry path and
 # no "don't land this" verdict: only Contradiction stopped a write, and it stops it for
 # disagreeing with an existing rule, so a rule that contradicts nothing and is simply
