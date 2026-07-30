@@ -191,6 +191,7 @@ jobs:
           bash obsidian-vault-manager/scripts/test/test-infer-tags-batch.sh
           python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
           python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
+          python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
           echo "obsidian-vault-manager tests OK"
 
   audit-dod:

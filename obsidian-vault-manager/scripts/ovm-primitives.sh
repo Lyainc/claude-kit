@@ -570,6 +570,9 @@ PYEOF
 #   mark-clean <relpath> [<mtime>]   → {"ok": true}
 #   invalidate <relpath>             → {"ok": true}
 #   list-dirty-since <ISO8601>       → JSON array of dirty records
+# Exit 3 = the state file exists but is unusable (unparseable, or not an object with a
+#   `paths` object). The original is copied to <path>.corrupt-<ISO8601> and left in place;
+#   nothing is written back. Never falls back to an empty state (#443).
 
 cmd_audit_state() {
   local op="${1:-}"
@@ -588,15 +591,31 @@ vault_root = os.path.expanduser(sys.argv[5])
 def now_iso():
     return datetime.now(timezone.utc).isoformat()
 
+def die_corrupt(path, reason):
+    """Preserve the unusable state file and fail loudly (#443).
+
+    The sidecar name carries a microsecond ISO8601 stamp so it never rotates —
+    save_state's single `.bak` slot is overwritten by the very next write, which
+    is how the original used to vanish. `path` itself is left untouched: the
+    audit stays blocked until a human decides to repair or delete it.
+    """
+    sidecar = f"{path}.corrupt-{now_iso()}"
+    shutil.copy2(path, sidecar)
+    print(f"ERROR: audit-state unusable ({reason}). Original preserved at {sidecar}; "
+          f"{path} left as-is. Repair or delete it, then re-run.", file=sys.stderr)
+    sys.exit(3)
+
 def load_state(path):
     if not os.path.exists(path):
         return {"version": 1, "paths": {}, "last_full_scan": None}
     try:
         with open(path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+            state = json.load(f)
     except Exception as e:
-        print(f"WARNING: audit-state corrupted ({e}), returning empty state", file=sys.stderr)
-        return {"version": 1, "paths": {}, "last_full_scan": None}
+        die_corrupt(path, f"parse failed: {e}")
+    if not isinstance(state, dict) or not isinstance(state.get('paths'), dict):
+        die_corrupt(path, "shape mismatch: expected an object with a 'paths' object")
+    return state
 
 def save_state(path, state):
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -623,11 +642,12 @@ def content_hash(relpath):
     return h.hexdigest()[:16]
 
 state = load_state(state_path)
+paths = state['paths']   # load_state guarantees a dict — no direct re-indexing below
 
 if op == 'is-clean':
     if not arg1:
         print('ERROR: is-clean requires <relpath>', file=sys.stderr); sys.exit(1)
-    rec = state['paths'].get(arg1)
+    rec = paths.get(arg1)
     if rec is None:
         # Unknown file — treat as dirty (untracked)
         print(json.dumps({"clean": False, "reason": "untracked"}))
@@ -637,7 +657,7 @@ if op == 'is-clean':
             print(json.dumps({"clean": False, "reason": "file_missing"}))
         elif mtime > rec.get('mtime_at_audit', 0):
             print(json.dumps({"clean": False, "reason": "mtime_changed",
-                              "mtime": mtime, "mtime_at_audit": rec['mtime_at_audit']}))
+                              "mtime": mtime, "mtime_at_audit": rec.get('mtime_at_audit', 0)}))
         else:
             print(json.dumps({"clean": True, "last_audited": rec.get('last_audited'),
                               "status": rec.get('status', 'clean')}))
@@ -649,7 +669,7 @@ elif op == 'mark-clean':
     if mtime is None:
         print('ERROR: file not found and no mtime provided', file=sys.stderr); sys.exit(1)
     chash = content_hash(arg1)
-    state['paths'][arg1] = {
+    paths[arg1] = {
         'last_audited': now_iso(),
         'mtime_at_audit': mtime,
         'content_hash': chash,
@@ -661,8 +681,8 @@ elif op == 'mark-clean':
 elif op == 'invalidate':
     if not arg1:
         print('ERROR: invalidate requires <relpath>', file=sys.stderr); sys.exit(1)
-    if arg1 in state['paths']:
-        state['paths'][arg1]['status'] = 'dirty'
+    if arg1 in paths:
+        paths[arg1]['status'] = 'dirty'
         save_state(state_path, state)
     print(json.dumps({"ok": True, "path": arg1}))
 
@@ -678,7 +698,7 @@ elif op == 'list-dirty-since':
             print(f'ERROR: invalid ISO8601 timestamp: {arg1}', file=sys.stderr); sys.exit(1)
 
     dirty = []
-    for relpath, rec in state['paths'].items():
+    for relpath, rec in paths.items():
         mtime = file_mtime(relpath)
         if mtime is None:
             dirty.append({**rec, 'path': relpath, 'reason': 'file_missing'})
