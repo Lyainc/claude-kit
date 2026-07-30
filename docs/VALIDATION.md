@@ -70,6 +70,25 @@ python3 scripts/check-plugin-root-paths.py
 # sites, shipped in v4.0.0). Scans source plugins only (dirs with a plugin.json), so any
 # vendored third-party plugin cache is never touched. Markdown `../../reference/*.md` links are NOT
 # flagged — those resolve relative to the SKILL.md file and stay correct once installed.
+# SKILL.md compaction budget guard (#454, driven by #447): auto-compaction re-attaches only
+# the FIRST 5,000 TOKENS of an invoked skill and drops the rest silently, so a confirmation
+# gate or an invariant living in the tail stops being in the instructions after one compaction.
+# Blocks on two things per SKILL.md: the whole file over 5,000 tokens, and any compaction-critical
+# anchor (`## Rules`, every body `AskUserQuestion`) starting past that boundary.
+# Counts with tiktoken `o200k_base` — the tokenizer #447's own measurements used — fetched
+# ephemerally by `uv run --with`, so it is a dependency of this command and of nothing else.
+# WITHOUT tiktoken the guard exits 2 and refuses a verdict rather than downgrading quietly;
+# `--allow-estimate` opts into an indicative char-class run (0.86x-1.14x measured error).
+# #454 preferred a dependency-free proxy; that was built first and rejected on measurement —
+# the best two-parameter char model still spans 0.86x-1.14x, wide enough that it passed
+# `add-policy` at a real 5,304 tokens and `audit` at 5,286 while reporting ~4,990/~4,870.
+# `--list` prints every file's count and anchor offsets.
+uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
+# Expected: OK: all 17 check-skill-token-budget self-test cases passed
+uv run --with tiktoken python3 scripts/check-skill-token-budget.py
+# Expected: OK: skill-token-budget clean — N SKILL.md checked, every one within 5000 tokens
+#   with its gates inside the window [o200k_base] (largest ...)
+
 python3 scripts/check-test-exitcode.py --self-test
 # Expected: OK: all check-test-exitcode self-test cases passed
 # (real mode `python3 scripts/check-test-exitcode.py` RUNS every registered Validation

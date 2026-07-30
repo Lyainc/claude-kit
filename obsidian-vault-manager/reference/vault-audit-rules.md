@@ -29,7 +29,7 @@ Every finding carries a `priority` field independent of severity. Priority drive
 > **P1 = 정체/구조 (stagnation / structure)**: E6 and E7 surface unprocessed inputs and stalled drafts; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive / move / recompile).
 > **P2 = quality**: E5 orphan notes, E8 promotion candidates, and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
-> **Code numbering**: E9 (#119, #167) is the tag/property vocabulary check below. Its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship in `audit-validate.py`; E9c (semantic synonyms) ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336) is the wiki self-audit: E12a staleness ships deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 — the same deterministic/semantic split E9 draws around E9c, and both now ship behind the same `--deep` flag.
+> **Code numbering**: E9 (#119, #167) is the tag/property vocabulary check below. Its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship in `audit-validate.py`; E9c (semantic synonyms) ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336) is the wiki self-audit: E12a staleness ships deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` — the same deterministic/semantic split E9 draws around E9c, and both now ship behind the same `--deep` flag.
 
 The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
@@ -281,7 +281,7 @@ for camel in sorted(key_files):
 
 ### E9c — tag semantic synonym (`--deep`, skill-only, #167)
 
-**Where it lives**: `audit/SKILL.md` Phase 2.5, not `audit-validate.py`. There is no reference-impl function for E9c and none is planned — the judgment step needs LLM semantic reasoning over tag strings, which the deterministic reference impl structurally cannot do (same reasoning as E12b).
+**Where it lives**: `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md`, not `audit-validate.py`. There is no reference-impl function for E9c and none is planned — the judgment step needs LLM semantic reasoning over tag strings, which the deterministic reference impl structurally cannot do (same reasoning as E12b).
 
 **Candidate-pair prefilter** (deterministic, cheap — bounds the expensive judgment step to plausibly-related tags instead of every O(n²) pair of vault-wide tags). Reuses E9a/E9b's existing `E9_MIN_FILES` (3) floor, then applies the source-overlap + common-neighbor signals from #119's D10 design note:
 
@@ -397,11 +397,11 @@ for each record in frontmatter_records:
 | **E12a** wiki staleness | a wiki page whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) | deterministic — date arithmetic only | **SHIPS** (`E12_wiki_stale`, `audit-validate.py`) |
 | **E12b** cross-page contradiction | two wiki pages asserting conflicting claims | **non-deterministic** — needs semantic LLM judgment | **SHIPS** (#336) as a skill-only `--deep` LLM opt-in (`wiki_contradiction`, mirrors E9c) |
 
-**Why the split, not one rule**: the audit is a deterministic reference impl (`audit-validate.py` runs with LLM cost 0). Cross-page *semantic* contradiction cannot be decided by a mechanical rule — a keyword/regex proxy would only manufacture false positives against the audit's `fp_on_clean == 0` contract. Rather than fake determinism, E12b follows the E9c precedent: it never touches `audit-validate.py` or the `--dod` gate (both stay deterministic-only, unmodified by #336). Instead the LLM judgment lives entirely in `audit/SKILL.md` Phase 2.5, gated behind explicit `--deep` opt-in and a mandatory `AskUserQuestion` confirm step for false-positive mitigation. E12a — staleness — remains the honest deterministic slice `audit-validate.py` ships and is DoD-measured. This resolves the G23-S1 design fork ("deterministic audit vs. semantic contradiction detection") the same way #167 intends to resolve it for E9 (E9c itself remains unimplemented/open).
+**Why the split, not one rule**: the audit is a deterministic reference impl (`audit-validate.py` runs with LLM cost 0). Cross-page *semantic* contradiction cannot be decided by a mechanical rule — a keyword/regex proxy would only manufacture false positives against the audit's `fp_on_clean == 0` contract. Rather than fake determinism, E12b follows the E9c precedent: it never touches `audit-validate.py` or the `--dod` gate (both stay deterministic-only, unmodified by #336). Instead the LLM judgment lives entirely in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md`, gated behind explicit `--deep` opt-in and a mandatory `AskUserQuestion` confirm step for false-positive mitigation. E12a — staleness — remains the honest deterministic slice `audit-validate.py` ships and is DoD-measured. This resolves the G23-S1 design fork ("deterministic audit vs. semantic contradiction detection") the same way #167 intends to resolve it for E9 (E9c itself remains unimplemented/open).
 
 ### E12b — cross-page contradiction (`--deep`, skill-only, #336)
 
-**Where it lives**: `audit/SKILL.md` Phase 2.5 DEEP, not `audit-validate.py`. There is no reference-impl function for E12b and none is planned — the judgment step needs an LLM reading page bodies, which the deterministic reference impl structurally cannot do.
+**Where it lives**: `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` DEEP, not `audit-validate.py`. There is no reference-impl function for E12b and none is planned — the judgment step needs an LLM reading page bodies, which the deterministic reference impl structurally cannot do.
 
 **Candidate-pair prefilter** (deterministic, cheap — bounds the expensive judgment step instead of comparing every wiki page against every other):
 
@@ -470,3 +470,72 @@ The audit REPORT header shows manifest metadata when `.vault-bridge/manifest.jso
 Absence is non-fatal: the header shows `매니페스트: 없음 (vault-bridge 미설치)`. No finding is emitted for missing or stale manifest in PR 4.
 
 > **Not Step 0**: v4 §6.1 Step 0 describes manifest compute (`references_in/out`, `access_count`, `promotion_candidate`). That write-side Step 0 is deferred to PR 5+. PR 4 only reads `file_count` and `generated_at` from the vault-bridge-generated manifest for display purposes.
+
+---
+
+## REPORT output example
+
+The `audit` skill's Phase 3 layout, moved here (#447) to keep SKILL.md inside the 5,000-token
+window auto-compaction re-attaches. Illustration only — actual content varies by vault state.
+
+**Example** (representative — actual content varies by vault state):
+
+```
+볼트 감사 완료
+──────────────────────────────────────────
+볼트 상태: 42 노트 / clean 38 · dirty 3 · untracked 1
+발견된 이슈: 4건 (P0 2건 · P1 1건 · P2 1건)
+──────────────────────────────────────────
+
+[P0 / Critical] missing_frontmatter — 1건
+  • notes/scratch.md
+      상세: frontmatter 없음
+
+[P0 / Warning] filename_convention_violation — 1건
+  • notes/2026-04-old-topic.md
+      상세: v3 날짜 우선 파일명 — {type}-YYYY-MM-DD-{slug}.md 또는 {slug}.md로 변경 필요
+
+[P1 / Warning] stale_inbox — 1건
+  • inbox/capture-2026-03-15-old-topic.md
+      상세: age 73d > 14d (status:raw, created 2026-03-15)
+
+[P2 / Info] promotion_candidate — 1건
+  • notes/high-ref-note.md
+      상세: refs_in=5, access=2 (manual: status→evergreen)
+
+──────────────────────────────────────────
+자동 수정 가능: 0건
+수동 처리 필요: 4건
+```
+
+> **git 활동 줄**: `commits == 0`이거나 vault가 git 저장소가 아닌 경우 해당 줄을 출력하지 않습니다.
+- The 7-day window can be overridden via `VAULT_AUDIT_ACTIVITY_DAYS` env var.
+
+---
+
+## E2 tag inference
+
+The tier rules behind `ovm-primitives.sh infer-tags`, moved out of `audit/SKILL.md` (#447) to
+keep it inside the 5,000-token compaction window. The skill keeps the rule and the batched
+call; this is the derivation.
+
+**Tag inference** (#127, deterministic — no LLM; batched #152): when `tags:` is
+missing, do NOT insert an empty `tags: []`. Instead derive a tag PROPOSAL from
+three tiers via a SINGLE batched call
+`ovm-primitives.sh infer-tags <relpath1> <relpath2> ...` (one Python process for
+all E2 findings, not one per finding). The call emits a JSON array — one element
+per path — with order preserved, duplicates dropped, all lowercased so the result
+plausibly passes a future E9 vocabulary check:
+
+| Tier | Source | Rule |
+|------|--------|------|
+| 1 | `type:` field | always the first tag (`type: note` → `note`) |
+| 2 | filename slug | words after stripping the date + `{type}-` prefix, split on `-`/`_` |
+| 3 | parent folder | `notes/{domain}/...` → add `domain` |
+
+Examples: `notes/llm/decision-2026-04-12-context-window.md` (`type: decision`)
+→ `[decision, context, window, llm]`; `inbox/capture-2026-05-01-obsidian-api.md`
+(`type: capture`) → `[capture, obsidian, api]`. Empty slug (date-only filename,
+e.g. `session-2026-04-12.md`) gracefully falls back to the type tag only.
+The proposal is never auto-committed — `audit/SKILL.md` Phase 4 previews it in the
+OPTIONAL-FIX confirmation gate.
