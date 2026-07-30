@@ -229,23 +229,32 @@ def run_self_test():
 
     def run_main(argv, table):
         saved = globals()["default_linters"]
-        buf = io.StringIO()
+        out, err = io.StringIO(), io.StringIO()
         try:
             globals()["default_linters"] = lambda: table
-            with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
-                return main(argv), buf.getvalue()
+            with contextlib.redirect_stderr(err), contextlib.redirect_stdout(out):
+                return main(argv), out.getvalue(), err.getvalue()
         finally:
             globals()["default_linters"] = saved
 
-    rc, out = run_main(["--root", "/tmp"], [fake("absent", False, True, 0)])
-    if rc != 2 or "FATAL" not in out:
+    rc, _, err = run_main(["--root", "/tmp"], [fake("absent", False, True, 0)])
+    if rc != 2 or "FATAL" not in err:
         failures.append(f"  wiring: main() with no linter available must exit 2 + FATAL, got {rc}")
-    rc, _ = run_main(["--root", "/tmp"], [fake("pass", True, True, 0)])
+    rc, _, _ = run_main(["--root", "/tmp"], [fake("pass", True, True, 0)])
     if rc != 0:
         failures.append(f"  wiring: main() with a passing linter must exit 0, got {rc}")
-    rc, _ = run_main(["--root", "/tmp", "--json"], [fake("absent", False, True, 0)])
-    if rc != 2:
-        failures.append(f"  wiring: --json must not launder the refusal into a pass, got {rc}")
+
+    # --json is a separate consumer: an exit code it never reads must not be the only place
+    # the refusal is recorded, so the payload's own `ok` is asserted, not just the rc.
+    rc, out, _ = run_main(["--root", "/tmp", "--json"], [fake("absent", False, True, 0)])
+    payload = json.loads(out)
+    if rc != 2 or payload["ok"] is not False:
+        failures.append(
+            f"  wiring: --json must not launder the refusal into a pass, got rc={rc} ok={payload['ok']}"
+        )
+    rc, out, _ = run_main(["--root", "/tmp", "--json"], [fake("pass", True, True, 0)])
+    if rc != 0 or json.loads(out)["ok"] is not True:
+        failures.append("  wiring: --json on a real pass must still report ok=true")
 
     if failures:
         print("FAIL: run-linters self-test")
