@@ -20,6 +20,12 @@ Two halves, matching what can actually break:
    paired prompt clause — the prompt must REQUIRE a comment even on a clean review, or
    the workflow half turns every clean PR red — and the `paths:` filter must stay out
    (a required check skipped by a path filter reports no status and pends forever).
+   Two more conditions the round-scoping rests on, both found by review of this file's
+   first version: an EMPTY `SINCE` must fail rather than widen the filter to "any claude
+   comment ever" (jq's `>` holds against "" for every timestamp, and the `echo "at=$(date
+   ...)"` that produces it exits 0 even when date does not), and the workflow must hold a
+   `concurrency:` group — two overlapping runs on one PR give the later one a window that
+   predates the earlier one's comment, so it can pass on a sibling's review.
 
 jq is a hard dependency here, not an optional nicety: no jq means the executed half
 cannot run, and a check that skips itself is the very thing this file exists to catch,
@@ -136,14 +142,24 @@ def run_checks(text):
         ("the review-start timestamp is recorded before the review runs",
          text.index("id: review_start") < text.index("id: claude-review")),
         ("the verify step reads that timestamp", "SINCE: ${{ steps.review_start.outputs.at }}" in text),
+        # An empty SINCE widens the filter to "any claude comment ever" instead of failing:
+        # jq's `>` holds against "" for every timestamp, and the `echo "at=$(date ...)"` that
+        # produces it exits 0 even when date does not.
+        ("an empty timestamp fails instead of widening the window",
+         bool(re.search(r'if \[ -z "\$SINCE" \]; then', text))),
+        # Round-scoping assumes rounds are sequential. Two overlapping runs break that: the
+        # later one's window predates the earlier one's comment, so it can count a sibling's.
+        ("only one review run per PR at a time",
+         bool(re.search(r"^concurrency:\n\s+group: claude-review-", text, re.MULTILINE))),
         # The workflow half is only enforceable because the prompt half requires a comment
         # on a clean review too. Ship one without the other and every clean PR goes red.
         ("the prompt forbids silence", "Silence is not a review" in text),
         ("the prompt requires a comment even when nothing was found",
          "P0/P1 없음 — LGTM" in text),
         # A required check skipped by a path filter never reports, so the PR pends forever.
-        ("no active `paths:` filter on the trigger",
-         not re.search(r"^\s{4}paths:", text, re.MULTILINE)),
+        # `paths-ignore:` skips it the same way, so both spellings are rejected.
+        ("no active `paths:`/`paths-ignore:` filter on the trigger",
+         not re.search(r"^\s{4}paths(-ignore)?:", text, re.MULTILINE)),
     ])
 
     for label, ok in cases:

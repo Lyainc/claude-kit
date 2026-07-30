@@ -8,6 +8,14 @@ on:
     # going green (same judgment as Lyainc/filme #594). The stock template offers the
     # filter as "optional"; for this repo it is a trap, not an option.
 
+# One review run per PR at a time. Two pushes seconds apart otherwise start two runs whose
+# windows overlap: the second one's timestamp predates the first one's comment, so a run that
+# posted nothing counts its sibling's comment and passes — the round-scoping below assumes
+# rounds are sequential, and this key is what makes them so.
+concurrency:
+  group: claude-review-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
 jobs:
   claude-review:
     # Optional: Filter by PR author
@@ -142,6 +150,9 @@ jobs:
       # already holds — the review posts under its own token, not GITHUB_TOKEN.
       # Pinned by scripts/test/test-review-silence-guard.py, which executes the jq filter
       # below against fixtures (a prior round's comment must NOT satisfy this round).
+      # Accepted consequence: a fork PR, which never receives CLAUDE_CODE_OAUTH_TOKEN, now
+      # ends red here rather than green — correct (nothing reviewed it), and this repo has
+      # no fork contributors, so it is not worth a branch to soften.
       - name: Verify a review comment was posted (no silent pass)
         if: always()
         env:
@@ -149,6 +160,14 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           SINCE: ${{ steps.review_start.outputs.at }}
         run: |
+          # An empty SINCE is not a harmless default: jq's `>` is true against "" for every
+          # timestamp, so the filter would silently widen to "any claude comment ever" — the
+          # exact shape this guard exists to reject. `echo "at=$(date ...)"` exits 0 even when
+          # date fails (GNU-only `-d` on a non-GNU runner), so the emptiness is checked here.
+          if [ -z "$SINCE" ]; then
+            echo "::error::review start timestamp missing — the comment count cannot be scoped to this round."
+            exit 1
+          fi
           count=$(gh pr view "$PR" --json comments --jq '[.comments[] | select(.author.login | test("claude"; "i")) | select(.createdAt > env.SINCE)] | length')
           echo "Claude review comments on PR #$PR since $SINCE: $count"
           if [ "$count" -lt 1 ]; then
