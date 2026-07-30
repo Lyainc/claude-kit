@@ -44,7 +44,7 @@ dirty=$(git -C "$root" status --porcelain 2>/dev/null \
 
 [ -z "$dirty" ] && exit 0
 
-msg="작업 끝 — rules/RULES.md 작업끝 체크리스트 확인했나요? 하드 게이트(커밋 전): python3 scripts/check-*.py --self-test 및 실모드, 외부 린터(scripts/run-linters.py). skip하지 마세요 — 통과 못 하면 CI에서 차단돼요."
+msg="작업 끝 — rules/RULES.md 작업끝 체크리스트 확인했나요? 하드 게이트(커밋 전): python3 scripts/check-*.py --self-test 및 실모드. skip하지 마세요 — 통과 못 하면 CI에서 차단돼요. 외부 린터는 python3 scripts/run-linters.py --self-test (실모드는 ruff/prettier/shellcheck가 하나도 없으면 exit 2로 '검사 안 됨'을 보고합니다 — #456)."
 jq -nc --arg m "$msg" '{systemMessage: $m}'
 
 exit 0
