@@ -144,6 +144,9 @@ jobs:
           bash feedback-loop/scripts/test/test-event-logger.sh
           bash feedback-loop/scripts/test/test-retro-telemetry.sh
           bash feedback-loop/scripts/test/test-events-dir-resolution.sh
+          # #458 sequence.py drops the started/success lifecycle pair before the n-gram window
+          # (a single call used to read as an X -> X repeat, i.e. a waste signal to retro).
+          python3 feedback-loop/scripts/test/test-sequence.py
           # G28 add-policy layer-routing (SOFT channel by layer + vanilla fallback).
           python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-routing.py

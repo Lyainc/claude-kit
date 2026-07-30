@@ -183,6 +183,18 @@ bash feedback-loop/scripts/test/test-retro-telemetry.sh
 bash feedback-loop/scripts/test/test-events-dir-resolution.sh
 # Expected: OK: all events-dir resolution cases passed
 
+# sequence.py lifecycle-pair regression (#458). The stream logs `started` and then
+# `success`/`error` for the SAME call, and both rows used to enter the in-session n-gram
+# window — so every single call produced an `X -> X` self-transition. retro reads that
+# output as "repeated n-grams (review-round churn)", i.e. a WASTE signal, so the waste
+# detector was reporting its own instrumentation as waste (`retro -> retro` = 19 over 7d
+# for a skill that ran once per session) and the phantoms crowded out real repeats in
+# `--top=N`. The filter lives in sequence.py, NOT load_events: report.py's outcome mix
+# legitimately counts both rows (calls vs completions). Pins the other direction too —
+# real consecutive calls, `error` outcomes, and session boundaries must still count.
+python3 feedback-loop/scripts/test/test-sequence.py
+# Expected: OK: all 10 sequence lifecycle-pair checks passed.
+
 # add-policy layer-routing regression (G28 — add-policy is a prose skill, so this is a
 # static-content check on the live SKILL.md: the SOFT reminder channel is routed by layer
 # (stance/voice→~/.claude/CLAUDE.md, work-rule→~/.claude/rules) with a vanilla fallback
