@@ -270,11 +270,16 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 #     pattern per indent class)
 #   - a tab-indented ``` is an indented code block to CommonMark, not a fence, but `[ \t]*`
 #     reads it as one (needs column accounting, where a tab is 4 columns)
-#   - a blockquoted ``` opens a fence inside the quote, so the run leaks to INLINE_CODE and
-#     pairs with the next one (needs quote-prefix stripping before any of this runs)
+#   - an UNQUOTED line carrying a link, sitting between two `>`-prefixed fence markers with
+#     no blank line between them: the quoted runs leak to INLINE_CODE and pair across it.
+#     NOT blockquoted fences in general — the normal layout (`> ```…> ``` `, blank line,
+#     then prose) is safe, because the blank line stops the inline pass. Needs quote-prefix
+#     stripping before any of this runs.
 # Left as known ceilings deliberately: each of the three preceding rounds of tightening
 # here introduced a NEW silent false negative, so further regex churn for shapes with no
-# observed occurrences is the losing side of that trade.
+# observed occurrences is the losing side of that trade. Note the shape of the fix each
+# one wants — remove a shape from the INPUT (as splitting UNCLOSED_FENCE out did), don't
+# narrow a pattern further; narrowing is what kept reintroducing false negatives.
 CODE_FENCE = re.compile(r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[`~]*[ \t\r]*$', re.S | re.M)
 UNCLOSED_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*\Z', re.S | re.M)
 INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)')
