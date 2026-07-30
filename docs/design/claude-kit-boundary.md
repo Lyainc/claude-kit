@@ -61,7 +61,9 @@ claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`
 
 **§2.5 — ⑤ 슬라이스 루프 완료조건 계약 (#285)**: 슬라이스 루프 입력인 START-PROMPT(session-close ④가 저작, 이 레포 외부)는 native `/goal` 평가자가 판정해요. 그 평가자는 **대화에 surfaced된 증거로만 완료를 판정**하고 파일·명령을 독립 실행하지 않아요([공식](https://code.claude.com/docs/en/goal)). 따라서 START-PROMPT의 `완료조건`은 surfaced-evidence 3레버(L1 단일 도구호출 반증 · L2 독립 리뷰 게이트 · L3 auto mode+턴 상한)를 만족해야 평가 가능해요 — 표준 정본은 #285.
 
-**§2.5-1 — on-the-loop 게이트 (#309 P3)**: 위 3레버는 완료조건 *판정*을 다루고, 이 게이트는 판정 도중의 *비가역 액션*(merge·삭제·배포·이슈 종료 등)을 다뤄요. 무인/headless 실행이라고 확인 체크포인트가 자동 생략되면 안 돼요 — 정본은 local-harness `rules/README.md` P7. #309의 BUDGET·stall 레버(P1·P2)는 실제 폭주·정체 증거가 나오기 전까진 backlog(gated) 그대로예요.
+**§2.5-1 — on-the-loop 게이트 (#309 P3)**: 위 3레버는 완료조건 *판정*을 다루고, 이 게이트는 판정 도중의 *비가역 액션*(merge·삭제·배포·이슈 종료 등)을 다뤄요. 무인/headless 실행이라고 확인 체크포인트가 자동 생략되면 안 돼요 — 정본은 local-harness `rules/README.md` **P6**. (2026-07-30 정정: 이 줄은 `P7`을 가리켰는데 그 번호는 2026-07-23에 은퇴했어요 — 내용은 P6, 번호는 P9로 흡수. `policies/P9.md`의 "nothing referenced it correctly"는 local-harness 내부만 본 진술이라 이 인용을 못 봤어요.)
+
+> **BUDGET·stall 레버 (#309 P1·P2) 재판정 (2026-07-30)**: "실제 폭주·정체 증거가 나올 때까지 gated"라는 이전 서술은 폐기해요 — 텔레메트리가 opt-in(`CLAUDE_KIT_TELEMETRY=1`)이라 그 증거를 모으는 장치가 기본으로 꺼져 있어서, 영원히 안 채워지는 조건이었어요. 재판정 결과는 갈려요. **P1(BUDGET)은 네이티브가 흡수** — Workflow의 토큰 예산이 하드 실링이라(`budget.total` 도달 시 `agent()`가 예외) 별도 표준을 세울 표면이 없어요. **P2(stall 탐지)만 실제 갭** — 동일 실패 N회·empty-diff 정지는 native도 `session-close` ④ 저작 체크리스트도 안 갖고 있어요. 증거 대기가 아니라 착수 대상이에요.
 
 ### 3. 의존 방향 — 단방향 (harness → leaf)
 
