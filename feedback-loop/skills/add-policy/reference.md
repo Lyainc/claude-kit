@@ -69,6 +69,23 @@ SKILL.md §3 states the rule (`never add a second .md inside ~/.claude/rules/`);
   thinned the surface.
 
 
+## §3-gate-question — the confirmation question when the gate did not pass
+
+SKILL.md §3 states the rule: the gate's own recommendation is the first option and the question
+carries *that* recommendation. §3's default question ("여기에 이렇게 넣을게요 — 맞아요?") only fits
+the 통과 case — asked after a "기존 항목으로 충분" verdict it offers the user a yes/no on a landing
+the gate did not recommend, and a generic refusal wording would misreport an absorb verdict as a
+don't-land one. One question per non-통과 outcome:
+
+| 필요성 | Question |
+|--------|----------|
+| 기존 항목으로 충분 | "Pn에 한 줄 붙이는 게 나아 보이는데, 그래도 새 항목으로 갈까요?" |
+| 안 넣는 게 나음 | "이건 안 넣는 게 나아 보이는데, 그래도 넣을까요?" |
+
+Either way it stays **one** question with the recommendation as its first option — the gate never
+gets a prompt of its own.
+
+
 ## §3-sites — the conflict-check target per site, and why the fallback is non-negotiable
 
 SKILL.md §3 ships the site table without a per-site conflict-target column; §6 states the rule

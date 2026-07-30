@@ -39,7 +39,7 @@ There are exactly **three** native places a rule lands; the small count is what 
 classification reliable and the engine portable.
 
 - **reminder** (CLAUDE.md or `~/.claude/rules`) — an always-read rule, **SOFT**: one prose line
-  appended to the layer's channel, which is **layer-determined** (below).
+  appended to the layer's channel, **layer-determined** (below).
 - **hook** — deterministic auto-enforcement, **HARD** (a guard blocks): a guard script + a
   `hooks` registration entry, working tree only, never self-activated.
 - **skill** — an invocable procedure: `~/.claude/skills/<name>/SKILL.md` (patch > extend > new).
@@ -60,7 +60,8 @@ The fallback is **non-negotiable: never hardcode the machine's `rules/` structur
 
 **Thin pointer + backing detail (catalogue channel):** machine-level reminders ride in *every*
 session's context, so the catalogue holds the detail and `~/.claude/CLAUDE.md` gets at most a
-one-line pointer — none at all if it already points at the catalogue, and never full rule prose. And **everything under `~/.claude/rules/` is loaded,
+one-line pointer — none at all if it already points at the catalogue, and never full rule prose.
+And **everything under `~/.claude/rules/` is loaded,
 not just its index**: an index+detail split saves context only if the **detail files live
 outside the loaded directory**, so follow the index's own links and write the new one beside
 them; never add a second `.md` there. ([reference.md](reference.md) §3)
@@ -72,16 +73,19 @@ text/diff to be added, one short line of why-here — then ask a single confirma
 ## 분류 결과
 - 규칙: <one-line summary>
 - 들어갈 곳: <CLAUDE.md | hook | skill> — <HARD라 자동강제 / SOFT라 리마인드 / 절차라 호출형>
-- 추가/변경될 내용: <the exact prose/guard/skill stub, OR the entry's before → after if this is an edit>
+- 추가/변경될 내용: <the exact prose/guard/skill stub, OR the entry's before → after on an edit>
 - 충돌: <none | sibling | edits an existing entry (before→after) | contradicts an existing rule (explain)>
 - 필요성: <통과 | 기존 항목으로 충분 | 안 넣는 게 나음 — <이유 한 줄>>
 - 은퇴: <none | Pn이 이 규칙에 흡수돼요 — 같은 쓰기에서 은퇴시킬게요>
 - memory 중복: <none | memory에도 있어요: <path...> — 매립 후 그 항목은 지울게요 (§6)>
 ```
 
-Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" — unless 필요성 came back
-anything but 통과, and then the gate's recommendation is the first option and the question
-carries it: "이건 안 넣는 게 나아 보이는데, 그래도 넣을까요?" **Never write without confirmation.** If any axis cannot be settled, do NOT place it arbitrarily — hold the
+Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" — unless 필요성 is not 통과,
+and then the gate's recommendation is the first option and the question carries **that**
+recommendation, never a generic refusal: 기존 항목으로 충분 asks about folding it into that
+entry, 안 넣는 게 나음 asks whether to land it at all. Wordings:
+[reference.md](reference.md) §3-gate-question. **Never write without confirmation.** If any axis cannot be settled, do NOT place it
+arbitrarily — hold the
 classification and report what is ambiguous ("don't know" beats a confident-wrong placement).
 
 ## 4. User-shell receiver — the destination outside the three sites
@@ -104,7 +108,8 @@ user-authored content irreversibly. When the engine writes to the **skill** site
 - Only **`provenance: distilled`** skills may be revised, and a newly created skill carries a
   top-level **`provenance: distilled`** — machine-authored, revisable later.
 
-Verify before writing: read the target's frontmatter, and **check `[ -d "$HOME/.claude/skills" ]`
+Verify before writing: read the target's frontmatter and confirm provenance, and **check
+`[ -d "$HOME/.claude/skills" ]`
 first** — on a vanilla machine a glob against that missing directory errors instead of matching
 nothing. Missing = "no existing skills", not a failure.
 
@@ -118,9 +123,9 @@ the skill site). Never infer "missing" from a read *error* — that skips the ch
 **overwrites existing content**. Absent → **`Write`**, not append; exists but unreadable → stop
 and report. ([reference.md](reference.md) §6-new-site)
 
-Otherwise read the **current contents of the chosen site** first (read-only `Bash`/`Grep`) —
+Otherwise read the **current contents of the chosen site** first (read-only `Bash`/`Grep`):
 that channel's own rules, or the existing hook matchers and guard scripts (so a new guard
-doesn't fire on an event one already covers), or existing skills (patch > extend > new).
+doesn't fire on an event one already covers), or existing skills.
 **If the site is an index+detail split, follow the index's links and read the detail files
 too** — they may sit outside the indexed directory (§3), so scanning that directory alone
 silently downgrades the check to a title comparison:
@@ -151,9 +156,10 @@ silently downgrades the check to a title comparison:
 stores `feedback`-type entries, the same kind of thing this engine lands, and nothing else
 cross-checks them against the reminder sites. Scan **both**.
 
-**Two steps — conflating them is a data-loss bug.** Step 1 only **lists candidate files**; a *Duplicate* is decided in Step 2 by **reading each candidate and comparing its content
-to the rule being landed**. Only a content match is a hit — a file that merely has `type:
-feedback` is not a duplicate and is never touched. ([reference.md](reference.md) §6-memory)
+**Two steps — conflating them is a data-loss bug.** Step 1 only **lists candidate files**; a
+*Duplicate* is decided in Step 2 by **reading each candidate and comparing its content to the
+rule being landed**. Only a content match is a hit — a file that merely has `type: feedback` is
+not a duplicate and is never touched. ([reference.md](reference.md) §6-memory)
 
 **Step 1 — list candidates** (read-only). `SCAN_ROOT` follows the site: a machine-global site
 (`~/.claude/CLAUDE.md`, `~/.claude/rules`) is duplicated by a memory in **any** project; a
@@ -188,8 +194,8 @@ move on.
 - **A scan that ERRORED is not a scan that found nothing.** A dead `awk` or an unreadable file
   shows only on **stderr**; anything there leaves the scan **inconclusive** — say so in the §3
   confirmation ("memory 스캔 실패 — 중복 여부 확인 못 했어요") instead of reporting `none`.
-- **On a content-match hit → surface it in the §3 confirmation** ("이 규칙이 memory에도 있어요 —
-  매립 후 memory 항목은 지울게요"), and after the write remove that memory file **and its
+- **On a content-match hit → surface it in the §3 confirmation** ("memory에도 있어요 — 매립 후
+  memory 항목은 지울게요"), and after the write remove that memory file **and its
   `MEMORY.md` index line — the line whose markdown link target is that file's basename** (never
   the title or description; those repeat). Same confirmation, no second prompt. Use a recoverable
   delete (`trash-put`); if unavailable, leave the file and report it — **never force-delete,
@@ -204,7 +210,7 @@ is already read, so it costs no extra lookup. Four questions:
    (Duplicate/Edit above), adding none.
 3. Is **something else already asking the same question** — a hook, a CI guard, an existing
    confirmation checkpoint, the tool itself? A doubled gate is dead weight.
-4. Does one clause on a neighbouring entry do the job, with no new entry → that form.
+4. Does one clause on a neighbouring entry do it, with no new entry → that form.
 
 Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
 **recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
@@ -246,10 +252,10 @@ leave a malformed result behind. The check depends on the site:
   and the approved new text is present — an edit need not grow the file. On an index+detail
   split, also verify the **link resolves** (`[ -f ]` on the new index row's path) and that the
   loaded directory gained no new `.md`.
-- **Supersede**: the new entry carries the content absorbed from the retired one (a retirement
-  that dropped it is content loss, not a cleanup); the old entry is gone from its site — the
-  index row *and* its detail file on a split (recoverable delete, §6), the old lines themselves
-  on a prose channel — and no inbound link still points at it.
+- **Supersede**: the new entry carries the content absorbed from the retired one (dropping it
+  is content loss, not a cleanup); the old entry is gone from its site — the index row *and* its
+  detail file on a split (recoverable delete, §6), the old lines on a prose channel — and no
+  inbound link still points at it.
 - **memory duplicate removal** (only when §6 found one): the duplicate file is gone and its
   `MEMORY.md` index line with it. If the delete could not run, say so — never claim a removal
   that didn't happen.
