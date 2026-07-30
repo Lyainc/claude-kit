@@ -12,15 +12,27 @@ Contract (per linter):
   - tool present + config + lint passes        -> PASS, exit 0
   - tool present + config + lint fails          -> FAIL, exit 1 (enforce pass)
 
+Contract (whole run): if NOT ONE linter ran, the run **exits 2 and reports no verdict**.
+Per-linter skips stay graceful — but a run where every one of them skipped inspected
+nothing, and "nothing was inspected" must not be spelled the same way as "the tree is
+clean". That is #456, the same silent-safeguard-off failure class as #447/#454: through
+2026-07 this script exited 0 on a machine with no ruff / prettier / shellcheck installed,
+so `check-test-exitcode.py` counted it among the passing guards while it had looked at no
+file at all. Exit 2 is borrowed deliberately from check-skill-token-budget.py, which
+refuses a verdict without tiktoken rather than downgrading to a backend it just called
+insufficient. There is no `--allow-none` escape: nothing in this repo invokes real mode,
+so an opt-out would exist only to restore the green light this exit code removes.
+
 This keeps the MECHANISM committed and active the moment a linter is added to the repo /
-CI image, with zero per-repo reimplementation. On a repo/CI with no linters installed
-(the current state), every linter SKIPs and this exits 0 — the gate is latent, not absent.
+CI image, with zero per-repo reimplementation. The delegation is still latent on a repo
+with no linter installed — latent now announces itself instead of passing.
 
 Usage:
     python3 scripts/run-linters.py [--root DIR] [--json] [--self-test]
 
-Exit codes: 0 = all present linters passed (or all skipped), 1 = a present linter failed,
-            2 = usage error.
+Exit codes: 0 = at least one linter ran and every present linter passed,
+            1 = a present linter failed,
+            2 = no linter ran at all (nothing inspected) / usage error.
 """
 import argparse
 import json
@@ -134,6 +146,20 @@ def run_linters(root, linters):
     return ok, report
 
 
+def nothing_ran_verdict(report):
+    """Return (exit_code, message) for a run that inspected nothing. None exit = proceed."""
+    if report["ran"]:
+        return None, ""
+    skipped = ", ".join(f"{s['name']}({s['reason']})" for s in report["skipped"]) or "no linters known"
+    return 2, (
+        "FATAL: no linter ran, so nothing was inspected and this run reports no verdict.\n"
+        f"  skipped: {skipped}\n"
+        "  An all-skipped run is indistinguishable from a clean one, so it is not spelled\n"
+        "  exit 0 (#456). Install at least one of ruff / prettier / shellcheck, with the repo\n"
+        "  config it delegates to, and re-run."
+    )
+
+
 def run_self_test():
     """Validate the delegation logic with injected fake linters (no real tools needed)."""
     def fake(name, present, configured, exit_code):
@@ -175,6 +201,52 @@ def run_self_test():
     if ok or "fail" not in rep["failed"]:
         failures.append("  a single failing linter must fail the whole run")
 
+    # 6) NOTHING ran: every linter skipped -> refuse a verdict (#456). The per-linter skips
+    #    above are still graceful; it is the whole-run silence that must not read as a pass.
+    _, rep = run_linters("/tmp", [fake("absent", False, True, 0), fake("noconf", True, False, 0)])
+    code, msg = nothing_ran_verdict(rep)
+    if code != 2 or "FATAL" not in msg:
+        failures.append(f"  an all-skipped run must exit 2 with a FATAL message, got {code}: {msg!r}")
+    if "absent" not in msg or "noconf" not in msg:
+        failures.append("  the refusal must name what it skipped, so the cause is readable")
+
+    # 7) One linter ran -> the whole-run verdict stays out of the way.
+    code, _ = nothing_ran_verdict(run_linters("/tmp", [fake("pass", True, True, 0)])[1])
+    if code is not None:
+        failures.append(f"  a run with one linter must proceed, got exit {code}")
+
+    # 8) A failing linter still reports exit 1, not the exit-2 refusal — the two signals
+    #    mean different things (a lint failure vs no measurement at all).
+    code, _ = nothing_ran_verdict(run_linters("/tmp", [fake("fail", True, True, 1)])[1])
+    if code is not None:
+        failures.append(f"  a failing linter is a verdict, not a refusal, got exit {code}")
+
+    # 9) WIRING: the refusal must be reachable from main(), not merely correct as a function.
+    #    Deleting the call from main() leaves cases 6-8 green, which is how the original
+    #    silent-pass shipped. default_linters is patched so no real tool needs to exist.
+    import contextlib
+    import io
+
+    def run_main(argv, table):
+        saved = globals()["default_linters"]
+        buf = io.StringIO()
+        try:
+            globals()["default_linters"] = lambda: table
+            with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
+                return main(argv), buf.getvalue()
+        finally:
+            globals()["default_linters"] = saved
+
+    rc, out = run_main(["--root", "/tmp"], [fake("absent", False, True, 0)])
+    if rc != 2 or "FATAL" not in out:
+        failures.append(f"  wiring: main() with no linter available must exit 2 + FATAL, got {rc}")
+    rc, _ = run_main(["--root", "/tmp"], [fake("pass", True, True, 0)])
+    if rc != 0:
+        failures.append(f"  wiring: main() with a passing linter must exit 0, got {rc}")
+    rc, _ = run_main(["--root", "/tmp", "--json"], [fake("absent", False, True, 0)])
+    if rc != 2:
+        failures.append(f"  wiring: --json must not launder the refusal into a pass, got {rc}")
+
     if failures:
         print("FAIL: run-linters self-test")
         print("\n".join(failures))
@@ -195,9 +267,12 @@ def main(argv=None):
 
     root = os.path.abspath(args.root or _git_toplevel() or os.getcwd())
     ok, report = run_linters(root, default_linters())
+    code, message = nothing_ran_verdict(report)
 
     if args.json:
-        report["ok"] = ok
+        # ok must not stay True on a run that inspected nothing — a JSON consumer reading
+        # `"ok": true` off an all-skipped run is exactly the silent green #456 is about.
+        report["ok"] = ok and code is None
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
         ran = ", ".join(f"{r['name']}(exit {r['exit']})" for r in report["ran"]) or "none"
@@ -206,9 +281,13 @@ def main(argv=None):
         print(f"linters skipped: {skipped}")
         if report["failed"]:
             print(f"FAIL: linter(s) failed: {', '.join(report['failed'])}")
-        else:
-            print("OK: no present linter reported failures (skips are graceful).")
+        elif code is None:
+            print("OK: every linter that ran passed (per-linter skips are graceful).")
 
+    if message:
+        print(message, file=sys.stderr)
+    if code is not None:
+        return code
     return 0 if ok else 1
 
 
