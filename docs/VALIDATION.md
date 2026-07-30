@@ -106,6 +106,20 @@ python3 scripts/run-linters.py --self-test
 # its wiring through main(), including --json) without needing a linter installed. Same
 # refuse-rather-than-degrade shape as check-skill-token-budget.py's exit 2 above (#454).
 
+# claude-review 침묵 방지 가드 회귀 (#451): 리뷰 job이 코멘트를 0개 남기고도 초록불이던
+# 문제 — Checks 탭에서 "리뷰했는데 지적이 없음"과 "리뷰가 안 돎"이 같은 체크로 보였다.
+# workflow의 verify step이 이번 라운드 코멘트를 세서 0이면 job을 실패시키는데, 그 세는
+# 로직(jq 필터)을 워크플로에서 EXTRACT해 실제 jq로 픽스처에 돌린다 — 특히 이전 라운드
+# 코멘트가 이번 라운드를 만족시키면 안 된다(createdAt 절이 빠지면 synchronize 재실행마다
+# 통과해 가드가 꺼짐). 나머지는 정적 확인: step 존재 + `if: always()` + 0에서 nonzero,
+# 프롬프트의 짝(깨끗해도 LGTM 코멘트 필수) — 워크플로만 넣으면 깨끗한 PR이 전부 빨간불,
+# 그리고 `paths:` 필터 부재(required check가 스킵되면 상태를 리포트 안 해 영구 pending).
+# jq 부재는 skip이 아니라 exit 2 — 스스로 꺼지는 검사가 이 파일이 잡으려는 바로 그 실패다.
+python3 scripts/test/test-review-silence-guard.py --self-test
+# Expected: OK: all 6 review-silence-guard self-test cases passed
+python3 scripts/test/test-review-silence-guard.py
+# Expected: OK: all 16 review-silence-guard checks passed.
+
 # 서브에이전트 git 부수효과 가드 회귀 (#209): scripts/subagent-git-guard.sh PreToolUse Bash
 # 훅이 subagent context의 git commit/push·gh pr create|merge를 deny하는지 검증 (인메모리
 # 위반 + clean fixture, FP=0; 메인 컨텍스트·git 읽기·따옴표 멘션은 통과). 규칙은 rules/RULES.md §1.

@@ -3,12 +3,10 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
+    # DO NOT add a `paths:` filter here. A required check that is skipped by a path
+    # filter reports no status at all, so the PR sits pending forever instead of
+    # going green (same judgment as Lyainc/filme #594). The stock template offers the
+    # filter as "optional"; for this repo it is a trap, not an option.
 
 jobs:
   claude-review:
@@ -32,6 +30,16 @@ jobs:
           # Full history: the validation suite the review runs includes
           # check-trigger-regression.py's origin/main diff (validate.yml needs the same).
           fetch-depth: 0
+
+      # Read before the review runs, so the verify step below counts only THIS round's
+      # comments. A plain "does the PR have a claude comment" count passes on every
+      # `synchronize` re-run as soon as round 1 left one behind — which turns the guard
+      # off exactly where silence is hardest to notice. The 60s cushion absorbs clock skew
+      # between this runner and GitHub's comment timestamps; a prior round landing inside
+      # that window is not a case that occurs (a review takes minutes).
+      - name: Record review start time
+        id: review_start
+        run: echo "at=$(date -u -d '60 seconds ago' +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_OUTPUT"
 
       - name: Run Claude Code Review
         id: claude-review
@@ -104,6 +112,15 @@ jobs:
             the PR. Group findings by severity (P0 / P1 / Deferred nits (P2)) and link the
             backlog issue under the P2 group.
 
+            ## Silence is not a review (REQUIRED)
+
+            Leave that comment even when you found nothing — a clean review is
+            `P0/P1 없음 — LGTM` plus what you actually ran. Posting zero comments is
+            forbidden: from the Checks tab a silent job is indistinguishable from a review
+            that never ran, so a step after this one counts the comments this round posted
+            and FAILS the job at zero. If you are about to end the turn without having run
+            `gh pr comment`, that is the bug — post the summary first.
+
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
           # gh issue create is allowed so P2 nits can be bundled into a single backlog issue
@@ -115,4 +132,27 @@ jobs:
           # drifting away from docs/VALIDATION.md, and stays read/verify-only — no write or
           # network command is added here.
           claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(python3 scripts/check-test-exitcode.py:*)"'
+
+      # The prompt above ASKS for a comment; this step is what makes the ask enforceable
+      # (#451). Without it the job is green whether the review posted its findings or died
+      # before writing anything, and the Checks tab shows the same tick either way.
+      # `if: always()` on purpose: a review that failed mid-run is precisely the case that
+      # must not be laundered into a pass by an earlier step's red already being visible.
+      # Reading comments needs only the `issues: read` / `pull-requests: read` this job
+      # already holds — the review posts under its own token, not GITHUB_TOKEN.
+      # Pinned by scripts/test/test-review-silence-guard.py, which executes the jq filter
+      # below against fixtures (a prior round's comment must NOT satisfy this round).
+      - name: Verify a review comment was posted (no silent pass)
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.number }}
+          SINCE: ${{ steps.review_start.outputs.at }}
+        run: |
+          count=$(gh pr view "$PR" --json comments --jq '[.comments[] | select(.author.login | test("claude"; "i")) | select(.createdAt > env.SINCE)] | length')
+          echo "Claude review comments on PR #$PR since $SINCE: $count"
+          if [ "$count" -lt 1 ]; then
+            echo "::error::No Claude review comment posted on PR #$PR since $SINCE — the review produced nothing, which is not the same as finding nothing."
+            exit 1
+          fi
 
