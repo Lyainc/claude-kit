@@ -264,9 +264,17 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 #     backtick in prose pairs with the next span far below and deletes everything between
 #   - a closing fence is a bare marker line (CommonMark forbids an info string there), so
 #     an unclosed opener cannot pair with a LATER fence's opening line
-# ponytail: an INDENTED unclosed fence can still pair with a later bare closer and eat the
-# prose between. Fixing it needs a separate block-boundary pattern per indent class; 0
-# occurrences across this repo's 174 .md files, so it stays a known ceiling.
+# ponytail: three shapes still over-mask, all measured at 0 occurrences across this repo's
+# 174 .md files, and each needs a different structural fix rather than another tweak here:
+#   - an INDENTED unclosed fence pairs with a later bare closer (needs a block-boundary
+#     pattern per indent class)
+#   - a tab-indented ``` is an indented code block to CommonMark, not a fence, but `[ \t]*`
+#     reads it as one (needs column accounting, where a tab is 4 columns)
+#   - a blockquoted ``` opens a fence inside the quote, so the run leaks to INLINE_CODE and
+#     pairs with the next one (needs quote-prefix stripping before any of this runs)
+# Left as known ceilings deliberately: each of the three preceding rounds of tightening
+# here introduced a NEW silent false negative, so further regex churn for shapes with no
+# observed occurrences is the losing side of that trade.
 CODE_FENCE = re.compile(r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[ \t]*$', re.S | re.M)
 UNCLOSED_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*\Z', re.S | re.M)
 INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)')
@@ -636,15 +644,18 @@ def die_corrupt(path, reason):
     end in the documented exit 3 with an honest message, never a traceback that gets
     read as "corrupt" when the real problem is permissions.
     """
+    def read_bytes(p):
+        with open(p, 'rb') as f:
+            return f.read()
+
     try:
-        with open(path, 'rb') as f:
-            original = f.read()
+        original = read_bytes(path)
         # glob.escape: VAULT_ROOT is a user env var and a folder named `vault [backup]`
         # is legal — unescaped, `[u]` reads as a character class, no existing sidecar is
         # ever found, and the per-file storm comes straight back.
         sidecar = next(
             (p for p in sorted(glob.glob(glob.escape(path) + '.corrupt-*'))
-             if os.path.isfile(p) and open(p, 'rb').read() == original),
+             if os.path.isfile(p) and read_bytes(p) == original),
             None)
         if sidecar is None:
             sidecar = f"{path}.corrupt-{now_iso()}"
