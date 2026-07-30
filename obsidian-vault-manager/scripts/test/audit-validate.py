@@ -98,8 +98,13 @@ WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 # #434: mirrors ovm-primitives.sh's mask_code — [[...]] inside a code fence or inline
 # code is a syntax example, not a link. Kept byte-identical in behaviour; the E4 FP
 # regression test drives BOTH extractors over the same fixture.
-CODE_FENCE = re.compile(r"^(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=f)[^\n]*$|\Z)", re.S | re.M)
-INLINE_CODE = re.compile(r"(?P<t>`+)(?:(?!(?P=t)).)+(?P=t)", re.S)
+# The `\n(?!\s*\n)` bound is load-bearing: an inline span may cross a single newline but
+# never a blank line, or a lone stray backtick pairs with the next span far below and
+# silently swallows every real wikilink between them.
+CODE_FENCE = re.compile(
+    r"^(?P<i>[ \t]*)(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=i)?(?P=f)[^\n]*$|\Z)", re.S | re.M
+)
+INLINE_CODE = re.compile(r"(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)")
 
 
 def mask_code(text: str) -> str:

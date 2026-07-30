@@ -251,8 +251,14 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 # and users had no workaround — the examples were already backticked. Fences first
 # (leading indent allowed; an unterminated one runs to EOF), then inline spans of any
 # backtick run-length.
-CODE_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=f)[^\n]*$|\Z)', re.S | re.M)
-INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t)).)+(?P=t)', re.S)
+#
+# An inline span may cross a single newline but NEVER a blank line — CommonMark says so,
+# and without that bound a lone stray backtick in prose pairs with the next span far
+# below and deletes every real wikilink in between. That trades a visible 33% FP rate
+# for a SILENT false-negative rate on a Critical check, which is the worse bargain.
+CODE_FENCE = re.compile(
+    r'^(?P<i>[ \t]*)(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=i)?(?P=f)[^\n]*$|\Z)', re.S | re.M)
+INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)')
 
 def mask_code(text):
     return INLINE_CODE.sub('', CODE_FENCE.sub('', text))
