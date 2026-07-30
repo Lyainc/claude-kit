@@ -291,6 +291,13 @@ python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
 # Expected: OK: all cases passed
 
+# E4 false-positive regression: wikilinks in code are not links (#434) — 27/82 findings
+# (33%) on a 158-note vault were already-backticked syntax examples. Drives BOTH
+# extractors (ovm-primitives.sh extract-wikilinks via subprocess + audit-validate.py
+# collect in-process, the #165 parity pattern) over one fixture, asserts the extracted
+# set is EXACTLY the real prose links, and unit-tests mask_code's fence/inline edges.
+python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
+# Expected: OK: all cases passed
 
 # audit DoD 측정 (mechanical reference impl)
 # gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py

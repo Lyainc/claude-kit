@@ -59,7 +59,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks ~/vault/<relpath>
    ```
-   Collect: `{source_path, links[]}` for each file.
+   Collect: `{source_path, links[]}` for each file. Wikilinks inside code fences or inline code are masked out before extraction (#434) — a backticked `[[Note]]` is a syntax example, so it must never reach E4.
 
 7. Build a global link index: `{target_stem → [source_paths]}` from all extracted wikilinks across the full vault (not just dirty files). This is required for orphan detection (which needs the full inbound-link map).
 
