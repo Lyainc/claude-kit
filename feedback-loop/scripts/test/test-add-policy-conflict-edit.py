@@ -99,6 +99,47 @@ def _bullet_scope(lower: str, marker: str) -> str | None:
     return lower[marker_pos:next_bullet] if next_bullet != -1 else lower[marker_pos:marker_pos + 600]
 
 
+# §6's PREAMBLE, pinned verbatim. Everything an engine reads before the verdict bullets — and
+# therefore the cheapest place for a contradiction to land and the first place it takes effect.
+# Review demonstrated it: "A verdict that *removes* an entry is destructive, so it is confirmed
+# on its own second question, separately from the §3 addition", three lines above the Supersede
+# bullet, passed every suite while granting the second prompt the bullet forbids. A pin only
+# covers what it spans, so the span now includes the text above the bullets. The memory-scan
+# mechanics further down §6 stay unpinned — test-add-policy-routing.py phrase-pins those.
+_PREAMBLE_CONTRACT = """\
+## 6. Conflict check (target = the landfill site's current rules + native auto-memory)
+
+**New site**: check the target **exists** first (`[ -f "$TARGET" ]`, the principle §5 uses for
+the skill site). Never infer "missing" from a read *error* — that skips the check and
+**overwrites existing content**. Absent → **`Write`**, not append; exists but unreadable → stop
+and report. ([reference.md](reference.md) §6-new-site)
+
+Otherwise read the **current contents of the chosen site** first (read-only `Bash`/`Grep`):
+that channel's own rules, or the existing hook matchers and guard scripts (so a new guard
+doesn't fire on an event one already covers), or existing skills.
+**If the site is an index+detail split, follow the index's links and read the detail files
+too** — they may sit outside the indexed directory (§3), so scanning that directory alone
+silently downgrades the check to a title comparison:
+"""
+
+
+def check_conflict_preamble_verbatim(text: str) -> tuple[bool, str]:
+    """§6's opening, up to the first verdict bullet, matches its pinned contract text."""
+    section = _verdict_scope(text)
+    if section is text:
+        return False, "§6 section boundary not found (header drift?)"
+    idx = section.find("- **Duplicate")
+    if idx == -1:
+        return False, "§6 has no verdict bullets — the Duplicate outcome is missing"
+    if _normalise(section[:idx]) != _normalise(_PREAMBLE_CONTRACT):
+        return False, (
+            "§6's preamble no longer matches its pinned contract text — a clause was added, "
+            "removed or reworded above the verdict bullets, which is what an engine reads "
+            "first. If that is intended, update _PREAMBLE_CONTRACT in this file"
+        )
+    return True, "§6 preamble matches its pinned contract text verbatim"
+
+
 def check_edit_bucket_named(text: str) -> tuple[bool, str]:
     """§6 must name Edit as its own conflict-check outcome, not folded into Duplicate."""
     bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**edit")
@@ -212,6 +253,7 @@ def check_confirmation_template_lists_retirement(text: str) -> tuple[bool, str]:
 
 
 _CHECKS = [
+    check_conflict_preamble_verbatim,
     check_edit_bucket_named,
     check_edit_distinct_from_contradiction,
     check_confirmation_template_lists_edit,
@@ -388,14 +430,37 @@ _SCOPED_VERDICT_DELETED = _SECTION_HEADERS % ""
 assert _SCOPED_OK != _SCOPED_VERDICT_DELETED, "scoped fixtures collapsed to the same text"
 
 
+_PREAMBLE_OK = (
+    _PREAMBLE_CONTRACT
+    + "\n- **Duplicate**: if the site already states the same rule, strengthen that entry.\n"
+    + _SUPERSEDE_CONTRACT
+    + "\n\n## 7. Output contract\n"
+)
+# Review's round-3 mutation, verbatim: a second question granted above the bullets.
+_PREAMBLE_CONTRADICTED = _PREAMBLE_OK.replace(
+    "Otherwise read the",
+    "A verdict that *removes* an entry is destructive, so it is confirmed on its own second\n"
+    "question, separately from the §3 addition.\n\nOtherwise read the",
+)
+_PREAMBLE_REFLOWED = _PREAMBLE_OK.replace(
+    _PREAMBLE_CONTRACT, " ".join(_PREAMBLE_CONTRACT.split())
+)
+assert _PREAMBLE_CONTRADICTED != _PREAMBLE_OK, "_PREAMBLE_CONTRADICTED no-opped"
+assert _PREAMBLE_REFLOWED != _PREAMBLE_OK, "_PREAMBLE_REFLOWED no-opped"
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
-    for check in _CHECKS:
+    # _PASSING/_FAILING are bare bullet fragments with no `## 6.`/`## 7.` headers, so the
+    # §6-scoped preamble pin cannot run against them; it has its own headered fixtures below.
+    bullet_checks = [c for c in _CHECKS if c is not check_conflict_preamble_verbatim]
+
+    for check in bullet_checks:
         ok, _ = check(_PASSING)
         cases.append((f"passing: {check.__name__}", ok))
 
-    for check in _CHECKS:
+    for check in bullet_checks:
         ok, _ = check(_FAILING)
         cases.append((f"failing: {check.__name__} (expect FAIL)", not ok))
 
@@ -422,6 +487,15 @@ def _self_test() -> int:
 
     ok, _ = check_supersede_bullet_verbatim(_SUPERSEDE_REFLOWED)
     cases.append(("supersede-reflowed: check_supersede_bullet_verbatim (still OK)", ok))
+
+    ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_OK)
+    cases.append(("preamble: check_conflict_preamble_verbatim (still OK)", ok))
+    ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_CONTRADICTED)
+    cases.append(("preamble-grants-a-second-question: check_conflict_preamble_verbatim (expect FAIL)", not ok))
+    ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_REFLOWED)
+    cases.append(("preamble-reflowed: check_conflict_preamble_verbatim (still OK)", ok))
+    ok, _ = check_conflict_preamble_verbatim(_PASSING)
+    cases.append(("preamble: headerless fixture reports the boundary (expect FAIL)", not ok))
 
     ok, _ = check_supersede_bullet_verbatim(_SCOPED_OK)
     cases.append(("scoped: check_supersede_bullet_verbatim reads §6's verdict (still OK)", ok))
