@@ -20,7 +20,9 @@ Pinned claims:
 3. All three outcomes are stated (pass / absorb / recommend not landing).
 4. The gate **recommends only**: first option of the same AskUserQuestion, no second
    prompt. This is the 1-click invariant the whole skill repeats.
-5. An explicit user request is never blocked by the gate.
+5. The gate never blocks a landing — stated for both inbound paths (a direct user request
+   and a distill proposal), since every invocation is an explicit request and a qualifier
+   that excludes nothing reads as licence to block the other path.
 6. The distill boundary stays coherent: the gate judges the artifact's cost, never the
    rule's reuse value — without this the skill contradicts its own `description`.
 7. §3's 1-click confirmation template carries the 필요성 field.
@@ -63,7 +65,10 @@ def _states(text: str, phrase: str) -> bool:
     return re.search(rf"\b{core}\b", text, re.IGNORECASE) is not None
 
 
-_GATE_START = "necessity gate"
+# The BOLD block marker, not the bare phrase: "necessity gate" also appears in the frontmatter
+# description and in the intro, so anchoring on it widened the slice to most of the file and the
+# scoping this helper claims would have been fiction.
+_GATE_START = "**necessity gate"
 # The gate block ends where the write-form paragraph begins; if that anchor ever moves,
 # the fallback window keeps the slice from silently swallowing the rest of the file.
 _GATE_END = "for a new rule the engine appends"
@@ -82,6 +87,29 @@ def _gate_block(text: str) -> str:
         return ""
     end = lower.find(_GATE_END, start)
     return text[start:end] if end != -1 else text[start:start + 2000]
+
+
+# NEGATED polarity, not mere presence. "raises its own second prompt" contains the words and
+# states the opposite of the invariant; a presence check passes it, which made this check
+# vacuous. `\s+` between words because SKILL.md is hard-wrapped (#440).
+_NO_SECOND_PROMPT_RE = re.compile(
+    r"\b(?:never|no|without)\s+(?:a\s+)?second\s+prompt\b", re.IGNORECASE
+)
+# The affirmative that must NOT be there: a gate that stops the write is the design #450
+# rejected. The lookbehind is the whole point — the correct prose says "never blocks the
+# landing", so a bare "blocks the landing" pattern flags the compliant text it is meant to
+# protect. Fixed-width, so it reads exactly the six characters "never ".
+_BLOCKS_RE = re.compile(
+    r"(?<!never\s)\bblocks?\s+the\s+(?:write|landing)\b|\bdo\s+not\s+write\b",
+    re.IGNORECASE,
+)
+# The explicit-request guarantee, again as a negation the prose must actually make.
+_NEVER_BLOCKS_RE = re.compile(
+    r"\bnever\s+blocks?\s+(?:the|a|any)\s+landing\b|"
+    r"\bdoes\s+not\s+veto\b|"
+    r"\bnever\s+blocks?\s+(?:a\s+)?(?:landing|explicit)\b",
+    re.IGNORECASE,
+)
 
 
 def check_gate_present_and_positioned(text: str) -> tuple[bool, str]:
@@ -134,22 +162,27 @@ def check_recommends_only_one_click(text: str) -> tuple[bool, str]:
         return False, "the gate doesn't limit itself to a recommendation"
     if not _states(block, "first option"):
         return False, "the recommendation isn't rendered as the first option of the confirmation"
-    if not _states(block, "second prompt"):
-        return False, "the no-second-prompt (1-click) invariant is missing from the gate"
+    if not _NO_SECOND_PROMPT_RE.search(block):
+        return False, (
+            "the no-second-prompt (1-click) invariant is missing from the gate, or is stated "
+            "without a negation"
+        )
+    if _BLOCKS_RE.search(block):
+        return False, "the gate claims it can block the write, which 'recommends only' forbids"
     return True, "gate recommends only, as the first option of the same 1-click confirmation"
 
 
 def check_explicit_request_wins(text: str) -> tuple[bool, str]:
     """A landing the user asked for explicitly is never blocked by the gate."""
     block = _gate_block(text)
-    stated = any(_states(block, p) for p in (
-        "never blocks a landing the user asked for explicitly",
-        "does not veto an explicit request",
-        "never blocks an explicit request",
-    ))
-    if not stated:
-        return False, "the gate doesn't say an explicit user request is still landed"
-    return True, "an explicitly requested landing is never blocked by the gate"
+    if not _NEVER_BLOCKS_RE.search(block):
+        return False, "the gate doesn't state that it never blocks a landing"
+    if not _states(block, "distill proposal"):
+        return False, (
+            "the guarantee isn't stated for BOTH inbound paths — a qualifier naming only the "
+            "explicit request reads as licence to block a distill-proposal landing"
+        )
+    return True, "the gate never blocks a landing, on either inbound path"
 
 
 def check_distill_boundary(text: str) -> tuple[bool, str]:
@@ -221,9 +254,10 @@ add-policy never re-judges the rule's reuse value; it judges whether a new artif
 4. Does one clause on a neighbouring entry do the job, with no new entry → that form.
 
 Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
-**recommends only**: it renders as the **first option of the §3 AskUserQuestion**, adds no
-second prompt, and never blocks a landing the user asked for explicitly. It weighs the
-**artifact's cost**, never the rule's **reuse value**, which stays distill's.
+**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
+second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
+one arriving as a distill proposal. It weighs the **artifact's cost**, never the rule's **reuse
+value**, which stays distill's.
 
 For a new rule the engine appends in each site's native form.
 
@@ -243,10 +277,23 @@ For a new rule the engine appends in each site's native form.
 # The gate exists but can refuse — the rejected design. 1-click and the explicit-request
 # guarantee are both gone, and those two checks must be the ones that go red.
 _REFUSING_GATE = _PASSING.replace(
-    """**recommends only**: it renders as the **first option of the §3 AskUserQuestion**, adds no
-second prompt, and never blocks a landing the user asked for explicitly.""",
+    """**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
+second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
+one arriving as a distill proposal.""",
     """**blocks the write** when it judges the rule unnecessary, asking the user a second
 question before anything is written.""",
+)
+
+# Every keyword the checks look for is still here, and every claim is inverted: the gate blocks,
+# and raises its own prompt. This is the mutation a presence-only check passes — the defect that
+# made these two checks vacuous before. Both must go red.
+_INVERTED_GATE = _PASSING.replace(
+    """**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
+second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
+one arriving as a distill proposal.""",
+    """**recommends only** as a label, but it **blocks the write** and raises its own **second
+prompt** whose **first option** is to abandon the landing, for a direct request and for a
+distill proposal alike.""",
 )
 
 # Question 3 dropped — the exact question P14 needed. The other checks stay green, so
@@ -285,6 +332,10 @@ def _self_test() -> int:
     for check in (check_recommends_only_one_click, check_explicit_request_wins):
         ok, _ = check(_REFUSING_GATE)
         cases.append((f"refusing-gate: {check.__name__} (expect FAIL)", not ok))
+
+    for check in (check_recommends_only_one_click, check_explicit_request_wins):
+        ok, _ = check(_INVERTED_GATE)
+        cases.append((f"inverted-gate: {check.__name__} (expect FAIL)", not ok))
 
     ok, _ = check_four_questions(_MISSING_QUESTION_3)
     cases.append(("missing-question-3: check_four_questions (expect FAIL)", not ok))
