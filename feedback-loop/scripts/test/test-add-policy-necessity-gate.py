@@ -18,14 +18,16 @@ Pinned claims:
 2. All four questions are stated, each by its own distinguishing content — so dropping
    one (question 3, the doubled-gate check that P14 needed) fails here.
 3. All three outcomes are stated (pass / absorb / recommend not landing).
-4. The gate **recommends only**: first option of the same AskUserQuestion, no second
-   prompt. This is the 1-click invariant the whole skill repeats.
-5. The gate never blocks a landing — stated for both inbound paths (a direct user request
-   and a distill proposal), since every invocation is an explicit request and a qualifier
-   that excludes nothing reads as licence to block the other path.
-6. The distill boundary stays coherent: the gate judges the artifact's cost, never the
+4. The gate's authority paragraph, VERBATIM: it recommends only, as the first option of
+   the same AskUserQuestion, adds no second prompt, and never blocks a landing on either
+   inbound path (a direct user request or a distill proposal). Pinned as text rather than
+   by pattern because two pattern-based versions were defeated by a contradicting clause
+   set beside the negation — see the comment on `_AUTHORITY_CONTRACT`.
+5. The distill boundary stays coherent: the gate judges the artifact's cost, never the
    rule's reuse value — without this the skill contradicts its own `description`.
-7. §3's 1-click confirmation template carries the 필요성 field.
+6. §3's confirmation template carries the 필요성 field, and §3 gives the recommendation
+   its own question when 필요성 is not 통과 (a single hardcoded don't-land wording would
+   misreport an "absorb into an existing entry" verdict to the user answering it).
 
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
@@ -65,6 +67,11 @@ def _states(text: str, phrase: str) -> bool:
     return re.search(rf"\b{core}\b", text, re.IGNORECASE) is not None
 
 
+def _normalise(text: str) -> str:
+    """Collapse every run of whitespace, so a reflow reads as no change (#440)."""
+    return " ".join(text.split())
+
+
 # The BOLD block marker, not the bare phrase: "necessity gate" also appears in the frontmatter
 # description and in the intro, so anchoring on it widened the slice to most of the file and the
 # scoping this helper claims would have been fiction.
@@ -89,27 +96,27 @@ def _gate_block(text: str) -> str:
     return text[start:end] if end != -1 else text[start:start + 2000]
 
 
-# NEGATED polarity, not mere presence. "raises its own second prompt" contains the words and
-# states the opposite of the invariant; a presence check passes it, which made this check
-# vacuous. `\s+` between words because SKILL.md is hard-wrapped (#440).
-_NO_SECOND_PROMPT_RE = re.compile(
-    r"\b(?:never|no|without)\s+(?:a\s+)?second\s+prompt\b", re.IGNORECASE
-)
-# The affirmative that must NOT be there: a gate that stops the write is the design #450
-# rejected. The lookbehind is the whole point — the correct prose says "never blocks the
-# landing", so a bare "blocks the landing" pattern flags the compliant text it is meant to
-# protect. Fixed-width, so it reads exactly the six characters "never ".
-_BLOCKS_RE = re.compile(
-    r"(?<!never\s)\bblocks?\s+the\s+(?:write|landing)\b|\bdo\s+not\s+write\b",
-    re.IGNORECASE,
-)
-# The explicit-request guarantee, again as a negation the prose must actually make.
-_NEVER_BLOCKS_RE = re.compile(
-    r"\bnever\s+blocks?\s+(?:the|a|any)\s+landing\b|"
-    r"\bdoes\s+not\s+veto\b|"
-    r"\bnever\s+blocks?\s+(?:a\s+)?(?:landing|explicit)\b",
-    re.IGNORECASE,
-)
+# The gate's authority paragraph, pinned VERBATIM rather than by pattern. Two review rounds
+# showed why. A presence check ("recommends only", "first option", "second prompt" all appear)
+# passed "recommends only **as a label**, but it BLOCKS the write and raises its own second
+# prompt". Adding negation patterns then passed the correct paragraph with one clause appended —
+# "though it does **stop the write** when the answer is clearly no" — because "stop" was not in
+# the forbidden-verb list, and "refuses", "halts", "vetoes", "declines" are the same hole. Every
+# pattern is a blocklist of the last wording someone tried, while "recommends only" is a
+# universal claim, so the contract text itself is the pin. It is matched as the END of the gate
+# block, so a clause appended after the paragraph fails too. Whitespace is normalised: a reflow
+# is not a change, an edit to the words is — and updating this constant is then the deliberate
+# act of changing the contract, in the same commit.
+#
+# ponytail: the ceiling is the gate block. This pins what the paragraph says and that nothing is
+# appended to it, not what the rest of the skill says about the gate.
+_AUTHORITY_CONTRACT = """\
+Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
+**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
+second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
+one arriving as a distill proposal. A tool does not veto the work it was told to do. It weighs
+the **artifact's cost** (must this be a *new* always-loaded entry?), never the rule's **reuse
+value**, which stays distill's."""
 
 
 def check_gate_present_and_positioned(text: str) -> tuple[bool, str]:
@@ -144,7 +151,11 @@ def check_four_questions(text: str) -> tuple[bool, str]:
 
 
 def check_three_outcomes(text: str) -> tuple[bool, str]:
-    """pass / absorbed into an existing entry / recommend not landing."""
+    """pass / absorbed into an existing entry / recommend not landing.
+
+    Kept beside the verbatim pin below for its diagnostic: this one names WHICH outcome
+    went missing, where the pin only says the paragraph changed.
+    """
     block = _gate_block(text)
     if not _states(block, "recommend not landing"):
         return False, "the 'recommend not landing' outcome is missing"
@@ -155,34 +166,25 @@ def check_three_outcomes(text: str) -> tuple[bool, str]:
     return True, "all three outcomes stated (pass / absorb / recommend not landing)"
 
 
-def check_recommends_only_one_click(text: str) -> tuple[bool, str]:
-    """Authority stops at a recommendation, inside the existing single confirmation."""
-    block = _gate_block(text)
-    if not _states(block, "recommends only"):
-        return False, "the gate doesn't limit itself to a recommendation"
-    if not _states(block, "first option"):
-        return False, "the recommendation isn't rendered as the first option of the confirmation"
-    if not _NO_SECOND_PROMPT_RE.search(block):
-        return False, (
-            "the no-second-prompt (1-click) invariant is missing from the gate, or is stated "
-            "without a negation"
-        )
-    if _BLOCKS_RE.search(block):
-        return False, "the gate claims it can block the write, which 'recommends only' forbids"
-    return True, "gate recommends only, as the first option of the same 1-click confirmation"
+def check_authority_paragraph_verbatim(text: str) -> tuple[bool, str]:
+    """The gate's ceiling, matched against the pinned contract text.
 
-
-def check_explicit_request_wins(text: str) -> tuple[bool, str]:
-    """A landing the user asked for explicitly is never blocked by the gate."""
+    One check rather than a set of patterns: it carries the 1-click invariant (no second
+    prompt), the never-blocks guarantee on both inbound paths, and the distill boundary,
+    against a contradicting clause set *beside* them — which is how both pattern-based
+    versions of this check were defeated. Anchored at the END of the block, so a clause
+    appended after the paragraph fails as well.
+    """
     block = _gate_block(text)
-    if not _NEVER_BLOCKS_RE.search(block):
-        return False, "the gate doesn't state that it never blocks a landing"
-    if not _states(block, "distill proposal"):
+    if not block:
+        return False, "no necessity gate block found in the SKILL.md body"
+    if not _normalise(block).endswith(_normalise(_AUTHORITY_CONTRACT)):
         return False, (
-            "the guarantee isn't stated for BOTH inbound paths — a qualifier naming only the "
-            "explicit request reads as licence to block a distill-proposal landing"
+            "the gate's authority paragraph no longer matches its pinned contract text, or "
+            "something was appended after it — a clause was added, removed or reworded. If "
+            "that is intended, update _AUTHORITY_CONTRACT in this file in the same commit"
         )
-    return True, "the gate never blocks a landing, on either inbound path"
+    return True, "gate authority paragraph matches its pinned contract text verbatim"
 
 
 def check_distill_boundary(text: str) -> tuple[bool, str]:
@@ -202,26 +204,44 @@ def check_distill_boundary(text: str) -> tuple[bool, str]:
     return True, "gate judges artifact cost, never reuse value (distill boundary intact)"
 
 
-def check_confirmation_template_has_necessity_field(text: str) -> tuple[bool, str]:
-    """§3's 1-click confirmation template must carry the 필요성 line."""
+def check_confirmation_surfaces_the_recommendation(text: str) -> tuple[bool, str]:
+    """§3 carries the 필요성 field AND a question per non-통과 outcome.
+
+    The gate has two non-통과 outcomes, and §3's default question ("여기에 이렇게 넣을게요 —
+    맞아요?") fits neither. A single hardcoded don't-land wording is worse than none: asked
+    after a "기존 항목으로 충분" verdict it offers a yes/no on abandoning the rule when the
+    recommendation was to fold it into an existing entry, so the user's answer lands a
+    brand-new entry the gate argued against.
+    """
     pos = text.find("필요성:")
     if pos == -1:
         return False, "필요성 field missing from the §3 confirmation template"
     line_end = text.find("\n", pos)
     line = text[pos:line_end if line_end != -1 else len(text)]
-    if "안 넣는" not in line:
-        return False, "필요성 field doesn't offer the 'don't land it' outcome"
-    return True, "§3 confirmation template carries the 필요성 field"
+    for outcome in ("기존 항목으로 충분", "안 넣는 게 나음"):
+        if outcome not in line:
+            return False, f"필요성 field doesn't offer the '{outcome}' outcome"
+    ask_pos = text.find("Then AskUserQuestion")
+    if ask_pos == -1:
+        return False, "§3's AskUserQuestion instruction is missing"
+    ask = text[ask_pos:]
+    ask = ask[:ask.find("\n\n")] if "\n\n" in ask else ask
+    for outcome in ("기존 항목으로 충분", "안 넣는 게 나음"):
+        if outcome not in ask:
+            return False, (
+                f"§3's confirmation doesn't say what to ask on a '{outcome}' verdict — one "
+                f"hardcoded wording misreports the other outcome to the user answering it"
+            )
+    return True, "§3 carries 필요성 and a distinct confirmation question per non-통과 outcome"
 
 
 _CHECKS = [
     check_gate_present_and_positioned,
     check_four_questions,
     check_three_outcomes,
-    check_recommends_only_one_click,
-    check_explicit_request_wins,
+    check_authority_paragraph_verbatim,
     check_distill_boundary,
-    check_confirmation_template_has_necessity_field,
+    check_confirmation_surfaces_the_recommendation,
 ]
 
 
@@ -246,23 +266,23 @@ add-policy never re-judges the rule's reuse value; it judges whether a new artif
 
 ## 1. Input contract
 
+- 필요성: <통과 | 기존 항목으로 충분 | 안 넣는 게 나음 — <이유 한 줄>>
+
+Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" — unless 필요성 is not 통과,
+and then the gate's recommendation is the first option: 기존 항목으로 충분 asks about folding it
+into that entry, 안 넣는 게 나음 asks whether to land it at all.
+
 **Necessity gate — after the conflict check, before the §3 confirmation.** Four questions:
 
 1. Has what this rule prevents **actually happened**, or does it only look likely?
-2. Does an existing or more general entry already imply it → absorb it above.
+2. Does an existing or more general entry already imply it → strengthen that entry instead.
 3. Is **something else already asking the same question** — a hook, a CI guard?
-4. Does one clause on a neighbouring entry do the job, with no new entry → that form.
+4. Does one clause on a neighbouring entry do it, with no new entry → that form.
 
-Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
-**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
-second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
-one arriving as a distill proposal. It weighs the **artifact's cost**, never the rule's **reuse
-value**, which stays distill's.
+%s
 
 For a new rule the engine appends in each site's native form.
-
-- 필요성: <통과 | 기존 항목으로 충분 | 안 넣는 게 나음 — <이유 한 줄>>
-"""
+""" % _AUTHORITY_CONTRACT
 
 # Pre-#450 regression: no gate at all, so every claim is absent.
 _FAILING = """\
@@ -274,36 +294,34 @@ _FAILING = """\
 For a new rule the engine appends in each site's native form.
 """
 
-# The gate exists but can refuse — the rejected design. 1-click and the explicit-request
-# guarantee are both gone, and those two checks must be the ones that go red.
+# The three mutations that defeated the pattern-based checks, in the order review found them:
+# keywords deleted; keywords kept but every claim inverted; and — the one a negation pattern
+# still passed — the paragraph left intact with a single contradicting clause appended.
 _REFUSING_GATE = _PASSING.replace(
-    """**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
-second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
-one arriving as a distill proposal.""",
-    """**blocks the write** when it judges the rule unnecessary, asking the user a second
-question before anything is written.""",
+    "The gate\n**recommends only**:",
+    "The gate **blocks the write** when it judges the rule unnecessary, asking a second\n"
+    "question before anything is written:",
 )
-
-# Every keyword the checks look for is still here, and every claim is inverted: the gate blocks,
-# and raises its own prompt. This is the mutation a presence-only check passes — the defect that
-# made these two checks vacuous before. Both must go red.
 _INVERTED_GATE = _PASSING.replace(
-    """**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
-second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
-one arriving as a distill proposal.""",
-    """**recommends only** as a label, but it **blocks the write** and raises its own **second
-prompt** whose **first option** is to abandon the landing, for a direct request and for a
-distill proposal alike.""",
+    "**recommends only**:",
+    "**recommends only** as a label, but it **blocks the write** and raises its own second\nprompt:",
 )
+_APPENDED_CLAUSE = _PASSING.replace(
+    "which stays distill's.",
+    "which stays distill's. It does stop the write when the answer is clearly no.",
+)
+# The same contract with every line break moved: whitespace is not the contract (#440), so this
+# must still read as unchanged.
+_REFLOWED_GATE = _PASSING.replace(_AUTHORITY_CONTRACT, _normalise(_AUTHORITY_CONTRACT))
 
-# Question 3 dropped — the exact question P14 needed. The other checks stay green, so
-# this fixture is what keeps check_four_questions from degrading into "a gate exists".
+# Question 3 dropped — the exact question P14 needed. The other checks stay green, so this
+# fixture is what keeps check_four_questions from degrading into "a gate exists".
 _MISSING_QUESTION_3 = _PASSING.replace(
     "3. Is **something else already asking the same question** — a hook, a CI guard?\n", ""
 )
 
-# The gate is summarised in `## Rules` but the executable block is gone. A
-# whole-document matcher passes this; the scoped slice must not.
+# The gate is summarised in `## Rules` but the executable block is gone. A whole-document
+# matcher passes this; the scoped slice must not.
 _SUMMARY_ONLY = """\
 ## 6. Conflict check
 
@@ -317,6 +335,16 @@ For a new rule the engine appends in each site's native form.
   (pass / absorb / recommend not landing), and it recommends only.
 """
 
+# §3 offers one hardcoded don't-land wording for both non-통과 outcomes — the defect that
+# misreports an absorb verdict to the user answering it.
+_ONE_GENERIC_REFUSAL = _PASSING.replace(
+    """— unless 필요성 is not 통과,
+and then the gate's recommendation is the first option: 기존 항목으로 충분 asks about folding it
+into that entry, 안 넣는 게 나음 asks whether to land it at all.""",
+    """— unless 필요성 is not 통과,
+and then ask "이건 안 넣는 게 나아 보이는데, 그래도 넣을까요?" instead.""",
+)
+
 
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
@@ -329,22 +357,31 @@ def _self_test() -> int:
         ok, _ = check(_FAILING)
         cases.append((f"no-gate: {check.__name__} (expect FAIL)", not ok))
 
-    for check in (check_recommends_only_one_click, check_explicit_request_wins):
-        ok, _ = check(_REFUSING_GATE)
-        cases.append((f"refusing-gate: {check.__name__} (expect FAIL)", not ok))
+    for name, fixture in (
+        ("refusing", _REFUSING_GATE),
+        ("inverted", _INVERTED_GATE),
+        ("appended-contradicting-clause", _APPENDED_CLAUSE),
+    ):
+        ok, _ = check_authority_paragraph_verbatim(fixture)
+        cases.append((f"{name}-gate: check_authority_paragraph_verbatim (expect FAIL)", not ok))
 
-    for check in (check_recommends_only_one_click, check_explicit_request_wins):
-        ok, _ = check(_INVERTED_GATE)
-        cases.append((f"inverted-gate: {check.__name__} (expect FAIL)", not ok))
+    ok, _ = check_authority_paragraph_verbatim(_REFLOWED_GATE)
+    cases.append(("reflowed-gate: check_authority_paragraph_verbatim (still OK)", ok))
 
     ok, _ = check_four_questions(_MISSING_QUESTION_3)
     cases.append(("missing-question-3: check_four_questions (expect FAIL)", not ok))
     ok, _ = check_three_outcomes(_MISSING_QUESTION_3)
     cases.append(("missing-question-3: check_three_outcomes (still OK)", ok))
 
-    for check in (check_four_questions, check_three_outcomes, check_recommends_only_one_click):
+    for check in (check_four_questions, check_three_outcomes, check_authority_paragraph_verbatim):
         ok, _ = check(_SUMMARY_ONLY)
         cases.append((f"summary-only: {check.__name__} (expect FAIL)", not ok))
+
+    ok, _ = check_confirmation_surfaces_the_recommendation(_ONE_GENERIC_REFUSAL)
+    cases.append((
+        "one-generic-refusal: check_confirmation_surfaces_the_recommendation (expect FAIL)",
+        not ok,
+    ))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
