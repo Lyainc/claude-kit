@@ -264,19 +264,23 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 #     backtick in prose pairs with the next span far below and deletes everything between
 #   - a closing fence is a bare marker line (CommonMark forbids an info string there), so
 #     an unclosed opener cannot pair with a LATER fence's opening line
-# ponytail: three shapes still over-mask, all measured at 0 occurrences across this repo's
-# 174 .md files, and each needs a different structural fix rather than another tweak here:
+# ponytail: four shapes still over-mask, all measured at 0 occurrences across this repo's
+# 174 .md files, and all one root cause — a ``` run that CommonMark does NOT classify as a
+# fence opener still reaches these patterns. Each wants a different structural fix:
 #   - an INDENTED unclosed fence pairs with a later bare closer (needs a block-boundary
 #     pattern per indent class)
 #   - a tab-indented ``` is an indented code block to CommonMark, not a fence, but `[ \t]*`
 #     reads it as one (needs column accounting, where a tab is 4 columns)
+#   - a bare ``` inside a TABLE CELL (`| ``` |`) leaves an odd run for the inline pass to
+#     pair with a later span, eating a link between them
 #   - an UNQUOTED line carrying a link, sitting between two `>`-prefixed fence markers with
 #     no blank line between them: the quoted runs leak to INLINE_CODE and pair across it.
 #     NOT blockquoted fences in general — the normal layout (`> ```…> ``` `, blank line,
 #     then prose) is safe, because the blank line stops the inline pass. Needs quote-prefix
 #     stripping before any of this runs.
-# Left as known ceilings deliberately: each of the three preceding rounds of tightening
-# here introduced a NEW silent false negative, so further regex churn for shapes with no
+# Left as known ceilings deliberately: five of the six defects fixed on the way here were
+# NEW silent false negatives introduced by tightening these patterns, so further churn for
+# shapes with no
 # observed occurrences is the losing side of that trade. Note the shape of the fix each
 # one wants — remove a shape from the INPUT (as splitting UNCLOSED_FENCE out did), don't
 # narrow a pattern further; narrowing is what kept reintroducing false negatives.

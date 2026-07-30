@@ -241,6 +241,12 @@ def case_mask_code_unit(errors: list) -> None:
         # the opposite nesting, which is how this got through.
         ("a closer longer than its opener still closes",
          "```bash\ndeploy\n````\n\nkeep [[x]]\n", "\n\nkeep [[x]]\n"),
+        # Without this, reverting the closer tail to a lax [`~]* passes every other case:
+        # a fence uses one marker character throughout, and accepting a mixed tail lets a
+        # weird line be taken as the closer, stranding the real opener for the
+        # run-to-EOF pass to swallow.
+        ("a mixed-marker closer is not a closer",
+         "```\n```~~~\n```\n[[real]]\n", "\n[[real]]\n"),
         ("a longer closer works for tildes too",
          "~~~\nx\n~~~~\n\nkeep [[x]]\n", "\n\nkeep [[x]]\n"),
         # The literal-parity gate above catches one-sided drift, but this pins the
