@@ -10,8 +10,9 @@ Three cases, all driving the real `ovm-primitives.sh audit-state` subprocess:
   1. unparseable JSON        → exit != 0, sidecar holds the original, state file untouched
   2. valid JSON, wrong shape → same path (not a traceback): no `paths` key, and `paths`
                                present but not a dict, and a top-level JSON array
-  3. two operations in a row → the first sidecar is NOT overwritten (the `.bak`
-                               single-slot regression guard)
+  3. two operations in a row → the sidecar is NOT overwritten (the `.bak` single-slot
+                               regression guard); distinct corruption still gets its
+                               own sidecar, and an existing good `.bak` survives
 
 Run: python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
   → "OK: all cases passed" (exit 0) / "FAILED: N assertion(s) failed" (exit 1).
@@ -113,9 +114,10 @@ def case_wrong_shape(errors: list) -> None:
             assert_preserved(proc, state_path, original, f"wrong shape [{label}]", errors)
 
 
-def case_two_ops_keep_both_sidecars(errors: list) -> None:
+def case_two_ops_keep_the_sidecar(errors: list) -> None:
     """The `.bak` single-slot regression: a second operation must not erase the first
-    run's evidence. Two ops → two distinct sidecars, both holding the original."""
+    run's evidence. Identical bytes reuse the one sidecar (a `--reset-state` loop calls
+    this once per vault file, and N identical copies is litter, not evidence)."""
     original = "{ this is not json"
     with tempfile.TemporaryDirectory() as td:
         vault, state_path = seed(Path(td), original)
@@ -127,17 +129,55 @@ def case_two_ops_keep_both_sidecars(errors: list) -> None:
         _assert(first.returncode != 0 and second.returncode != 0,
                 "two ops: both exit non-zero", errors)
         _assert(len(after_first) == 1, "two ops: first op wrote one sidecar", errors)
-        _assert(len(after_second) == 2,
-                f"two ops: second sidecar added, first kept (got {len(after_second)})", errors)
-        _assert(after_first and after_first[0] in after_second,
-                "two ops: the first sidecar still exists after the second op", errors)
+        _assert(after_first == after_second,
+                f"two ops: same sidecar reused, none added or renamed "
+                f"(before={[p.name for p in after_first]}, after={[p.name for p in after_second]})",
+                errors)
         _assert(
             all(p.read_text(encoding="utf-8") == original for p in after_second),
-            "two ops: every sidecar still holds the original bytes",
+            "two ops: the sidecar still holds the original bytes",
             errors,
         )
         _assert(state_path.read_text(encoding="utf-8") == original,
                 "two ops: audit-state.json never overwritten", errors)
+
+
+def case_different_corruption_gets_its_own_sidecar(errors: list) -> None:
+    """Dedup must not hide NEW evidence: different bytes → an additional sidecar."""
+    first_bytes = "{ this is not json"
+    second_bytes = '{"version": 1, "paths": "not a dict"}'
+    with tempfile.TemporaryDirectory() as td:
+        vault, state_path = seed(Path(td), first_bytes)
+        run_audit_state(vault, state_path, "mark-clean", "notes/a.md")
+        state_path.write_text(second_bytes, encoding="utf-8")
+        run_audit_state(vault, state_path, "mark-clean", "notes/a.md")
+
+        found = sidecars(state_path)
+        _assert(len(found) == 2,
+                f"distinct corruption: two sidecars kept (got {len(found)})", errors)
+        _assert(
+            {p.read_text(encoding="utf-8") for p in found} == {first_bytes, second_bytes},
+            "distinct corruption: both originals preserved verbatim",
+            errors,
+        )
+
+
+def case_existing_good_bak_survives(errors: list) -> None:
+    """The actual #443 data-loss mechanism: the old code rotated `.bak` on the write
+    that followed the empty-state fallback, so the last good state was destroyed. The
+    corrupt path must never touch an existing `.bak`."""
+    good_bak = json.dumps({"version": 1, "paths": {"notes/a.md": {"status": "clean"}}})
+    original = "{ truncated"
+    with tempfile.TemporaryDirectory() as td:
+        vault, state_path = seed(Path(td), original)
+        bak = state_path.parent / (state_path.name + ".bak")
+        bak.write_text(good_bak, encoding="utf-8")
+
+        for op in ("mark-clean", "invalidate"):
+            run_audit_state(vault, state_path, op, "notes/a.md")
+
+        _assert(bak.read_text(encoding="utf-8") == good_bak,
+                "good .bak: last good state survives both ops untouched", errors)
 
 
 def case_healthy_state_unaffected(errors: list) -> None:
@@ -157,8 +197,9 @@ def case_healthy_state_unaffected(errors: list) -> None:
 
 def main() -> int:
     errors: list = []
-    for case in (case_unparseable, case_wrong_shape, case_two_ops_keep_both_sidecars,
-                 case_healthy_state_unaffected):
+    for case in (case_unparseable, case_wrong_shape, case_two_ops_keep_the_sidecar,
+                 case_different_corruption_gets_its_own_sidecar,
+                 case_existing_good_bak_survives, case_healthy_state_unaffected):
         print(f"\n{case.__name__}:")
         case(errors)
     print()

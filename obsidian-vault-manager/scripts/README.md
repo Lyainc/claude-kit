@@ -139,6 +139,15 @@ Manage the sidecar index at `~/vault/.ovm/audit-state.json`.
 
 A `.bak` file is written before every save (one-rotation backup).
 
+**Exit 3 — unusable state file** (#443). Every op loads the state file before dispatch, so
+any of them can hit this. If `audit-state.json` exists but cannot be used (unparseable, or
+not an object with a `paths` object), the original is copied to
+`audit-state.json.corrupt-<ISO8601>`, `audit-state.json` itself is left untouched, nothing
+is written back, and the command exits 3. Identical content reuses one sidecar rather than
+adding a copy per call, so a per-file loop does not litter; different content still gets its
+own. It never falls back to an empty state. Recover from `.bak` (the last good state) —
+deleting `audit-state.json` also works but discards all audit state and forces a full re-scan.
+
 #### `is-clean <relpath>`
 
 ```bash

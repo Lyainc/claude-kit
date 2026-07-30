@@ -249,7 +249,8 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 # #434: [[...]] inside a code fence or inline code is a syntax EXAMPLE, not a link.
 # Left unmasked it produced 33% of E4's broken-link findings (27/82 on a 158-note vault),
 # and users had no workaround — the examples were already backticked. Fences first
-# (an unterminated one runs to EOF), then inline spans of any backtick run-length.
+# (leading indent allowed; an unterminated one runs to EOF), then inline spans of any
+# backtick run-length.
 CODE_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=f)[^\n]*$|\Z)', re.S | re.M)
 INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t)).)+(?P=t)', re.S)
 
@@ -589,7 +590,7 @@ cmd_audit_state() {
   [[ -z "$op" ]] && die "audit-state requires an operation: is-clean|mark-clean|invalidate|list-dirty-since"
 
   python3 - "$op" "${2:-}" "${3:-}" "$AUDIT_STATE_PATH" "$VAULT_ROOT" <<'PYEOF'
-import sys, os, json, time, hashlib, shutil
+import sys, os, json, time, hashlib, shutil, glob
 from datetime import datetime, timezone
 
 op = sys.argv[1]
@@ -608,11 +609,25 @@ def die_corrupt(path, reason):
     save_state's single `.bak` slot is overwritten by the very next write, which
     is how the original used to vanish. `path` itself is left untouched: the
     audit stays blocked until a human decides to repair or delete it.
+
+    load_state runs before op dispatch, so a per-file loop (`--reset-state` calls
+    `invalidate` once per vault file) reaches this on every iteration. Identical
+    bytes therefore reuse the existing sidecar instead of leaving one copy per
+    call; genuinely different content still gets its own, so no evidence is lost.
     """
-    sidecar = f"{path}.corrupt-{now_iso()}"
-    shutil.copy2(path, sidecar)
+    with open(path, 'rb') as f:
+        original = f.read()
+    sidecar = next(
+        (p for p in sorted(glob.glob(path + '.corrupt-*'))
+         if os.path.isfile(p) and open(p, 'rb').read() == original),
+        None)
+    if sidecar is None:
+        sidecar = f"{path}.corrupt-{now_iso()}"
+        shutil.copy2(path, sidecar)
     print(f"ERROR: audit-state unusable ({reason}). Original preserved at {sidecar}; "
-          f"{path} left as-is. Repair or delete it, then re-run.", file=sys.stderr)
+          f"{path} left as-is. Recover the last good state from {path}.bak if it exists "
+          f"(deleting {path} instead discards all audit state and forces a full re-scan), "
+          f"then re-run.", file=sys.stderr)
     sys.exit(3)
 
 def load_state(path):
