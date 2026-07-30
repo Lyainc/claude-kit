@@ -99,6 +99,12 @@ python3 scripts/run-linters.py --self-test
 # (real mode `python3 scripts/run-linters.py` delegates to ruff/prettier/shellcheck IF
 #  installed + configured, else graceful-skips; style/taste lives in ruff.toml/.prettierrc,
 #  never hardcoded — #216 c4/c6.)
+# #456: a per-linter skip is graceful, but a run where EVERY linter skipped inspected
+# nothing, and exits 2 refusing a verdict rather than reporting the exit 0 it used to.
+# Real mode therefore exits 2 on a machine with no ruff/prettier/shellcheck — which is why
+# only `--self-test` is registered here: the self-test pins the refusal (verdict function +
+# its wiring through main(), including --json) without needing a linter installed. Same
+# refuse-rather-than-degrade shape as check-skill-token-budget.py's exit 2 above (#454).
 
 # 서브에이전트 git 부수효과 가드 회귀 (#209): scripts/subagent-git-guard.sh PreToolUse Bash
 # 훅이 subagent context의 git commit/push·gh pr create|merge를 deny하는지 검증 (인메모리

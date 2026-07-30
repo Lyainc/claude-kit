@@ -281,7 +281,7 @@ in this minimal core. SOFT and DEFERRED rows mark **intended limits**, not gaps.
 
 | # | Expected item | Mechanism | Tier |
 |---|---------------|-----------|------|
-| 1 | Style hygiene | `ruff.toml` / `.prettierrc` injected, run via `scripts/run-linters.py` (delegation, never hardcoded) | HARD-when-present / else graceful-skip |
+| 1 | Style hygiene | `ruff.toml` / `.prettierrc` injected, run via `scripts/run-linters.py` (delegation, never hardcoded) | HARD-when-present / else exit 2 (#456) |
 | 2 | Domain conventions | §1 + `check-type-optin` (vault `type:`) + `check-banned-words` | HARD + SOFT |
 | 3 | No new plugin/skill | c2: zero new `plugin.json`/`SKILL.md`; rules live in `scripts/` + `rules/` + `.claude/` only | by-design (ac5 grep) |
 | 4 | Persona separation | §0 — persona (voice + stance) in personal `~/.claude/CLAUDE.md`, work rules in `rules/` | SOFT (c1) |
@@ -298,4 +298,6 @@ design — judgment-type rules a deterministic script cannot fairly decide (c5).
 (telemetry rule-fire) is DEFERRED: #217 owns telemetry external distribution, so the
 rule-fire event schema is added there to avoid a split owner (c8 is the only non-hard
 constraint). Row 1 is latent on a repo with no linter installed — the delegation
-mechanism is committed and activates the moment a linter is present (c4).
+mechanism is committed and activates the moment a linter is present (c4). Latent is not
+silent: since #456 a run where every linter skipped exits 2 and reports no verdict, so
+"nothing was inspected" can no longer be read as "the tree is clean".
