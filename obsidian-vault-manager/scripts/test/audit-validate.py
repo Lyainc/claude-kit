@@ -96,19 +96,19 @@ EXEMPT_FILES = {"_index.md"}
 E5_CANDIDATE_TOP_N = 3
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 # #434: mirrors ovm-primitives.sh's mask_code — [[...]] inside a code fence or inline
-# code is a syntax example, not a link. Kept byte-identical in behaviour; the E4 FP
-# regression test drives BOTH extractors over the same fixture.
-# The `\n(?!\s*\n)` bound is load-bearing: an inline span may cross a single newline but
-# never a blank line, or a lone stray backtick pairs with the next span far below and
-# silently swallows every real wikilink between them.
-CODE_FENCE = re.compile(
-    r"^(?P<i>[ \t]*)(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=i)?(?P=f)[^\n]*$|\Z)", re.S | re.M
-)
+# code is a syntax example, not a link. The two copies are kept behaviourally identical;
+# the E4 FP regression test drives BOTH over the same fixture.
+# Each bound guards against over-masking, which is silent: a swallowed region stops E4
+# reporting real broken links and manufactures E5 orphans. See ovm-primitives.sh for the
+# full rationale — a closed fence opens and closes at any indent, only a column-0 fence
+# runs to EOF unclosed, and an inline span never crosses a blank line.
+CODE_FENCE = re.compile(r"^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[^\n]*$", re.S | re.M)
+UNCLOSED_FENCE = re.compile(r"^(?P<f>```+|~~~+)[^\n]*\n.*\Z", re.S | re.M)
 INLINE_CODE = re.compile(r"(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)")
 
 
 def mask_code(text: str) -> str:
-    return INLINE_CODE.sub("", CODE_FENCE.sub("", text))
+    return INLINE_CODE.sub("", UNCLOSED_FENCE.sub("", CODE_FENCE.sub("", text)))
 
 
 def parse_frontmatter(content: str) -> Optional[dict]:
