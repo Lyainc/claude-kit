@@ -72,6 +72,21 @@ def _verdict_scope(text: str) -> str:
     return match.group(0) if match else text
 
 
+def _bullet_slice(text: str, marker: str) -> str | None:
+    """Same slice as `_bullet_scope`, on the ORIGINAL text — the verbatim pin needs the case
+    and punctuation intact, which the lower-cased scope throws away."""
+    start = text.find(marker)
+    if start == -1:
+        return None
+    nxt = text.find("\n- **", start + 1)
+    return text[start:nxt] if nxt != -1 else text[start:]
+
+
+def _normalise(text: str) -> str:
+    """Collapse every run of whitespace, so a reflow reads as no change (#440)."""
+    return " ".join(text.split())
+
+
 def _bullet_scope(lower: str, marker: str) -> str | None:
     """Slice `lower` from `marker` to the next top-level bullet (`\\n- **`), or
     +600 chars if there is no next bullet. None if `marker` isn't found. Scopes a
@@ -121,14 +136,29 @@ def check_confirmation_template_lists_edit(text: str) -> tuple[bool, str]:
     return True, "충돌 field enumerates the edit outcome"
 
 
-# NEGATED polarity, not mere presence of the words. A bullet reading "ask the user to approve
-# the retirement in a separate prompt of its own" contains "separate prompt" and states the exact
-# design #429 rejects; a presence check passes it. `\s+` between the words because SKILL.md is
-# hard-wrapped — "never as a separate\n  prompt" is one phrase, not a deletion.
-_NO_EXTRA_PROMPT_RE = re.compile(
-    r"\b(?:never|no|without)\s+(?:as\s+)?(?:a\s+)?(?:separate|second)\s+prompt\b",
-    re.IGNORECASE,
-)
+# The retirement clause is pinned VERBATIM, not by pattern. Two review rounds showed why: a
+# presence check passed "...ask the user to approve the retirement in a separate prompt of its
+# own", and adding a negation pattern then passed "the absorption itself is never a separate
+# prompt. The retirement, being destructive, gets its own confirmation question afterwards" —
+# #429's rejected design restated, with the negation scoped to the wrong noun. Every pattern is
+# a blocklist of the last wording someone tried, and the claim it guards is universal, so the
+# contract text itself is the pin. Whitespace is normalised, so a reflow is not a change; an
+# added, removed or reworded clause is, and updating this constant is then the deliberate act
+# of changing the contract.
+#
+# ponytail: the ceiling is the bullet boundary — this pins what the verdict says and that
+# nothing sits beside it, not what the rest of the skill says about it.
+_SUPERSEDE_CONTRACT = """\
+- **Supersede (the catalogue's exit path)**: if landing this rule makes an existing entry
+  redundant — the new rule states the same obligation at a more general altitude, or the old
+  entry's only remaining job is now done by a guard/skill that landed since — do not add a
+  second entry. Absorb the old entry's distinguishing content **into the new one** and retire
+  the old **in the same write**, so the catalogue never carries both. Show the retirement in the
+  §3 confirmation as part of the diff (`Pn retired, absorbed into Pm`) — **never as a separate
+  prompt**. **A retired number is never reused.** If the old entry says the same thing at the
+  *same* altitude this is a Duplicate instead (strengthen it, add nothing); Supersede needs the
+  old entry to have stopped earning its own line.
+"""
 
 
 def check_supersede_verdict_named(text: str) -> tuple[bool, str]:
@@ -148,17 +178,23 @@ def check_supersede_verdict_named(text: str) -> tuple[bool, str]:
     return True, "Supersede named as a distinct §6 outcome, retiring in the same write"
 
 
-def check_supersede_rides_one_confirmation(text: str) -> tuple[bool, str]:
-    """#429: the retirement must ride on the existing confirmation, never a second prompt."""
-    bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**supersede")
-    if bullet_text is None:
+def check_supersede_bullet_verbatim(text: str) -> tuple[bool, str]:
+    """#429: the whole Supersede verdict matches its pinned contract text.
+
+    This is what carries the 1-click invariant — the retirement never gets a prompt of its
+    own — against a contradicting clause added *beside* the negation, which is how both
+    pattern-based versions of this check were defeated.
+    """
+    bullet = _bullet_slice(_verdict_scope(text), "- **Supersede")
+    if bullet is None:
         return False, "Supersede outcome missing entirely"
-    if not _NO_EXTRA_PROMPT_RE.search(bullet_text):
+    if _normalise(bullet) != _normalise(_SUPERSEDE_CONTRACT):
         return False, (
-            "Supersede doesn't state that the retirement rides on the same confirmation — "
-            "the 1-click invariant the rest of the skill holds"
+            "the §6 Supersede verdict no longer matches its pinned contract text — a clause was "
+            "added, removed or reworded. If that is intended, update _SUPERSEDE_CONTRACT in this "
+            "file in the same commit"
         )
-    return True, "Supersede retirement rides on the same 1-click confirmation"
+    return True, "Supersede verdict matches its pinned contract text verbatim"
 
 
 def check_confirmation_template_lists_retirement(text: str) -> tuple[bool, str]:
@@ -180,7 +216,7 @@ _CHECKS = [
     check_edit_distinct_from_contradiction,
     check_confirmation_template_lists_edit,
     check_supersede_verdict_named,
-    check_supersede_rides_one_confirmation,
+    check_supersede_bullet_verbatim,
     check_confirmation_template_lists_retirement,
 ]
 
@@ -207,9 +243,14 @@ _PASSING = """\
   one existing entry and asks to change it, treat it as an in-place edit, not a new
   append. Show the entry's before → after text in the §3 confirmation.
 - **Supersede (the catalogue's exit path)**: if landing this rule makes an existing entry
-  redundant, do not add a second entry. Absorb the old entry's distinguishing content into
-  the new one and retire it **in the same write**, shown in the §3 confirmation as part of
-  the diff, never as a separate prompt. **A retired number is never reused.**
+  redundant — the new rule states the same obligation at a more general altitude, or the old
+  entry's only remaining job is now done by a guard/skill that landed since — do not add a
+  second entry. Absorb the old entry's distinguishing content **into the new one** and retire
+  the old **in the same write**, so the catalogue never carries both. Show the retirement in the
+  §3 confirmation as part of the diff (`Pn retired, absorbed into Pm`) — **never as a separate
+  prompt**. **A retired number is never reused.** If the old entry says the same thing at the
+  *same* altitude this is a Duplicate instead (strengthen it, add nothing); Supersede needs the
+  old entry to have stopped earning its own line.
 - **Contradiction**: if it conflicts with an existing rule and the request does NOT target
   that rule as an explicit edit, do NOT write — report and stop.
 - **Sibling**: link them with a one-line note.
@@ -300,6 +341,21 @@ _SUPERSEDE_WRAPPED = """\
 """
 
 
+# The mutation that defeated the negation pattern: the negation is scoped to the absorption,
+# and the retirement gets its own confirmation anyway. Every keyword and a real negation are
+# present; only the verbatim pin sees it.
+_SUPERSEDE_NEGATION_MISPLACED = _SUPERSEDE_CONTRACT.replace(
+    "— **never as a separate\n  prompt**.",
+    """— the absorption itself is
+  never a separate prompt. The retirement, being destructive, gets its own confirmation
+  question afterwards, and the engine waits for that second answer before deleting anything.""",
+)
+
+# The same contract with every line break moved. Whitespace is not the contract (#440), so this
+# must still read as unchanged — the case that keeps the pin from failing on a pure reflow.
+_SUPERSEDE_REFLOWED = " ".join(_SUPERSEDE_CONTRACT.split())
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -317,18 +373,23 @@ def _self_test() -> int:
     ok, _ = check_confirmation_template_lists_edit(_CONFIRMATION_FIELD_SUBSTRING_FALSE_POSITIVE)
     cases.append(("substring-false-positive: check_confirmation_template_lists_edit (expect FAIL)", not ok))
 
-    ok, _ = check_supersede_rides_one_confirmation(_SUPERSEDE_SECOND_PROMPT)
-    cases.append(("supersede-second-prompt: check_supersede_rides_one_confirmation (expect FAIL)", not ok))
     ok, _ = check_supersede_verdict_named(_SUPERSEDE_SECOND_PROMPT)
     cases.append(("supersede-second-prompt: check_supersede_verdict_named (still OK)", ok))
 
     ok, _ = check_supersede_verdict_named(_SUPERSEDE_DEFERRED_WRITE)
     cases.append(("supersede-deferred-write: check_supersede_verdict_named (expect FAIL)", not ok))
 
-    ok, _ = check_supersede_rides_one_confirmation(_SUPERSEDE_INVERTED)
-    cases.append(("supersede-inverted: check_supersede_rides_one_confirmation (expect FAIL)", not ok))
-    ok, _ = check_supersede_rides_one_confirmation(_SUPERSEDE_WRAPPED)
-    cases.append(("supersede-wrapped: check_supersede_rides_one_confirmation (still OK)", ok))
+    for name, fixture in (
+        ("inverted", _SUPERSEDE_INVERTED),
+        ("second-prompt", _SUPERSEDE_SECOND_PROMPT),
+        ("deferred-write", _SUPERSEDE_DEFERRED_WRITE),
+        ("negation-on-the-wrong-noun", _SUPERSEDE_NEGATION_MISPLACED),
+    ):
+        ok, _ = check_supersede_bullet_verbatim(fixture)
+        cases.append((f"supersede-{name}: check_supersede_bullet_verbatim (expect FAIL)", not ok))
+
+    ok, _ = check_supersede_bullet_verbatim(_SUPERSEDE_REFLOWED)
+    cases.append(("supersede-reflowed: check_supersede_bullet_verbatim (still OK)", ok))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:

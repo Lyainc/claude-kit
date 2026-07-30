@@ -208,7 +208,7 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # catalogue grew monotonically; Supersede absorbs the redundant entry and retires it in the
 # SAME write, on the SAME confirmation, and a retired number is never reused.)
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 19 self-test cases passed
+# Expected: OK: all 21 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # Expected: OK: all 6 add-policy-conflict-edit checks passed.
 
@@ -221,7 +221,7 @@ python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # explicitly. Also pins the distill boundary — artifact cost is the gate's question, reuse
 # value stays distill's — without which the skill contradicts its own description.)
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py --self-test
-# Expected: OK: all 23 self-test cases passed
+# Expected: OK: all 21 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
 # Expected: OK: all 7 add-policy-necessity-gate checks passed.
 
