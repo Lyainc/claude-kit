@@ -262,7 +262,12 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 #     containing list item or quote, so EOF would be a link-eater
 #   - an inline span may cross a single newline but never a blank line, or a lone stray
 #     backtick in prose pairs with the next span far below and deletes everything between
-CODE_FENCE = re.compile(r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[^\n]*$', re.S | re.M)
+#   - a closing fence is a bare marker line (CommonMark forbids an info string there), so
+#     an unclosed opener cannot pair with a LATER fence's opening line
+# ponytail: an INDENTED unclosed fence can still pair with a later bare closer and eat the
+# prose between. Fixing it needs a separate block-boundary pattern per indent class; 0
+# occurrences across this repo's 174 .md files, so it stays a known ceiling.
+CODE_FENCE = re.compile(r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[ \t]*$', re.S | re.M)
 UNCLOSED_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*\Z', re.S | re.M)
 INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)')
 
