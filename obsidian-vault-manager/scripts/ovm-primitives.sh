@@ -620,17 +620,25 @@ def die_corrupt(path, reason):
     `invalidate` once per vault file) reaches this on every iteration. Identical
     bytes therefore reuse the existing sidecar instead of leaving one copy per
     call; genuinely different content still gets its own, so no evidence is lost.
+
+    Preserving is best-effort: a read-only directory or an unreadable file must still
+    end in the documented exit 3 with an honest message, never a traceback that gets
+    read as "corrupt" when the real problem is permissions.
     """
-    with open(path, 'rb') as f:
-        original = f.read()
-    sidecar = next(
-        (p for p in sorted(glob.glob(path + '.corrupt-*'))
-         if os.path.isfile(p) and open(p, 'rb').read() == original),
-        None)
-    if sidecar is None:
-        sidecar = f"{path}.corrupt-{now_iso()}"
-        shutil.copy2(path, sidecar)
-    print(f"ERROR: audit-state unusable ({reason}). Original preserved at {sidecar}; "
+    try:
+        with open(path, 'rb') as f:
+            original = f.read()
+        sidecar = next(
+            (p for p in sorted(glob.glob(path + '.corrupt-*'))
+             if os.path.isfile(p) and open(p, 'rb').read() == original),
+            None)
+        if sidecar is None:
+            sidecar = f"{path}.corrupt-{now_iso()}"
+            shutil.copy2(path, sidecar)
+        where = f"Original preserved at {sidecar}"
+    except OSError as e:
+        where = f"COULD NOT preserve a copy ({e}) — back up {path} by hand before touching it"
+    print(f"ERROR: audit-state unusable ({reason}). {where}; "
           f"{path} left as-is. Recover the last good state from {path}.bak if it exists "
           f"(deleting {path} instead discards all audit state and forces a full re-scan), "
           f"then re-run.", file=sys.stderr)
@@ -642,10 +650,18 @@ def load_state(path):
     try:
         with open(path, 'r', encoding='utf-8') as f:
             state = json.load(f)
+    except OSError as e:
+        # Unreadable is not corrupt — say which one it is.
+        die_corrupt(path, f"cannot be read: {e}")
     except Exception as e:
         die_corrupt(path, f"parse failed: {e}")
     if not isinstance(state, dict) or not isinstance(state.get('paths'), dict):
         die_corrupt(path, "shape mismatch: expected an object with a 'paths' object")
+    # Per-record shape too: every op indexes into these, so one bad record would
+    # otherwise still be an uncaught traceback rather than the documented exit 3.
+    bad = sorted(k for k, v in state['paths'].items() if not isinstance(v, dict))
+    if bad:
+        die_corrupt(path, f"shape mismatch: {len(bad)} record(s) are not objects, e.g. {bad[0]!r}")
     return state
 
 def save_state(path, state):
@@ -655,6 +671,16 @@ def save_state(path, state):
         shutil.copy2(path, path + '.bak')
     with open(path, 'w', encoding='utf-8') as f:
         json.dump(state, f, indent=2, ensure_ascii=False)
+
+def audited_mtime(rec):
+    """`mtime_at_audit` as a number, or 0 when it is missing or the wrong type.
+
+    A record whose stamp is unusable cannot honestly claim the file is clean, so 0
+    (= never audited) re-audits it. The alternative is a TypeError on the comparison,
+    which is the traceback-instead-of-exit-3 failure this subcommand is done with.
+    """
+    v = rec.get('mtime_at_audit', 0)
+    return v if isinstance(v, (int, float)) and not isinstance(v, bool) else 0
 
 def file_mtime(relpath):
     fpath = os.path.join(vault_root, relpath)
@@ -686,9 +712,9 @@ if op == 'is-clean':
         mtime = file_mtime(arg1)
         if mtime is None:
             print(json.dumps({"clean": False, "reason": "file_missing"}))
-        elif mtime > rec.get('mtime_at_audit', 0):
+        elif mtime > audited_mtime(rec):
             print(json.dumps({"clean": False, "reason": "mtime_changed",
-                              "mtime": mtime, "mtime_at_audit": rec.get('mtime_at_audit', 0)}))
+                              "mtime": mtime, "mtime_at_audit": audited_mtime(rec)}))
         else:
             print(json.dumps({"clean": True, "last_audited": rec.get('last_audited'),
                               "status": rec.get('status', 'clean')}))
@@ -737,7 +763,7 @@ elif op == 'list-dirty-since':
         if rec.get('status') == 'dirty':
             dirty.append({**rec, 'path': relpath, 'reason': 'explicitly_invalidated', 'mtime': mtime})
             continue
-        audit_ts = rec.get('mtime_at_audit', 0)
+        audit_ts = audited_mtime(rec)
         if mtime > audit_ts:
             if since_ts is None or mtime > since_ts:
                 dirty.append({**rec, 'path': relpath, 'reason': 'mtime_changed',

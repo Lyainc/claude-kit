@@ -180,6 +180,64 @@ def case_existing_good_bak_survives(errors: list) -> None:
                 "good .bak: last good state survives both ops untouched", errors)
 
 
+def case_bad_record_shape(errors: list) -> None:
+    """A record that is not an object reaches every op's indexing, so it must take the
+    same exit-3 path as whole-file corruption rather than an uncaught traceback."""
+    for label, rec in [("string record", "oops"), ("null record", None), ("list record", [1, 2])]:
+        original = json.dumps({"version": 1, "paths": {"notes/a.md": rec}})
+        for op in ("is-clean", "invalidate", "list-dirty-since"):
+            with tempfile.TemporaryDirectory() as td:
+                vault, state_path = seed(Path(td), original)
+                arg = "notes/a.md" if op != "list-dirty-since" else ""
+                proc = run_audit_state(vault, state_path, op, *( [arg] if arg else [] ))
+                _assert(proc.returncode == 3,
+                        f"bad record [{label}/{op}]: exit 3 (got {proc.returncode})", errors)
+                _assert("traceback" not in proc.stderr.lower(),
+                        f"bad record [{label}/{op}]: message, not a traceback", errors)
+                _assert(state_path.read_text(encoding="utf-8") == original,
+                        f"bad record [{label}/{op}]: state file untouched", errors)
+
+
+def case_bad_mtime_type(errors: list) -> None:
+    """A wrong-typed `mtime_at_audit` must not raise on the comparison. The record cannot
+    claim freshness, so the file reads as dirty and re-audits."""
+    original = json.dumps(
+        {"version": 1, "paths": {"notes/a.md": {"mtime_at_audit": "nope", "status": "clean"}}})
+    for op, args in [("is-clean", ["notes/a.md"]), ("list-dirty-since", [])]:
+        with tempfile.TemporaryDirectory() as td:
+            vault, state_path = seed(Path(td), original)
+            proc = run_audit_state(vault, state_path, op, *args)
+            _assert(proc.returncode == 0,
+                    f"bad mtime [{op}]: exits 0 (got {proc.returncode}: {proc.stderr})", errors)
+            _assert("traceback" not in proc.stderr.lower(),
+                    f"bad mtime [{op}]: no traceback", errors)
+            if proc.returncode == 0 and op == "is-clean":
+                _assert(json.loads(proc.stdout).get("clean") is False,
+                        "bad mtime [is-clean]: reads as dirty, not clean", errors)
+
+
+def case_unpreservable_still_exits_3(errors: list) -> None:
+    """A read-only directory means no sidecar can be written. That is still exit 3 with an
+    honest message — never a traceback that reads as corruption when it is permissions."""
+    original = "{ truncated"
+    with tempfile.TemporaryDirectory() as td:
+        vault, state_path = seed(Path(td), original)
+        state_path.parent.chmod(0o555)
+        try:
+            proc = run_audit_state(vault, state_path, "mark-clean", "notes/a.md")
+        finally:
+            state_path.parent.chmod(0o755)
+        _assert(proc.returncode == 3,
+                f"unwritable dir: exit 3 (got {proc.returncode})", errors)
+        _assert("traceback" not in proc.stderr.lower(),
+                "unwritable dir: message, not a traceback", errors)
+        _assert("COULD NOT preserve" in proc.stderr,
+                f"unwritable dir: says the copy failed (stderr: {proc.stderr.strip()[:120]})",
+                errors)
+        _assert(state_path.read_text(encoding="utf-8") == original,
+                "unwritable dir: original still intact", errors)
+
+
 def case_healthy_state_unaffected(errors: list) -> None:
     """FP guard: a well-formed state file still works, and no sidecar is created."""
     original = json.dumps({"version": 1, "paths": {}, "last_full_scan": None})
@@ -199,7 +257,9 @@ def main() -> int:
     errors: list = []
     for case in (case_unparseable, case_wrong_shape, case_two_ops_keep_the_sidecar,
                  case_different_corruption_gets_its_own_sidecar,
-                 case_existing_good_bak_survives, case_healthy_state_unaffected):
+                 case_existing_good_bak_survives, case_bad_record_shape,
+                 case_bad_mtime_type, case_unpreservable_still_exits_3,
+                 case_healthy_state_unaffected):
         print(f"\n{case.__name__}:")
         case(errors)
     print()
