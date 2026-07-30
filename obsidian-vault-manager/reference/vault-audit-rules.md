@@ -143,7 +143,7 @@ only suggests; the user decides.
 
 **Rule**: For each `[[target]]` in a file — look up `target` stem in the vault file set. If no file exists with that stem (case-insensitive match), it is broken.
 **Source**: `wikilinks_by_file`, global file index.
-**Guard**: Ignore embed links `![[image.png]]` where target has a non-`.md` extension or no extension at all and a matching file exists in assets. Ignore links to headings / blocks within a found note.
+**Guard**: Ignore embed links `![[image.png]]` where target has a non-`.md` extension or no extension at all and a matching file exists in assets. Ignore links to headings / blocks within a found note. **Ignore anything inside a code fence or inline code** (#434) — a backticked `[[Note]]` is a syntax example, not a link, and so is bash's `[[ "$x" == y ]]`. Extraction masks fenced blocks (an unterminated fence runs to EOF) and inline spans of any backtick run-length *before* matching, in both `extract-wikilinks` and the reference impl.
 
 ## E5 — `orphan_note` [Warning]
 

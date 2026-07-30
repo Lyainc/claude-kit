@@ -246,6 +246,16 @@ import sys, re, json
 
 WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 
+# #434: [[...]] inside a code fence or inline code is a syntax EXAMPLE, not a link.
+# Left unmasked it produced 33% of E4's broken-link findings (27/82 on a 158-note vault),
+# and users had no workaround — the examples were already backticked. Fences first
+# (an unterminated one runs to EOF), then inline spans of any backtick run-length.
+CODE_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=f)[^\n]*$|\Z)', re.S | re.M)
+INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t)).)+(?P=t)', re.S)
+
+def mask_code(text):
+    return INLINE_CODE.sub('', CODE_FENCE.sub('', text))
+
 def parse_wikilink(raw):
     """Parse [[target]], [[target|alias]], [[target#heading]], [[note#^block]]."""
     # Strip embed prefix
@@ -279,7 +289,7 @@ with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
     content = f.read()
 
 links = []
-for m in WIKILINK_PATTERN.finditer(content):
+for m in WIKILINK_PATTERN.finditer(mask_code(content)):
     raw = m.group(0)
     links.append(parse_wikilink(raw))
 

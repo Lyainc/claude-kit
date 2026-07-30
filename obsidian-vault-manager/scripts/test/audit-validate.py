@@ -95,6 +95,15 @@ EXEMPT_FILES = {"_index.md"}
 # E5 candidate tuning (v4 §6.1): top-N tag-intersection candidates per orphan.
 E5_CANDIDATE_TOP_N = 3
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
+# #434: mirrors ovm-primitives.sh's mask_code — [[...]] inside a code fence or inline
+# code is a syntax example, not a link. Kept byte-identical in behaviour; the E4 FP
+# regression test drives BOTH extractors over the same fixture.
+CODE_FENCE = re.compile(r"^(?P<f>```+|~~~+)[^\n]*\n.*?(?:^(?P=f)[^\n]*$|\Z)", re.S | re.M)
+INLINE_CODE = re.compile(r"(?P<t>`+)(?:(?!(?P=t)).)+(?P=t)", re.S)
+
+
+def mask_code(text: str) -> str:
+    return INLINE_CODE.sub("", CODE_FENCE.sub("", text))
 
 
 def parse_frontmatter(content: str) -> Optional[dict]:
@@ -310,7 +319,7 @@ def collect(vault: Path) -> dict:
             }
         )
 
-        for m in WIKILINK_PATTERN.finditer(content):
+        for m in WIKILINK_PATTERN.finditer(mask_code(content)):
             target = m.group(1).strip().lower()
             inbound.setdefault(target, set()).add(str(rel))
             wikilinks_by_file.setdefault(str(rel), []).append(target)

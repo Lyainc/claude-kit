@@ -192,6 +192,7 @@ jobs:
           python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
           python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
           python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
+          python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
           echo "obsidian-vault-manager tests OK"
 
   audit-dod:
