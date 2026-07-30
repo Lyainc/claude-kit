@@ -356,6 +356,38 @@ _SUPERSEDE_NEGATION_MISPLACED = _SUPERSEDE_CONTRACT.replace(
 _SUPERSEDE_REFLOWED = " ".join(_SUPERSEDE_CONTRACT.split())
 
 
+# Every fixture above is a bare bullet fragment, so all of them take `_verdict_scope`'s
+# fallback branch and the SCOPED branch — the round-2 fix for §8's own `- **Supersede**:`
+# bullet — was exercised only in real mode, where it always succeeds. These two carry the
+# headers, so the slice itself is tested here rather than by a sibling file's heading check.
+_SECTION_HEADERS = """\
+## 6. Conflict check
+
+%s
+- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
+  that rule as an explicit edit, do NOT write — report and stop.
+
+## 7. Output contract
+
+## 8. Post-write self-check
+
+- **Supersede**: the retired entry is gone from the index and no inbound link points at it.
+
+## 분류 결과
+- 충돌: <none | edits an existing entry (before→after)>
+- 은퇴: <none | Pn이 이 규칙에 흡수돼요>
+"""
+
+# §6 holds the real verdict; §8's decoy sits after it. The scoped slice must read §6's.
+_SCOPED_OK = _SECTION_HEADERS % (_SUPERSEDE_CONTRACT + "\n")
+
+# §6's verdict deleted, §8's decoy left in place. Without scoping the marker search retargets
+# to §8 and the suite reports the wrong defect (or, worse, a near-miss it can rationalise).
+_SCOPED_VERDICT_DELETED = _SECTION_HEADERS % ""
+
+assert _SCOPED_OK != _SCOPED_VERDICT_DELETED, "scoped fixtures collapsed to the same text"
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -390,6 +422,12 @@ def _self_test() -> int:
 
     ok, _ = check_supersede_bullet_verbatim(_SUPERSEDE_REFLOWED)
     cases.append(("supersede-reflowed: check_supersede_bullet_verbatim (still OK)", ok))
+
+    ok, _ = check_supersede_bullet_verbatim(_SCOPED_OK)
+    cases.append(("scoped: check_supersede_bullet_verbatim reads §6's verdict (still OK)", ok))
+    ok, msg = check_supersede_bullet_verbatim(_SCOPED_VERDICT_DELETED)
+    cases.append(("scoped: §6 verdict deleted must not retarget to §8's bullet (expect FAIL)",
+                  (not ok) and "missing entirely" in msg))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
