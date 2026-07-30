@@ -84,7 +84,8 @@ Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?"
 and then the gate's recommendation is the first option and the question carries **that**
 recommendation, never a generic refusal: 기존 항목으로 충분 asks about folding it into that
 entry, 안 넣는 게 나음 asks whether to land it at all. Wordings:
-[reference.md](reference.md) §3-gate-question. **Never write without confirmation.** If any axis cannot be settled, do NOT place it
+[reference.md](reference.md) §3-gate-question. **Never write without confirmation.**
+If any axis cannot be settled, do NOT place it
 arbitrarily — hold the
 classification and report what is ambiguous ("don't know" beats a confident-wrong placement).
 

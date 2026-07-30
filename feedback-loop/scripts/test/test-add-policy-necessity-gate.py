@@ -96,27 +96,39 @@ def _gate_block(text: str) -> str:
     return text[start:end] if end != -1 else text[start:start + 2000]
 
 
-# The gate's authority paragraph, pinned VERBATIM rather than by pattern. Two review rounds
-# showed why. A presence check ("recommends only", "first option", "second prompt" all appear)
-# passed "recommends only **as a label**, but it BLOCKS the write and raises its own second
-# prompt". Adding negation patterns then passed the correct paragraph with one clause appended —
-# "though it does **stop the write** when the answer is clearly no" — because "stop" was not in
-# the forbidden-verb list, and "refuses", "halts", "vetoes", "declines" are the same hole. Every
-# pattern is a blocklist of the last wording someone tried, while "recommends only" is a
-# universal claim, so the contract text itself is the pin. It is matched as the END of the gate
-# block, so a clause appended after the paragraph fails too. Whitespace is normalised: a reflow
-# is not a change, an edit to the words is — and updating this constant is then the deliberate
-# act of changing the contract, in the same commit.
+# The WHOLE gate block is pinned VERBATIM — equality, not a suffix match. Three review rounds
+# landed the same attack in three places. A presence check passed "recommends only **as a
+# label**, but it BLOCKS the write"; negation patterns then passed one appended clause ("though
+# it does **stop the write**...") because "stop" was not in the verb list; and a suffix-anchored
+# pin passed a clause inserted ABOVE the paragraph ("If the answer to any of the four is against
+# landing, do NOT write ... Only a rule that clears all four reaches §3 at all"), which makes the
+# gate a hard blocker while the paragraph saying it never blocks sits underneath, untouched.
+# Every pattern is a blocklist of the last wording someone tried, and every partial anchor leaves
+# a region for the next one, so the block's own text is the pin and the comparison is total.
+# Whitespace is normalised: a reflow is not a change, an edit to the words is — and updating this
+# constant is then the deliberate act of changing the contract, in the same commit.
 #
-# ponytail: the ceiling is the gate block. This pins what the paragraph says and that nothing is
-# appended to it, not what the rest of the skill says about the gate.
-_AUTHORITY_CONTRACT = """\
+# ponytail: the ceiling is the gate block. `check_no_unnegated_extra_prompt` below carries the
+# 1-click invariant across the rest of the file; nothing here reasons about prose.
+_GATE_CONTRACT = """\
+**Necessity gate — after the conflict check, before the §3 confirmation.** The site's content
+is already read, so it costs no extra lookup. Four questions:
+
+1. Has what this rule prevents **actually happened**, or does it only look likely? Speculative
+   → recommend not landing.
+2. Does an existing or more general entry already imply it → strengthen that entry instead
+   (Duplicate/Edit above), adding none.
+3. Is **something else already asking the same question** — a hook, a CI guard, an existing
+   confirmation checkpoint, the tool itself? A doubled gate is dead weight.
+4. Does one clause on a neighbouring entry do it, with no new entry → that form.
+
 Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
 **recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
 second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
 one arriving as a distill proposal. A tool does not veto the work it was told to do. It weighs
 the **artifact's cost** (must this be a *new* always-loaded entry?), never the rule's **reuse
-value**, which stays distill's."""
+value**, which stays distill's.
+"""
 
 
 def check_gate_present_and_positioned(text: str) -> tuple[bool, str]:
@@ -166,25 +178,62 @@ def check_three_outcomes(text: str) -> tuple[bool, str]:
     return True, "all three outcomes stated (pass / absorb / recommend not landing)"
 
 
-def check_authority_paragraph_verbatim(text: str) -> tuple[bool, str]:
-    """The gate's ceiling, matched against the pinned contract text.
+def check_gate_block_verbatim(text: str) -> tuple[bool, str]:
+    """The whole gate block matches its pinned contract text.
 
-    One check rather than a set of patterns: it carries the 1-click invariant (no second
-    prompt), the never-blocks guarantee on both inbound paths, and the distill boundary,
-    against a contradicting clause set *beside* them — which is how both pattern-based
-    versions of this check were defeated. Anchored at the END of the block, so a clause
-    appended after the paragraph fails as well.
+    Equality over the block, not a match on part of it: this is what carries the 1-click
+    invariant (no second prompt) and the never-blocks guarantee on both inbound paths
+    against a contradicting clause set beside them — above, below or inside.
     """
     block = _gate_block(text)
     if not block:
         return False, "no necessity gate block found in the SKILL.md body"
-    if not _normalise(block).endswith(_normalise(_AUTHORITY_CONTRACT)):
+    if _normalise(block) != _normalise(_GATE_CONTRACT):
         return False, (
-            "the gate's authority paragraph no longer matches its pinned contract text, or "
-            "something was appended after it — a clause was added, removed or reworded. If "
-            "that is intended, update _AUTHORITY_CONTRACT in this file in the same commit"
+            "the §6 necessity-gate block no longer matches its pinned contract text — a clause "
+            "was added, removed or reworded anywhere in it. If that is intended, update "
+            "_GATE_CONTRACT in this file in the same commit"
         )
-    return True, "gate authority paragraph matches its pinned contract text verbatim"
+    return True, "necessity-gate block matches its pinned contract text verbatim"
+
+
+# The 1-click invariant is universal across this skill, so it is checked over the WHOLE file,
+# not just the pinned blocks: a contradiction placed in §6's preamble is the one an engine
+# reading top to bottom acts on first, and it sits outside every pin. Noun-anchored, not
+# verb-anchored — "prompt / question / confirmation" is the small closed set the invariant is
+# actually about, where the verbs ("blocks", "stops", "halts", "vetoes") are open-ended.
+_EXTRA_PROMPT_RE = re.compile(
+    r"(?:second|separate|another|its\s+own|a\s+new)\s+(?:prompt|question|confirmation)",
+    re.IGNORECASE,
+)
+# The negation may sit a few words back ("never confirmed on its own second question"), so the
+# window is six words, not three. Wider than that starts swallowing an unrelated "no" from the
+# previous sentence; the pinned blocks are the backstop where this one is deliberately loose.
+_NEGATED_BEFORE_RE = re.compile(
+    r"(?:never|no|not|without|instead\s+of)\W+(?:\w+\W+){0,6}$", re.IGNORECASE
+)
+
+
+def check_no_unnegated_extra_prompt(text: str) -> tuple[bool, str]:
+    """Every mention of an extra prompt/question/confirmation in SKILL.md must be negated.
+
+    Both the gate and Supersede ride the ONE confirmation §3 asks. Their own pins cover
+    their own text; this covers everywhere else — §6's preamble above them, `## Rules`
+    below, a new section later — where a future edit could grant a second prompt without
+    touching a pinned block.
+    """
+    offenders = []
+    for match in _EXTRA_PROMPT_RE.finditer(text):
+        window = " ".join(text[max(0, match.start() - 60):match.start()].split()) + " "
+        if not _NEGATED_BEFORE_RE.search(window):
+            line = text.count("\n", 0, match.start()) + 1
+            offenders.append(f"line {line}: {match.group(0)!r}")
+    if offenders:
+        return False, (
+            "an extra prompt/question/confirmation is asserted without a negation, which "
+            f"breaks the 1-click invariant: {offenders}"
+        )
+    return True, "every extra prompt/question/confirmation in the skill is negated (1-click)"
 
 
 def check_distill_boundary(text: str) -> tuple[bool, str]:
@@ -239,7 +288,8 @@ _CHECKS = [
     check_gate_present_and_positioned,
     check_four_questions,
     check_three_outcomes,
-    check_authority_paragraph_verbatim,
+    check_gate_block_verbatim,
+    check_no_unnegated_extra_prompt,
     check_distill_boundary,
     check_confirmation_surfaces_the_recommendation,
 ]
@@ -272,17 +322,9 @@ Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?"
 and then the gate's recommendation is the first option: 기존 항목으로 충분 asks about folding it
 into that entry, 안 넣는 게 나음 asks whether to land it at all.
 
-**Necessity gate — after the conflict check, before the §3 confirmation.** Four questions:
-
-1. Has what this rule prevents **actually happened**, or does it only look likely?
-2. Does an existing or more general entry already imply it → strengthen that entry instead.
-3. Is **something else already asking the same question** — a hook, a CI guard?
-4. Does one clause on a neighbouring entry do it, with no new entry → that form.
-
 %s
-
 For a new rule the engine appends in each site's native form.
-""" % _AUTHORITY_CONTRACT
+""" % _GATE_CONTRACT
 
 # Pre-#450 regression: no gate at all, so every claim is absent.
 _FAILING = """\
@@ -312,12 +354,28 @@ _APPENDED_CLAUSE = _PASSING.replace(
 )
 # The same contract with every line break moved: whitespace is not the contract (#440), so this
 # must still read as unchanged.
-_REFLOWED_GATE = _PASSING.replace(_AUTHORITY_CONTRACT, _normalise(_AUTHORITY_CONTRACT))
+_REFLOWED_GATE = _PASSING.replace(_GATE_CONTRACT, _normalise(_GATE_CONTRACT))
 
 # Question 3 dropped — the exact question P14 needed. The other checks stay green, so this
 # fixture is what keeps check_four_questions from degrading into "a gate exists".
 _MISSING_QUESTION_3 = _PASSING.replace(
-    "3. Is **something else already asking the same question** — a hook, a CI guard?\n", ""
+    "3. Is **something else already asking the same question** — a hook, a CI guard, an existing\n"
+    "   confirmation checkpoint, the tool itself? A doubled gate is dead weight.\n",
+    "",
+)
+
+# A second prompt granted somewhere the pins don't reach — §6's preamble, which an engine
+# reading top to bottom hits BEFORE the pinned bullet and block.
+_EXTRA_PROMPT_ELSEWHERE = _PASSING.replace(
+    "## 1. Input contract",
+    "## 1. Input contract\n\nA verdict that removes an entry is destructive, so it is confirmed\n"
+    "on its own second question, separately from the §3 addition.",
+)
+# The same sentence, negated. The check must not fire on prose that FORBIDS the extra prompt.
+_EXTRA_PROMPT_NEGATED = _PASSING.replace(
+    "## 1. Input contract",
+    "## 1. Input contract\n\nA retirement is never confirmed on its own second question — it\n"
+    "rides the §3 addition.",
 )
 
 # The gate is summarised in `## Rules` but the executable block is gone. A whole-document
@@ -346,6 +404,21 @@ and then ask "이건 안 넣는 게 나아 보이는데, 그래도 넣을까요?
 )
 
 
+# A fixture built by `.replace()` whose target string has drifted silently becomes a copy of
+# its base, and an expect-FAIL case on a copy of _PASSING would then be testing nothing.
+for _name, _fixture in (
+    ("_REFUSING_GATE", _REFUSING_GATE),
+    ("_INVERTED_GATE", _INVERTED_GATE),
+    ("_APPENDED_CLAUSE", _APPENDED_CLAUSE),
+    ("_REFLOWED_GATE", _REFLOWED_GATE),
+    ("_MISSING_QUESTION_3", _MISSING_QUESTION_3),
+    ("_ONE_GENERIC_REFUSAL", _ONE_GENERIC_REFUSAL),
+    ("_EXTRA_PROMPT_ELSEWHERE", _EXTRA_PROMPT_ELSEWHERE),
+    ("_EXTRA_PROMPT_NEGATED", _EXTRA_PROMPT_NEGATED),
+):
+    assert _fixture != _PASSING, f"{_name} is identical to _PASSING — its .replace() no-opped"
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -354,26 +427,33 @@ def _self_test() -> int:
         cases.append((f"passing: {check.__name__}", ok))
 
     for check in _CHECKS:
+        if check is check_no_unnegated_extra_prompt:
+            continue  # file-wide invariant: a file with no gate grants no extra prompt either
         ok, _ = check(_FAILING)
         cases.append((f"no-gate: {check.__name__} (expect FAIL)", not ok))
+
+    ok, _ = check_no_unnegated_extra_prompt(_EXTRA_PROMPT_ELSEWHERE)
+    cases.append(("extra-prompt-outside-the-pins: check_no_unnegated_extra_prompt (expect FAIL)", not ok))
+    ok, _ = check_no_unnegated_extra_prompt(_EXTRA_PROMPT_NEGATED)
+    cases.append(("extra-prompt-negated: check_no_unnegated_extra_prompt (still OK)", ok))
 
     for name, fixture in (
         ("refusing", _REFUSING_GATE),
         ("inverted", _INVERTED_GATE),
         ("appended-contradicting-clause", _APPENDED_CLAUSE),
     ):
-        ok, _ = check_authority_paragraph_verbatim(fixture)
-        cases.append((f"{name}-gate: check_authority_paragraph_verbatim (expect FAIL)", not ok))
+        ok, _ = check_gate_block_verbatim(fixture)
+        cases.append((f"{name}-gate: check_gate_block_verbatim (expect FAIL)", not ok))
 
-    ok, _ = check_authority_paragraph_verbatim(_REFLOWED_GATE)
-    cases.append(("reflowed-gate: check_authority_paragraph_verbatim (still OK)", ok))
+    ok, _ = check_gate_block_verbatim(_REFLOWED_GATE)
+    cases.append(("reflowed-gate: check_gate_block_verbatim (still OK)", ok))
 
     ok, _ = check_four_questions(_MISSING_QUESTION_3)
     cases.append(("missing-question-3: check_four_questions (expect FAIL)", not ok))
     ok, _ = check_three_outcomes(_MISSING_QUESTION_3)
     cases.append(("missing-question-3: check_three_outcomes (still OK)", ok))
 
-    for check in (check_four_questions, check_three_outcomes, check_authority_paragraph_verbatim):
+    for check in (check_four_questions, check_three_outcomes, check_gate_block_verbatim):
         ok, _ = check(_SUMMARY_ONLY)
         cases.append((f"summary-only: {check.__name__} (expect FAIL)", not ok))
 
