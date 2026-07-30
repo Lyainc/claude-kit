@@ -147,6 +147,8 @@ jobs:
           # #458 sequence.py drops the started/success lifecycle pair before the n-gram window
           # (a single call used to read as an X -> X repeat, i.e. a waste signal to retro).
           python3 feedback-loop/scripts/test/test-sequence.py
+          # #460 retro's E8 read is filtered, not `cat`-truncated to a 2 KB preview.
+          python3 feedback-loop/scripts/test/test-e8-candidates.py
           # G28 add-policy layer-routing (SOFT channel by layer + vanilla fallback).
           python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-routing.py

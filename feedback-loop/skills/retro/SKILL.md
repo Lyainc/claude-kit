@@ -81,14 +81,24 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    run inside, so no stamp is orphaned in `/tmp` when telemetry output is unreachable.
 
 2. **E8 promotion candidates** (PROMOTE source). Read the vault-bridge manifest
-   (the same source `/audit` uses — do NOT re-derive):
+   (the same source `/audit` uses — never re-scan the vault yourself) through the
+   filter script:
    ```bash
-   cat "$VAULT_ROOT/.vault-bridge/manifest.json" 2>/dev/null
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/e8-candidates.py"
    ```
-   Take `files[]` entries with `promotion_candidate: true`; keep
-   `{path, references_in, access_count, status, type}`. If the manifest is
-   absent/unparseable, emit a Korean note suggesting `/vault-manifest-refresh`
-   then `/audit`, and skip the PROMOTE phase (do not guess candidates).
+   It prints `{"e8_candidates": [{path, references_in, access_count, status, type}, ...],
+   "scanned": N}`. **Never `cat` the manifest**: it is ~120 KB / 168 files on a real
+   vault, and the harness hands the model only a **2 KB preview** of a large Bash
+   result — three entries, the third cut mid-string. A `cat` therefore reports "no
+   candidates" after seeing 1.8% of the vault, in a form indistinguishable from a
+   full scan (#460). The script filters server-side so the whole result arrives.
+   **Exit 3 = manifest absent/unparseable**: emit a Korean note suggesting
+   `/vault-manifest-refresh` then `/audit`, and skip the PROMOTE phase — never
+   collapse that branch into "후보 0건". An empty list on exit 0 IS "0 candidates",
+   and `scanned` is what makes the coverage claim in the report honest. The script
+   applies the E8 *threshold* itself rather than trusting the manifest's
+   `promotion_candidate` flag (that flag ignores `status`, #435) — that is reading
+   the leaf's data, not re-implementing its scan.
 
 3. **Waste signals** (action-branch source). If the project-local telemetry
    dogfooding output exists (the events dir — `.claude-kit/telemetry/events/`
@@ -172,13 +182,6 @@ opts in (offer them, do not run silently).
 | **기억 (memory)** | session insights | surface the exact `/capture …` (raw ore → `inbox/`) or `/wiki` (compiled knowledge → `wiki/`) command for the USER to run — user-initiated slash; `retro` does NOT write vault | off (offer) |
 | **규칙 (rule)** | validated patterns | surface a ready-to-run `/add-policy` invocation (propose-only handoff — `add-policy` classifies + places; `retro` does NOT `Edit`) | off (offer) |
 
-> **`/distill` suggestion (propose-only, #202):** when the session surfaced a
-> *reusable procedural technique* (not declarative knowledge — that is the memory
-> branch's `/capture`), `retro` MAY surface a ready-to-run `/distill` command the
-> SAME way the memory branch surfaces `/capture` — a suggestion for the USER to run,
-> never inline. `distill` is a sibling skill, NOT a fourth always-on output branch;
-> `retro` does not run it and does not embed its procedure.
-
 - **Action**: for each deduped waste pattern, draft `{title, body}` (body cites
   the evidence: counts, event types, scope). Confirm with the user (filing a
   GitHub issue is outward-facing), then `gh issue create`. Split by scope:
@@ -242,6 +245,7 @@ opts in (offer them, do not run silently).
 - The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed.
 - Memory output is a `/capture` suggestion — never a direct vault write.
 - Rule output is an `/add-policy` suggestion — never a rule-file `Edit`; `add-policy` owns rule classification + placement (the discover→land split).
-- Never re-implement audit/promotion classification — read leaf output, re-confirm thresholds, act.
+- Never re-scan the vault or re-implement audit's detection — read the leaf's manifest, apply the E8
+  threshold to it, re-confirm against the note itself, act.
 - Dedup before processing; enforce the budget; report the remainder (no silent drop).
 - CON-5: read leaf artifacts only; never modify leaf-plugin code; no reverse dependency.
