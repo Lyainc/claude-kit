@@ -31,7 +31,7 @@ The pinned claims:
 
 KNOWN GAP (measured, not assumed). Three regions of §6 are pinned verbatim across this suite
 and test-add-policy-necessity-gate.py — the preamble, the Supersede verdict, and the gate block
-— covering 2,872 of §6's 7,492 characters. The rest is the Duplicate/Edit/Contradiction/Sibling
+— covering 2,871 of §6's 7,492 characters. The rest is the Duplicate/Edit/Contradiction/Sibling
 bullets and the memory-scan subsection, which test-add-policy-routing.py phrase-pins because it
 changes. A contradicting clause placed there passes every suite. Closing it means pinning all of
 §6, which would put the `awk` snippet under the same paired-commit rule as the contract text and
@@ -133,12 +133,17 @@ silently downgrades the check to a title comparison:
 """
 
 
-# Any top-level bullet, not `- **Duplicate` specifically. The end boundary must not be a token
-# from the UNPINNED region: planting a decoy `- **Duplicate ...` line right after the pinned
-# text shortened the slice, `section[:idx]` still equalled the contract, and the check reported
-# "verbatim" while guarding less. A benign refactor did the same — splitting the bullet into
-# `- **Duplicate (same rule)**` / `- **Duplicate (memory)**` truncated the span with no signal.
-# The guarded length now comes from the contract itself, so it cannot shrink silently.
+# Any top-level bullet, not `- **Duplicate` specifically. What this fixes is FALSE FAILURES on
+# benign refactors: renaming the first verdict to something that doesn't start with "Duplicate"
+# (`- **Same rule**:`) or reordering the list so Edit comes first both made the old boundary
+# miss and red CI. Naming one verdict in the boundary coupled the pin to a label that is free
+# to change.
+#
+# It does NOT close the bullet-shaped decoy: a line beginning `- **` planted right after the
+# pinned text ends the slice exactly where the old boundary did, `head` still equals the
+# contract, and the check still passes. That case is the documented ceiling — see the KNOWN GAP
+# block in the module docstring and the `ponytail:` note on `_PREAMBLE_DECOY_BULLET`. Anything
+# below the first top-level bullet is outside this pin, by construction.
 _FIRST_BULLET_RE = re.compile(r"^- \*\*", re.MULTILINE)
 
 
@@ -155,15 +160,16 @@ def check_conflict_preamble_verbatim(text: str) -> tuple[bool, str]:
         # Prefix-vs-equality split so the message says WHICH way it drifted: text inserted
         # between the pinned preamble and the bullets is not the same defect as an edit inside
         # the preamble, and only the second means the constant is out of date.
-        detail = (
-            "text was inserted between the pinned preamble and the first verdict bullet"
-            if head.startswith(contract)
-            else "a clause was added, removed or reworded inside the preamble"
-        )
+        # No attempt to say WHICH way it drifted. A clause inserted under the `## 6.` heading
+        # and one inserted before the bullets both break contiguity without the contract
+        # surviving as a substring, so any such branch guesses — and a wrong guess sends the
+        # author to edit the wrong file. The message names both repairs instead.
         return False, (
-            f"§6's preamble no longer matches its pinned contract text — {detail}. That region "
-            "is what an engine reads before any verdict. If the change is intended, update "
-            "_PREAMBLE_CONTRACT in this file"
+            "§6's preamble no longer matches its pinned contract text — something above the "
+            "first verdict bullet was added, removed or reworded, and that region is what an "
+            "engine reads before any verdict. If the wording change is intended, update "
+            "_PREAMBLE_CONTRACT in this file; if text was inserted, put it below the pinned "
+            "region instead"
         )
     return True, "§6 preamble matches its pinned contract text verbatim"
 
@@ -489,6 +495,14 @@ _PREAMBLE_DECOY_BULLET = _PREAMBLE_OK.replace(
 _PREAMBLE_SPLIT_BULLET = _PREAMBLE_OK.replace(
     "- **Duplicate**:", "- **Duplicate (same rule)**:"
 )
+# The other insertion point: directly under the `## 6.` heading, above the contract's first
+# paragraph. Also an insertion, and it must not be reported as a stale constant.
+_PREAMBLE_PREPENDED = _PREAMBLE_OK.replace(
+    "**New site**:",
+    "A verdict that *removes* an entry is confirmed on its own second question.\n\n"
+    "**New site**:",
+)
+assert _PREAMBLE_PREPENDED != _PREAMBLE_OK, "_PREAMBLE_PREPENDED no-opped"
 assert _PREAMBLE_DECOY_BULLET != _PREAMBLE_OK, "_PREAMBLE_DECOY_BULLET no-opped"
 assert _PREAMBLE_SPLIT_BULLET != _PREAMBLE_OK, "_PREAMBLE_SPLIT_BULLET no-opped"
 assert _PREAMBLE_CONTRADICTED != _PREAMBLE_OK, "_PREAMBLE_CONTRADICTED no-opped"
@@ -538,11 +552,11 @@ def _self_test() -> int:
     cases.append(("preamble: check_conflict_preamble_verbatim (still OK)", ok))
     ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_CONTRADICTED)
     cases.append(("preamble-grants-a-second-question: check_conflict_preamble_verbatim (expect FAIL)", not ok))
-    ok, msg = check_conflict_preamble_verbatim(_PREAMBLE_DECOY_BULLET)
-    cases.append((
-        "preamble-clause-before-the-bullets: check_conflict_preamble_verbatim (expect FAIL)",
-        (not ok) and "inserted between" in msg,
-    ))
+    ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_DECOY_BULLET)
+    cases.append(("preamble-clause-before-the-bullets (expect FAIL)", not ok))
+    ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_PREPENDED)
+    cases.append(("preamble-clause-above-the-contract (expect FAIL)", not ok))
+
     ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_SPLIT_BULLET)
     cases.append((
         "preamble-renamed-first-bullet: span must not shrink (still OK)", ok,

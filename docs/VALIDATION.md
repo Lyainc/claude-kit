@@ -215,7 +215,7 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # catalogue grew monotonically; Supersede absorbs the redundant entry and retires it in the
 # SAME write, on the SAME confirmation, and a retired number is never reused.)
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 29 self-test cases passed
+# Expected: OK: all 30 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # Expected: OK: all 7 add-policy-conflict-edit checks passed.
 
