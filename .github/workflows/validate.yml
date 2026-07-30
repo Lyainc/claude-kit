@@ -147,7 +147,8 @@ jobs:
           # G28 add-policy layer-routing (SOFT channel by layer + vanilla fallback).
           python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-routing.py
-          # #303 add-policy §6 conflict-check Edit bucket (explicit edit of an existing entry).
+          # #303 add-policy §6 conflict-check Edit bucket (explicit edit of an existing entry)
+          # + #429 Supersede (retire the redundant entry in the same write, same confirmation).
           python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
           # #340 add-policy §6 index+detail split (match an existing site's index+detail shape).

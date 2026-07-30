@@ -69,6 +69,22 @@ SKILL.md §3 states the rule (`never add a second .md inside ~/.claude/rules/`);
   thinned the surface.
 
 
+## §3-sites — the conflict-check target per site, and why the fallback is non-negotiable
+
+SKILL.md §3 ships the site table without a per-site conflict-target column; §6 states the rule
+generically ("read the current contents of the chosen site"). What that resolves to:
+
+| Site | What §6 reads before writing |
+|------|------------------------------|
+| **reminder** | that channel's current rules — CLAUDE.md's persona block, or the catalogue index *plus* the detail files its links resolve to |
+| **hook** | the existing hook matchers and guard scripts, so a second guard doesn't fire on the same event |
+| **skill** | existing skills, in the order patch > extend > new |
+
+And the fallback: **a confident write into a non-existent catalogue is the breakage the
+`[ -d "$HOME/.claude/rules" ]` detection guards against.** The engine cannot assume the machine
+it is running on has the same private structure as the one it was written on.
+
+
 ## §3-tier — worked examples of the layer → tier inference
 
 SKILL.md §3 states the rule; these are the cases it was derived from.
@@ -189,6 +205,37 @@ SCAN_ROOT="$HOME/.claude/projects"
 ```
 
 
+## §6-supersede — why the exit path is a §6 verdict (#429)
+
+SKILL.md §6 ships the verdict. The measurement behind it:
+
+- 2026-06-14 → 2026-07-23: 12 policies in 39 days (~1 per 3.3 days) in `local-harness`.
+- Policies removed in that window: **1** (P7 absorbed into P9), and that was a by-product of a
+  manual audit, not of any rule.
+- At that rate the catalogue reaches 30 entries by late September. Since `~/.claude/rules` is
+  loaded whole into every session, entry count is standing token cost — and matching degrades
+  faster than cost grows: against a flat 30 rows the model compares its moment to 30 candidates,
+  and every row that doesn't fire lowers the credibility of the rows that do.
+
+**Why a fifth verdict rather than a new mechanism.** The engine already reads the target site's
+full current content on every run (§6). Hanging the exit path on the entry path costs one more
+verdict and no new surface.
+
+Rejected: usage-based retirement ("drop a policy that hasn't fired in N months") — there is no
+firing telemetry to measure, and "observe for N weeks, then decide" is rejected here as a
+pattern; a periodic audit skill — a new surface that only runs when a human runs it (in
+practice, twice, both manual).
+
+**Why the engine may own it.** `add-policy` does not re-judge what is worth keeping — that is
+distill's. Supersede asks "does this new rule make that entry redundant", a *placement*
+judgment about the artifact, so it belongs to the landfill side. Same boundary as §6-gate.
+
+**Out of scope, with a trigger**: grouping the catalogue table by *when a rule is needed*
+instead of by number ("30 rows to match" becomes "pick a group, match 4"). Start when the table
+passes **20 rows**; below that a flat scan is cheaper than the structure. That is catalogue-side
+work (local-harness), not `add-policy`.
+
+
 ## §7 — output contract, in full
 
 SKILL.md §7 keeps the working-tree rule and the closing line; this holds the written-content language rule and the hook registration fragment.
@@ -222,7 +269,9 @@ SKILL.md §7 keeps the working-tree rule and the closing line; this holds the wr
 
 ## §8 — worked self-check example for the skill site
 
-SKILL.md §8 keeps the per-site checks themselves.
+SKILL.md §8 keeps the per-site checks themselves. They are the **landfill-side artifact
+verification** that moved here from distill's old Phase 5 — distill kept only the
+discovery-side placement-fit judgment.
 
 Example for a freshly written skill (best-effort, Korean report on failure):
 

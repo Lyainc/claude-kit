@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Regression test: add-policy §6 conflict-check has a first-class Edit bucket.
+"""Regression test: add-policy §6 conflict-check has an Edit bucket and a Supersede exit.
 
 #303. The engine (feedback-loop/skills/add-policy/SKILL.md) is a prose skill, so this
 is a static-content check — it does not execute LLM logic. It pins the claim that an
@@ -9,13 +9,25 @@ against a future edit silently collapsing Edit back into one of those two, which
 the exact gap #303 reported (an explicit edit request risked being misclassified as
 Contradiction and refused, or only surfacing as a side effect of Duplicate).
 
-The two pinned claims:
+#429 adds the other half. Every §6 verdict left the entry count flat — Contradiction
+included, since it refuses the write rather than clearing anything — so the catalogue
+was monotonically increasing (local-harness: 12 policies in 39 days, 1 removed, and
+that one a by-product of a manual audit). Supersede is the exit path: a new rule that
+makes an existing entry redundant absorbs and retires it in the SAME write, on the same
+confirmation. Pinned here because it is a §6 verdict + a §3 confirmation field, exactly
+what this suite already guards.
+
+The pinned claims:
 
 1. §6's conflict-check bullet list names "Edit" as its own outcome, distinct from
    Duplicate and Contradiction, and describes showing a before -> after diff of the
    existing entry rather than just new prose to add.
 2. §3's 1-click confirmation template's 충돌 (conflict) field enumerates the edit
    outcome alongside none / sibling / contradiction, so the UX surface reflects it.
+3. §6 names "Supersede" as its own outcome, retiring the redundant entry in the same
+   write, and forbids reusing a retired number.
+4. That retirement rides on the same single confirmation — never a second prompt.
+5. §3's confirmation template carries the 은퇴 (retirement) field.
 
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
@@ -96,10 +108,57 @@ def check_confirmation_template_lists_edit(text: str) -> tuple[bool, str]:
     return True, "충돌 field enumerates the edit outcome"
 
 
+def check_supersede_verdict_named(text: str) -> tuple[bool, str]:
+    """#429: §6 must name Supersede as its own outcome, retiring the entry in the same write."""
+    bullet_text = _bullet_scope(text.lower(), "**supersede")
+    if bullet_text is None:
+        return False, "Supersede is not named as its own §6 conflict-check outcome"
+    if "retire" not in bullet_text:
+        return False, "Supersede outcome doesn't retire the superseded entry"
+    if "same write" not in bullet_text:
+        return False, (
+            "Supersede doesn't retire in the SAME write — a deferred retirement is how the "
+            "catalogue ends up carrying both entries"
+        )
+    if "never reused" not in bullet_text and "never be reused" not in bullet_text:
+        return False, "the retired-number-is-never-reused rule is missing"
+    return True, "Supersede named as a distinct §6 outcome, retiring in the same write"
+
+
+def check_supersede_rides_one_confirmation(text: str) -> tuple[bool, str]:
+    """#429: the retirement must ride on the existing confirmation, never a second prompt."""
+    bullet_text = _bullet_scope(text.lower(), "**supersede")
+    if bullet_text is None:
+        return False, "Supersede outcome missing entirely"
+    if "separate prompt" not in bullet_text and "second prompt" not in bullet_text:
+        return False, (
+            "Supersede doesn't state that the retirement rides on the same confirmation — "
+            "the 1-click invariant the rest of the skill holds"
+        )
+    return True, "Supersede retirement rides on the same 1-click confirmation"
+
+
+def check_confirmation_template_lists_retirement(text: str) -> tuple[bool, str]:
+    """#429: §3's confirmation template must carry the 은퇴 field."""
+    field_pos = text.find("은퇴:")
+    if field_pos == -1:
+        return False, "은퇴 confirmation field missing from the §3 template"
+    # Same line-scoping as the 충돌 check: a later unrelated 은퇴 mention must not
+    # validate the wrong text.
+    line_end = text.find("\n", field_pos)
+    field_line = text[field_pos:line_end if line_end != -1 else len(text)]
+    if "none" not in field_line.lower():
+        return False, "은퇴 field doesn't offer the no-retirement case"
+    return True, "은퇴 field present in the §3 confirmation template"
+
+
 _CHECKS = [
     check_edit_bucket_named,
     check_edit_distinct_from_contradiction,
     check_confirmation_template_lists_edit,
+    check_supersede_verdict_named,
+    check_supersede_rides_one_confirmation,
+    check_confirmation_template_lists_retirement,
 ]
 
 
@@ -124,12 +183,17 @@ _PASSING = """\
 - **Edit (explicit modification of an existing entry)**: if the request clearly targets
   one existing entry and asks to change it, treat it as an in-place edit, not a new
   append. Show the entry's before → after text in the §3 confirmation.
+- **Supersede (the catalogue's exit path)**: if landing this rule makes an existing entry
+  redundant, do not add a second entry. Absorb the old entry's distinguishing content into
+  the new one and retire it **in the same write**, shown in the §3 confirmation as part of
+  the diff, never as a separate prompt. **A retired number is never reused.**
 - **Contradiction**: if it conflicts with an existing rule and the request does NOT target
   that rule as an explicit edit, do NOT write — report and stop.
 - **Sibling**: link them with a one-line note.
 
 ## 분류 결과
 - 충돌: <none | sibling of an existing rule | edits an existing entry (show before→after) | contradicts an existing rule (explain)>
+- 은퇴: <none | Pn이 이 규칙에 흡수돼요 — 같은 쓰기에서 은퇴시킬게요>
 """
 
 # Regression of the exact bug #303 reports: only three outcomes, an explicit edit
@@ -171,6 +235,26 @@ _CONFIRMATION_FIELD_SUBSTRING_FALSE_POSITIVE = """\
 """
 
 
+# Supersede exists but defers the retirement to its own confirmation — the design #429
+# explicitly rejects, because a second prompt is where a retirement gets skipped.
+_SUPERSEDE_SECOND_PROMPT = """\
+- **Supersede**: if landing this rule makes an existing entry redundant, absorb it and retire
+  the old entry **in the same write**. Ask the user to confirm the retirement separately.
+  **A retired number is never reused.**
+- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
+  that rule as an explicit edit, do NOT write — report and stop.
+"""
+
+# Supersede that only marks the old entry for later removal. The catalogue carries both
+# until someone comes back, which is the monotonic growth #429 measured.
+_SUPERSEDE_DEFERRED_WRITE = """\
+- **Supersede**: if landing this rule makes an existing entry redundant, note that the old
+  entry should be retired, never as a separate prompt. **A retired number is never reused.**
+- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
+  that rule as an explicit edit, do NOT write — report and stop.
+"""
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -187,6 +271,14 @@ def _self_test() -> int:
 
     ok, _ = check_confirmation_template_lists_edit(_CONFIRMATION_FIELD_SUBSTRING_FALSE_POSITIVE)
     cases.append(("substring-false-positive: check_confirmation_template_lists_edit (expect FAIL)", not ok))
+
+    ok, _ = check_supersede_rides_one_confirmation(_SUPERSEDE_SECOND_PROMPT)
+    cases.append(("supersede-second-prompt: check_supersede_rides_one_confirmation (expect FAIL)", not ok))
+    ok, _ = check_supersede_verdict_named(_SUPERSEDE_SECOND_PROMPT)
+    cases.append(("supersede-second-prompt: check_supersede_verdict_named (still OK)", ok))
+
+    ok, _ = check_supersede_verdict_named(_SUPERSEDE_DEFERRED_WRITE)
+    cases.append(("supersede-deferred-write: check_supersede_verdict_named (expect FAIL)", not ok))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
