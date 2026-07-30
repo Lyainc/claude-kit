@@ -280,7 +280,8 @@ WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 # observed occurrences is the losing side of that trade. Note the shape of the fix each
 # one wants — remove a shape from the INPUT (as splitting UNCLOSED_FENCE out did), don't
 # narrow a pattern further; narrowing is what kept reintroducing false negatives.
-CODE_FENCE = re.compile(r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)[`~]*[ \t\r]*$', re.S | re.M)
+CODE_FENCE = re.compile(
+    r'^[ \t]*(?P<f>```+|~~~+)[^\n]*\n.*?^[ \t]*(?P=f)(?:(?<=`)`*|(?<=~)~*)[ \t\r]*$', re.S | re.M)
 UNCLOSED_FENCE = re.compile(r'^(?P<f>```+|~~~+)[^\n]*\n.*\Z', re.S | re.M)
 INLINE_CODE = re.compile(r'(?P<t>`+)(?:(?!(?P=t))(?:[^\n]|\n(?!\s*\n)))+(?P=t)')
 

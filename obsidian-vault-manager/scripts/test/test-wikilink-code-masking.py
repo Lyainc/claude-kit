@@ -84,6 +84,14 @@ if [[ "$VAR" == "x" ]]; then echo [[tilde-fenced]]; fi
 
 Trailing prose links to [[second-real-note]].
 
+````text
+[[longer-closed-example]]
+`````
+
+A closer longer than its opener is legal and renders fine, so [[fourth-real-note]] after
+one must survive — this is the class that shipped a regression the unit battery caught
+but the fixture did not.
+
 ```python
 # an unterminated fence runs to EOF
 print("[[unterminated]]")
@@ -94,9 +102,10 @@ FP_TARGETS = {
     "Note", "link", "embed", "path/to/file1", "weird`",
     "fenced-example", "fenced-embed", "tilde-fenced",
     "four-backtick-fence", "still-inside", "unterminated",
+    "longer-closed-example",
     '"$VAR" == "x"', "wrapped-\nexample",
 }
-REAL_TARGETS = {"real-note", "second-real-note", "third-real-note"}
+REAL_TARGETS = {"real-note", "second-real-note", "third-real-note", "fourth-real-note"}
 
 
 def _assert(cond: bool, desc: str, errors: list) -> None:
