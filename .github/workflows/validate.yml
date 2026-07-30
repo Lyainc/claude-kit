@@ -99,6 +99,11 @@ jobs:
           python3 scripts/run-linters.py --self-test
           # #209 subagent git side-effect deny hook: in-memory violation + clean (FP=0).
           python3 scripts/test/test-subagent-git-guard.py
+          # #451 claude-review silence guard: the verify step's jq filter is extracted and
+          # executed here (jq is preinstalled on ubuntu runners; its absence exits 2, never
+          # skips), plus the static step/prompt contract it depends on.
+          python3 scripts/test/test-review-silence-guard.py --self-test
+          python3 scripts/test/test-review-silence-guard.py
           # #259 no-PyYAML guard: deny/allow/warn/off + regex boundary + rule_fire emit on/off.
           bash scripts/test/test-no-pyyaml-guard.sh
           echo "Work-rules guards OK"
