@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """check-skill-token-budget.py — a SKILL.md must fit in the compaction re-attach window.
 
-RULE (deterministic): every `*/skills/*/SKILL.md` in a source plugin must estimate to at
-most 5,000 tokens, and every compaction-critical anchor inside it (the `## Rules` heading,
-each `AskUserQuestion` gate) must sit inside that same 5,000-token prefix.
+RULE (deterministic): every `*/skills/*/SKILL.md` in a source plugin must count at most
+5,000 tokens, and every compaction-critical anchor inside it (the `## Rules` heading, each
+`AskUserQuestion` in the BODY) must sit inside that same 5,000-token prefix.
 
 OBJECTIVE DAMAGE (#447, not taste): Claude Code keeps an invoked skill's body in context
 across turns, and auto-compaction re-attaches only **the first 5,000 tokens of each skill**.
@@ -15,14 +15,18 @@ compacted session and it runs with its safety gate missing from the instructions
 output indistinguishable from a correct run. Same failure class as #443/#433: a safeguard
 turns itself off quietly.
 
-HOW IT COUNTS: `tiktoken`'s `o200k_base` when it is importable, the char-class estimator
-below when it is not. #454 preferred a dependency-free byte/char proxy, and that was tried
-first — it does not work. Fitted over this repo's 26 SKILL.md + reference/*.md files, the
-best two-parameter char model still lands anywhere in 0.86x-1.14x of the real count, because
-markdown structure (tables, fences, URLs) drives tokenization more than character class
-does. At that width the guard passed `add-policy` at a measured 5,304 tokens and `audit` at
-5,286 — both genuinely over — while reporting them as ~4,990 and ~4,870. A guard that cannot
-tell 5,300 from 4,900 is not guarding, so the accurate backend wins and CI installs it.
+HOW IT COUNTS: `tiktoken`'s `o200k_base`, and nothing else. #454 preferred a dependency-free
+byte/char proxy, and that was tried first — it does not work. Fitted over this repo's
+SKILL.md + reference/*.md files, the best two-parameter char model still lands anywhere in
+0.86x-1.14x of the real count, because markdown structure (tables, fences, URLs) drives
+tokenization more than character class does. At that width the guard passed `add-policy` at a
+measured 5,304 tokens and `audit` at 5,286 — both genuinely over — while reporting them as
+~4,990 and ~4,870. A guard that cannot tell 5,300 from 4,900 is not guarding.
+
+tiktoken is not installed anywhere: both `docs/VALIDATION.md` and `.github/workflows/validate.yml`
+invoke this script through `uv run --with tiktoken`, which fetches it for that one command, so
+it is a dependency of this guard and of no plugin. CI and local therefore run the identical
+line, on purpose — see the exit-2 rule below for why they must not be able to drift.
 
 `o200k_base` is NOT Claude's tokenizer, and that caveat is real: expect the true Claude count
 to sit within roughly ±10-20% of what this reports. It is, however, the tokenizer #447's own
@@ -32,14 +36,15 @@ file near the line is to move rationale out, not to tune the threshold. Two cons
 knowing before you edit a skill that is already close: a pass at 4,990 is NOT proof the real
 Claude count is under 5,000, and a file with only tens of tokens of headroom turns the next
 one-paragraph edit into a CI failure. After the #447 split the three fixed files sit at
-4,930 / 4,840 / 4,736 — 1.4% to 5.3% of headroom, deliberately not more, because the material
+4,930 / 4,840 / 4,753 — 1.4% to 4.9% of headroom, deliberately not more, because the material
 left in them is contract text pinned by regression suites rather than prose that can be moved.
+Treat a CI failure on one of them as "move rationale out", never as "raise the number".
 
-The fallback estimator (~4.4 ASCII chars per token, ~1.2 tokens per non-ASCII char) is NOT a
-silent fallback. Without `tiktoken` the real mode **exits 2 and refuses to report a verdict**,
-because a guard that quietly degrades to a backend this file just called "not guarding" is the
-same silent-safeguard-off failure #447 is about. Pass `--allow-estimate` to opt into an
-indicative run; it labels every line and stays non-authoritative.
+There IS a char-class estimator (~4.4 ASCII chars per token, ~1.2 tokens per non-ASCII char),
+but it is never reached by accident. Without `tiktoken` the real mode **exits 2 and refuses to
+report a verdict at all**, because a guard that quietly degrades to a backend this file just
+called "not guarding" is the same silent-safeguard-off failure #447 is about. `--allow-estimate`
+is the only way in; it labels the run on stderr and stays non-authoritative.
 
 ponytail: `## Rules` is the only invariant heading recognised, so skills that park invariants
 under another name (`## Core Principle`, `### Constraints`) get the budget check but not the
@@ -51,9 +56,11 @@ the claim #447 actually makes — it names WHICH gate survives compaction, and i
 meaning if the budget is ever raised or scoped.
 
 Usage:
-    python3 scripts/check-skill-token-budget.py [--root DIR] [--self-test]
+    uv run --with tiktoken python3 scripts/check-skill-token-budget.py
+        [--root DIR] [--list] [--self-test] [--allow-estimate]
 
-Exit codes: 0 = clean, 1 = violation(s) found.
+Exit codes: 0 = clean, 1 = violation(s) found, 2 = cannot measure (no tiktoken and no
+--allow-estimate) or nothing to measure (no SKILL.md under --root).
 """
 
 import argparse
@@ -78,7 +85,7 @@ RULES_HEADING_RE = re.compile(r"^#{2,}\s+Rules\s*$", re.MULTILINE)
 GATE_TOKEN = "AskUserQuestion"
 
 
-try:  # accurate path — CI installs it; absent on a bare machine
+try:  # the only counting path; `uv run --with tiktoken` supplies it at both call sites
     import tiktoken
 
     _ENCODING = tiktoken.get_encoding("o200k_base")
@@ -106,14 +113,14 @@ def backend_verdict(backend: str, allow_estimate: bool):
 
 
 def measure(text: str) -> float:
-    """Token count via the best available backend."""
+    """Exact token count, or the estimate when `--allow-estimate` let an unmeasurable run in."""
     if _ENCODING is not None:
         return float(len(_ENCODING.encode(text)))
     return _estimate_tokens(text)
 
 
 def _estimate_tokens(text: str) -> float:
-    """Dependency-free fallback. See the module docstring for its measured error band."""
+    """Indicative count for `--allow-estimate` only. See the docstring for its error band."""
     ascii_chars = sum(1 for ch in text if ord(ch) < 128)
     return (
         ascii_chars / ASCII_CHARS_PER_TOKEN
@@ -191,8 +198,28 @@ _CLEAN = "# Skill\n\nShort body.\n\n## Rules\n\n- Stay small.\n"
 _BIG_ASCII = "word " * 30000  # ~34k tokens of filler, well past the budget
 
 
+def _write_fixture_plugin(root: Path, body: str) -> None:
+    """A minimal source plugin, so the wiring cases never read the live tree."""
+    plugin = root / "fixture-plugin"
+    (plugin / ".claude-plugin").mkdir(parents=True)
+    (plugin / ".claude-plugin" / "plugin.json").write_text('{"name": "fixture-plugin"}')
+    skill = plugin / "skills" / "x"
+    skill.mkdir(parents=True)
+    (skill / "SKILL.md").write_text(body)
+
+
 def run_self_test() -> int:
-    cases = [
+    failures = []
+    checks = 0
+
+    def check(ok: bool, msg: str) -> None:
+        """Every assertion goes through here, so the printed count cannot drift from reality."""
+        nonlocal checks
+        checks += 1
+        if not ok:
+            failures.append(msg)
+
+    for name, text, expected in [
         ("clean file", _CLEAN, 0),
         ("over budget, no anchors", _BIG_ASCII, 1),
         # Budget violation only: the file is huge but its gate sits in the first lines.
@@ -200,22 +227,20 @@ def run_self_test() -> int:
         # Budget + anchor violations: the same content with the gate pushed past 5,000.
         ("over budget, late gate", _BIG_ASCII + "\nAskUserQuestion\n", 2),
         ("over budget, late Rules heading", _BIG_ASCII + "\n## Rules\n", 2),
-    ]
-    failures = []
-    for name, text, expected in cases:
-        _, violations = check_text(text)
-        if len(violations) != expected:
-            failures.append(f"{name}: expected {expected} violation(s), got {len(violations)}: {violations}")
+    ]:
+        violations = check_text(text)[1]
+        check(len(violations) == expected,
+              f"{name}: expected {expected} violation(s), got {len(violations)}: {violations}")
 
-    # The estimator itself: a pure-ASCII string and a pure-Hangul string must land on the
-    # documented constants, or the calibration in the docstring silently stops describing it.
-    if abs(_estimate_tokens("a" * 4400) - 1000) > 1:
-        failures.append("estimator: 4,400 ASCII chars should be ~1,000 tokens")
-    if abs(_estimate_tokens("가" * 1000) - 1200) > 1:
-        failures.append("estimator: 1,000 Hangul chars should be ~1,200 tokens")
+    # The estimator's own constants: if these drift, the docstring's calibration stops
+    # describing the code and `--allow-estimate` quietly means something else.
+    check(abs(_estimate_tokens("a" * 4400) - 1000) <= 1,
+          "estimator: 4,400 ASCII chars should be ~1,000 tokens")
+    check(abs(_estimate_tokens("가" * 1000) - 1200) <= 1,
+          "estimator: 1,000 Hangul chars should be ~1,200 tokens")
 
-    # A file just under the budget passes; one just over fails. Built by bisection against the
-    # ACTIVE backend, so the case pins the boundary under tiktoken and under the estimator alike.
+    # A file just under the budget passes, one just over fails. Bisected against the ACTIVE
+    # backend, so the case pins the boundary under tiktoken and under the estimator alike.
     unit = "landfill policy word "
     hi = 1
     while measure(unit * hi) <= TOKEN_BUDGET:
@@ -227,10 +252,8 @@ def run_self_test() -> int:
             lo = mid
         else:
             hi = mid
-    if check_text(unit * lo)[1]:
-        failures.append("boundary: a file just under the budget must pass")
-    if not check_text(unit * hi)[1]:
-        failures.append("boundary: a file just over the budget must fail")
+    check(not check_text(unit * lo)[1], "boundary: a file just under the budget must pass")
+    check(bool(check_text(unit * hi)[1]), "boundary: a file just over the budget must fail")
 
     # The backend gate is the #447 failure class turned on itself: an unmeasurable run must
     # refuse a verdict, not quietly downgrade to a backend this guard calls insufficient.
@@ -241,35 +264,75 @@ def run_self_test() -> int:
         ("char-estimate", True, None),
     ]:
         code, msg = backend_verdict(backend, allow)
-        if code != expected:
-            failures.append(f"backend gate ({backend}, allow={allow}): expected {expected}, got {code}")
-        if backend == "char-estimate" and not msg:
-            failures.append(f"backend gate ({backend}, allow={allow}): must say something")
+        check(code == expected,
+              f"backend gate ({backend}, allow={allow}): expected {expected}, got {code}")
+        if backend == "char-estimate":
+            check(bool(msg), f"backend gate ({backend}, allow={allow}): must say something")
 
     # `allowed-tools: ... AskUserQuestion` in the frontmatter is a capability, not a gate.
     fm_only = "---\nname: x\nallowed-tools: Read AskUserQuestion\n---\n\n# Body\n"
-    if list(find_anchors(fm_only)):
-        failures.append("frontmatter AskUserQuestion must not count as a gate")
-    if len(list(find_anchors(fm_only + "\nAskUserQuestion\n"))) != 1:
-        failures.append("a body AskUserQuestion must still count as a gate")
+    check(not list(find_anchors(fm_only)),
+          "frontmatter AskUserQuestion must not count as a gate")
+    check(len(list(find_anchors(fm_only + "\nAskUserQuestion\n"))) == 1,
+          "a body AskUserQuestion must still count as a gate")
 
-    # Anchor OFFSET math, not just the threshold: an anchor must report the token distance from
-    # the start of the FILE (frontmatter included), so a wrong base would misplace every gate.
-    body = unit * lo
-    anchors = dict(find_anchors(fm_only.rstrip("\n") + "\n" + body + "\n## Rules\n"))
-    reported = anchors.get("## Rules")
-    expected_at = measure(fm_only.rstrip("\n") + "\n" + body)
-    if reported is None or abs(reported - expected_at) > max(2.0, expected_at * 0.01):
-        failures.append(
-            f"anchor offset: ## Rules should report ~{expected_at:.0f}, got {reported}"
-        )
+    # Anchor OFFSET math, not just the threshold: an anchor reports its distance from the start
+    # of the FILE, frontmatter included, so a wrong base misplaces every gate. The frontmatter is
+    # deliberately large (a real `description:` runs hundreds of tokens) and the tolerance
+    # absolute — with a 14-token stub and a percentage tolerance, zeroing the base still passed.
+    big_fm = "---\nname: x\ndescription: " + ("policy word " * 400) + "\n---\n"
+    reported = dict(find_anchors(big_fm + unit * lo + "\n## Rules\n")).get("## Rules")
+    expected_at = measure(big_fm + unit * lo)
+    check(reported is not None and abs(reported - expected_at) <= 2.0,
+          f"anchor offset: ## Rules should report ~{expected_at:.0f}, got {reported} "
+          f"(frontmatter contributes ~{measure(big_fm):.0f})")
+
+    # Anchor THRESHOLD, separate from the budget boundary above: a gate past the line must be
+    # named, one before it must not. Without this the comparison itself can drift unnoticed.
+    filler = unit * (hi * 3)
+    check(any("## Rules" in v for v in check_text(unit * (lo + 1) + "\n## Rules\n" + filler)[1]),
+          "anchor threshold: a Rules heading past the budget must be named")
+    check(not any("## Rules" in v for v in check_text("## Rules\n" + filler)[1]),
+          "anchor threshold: a Rules heading at offset 0 must not be named")
+
+    # WIRING: the refusals must be reachable from main(), not just correct as functions —
+    # deleting either call from main() left this suite green before these cases existed. Each
+    # runs against a tempdir fixture, never the live tree, so the suite stays hermetic and
+    # cannot fail merely because it was invoked from outside a checkout.
+    import contextlib
+    import io
+    import tempfile
+
+    def run_main(argv):
+        buf = io.StringIO()
+        with contextlib.redirect_stderr(buf), contextlib.redirect_stdout(buf):
+            return main(argv), buf.getvalue()
+
+    with tempfile.TemporaryDirectory() as empty:
+        rc, _ = run_main(["--root", empty])
+        check(rc == 2, f"wiring: main() on a root with no SKILL.md must exit 2, got {rc}")
+
+    saved_backend, saved_encoding = globals()["BACKEND"], globals()["_ENCODING"]
+    try:
+        # Drop the encoding too, not just the label: otherwise --allow-estimate would still be
+        # counting with tiktoken and the estimator path through main() would never run.
+        globals()["BACKEND"], globals()["_ENCODING"] = "char-estimate", None
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_fixture_plugin(Path(tmp), _CLEAN)
+            rc, out = run_main(["--root", tmp])
+            check(rc == 2, f"wiring: main() without an exact backend must exit 2, got {rc}")
+            rc, out = run_main(["--root", tmp, "--allow-estimate"])
+            check(rc == 0, f"wiring: --allow-estimate must let main() proceed, got {rc}")
+            check("char-estimate" in out, "wiring: an estimated run must label itself")
+    finally:
+        globals()["BACKEND"], globals()["_ENCODING"] = saved_backend, saved_encoding
 
     if failures:
         print(f"FAIL: {len(failures)} check-skill-token-budget self-test case(s) failed", file=sys.stderr)
         for line in failures:
             print(f"  {line}", file=sys.stderr)
         return 1
-    print(f"OK: all {len(cases) + 12} check-skill-token-budget self-test cases passed")
+    print(f"OK: all {checks} check-skill-token-budget self-test cases passed")
     return 0
 
 

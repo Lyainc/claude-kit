@@ -84,7 +84,7 @@ python3 scripts/check-plugin-root-paths.py
 # `add-policy` at a real 5,304 tokens and `audit` at 5,286 while reporting ~4,990/~4,870.
 # `--list` prints every file's count and anchor offsets.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 17 check-skill-token-budget self-test cases passed
+# Expected: OK: all 24 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N SKILL.md checked, every one within 5000 tokens
 #   with its gates inside the window [o200k_base] (largest ...)
