@@ -118,7 +118,10 @@ python3 scripts/run-linters.py --self-test
 python3 scripts/test/test-review-silence-guard.py --self-test
 # Expected: OK: all 6 review-silence-guard self-test cases passed
 python3 scripts/test/test-review-silence-guard.py
-# Expected: OK: all 16 review-silence-guard checks passed.
+# Expected: OK: all 18 review-silence-guard checks passed.
+# 라운드 스코핑이 기대는 두 조건도 함께 핀: 빈 SINCE는 필터를 넓히지 말고 실패할 것
+# (jq의 `>`는 ""에 대해 항상 참), 그리고 concurrency 그룹 — 한 PR에 겹쳐 도는 두 실행은
+# 나중 것의 창이 먼저 것의 코멘트보다 앞서서 형제 실행의 리뷰로 통과할 수 있다.
 
 # 서브에이전트 git 부수효과 가드 회귀 (#209): scripts/subagent-git-guard.sh PreToolUse Bash
 # 훅이 subagent context의 git commit/push·gh pr create|merge를 deny하는지 검증 (인메모리
