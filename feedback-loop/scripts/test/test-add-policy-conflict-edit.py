@@ -29,6 +29,16 @@ The pinned claims:
 4. That retirement rides on the same single confirmation — never a second prompt.
 5. §3's confirmation template carries the 은퇴 (retirement) field.
 
+KNOWN GAP (measured, not assumed). Three regions of §6 are pinned verbatim across this suite
+and test-add-policy-necessity-gate.py — the preamble, the Supersede verdict, and the gate block
+— covering 2,872 of §6's 7,492 characters. The rest is the Duplicate/Edit/Contradiction/Sibling
+bullets and the memory-scan subsection, which test-add-policy-routing.py phrase-pins because it
+changes. A contradicting clause placed there passes every suite. Closing it means pinning all of
+§6, which would put the `awk` snippet under the same paired-commit rule as the contract text and
+collide with routing's phrase pins. Two lines that assert the 1-click invariant outside every
+pin — SKILL.md's memory-removal bullet and its `## Rules` summary — are unguarded for the same
+reason. Recorded so the coverage is a decision, not an assumption.
+
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
     python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
@@ -123,19 +133,37 @@ silently downgrades the check to a title comparison:
 """
 
 
+# Any top-level bullet, not `- **Duplicate` specifically. The end boundary must not be a token
+# from the UNPINNED region: planting a decoy `- **Duplicate ...` line right after the pinned
+# text shortened the slice, `section[:idx]` still equalled the contract, and the check reported
+# "verbatim" while guarding less. A benign refactor did the same — splitting the bullet into
+# `- **Duplicate (same rule)**` / `- **Duplicate (memory)**` truncated the span with no signal.
+# The guarded length now comes from the contract itself, so it cannot shrink silently.
+_FIRST_BULLET_RE = re.compile(r"^- \*\*", re.MULTILINE)
+
+
 def check_conflict_preamble_verbatim(text: str) -> tuple[bool, str]:
     """§6's opening, up to the first verdict bullet, matches its pinned contract text."""
-    section = _verdict_scope(text)
-    if section is text:
+    if _SECTION_6_RE.search(text) is None:
         return False, "§6 section boundary not found (header drift?)"
-    idx = section.find("- **Duplicate")
-    if idx == -1:
-        return False, "§6 has no verdict bullets — the Duplicate outcome is missing"
-    if _normalise(section[:idx]) != _normalise(_PREAMBLE_CONTRACT):
+    section = _verdict_scope(text)
+    match = _FIRST_BULLET_RE.search(section)
+    if match is None:
+        return False, "§6 has no verdict bullets — the outcome list is missing"
+    head, contract = _normalise(section[:match.start()]), _normalise(_PREAMBLE_CONTRACT)
+    if head != contract:
+        # Prefix-vs-equality split so the message says WHICH way it drifted: text inserted
+        # between the pinned preamble and the bullets is not the same defect as an edit inside
+        # the preamble, and only the second means the constant is out of date.
+        detail = (
+            "text was inserted between the pinned preamble and the first verdict bullet"
+            if head.startswith(contract)
+            else "a clause was added, removed or reworded inside the preamble"
+        )
         return False, (
-            "§6's preamble no longer matches its pinned contract text — a clause was added, "
-            "removed or reworded above the verdict bullets, which is what an engine reads "
-            "first. If that is intended, update _PREAMBLE_CONTRACT in this file"
+            f"§6's preamble no longer matches its pinned contract text — {detail}. That region "
+            "is what an engine reads before any verdict. If the change is intended, update "
+            "_PREAMBLE_CONTRACT in this file"
         )
     return True, "§6 preamble matches its pinned contract text verbatim"
 
@@ -445,6 +473,24 @@ _PREAMBLE_CONTRADICTED = _PREAMBLE_OK.replace(
 _PREAMBLE_REFLOWED = _PREAMBLE_OK.replace(
     _PREAMBLE_CONTRACT, " ".join(_PREAMBLE_CONTRACT.split())
 )
+# A clause slipped between the pinned preamble and the first bullet — the region a
+# content-addressed end boundary used to surrender whenever anything bullet-shaped appeared
+# above the real list. The contract-derived boundary must red it, and say WHERE it drifted.
+#
+# ponytail: a decoy that is itself a top-level bullet lands BELOW this boundary, in the
+# unpinned verdict-list region, and passes. That is the documented ceiling (see the module
+# docstring), not something this boundary can close — pinning it means pinning all of §6.
+_PREAMBLE_DECOY_BULLET = _PREAMBLE_OK.replace(
+    "- **Duplicate**:",
+    "A verdict that *removes* an entry is confirmed on its own second question.\n\n"
+    "- **Duplicate**:",
+)
+# The benign refactor with the same effect: the first bullet is renamed, not moved.
+_PREAMBLE_SPLIT_BULLET = _PREAMBLE_OK.replace(
+    "- **Duplicate**:", "- **Duplicate (same rule)**:"
+)
+assert _PREAMBLE_DECOY_BULLET != _PREAMBLE_OK, "_PREAMBLE_DECOY_BULLET no-opped"
+assert _PREAMBLE_SPLIT_BULLET != _PREAMBLE_OK, "_PREAMBLE_SPLIT_BULLET no-opped"
 assert _PREAMBLE_CONTRADICTED != _PREAMBLE_OK, "_PREAMBLE_CONTRADICTED no-opped"
 assert _PREAMBLE_REFLOWED != _PREAMBLE_OK, "_PREAMBLE_REFLOWED no-opped"
 
@@ -492,6 +538,16 @@ def _self_test() -> int:
     cases.append(("preamble: check_conflict_preamble_verbatim (still OK)", ok))
     ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_CONTRADICTED)
     cases.append(("preamble-grants-a-second-question: check_conflict_preamble_verbatim (expect FAIL)", not ok))
+    ok, msg = check_conflict_preamble_verbatim(_PREAMBLE_DECOY_BULLET)
+    cases.append((
+        "preamble-clause-before-the-bullets: check_conflict_preamble_verbatim (expect FAIL)",
+        (not ok) and "inserted between" in msg,
+    ))
+    ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_SPLIT_BULLET)
+    cases.append((
+        "preamble-renamed-first-bullet: span must not shrink (still OK)", ok,
+    ))
+
     ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_REFLOWED)
     cases.append(("preamble-reflowed: check_conflict_preamble_verbatim (still OK)", ok))
     ok, _ = check_conflict_preamble_verbatim(_PASSING)
