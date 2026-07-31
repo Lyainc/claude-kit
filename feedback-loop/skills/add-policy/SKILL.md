@@ -13,18 +13,27 @@ exception**: the user's own stance/voice document, so read it first and write in
 # add-policy — the landfill engine (layer ⑤)
 
 `add-policy` is the **landfill half** of the recursive-improvement loop: it answers **"where
-does this rule go, and in what form?"** and writes it there on a single confirmation.
-Classification is user-confirmed; placement, once classified, is deterministic. Its sibling
-`distill` is the **discovery half**, and the two never overlap: distill judges a rule's **reuse
-value**, the §6 necessity gate judges whether landing it needs a **new artifact**.
+does this rule go, and in what form?"** and writes it there on a single confirmation. Its
+sibling `distill` is the **discovery half**, and the two never overlap: distill judges a rule's
+**reuse value**, the §6 necessity gate judges whether landing it needs a **new artifact**.
 
 ## 1. Input contract — what the engine accepts
 
 The engine takes a rule in **natural language**: a **user one-liner**, or a **distill proposal
 object** carrying *what*, *why*, *session provenance*, and an *inviolability judgment*. It
 **re-runs the classification itself** on either — a proposal never arrives with the placement
-pre-filled, so **tier is inferred from what/why, never supplied** and **the inviolability
-judgment is enforced (§5), not re-made**. ([reference.md](reference.md) §1)
+pre-filled, so tier is inferred and **the inviolability judgment is enforced (§5), not
+re-made**. ([reference.md](reference.md) §1)
+
+**Source gate — the third input, and the one that must not land unjudged.** A candidate also
+arrives **inferred by the agent**, which the two accepted kinds' free pass does not cover. Route
+by **provenance**: a **distill proposal proceeds** — distill already judged it, and a proposal is
+never bounced back to the skill that sent it. **Everything else, including anything that reads
+like a user one-liner**, asks one question: **can you point at the user's own utterance stating
+this rule in the transcript?** Yes → proceed. No → it is agent-inferred: **hand it to
+`/distill`** — bouncing is not re-judging, it sends the candidate to the judge. Run it **before**
+classification and the §6 conflict check, so a bounce wastes neither.
+([reference.md](reference.md) §1-source)
 
 ## 2. Classification grid (default taxonomy — editable, replaceable)
 
@@ -240,6 +249,9 @@ exists to prevent. An in-skill self-check, never a registered harness hook (CON-
 
 - Classify, then place: classification is user-confirmed (one 1-click step), placement is
   deterministic once classified.
+- Source gate first (§1): a candidate the AGENT inferred — no user utterance to point at in
+  the transcript — is bounced to `/distill` before classification, never landed. The engine
+  still never re-judges what to keep; it routes the unjudged to the judge.
 - Three sites only: reminder (SOFT) / hook (HARD guard) / skill (procedure). The reminder
   *channel* is layer-routed — stance/voice → `~/.claude/CLAUDE.md`, work-rule →
   `~/.claude/rules` if present else CLAUDE.md fallback (never hardcode the machine's `rules/`

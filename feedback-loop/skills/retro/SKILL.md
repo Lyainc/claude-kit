@@ -1,6 +1,6 @@
 ---
 name: retro
-description: "Session retro for the ⑤ execution loop: re-confirm vault promotion candidates (audit E8) behind a user-confirmed gate, route findings to 3 opt-in outputs (action→git issue / memory→vault capture / rule→add-policy handoff), dedup repeats, and cap work with a retro budget. Trigger: 회고, 회고해줘, 세션 회고, 낭비 탐색, 승격 후보 검토, retro, session retrospective, waste sweep, promote candidates. Routing: vault structural defects only = obsidian-vault-manager /audit; this skill is the ⑤ post-loop consumer that ACTS on audit/telemetry output. Example: '/retro' or '회고해줘'."
+description: "Session retro for the ⑤ execution loop: re-confirm vault promotion candidates (audit E8) behind a user-confirmed gate, route findings to 3 opt-in outputs (action→git issue / memory→vault capture / rule→distill handoff), dedup repeats, and cap work with a retro budget. Trigger: 회고, 회고해줘, 세션 회고, 낭비 탐색, 승격 후보 검토, retro, session retrospective, waste sweep, promote candidates. Routing: vault structural defects only = obsidian-vault-manager /audit; this skill is the ⑤ post-loop consumer that ACTS on audit/telemetry output. Example: '/retro' or '회고해줘'."
 model: inherit
 allowed-tools: Read Edit Bash Grep Glob AskUserQuestion
 ---
@@ -180,7 +180,7 @@ opts in (offer them, do not run silently).
 |--------|--------|-----------|---------|
 | **액션 (action)** | repeat/waste patterns | git issue via `gh` — `scope: harness` → harness-level issue, `scope: local` → this-repo issue | **ON** (confirm before filing) |
 | **기억 (memory)** | session insights | surface the exact `/capture …` (raw ore → `inbox/`) or `/wiki` (compiled knowledge → `wiki/`) command for the USER to run — user-initiated slash; `retro` does NOT write vault | off (offer) |
-| **규칙 (rule)** | validated patterns | surface a ready-to-run `/add-policy` invocation (propose-only handoff — `add-policy` classifies + places; `retro` does NOT `Edit`) | off (offer) |
+| **규칙 (rule)** | validated patterns | surface a ready-to-run `/distill` invocation (propose-only handoff — `distill` judges worth-keeping, then hands it to `add-policy`; `retro` does NOT `Edit`) | off (offer) |
 
 - **Action**: for each deduped waste pattern, draft `{title, body}` (body cites
   the evidence: counts, event types, scope). Confirm with the user (filing a
@@ -189,16 +189,17 @@ opts in (offer them, do not run silently).
   conflate them (mirrors #134's 2-branch waste split).
 - **Memory**: never write the vault from `retro`. Output the ready-to-run slash
   command so the user keeps the Write Role Contract.
-- **Rule**: surface a ready-to-run `/add-policy` invocation — never `Edit` a rule file
-  directly. `retro` discovers *that* a validated pattern is rule-worthy; **`add-policy`
-  (the landfill engine) owns classification + placement** (which site, what form), exactly
-  as the memory branch hands off to `/capture`. This is the same discover→land split as
-  distill→add-policy (#251): a project-local SOFT rule lands in `add-policy`'s **CLAUDE.md
-  site at project-local scope** (a project-local `.claude/CLAUDE.md` is a CLAUDE.md-family
-  landfill, not a fourth site — "which CLAUDE.md?" is the engine's scope choice), a
-  deterministically-guardable rule becomes a **hook**, a procedure becomes a **skill** —
-  `add-policy` decides, not `retro`. Pass the validated pattern as the natural-language
-  rule the engine re-classifies; do NOT pre-fill the placement.
+- **Rule**: surface a ready-to-run `/distill` invocation — never `Edit` a rule file directly.
+  A pattern `retro` noticed was judged rule-worthy by **nobody**: `retro` observed it, and the
+  user has not stated it. `distill` is the skill that makes that judgment (its anti-capture
+  filter, including the recurrence floor), and `add-policy` deliberately does not — it lands
+  what is already judged. Handing `retro`'s observation straight to `add-policy` therefore
+  lands an unjudged rule, which is exactly the bypass `add-policy`'s §1 source gate bounces
+  back here (#459). The chain is **retro → distill → add-policy**: `distill` judges, then
+  `add-policy` classifies and places (which site, what form). Pass the pattern as
+  natural-language prose; do NOT pre-fill the placement — that is the engine's, not
+  `retro`'s. (The user may of course invoke `/add-policy` directly; a rule *they* state is
+  already judged and takes the explicit path.)
 
 ---
 
@@ -244,7 +245,8 @@ opts in (offer them, do not run silently).
 - Silent promotion / issue filing / rule handoff is FORBIDDEN — all are user-confirmed.
 - The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed.
 - Memory output is a `/capture` suggestion — never a direct vault write.
-- Rule output is an `/add-policy` suggestion — never a rule-file `Edit`; `add-policy` owns rule classification + placement (the discover→land split).
+- Rule output is a `/distill` suggestion — never a rule-file `Edit`. A pattern only `retro` noticed is
+  unjudged, and `add-policy` never judges worth-keeping: the chain is retro → distill → add-policy (#459).
 - Never re-scan the vault or re-implement audit's detection — read the leaf's manifest, apply the E8
   threshold to it, re-confirm against the note itself, act.
 - Dedup before processing; enforce the budget; report the remainder (no silent drop).
