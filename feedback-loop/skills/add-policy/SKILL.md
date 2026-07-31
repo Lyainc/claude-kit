@@ -166,19 +166,10 @@ not a duplicate and is never touched. ([reference.md](reference.md) §6-memory)
 **project-scoped** `CLAUDE.md` only by **that project's own** — another project's memory is
 neither a duplicate nor yours to delete.
 
-```bash
-# Machine-global site -> all projects. Project-scoped CLAUDE.md -> that project's dir only:
-#   SCAN_ROOT="$HOME/.claude/projects/<current-project-dir>"
-SCAN_ROOT="$HOME/.claude/projects"
-# `find` not a glob (zsh NOMATCH); `awk` not `grep` (type must come from the FRONTMATTER, n==1);
-# no `2>/dev/null` — stderr is the only channel that can say the scan is incomplete.
-# Why each choice: [reference.md](reference.md) §6-snippet.
-[ -d "$SCAN_ROOT" ] && find "$SCAN_ROOT" -path '*/memory/*.md' -not -name 'MEMORY.md' -exec awk '
-  FNR==1 { n = ($0 ~ /^---[[:space:]]*$/) ? 0 : 9 }
-  /^---[[:space:]]*$/ { n++ }
-  n==1 && /^[[:space:]]*type:[[:space:]]*feedback[[:space:]]*$/ { print FILENAME }
-' {} + | sort -u || true
-```
+**Read [reference.md](reference.md) §6-snippet now and run the command it ships, as written.**
+`find` not a glob, `awk` on the frontmatter not `grep`, no `2>/dev/null` — every choice there is
+load-bearing, and a reconstructed command fails in the one direction that matters: reporting
+"no duplicates" when the scan never ran.
 
 **Memory is an input, never a destination.** A `feedback` memory is a promotion queue that
 empties into one of the three sites of §3 — **not a fourth site**. A rule is never *written*
@@ -238,30 +229,12 @@ registration fragment: [reference.md](reference.md) §7.
 
 ## 8. Post-write self-check (artifact verification)
 
-After writing, verify the artifact deterministically and report any failure in Korean — never
-leave a malformed result behind. The check depends on the site:
-
-- **skill site**: frontmatter parses and carries `name` / `description` / `allowed-tools`;
-  `name` is kebab-case and matches the directory; the body is non-empty (more than the
-  frontmatter); a new skill carries a top-level `provenance: distilled`.
-- **hook site**: the guard script passes `bash -n` and the registration entry is well-formed
-  JSON (a matcher plus a command array).
-- **reminder site**: for a new rule, a non-empty addition landed in the **routed channel** —
-  CLAUDE.md for stance/voice, `~/.claude/rules` for a work-rule (CLAUDE.md fallback when the
-  catalogue is absent). For an **Edit**, verify the rewrite instead: the old entry text is gone
-  and the approved new text is present — an edit need not grow the file. On an index+detail
-  split, also verify the **link resolves** (`[ -f ]` on the new index row's path) and that the
-  loaded directory gained no new `.md`.
-- **Supersede**: the new entry carries the content absorbed from the retired one (dropping it
-  is content loss, not a cleanup); the old entry is gone from its site — the index row *and* its
-  detail file on a split (recoverable delete, §6), the old lines on a prose channel — and no
-  inbound link still points at it.
-- **memory duplicate removal** (only when §6 found one): the duplicate file is gone and its
-  `MEMORY.md` index line with it. If the delete could not run, say so — never claim a removal
-  that didn't happen.
-
-A malformed write is reported and fixed, never left in place — an in-skill self-check, never a
-registered harness hook (CON-2). Worked `bash` example: [reference.md](reference.md) §8.
+After writing, verify the artifact deterministically; a malformed write is **reported in Korean
+and fixed**, never left in place, and you **never claim a write or a removal that didn't happen**.
+*What* gets checked depends on the site, so **read [reference.md](reference.md) §8 and run its
+checklist** for the site just written (skill / hook / reminder, plus the Edit, Supersede and
+memory-duplicate-removal cases). Reporting "done" without running it is the failure this step
+exists to prevent. An in-skill self-check, never a registered harness hook (CON-2).
 
 ## Rules
 

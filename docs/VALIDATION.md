@@ -216,18 +216,21 @@ python3 feedback-loop/scripts/test/test-e8-candidates.py
 # (stance/voice→~/.claude/CLAUDE.md, work-rule→~/.claude/rules) with a vanilla fallback
 # (rules absent→CLAUDE.md) and a never-hardcode-the-rules/-structure clause. Guards the
 # "both rules-present and rules-absent branches are described" claim against drift.
-# #377 extends it to §6's native-memory duplicate scan — and since SKILL.md ships that scan
-# as runnable bash, the snippet is EXTRACTED and EXECUTED against temp-HOME fixtures
+# #377 extends it to §6's native-memory duplicate scan — and since that scan ships as runnable
+# bash (in add-policy/reference.md §6-snippet since the #469 split moved the executable text
+# out of the compaction window), the snippet is EXTRACTED and EXECUTED against temp-HOME fixtures
 # (no projects dir / projects-but-no-memory-dir / zero-hit / populated) under every shell
 # present. The populated fixture carries adversarial near-misses — `type: feedback-loop`,
 # `type: feedbackx`, `type: feedback` quoted in a note's BODY, a file with NO frontmatter whose
 # body `---` could open a fake one, and MEMORY.md itself — so a loosened matcher fails the check
 # instead of passing it. An unreadable memory file must reach stderr: a duplicate check that
-# fails silently reports "no duplicates", which is the wrong direction to fail.)
+# fails silently reports "no duplicates", which is the wrong direction to fail.) The live run
+# reads BOTH files — every prose claim against SKILL.md, only the snippet against reference.md —
+# and pins the seam the split created: SKILL.md must name §6-snippet AND say to run it (#469).
 python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
-# Expected: OK: all 24 self-test cases passed
+# Expected: OK: all 28 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-routing.py
-# Expected: OK: all 12 add-policy-routing checks passed.
+# Expected: OK: all 13 add-policy-routing checks passed.
 
 # NOTE: three regions of add-policy/SKILL.md are pinned VERBATIM by these two suites — §6's
 # preamble and its Supersede verdict (here), and §6's necessity-gate block (necessity-gate).
@@ -265,7 +268,7 @@ python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
 # shape (one index row + a linked detail file) instead of appending a new inline block,
 # and must never invent this split on a site that doesn't already use it.)
 python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
-# Expected: OK: all 8 self-test cases passed
+# Expected: OK: all 19 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
 # Expected: OK: all 4 add-policy-index-detail checks passed.
 

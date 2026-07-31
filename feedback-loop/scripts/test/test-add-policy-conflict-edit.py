@@ -69,11 +69,13 @@ def _load_skill() -> str:
 # prose, and the test's job is "is this claim still stated", not exact wording.
 # ---------------------------------------------------------------------------
 
-# The §6 verdict bullets, and nothing else. §8's post-write self-check now carries its own
+# The §6 verdict bullets, and nothing else. The post-write self-check carries its own
 # `- **Supersede**:` bullet, so a marker search over the whole document would silently retarget
 # there if §6's bullet were deleted — reporting "doesn't retire in the same write" for a verdict
-# that is missing outright. Fixtures are bare bullet fragments with no headers, so a document
-# without the header pair falls back to itself.
+# that is missing outright. (That checklist sat in SKILL.md §8 when this scoping was added and
+# moved to reference.md §8 in #469; the scoping still earns its place — the decoy would come
+# back the moment anyone restates a verdict outside §6.) Fixtures are bare bullet fragments with
+# no headers, so a document without the header pair falls back to itself.
 _SECTION_6_RE = re.compile(r"^## 6\.\s.*?(?=^## 7\.\s)", re.MULTILINE | re.DOTALL)
 
 
