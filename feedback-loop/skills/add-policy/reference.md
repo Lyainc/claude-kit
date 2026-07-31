@@ -44,6 +44,41 @@ A distill proposal NEVER carries the placement slots (the classification grid) p
   re-judge it — it *enforces* it (§5).
 
 
+## §1-source — why an agent-inferred candidate is bounced, not landed (#459)
+
+SKILL.md §1 keeps the test and the destination; this is why the test is the one it is.
+
+The engine never re-judges whether a rule is worth keeping, and that is sound for the two
+kinds its contract names: a user one-liner was judged by the user, and a distill proposal by
+distill. A candidate the AGENT inferred from watching the session was judged by nobody — but it
+enters looking exactly like a user one-liner, so it inherits a free pass it never earned.
+Measured over 2,245 telemetry events (2026-06-23 ~ 07-30): `add-policy` ran 8 times, `distill`
+2, and 6 of the 8 reached the engine through no distill at all.
+
+The test is **provenance, not merit** — "can you point at the user's own utterance in this
+transcript?" — because a merit test would be the very re-judgment the engine must not do, and
+because merit is unobservable at the entrance while a transcript line either exists or does
+not. The telemetry `trigger` field cannot stand in for it: every row reads `explicit`, so it
+does not separate a user statement from an agent judgment.
+
+**Exactly one kind is exempt, and it is the proposal — not the one-liner.** A distill proposal
+carries no user utterance *stating the rule*, only a confirmation of distill's own finding, so a
+gate read as a bare binary bounces it back to the skill that just sent it and the retro → distill
+→ add-policy chain never terminates. That exemption is structural: a proposal is a recognizable
+object (the four slots §1 names), so recognizing one costs no judgment. "User one-liner" is not —
+it is a *claim about origin*, which is the very thing the transcript test decides. Exempting it
+alongside the proposal would hand back the free pass this gate exists to revoke, since an
+inferred candidate enters looking exactly like one. So the one-liner takes the test and passes it
+on the merits (its utterance is right there); only the proposal skips it. The carve-out belongs
+in SKILL.md §1 rather than here, because §1 is what compaction re-attaches and this file is not.
+
+Bouncing is not refusing and not re-judging: it routes the unjudged candidate to the skill whose
+job that judgment is, and `distill`'s own anti-capture filter (recurrence floor, default-behavior,
+already-landed) is what decides. Ordering matters — the gate runs before classification and the
+§6 conflict check so a bounce throws none of that work away, and before the necessity gate
+(#450), which asks a different question: whether the artifact is worth its always-loaded line.
+Source first, then necessity, then the §3 confirmation.
+
 ## §2 — why the default taxonomy is reusable, not personal
 
 SKILL.md §2 ships the partition; this is the argument for shipping one at all.

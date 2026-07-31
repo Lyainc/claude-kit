@@ -149,6 +149,9 @@ jobs:
           python3 feedback-loop/scripts/test/test-sequence.py
           # #460 retro's E8 read is filtered, not `cat`-truncated to a 2 KB preview.
           python3 feedback-loop/scripts/test/test-e8-candidates.py
+          # #459 agent-inferred rule candidates are bounced to /distill, not landed unjudged.
+          python3 feedback-loop/scripts/test/test-distill-gate-routing.py --self-test
+          python3 feedback-loop/scripts/test/test-distill-gate-routing.py
           # G28 add-policy layer-routing (SOFT channel by layer + vanilla fallback).
           python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-routing.py

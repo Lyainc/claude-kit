@@ -11,8 +11,10 @@ Two pieces ship together:
 - **`retro` skill** — a session retrospective. Re-confirms vault promotion
   candidates (obsidian-vault-manager `audit` E8) behind a **user-confirmed** gate,
   then routes findings to three opt-in outputs: **action** (a git issue),
-  **memory** (a ready-to-run `/capture` slash command), **rule** (a project-local
-  rule line). Dedups repeats and caps work with a retro budget.
+  **memory** (a ready-to-run `/capture` slash command), **rule** (a ready-to-run
+  `/distill` slash command — a pattern only `retro` observed has been judged
+  worth keeping by nobody yet, so it goes to the judge before the landfill
+  engine, #459). Dedups repeats and caps work with a retro budget.
 - **telemetry** — an opt-in local event logger (`scripts/event-logger.sh`) plus
   analysis scripts (`report.py`, `sequence.py`, `validate-schema.py`). It records
   which skills/agents/commands ran so `retro` (and you) can spot waste and dead
@@ -28,8 +30,8 @@ machine-global state and no shared store across projects.
 The only coupling the design **permits** to the developer's **machine-level policy
 base** (the *local-harness* MVP at `~/.claude/rules/`) is a **user-confirmed nudge** —
 never an import, fetch, or shared store. What ships today is the project-scoped half:
-`retro` proposes **project-local** rule lines (`.claude/*.local.md`, Tier 3) behind a
-user-confirmed gate. The further step — *promoting* a recurring project rule up to the
+`retro` surfaces a rule candidate behind a user-confirmed gate and hands it to
+`distill` → `add-policy`, which owns where it lands. The further step — *promoting* a recurring project rule up to the
 machine-level base — is the **deferred (YAGNI)** form of that same bridge (it lands
 only once there are 2+ projects and a real drift event). Either way it is a
 **suggestion you confirm** (carried by the `rule_fire` data contract), never a runtime

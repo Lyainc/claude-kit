@@ -211,6 +211,26 @@ python3 feedback-loop/scripts/test/test-sequence.py
 python3 feedback-loop/scripts/test/test-e8-candidates.py
 # Expected: OK: all 19 e8-candidates checks passed.
 
+# add-policy source gate + distill anti-capture floor + retro rule-branch routing (#459).
+# add-policy by design never re-judges worth-keeping, because its input contract assumed every
+# candidate arrived already judged (user-stated, or distill-ruled). A third kind — one the AGENT
+# inferred from the session — looked like a user one-liner and inherited that free pass: measured
+# 8 add-policy runs vs 2 distill runs (2,245 events, 2026-06-23~07-30), 6 of the 8 through no
+# distill at all. Three prose skills, so this is a static-content check like
+# test-add-policy-routing.py: the gate's test must be OBSERVABLE (point at the user's utterance
+# in the transcript) and run BEFORE classification/§6, the never-re-judge invariant must be
+# restated where the gate is introduced (else the next editor reads it as a contradiction and
+# reverts), distill's DROP list must carry the recurrence floor + default-behavior + a bounded
+# already-landed grep, and retro's rule branch/Rules/description must all point at /distill.
+# §1 must also exempt the two already-judged kinds IN §1 ITSELF: a distill proposal carries no
+# user utterance stating the rule, so a gate read as a bare binary bounces it back to the skill
+# that sent it — and §1 is what compaction re-attaches, so a reference.md-only carve-out is not
+# in front of the engine when the test is applied.
+python3 feedback-loop/scripts/test/test-distill-gate-routing.py --self-test
+# Expected: OK: all 35 self-test cases passed
+python3 feedback-loop/scripts/test/test-distill-gate-routing.py
+# Expected: OK: all 14 distill-gate-routing checks passed.
+
 # add-policy layer-routing regression (G28 — add-policy is a prose skill, so this is a
 # static-content check on the live SKILL.md: the SOFT reminder channel is routed by layer
 # (stance/voice→~/.claude/CLAUDE.md, work-rule→~/.claude/rules) with a vanilla fallback

@@ -83,8 +83,19 @@ apply the **anti-capture filter** — DROP it if it is any of:
   that won't transfer;
 - **negative tool claim** — "tool X doesn't work / isn't available" (a transient
   fact, not a technique);
-- **already documented** — the procedure already lives in an existing skill,
-  CLAUDE.md, a reference doc, or the vault.
+- **seen once** — the **recurrence floor**: the correction or procedure must be observed
+  at **two or more separated points in the conversation**. Twice inside one turn counts as
+  one. A single sighting is an *instance*, not a *class*, and a class-level claim is what
+  this skill exists to make. A genuinely valuable one-off is not lost: the user can state it
+  outright, and a stated rule goes straight to `add-policy`'s explicit path;
+- **default behavior** — a competent agent would do it anyway without the rule. A rule that
+  changes no behavior costs context and buys nothing;
+- **already landed** — the procedure already lives in a loaded reminder, an existing skill,
+  a reference doc, or the vault. Do not assert this from memory; **check with the read-only
+  `Bash`/`Grep` this skill already holds**, over a **fixed** target list — `~/.claude/rules/README.md`,
+  the detail directory that index links to, `~/.claude/CLAUDE.md`, and the project CLAUDE.md.
+  No recursive sweep. This is the only place a *pre-landing* duplicate is caught:
+  `add-policy`'s §6 conflict check runs only against the ONE site it has already chosen.
 
 **"Capturing nothing is a normal, valid outcome."** If every candidate is
 filtered out, report ONE Korean line with the reason and STOP — do not
@@ -138,11 +149,13 @@ proposal — it leaves no working-tree changes of its own.
 
 ## retro connection (propose-only, NOT a 4th inline branch)
 
-`retro` may **surface** a `/distill` suggestion the same way it surfaces the memory
-branch's `/capture` — as a ready-to-run slash command for the USER to invoke, never
-inline. `distill` is its own user-initiated skill; `retro` does not run it and does
-not embed this procedure. (This keeps retro's 3-branch output unchanged; distill is
-a sibling, not a fourth always-on branch.)
+`retro`'s **rule branch surfaces `/distill`** (#459) the same way its memory branch
+surfaces `/capture` — a ready-to-run slash command for the USER to invoke, never
+inline. It points here rather than at `add-policy` because a pattern only `retro`
+observed has been judged worth keeping by nobody, and `add-policy` deliberately never
+makes that judgment. `distill` is its own user-initiated skill; `retro` does not run
+it and does not embed this procedure. (retro's output stays 3 branches; distill is
+the rule branch's destination, not a fourth always-on branch.)
 
 ## Scope rationale (thin-gate)
 
@@ -159,6 +172,8 @@ distill nudge.
 ## Rules
 
 - Procedural technique ONLY; declarative knowledge → vault (`/capture`·`/note`).
+- The recurrence floor is a DROP condition, not a preference: seen at fewer than two
+  separated points in the conversation → drop it. One sighting is an instance, not a class.
 - Discovery only: distill judges *what* is worth keeping and emits a proposal; placement
   and authoring are `add-policy`'s. distill never writes (no Write/Edit tools).
 - User-confirmed always; silent distillation is FORBIDDEN. Capturing nothing is valid.
