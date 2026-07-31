@@ -193,9 +193,13 @@ its content to the rule being landed**. Only a content match is a hit. A file th
 `type: feedback` is not a duplicate and is never touched.
 
 
-## §6-snippet — why the scan command is written the way it is
+## §6-snippet — the runnable scan command, and why it is written this way
 
-SKILL.md §6 ships the runnable snippet with one-line comments; this is the full reasoning behind each choice, including the `n starts at 9` guard, zsh NOMATCH, and why `2>/dev/null` is banned.
+**This file ships the command; SKILL.md §6 keeps the decision it serves** (scan memory too, a
+hit is a CONTENT match, an errored scan is inconclusive) and points here — #469 moved the
+executable text out so the decision fits the 5,000-token compaction window. Run it as written:
+the reasoning below is what each choice buys, including the `n starts at 9` guard, zsh NOMATCH,
+and why `2>/dev/null` is banned.
 
 ```bash
 # Machine-global site -> all projects. Project-scoped CLAUDE.md -> that project's dir only:
@@ -332,11 +336,34 @@ SKILL.md §7 keeps the working-tree rule and the closing line; this holds the wr
 - Close with one Korean line: "메인 컨텍스트가 검토 후 커밋하세요."
 
 
-## §8 — worked self-check example for the skill site
+## §8 — the per-site self-check checklist
 
-SKILL.md §8 keeps the per-site checks themselves. They are the **landfill-side artifact
-verification** that moved here from distill's old Phase 5 — distill kept only the
-discovery-side placement-fit judgment.
+**This file ships the checklist; SKILL.md §8 keeps the obligation** (verify before reporting,
+report failures in Korean, never claim a write or a removal that didn't happen) and points here
+— #469 moved the per-site mechanics out so the obligation fits the compaction window. This is
+the **landfill-side artifact verification** that moved here from distill's old Phase 5 — distill
+kept only the discovery-side placement-fit judgment.
+
+Run the case matching the site just written:
+
+- **skill site**: frontmatter parses and carries `name` / `description` / `allowed-tools`;
+  `name` is kebab-case and matches the directory; the body is non-empty (more than the
+  frontmatter); a new skill carries a top-level `provenance: distilled`.
+- **hook site**: the guard script passes `bash -n` and the registration entry is well-formed
+  JSON (a matcher plus a command array).
+- **reminder site**: for a new rule, a non-empty addition landed in the **routed channel** —
+  CLAUDE.md for stance/voice, `~/.claude/rules` for a work-rule (CLAUDE.md fallback when the
+  catalogue is absent). For an **Edit**, verify the rewrite instead: the old entry text is gone
+  and the approved new text is present — an edit need not grow the file. On an index+detail
+  split, also verify the **link resolves** (`[ -f ]` on the new index row's path) and that the
+  loaded directory gained no new `.md`.
+- **Supersede**: the new entry carries the content absorbed from the retired one (dropping it
+  is content loss, not a cleanup); the old entry is gone from its site — the index row *and* its
+  detail file on a split (recoverable delete, §6), the old lines on a prose channel — and no
+  inbound link still points at it.
+- **memory duplicate removal** (only when §6 found one): the duplicate file is gone and its
+  `MEMORY.md` index line with it. If the delete could not run, say so — never claim a removal
+  that didn't happen.
 
 Example for a freshly written skill (best-effort, Korean report on failure):
 

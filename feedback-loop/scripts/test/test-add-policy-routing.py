@@ -5,9 +5,13 @@ G28 ① + ③, extended by #377. The engine (feedback-loop/skills/add-policy/SKI
 prose skill, so most of this is a static-content check — it does not execute LLM logic. It
 pins the claims below, guarding against a future edit silently dropping the machine
 work-rule catalogue routing, the vanilla fallback, or (#377) the native-memory duplicate
-scan. The one exception is the #377 memory-scan snippet: SKILL.md ships that as *runnable
-bash*, so it is actually EXECUTED against temp-HOME fixtures (a prose grep is what let a
-zsh-NOMATCH abort slip through review in the first place).
+scan. The one exception is the #377 memory-scan snippet: it ships as *runnable bash*, so it is
+actually EXECUTED against temp-HOME fixtures (a prose grep is what let a zsh-NOMATCH abort slip
+through review in the first place). Since #469 that snippet lives in `reference.md` §6-snippet,
+not SKILL.md — the split moved executable text out of the 5,000-token compaction window and
+kept the decision in. So the live run reads BOTH files: prose claims stay pinned to SKILL.md
+(concatenating them would let a claim satisfy its pin from the file that is *not* re-attached
+after compaction), and only the snippet check reads the reference.
 
 Checks 2 (vanilla fallback) + 3 (no-hardcode/detect) ARE the #300 acceptance sign-off:
 the engine is prose with no runtime code path, so "does it degrade on a vanilla machine
@@ -35,6 +39,10 @@ The pinned claims:
    SILENTLY SKIPPED, never a scan failure. Zero hits is likewise not a failure. But an ERRORED
    scan is not an empty one: the pipe fixes the exit code at `sort`'s, so stderr is the only
    channel left, and an inconclusive scan must be reported as such — never as "no duplicates".
+9b. (#469) SKILL.md still points at `reference.md` §6-snippet AND says to run the command
+   there. A dropped pointer leaves the engine knowing it must scan memory with no command to
+   scan it with — which degrades into an improvised `grep`, the exact matcher §6-snippet exists
+   to prevent.
 9. (#377) The §6 scan snippet, run for real, against fixtures that include adversarial
    near-misses (`type: feedback-loop`, `type: feedbackx`, `type: feedback` in a note's BODY,
    MEMORY.md itself). It must never abort, must exit 0, and must match ONLY the two real
@@ -52,6 +60,8 @@ Exit codes:
 
 from __future__ import annotations
 
+import contextlib
+import io
 import os
 import re
 import shutil
@@ -64,10 +74,20 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SKILL_PATH = _REPO_ROOT / "feedback-loop" / "skills" / "add-policy" / "SKILL.md"
 
 
+_REFERENCE_PATH = _SKILL_PATH.with_name("reference.md")
+
+
 def _load_skill() -> str:
     if not _SKILL_PATH.is_file():
         raise FileNotFoundError(f"SKILL.md not found at {_SKILL_PATH}")
     return _SKILL_PATH.read_text(encoding="utf-8")
+
+
+def _load_reference() -> str:
+    """#469: the runnable scan command lives here now, not in SKILL.md."""
+    if not _REFERENCE_PATH.is_file():
+        raise FileNotFoundError(f"reference.md not found at {_REFERENCE_PATH}")
+    return _REFERENCE_PATH.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -237,12 +257,47 @@ def check_memory_vanilla_skip(text: str) -> tuple[bool, str]:
     return True, "vanilla machine (no memory directory) -> memory scan silently skipped"
 
 
+def check_scan_command_pointer(text: str) -> tuple[bool, str]:
+    """#469: SKILL.md keeps the decision, reference.md §6-snippet ships the command.
+
+    That split only holds while SKILL.md still names where the command is AND tells the engine
+    to run it — a pointer that decays into a bare citation ("see §6-snippet") is how an
+    on-demand step turns optional. Pinned separately from the prose claims because those all
+    stay in SKILL.md; this one is the seam the split created.
+    """
+    lower = _prose(text)
+    if "§6-snippet" not in lower:
+        return False, "SKILL.md doesn't name reference.md §6-snippet as where the scan command lives"
+    if "run the command" not in lower:
+        return False, "the §6-snippet pointer is a citation, not an instruction to run the command"
+    return True, "SKILL.md points at reference.md §6-snippet and instructs running the command there"
+
+
 _BASH_BLOCK_RE = re.compile(r"```bash\n(.*?)```", re.DOTALL)
 
 
+_SNIPPET_SECTION_RE = re.compile(r"^## §6-snippet\b.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL)
+
+
 def _extract_memory_snippet(text: str) -> str | None:
-    """The one fenced bash block in SKILL.md that scans the memory directory."""
-    for block in _BASH_BLOCK_RE.findall(text):
+    """The fenced bash block under reference.md's `## §6-snippet`, or None.
+
+    Scoped to that heading, not to "the first block that mentions /memory/ and feedback":
+    reference.md §6-memory sits ABOVE §6-snippet, so an illustrative block added there would
+    hijack extraction and leave the real command unexercised while the suite stayed green —
+    the guard-quietly-stops-guarding shape this file exists to prevent.
+
+    A missing heading is a MISS, never a whole-document fallback. The fallback was tried and
+    it silently rescued the failure it was supposed to catch: rename the heading in
+    reference.md, leave the block, and SKILL.md's pointer sends the engine to a section that
+    no longer exists — while the fallback found the block anyway and the suite stayed green.
+    `check_scan_command_pointer` cannot cover that half; it only reads SKILL.md's side of the
+    seam. So the fixtures carry the heading instead.
+    """
+    section = _SNIPPET_SECTION_RE.search(text)
+    if section is None:
+        return None
+    for block in _BASH_BLOCK_RE.findall(section.group(0)):
         if "/memory/" in block and "feedback" in block:
             return block
     return None
@@ -267,7 +322,10 @@ def check_memory_snippet_runs(text: str) -> tuple[bool, str]:
     """
     snippet = _extract_memory_snippet(text)
     if snippet is None:
-        return False, "no runnable memory-scan bash snippet found in SKILL.md §6"
+        return False, (
+            "no runnable memory-scan bash snippet found under `## §6-snippet` — since #469 it "
+            "lives in add-policy/reference.md, not SKILL.md"
+        )
 
     shells = [s for s in ("/bin/bash", "/bin/zsh", "/bin/sh") if Path(s).exists() or shutil.which(s)]
     if not shells:
@@ -368,14 +426,21 @@ _CHECKS = [
     check_memory_delete_safety,
     check_memory_scan_fails_loud,
     check_memory_vanilla_skip,
+    check_scan_command_pointer,
     check_memory_snippet_runs,
 ]
 
 
-def run_checks(text: str) -> tuple[int, int]:
+def run_checks(text: str, snippet_text: str) -> tuple[int, int]:
+    """`text` is SKILL.md (every prose claim); `snippet_text` is where the runnable bash lives.
+
+    Two sources on purpose (#469): the command moved to reference.md, and passing one
+    concatenated blob instead would let a SKILL.md prose claim be satisfied by the reference —
+    the file compaction does *not* re-attach, which is the whole thing being guarded.
+    """
     passed = failed = 0
     for check in _CHECKS:
-        ok, msg = check(text)
+        ok, msg = check(snippet_text if check is check_memory_snippet_runs else text)
         print(f"  [{'OK  ' if ok else 'FAIL'}] {msg}")
         if ok:
             passed += 1
@@ -414,6 +479,9 @@ hit, surface it in the 1-click confirmation ("매립 후 memory 항목은 지울
 duplicate memory file after the landfill write — its MEMORY.md index line is the one whose
 markdown link target is that file's basename. Use trash-put; never force-delete, never `rm`.
 Memory is an input, never a destination: an input queue, not a fourth site.
+Read reference.md §6-snippet now and run the command it ships, as written.
+
+## §6-snippet — the runnable scan command
 
 ```bash
 SCAN_ROOT="$HOME/.claude/projects"
@@ -445,6 +513,30 @@ def _self_test() -> int:
         ok, _ = check(_FAILING)
         cases.append((f"failing: {check.__name__} (expect FAIL)", not ok))
 
+    # The two-source WIRING (#469), not merely its result. A prose source missing `SCAN_ROOT`,
+    # paired with a snippet source that has it: correct wiring reds one check, while a
+    # run_checks that concatenated its two arguments would let the snippet answer for the
+    # missing prose and report clean. Without this case that regression passes --self-test.
+    prose_only = _BASH_BLOCK_RE.sub("", _PASSING)
+    prose_missing = prose_only.replace("SCAN_ROOT follows the site", "The scan scope follows the site")
+    assert prose_missing != prose_only, "fixture no-opped: the SCAN_ROOT sentence moved"
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        _, wiring_failed = run_checks(prose_missing, _PASSING)
+    cases.append((
+        "two-source wiring: a SKILL.md claim cannot be satisfied from the snippet source",
+        wiring_failed == 1,
+    ))
+
+    # The other half of the seam: rename the heading in the reference and leave the block, and
+    # SKILL.md's pointer now names a section that does not exist. The whole-document fallback
+    # this extractor used to carry found the block anyway and stayed green, which is why the
+    # fallback is gone — this case is what keeps it from coming back.
+    orphaned = _PASSING.replace("## §6-snippet", "## §6-scan")
+    assert orphaned != _PASSING, "fixture no-opped: the §6-snippet heading moved"
+    ok, _ = check_memory_snippet_runs(orphaned)
+    cases.append(("orphaned §6-snippet heading — block present, pointer dangling (expect FAIL)", not ok))
+
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
         print(f"  [{'OK' if ok else 'FAIL'}] {name}")
@@ -464,14 +556,15 @@ def main(argv: list[str]) -> int:
         print("Running self-test (in-memory fixtures)...\n")
         return _self_test()
 
-    print(f"Checking: {_SKILL_PATH}\n")
+    print(f"Checking: {_SKILL_PATH}\n          {_REFERENCE_PATH} (scan command, #469)\n")
     try:
         text = _load_skill()
+        reference = _load_reference()
     except FileNotFoundError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
 
-    passed, failed = run_checks(text)
+    passed, failed = run_checks(text, reference)
     print()
     if failed:
         print(f"RESULT: {failed} check(s) FAILED — see above.")
