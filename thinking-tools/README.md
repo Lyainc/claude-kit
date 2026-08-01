@@ -25,6 +25,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `unknown-discovery` | Discover blind spots through Socratic interviews | 맹점, 놓친 것, blind spot, 심층 인터뷰 |
 | `adversarial-review` | Stress-test claims with 1:1 attack rounds and Survival Score | 반증, 공격, 검증, adversarial review, 주장 반박 |
 | `build-spec` | Crystallize vague ideas into machine-readable Seed specs via Socratic interview + Ambiguity gating | 스펙 구체화, build spec, seed 스펙, 모호함 해소 |
+| `completion-condition` | Pick the next session's cohesive unit, then render it as a `/goal`-evaluable condition | 완료조건, 다음 세션 목표, START-PROMPT, next goal |
 
 ## 문제 해결
 

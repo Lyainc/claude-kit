@@ -13,7 +13,7 @@
     {
       "name": "thinking-tools",
       "version": "4.2.1",
-      "description": "Claude Code thinking-tools plugin: 7 skills for structured reasoning, debate, document polish, blind-spot detection, and idea crystallization, plus a thinking-facilitator agent.",
+      "description": "Claude Code thinking-tools plugin: 8 skills for structured reasoning, debate, document polish, blind-spot detection, idea crystallization, and next-session completion conditions, plus a thinking-facilitator agent.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -28,7 +28,8 @@
         "unknown-discovery",
         "thinking-facilitator",
         "adversarial-review",
-        "build-spec"
+        "build-spec",
+        "completion-condition"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
