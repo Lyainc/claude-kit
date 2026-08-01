@@ -24,7 +24,7 @@ claude-kit은 **①인지 ②결정화·출력 ③딜리버리 ④지식베이�
 | 레이어 | 동작 | claude-kit 매핑 | 소유 |
 |--------|------|----------------|------|
 | **①인지** | reasoning 조작 | diverse-sampling · unknown-discovery · expert-panel · adversarial-review | claude-kit (leaf) |
-| **②결정화·출력** | 포맷·목적별 산출물 | build-spec(seed) · doc-concretize · doc-polish · graphify(html) · note · issue | claude-kit (leaf) |
+| **②결정화·출력** | 포맷·목적별 산출물 | build-spec(seed) · doc-concretize · doc-polish · graphify(html) · note · issue · completion-condition(`/goal` 완료조건) | claude-kit (leaf) |
 | **③딜리버리** | vault 운반 | vault-bridge | claude-kit (leaf) |
 | **④지식베이스** | vault 상주 관리 | obsidian-vault-manager | claude-kit (leaf) |
 | **⑤실행(doing)** | debug · quality · retro · 슬라이스 루프 · 오케스트레이션 | **native `/goal` + Workflow + agents가 직접 담당** (슬라이스 루프 = narrative START-PROMPT를 읽는 native `/goal`; leaf 스킬 관례 호출). measure→improve = `feedback-loop`(외부 배포 ⑤, retro+telemetry). 자체 흡수 하네스(`dev-harness`)는 2026-06-29 CUT으로 철회. | native + feedback-loop |
