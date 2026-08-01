@@ -1,6 +1,6 @@
 # Obsidian Web Clipper 템플릿 — vault v4
 
-Obsidian Web Clipper 브라우저 확장으로 웹 페이지를 vault v4 형식으로 바로 저장하는 템플릿입니다. OVM `/capture` 스킬과 동일한 frontmatter 규약(`type: capture`, `source: web-clipper`)을 따릅니다.
+Obsidian Web Clipper 브라우저 확장으로 웹 페이지를 vault v4 형식으로 바로 저장하는 템플릿입니다. vault-bridge `/vault-save` 스킬과 동일한 frontmatter 규약(`type: capture`, `source: web-clipper`)을 따릅니다.
 
 ## 빠른 시작
 
@@ -85,12 +85,12 @@ title: How LLMs Work From Scratch
 | `path` | `inbox` | vault root 기준 상대 경로. `~/vault/inbox/`에 저장. |
 | `behavior` | `create` | 항상 새 파일 생성. 기존 파일 덮어쓰지 않음. |
 | `type` | `capture` | **type opt-in 마커** — 이 필드가 있어야 claude-kit이 파일을 관리 대상으로 인식 (vault v4 §2.2). |
-| `source` | `web-clipper` | OVM `/capture` URL 캡처(`url-capture`)와 출처 구분. |
+| `source` | `web-clipper` | `/vault-save` URL 캡처(`url-capture`)와 출처 구분. |
 | `title` | `{{title}}` | 페이지 `<title>` 태그 값. frontmatter에 별도 저장해 검색 편의 제공. |
 
-## OVM `/capture`와 비교
+## `/vault-save`와 비교
 
-| | `/capture <URL>` (OVM) | Web Clipper |
+| | `/vault-save <URL>` (vault-bridge) | Web Clipper |
 |---|---|---|
 | 트리거 | Claude Code 세션 내 명령 | 브라우저에서 직접 |
 | 파서 | Defuddle CLI (H1 title 추출 포함) | 확장 내장 파서 |

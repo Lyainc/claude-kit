@@ -39,7 +39,7 @@
     {
       "name": "obsidian-vault-manager",
       "version": "4.2.1",
-      "description": "Obsidian vault knowledge management plugin (v4/v5): capture / note / wiki / audit / base skills + 2 agents for a minimal second-brain workflow. wiki compiles learned domain knowledge into the AI-recall-primary vault/wiki/ A layer (gated explicit action, provenance-tracked; v5). audit detects E1–E12 structural defects (incl. E9 tag/property vocabulary) and promotion candidates. base generates non-destructive Obsidian Bases (.base) views. type-optin; ovm-primitives shell API.",
+      "description": "Obsidian vault knowledge management plugin (v4/v5): wiki / audit / base skills + 2 agents — the librarian half of the vault (the write entrance moved to vault-bridge /vault-save, #480). wiki compiles learned domain knowledge into the AI-recall-primary vault/wiki/ A layer (gated explicit action, provenance-tracked; v5). audit detects E1–E12 structural defects (incl. E9 tag/property vocabulary). base generates non-destructive Obsidian Bases (.base) views. type-optin; ovm-primitives shell API.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -52,8 +52,6 @@
         "skills",
         "note-taking",
         "audit",
-        "decision",
-        "status-machine",
         "type-optin",
         "second-brain",
         "web-clipper",
@@ -63,8 +61,6 @@
         "wiki",
         "llm-wiki",
         "provenance",
-        "capture",
-        "note",
         "vault-knowledge-manager",
         "vault-file-organizer"
       ],
@@ -76,7 +72,7 @@
     {
       "name": "vault-bridge",
       "version": "4.2.1",
-      "description": "Obsidian vault ↔ project bridge for Claude Code: manifest cache, haiku read-only vault-searcher agent (read/write asymmetry — vault reads delegable, writes are main-context only via the Write Role Contract), main-context write-primitive skills (/vault-link, /vault-commit, /vault-manifest-refresh), and deterministic no-LLM SessionStart/PreToolUse hooks, with .vault-link project binding.",
+      "description": "Obsidian vault ↔ project bridge for Claude Code: /vault-save — the single reference-material entry, callable from any project (replaces the retired OVM /capture and /note, #480) — plus a manifest cache, a haiku read-only vault-searcher agent (read/write asymmetry — vault reads delegable, writes are main-context only via the Write Role Contract), main-context write-primitive skills (/vault-link, /vault-commit, /vault-manifest-refresh), and deterministic no-LLM SessionStart/PreToolUse hooks, with .vault-link project binding.",
       "author": {
         "name": "Lyainc",
         "url": "https://github.com/Lyainc"
@@ -88,6 +84,11 @@
         "vault-searcher",
         "search",
         "hooks",
+        "vault-save",
+        "capture",
+        "note-taking",
+        "url-metadata",
+        "provenance",
         "vault-link",
         "project-binding",
         "vault-commit",

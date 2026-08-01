@@ -50,9 +50,15 @@ The priority mapping is canonical in `scripts/test/audit-validate.py` (constant 
 | Scope | Fields |
 |-------|--------|
 | All types (universal) | `created`, `tags`, `type` |
-| `type: note` and `type: decision` only | `status` (v4 §3.3 status machine) |
 
-`status` is optional for `capture`, `session`, and `plan` — omitting it for those types is not an E2 violation.
+`status` is **not** a required field for any type. It used to be required for `type: note` and
+`type: decision` (v4 §3.3 status machine); that machine was abolished when B became a reference
+warehouse (v5 §5/§6, #480), and `/vault-save` writes no `status` at all — requiring it would flag
+every newly saved file as Critical. A `status:` still present on an older file is not an error.
+
+`provenance:` is required by the v5 §5 spec but is **not** an E2 field yet — the enforcement point
+is the `/vault-save` entry. Extending E2 to it needs the existing inventory backfilled first
+(#480 follow-up).
 
 **Tag inference** (#127, display-only proposal): when `tags:` is among the
 missing fields, the OPTIONAL-FIX step does **not** insert an empty `tags: []`.
@@ -218,7 +224,7 @@ for each record in frontmatter_records where path startswith "notes/":
 **Source**: `manifest.json` `files[]` entries where `promotion_candidate == true` — `type: note`/`decision` via `references_in ≥ VAULT_AUDIT_PROMOTION_REFS` (3) OR `access_count ≥ VAULT_AUDIT_PROMOTION_ACCESS` (5); `type: capture` via `access_count` alone (Model X — inbox ore rarely gets wikilinked in, so `references_in` isn't a fair signal there).
 **Guard**: Absent or `schema_version < 3` manifest → no E8 findings (graceful skip). Manifest entries whose underlying files were deleted are skipped (phantom guard).
 
-**Rationale**: A note with high inbound references or frequent access is a candidate for manual promotion to `status: evergreen`. A recalled `capture` has no `status` field to flip (v4 §3.3 — capture can never become evergreen directly); its finding instead points at `/note` or `/wiki` to promote. Surfaced as Info/P2 — the user decides; never auto-fixed.
+**Rationale**: A note with high inbound references or frequent access is a candidate for manual promotion to `status: evergreen`. A recalled `capture` has no `status` field to flip (v4 §3.3 — capture can never become evergreen directly); its finding instead points at `/vault-save` or `/wiki` to promote. Surfaced as Info/P2 — the user decides; never auto-fixed.
 
 ## E9 — `tag_vocabulary_inconsistency` [Warning]
 

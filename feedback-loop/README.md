@@ -11,7 +11,7 @@ Two pieces ship together:
 - **`retro` skill** — a session retrospective. Re-confirms vault promotion
   candidates (obsidian-vault-manager `audit` E8) behind a **user-confirmed** gate,
   then routes findings to three opt-in outputs: **action** (a git issue),
-  **memory** (a ready-to-run `/capture` slash command), **rule** (a ready-to-run
+  **memory** (a ready-to-run `/vault-save` slash command), **rule** (a ready-to-run
   `/distill` slash command — a pattern only `retro` observed has been judged
   worth keeping by nobody yet, so it goes to the judge before the landfill
   engine, #459). Dedups repeats and caps work with a retro budget.

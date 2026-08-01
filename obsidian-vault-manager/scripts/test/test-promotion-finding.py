@@ -203,11 +203,11 @@ def test_capture_candidate_surfaced() -> None:
         assert len(e8) == 1, f"expected 1 E8 finding for recalled capture ore, got {len(e8)}"
         assert e8[0]["path"] == "inbox/capture-2026-04-01-topic.md"
         # capture has no status field to flip — detail must not tell the user
-        # to do a status edit; it must point at /note or /wiki instead.
+        # to do a status edit; it must point at /vault-save or /wiki instead.
         assert "status→evergreen" not in e8[0]["detail"], \
             f"capture E8 detail must not suggest a status flip, got {e8[0]['detail']!r}"
-        assert "/note" in e8[0]["detail"] or "/wiki" in e8[0]["detail"], \
-            f"capture E8 detail should point at /note or /wiki, got {e8[0]['detail']!r}"
+        assert "/vault-save" in e8[0]["detail"] or "/wiki" in e8[0]["detail"], \
+            f"capture E8 detail should point at /vault-save or /wiki, got {e8[0]['detail']!r}"
     print("PASS test_capture_candidate_surfaced")
 
 

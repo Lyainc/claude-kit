@@ -278,22 +278,9 @@ Has created but missing tags and type.
 EOF
   done
 
-  # ── E2-status: missing status for status-required types (5 files) ──────────────
-  # Files with full base frontmatter (created+tags+type:note) but missing `status`.
-  # Trigger: STATUS_REQUIRED_TYPES = {note, decision} (v4 §3.3) fires E2 for these.
-  for i in $(seq 1 5); do
-    write_file "$FIXTURE_DIR/notes/audit-e2-status-missing-$(printf '%03d' $i).md" <<EOF
----
-created: 2026-04-01
-tags: [note]
-type: note
----
-
-# Audit E2 Status-Missing Note ${i}
-
-Has created/tags/type but missing required \`status\` for type:note (v4 §3.3).
-EOF
-  done
+  # (The former E2-status seed block is gone: `status` left the required set when the
+  # v4 §3.3 status machine was abolished — v5 §5/§6, #480. A note with created+tags+type
+  # and no status is now a CONFORMING file, so seeding one would be a false positive.)
 
   # ── E3: filename_convention_violation (5 files) ───────────────────────────────
   # Notes with v3-style date-first prefix (violates v4 notes/ naming rule).

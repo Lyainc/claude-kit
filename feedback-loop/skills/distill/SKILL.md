@@ -1,6 +1,6 @@
 ---
 name: distill
-description: "User-confirmed DISCOVERY of REUSABLE PROCEDURAL TECHNIQUES in the current session — the discovery half of the ⑤ self-improvement loop. Judges what is class-level reusable (vs a one-off), whether an existing skill already covers it, or whether nothing is worth capturing, and emits a natural-language proposal (what / why / session-provenance / inviolability judgment); placement and authoring are the sibling add-policy landfill engine's job, not distill's. SIS-derived (claude-self-improving-skills). Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: declarative knowledge (facts/decisions/session records) = vault /capture or /note, NOT distill; placing/authoring a confirmed rule = add-policy (sibling); mechanical skill authoring = skill-creator. Example: '/distill' or '이 세션 기법 증류해줘'."
+description: "User-confirmed DISCOVERY of REUSABLE PROCEDURAL TECHNIQUES in the current session — the discovery half of the ⑤ self-improvement loop. Judges what is class-level reusable (vs a one-off), whether an existing skill already covers it, or whether nothing is worth capturing, and emits a natural-language proposal (what / why / session-provenance / inviolability judgment); placement and authoring are the sibling add-policy landfill engine's job, not distill's. SIS-derived (claude-self-improving-skills). Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: declarative knowledge (facts/decisions/session records) = vault /vault-save, NOT distill; placing/authoring a confirmed rule = add-policy (sibling); mechanical skill authoring = skill-creator. Example: '/distill' or '이 세션 기법 증류해줘'."
 model: inherit
 allowed-tools: Read Bash Glob Grep AskUserQuestion
 ---
@@ -51,9 +51,9 @@ engine's 1-click gate. distill names neither.
 - **Boundary ① — procedural only.** `distill` captures *reusable procedural
   technique* (a how-to that recurs across tasks). **Declarative knowledge** — facts,
   decisions, session records — is NOT distill's domain; it belongs in the vault via
-  `/capture` (raw) or `/note` (evergreen). If the candidate is "what we decided" or
+  `/vault-save`. If the candidate is "what we decided" or
   "what happened", route it to the vault and stop. (Co-evolution note #215: the
-  vault side of this line — `/capture`·`/note` wording — tracks the ④ vault
+  vault side of this line — `/vault-save` wording — tracks the ④ vault
   redesign; the *procedural-technique* side of the boundary is stable.)
 - **Boundary ② — discovery vs landfill vs authoring.** `distill` is the
   **retrospective discovery judgment** ("is this worth keeping?"). `add-policy` (sibling)
@@ -138,7 +138,7 @@ asked here — that is `add-policy`'s 1-click gate.** Distilling is opt-in exact
 
 For each confirmed proposal, hand the natural-language proposal object to the
 `add-policy` landfill engine (surface it as a ready-to-run `/add-policy` invocation for
-the user, the same propose-only way `retro` surfaces `/capture` — never run it inline).
+the user, the same propose-only way `retro` surfaces `/vault-save` — never run it inline).
 `add-policy` classifies, conflict-checks, places, and authors; it enforces the
 inviolability block the proposal carries. distill's responsibility ends at the confirmed
 proposal — it leaves no working-tree changes of its own.
@@ -150,7 +150,7 @@ proposal — it leaves no working-tree changes of its own.
 ## retro connection (propose-only, NOT a 4th inline branch)
 
 `retro`'s **rule branch surfaces `/distill`** (#459) the same way its memory branch
-surfaces `/capture` — a ready-to-run slash command for the USER to invoke, never
+surfaces `/vault-save` — a ready-to-run slash command for the USER to invoke, never
 inline. It points here rather than at `add-policy` because a pattern only `retro`
 observed has been judged worth keeping by nobody, and `add-policy` deliberately never
 makes that judgment. `distill` is its own user-initiated skill; `retro` does not run
@@ -171,7 +171,7 @@ distill nudge.
 
 ## Rules
 
-- Procedural technique ONLY; declarative knowledge → vault (`/capture`·`/note`).
+- Procedural technique ONLY; declarative knowledge → vault (`/vault-save`).
 - The recurrence floor is a DROP condition, not a preference: seen at fewer than two
   separated points in the conversation → drop it. One sighting is an instance, not a class.
 - Discovery only: distill judges *what* is worth keeping and emits a proposal; placement

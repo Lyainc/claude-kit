@@ -1,0 +1,114 @@
+---
+name: vault-save
+description: "The single entry for putting reference material into the vault (~/vault/) — replaces the retired /capture and /note. Anything worth pulling back out while planning later: web clippings, papers, analyses, brainstorms, early plans, study notes, meeting memos. Saves immediately with no confirmation and prints the path. Destination is mechanical, by authorship: source text taken as-is (URL, pasted original, session dump) → inbox/, prose you wrote → notes/. No status field and no promotion gate — the vault is a reference warehouse, so selection happens on retrieval, not at the entrance (v5 §5). KR triggers: '볼트에 저장', '메모해줘', '이거 저장해줘', '자료 저장', '받아적어줘', '클리핑 저장', '노트로 정리', '인박스에 저장'. EN triggers: 'save to vault', 'vault save', 'capture this', 'quick memo', 'save this link', 'jot this down', 'write up a note'. Examples: '/vault-save https://example.com/article', '/vault-save 오늘 회의에서 나온 API 변경점'. Routing: domain knowledge compiled for AI recall is /wiki (obsidian-vault-manager, A layer); a repo-bound design decision goes to a GitHub issue, not the vault (v5 §10)."
+allowed-tools: Read Write Bash Glob
+---
+
+**User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
+
+Save `$ARGUMENTS` into `~/vault/` immediately, without a confirmation prompt, then print only the saved path.
+
+This skill runs in the main context. Never delegate the write to a subagent — the vault-bridge
+Write Role Contract denies subagent vault writes (`hooks/pre-write-guard.sh`).
+
+## Destination
+
+The split is **authorship, not quality**. Nothing here judges whether the material is good enough
+to keep; that judgment happens when you go looking for it again.
+
+| Input | Folder | `type:` | Filename |
+|-------|--------|---------|----------|
+| Source text taken as-is — a URL, a pasted article/paper/excerpt, a raw session dump | `~/vault/inbox/` | `capture` | `capture-YYYY-MM-DD-{slug}.md` |
+| Prose you wrote — analysis, brainstorm, early plan, study note, meeting memo | `~/vault/notes/` | `note` | `{slug}.md` |
+| `--type decision {topic}` — an explicit decision record | `~/vault/notes/` | `decision` | `decision-YYYY-MM-DD-{slug}.md` |
+
+- `{slug}`: 2–4 kebab-case words from the topic or the extracted title.
+- Unsure which side? If the text would survive unchanged without you, it is source → `inbox/`.
+- `--type decision` is kept only because the fate of vault decision records is still open
+  (#477 open item 2: keep / absorb into GitHub issues / move to rules). A **repo-bound** design
+  decision belongs in a GitHub issue, not here (v5 §10) — say so and stop rather than writing one.
+
+## Frontmatter
+
+```yaml
+---
+created: YYYY-MM-DD
+type: capture|note|decision
+tags:
+  - {type}
+  - {topic-keyword}
+provenance: "{where this came from — URL, session topic, conversation, book, meeting}"
+---
+```
+
+- **`provenance` is required on every file.** There is no gate at the entrance, so being able to
+  trace a file back to its origin is the whole defense at retrieval time (v5 §5, #480). Never
+  write a file without it; if the origin is genuinely just "this conversation", say that.
+- **No `status:` field.** The `raw→draft→evergreen→archived` machine and the promotion gate are
+  abolished (v5 §5/§6, #480). Do not write `status:` and do not offer to promote anything.
+- URL saves add `url:` and, when an H1 was extracted, `title:` (see below). Quote both values.
+
+## Procedure
+
+1. Parse `$ARGUMENTS`: strip a leading `--type decision` flag if present; the rest is the content
+   or URL.
+2. `mkdir -p` the target directory before writing.
+3. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
+   write the content as the body verbatim (keep the user's own wording — do not summarize).
+4. Filename collision (same stem already exists): append `-v2`, `-v3`, … automatically. This is a
+   mechanical uniqueness guarantee, not a content check.
+5. Write the file. For `--type decision`, structure the body as `## 문제` / `## 선택지` /
+   `## 결정` / `## 근거`.
+6. Output the saved path. No follow-up questions, no summary of what was saved.
+
+Use `[[wikilinks]]` for internal vault references and Markdown links for external URLs.
+
+## URL capture
+
+**Step 1 — Defuddle parse**
+
+1. Store `URL="$ARGUMENTS"`.
+2. Check for Defuddle: `command -v defuddle`. Do not install anything if it is missing.
+3. Detect a timeout helper (`timeout` → `gtimeout` → none); store as `$DEFUDDLE_TO`.
+4. Run `${DEFUDDLE_TO:+$DEFUDDLE_TO 15} defuddle parse "$URL" --md`; capture stdout in
+   `$DEFUDDLE_OUT` and the exit code in `$DEFUDDLE_RC`.
+
+**Step 2 — Title and slug**
+
+If Defuddle succeeded (`$DEFUDDLE_RC == 0`):
+- Extract the first H1: `TITLE=$(printf '%s' "$DEFUDDLE_OUT" | grep -m1 '^# ' | sed 's/^# //')`.
+- Escape YAML double quotes: `TITLE=$(printf '%s' "$TITLE" | sed 's/"/\\"/g')`.
+- Build `{slug}`: lowercase the title, spaces → hyphens, strip anything outside `[a-z0-9-]`, take
+  the first 4 hyphen-separated words. If the slug ends up empty or shorter than 2 characters (a
+  non-ASCII title stripped to nothing), fall back to the URL path and leave `$TITLE` empty.
+- No H1 found: derive `{slug}` from the last 2–3 path segments of `$URL`; leave `$TITLE` empty.
+
+If Defuddle is missing, fails, or times out (exit 124): derive `{slug}` from the URL path, leave
+`$TITLE` empty, and write the bare URL as the only body line.
+
+**Step 3 — Frontmatter and body**
+
+```yaml
+---
+created: YYYY-MM-DD
+type: capture
+tags:
+  - capture
+  - web
+provenance: "url-capture"
+url: "<original URL>"
+title: "<extracted H1 — omit this line entirely when $TITLE is empty>"
+---
+```
+
+Body: the full `$DEFUDDLE_OUT` (including its H1) on success, the bare URL otherwise.
+
+## Rules
+
+- **Save immediately, without confirmation.** This is the core behavior — friction at the entrance
+  is what killed the previous two entries (#477).
+- Write `provenance:` on every file; never write `status:`.
+- Save immediately regardless of the Defuddle outcome.
+- Output the saved path only.
+- `notes/` allows free sub-folder structure; do not auto-create sub-folders.
+- Never write to `~/vault/wiki/` — that is `/wiki`'s (obsidian-vault-manager) A layer.
