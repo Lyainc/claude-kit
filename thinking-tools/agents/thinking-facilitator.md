@@ -10,6 +10,7 @@ description: |
   invoke the matching skill directly without facilitator routing.
 model: sonnet
 color: blue
+tools: Skill, AskUserQuestion
 skills:
   - diverse-sampling
   - doc-concretize
