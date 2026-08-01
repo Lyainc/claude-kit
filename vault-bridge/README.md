@@ -299,33 +299,9 @@ VAULT_BRIDGE_WRITE_CONTRACT=off claude
 - vault-bridge **never authors, modifies, or deletes vault content files** — content creation belongs to obsidian-vault-manager (`/capture`, `/note`, `/wiki`). Its only writes are the `.vault-link` pointer and git commits.
 - For full vault management (note creation, MOC updates, inbox review), use `obsidian-vault-manager`.
 
-## Direct Access Guard
-
-vault-bridge v1.3.0 adds a **PreToolUse hook** (`hooks/pre-access-guard.sh`) that detects when Claude directly reads vault files with `Read`, `Grep`, or `Glob` tools, bypassing the vault-searcher agent.
-
-### Purpose
-
-Direct file access skips the manifest-first approach that delivers [97% token savings](#token-savings-estimate). The guard makes this visible by emitting a soft notice whenever it happens — it never blocks the operation.
-
-### Soft enforcement philosophy
-
-- **Never blocks**: `exit 0` always. User workflow is never interrupted.
-- **Informs at milestones**: a `systemMessage` is injected into Claude's context on the 1st, 2nd, 3rd, and 5th direct access of the session, suggesting vault-searcher as the more efficient path. Subsequent accesses still increment the counter but emit no notice — keeps hot-path sessions quiet while preserving telemetry.
-- **Counts silently**: each direct access increments a session counter at `/tmp/vault-bridge-session-{session_id}/direct-access-count` (every call, not just milestones). The counter drives the milestone notices above; the prior SessionEnd auto-report that also consumed it was removed in G24.
-
-### Counter file structure
-
-```
-/tmp/vault-bridge-session-{CLAUDE_SESSION_ID}/
-  direct-access-count   # plain integer, total count for this session
-  direct-access-log     # tab-separated: timestamp + tool + abs_path (debug)
-```
-
-`CLAUDE_SESSION_ID` from environment; falls back to `pid-{PID}` if absent. The directory lives under `/tmp` (OS-cleaned); the prior SessionEnd cleanup was removed in G24.
-
 ### Kill switch
 
-Set `VAULT_BRIDGE_DISABLE=1` to suppress all vault-bridge hooks including this guard (useful in CI or environments without a vault).
+Set `VAULT_BRIDGE_DISABLE=1` to suppress all vault-bridge hooks (useful in CI or environments without a vault).
 
 ```bash
 VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
@@ -335,7 +311,6 @@ VAULT_BRIDGE_DISABLE=1 claude  # no vault-bridge hooks fire
 
 - Same-date collisions auto-increment with `-v2`, `-v3` suffixes
 - **SessionStart hook** (`hooks/session-start-manifest.sh`): checks manifest staleness and regenerates `manifest.json` in the background. Never blocks session startup. (The Stop / SessionEnd session-lifecycle auto-hooks and the SessionStart resume auto-injection were removed in G24; the `/handoff` command + `resume.md` mechanism were retired in G26 — see [Session Handoff](#session-handoff).)
-- **PreToolUse hook (Read/Grep/Glob)** (`hooks/pre-access-guard.sh`): detects direct `Read`/`Grep`/`Glob` calls targeting `~/vault/`; emits a soft notice with vault-searcher as alternative; increments session counter; never blocks
 - **PreToolUse hook (Write/Edit/Bash)** (`hooks/pre-write-guard.sh`): validates vault file naming conventions (Write/Edit only) AND enforces the Write Role policy on all three tools — a subagent's `echo > ~/vault/x.md` / `mv` / `tee` is denied like a `Write` would be (#381), while vault reads (`grep`, `cat`, `cd … && git status`) pass untouched — vault writes must be user-initiated (main context, executed by skills). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are blocked (default) or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce`, supports `warn` / `off`). Naming convention is log-only by default (`exit 0` always); set `VAULT_BRIDGE_STRICT_NAMING=1` to block non-conforming writes (`exit 2`)
 - **`/vault-manifest-refresh` skill**: force-regenerate the vault manifest cache; reports result in Korean
 

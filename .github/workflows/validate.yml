@@ -120,7 +120,6 @@ jobs:
       - name: Run vault-bridge unit tests
         run: |
           python3 vault-bridge/scripts/test/test-pre-write-guard.py
-          python3 vault-bridge/scripts/test/test-pre-access-guard.py
           python3 vault-bridge/scripts/test/test-manifest-type-optin.py
           python3 vault-bridge/scripts/test/test-vault-commit-message.py
           echo "vault-bridge tests OK"
