@@ -247,7 +247,7 @@ vault-bridge v1.5.0 adds a **PreToolUse hook** (`hooks/pre-write-guard.sh`) that
 | Directory | Required pattern | Example |
 |-----------|-----------------|---------|
 | `inbox/` | `^(session\|capture)-YYYY-MM-DD[-topic][-vN].md$` | `session-2026-04-18.md`, `capture-2026-04-18-jwt-debug.md` |
-| `notes/` (evergreen) | `^[a-z0-9-]+\.md$` (no date prefix) | `oauth-flow.md` |
+| `notes/` | `^[a-z0-9-]+\.md$` (no date prefix) | `oauth-flow.md` |
 | `notes/{project}/` | `^(session\|plan\|capture\|decision)-YYYY-MM-DD[-topic][-vN].md$` | `plan-2026-04-18-vault-bridge-value-prop.md` |
 
 ### Whitelist — always allowed
