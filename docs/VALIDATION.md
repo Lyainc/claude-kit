@@ -70,11 +70,17 @@ python3 scripts/check-plugin-root-paths.py
 # sites, shipped in v4.0.0). Scans source plugins only (dirs with a plugin.json), so any
 # vendored third-party plugin cache is never touched. Markdown `../../reference/*.md` links are NOT
 # flagged — those resolve relative to the SKILL.md file and stay correct once installed.
-# SKILL.md compaction budget guard (#454, driven by #447): auto-compaction re-attaches only
-# the FIRST 5,000 TOKENS of an invoked skill and drops the rest silently, so a confirmation
-# gate or an invariant living in the tail stops being in the instructions after one compaction.
-# Blocks on two things per SKILL.md: the whole file over 5,000 tokens, and any compaction-critical
-# anchor (`## Rules`, every body `AskUserQuestion`) starting past that boundary.
+# Always-loaded/always-attached instruction budget guard (#454/#461 SKILL.md, widened to
+# CLAUDE.md + agents/*.md by #473). For SKILL.md: auto-compaction re-attaches only the FIRST
+# 5,000 TOKENS of an invoked skill and drops the rest silently, so a confirmation gate or an
+# invariant living in the tail stops being in the instructions after one compaction. For
+# CLAUDE.md (an always-loaded prefix) and agents/*.md: the rationale is dilution, not
+# compaction — an unguarded instruction file only ever grows, and every line taxes compliance
+# with every other instruction in it (obsidian-mind's CLAUDE.md hit 36KB/~9-10k tokens with no
+# guard). Blocks on the whole file over 5,000 tokens for all three kinds, plus — SKILL.md
+# only — any compaction-critical anchor (`## Rules`, every body `AskUserQuestion`) starting
+# past that boundary. CLAUDE.md's own #473 overage (5,510 tokens) was fixed by moving
+# lookup-only sections to docs/REFERENCE.md per its abandon-priority table, never by trimming.
 # Counts with tiktoken `o200k_base` — the tokenizer #447's own measurements used — fetched
 # ephemerally by `uv run --with`, so it is a dependency of this command and of nothing else.
 # WITHOUT tiktoken the guard exits 2 and refuses a verdict rather than downgrading quietly;
@@ -84,10 +90,10 @@ python3 scripts/check-plugin-root-paths.py
 # `add-policy` at a real 5,304 tokens and `audit` at 5,286 while reporting ~4,990/~4,870.
 # `--list` prints every file's count and anchor offsets.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 24 check-skill-token-budget self-test cases passed
+# Expected: OK: all 25 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
-# Expected: OK: skill-token-budget clean — N SKILL.md checked, every one within 5000 tokens
-#   with its gates inside the window [o200k_base] (largest ...)
+# Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
+#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
 
 python3 scripts/check-test-exitcode.py --self-test
 # Expected: OK: all check-test-exitcode self-test cases passed
