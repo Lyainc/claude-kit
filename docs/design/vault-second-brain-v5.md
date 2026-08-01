@@ -1,6 +1,6 @@
 # Vault Second Brain 설계안 v5 — LLM-compiled wiki (A 主) + 참고자료 창고 (B, 승격 게이트 폐기)
 
-> 작성일: 2026-06-23 · 상태: **초안 (linchpin L1·L2 owner 합의 완료, 구현은 별 세션)** · 커밋은 owner 확인 후
+> 작성일: 2026-06-23 · 최종 개정: 2026-08-02(#480) · 상태: **구현됨** — A(wiki)·B(참고자료 창고) 모두 코드에 반영, 잔여는 §15
 > 대체 대상: `vault-second-brain-v4.md` (인간 저작 second-brain 모델)
 > 방향 출처 — **정전(SSOT) = GitHub #215**(④ 재설계). 근거 트레일: 토론 문서 `docs/discussions/20260612_vault-llm-wiki-redesign/`
 > (SUMMARY+UNRESOLVED+RESOLUTIONS-draft) · `docs/discussions/20260623_vault-debloat-reckoning/DECISION.md`(5레이어) ·
@@ -299,8 +299,8 @@ wiki에는 쓰지 않는다. 이 레포에 안 묶인 판단(범용 방법론 �
 - **save-session → inbox/ writer 유지, 단 재정정(2026-07-08 D1, 커밋 `f59f580`; 이후 #331로 커맨드 자체 retire).** record/quick
   모드와 `type: session` 산출은 폐기됐고, `/save-session`은 이제 `type: capture`를 inbox/에 씀(raw, 당시 `/capture`와
   동일 산출물). B(인간 검증 durable)가 아닌 건 그대로 — B 직행하면 "덤프 파이프"가 B로 부활 → **inbox/ 운반
-  유지**(③ delivery CON-1 어댑터) 원칙은 안 바뀌었고, 내용은 Model X(access_count 기준)로 promotion 후보로
-  나중 *채굴* 가능하나 직접 B-surface 아님. #215 "축소" 결정과 정합(전면 kill 아님).
+  유지**(③ delivery CON-1 어댑터) 원칙은 안 바뀌었고, 내용은 당시 Model X(access_count 기준) promotion 후보로
+  채굴 가능했으나(그 경로는 #480에서 폐기, §6) 직접 B-surface는 아니었다. #215 "축소" 결정과 정합(전면 kill 아님).
 - **manifest → KEEP + 재용도.** ③ delivery staleness 추적 → **④ wiki recall 인덱스**로 재정의. #211 작업2
   (access-ranking) CLOSED — importance-ordered recall 지원. vault-searcher가 읽음.
 
@@ -342,7 +342,7 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
 
 ## 15. 미결 / 별 트랙 (구현 아님 — 본 문서는 설계)
 
-- **구현은 별 세션** (goal G22 제약). 본 문서는 합의된 설계지 코드 변경 아님.
+- ~~**구현은 별 세션**(goal G22 제약)~~ — 초판 제약. A는 #215~#344로, B는 #480으로 구현됐고, 이 문서는 그 구현의 명세다.
 - **#480 잔여 (후속 세션)**: audit E7/E8 + `_compute_promotion_candidate` + retro PROMOTE +
   `e8-candidates.py` 제거(§6), 볼트 `type: decision` 처분 판정(#477 미결 2), `/wiki` 배치 정렬
   (#477 미결 3), 재고 `provenance:` 백필과 E2 확장. 폴더 3분할(`inbox`→`sources`)은 #477 하위 B.
@@ -359,7 +359,7 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
   파이프라인으로 이미 구현·landed — PLAN 단계가 쓰기 전 인간 확인("one human glance")을 게이트로 둔다.
 - ~~**U2 promotion 재작성 주체**~~ — **정정 완료(2026-07-11, #215).** "AI가 A-source에서 B초안을 뽑는다"는
   경로는 실제로 만들어진 적이 없었다(`generate-manifest.py`가 `type: wiki`를 promotion 후보에서 구조적으로
-  제외) — §3/§5/§5.1/§6/§9/§14를 코드에 맞게 정정. B는 인간 직접 저작 + 자기 status 전이(E8)로만 정의되고,
+  제외) — §3/§5/§5.1/§6/§9/§14를 코드에 맞게 정정. B는 (그 시점 기준) 인간 직접 저작 + 자기 status 전이(E8)로만 정의됐고 — 이 정의는 이후 #480에서 참고자료 창고로 다시 바뀐다,
   A→B 자동 distillation은 미구현·미계획으로 남는다(원하면 별 세션에서 새로 설계).
 - ~~**U6 항상-on 원칙 vs AI 자동 --save**~~ — **정정 완료(2026-07-11, #215).** 구분축을 트리거 주체에서
   이산성(discrete gated action vs 상시-on push)으로 교정(§11), `wiki` PLAN 단계의 쓰기-전 확인을 "판단형

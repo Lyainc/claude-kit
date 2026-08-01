@@ -53,7 +53,6 @@ Use AskUserQuestion:
 If the user selects 신규: output the following message and stop:
 
 > 신규 프로젝트를 생성하려면 먼저 디렉토리를 만들어 주세요: `mkdir -p ~/vault/notes/{name}/`.
-> (이후 PR에서 OVM `/note` 스킬이 notes/ 하위 폴더 생성까지 지원할 예정이에요.)
 > 프로젝트 디렉토리가 생성된 후 다시 `/vault-link`를 실행하면 연결할 수 있습니다.
 
 If the user selects 취소: stop without changes.

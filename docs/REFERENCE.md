@@ -41,14 +41,14 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                          # 5개 스킬 (capture, note, wiki, audit, base)
+│   ├── skills/                          # 3개 스킬 (wiki, audit, base)
 │   ├── agents/                          # 2개 에이전트
 │   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, obsidian-bases-schema.md
 │   └── scripts/                         # ovm-primitives.sh + test/ (audit-validate.py, gen-fixture.sh, ...)
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
-│   ├── skills/                          # 3개 스킬 (vault-link, vault-manifest-refresh, vault-commit; commands/→skills/ 마이그레이션 #94)
+│   ├── skills/                          # 4개 스킬 (vault-save, vault-link, vault-manifest-refresh, vault-commit)
 │   ├── hooks/                           # 2개 hook handler (session-start-manifest, pre-write-guard)
 │   └── scripts/                         # generate-manifest.py + tests/
 ├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
@@ -68,7 +68,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 
 ## vault-bridge Hooks & Skills
 
-vault-bridge registers 2 hook handlers + 3 skills. All hooks are **deterministic shell scripts**
+vault-bridge registers 2 hook handlers + 4 skills. All hooks are **deterministic shell scripts**
 unless explicitly noted otherwise — no per-turn LLM cost.
 
 **Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for
@@ -118,6 +118,9 @@ separate plugin.
 
 **Skills** (`skills/*/SKILL.md`; migrated from `commands/*.md` in #94):
 
+- **`/vault-save`**: the single reference-material entry (#480) — source text as-is → `inbox/`,
+  prose you wrote → `notes/`. Saves immediately with no confirmation, always writes `provenance:`,
+  never writes `status:`. Replaced OVM's retired `/capture` and `/note`.
 - **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault
   location.
 - **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).

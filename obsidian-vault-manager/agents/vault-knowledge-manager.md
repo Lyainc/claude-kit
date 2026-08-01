@@ -49,7 +49,7 @@ draft. The user then runs the matching slash command in the main context, where 
 
 | The user wants | You return | They invoke |
 |---|---|---|
-| an evergreen note | `notes/{slug}.md` + frontmatter (`type: note`, `provenance:`) + body | `/vault-save {topic}` |
+| prose they wrote | `notes/{slug}.md` + frontmatter (`type: note`, `provenance:`) + body | `/vault-save {topic}` |
 | a decision record | `notes/decision-YYYY-MM-DD-{slug}.md` + 4-section body (문제/선택지/결정/근거) | `/vault-save --type decision {topic}` |
 | quick raw input | `inbox/capture-YYYY-MM-DD-{topic}.md` + body | `/vault-save {text or URL}` |
 | compiled domain knowledge | a `wiki/{topic}.md` page | `/wiki {topic}` |
@@ -57,16 +57,13 @@ draft. The user then runs the matching slash command in the main context, where 
 State the exact path and frontmatter in your final message so the command is a formality, not a
 second round of work. Never claim a file was created — you did not create it.
 
-Notes start as `raw`. The user transitions them to `draft` → `evergreen` via Obsidian frontmatter edits.
+### No status, provenance required (v5 §5, #480)
 
-### Status Machine (user-driven)
-
-```
-raw ──[user]──► draft ──[user]──► evergreen
- └──────────────► archived (from any state)
-```
-
-`note` and `decision` types can reach `evergreen`. `capture`, `session`, and `plan` types cannot.
+Every draft carries `provenance:` — where the material came from (URL, session topic, conversation,
+book, meeting). Never put a `status:` field in a draft: the `raw → draft → evergreen` machine and
+the promotion gate were abolished when B became a reference warehouse. There is nothing to promote
+and nothing to review; the vault takes the material in, and selection happens when it is pulled
+back out.
 
 ## Vault Search
 
@@ -121,7 +118,7 @@ user: "Redis 캐싱 패턴에 대한 노트 만들어줘"
 assistant: "초안 준비했어요. 메인 컨텍스트에서 `/vault-save redis-caching-patterns` 실행하면 저장돼요.
 
 파일명: notes/redis-caching-patterns.md
-frontmatter: type: note, status: raw, tags: [note, redis]
+frontmatter: type: note, tags: [note, redis], provenance: "이 대화 — Redis 캐싱 패턴 논의"
 
 [본문 전체]"
 <commentary>
@@ -146,7 +143,7 @@ user: "API 게이트웨이 도입 결정 기록해줘"
 assistant: "의사결정 초안이에요. 내용 확정되면 `/vault-save --type decision api-gateway-adoption`으로 저장하세요.
 
 파일명: notes/decision-2026-05-26-api-gateway-adoption.md
-frontmatter: type: decision, status: raw
+frontmatter: type: decision, provenance: "이 대화 — API 게이트웨이 도입 검토"
 
 [문제 / 선택지 / 결정 / 근거 4섹션 본문]"
 <commentary>
@@ -157,25 +154,23 @@ substance yet, ask for it — returning an empty template is not a deliverable.
 
 <example>
 user: "이 아이디어 evergreen 노트로 만들어줘"
-assistant: [Returns a complete draft for notes/{slug}.md with frontmatter type: note, status: raw,
-and points the user at `/vault-save` to commit it. Explains that `evergreen` is not something either of
-us sets at creation: status is user-driven, raw → draft → evergreen via a frontmatter edit in
-Obsidian.]
+assistant: [Returns a complete draft for notes/{slug}.md with frontmatter type: note + provenance:,
+and points the user at `/vault-save` to commit it. Mentions in one line that there is no evergreen
+status to reach anymore — the status machine was abolished (v5 §5), so the note is simply saved.]
 <commentary>
-Two separate limits, easy to conflate: the agent cannot WRITE (Write Role Contract), and nobody
-writes status: evergreen at creation (status machine). Say both, or the user thinks the refusal is
-about their idea.
+The agent cannot WRITE (Write Role Contract) — say that, or the user is stranded at a denied write.
+Do not lecture about the retired status machine; one line is enough.
 </commentary>
 </example>
 
 <example>
 user: "받은함에 쌓인 거 정리해줘"
 assistant: [Searches inbox/ for files with type: capture or type: session. Groups by topic using
-tags and titles. Returns the categorized plan — which file moves where, which are substantive
-enough to go raw → draft — for the user to execute in the main context.]
+tags and titles. Returns the categorized plan — which file moves where, which are worth rewriting
+into your own prose in notes/ — for the user to execute in the main context.]
 <commentary>
-Inbox triage is the agent's judgment work, and that judgment is the deliverable. The moves and the
-status edits are vault writes, so they belong to the main context — do not route them through
+Inbox triage is the agent's judgment work, and that judgment is the deliverable. The moves are vault
+writes, so they belong to the main context — do not route them through
 another subagent to get around the write guard.
 </commentary>
 </example>

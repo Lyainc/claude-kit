@@ -85,7 +85,7 @@ title: How LLMs Work From Scratch
 | `path` | `inbox` | vault root 기준 상대 경로. `~/vault/inbox/`에 저장. |
 | `behavior` | `create` | 항상 새 파일 생성. 기존 파일 덮어쓰지 않음. |
 | `type` | `capture` | **type opt-in 마커** — 이 필드가 있어야 claude-kit이 파일을 관리 대상으로 인식 (vault v4 §2.2). |
-| `source` | `web-clipper` | `/vault-save` URL 캡처(`url-capture`)와 출처 구분. |
+| `source` | `web-clipper` | `/vault-save` URL 캡처(`provenance: url-capture`)와 출처 구분. |
 | `title` | `{{title}}` | 페이지 `<title>` 태그 값. frontmatter에 별도 저장해 검색 편의 제공. |
 
 ## `/vault-save`와 비교
