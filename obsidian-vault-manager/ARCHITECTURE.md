@@ -10,9 +10,9 @@ obsidian-vault-manager/
 │   ├── vault-knowledge-manager.md    # 메인 에이전트 (Sonnet)
 │   └── vault-file-organizer.md       # 경량 파일 정리 subagent (Haiku)
 ├── skills/
-│   ├── capture/SKILL.md              # /capture — 즉시 저장
-│   ├── note/SKILL.md                 # /note — 노트 생성 + MOC 연결
-│   └── audit/SKILL.md                # /audit — vault 구조 무결성 감사
+│   ├── audit/SKILL.md                # /audit — vault 구조 무결성 감사
+│   ├── wiki/SKILL.md                 # /wiki — 도메인 지식 컴파일 (A 레이어)
+│   └── base/SKILL.md                 # /base — Obsidian Bases 뷰 생성
 └── ARCHITECTURE.md
 ```
 
@@ -24,9 +24,9 @@ obsidian-vault-manager/
 │   ├── vault-knowledge-manager.md
 │   └── vault-file-organizer.md
 ├── skills/
-│   ├── capture/SKILL.md
-│   ├── note/SKILL.md
-│   └── audit/SKILL.md
+│   ├── audit/SKILL.md
+│   ├── wiki/SKILL.md
+│   └── base/SKILL.md
 └── agent-memory/
     └── vault-knowledge-manager/
         └── MEMORY.md
@@ -74,7 +74,7 @@ Karpathy의 핵심 인사이트: "idle tokens mean you're the bottleneck."
 
 ### 4. Skill별 설계 근거
 
-#### /capture — 즉시 저장
+#### /capture — 즉시 저장 (2026-08-02 #480으로 retire, vault-bridge `/vault-save`가 승계)
 - `disable-model-invocation` 미설정 (자연어로도 트리거 가능: "빠르게 메모해줘")
 - 유일하게 확인 없이 동작하는 skill
 - Karpathy 패턴: "spending time on things an agent can handle means adding friction"

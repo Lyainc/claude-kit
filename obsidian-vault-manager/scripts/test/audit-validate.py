@@ -43,8 +43,9 @@ from pathlib import Path
 from typing import Optional
 
 REQUIRED_FM_FIELDS = ("created", "tags", "type")
-# status required for note/decision only (v4 §3.3 status machine)
-STATUS_REQUIRED_TYPES = frozenset({"note", "decision"})
+# `status` was required for note/decision until the v4 §3.3 status machine was abolished
+# (v5 §5/§6, #480) — B is a reference warehouse now, and /vault-save writes no status field.
+# Requiring it would flag every new file as E2 Critical on day one.
 # Stagnation thresholds (v4 §6.1 Step 2).
 STALE_INBOX_DAYS = 14
 STALE_DRAFT_DAYS = 30
@@ -279,10 +280,6 @@ def simulate_e2_autofix(rel: Path, fm: dict) -> dict:
     for f in REQUIRED_FM_FIELDS:
         if f not in fm or fm[f] in (None, ""):
             missing.append(f)
-    if fm.get("type") in STATUS_REQUIRED_TYPES and (
-        "status" not in fm or fm["status"] in (None, "")
-    ):
-        missing.append("status")
     return {"inferred_tags": inferred, "missing_fields": missing}
 
 
@@ -311,11 +308,6 @@ def collect(vault: Path) -> dict:
             for f in REQUIRED_FM_FIELDS:
                 if f not in fm or fm[f] in (None, ""):
                     missing_required.append(f)
-            # status required for note/decision (v4 §3.3)
-            if fm.get("type") in STATUS_REQUIRED_TYPES and (
-                "status" not in fm or fm["status"] in (None, "")
-            ):
-                missing_required.append("status")
         fm_records.append(
             {
                 "rel": str(rel),
@@ -691,12 +683,12 @@ def classify(bundle: dict) -> dict:
     # note/decision meeting refs_in or access_count thresholds — manual
     # status→evergreen. capture meeting access_count only (Model X, no
     # references_in signal) — recalled ore, no status field to flip; the
-    # next action is /note or /wiki, not a status edit.
+    # next action is /vault-save or /wiki, not a status edit.
     for cand in _promotion_candidates_from_manifest(bundle["vault"]):
         r = cand["refs_in"]
         a = cand["access_count"]
         if cand["type"] == "capture":
-            detail = f"refs_in={r}, access={a} (recalled capture ore — consider /note or /wiki to promote)"
+            detail = f"refs_in={r}, access={a} (recalled capture ore — consider /vault-save or /wiki to promote)"
         else:
             detail = f"refs_in={r}, access={a} (manual: status→evergreen)"
         add("E8_promotion_candidate", cand["rel"], detail)
@@ -724,8 +716,8 @@ def classify(bundle: dict) -> dict:
 
 # DoD seed prefixes: (field_to_check, prefix_in_that_field).
 # Detection uses `if prefix in candidate` (substring containment, not startswith).
-# E2 seeds: both "audit-e2-missing-fields-XXX" and "audit-e2-status-missing-XXX"
-# match the "audit-e2-" prefix via containment → seeded_detected.E2 expects 10.
+# E2 seeds: "audit-e2-missing-fields-XXX" only → seeded_detected.E2 expects 5. The
+# "audit-e2-status-missing-XXX" seeds went away with the status machine (#480).
 SEED_PREFIXES = {
     "E1_missing_frontmatter": ("path", "audit-e1-"),
     "E2_missing_required_fields": ("path", "audit-e2-"),
@@ -957,7 +949,7 @@ def _infer_self_test() -> int:
     # would populate. (#127 acceptance: inferred result, not an empty array.)
     sim = simulate_e2_autofix(
         Path("notes/llm/decision-2026-04-12-context-window.md"),
-        {"type": "decision", "created": "2026-04-12"},  # tags + status missing
+        {"type": "decision", "created": "2026-04-12"},  # tags missing (status is no longer required, #480)
     )
     if not sim["inferred_tags"]:
         failures += 1
@@ -965,7 +957,7 @@ def _infer_self_test() -> int:
     elif sim["inferred_tags"][0] != "decision":
         failures += 1
         print(f"[FAIL] E2 sim: first tag != type ({sim['inferred_tags']})")
-    elif "tags" not in sim["missing_fields"] or "status" not in sim["missing_fields"]:
+    elif sim["missing_fields"] != ["tags"]:
         failures += 1
         print(f"[FAIL] E2 sim: missing_fields wrong ({sim['missing_fields']})")
     else:

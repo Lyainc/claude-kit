@@ -49,8 +49,6 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 | 스킬 | 하는 일 |
 |---|---|
-| `capture` | 즉시 메모 저장 (+ URL 본문 자동 추출) |
-| `note` | 노트 생성 + MOC·프로젝트 연결 |
 | `audit` | vault 구조 무결성 감사 (E1–E12 오류 + 승격 후보 추적) |
 | `wiki` | 도메인 지식을 LLM wiki 페이지로 컴파일 (AI recall, 게이트된 명시 액션) |
 | `base` | 비파괴 Obsidian Bases(.base) 뷰 생성 |
@@ -89,7 +87,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 |---|---|
 | 아이디어 펼치고 스펙으로 굳히기 (사고·기획) | `diverse-sampling` · `build-spec` · `unknown-discovery` |
 | 결과물 검토·반증·다듬기 (작업·폴리싱) | `expert-panel` · `adversarial-review` · `doc-polish` |
-| 작업을 기록·검색으로 남기기 (지식관리) | `capture` · `note` · `wiki` |
+| 작업을 기록·검색으로 남기기 (지식관리) | `vault-save` · `wiki` |
 
 흐름과 내부 5-레이어의 직교 매핑 근거는 [4-흐름 카탈로그](docs/design/4-flow-catalog.md) 참조.
 
@@ -127,12 +125,12 @@ Claude Code를 재시작하면 적용됩니다.
 /vault-link
 ```
 
-`.vault-link` 파일은 `vault-searcher`의 recall scoping(세션 복원·도메인 컨텍스트 검색 범위)에 쓰입니다. `/capture`는 `.vault-link`와 무관하게 항상 `~/vault/inbox/`에 저장합니다.
+`.vault-link` 파일은 `vault-searcher`의 recall scoping(세션 복원·도메인 컨텍스트 검색 범위)에 쓰입니다. `/vault-save`는 `.vault-link`와 무관하게 항상 `~/vault/inbox/`에 저장합니다.
 
 ### 4. 첫 캡처
 
 ```
-/capture 오늘 배운 것: Claude Code 플러그인 구조
+/vault-save 오늘 배운 것: Claude Code 플러그인 구조
 ```
 
 `~/vault/inbox/capture-YYYY-MM-DD-{slug}.md`로 저장됩니다. URL을 전달하면 본문을 자동 추출해요 (`defuddle` 설치 시).
@@ -145,7 +143,7 @@ Claude Code를 재시작하면 적용됩니다.
 /wiki
 ```
 
-`~/vault/wiki/`에 축적됩니다(같은 토픽은 덮어쓰지 않고 compounding update). 가공 없는 원석만 남기려면 위의 `/capture`를 쓰세요. 로컬 세션 컨텍스트는 native memory가 자동으로 잡아요.
+`~/vault/wiki/`에 축적됩니다(같은 토픽은 덮어쓰지 않고 compounding update). 가공 없는 원석만 남기려면 위의 `/vault-save`를 쓰세요. 로컬 세션 컨텍스트는 native memory가 자동으로 잡아요.
 
 ## 마이그레이션
 
@@ -181,7 +179,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | 목적 | 경로 |
 |---|---|
 | 로컬 세션 컨텍스트 | native memory (자동) |
-| 가공 없는 원석 캡처 | `/capture` (obsidian-vault-manager) → `~/vault/inbox/` |
+| 가공 없는 원석 캡처 | `/vault-save` (vault-bridge) → `~/vault/inbox/` |
 | 컴파일된 도메인 지식 (AI recall) | `/wiki` (obsidian-vault-manager) → `~/vault/wiki/` |
 | 다음 세션 인수인계 | 머신 레벨 `session-close` 스킬 (claude-kit 미포함) |
 

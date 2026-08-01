@@ -431,8 +431,9 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py \
 python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 # Expected: OK: audit DoD invariants hold (...)
 # Expected (G8+) — the values assert-dod.py enforces:
-#   dod.seeded_detected = {E1:5, E2:10, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E9:2, E10:5, E11:5, E12:5}
-#     (E2 has 10: 5 base + 5 status-missing; E5 has 6: 5 w/ tag candidates +
+#   dod.seeded_detected = {E1:5, E2:5, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E9:2, E10:5, E11:5, E12:5}
+#     (E2 has 5: base only — the 5 status-missing seeds went away with the status
+#      machine (#480), since a note with no `status:` now conforms; E5 has 6: 5 w/ tag candidates +
 #      1 empty-tags graceful orphan; E6=stale_inbox; E7=stale_draft;
 #      E8 has 2: promotion-target via refs_in=3, access-target via manifest patch;
 #      E9 has 2: vault-level vocabulary pairs (E9a api/apis singular-plural +

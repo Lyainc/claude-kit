@@ -1,4 +1,5 @@
 {
+  "vault-save": "vault-bridge",
   "vault-link": "vault-bridge",
   "vault-manifest-refresh": "vault-bridge",
   "vault-commit": "vault-bridge",
@@ -13,8 +14,6 @@
   "thinking-facilitator": "thinking-tools",
   "build-spec": "thinking-tools",
 
-  "capture": "obsidian-vault-manager",
-  "note": "obsidian-vault-manager",
   "wiki": "obsidian-vault-manager",
   "audit": "obsidian-vault-manager",
   "base": "obsidian-vault-manager",

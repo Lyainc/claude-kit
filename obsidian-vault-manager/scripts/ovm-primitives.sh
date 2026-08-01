@@ -100,8 +100,8 @@ def parse_frontmatter(content):
 target_dir = sys.argv[1]
 records = []
 required_fields = {'created', 'tags', 'type'}
-# status required for note/decision types only (v4 §3.3 status machine)
-STATUS_REQUIRED_TYPES = frozenset({'note', 'decision'})
+# `status` dropped from the required set — the v4 §3.3 status machine is abolished
+# (v5 §5/§6, #480); /vault-save writes no status field.
 
 for root, dirs, files in os.walk(target_dir):
     # Skip hidden dirs
@@ -119,9 +119,7 @@ for root, dirs, files in os.walk(target_dir):
             continue
 
         fm = parse_frontmatter(content)
-        note_type = fm.get('type', '')
-        all_required = required_fields | ({'status'} if note_type in STATUS_REQUIRED_TYPES else set())
-        missing = sorted(all_required - set(fm.keys()))
+        missing = sorted(required_fields - set(fm.keys()))
         stat = os.stat(fpath)
 
         records.append({

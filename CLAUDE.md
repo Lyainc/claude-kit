@@ -9,8 +9,8 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 **claude-kit**: Claude Code 스킬 플러그인 마켓플레이스. 네 개의 독립 플러그인을 포함합니다.
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 8개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, adversarial-review, build-spec, completion-condition + thinking-facilitator agent)
-- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 5개 (capture, note, wiki, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`). wiki = v5 A-layer LLM wiki 컴파일(`vault/wiki/`, AI recall 主, provenance 추적, 게이트된 명시 액션).
-- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 2종 (SessionStart / PreToolUse Write|Edit|Bash) + 스킬 3개 (`/vault-link`, `/vault-manifest-refresh`, `/vault-commit`) + Python scripts (`generate-manifest.py`, `vault-commit-message.py`). vault 검색 + git 커밋. vault 콘텐츠 쓰기(capture/note/wiki)는 OVM 소유.
+- **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 3개 (wiki, audit, base — 입구 `/capture`·`/note`는 #480으로 retire, vault-bridge `/vault-save`가 승계) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`). wiki = v5 A-layer LLM wiki 컴파일(`vault/wiki/`, AI recall 主, provenance 추적, 게이트된 명시 액션).
+- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 2종 (SessionStart / PreToolUse Write|Edit|Bash) + 스킬 4개 (`/vault-save`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`) + Python scripts (`generate-manifest.py`, `vault-commit-message.py`). vault 검색 + git 커밋. vault 참고자료 입구(`/vault-save`)는 이 플러그인, 컴파일(`/wiki`)은 OVM 소유.
 - **feedback-loop** (`feedback-loop/`): layer ⑤ 자기개선 루프 (measure→review→keep, **실행/이터레이션 엔진 아님** — ⑤ 하네스에서 분리된 **외부 배포** 단위). 스킬 3개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산 / distill — 세션 절차 기법의 user-confirmed **발견**: 자연어 제안 객체 emit, 저작은 안 함(매립은 add-policy 소유) / add-policy — **매립 엔진**: 자연어 규칙·distill 제안을 분류해 매립지 3개(CLAUDE.md/hook/skill) 중 한 곳에 1클릭 배치, 머신-중립·커밋 안 함, user-authored 스킬 inviolable) + telemetry 흡수 (event-logger hooks 8 event-type, report.py lifecycle, opt-in `CLAUDE_KIT_TELEMETRY=1` 아니면 silent·per-turn LLM 0·외부 유출 0). **단방향 의존(CON-5)**: feedback-loop은 leaf OUTPUT(audit·manifest·telemetry events)만 읽고 leaf code import 0; 외부 배포지만 ⑤ harness 계열(배포단위≠레이어).
 
 변경 이력(마이그레이션·retire·컷 결정, 이슈 번호): [docs/REFERENCE.md](docs/REFERENCE.md#project-overview--변경-이력).
@@ -92,8 +92,8 @@ Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping doma
 
 | Area | obsidian-vault-manager | vault-bridge |
 |------|----------------------|--------------|
-| Note creation | `note` skill (evergreen notes + decision records, `notes/`) | N/A |
-| Session record | `/capture` (raw session ore → `inbox/`) · `wiki` (compiled session knowledge → `wiki/`) — `/save-session` retired #331, wiki-first | N/A (session-record command retired 2026-07-10 #331; `/vault-commit` commits the vault) |
+| 참고자료 저장 (B 입구) | N/A (#480으로 `/capture`·`/note` retire) | `/vault-save` — 원문 → `inbox/`, 내가 쓴 것 → `notes/`, status 없음·provenance 필수 |
+| Session record | `wiki` (compiled session knowledge → `wiki/`) — `/save-session` retired #331, wiki-first | `/vault-save` (raw session ore → `inbox/`); `/vault-commit` commits the vault |
 | Domain context search | `vault-knowledge-manager` (direct mdfind/grep, OVM-internal) | `vault-searcher` Mode 2 (external, read-only lightweight) |
 
 Within `thinking-tools`:

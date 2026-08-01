@@ -81,7 +81,7 @@ path was redefined wiki-first (session knowledge → OVM `/wiki` + native memory
 `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired in G26 (decision
 G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside
 claude-kit. vault-bridge's remaining write skill is `/vault-commit` (git commit); vault *content*
-authoring (capture/note/wiki) belongs to obsidian-vault-manager. vault-bridge is still
+authoring (`/vault-save`) belongs to vault-bridge, compilation (`/wiki`) to obsidian-vault-manager. vault-bridge is still
 claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the
 output layer is **distributed in-place**, so these delivery adapters live here rather than in a
 separate plugin.
@@ -129,7 +129,7 @@ machine-level `session-close` skill, outside claude-kit.)
 The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse write-role guard) and
 explicit skills ensure zero per-turn LLM cost, no loops. The session-lifecycle auto-hooks (Stop
 capture suggestion, SessionEnd safety-net auto-save) were cut in G24; capture ore is written only
-via obsidian-vault-manager's explicit `/capture` skill.
+via vault-bridge's explicit `/vault-save` skill.
 
 ## Vault File Conventions
 
@@ -161,10 +161,10 @@ Same-date collisions: `-v2`, `-v3` increment. For `wiki`, same-topic is an **upd
 created: YYYY-MM-DD                            # required, all files
 tags: [{type}, {domain}]                       # required
 type: capture|note|decision|session|plan|wiki  # required — type opt-in (v4 §2.2): files without `type:` are invisible to claude-kit
-status: raw|draft|evergreen|archived           # required for note/decision (status machine, v4 §3.3); session/capture/plan: optional; wiki: OMITTED (A is outside the status machine, v5 §4.1)
+# status: ABOLISHED — the v4 §3.3 status machine died with the promotion gate (v5 §5/§6, #480). Nothing writes it; an older file that still carries one is not an error
 anchor: <local path/URL>                       # wiki only, optional — present only for source-anchored (cache-type) pages; absent = source-free (store-type). Staleness classification axis (#305)
 verified: YYYY-MM-DD                           # wiki only, auto-stamped on every write — last-touched, not an active verification; exposes page age for staleness hedging (#305)
-provenance: <query/session>                    # wiki only, required (v5 §4.1 U3 traceability — the exploration that produced the page)
+provenance: <query/session/URL>                # required — wiki (v5 §4.1 U3 traceability) and every file written by /vault-save (v5 §5). Older B files predate the rule and are not backfilled yet (#480 follow-up)
 source: web-clipper|manual|...                 # capture only, optional
 url: ...                                       # capture only, optional
 ```

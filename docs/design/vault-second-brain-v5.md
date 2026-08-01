@@ -1,4 +1,4 @@
-# Vault Second Brain 설계안 v5 — LLM-compiled wiki (A 主) + earned-promotion notes (B judgment-based)
+# Vault Second Brain 설계안 v5 — LLM-compiled wiki (A 主) + 참고자료 창고 (B, 승격 게이트 폐기)
 
 > 작성일: 2026-06-23 · 상태: **초안 (linchpin L1·L2 owner 합의 완료, 구현은 별 세션)** · 커밋은 owner 확인 후
 > 대체 대상: `vault-second-brain-v4.md` (인간 저작 second-brain 모델)
@@ -6,7 +6,8 @@
 > (SUMMARY+UNRESOLVED+RESOLUTIONS-draft) · `docs/discussions/20260623_vault-debloat-reckoning/DECISION.md`(5레이어) ·
 > 메모리 `project_vault_usage_reality`. **이 토론 문서·메모리는 repo 비커밋 로컬 작업물**(`.gitignore`의 `docs/discussions/`,
 > 트레일 정책 #204/#215) — repo 클론으로는 안 보이므로, 본문의 그 경로·라인 인용은 *로컬 근거 포인터*이고 검증 가능한 정전은 #215다.
-> 상속: v4의 type opt-in(§2.2)·status machine(§3.3)·recall 중심(§2.3)·git 통합·거부목록(§9)은 **계승**.
+> 상속: v4의 type opt-in(§2.2)·recall 중심(§2.3)·git 통합·거부목록(§9)은 **계승**. v4 status machine(§3.3)은
+> **2026-08-02 #480으로 폐기**(§5) — 초판의 "계승" 서술은 그 시점까지만 유효했다.
 > 이 문서는 *바뀌는 것*만 명세하고, 안 바뀌는 기계는 v4를 참조한다.
 
 ---
@@ -14,7 +15,8 @@
 ## 0. 한 줄
 
 vault의 무게중심을 **인간 저작(v4)에서 LLM 컴파일(v5)로** 옮긴다. **A(wiki) = LLM이 자율 컴파일하는
-도메인 지식, AI recall이 主.** **B(notes) = promotion에서 살아남은 잔여물**이지 미리 짓는 레이어가 아니다.
+도메인 지식, AI recall이 主.** **B = 나중에 꺼내 쓰려고 넣어두는 참고자료 창고**(2026-08-02 #480 —
+선별은 입구가 아니라 인출에서 일어난다, §5).
 second-brain은 "인간이 나중에 읽는다"에서 "AI가 인간 대신 읽고 recall한다"로 재정의된다.
 
 > **2026-07-09/10 정정**: 이전 초안의 "B 인간-읽기는 default OFF, 한 달 재판으로 존재를 증명해야 한다(L1)"
@@ -67,7 +69,7 @@ v4는 "인간이 채우는 second-brain"을 전제했으나, 측정·증언·디
 |---|---|---|---|---|
 | **repo** | 코드 + 코드구조맵(AGENTS.md) | AI+인간 | — | git repo |
 | **vault wiki A** | 도메인 지식(작업하다 알게 된 것) | **AI recall** + 인간 | AI 자율 compounding | `vault/wiki/` |
-| **vault notes B** | 인간 저작 지식(고신호 큐레이션, raw→evergreen) | 인간(판단 기반, §13) | 인간 직접 저작 + 자기 status 전이(§6) | `vault/notes/` |
+| **vault notes B** | 참고자료(클리핑·논문·분석·브레인스토밍·초기 기획·공부 노트) | 인간(기획할 때 인출, §5) | 인간 저작 + 외부 원문 보관, 선별 없음(§5) | `vault/inbox/`, `vault/notes/` |
 | **rules** | work-policy("어떻게 일하나") | AI+인간 | 인간, 안정 | `~/.claude/rules`, `rules/RULES.md` |
 | **memory** | 프로젝트 사실 | AI | auto | `~/.claude/projects/.../memory` |
 
@@ -94,8 +96,9 @@ provenance: {session/query}  # U3 추적용 必 — 어느 탐구가 이 페이�
   `wiki` skill PLAN 단계가 쓰기 전 보여주는 확인("one human glance", `obsidian-vault-manager/skills/wiki/SKILL.md`
   Phase 4)은 이 검토와 다르다 — 승인/반려
   판단이 아니라 저장 전 오탈자·오분류를 잡는 저비용 눈길이라, A가 판단형 검토 없이 자율 컴파일한다는 §2의
-  성격을 바꾸지 않는다(§U6 정정, 2026-07-11, #215). raw→draft→evergreen은 B의 일(인간 검토 선언). A는
-  provenance 추적 AI 페이지지 검토-status 페이지가 아니다.
+  성격을 바꾸지 않는다(§U6 정정, 2026-07-11, #215). A는 provenance 추적 AI 페이지지 검토-status 페이지가
+  아니다. (raw→draft→evergreen은 원래 B의 일이었으나 그 machine 자체가 폐기됐다 — §5, #480. A쪽 서술엔
+  영향 없다.)
 - **staleness 3겹 방어 (#305)**: 분류 단위는 페이지+dominant-type(경계 mixed는 claim 승격으로 defer). `anchor:`
   유무가 cache(소스-앵커드)/store(소스-프리) 축. cache 페이지는 wiki 스킬 compile 시점에 `anchor` 파일의
   mtime을 `verified:`와 비교하는 lazy check(변했을 때만 재컴파일 — ferry 부활 아님, §3 pull-mostly 정합).
@@ -121,58 +124,73 @@ provenance: {session/query}  # U3 추적용 必 — 어느 탐구가 이 페이�
 
 ---
 
-## 5. B (notes) 설계 — earned promotion (B-internal, raw→evergreen) + judgment-based human-read layer
+## 5. B 설계 — 참고자료 창고 (status machine·승격 게이트 폐기, 2026-08-02 #477/#480)
 
-B는 **미리 짓는 레이어가 아니라 promotion에서 살아남은 것**으로 정의된다.
+B는 **선별에서 살아남은 것**이 아니라 **나중에 꺼내 쓰려고 넣어둔 참고자료**다. 클리핑·논문·분석·
+브레인스토밍·초기 기획·공부 노트가 들어가고, 기획할 때 인출하는 게 용도다.
 
-> **정정(§U2, 2026-07-11, #215)**: 이전 초안은 B를 "A 위생용 promotion 잔여물"로도 정의했으나, 실제 구현
-> (`generate-manifest.py`의 `_compute_promotion_candidate`)은 `type: wiki`를 애초에 promotion 후보로
-> 잡지 않는다 — A→B 자동 distillation 경로는 만들어진 적이 없다. A의 위생은 **§7 wiki self-audit(E12)가
-> 전담**하며 B를 경유하지 않는다. 그래서 B는 아래 인간-읽기 목적 하나로만 정의된다.
+> **핵심 논거 — 범주 오류(#477)**: 승격 게이트는 들어온 다음 올려주는 장치지 **들어오는 걸 막는 장치가
+> 아니다.** 매립장 방어를 승격 게이트에 기대는 배치 자체가 틀렸다.
 
-- **B = judgment-based human-read layer**: 측정 게이트 없이 **판단 기반으로 유지**(2026-07-09/10 owner 결정,
-  §13) — 필요하면 그냥 열어서 쓰고, 판정이 필요해지면 그때 기존 기록을 사후에 뒤져 확인한다. "재판 통과해야
-  산다"는 프레이밍은 폐기됐다. 콘텐츠는 인간이 직접 쓰거나(`note`/`decision` 저작) `/capture` raw 원료를
-  인간이 골라 다듬은 것 — **A에서 뽑아온 초안이 아니다**.
+실측(텔레메트리 491세션 + vault 134파일, 2026-08-02)이 그 배치가 한 번도 작동하지 않았음을 보여준다 —
+규격 밖인 `plan` 57개(B 전체의 55%)가 조용히 통과했고(`type`이 애초에 E8 대상이 아니라 게이트가 관여한
+적이 없다), evergreen은 1개, `/capture`·`/note` 호출은 0회(같은 기간 `/wiki`는 22회), retro 42회 실행에
+승격 0건, archived 94개 중 90개가 커밋 하나(`1be026b`)의 일괄 처리였다.
+
+- **대체 방어선은 저장 쪽이 아니라 인출 쪽이다.** 이 층의 성공 지표는 "선별 정확도"가 아니라 **인출이
+  실제로 일어나는가**로 바뀐다(§13의 판단-기반 원칙 그대로 — 재판도 측정 게이트도 부활하지 않는다).
+- **폐기**: status machine(`raw→draft→evergreen→archived`)과 B 내부 승격 게이트(§6). 어느 파일도
+  `status:`를 새로 쓰지 않고, 어떤 스킬도 승격을 제안하지 않는다.
+- **유지**: `provenance:` **필수**. 입구에 게이트가 없어졌으니 "이게 어디서 왔나"를 되짚을 수 있는 것이
+  인출 시점의 유일한 신뢰 장치다 — A(§4.1)가 U3 오염 복리를 provenance로 막는 것과 같은 이유다.
 
 ```yaml
-type: note | decision      # v4 §3.3 — note/decision만 evergreen 자격
-status: raw|draft|evergreen|archived   # v4 status machine 그대로 (전이 주체=인간)
+created: YYYY-MM-DD
+type: capture | note | decision   # 폴더 마커 (inbox/ = capture, notes/ = note·decision)
+tags: [{type}, {keyword}]
+provenance: "{출처 — URL·세션 주제·대화·책·회의}"   # 必
+# status: 없음 (폐기)
 ```
 
-- B는 v4 status machine을 **그대로** 쓴다. status 변경 액션 = "내가 검토했다"(v4 §2.4) = promotion 게이트 의미.
+- **입구 = `/vault-save`(vault-bridge 신설), `/capture`·`/note`는 폐지.** 하나의 입구가 저작 주체로만
+  기계적으로 갈린다: 원문 그대로 가져온 것(URL·붙여넣은 원문·세션 덤프) → `inbox/`, 내가 쓴 서술 →
+  `notes/`. 정제도로 나누지 않으므로 "capture와 note 중 뭘 쓰지"라는 판단이 입구에서 사라진다.
+- **입구가 vault-bridge인 이유**: B는 프로젝트에서 일하다 자료를 넣는 층이라 ③ delivery I/O 기판에 붙는
+  게 맞다. OVM은 **사서**로 남는다 — 컴파일(`/wiki`)·감사(`/audit`)·뷰(`/base`), 즉 들어온 다음의 일.
+  신설이라 #102 ADR 폐기가 아니고(입구 스킬이 새로 생긴 것), OVM 정체성도 안 바뀌며, 프로젝트 어디서든
+  호출 가능해진다 — 셋이 동시에 성립한다.
+- **`--type decision`은 잠정 유지**: 볼트 decision 레코드의 처분(유지/GitHub 이슈 흡수/rules 이관)이
+  아직 미결이라(#477 미결 2) 저작 수단만 `/vault-save`로 옮겨 붙였다. 레포 바운드 결정은 지금도 이슈로
+  간다(§10) — 이건 그 판정 전까지 능력을 안 죽이려는 보류지 결정이 아니다.
 
 ### 5.1 두-볼트(A/B) 목적 분리 (discovery 교정, #354)
 
-A(wiki)와 B(notes)는 **연동은 가능하되 목적이 다른 별개 공간**이다 — 이 둘을 하나의 승급 파이프라인처럼
-읽으면 안 된다.
+A(wiki)와 B는 **연동은 가능하되 목적이 다른 별개 공간**이다 — 이 둘을 하나의 승급 파이프라인처럼 읽으면
+안 된다(승급 파이프라인 자체가 §5에서 폐기됐다).
 
-- **A**: LLM이 자율 컴파일하는 도메인 지식, AI recall이 소비자, 항상 살아있음(§4). B의 존폐·재판 결과와
-  무관하다.
-- **B**: B-내부 promotion(raw/draft→evergreen)에서 살아남은 잔여물, 인간이 (재판 없이) 필요할 때 소비. 콘텐츠는 인간이 직접 저작하며,
-  A의 위생(§7 self-audit)과는 애초에 무관하다 — B의 인간-읽기 용도가 죽어도(§13) A 위생은 B를 경유한 적이
-  없으므로 영향받지 않는다.
+- **A**: LLM이 자율 컴파일하는 도메인 지식, AI recall이 소비자, 항상 살아있음(§4). B의 존폐와 무관하다.
+- **B**: 인간이 나중에 꺼내 쓰려고 넣어둔 참고자료. A의 위생(§7 self-audit)과는 애초에 무관하다 — B의
+  용도가 죽어도(§13) A 위생은 B를 경유한 적이 없으므로 영향받지 않는다.
 - 두 공간을 섞어 쓰지 않는다 — A에 인간 전용 서사를 넣거나 B에 AI self-compounding을 넣지 않는다. 연동은
   다음 절의 링크only 원칙으로만 이뤄진다.
 
 ---
 
-## 6. B 내부 promotion 게이트 — audit E8, 인간 확정 (A→B distillation은 미구현)
+## 6. 승격 게이트 — 폐기 (2026-08-02 #477/#480). 남은 코드는 후속 정리
 
-- **범위 정정 (§U2, 2026-07-11, #215)**: 이 게이트는 **B 내부**(raw/draft → evergreen) 전용이다. A(wiki)→B
-  자동 distillation은 실제로 만들어진 적이 없다 — `generate-manifest.py`의 `promotion_candidate` 계산이
-  `type: wiki`를 구조적으로 제외해서, "AI가 A-source를 읽고 B초안을 뽑는다"는 이전 초안 서술은 아무 코드도
-  뒷받침하지 않았다. §5.1의 "A/B는 하나의 승급 파이프라인이 아니다" 경고와 이제 문서 내에서 정합한다.
-- **후보 제시**: AI(OVM audit E8 — `type: note`/`decision`이고 `status: raw`/`draft`인 B 네이티브 노트만
-  대상, `references_in`/`access_count` 임계치 재확인). **승인**: 인간 yes/no.
-- **빈도**: 매 세션 금지(검토 대역폭 병목 = B 죽인 원인 재발). **retro의 budget-capped, user-confirmed 흐름에
-  올라탐**(`RETRO_BUDGET=10` 상한 존재). 새 always-on 트리거 0.
-- **적용 액션 = frontmatter-only**: `retro` Phase 2 PROMOTE는 `status:` 필드만 `Edit`한다 — 본문·이름·경로는
-  건드리지 않는다. "AI 초안" 자체가 없다: B 콘텐츠는 인간이 직접 쓴 것(또는 `/capture` raw 원료를 인간이
-  다듬은 것)이고, 게이트가 확정하는 건 그 콘텐츠의 **status 전이**(review 판정)뿐 — v4 §2.4의 "검증=확정
-  액션"과 동형이다.
-- **A→B distillation을 새로 짓고 싶다면**: 미구현·미계획으로 §15에 남긴다 — 필요해지면 그때 별 세션에서
-  트리거 시점·스킬을 새로 설계한다.
+§5의 결정 1로 **B 내부 promotion 게이트(raw/draft → evergreen)는 폐기됐다.** 이 절이 규정하던 것 —
+audit E8 후보 제시 + retro의 인간 yes/no 확정 + frontmatter status 전이 — 은 전부 무효다. A(wiki)→B
+자동 distillation은 애초에 만들어진 적이 없고(§U2 정정, 2026-07-11, #215), 이제 새로 지을 이유도 없다.
+
+- **이번 변경에서 같이 뺀 것**: E2 필수 필드에서 `status`(v4 §3.3 status machine에 딸려 있던 요구). 새
+  파일이 `status:`를 안 쓰는데 audit이 그걸 Critical로 잡으면 문서와 코드가 첫날부터 어긋난다.
+- **아직 안 뺀 것 (후속, #480 잔여)**: audit **E7**(`stale_draft`)·**E8**(`promotion_candidate`),
+  `generate-manifest.py`의 `_compute_promotion_candidate`, retro Phase 2 PROMOTE, `e8-candidates.py`.
+  E7은 새 파일에 `status: draft`가 없어 발화하지 않지만, E8은 status를 안 보고 `type`+refs/access로
+  계산하므로 **폐기된 게이트의 후보를 계속 띄운다** — 노이즈이자 문서-코드 불일치라 남은 정리 대상이다.
+- **inbox stale(E6)도 같은 후속에 걸린다**: B가 참고자료 창고면 `inbox/`는 임시 대기열이 아니라 영구
+  보관처인데 E6은 나이로 stale을 잡는다. 이건 폴더 3분할(`inbox`→`sources`, #477 하위 B)과 한 덩어리라
+  거기서 같이 처리한다.
 
 ---
 
@@ -216,10 +234,12 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 | 관심사 | 귀속 |
 |---|---|
 | wiki(A) 컴파일·링크·일관성·self-audit | **OVM 확장**(audit가 E1~E11 보유) |
-| B 내부 promotion 게이트(raw/draft→evergreen, A와 무관) | **OVM audit E8**(v4 status machine 그대로) |
+| ~~B 내부 promotion 게이트~~ | **폐기**(§6, #480) — 귀속처 자체가 없어졌다 |
+| B 입구(참고자료 저장) | **vault-bridge `/vault-save`**(§5, #480) — 프로젝트에서 호출 |
+| B 사서 일(감사·뷰) | **OVM** `/audit`·`/base` — 들어온 다음의 일 |
 | wiki read(AI recall) 인덱스 | **vault-bridge manifest 재용도** |
 | wiki read 위임 | **vault-bridge vault-searcher**(haiku, recall 정렬 完) |
-| `--save` 진입점 | **OVM skill**(호출형), hook 아님 |
+| A `--save` 진입점(`/wiki`) | **OVM skill**(호출형), hook 아님 |
 
 - **신규 플러그인 기각**: vault 도메인 3분할은 MECE 흐림 + CON-5 단방향 위험. A는 OVM 내부 capability로 추가
   (leaf 내부 확장 = 경계 무손상).
@@ -256,9 +276,9 @@ wiki에는 쓰지 않는다. 이 레포에 안 묶인 판단(범용 방법론 �
 
 | v4 자산 | A(wiki) | B(notes) |
 |---|---|---|
-| `type:` opt-in (§2.2) | `type: wiki` 부여 | `type: note`/`decision` 그대로 |
-| status machine (§3.3) | **밖**(인간 검토 액션 없음) | **그대로** |
-| provenance | `provenance:` 必(U3) | 불요(인간 확정) |
+| `type:` opt-in (§2.2) | `type: wiki` 부여 | `capture`/`note`/`decision` = 폴더 마커 |
+| status machine (§3.3) | **밖**(인간 검토 액션 없음) | **폐기**(§5, #480) |
+| provenance | `provenance:` 必(U3) | **必**(§5, #480 — 인출 쪽 방어선) |
 | 항상-on push 없음 (§9.1) | **보존** — `--save`=게이트된 명시 액션 | 보존 |
 | recall 중심 (§2.3) | A의 존재 이유 그 자체 | — |
 | git 통합 (§4) | 계승 | 계승 |
@@ -277,7 +297,7 @@ wiki에는 쓰지 않는다. 이 레포에 안 묶인 판단(범용 방법론 �
 ## 12. 보류분 결정 (DECISION.md "보류" 2건 통합)
 
 - **save-session → inbox/ writer 유지, 단 재정정(2026-07-08 D1, 커밋 `f59f580`; 이후 #331로 커맨드 자체 retire).** record/quick
-  모드와 `type: session` 산출은 폐기됐고, `/save-session`은 이제 `type: capture`를 inbox/에 씀(raw, `/capture`와
+  모드와 `type: session` 산출은 폐기됐고, `/save-session`은 이제 `type: capture`를 inbox/에 씀(raw, 당시 `/capture`와
   동일 산출물). B(인간 검증 durable)가 아닌 건 그대로 — B 직행하면 "덤프 파이프"가 B로 부활 → **inbox/ 운반
   유지**(③ delivery CON-1 어댑터) 원칙은 안 바뀌었고, 내용은 Model X(access_count 기준)로 promotion 후보로
   나중 *채굴* 가능하나 직접 B-surface 아님. #215 "축소" 결정과 정합(전면 kill 아님).
@@ -311,9 +331,9 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
 - **CON-5 단방향**: harness→leaf만. wiki는 leaf(OVM/vault-bridge) 내부. 역방향 금지.
 - **CON — A↔B = 링크only** (#354, discovery 발견 5 확정): A(wiki)와 B(notes)는 연동 시 **참조(wikilink)만,
   복사·동기화 없음.** repo→vault ferry를 죽인 원래 결론(§2 pull-mostly)을 볼트 *레이어 간*에도 그대로
-  적용한 것. §6의 B 내부 promotion(raw/draft→evergreen)은 A를 경유하지 않는 순수 B-내부 전이라 이 CON의
-  적용 대상이 아니다(§U2 정정, 2026-07-11) — A→B distillation이 언젠가 실제로 지어진다면(§15, 미구현)
-  그 설계도 이 링크only 원칙을 지켜야 한다는 뜻으로 유지한다. 역방향(B→A로 인간 노트를 그대로 흡수)도
+  적용한 것. B 내부 promotion은 §6에서 폐기돼 이 CON이 다룰 전이 자체가 없어졌고, A→B distillation이
+  언젠가 실제로 지어진다면(§15, 미구현) 그 설계도 이 링크only 원칙을 지켜야 한다는 뜻으로 유지한다.
+  역방향(B→A로 인간 노트를 그대로 흡수)도
   금지 — A는 AI가 탐구 과정에서 합성한 지식만 먹는다(§4.2).
 - **MECE**: wiki는 OVM(④) capability. vault-bridge(③)는 I/O 기판. 경계 무손상.
 - **비가역 회피**: 기존 더미는 hard delete 아닌 cold archive. 삭제는 trash 경유(`rm` 금지).
@@ -323,6 +343,9 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
 ## 15. 미결 / 별 트랙 (구현 아님 — 본 문서는 설계)
 
 - **구현은 별 세션** (goal G22 제약). 본 문서는 합의된 설계지 코드 변경 아님.
+- **#480 잔여 (후속 세션)**: audit E7/E8 + `_compute_promotion_candidate` + retro PROMOTE +
+  `e8-candidates.py` 제거(§6), 볼트 `type: decision` 처분 판정(#477 미결 2), `/wiki` 배치 정렬
+  (#477 미결 3), 재고 `provenance:` 백필과 E2 확장. 폴더 3분할(`inbox`→`sources`)은 #477 하위 B.
 - ~~**U4 측정(recall hit)**~~ — **완료.** 측정 게이트 폐기, 1회 build-verify로 대체(§8, PR #337, #267).
   상시 계측(telemetry Option B)은 여전히 미착수지만 더 이상 U4의 전제가 아니다.
 - ~~**#94**(commands→skills): 살아남는 커맨드 셋 확정 후(#215 mooted 해소).~~ — **완료.**

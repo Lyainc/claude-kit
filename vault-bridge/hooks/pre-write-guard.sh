@@ -74,7 +74,7 @@ agent_id=$(printf '%s' "$payload" | jq -r '
 # Emit the contract decision (deny in enforce mode, systemMessage in warn mode).
 emit_contract_violation() {
   local detail="$1"
-  local msg="Vault writes must be user-initiated slash commands (/capture, /vault-commit). Subagent ($agent_id) vault write blocked${detail}. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
+  local msg="Vault writes must be user-initiated slash commands (/vault-save, /vault-commit). Subagent ($agent_id) vault write blocked${detail}. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
 
   if [ "$contract_mode" = "enforce" ]; then
     # Emit both permissionDecisionReason (for the deny dialog) AND systemMessage

@@ -38,7 +38,7 @@ Single source of truth: [`docs/design/claude-kit-boundary.md`](../../../docs/des
   vault-bridge `pre-write-guard`'s Write Role Contract passes — and **only after
   the user confirms**. **CON-5 is unaffected**: a vault note is user *data*, not a
   leaf plugin, so editing it introduces no reverse harness→leaf dependency. Every
-  *other* vault write (the memory branch) is surfaced as a `/capture` slash
+  *other* vault write (the memory branch) is surfaced as a `/vault-save` slash
   command (raw session ore → `inbox/`) or `/wiki` (compiled domain knowledge →
   `wiki/`) for the USER to run — `retro` does not write it. (Session knowledge
   is wiki-first: local context is native memory, active recall is `/wiki`; the
@@ -179,7 +179,7 @@ opts in (offer them, do not run silently).
 | Branch | Source | Mechanism | Default |
 |--------|--------|-----------|---------|
 | **액션 (action)** | repeat/waste patterns | git issue via `gh` — `scope: harness` → harness-level issue, `scope: local` → this-repo issue | **ON** (confirm before filing) |
-| **기억 (memory)** | session insights | surface the exact `/capture …` (raw ore → `inbox/`) or `/wiki` (compiled knowledge → `wiki/`) command for the USER to run — user-initiated slash; `retro` does NOT write vault | off (offer) |
+| **기억 (memory)** | session insights | surface the exact `/vault-save …` (raw ore → `inbox/`) or `/wiki` (compiled knowledge → `wiki/`) command for the USER to run — user-initiated slash; `retro` does NOT write vault | off (offer) |
 | **규칙 (rule)** | validated patterns | surface a ready-to-run `/distill` invocation (propose-only handoff — `distill` judges worth-keeping, then hands it to `add-policy`; `retro` does NOT `Edit`) | off (offer) |
 
 - **Action**: for each deduped waste pattern, draft `{title, body}` (body cites
@@ -244,7 +244,7 @@ opts in (offer them, do not run silently).
 
 - Silent promotion / issue filing / rule handoff is FORBIDDEN — all are user-confirmed.
 - The only vault write is the frontmatter-only `status:` patch (PROMOTE), main context, user-confirmed.
-- Memory output is a `/capture` suggestion — never a direct vault write.
+- Memory output is a `/vault-save` suggestion — never a direct vault write.
 - Rule output is a `/distill` suggestion — never a rule-file `Edit`. A pattern only `retro` noticed is
   unjudged, and `add-policy` never judges worth-keeping: the chain is retro → distill → add-policy (#459).
 - Never re-scan the vault or re-implement audit's detection — read the leaf's manifest, apply the E8

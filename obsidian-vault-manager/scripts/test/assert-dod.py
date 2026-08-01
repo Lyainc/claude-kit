@@ -29,7 +29,7 @@ import sys
 # short E1..E11 aliases used in the CLAUDE.md prose comment.
 EXPECTED_SEEDED = {
     "E1_missing_frontmatter": 5,
-    "E2_missing_required_fields": 10,
+    "E2_missing_required_fields": 5,
     "E3_filename_convention_violation": 5,
     "E4_broken_wikilink": 5,
     "E5_orphan_note": 6,
