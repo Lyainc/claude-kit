@@ -35,7 +35,7 @@ type: capture|note|decision|session|plan  # 필수 — type 없으면 claude-kit
 ---
 ```
 
-**파일명 패턴**: `{type}-YYYY-MM-DD[-{topic}].md` (dated) / `{slug}.md` (evergreen note)
+**파일명 패턴**: `{type}-YYYY-MM-DD[-{topic}].md` (dated) / `{slug}.md` (날짜 없는 슬러그)
 
 ## Reference docs
 
