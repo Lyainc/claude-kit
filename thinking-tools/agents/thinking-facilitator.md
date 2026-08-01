@@ -18,6 +18,7 @@ skills:
   - unknown-discovery
   - adversarial-review
   - build-spec
+  - completion-condition
 ---
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
@@ -56,6 +57,9 @@ Analyze user request
 ├── Document quality check needed? ────────────▶ doc-polish
 │   (proofreading, polishing, quality check)
 │
+├── Next-session completion condition needed? ─▶ completion-condition
+│   (완료조건, 다음 세션 목표, START-PROMPT, goal 조건 작성)
+│
 └── Unclear ────────────────────────────────────▶ AskUserQuestion
     (confirm what type of analysis is needed)
 ```
@@ -71,6 +75,7 @@ Analyze user request
 | adversarial-review | 반증, 공격, steelman, survival score, 악마의 변호인 | claim attack, 약점, 검증, 논리 허점 |
 | doc-concretize | concretize, document, organize, write it up | explain, elaborate |
 | doc-polish | polish, proofread, lint, quality check | fix this, correct this (document target) |
+| completion-condition | 완료조건, START-PROMPT, goal 조건 작성, completion condition, next goal | 다음 세션 목표, 다음 작업 정해줘, what should I do next session |
 
 ### Multi-Skill Detection
 
