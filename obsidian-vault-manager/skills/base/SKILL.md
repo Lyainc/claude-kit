@@ -1,6 +1,6 @@
 ---
 name: base
-description: "Generate an Obsidian Bases (.base) view file in ~/vault/notes/ from enforced frontmatter — a live, non-destructive view that never modifies existing notes. Built-in templates: inbox-raw, draft-notes, evergreen. Examples: '/base inbox-raw', '/base draft-notes', '/base evergreen', '/base my-tasks --template draft-notes'"
+description: "Generate an Obsidian Bases (.base) view file in ~/vault/notes/ from enforced frontmatter — a live, non-destructive view that never modifies existing notes. Built-in templates: sources, notes, recent. Examples: '/base sources', '/base notes', '/base recent', '/base my-clippings --template sources'"
 model: sonnet
 allowed-tools: Read Write Bash Glob
 ---
@@ -9,33 +9,30 @@ allowed-tools: Read Write Bash Glob
 
 Create a new Obsidian Bases view file at `~/vault/notes/{view-name}.base` for `$ARGUMENTS`.
 
-A `.base` file is a **pure-YAML view definition** that renders a live table/cards/list over the vault's enforced frontmatter (`type` / `status` / `created` / `tags`). It is **new-file-only**: this skill writes a brand-new `.base` file and NEVER reads, edits, or overwrites any existing `.md` note. See `../../reference/obsidian-bases-schema.md` for the version-pinned `.base` schema.
+A `.base` file is a **pure-YAML view definition** that renders a live table/cards/list over the vault's enforced frontmatter (`type` / `created` / `tags` / `provenance`). It is **new-file-only**: this skill writes a brand-new `.base` file and NEVER reads, edits, or overwrites any existing `.md` note. See `../../reference/obsidian-bases-schema.md` for the version-pinned `.base` schema.
 
 ## Argument Parsing
 
 Parse `$ARGUMENTS`:
-- `{view-name}` — when `{view-name}` is one of the built-in template names (`inbox-raw`, `draft-notes`, `evergreen`), use that template and name the file `{view-name}.base`.
+- `{view-name}` — when `{view-name}` is one of the built-in template names (`sources`, `notes`, `recent`), use that template and name the file `{view-name}.base`.
 - `{view-name} --template {template}` — use the named built-in `{template}` but write the file as `{view-name}.base` (custom filename, built-in body).
-- Valid templates: `inbox-raw`, `draft-notes`, `evergreen`. If no template is resolvable from the name and no `--template` flag is given, ask the user which of the three templates to use (do not invent a filter).
-- **Invalid `--template` value**: if `--template` is given with a value that is NOT one of the 3 built-ins, do NOT silently create a broken view. Instead, immediately stop, list the valid names (`inbox-raw`, `draft-notes`, `evergreen`), and re-ask the user which template to apply.
+- Valid templates: `sources`, `notes`, `recent`. If no template is resolvable from the name and no `--template` flag is given, ask the user which of the three templates to use (do not invent a filter).
+- **Invalid `--template` value**: if `--template` is given with a value that is NOT one of the 3 built-ins, do NOT silently create a broken view. Instead, immediately stop, list the valid names (`sources`, `notes`, `recent`), and re-ask the user which template to apply.
 
 ## Built-in View Templates
 
-Each template's filter is aligned with the v4 status machine. **Every filter MUST include `property.type != null`** so notes without a `type:` field stay invisible (v4 §2.2 type opt-in) — never drop this condition.
+Each template's filter is aligned with the B-layer folder split (v5 §5 — source text in `inbox/`, your own prose in `notes/`). The status machine the old `inbox-raw`/`draft-notes`/`evergreen` templates filtered on was abolished in #480, so those three were replaced. **Every filter MUST include `property.type != null`** so notes without a `type:` field stay invisible (v4 §2.2 type opt-in) — never drop this condition.
 
-### inbox-raw — `inbox/` files with `status: raw`
-
-Visualizes stale inbox signal (raw captures/sessions that have not been triaged).
+### sources — everything in `inbox/` (source text kept as-is)
 
 ```yaml
 filters:
   and:
     - file.inFolder("inbox")
     - property.type != null
-    - property.status == "raw"
 views:
   - type: table
-    name: "Inbox (raw)"
+    name: "Sources"
     order:
       - file.name
       - type
@@ -45,17 +42,16 @@ views:
         direction: DESC
 ```
 
-### draft-notes — `notes/` files with `status: draft`, sorted by `created`
+### notes — everything in `notes/` (prose you wrote), newest first
 
 ```yaml
 filters:
   and:
     - file.inFolder("notes")
     - property.type != null
-    - property.status == "draft"
 views:
   - type: table
-    name: "Draft notes"
+    name: "Notes"
     order:
       - file.name
       - type
@@ -63,20 +59,18 @@ views:
       - created
     sort:
       - property: created
-        direction: ASC
+        direction: DESC
 ```
 
-### evergreen — `notes/` files with `status: evergreen`
+### recent — everything saved lately, across folders
 
 ```yaml
 filters:
   and:
-    - file.inFolder("notes")
     - property.type != null
-    - property.status == "evergreen"
 views:
   - type: table
-    name: "Evergreen"
+    name: "Recent"
     order:
       - file.name
       - type
@@ -105,10 +99,10 @@ views:
 ## Rules
 
 - **New-file-only**: write ONLY the new `.base` file. NEVER read, edit, or overwrite any existing note. This skill has no path that touches `.md` content.
-- **Built-ins are starting points**: the 3 built-in templates cover the most common cases; users can author custom views with other status values (`archived`) or different filters — this skill is not limited to those 3.
+- **Built-ins are starting points**: the 3 built-in templates cover the most common cases; users can author custom views with any other filter (tag, type, folder) — this skill is not limited to those 3.
 - **type opt-in guard**: every template filter MUST keep `property.type != null` so untyped notes (diary, book notes, free folders) stay invisible (v4 §2.2). Never remove it.
 - **Pure YAML body**: a `.base` file is YAML only — no YAML frontmatter delimiters (`---`), no Markdown sections.
 - Show the plan first; write the file only after user confirmation.
 - `notes/` allows free sub-folder structure; do not auto-create sub-folders unless the user specifies a path.
-- Filters align with the v4 status machine (`raw` / `draft` / `evergreen`); do not invent statuses outside that set.
+- Do not filter on `status:` — the status machine is abolished (v5 §5/§6, #480) and nothing writes that field anymore.
 - For schema details / future Obsidian Bases version changes, consult `../../reference/obsidian-bases-schema.md`.

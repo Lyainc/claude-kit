@@ -8,7 +8,7 @@
 
 ## .base 파일이란
 
-`.base`는 원본 `.md` 노트를 **전혀 수정하지 않는** 순수 YAML 정의 파일이에요. frontmatter property(`type` / `status` / `created` / `tags`) 기준으로 live·non-destructive 뷰(table / cards / list)를 만들어요. 폴더 계층 대신 property 기반 dynamic view로 vault를 항법하는 방식(kepano)을 자동화해요.
+`.base`는 원본 `.md` 노트를 **전혀 수정하지 않는** 순수 YAML 정의 파일이에요. frontmatter property(`type` / `created` / `tags` / `provenance`) 기준으로 live·non-destructive 뷰(table / cards / list)를 만들어요. 폴더 계층 대신 property 기반 dynamic view로 vault를 항법하는 방식(kepano)을 자동화해요.
 
 - **new-file-only**: `.base`는 항상 새 파일이고, 노트를 덮어쓰지 않아요. claude-kit의 new-file-only 원칙과 정합해요.
 - **opt-in 뷰**: 부가 뷰일 뿐, 원본 `.md`는 100% 이식 가능해요. 뷰가 죽어도 노트는 안 죽어요.
@@ -28,7 +28,7 @@ property 비교는 `property.{key}` 형태로 참조해요. 함수형 비교를 
 
 | 패턴 | 예시 | 의미 |
 |------|------|------|
-| 동등 비교 | `property.status == "raw"` | status가 raw인 노트 |
+| 동등 비교 | `property.type == "capture"` | type이 capture인 노트 |
 | 함수 비교 | `property.type != null` | type property가 존재하는 노트 (type opt-in 가드) |
 | 폴더 조건 | `file.inFolder("inbox")` | inbox/ 하위 파일 |
 | 폴더 조건 | `file.inFolder("notes")` | notes/ 하위 파일 |
@@ -44,7 +44,7 @@ views:
     name: "표시 이름"
     order:               # 표시할 컬럼 순서 (선택)
       - file.name
-      - status
+      - tags
       - created
     sort:                # 정렬 (선택)
       - property: created
@@ -54,19 +54,18 @@ views:
 
 ## 빌트인 템플릿 3종
 
-`base` 스킬이 제공하는 3종 뷰 — 각 필터는 v4 status machine과 정렬되고, `property.type != null` opt-in 가드를 반드시 포함해요.
+`base` 스킬이 제공하는 3종 뷰 — 각 필터는 B층 폴더 분할(v5 §5: 원문 `inbox/`, 내가 쓴 것 `notes/`)과 정렬되고, `property.type != null` opt-in 가드를 반드시 포함해요. status machine은 #480에서 폐기돼 필터 조건에서 빠졌어요.
 
-### inbox-raw — inbox/의 status: raw 파일 (stale inbox 신호)
+### sources — inbox/ 전체 (원문 그대로 보관한 자료)
 
 ```yaml
 filters:
   and:
     - file.inFolder("inbox")
     - property.type != null
-    - property.status == "raw"
 views:
   - type: table
-    name: "Inbox (raw)"
+    name: "Sources"
     order:
       - file.name
       - type
@@ -76,17 +75,16 @@ views:
         direction: DESC
 ```
 
-### draft-notes — notes/의 status: draft 파일 (created 기준 정렬)
+### notes — notes/ 전체 (내가 쓴 서술, created 최신순)
 
 ```yaml
 filters:
   and:
     - file.inFolder("notes")
     - property.type != null
-    - property.status == "draft"
 views:
   - type: table
-    name: "Draft notes"
+    name: "Notes"
     order:
       - file.name
       - type
@@ -97,17 +95,15 @@ views:
         direction: ASC
 ```
 
-### evergreen — notes/의 status: evergreen 파일
+### recent — 최근 저장한 것 전체 (폴더 무관)
 
 ```yaml
 filters:
   and:
-    - file.inFolder("notes")
     - property.type != null
-    - property.status == "evergreen"
 views:
   - type: table
-    name: "Evergreen"
+    name: "Recent"
     order:
       - file.name
       - type

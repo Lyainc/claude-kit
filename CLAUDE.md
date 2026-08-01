@@ -84,7 +84,7 @@ Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (
 
 ## vault-bridge Hooks & Skills
 
-vault-bridge registers 2 hook handlers (SessionStart manifest refresh, PreToolUse Write|Edit|Bash write-role-contract enforcement) + 3 skills (`/vault-link`, `/vault-manifest-refresh`, `/vault-commit`). All hooks are deterministic shell scripts — no per-turn LLM cost. Full hook/skill detail + the Write Role Contract (vault reads are haiku-delegable, writes are not): [docs/REFERENCE.md](docs/REFERENCE.md#vault-bridge-hooks--skills).
+vault-bridge registers 2 hook handlers (SessionStart manifest refresh, PreToolUse Write|Edit|Bash write-role-contract enforcement) + 4 skills (`/vault-save`, `/vault-link`, `/vault-manifest-refresh`, `/vault-commit`). All hooks are deterministic shell scripts — no per-turn LLM cost. Full hook/skill detail + the Write Role Contract (vault reads are haiku-delegable, writes are not): [docs/REFERENCE.md](docs/REFERENCE.md#vault-bridge-hooks--skills).
 
 ## Cross-Plugin MECE Boundaries
 

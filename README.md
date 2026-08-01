@@ -59,10 +59,11 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 ### vault-bridge — 프로젝트 ↔ vault 브릿지
 
-외부 코드 프로젝트에서 vault에 접근하고, 변경사항을 git에 커밋해요. haiku 기반 읽기 전용 검색 에이전트 + 링크/커밋 슬래시 커맨드 + 결정형 훅(턴당 LLM 비용 0). vault 콘텐츠 쓰기(캡처·노트·wiki)는 obsidian-vault-manager가 담당해요.
+외부 코드 프로젝트에서 vault에 참고자료를 넣고, 검색하고, 변경사항을 git에 커밋해요. haiku 기반 읽기 전용 검색 에이전트 + 저장/링크/커밋 슬래시 커맨드 + 결정형 훅(턴당 LLM 비용 0). 도메인 지식 컴파일(`/wiki`)과 vault 큐레이션은 obsidian-vault-manager가 담당해요.
 
 | 커맨드 | 하는 일 |
 |---|---|
+| `/vault-save` | 참고자료를 vault에 저장 — 원문은 `inbox/`, 내가 쓴 건 `notes/` (확인 없이 즉시 저장) |
 | `/vault-link` | 프로젝트를 특정 vault 위치에 바인딩 |
 | `/vault-commit` | vault 변경사항 커밋 |
 

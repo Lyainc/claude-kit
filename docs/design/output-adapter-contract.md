@@ -72,7 +72,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 | # | `format` | `intent` | 어댑터 타겟 (구현체) | 레이어 | 호출 메커니즘 | 기본 `destination` | `status` 특이 |
 |---|----------|----------|---------------------|--------|--------------|-------------------|--------------|
 | 1 | `html` | `visualize` | **graphify** (`/graphify` 스킬 → AST+의미추출 파이프라인) | ②(graphify html 산출 · ① 인접 §2 주의) | 슬래시 커맨드 + 서브에이전트 fan-out | `repo_path` (`graphify-out/graph.html`+`graph.json`+`GRAPH_REPORT.md`) | `success` |
-| 2 | `note` | `capture` | **vault-bridge `/vault-save`** (#480 — OVM `/note` 대체) | ② 출력 leaf (OVM 경유) | user-initiated 슬래시 커맨드 | `vault` (`notes/{slug}.md` 또는 `notes/decision-YYYY-MM-DD-{slug}.md`) | **`gated`** (CON-1) |
+| 2 | `note` | `capture` | **vault-bridge `/vault-save`** (#480 — OVM `/note` 대체) | ③ delivery leaf (vault-bridge) | user-initiated 슬래시 커맨드 | `vault` (`notes/{slug}.md` 또는 `notes/decision-YYYY-MM-DD-{slug}.md`) | **`gated`** (CON-1) |
 | 3 | `goal-doc` | `crystallize` | **build-spec** (요구사항 결정화) | ② 출력 leaf | 모델 호출 스킬 (Socratic 게이트) | `repo_path` (`docs/specs/{slug}.yaml` Seed) | `success` · **Seed↔goal-doc 재프레임=#111** (§2 주의) |
 | 4 | `handoff` | `handoff` | **`/handoff`** (vault-bridge 커맨드 — G26에서 retire, 머신 레벨 `session-close` 스킬로 이관·이 레포 외부) | vault-bridge 커맨드 (로컬 핸드오프 · **vault 비경유** → ③ "vault 운반"에 미해당) | user-initiated 슬래시 커맨드 (`disable-model-invocation`) | `local_ephemeral` (`.claude-kit/vault-bridge/resume.md`, gitignored) 또는 `stdout` | `success` (**vault 미사용 → CON-1 비대상**) |
 | 5 | ~~`session`~~ | ~~`record`~~ | ~~**`/save-session`**~~ — **RETIRED (#331, 2026-07-10)**: 세션지식 경로가 wiki-first로 재정의돼 OVM `/wiki` + native memory로 이관. 원석 캡처는 OVM `/capture`가 담당 | — | — | — | — |

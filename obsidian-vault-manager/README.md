@@ -21,7 +21,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | --- | --- |
 | `audit` | vault 구조 무결성 감사 — E1–E12 오류 감지 (P0-P2 우선순위), stale 노트·promotion candidate 추적 |
 | `wiki` | 작업 중 알게 된 도메인 지식을 `~/vault/wiki/` 페이지로 컴파일 (LLM wiki, AI recall용 A 레이어; 게이트된 명시 액션) |
-| `base` | enforced frontmatter로 비파괴 Obsidian Bases(.base) 뷰 생성 — 기존 노트 불변, 내장 템플릿(inbox-raw/draft-notes/evergreen) |
+| `base` | enforced frontmatter로 비파괴 Obsidian Bases(.base) 뷰 생성 — 기존 노트 불변, 내장 템플릿(sources/notes/recent) |
 
 ## v4 파일 컨벤션
 
