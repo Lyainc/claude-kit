@@ -4,6 +4,7 @@ description: "Obsidian vault knowledge base manager — vault search, audit coor
 model: sonnet
 color: magenta
 memory: project
+tools: Read, Bash, Glob, Grep, Skill, AskUserQuestion
 skills:
   - audit
 ---
