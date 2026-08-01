@@ -10,8 +10,10 @@ Design Principles & boundary: the single source of truth for the claude-kit↔ha
 
 - **thinking-tools** (`thinking-tools/`): 사고 도구 스킬 7개 + 에이전트 1개 (diverse-sampling, doc-concretize, doc-polish, expert-panel, unknown-discovery, adversarial-review, build-spec + thinking-facilitator agent)
 - **obsidian-vault-manager** (`obsidian-vault-manager/`): Obsidian vault 지식 관리 — 에이전트 2개 (vault-knowledge-manager, vault-file-organizer) + 스킬 5개 (capture, note, wiki, audit, base) + reference docs (`reference/vault-audit-rules.md`, `reference/obsidian-bases-schema.md` 등) + shell primitives (`scripts/ovm-primitives.sh`). wiki = v5 A-layer LLM wiki 컴파일(`vault/wiki/`, AI recall 主, provenance 추적, 게이트된 명시 액션).
-- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 3종 (SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit|Bash) + 스킬 3개 (`/vault-link`, `/vault-manifest-refresh`, `/vault-commit`; `commands/*.md`→`skills/`포맷 마이그레이션 완료 #94; `/handoff`은 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, claude-kit 외부; `/save-session`은 #331에서 retire — 세션지식 경로가 wiki-first로 재정의되어 OVM `/wiki` + native memory로 이관) + Python scripts (`generate-manifest.py`, `vault-commit-message.py`). vault 검색 + git 커밋. vault 콘텐츠 쓰기(capture/note/wiki)는 OVM 소유. (세션 생명주기 자동 훅은 G24에서 cut.)
-- **feedback-loop** (`feedback-loop/`): layer ⑤ 자기개선 루프 (measure→review→keep, **실행/이터레이션 엔진 아님** — #217로 ⑤ 하네스에서 분리된 **외부 배포** 단위). 스킬 3개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산, #123 / distill — 세션 절차 기법의 user-confirmed **발견**: 자연어 제안 객체 emit, 저작은 안 함(매립은 add-policy 소유), SIS 이식, #202 / add-policy — **매립 엔진**(G19/#255): 자연어 규칙·distill 제안을 분류해 매립지 3개(CLAUDE.md/hook/skill) 중 한 곳에 1클릭 배치, 머신-중립·커밋 안 함, user-authored 스킬 inviolable) + telemetry 흡수 (event-logger hooks 8 event-type, report.py lifecycle, opt-in `CLAUDE_KIT_TELEMETRY=1` 아니면 silent·per-turn LLM 0·외부 유출 0). **단방향 의존(CON-5)**: feedback-loop은 leaf OUTPUT(audit·manifest·telemetry events)만 읽고 leaf code import 0; 외부 배포지만 ⑤ harness 계열(배포단위≠레이어).
+- **vault-bridge** (`vault-bridge/`): Obsidian vault I/O 브릿지 플러그인 — 에이전트 1개 (vault-searcher, haiku) + 훅 3종 (SessionStart / PreToolUse Read|Grep|Glob / PreToolUse Write|Edit|Bash) + 스킬 3개 (`/vault-link`, `/vault-manifest-refresh`, `/vault-commit`) + Python scripts (`generate-manifest.py`, `vault-commit-message.py`). vault 검색 + git 커밋. vault 콘텐츠 쓰기(capture/note/wiki)는 OVM 소유.
+- **feedback-loop** (`feedback-loop/`): layer ⑤ 자기개선 루프 (measure→review→keep, **실행/이터레이션 엔진 아님** — ⑤ 하네스에서 분리된 **외부 배포** 단위). 스킬 3개 (retro — audit E8 user-confirmed 승격 + 3갈래 출력 + dedup + 회고예산 / distill — 세션 절차 기법의 user-confirmed **발견**: 자연어 제안 객체 emit, 저작은 안 함(매립은 add-policy 소유) / add-policy — **매립 엔진**: 자연어 규칙·distill 제안을 분류해 매립지 3개(CLAUDE.md/hook/skill) 중 한 곳에 1클릭 배치, 머신-중립·커밋 안 함, user-authored 스킬 inviolable) + telemetry 흡수 (event-logger hooks 8 event-type, report.py lifecycle, opt-in `CLAUDE_KIT_TELEMETRY=1` 아니면 silent·per-turn LLM 0·외부 유출 0). **단방향 의존(CON-5)**: feedback-loop은 leaf OUTPUT(audit·manifest·telemetry events)만 읽고 leaf code import 0; 외부 배포지만 ⑤ harness 계열(배포단위≠레이어).
+
+변경 이력(마이그레이션·retire·컷 결정, 이슈 번호): [docs/REFERENCE.md](docs/REFERENCE.md#project-overview--변경-이력).
 
 ## Git Conventions
 
@@ -47,43 +49,7 @@ All plugins (thinking-tools, obsidian-vault-manager, vault-bridge) follow a unif
 
 ## Directory Structure
 
-```
-claude-kit/                              # marketplace repo (Lyainc-claude-kit)
-├── .claude-plugin/
-│   └── marketplace.json                 # 마켓플레이스 매니페스트 (플러그인 목록 + source 경로)
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-├── thinking-tools/                      # plugin: thinking-tools
-│   ├── .claude-plugin/plugin.json       # 플러그인 매니페스트
-│   ├── skills/                          # 스킬 디렉토리 (SKILL.md 기반 자동 검색)
-│   ├── agents/                          # 에이전트 디렉토리 (thinking-facilitator)
-│   ├── reference/
-│   └── docs/
-├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
-│   ├── .claude-plugin/plugin.json
-│   ├── skills/                          # 5개 스킬 (capture, note, wiki, audit, base)
-│   ├── agents/                          # 2개 에이전트
-│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, obsidian-bases-schema.md
-│   └── scripts/                         # ovm-primitives.sh + test/ (audit-validate.py, gen-fixture.sh, ...)
-├── vault-bridge/                        # plugin: vault-bridge
-│   ├── .claude-plugin/plugin.json
-│   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
-│   ├── skills/                          # 3개 스킬 (vault-link, vault-manifest-refresh, vault-commit; commands/→skills/ 마이그레이션 #94)
-│   ├── hooks/                           # 3개 hook handler (session-start-manifest, pre-access-guard, pre-write-guard)
-│   └── scripts/                         # generate-manifest.py + tests/
-├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
-│   ├── .claude-plugin/plugin.json       # hooks 키: 8 event-type 등록 (opt-in telemetry)
-│   ├── skills/                          # retro (#123 — E8 승격 + 3갈래 출력 + dedup + 회고예산)
-│   ├── scripts/                         # telemetry: event-logger.sh, report.py, sequence.py, validate-schema.py, plugin-map.json + test/
-│   └── README.md                        # measure→review→keep, opt-in·local-only·per-turn LLM 0
-├── docs/                                # 살아있는 계약만 — 완료된 계획·죽은 설계는 삭제(근거는 GitHub 이슈)
-│   ├── design/                          # 현행 설계 계약 (boundary SSOT, 어댑터 계약, vault v4/v5, 4-흐름)
-│   ├── specs/                           # spec-first Seed (YAML)
-│   ├── VALIDATION.md                    # 검증 명령 단일 출처 (CI가 이 파일을 읽음)
-│   └── discussions/                     # 스킬이 쓰는 로컬 워킹 드래프트 (gitignored)
-├── CLAUDE.md
-└── README.md
-```
+전체 디렉토리 트리: [docs/REFERENCE.md](docs/REFERENCE.md#directory-structure).
 
 ## Marketplace Structure
 
@@ -114,65 +80,11 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 
 ## Vault File Conventions
 
-Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (vault second brain v4, extended by v5 — see `docs/design/vault-second-brain-v4.md` and `docs/design/vault-second-brain-v5.md`).
-
-**Folder layout** (v4 §3.1; v5 §3 adds `wiki/`): four top-level folders — `inbox/` (raw input), `notes/` (all content; free sub-folders allowed), `wiki/` (LLM-compiled domain knowledge — the v5 A layer, AI-recall primary; free sub-folders allowed), `assets/` (attachments).
-
-**Filename pattern** (v4 §3.6): `{type}-YYYY-MM-DD[-{topic}][-vN].md` for dated types, `{slug}.md` for evergreen notes and wiki pages.
-
-| Type | Example | Path |
-|------|---------|------|
-| `session` | `session-2026-04-12.md` | `inbox/` |
-| `capture` | `capture-2026-04-12-api-changes.md` | `inbox/` |
-| `note` | `{topic}.md` (no date) | `notes/` |
-| `decision` | `decision-2026-04-12-{topic}.md` | `notes/` |
-| `plan` | `plan-2026-04-12-{topic}.md` | `notes/{project}/` (linked via `.vault-link`) |
-| `wiki` | `{topic}.md` (no date) | `wiki/` (v5 A layer; written by the `wiki` skill) |
-
-Same-date collisions: `-v2`, `-v3` increment. For `wiki`, same-topic is an **update** (compounding), never a `-vN` duplicate.
-
-**Frontmatter standard**:
-```yaml
-created: YYYY-MM-DD                            # required, all files
-tags: [{type}, {domain}]                       # required
-type: capture|note|decision|session|plan|wiki  # required — type opt-in (v4 §2.2): files without `type:` are invisible to claude-kit
-status: raw|draft|evergreen|archived           # required for note/decision (status machine, v4 §3.3); session/capture/plan: optional; wiki: OMITTED (A is outside the status machine, v5 §4.1)
-anchor: <local path/URL>                       # wiki only, optional — present only for source-anchored (cache-type) pages; absent = source-free (store-type). Staleness classification axis (#305)
-verified: YYYY-MM-DD                           # wiki only, auto-stamped on every write — last-touched, not an active verification; exposes page age for staleness hedging (#305)
-provenance: <query/session>                    # wiki only, required (v5 §4.1 U3 traceability — the exploration that produced the page)
-source: web-clipper|manual|...                 # capture only, optional
-url: ...                                       # capture only, optional
-```
-
-**type opt-in** (v4 §2.2): a `type:` field is the marker that opts a note into claude-kit's management. Files without it remain invisible — users keep diary, book notes, free folders untouched.
+Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (vault second brain v4, extended by v5 — see `docs/design/vault-second-brain-v4.md` and `docs/design/vault-second-brain-v5.md`). Folder layout, filename pattern, and the frontmatter schema table: [docs/REFERENCE.md](docs/REFERENCE.md#vault-file-conventions).
 
 ## vault-bridge Hooks & Skills
 
-vault-bridge registers 3 hook handlers + 3 skills. All hooks are **deterministic shell scripts** unless explicitly noted otherwise — no per-turn LLM cost.
-
-**Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for **reads only**. Vault *reads* are delegated to the haiku `vault-searcher` agent; vault *writes* cannot be delegated — `pre-write-guard.sh` (default `enforce`) blocks subagent writes, so all writes are main-context user-initiated skills. Both vault-content ③ delivery adapters that vault-bridge once carried are now retired: the `session` adapter (`docs/design/output-adapter-contract.md` §2 row #5 — formerly `/save-session`) was **retired 2026-07-10 (#331)** when the session-knowledge path was redefined wiki-first (session knowledge → OVM `/wiki` + native memory), and the `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired in G26 (decision G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside claude-kit. vault-bridge's remaining write skill is `/vault-commit` (git commit); vault *content* authoring (capture/note/wiki) belongs to obsidian-vault-manager. vault-bridge is still claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the output layer is **distributed in-place**, so these delivery adapters live here rather than in a separate plugin.
-
-**Vault root configuration** (all hooks + Python scripts share the same 3-level priority):
-1. `VAULT_BRIDGE_VAULT_ROOT` env var — explicit runtime override (CI/scripts, highest priority)
-2. `VAULT_BRIDGE_VAULT_PATH` env var — set from `userConfig.vault_path` in plugin settings
-3. `~/vault` — built-in default. Tilde in either var is expanded to `$HOME`.
-
-**Hooks**:
-
-- **SessionStart** (`hooks/session-start-manifest.sh`, deterministic): incremental manifest refresh — checks staleness and updates `{vault_root}/.vault-bridge/manifest.json` only for changed files (background, never blocks session start).
-- **PreToolUse Read|Grep|Glob** (`hooks/pre-access-guard.sh`, deterministic): emits `systemMessage` warning when the configured vault root is accessed directly. Soft warning, never blocks. As of v1.9.0, this hook exempts vault-searcher's own reads to avoid the self-reference loop that previously caused haiku to misinterpret its own warning as a denial.
-- **PreToolUse Write|Edit|Bash** (`hooks/pre-write-guard.sh`, deterministic): validates vault file naming conventions AND enforces the **Write Role Contract** — the read/write asymmetry at the core of vault-bridge. Vault *reads* are haiku-delegable (the `vault-searcher` agent), but vault *writes* are NOT: they must be user-initiated (main context, executed by skills). Subagent vault writes (any non-empty agent identifier in the PreToolUse payload) are denied or warned per `VAULT_BRIDGE_WRITE_CONTRACT` mode (default `enforce` — deny; supports `warn` / `off`). Naming convention is log-only by default; `VAULT_BRIDGE_STRICT_NAMING=1` blocks on violation.
-  - **Bash coverage (#381)**: matching on tool name alone left the contract bypassable — a subagent holding `Bash` could write the vault with `echo > ~/vault/x.md`, `mv`, `tee`. The guard now also fires on `Bash` and denies commands whose write *target* resolves inside the vault (quote-aware tokenizer, command-position verb detection, redirection targets, `cd` tracking), while every read (`grep ~/vault`, `cat ~/vault/x.md`, `cd ~/vault && git status`, `cp ~/vault/x.md /tmp/`) passes. Naming validation is not applied on the Bash path (contract-only). Same **honest-subagent threat model** as `scripts/subagent-git-guard.sh` (#209): indirection that takes the command as data (`eval`, `sh -c`, backticks, `xargs`, `python3 -c "open(...)"`) is *not* defeated — catching it statically would cost false denies on reads. Those gaps are pinned as KNOWN_EVASIONS in `scripts/test/test-pre-write-guard.py`.
-
-**Skills** (`skills/*/SKILL.md`; migrated from `commands/*.md` in #94):
-
-- **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault location.
-- **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).
-- **`/vault-commit`**: commits uncommitted vault changes with user-approved message.
-
-(`/handoff` was retired in G26 — the next-session continuation function moved to the machine-level `session-close` skill, outside claude-kit.)
-
-The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse guards) and explicit skills ensure zero per-turn LLM cost, no loops. The session-lifecycle auto-hooks (Stop capture suggestion, SessionEnd safety-net auto-save) were cut in G24; capture ore is written only via obsidian-vault-manager's explicit `/capture` skill.
+vault-bridge registers 3 hook handlers (SessionStart manifest refresh, PreToolUse Read|Grep|Glob access warning, PreToolUse Write|Edit|Bash write-role-contract enforcement) + 3 skills (`/vault-link`, `/vault-manifest-refresh`, `/vault-commit`). All hooks are deterministic shell scripts — no per-turn LLM cost. Full hook/skill detail + the Write Role Contract (vault reads are haiku-delegable, writes are not): [docs/REFERENCE.md](docs/REFERENCE.md#vault-bridge-hooks--skills).
 
 ## Cross-Plugin MECE Boundaries
 

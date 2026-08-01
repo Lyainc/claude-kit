@@ -1,9 +1,24 @@
 #!/usr/bin/env python3
-"""check-skill-token-budget.py — a SKILL.md must fit in the compaction re-attach window.
+"""check-skill-token-budget.py — always-loaded/always-attached instruction files stay under budget.
 
-RULE (deterministic): every `*/skills/*/SKILL.md` in a source plugin must count at most
-5,000 tokens, and every compaction-critical anchor inside it (the `## Rules` heading, each
-`AskUserQuestion` in the BODY) must sit inside that same 5,000-token prefix.
+RULE (deterministic): every `*/skills/*/SKILL.md`, every `*/agents/*.md` in a source plugin,
+and the repo's own `CLAUDE.md` must count at most 5,000 tokens each. For SKILL.md specifically,
+every compaction-critical anchor inside it (the `## Rules` heading, each `AskUserQuestion` in
+the BODY) must also sit inside that same 5,000-token prefix.
+
+SCOPE (#473): CLAUDE.md and agents/*.md were added to a guard that originally covered only
+SKILL.md (#454/#461). The rationale differs by file — SKILL.md's is the compaction re-attach
+window below; CLAUDE.md's is dilution (an always-loaded prefix that, left unguarded, only ever
+grows, and every added line taxes compliance with every other instruction in the file —
+measured live: obsidian-mind's CLAUDE.md swelled to 36KB/~9-10k tokens with no budget guarding
+it). agents/*.md sits between the two: not proven to hit the compaction window the way SKILL.md
+does, but resident for a run's duration the same way. Rather than invent a second number without
+a measurement to justify it, all three share the existing 5,000-token line: agents/*.md already
+passed it going in (5 files, 1,481-4,648 tokens, #473's own survey), so extending the guard to
+them cost nothing; CLAUDE.md was the one file over (5,510), and came down by moving lookup-only
+sections to docs/ (see docs/REFERENCE.md's abandon-priority table) rather than by trimming
+content — the anchor check stays SKILL.md-only since `## Rules`/`AskUserQuestion` name a SKILL.md
+gate specifically, and CLAUDE.md/agents/*.md carry neither.
 
 OBJECTIVE DAMAGE (#447, not taste): Claude Code keeps an invoked skill's body in context
 across turns, and auto-compaction re-attaches only **the first 5,000 tokens of each skill**.
@@ -185,14 +200,23 @@ def _git_toplevel() -> Path:
 
 
 def check(root: Path):
-    """Scan source plugins only (a directory holding .claude-plugin/plugin.json)."""
+    """Scan source plugins (skills/*/SKILL.md, agents/*.md) plus the repo's own CLAUDE.md."""
     results = []
+    claude_md = root / "CLAUDE.md"
+    if claude_md.exists():
+        text = claude_md.read_text(encoding="utf-8")
+        total, violations = check_text(text)
+        results.append((claude_md.relative_to(root), total, violations))
     for manifest in sorted(root.glob("*/.claude-plugin/plugin.json")):
         plugin = manifest.parent.parent
         for skill in sorted(plugin.glob("skills/*/SKILL.md")):
             text = skill.read_text(encoding="utf-8")
             total, violations = check_text(text)
             results.append((skill.relative_to(root), total, violations))
+        for agent in sorted(plugin.glob("agents/*.md")):
+            text = agent.read_text(encoding="utf-8")
+            total, violations = check_text(text)
+            results.append((agent.relative_to(root), total, violations))
     return results
 
 
@@ -208,6 +232,10 @@ def _write_fixture_plugin(root: Path, body: str) -> None:
     skill = plugin / "skills" / "x"
     skill.mkdir(parents=True)
     (skill / "SKILL.md").write_text(body)
+    agents = plugin / "agents"
+    agents.mkdir(parents=True)
+    (agents / "x.md").write_text(body)
+    (root / "CLAUDE.md").write_text(body)
 
 
 def run_self_test() -> int:
@@ -314,6 +342,16 @@ def run_self_test() -> int:
         rc, _ = run_main(["--root", empty])
         check(rc == 2, f"wiring: main() on a root with no SKILL.md must exit 2, got {rc}")
 
+    # SCOPE (#473): check() must pick up CLAUDE.md and agents/*.md alongside SKILL.md, not
+    # just the SKILL.md this guard originally covered.
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_fixture_plugin(Path(tmp), _CLEAN)
+        rels = {str(rel) for rel, _, _ in globals()["check"](Path(tmp))}
+        check(
+            rels == {"CLAUDE.md", "fixture-plugin/skills/x/SKILL.md", "fixture-plugin/agents/x.md"},
+            f"scope (#473): expected CLAUDE.md + SKILL.md + agents/*.md, got {rels}",
+        )
+
     saved_backend, saved_encoding = globals()["BACKEND"], globals()["_ENCODING"]
     try:
         # Drop the encoding too, not just the label: otherwise --allow-estimate would still be
@@ -366,8 +404,9 @@ def main(argv=None):
     # .claude-plugin/ layout would otherwise pass vacuously.
     if not results:
         print(
-            f"FATAL: no SKILL.md found under {root} — expected */skills/*/SKILL.md inside a "
-            f"directory holding .claude-plugin/plugin.json. Wrong --root, or the layout moved.",
+            f"FATAL: nothing to measure under {root} — expected a CLAUDE.md, or "
+            f"*/skills/*/SKILL.md or */agents/*.md inside a directory holding "
+            f".claude-plugin/plugin.json. Wrong --root, or the layout moved.",
             file=sys.stderr,
         )
         return 2
@@ -382,16 +421,18 @@ def main(argv=None):
     offenders = [(rel, total, v) for rel, total, v in results if v]
     if offenders:
         print(
-            f"FAIL: {len(offenders)} SKILL.md exceed(s) the {TOKEN_BUDGET}-token compaction "
-            f"re-attach window — content past it is dropped silently (#447):",
+            f"FAIL: {len(offenders)} file(s) exceed the {TOKEN_BUDGET}-token budget — for "
+            f"SKILL.md this is the compaction re-attach window, content past it is dropped "
+            f"silently (#447); for CLAUDE.md/agents/*.md it is dilution (#473):",
             file=sys.stderr,
         )
         for rel, _, violations in offenders:
             for line in violations:
                 print(f"  {rel}: {line}", file=sys.stderr)
         print(
-            "\nFix: move the rationale/narrative out to a reference doc the skill reads on "
-            "demand; keep the gates and invariants in SKILL.md.",
+            "\nFix: move the rationale/narrative out to a doc the file points to on demand "
+            "(a reference.md for a skill, docs/REFERENCE.md for CLAUDE.md); keep gates and "
+            "invariants in place. Always split, never trim.",
             file=sys.stderr,
         )
         return 1
@@ -399,8 +440,8 @@ def main(argv=None):
     worst = max(results, key=lambda r: r[1], default=None)
     worst_note = f"largest {worst[0]} at ~{worst[1]:.0f}" if worst else "none found"
     print(
-        f"OK: skill-token-budget clean — {len(results)} SKILL.md checked, every one within "
-        f"{TOKEN_BUDGET} tokens with its gates inside the window "
+        f"OK: skill-token-budget clean — {len(results)} file(s) checked (SKILL.md/agents/*.md/"
+        f"CLAUDE.md), every one within {TOKEN_BUDGET} tokens, SKILL.md gates inside the window "
         f"[{BACKEND}] ({worst_note})"
     )
     return 0
