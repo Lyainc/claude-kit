@@ -52,6 +52,10 @@ PLUGIN_MAP="${SCRIPT_DIR}/plugin-map.json"
 # SessionStart is the only hook event that does) and each hook invocation is a
 # fresh process with no in-memory state to relay it through otherwise.
 SESSION_MODEL_DIR="${LOG_DIR}/.session-model"
+# #514: nothing ever removed these one-file-per-session caches, so the dir grows
+# forever. A file older than this is from a session that is long over (sessions
+# don't span days), so it is safe to sweep.
+SESSION_MODEL_STALE_DAYS=2
 
 mkdir -p "$LOG_DIR" 2>/dev/null || exit 0
 
@@ -159,6 +163,17 @@ extract_stop_meta() {
   printf '{}'
 }
 
+# Sweep .session-model/<session_id> cache files older than SESSION_MODEL_STALE_DAYS
+# (#514). Piggybacked on session_start rather than session_end: session_end never
+# fires for a killed/crashed session, but every fresh session always fires
+# session_start, so the sweep still runs eventually regardless of how prior
+# sessions ended. Best-effort — a find failure must not break event logging.
+cleanup_stale_session_models() {
+  local dir="$1"
+  [ -d "$dir" ] || return 0
+  find "$dir" -type f -mtime "+${SESSION_MODEL_STALE_DAYS}" -delete 2>/dev/null || true
+}
+
 # --- 6. Per-event field extraction -----------------------------------------
 PLUGIN=""
 NAME=""
@@ -238,6 +253,8 @@ case "$EVENT_TYPE" in
     if [ "$EVENT_TYPE" = "stop" ]; then
       META="$(extract_stop_meta "$PAYLOAD")"
     elif [ "$EVENT_TYPE" = "session_start" ]; then
+      # #514: opportunistic sweep before writing this session's own cache file.
+      cleanup_stale_session_models "$SESSION_MODEL_DIR"
       # SessionStart is the only hook event that carries a model field (#511) —
       # cache it for this session so later PostToolUse end events can relay it.
       SESSION_MODEL="$(printf '%s' "$PAYLOAD" | jq -r '.model // empty' 2>/dev/null || true)"

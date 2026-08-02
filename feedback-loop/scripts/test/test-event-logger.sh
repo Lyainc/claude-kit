@@ -2,7 +2,8 @@
 # feedback-loop/scripts/test/test-event-logger.sh
 #
 # Unit test for event-logger.sh's meta extractors (extract_end_meta /
-# extract_stop_meta) against SYNTHETIC hook payloads.
+# extract_stop_meta) and the .session-model cache sweep (cleanup_stale_session_models,
+# #514) against SYNTHETIC hook payloads / fixture files.
 #
 # Coverage:
 #   - happy path (full tool_response.usage block)
@@ -11,12 +12,14 @@
 #   - jq-invalid payload     -> safe {} fallback (no stray output, no crash)
 #   - extract_stop_meta always -> {} (confirmed #168: real Stop payloads carry
 #     no usage/token field at any key path, see event-logger.sh's extractor)
+#   - cleanup_stale_session_models removes files older than the stale threshold
+#     and preserves recent ones (#514)
 #
 # Standalone-runnable. Exits non-zero on any assertion failure.
 #
 # Strategy: event-logger.sh is a flat script (opt-in gate + side-effecting case
 # body), so sourcing it whole would run the logging path. We instead slice out
-# only the two pure functions by their name markers and source that slice. This
+# only the pure functions by their name markers and source that slice. This
 # keeps the test free of file writes and the opt-in gate.
 
 set -uo pipefail
@@ -35,23 +38,30 @@ if ! command -v jq >/dev/null 2>&1; then
   exit 1
 fi
 
-# --- Slice the two pure functions out of the logger and source them ----------
+if ! command -v python3 >/dev/null 2>&1; then
+  printf 'FAIL: python3 not found on PATH (required to backdate fixture files)\n' >&2
+  exit 1
+fi
+
+# --- Slice the pure functions out of the logger and source them ------------
 # awk prints each `name() { ... }` block: start at the function header, stop
 # after the first line that is a bare `}` at column 0 (the function closer).
-# CONSTRAINT: this name-marker slice assumes each extractor's closing brace is
+# CONSTRAINT: this name-marker slice assumes each function's closing brace is
 # the FIRST bare `}` at column 0 in its body. If a function ever introduces a
 # column-0 `}` (e.g. a heredoc terminator or a nested subshell brace flush-left),
-# the slice would cut early and the sourced function would be malformed. The two
-# extractors keep all inner braces indented, so the marker holds — preserve that
-# (indent inner braces) when editing event-logger.sh's extract_* functions.
+# the slice would cut early and the sourced function would be malformed. These
+# functions keep all inner braces indented, so the marker holds — preserve that
+# (indent inner braces) when editing event-logger.sh's extract_*/cleanup_* functions.
 FN_SLICE="$(mktemp 2>/dev/null || printf '/tmp/test-event-logger-%s.sh' "$$")"
 MODEL_DIR="$(mktemp -d 2>/dev/null || printf '/tmp/test-event-logger-model-%s' "$$")"
-mkdir -p "$MODEL_DIR" 2>/dev/null || true
-trap 'rm -f "$FN_SLICE"; rm -rf "$MODEL_DIR"' EXIT
+CLEANUP_DIR="$(mktemp -d 2>/dev/null || printf '/tmp/test-event-logger-cleanup-%s' "$$")"
+mkdir -p "$MODEL_DIR" "$CLEANUP_DIR" 2>/dev/null || true
+trap 'rm -f "$FN_SLICE"; rm -rf "$MODEL_DIR" "$CLEANUP_DIR"' EXIT
 
 awk '
   /^extract_end_meta\(\)/  { grab=1 }
   /^extract_stop_meta\(\)/ { grab=1 }
+  /^cleanup_stale_session_models\(\)/ { grab=1 }
   grab { print }
   grab && /^}/ { grab=0 }
 ' "$LOGGER" > "$FN_SLICE"
@@ -65,6 +75,10 @@ if ! declare -F extract_end_meta >/dev/null 2>&1; then
 fi
 if ! declare -F extract_stop_meta >/dev/null 2>&1; then
   printf 'FAIL: extract_stop_meta not defined after sourcing slice\n' >&2
+  exit 1
+fi
+if ! declare -F cleanup_stale_session_models >/dev/null 2>&1; then
+  printf 'FAIL: cleanup_stale_session_models not defined after sourcing slice\n' >&2
   exit 1
 fi
 
@@ -185,6 +199,48 @@ stop_invalid='}{ broken'
 assert_json_eq "stop:jq-invalid -> {} fallback" \
   "$(extract_stop_meta "$stop_invalid")" \
   '{}'
+
+# ============================================================================
+# cleanup_stale_session_models — .session-model cache sweep (#514)
+# ============================================================================
+
+SESSION_MODEL_STALE_DAYS=2
+
+# Fixture: one stale file (backdated well past the threshold) + one recent file.
+OLD_FILE="${CLEANUP_DIR}/old-session"
+RECENT_FILE="${CLEANUP_DIR}/recent-session"
+printf 'claude-sonnet-5' > "$OLD_FILE"
+printf 'claude-sonnet-5' > "$RECENT_FILE"
+OLD_TS="$(python3 -c "import datetime; print((datetime.datetime.now()-datetime.timedelta(days=5)).strftime('%Y%m%d%H%M.%S'))")"
+touch -t "$OLD_TS" "$OLD_FILE"
+
+cleanup_stale_session_models "$CLEANUP_DIR"
+
+if [ -f "$OLD_FILE" ]; then
+  FAILURES=$((FAILURES + 1))
+  printf 'FAIL cleanup: stale file (>%dd old) not removed\n' "$SESSION_MODEL_STALE_DAYS" >&2
+else
+  PASSES=$((PASSES + 1))
+  printf 'ok   cleanup: stale file removed\n'
+fi
+
+if [ -f "$RECENT_FILE" ]; then
+  PASSES=$((PASSES + 1))
+  printf 'ok   cleanup: recent file preserved\n'
+else
+  FAILURES=$((FAILURES + 1))
+  printf 'FAIL cleanup: recent file was wrongly removed\n' >&2
+fi
+
+# A missing directory (never yet created) must be a silent no-op, not a crash —
+# this is the state on a brand-new project before the first session_start.
+if cleanup_stale_session_models "${CLEANUP_DIR}/does-not-exist" >/dev/null 2>&1; then
+  PASSES=$((PASSES + 1))
+  printf 'ok   cleanup: missing directory is a silent no-op\n'
+else
+  FAILURES=$((FAILURES + 1))
+  printf 'FAIL cleanup: missing directory caused a non-zero exit\n' >&2
+fi
 
 # --- Summary -----------------------------------------------------------------
 printf '\n%d passed, %d failed\n' "$PASSES" "$FAILURES"
