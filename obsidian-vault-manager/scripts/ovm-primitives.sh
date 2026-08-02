@@ -666,7 +666,12 @@ def die_corrupt(path, reason):
              if os.path.isfile(p) and read_bytes(p) == original),
             None)
         if sidecar is None:
-            sidecar = f"{path}.corrupt-{now_iso()}"
+            # Colon-free (unlike now_iso(), which stays real ISO8601 for the JSON
+            # last_audited field parsed elsewhere via fromisoformat): a `:`-bearing
+            # filename breaks on FAT32/exFAT/NTFS-mounted vault dirs and some
+            # cloud-sync tools.
+            stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%f")
+            sidecar = f"{path}.corrupt-{stamp}"
             shutil.copy2(path, sidecar)
         where = f"Original preserved at {sidecar}"
     except OSError as e:
