@@ -69,12 +69,18 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    find ~/vault -name '*.md' -not -path '*/.*'
    ```
 
-8. Read manifest summary (used for REPORT header):
+8. Read manifest summary (used for REPORT header). **Never `cat` the manifest directly** — on
+   a real vault it can run past 100 KB, and the harness truncates large Bash output to a 2 KB
+   preview before this reads it, so a raw `cat` silently degrades to whichever few entries
+   survive the cut (#468, same defect class as #460). Use the filter script instead, which
+   reads the full file on disk and returns only the two fields needed:
    ```bash
-   cat "$VAULT_ROOT/.vault-bridge/manifest.json" 2>/dev/null
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
    Use the resolved `$VAULT_ROOT` from Steps 4–7 (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`), not a hardcoded path.
-   Extract `file_count` and `generated_at` if the file exists and is valid JSON. If absent or unparseable, set `manifest_summary` to null.
+   Exit 0 → parse stdout as `{file_count, generated_at}` and use it as `manifest_summary`.
+   Exit 3 (manifest absent, unparseable, or missing a required field) → set `manifest_summary`
+   to null — never re-attempt with a raw `cat` as a fallback.
 
 9. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
    ```bash
