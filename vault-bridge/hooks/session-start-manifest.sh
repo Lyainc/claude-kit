@@ -38,11 +38,23 @@ if [ ! -f "$GENERATOR" ]; then
   exit 0
 fi
 
+# Detect a usable timeout binary (macOS has neither `timeout` by default —
+# see obsidian-vault-manager/reference/obsidian-cli.md). Run unwrapped if absent
+# rather than silently no-op: a bare `timeout 10 ...` on such a host is a
+# "command not found" that >/dev/null 2>&1 below swallows completely (#484).
+if command -v timeout >/dev/null 2>&1; then
+  MANIFEST_TO="timeout 10"
+elif command -v gtimeout >/dev/null 2>&1; then
+  MANIFEST_TO="gtimeout 10"
+else
+  MANIFEST_TO=""
+fi
+
 # Run generator in background with a 10s wall-time cap to handle large vaults
 # or slow filesystems. The generator itself is fast (incremental mtime checks).
 # Discard stdout/stderr — stats are not needed here.
 (
-  timeout 10 python3 "$GENERATOR" --vault-root "$VAULT_ROOT" >/dev/null 2>&1
+  $MANIFEST_TO python3 "$GENERATOR" --vault-root "$VAULT_ROOT" >/dev/null 2>&1
 ) &
 
 exit 0

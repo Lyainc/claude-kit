@@ -107,7 +107,7 @@ def case_new_raw_note(errors: list[str]) -> None:
 
 
 def case_modify_raw_to_draft(errors: list[str]) -> None:
-    """Modified file raw→draft → message contains 'note(promote)' and 'raw→draft'"""
+    """raw→draft no longer promotes (#480 — gate abolished) → falls through to 'note(update)'"""
     print("\ncase: modify_raw_to_draft")
     with tempfile.TemporaryDirectory() as tmp:
         vault_root = Path(tmp)
@@ -122,12 +122,12 @@ def case_modify_raw_to_draft(errors: list[str]) -> None:
         proc = _run_script(str(vault_root), diff)
         out = proc.stdout.strip()
         _assert(proc.returncode == 0, "exit 0", errors)
-        _assert("note(promote)" in out, f"contains note(promote) (got: {out!r})", errors)
-        _assert("raw→draft" in out, f"contains raw→draft (got: {out!r})", errors)
+        _assert(out.startswith("note(update):"), f"starts with note(update): (got: {out!r})", errors)
+        _assert("promote" not in out, f"no promote label (got: {out!r})", errors)
 
 
 def case_modify_draft_to_evergreen(errors: list[str]) -> None:
-    """Modified file draft→evergreen → message contains 'note(promote)' and 'draft→evergreen'"""
+    """draft→evergreen no longer promotes (#480 — gate abolished) → falls through to 'note(update)'"""
     print("\ncase: modify_draft_to_evergreen")
     with tempfile.TemporaryDirectory() as tmp:
         vault_root = Path(tmp)
@@ -140,8 +140,8 @@ def case_modify_draft_to_evergreen(errors: list[str]) -> None:
         proc = _run_script(str(vault_root), diff)
         out = proc.stdout.strip()
         _assert(proc.returncode == 0, "exit 0", errors)
-        _assert("note(promote)" in out, f"contains note(promote) (got: {out!r})", errors)
-        _assert("draft→evergreen" in out, f"contains draft→evergreen (got: {out!r})", errors)
+        _assert(out.startswith("note(update):"), f"starts with note(update): (got: {out!r})", errors)
+        _assert("promote" not in out, f"no promote label (got: {out!r})", errors)
 
 
 def case_modify_body_only(errors: list[str]) -> None:
@@ -246,7 +246,7 @@ def case_new_plan(errors: list[str]) -> None:
 
 
 def case_modify_decision_promote(errors: list[str]) -> None:
-    """Modified decision with status transition → 'decision(promote):' not 'note(promote):'"""
+    """Modified decision with a non-archive status change no longer promotes (#480) → 'decision(update):'"""
     print("\ncase: modify_decision_promote")
     with tempfile.TemporaryDirectory() as tmp:
         vault_root = Path(tmp)
@@ -259,8 +259,8 @@ def case_modify_decision_promote(errors: list[str]) -> None:
         proc = _run_script(str(vault_root), diff)
         out = proc.stdout.strip()
         _assert(proc.returncode == 0, "exit 0", errors)
-        _assert(out.startswith("decision(promote):"), f"starts with decision(promote): (got: {out!r})", errors)
-        _assert("draft→evergreen" in out, f"contains draft→evergreen (got: {out!r})", errors)
+        _assert(out.startswith("decision(update):"), f"starts with decision(update): (got: {out!r})", errors)
+        _assert("promote" not in out, f"no promote label (got: {out!r})", errors)
 
 
 def case_modify_session_with_status_change(errors: list[str]) -> None:
@@ -384,19 +384,19 @@ def case_title_omits_remainder_when_none(errors: list[str]) -> None:
                 f"no remainder suffix (got: {out.splitlines()[0]!r})", errors)
 
 
-def _promote_note(vault_root: Path, rel: str, git_root: str) -> None:
-    """Commit a draft note, then leave it at evergreen — a raw promote on disk."""
-    _write_note(vault_root, rel, "note", "draft")
-    _commit_file(git_root, rel, f"seed {rel}")
+def _archive_note(vault_root: Path, rel: str, git_root: str) -> None:
+    """Commit an evergreen note, then leave it archived on disk."""
     _write_note(vault_root, rel, "note", "evergreen")
+    _commit_file(git_root, rel, f"seed {rel}")
+    _write_note(vault_root, rel, "note", "archived")
 
 
 def case_transitions_keep_their_own_group(errors: list[str]) -> None:
-    """A promote must not share a bucket with an ordinary same-type edit.
+    """An archive must not share a bucket with an ordinary same-type edit.
 
-    Both are git status `M`, and `_kind` reduces `note(promote)` and
+    Both are git status `M`, and `_kind` reduces `note(archive)` and
     `note(update)` to the same token, so keying on the status letter alone made
-    3 promotes + 1 edit title itself "note: update 4 files" (#439).
+    3 archives + 1 edit title itself "note: update 4 files" (#439).
     """
     print("\ncase: transitions_keep_their_own_group")
     with tempfile.TemporaryDirectory() as tmp:
@@ -404,8 +404,8 @@ def case_transitions_keep_their_own_group(errors: list[str]) -> None:
         _init_git_repo(vault_root)
         diff = []
         for i in range(3):
-            rel = f"notes/promoted-{i}.md"
-            _promote_note(vault_root, rel, str(vault_root))
+            rel = f"notes/archived-{i}.md"
+            _archive_note(vault_root, rel, str(vault_root))
             diff.append("M\t" + rel)
         rel_edit = "notes/edited.md"
         _write_note(vault_root, rel_edit, "note", "evergreen", body="# old\n")
@@ -415,16 +415,16 @@ def case_transitions_keep_their_own_group(errors: list[str]) -> None:
 
         out = _run_script(str(vault_root), diff).stdout.strip()
         lines = out.splitlines()
-        _assert(lines[0] == "note: promote 3 files (+1 more)",
-                f"the 3 promotes title the commit (got: {lines[0]!r})", errors)
+        _assert(lines[0] == "note: archive 3 files (+1 more)",
+                f"the 3 archives title the commit (got: {lines[0]!r})", errors)
         _assert("note(update): edited" in out,
                 f"the ordinary edit is still in the body (got: {out!r})", errors)
 
 
 def case_lone_transition_outranks_count(errors: list[str]) -> None:
-    """One promote among several same-type edits still titles the commit.
+    """One archive among several same-type edits still titles the commit.
 
-    `_importance` scores promote/archive below every type to say "this outranks
+    `_importance` scores archive below every type to say "this outranks
     everything". Count-based titling exists to stop one *ordinary* file
     outranking twenty; it must not demote a transition (#439).
     """
@@ -432,9 +432,9 @@ def case_lone_transition_outranks_count(errors: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         vault_root = Path(tmp)
         _init_git_repo(vault_root)
-        rel_promoted = "notes/promoted.md"
-        _promote_note(vault_root, rel_promoted, str(vault_root))
-        diff = ["M\t" + rel_promoted]
+        rel_archived = "notes/archived.md"
+        _archive_note(vault_root, rel_archived, str(vault_root))
+        diff = ["M\t" + rel_archived]
         for i in range(5):
             rel = f"notes/edited-{i}.md"
             _write_note(vault_root, rel, "note", "evergreen", body="# old\n")
@@ -444,8 +444,8 @@ def case_lone_transition_outranks_count(errors: list[str]) -> None:
 
         out = _run_script(str(vault_root), diff).stdout.strip()
         lines = out.splitlines()
-        _assert(lines[0] == "note(promote): promoted {draft→evergreen}",
-                f"the lone promote titles the commit (got: {lines[0]!r})", errors)
+        _assert(lines[0] == "note(archive): archived",
+                f"the lone archive titles the commit (got: {lines[0]!r})", errors)
         _assert(out.count("note(update)") == 5,
                 f"all five edits stay in the body (got: {out!r})", errors)
 
@@ -477,7 +477,7 @@ def case_single_file_winner_titled_by_its_own_group(errors: list[str]) -> None:
 
     The winner is chosen per group, so the title has to come from that group.
     Reading it off a global importance sort only agrees while `_importance`
-    happens to rank promote/archive below every type; this pins the behaviour to
+    happens to rank archive below every type; this pins the behaviour to
     the group choice instead. Constructed so a losing group holds the globally
     best-scoring message: the decision (importance 0) beats the archive (-1)
     only under the *reversed* map applied below.

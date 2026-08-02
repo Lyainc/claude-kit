@@ -46,9 +46,10 @@ REQUIRED_FM_FIELDS = ("created", "tags", "type")
 # `status` was required for note/decision until the v4 §3.3 status machine was abolished
 # (v5 §5/§6, #480) — B is a reference warehouse now, and /vault-save writes no status field.
 # Requiring it would flag every new file as E2 Critical on day one.
-# Stagnation thresholds (v4 §6.1 Step 2).
+# Stagnation threshold (v4 §6.1 Step 2). STALE_DRAFT_DAYS (E7) was removed with the
+# promotion gate (v5 §6, #480) — /vault-save writes no `status:` field, so no file
+# can ever reach `status: draft` again.
 STALE_INBOX_DAYS = 14
-STALE_DRAFT_DAYS = 30
 # E12 wiki staleness threshold (v5 §7 U3). A wiki page's `verified:` is auto-stamped
 # on every write (v5 §4.1) — a last-touched signal, not active verification — so age
 # past this bound flags a page that hasn't been re-compiled/re-touched in a quarter.
@@ -64,8 +65,6 @@ PRIORITY_BY_TYPE = {
     "E4_broken_wikilink": "P0",
     "E5_orphan_note": "P2",
     "E6_stale_inbox": "P1",
-    "E7_stale_draft": "P1",
-    "E8_promotion_candidate": "P2",
     "E9_tag_vocabulary_inconsistency": "P2",
     "E10_misplaced_file": "P1",
     "E11_unstructured_path": "P1",
@@ -328,7 +327,6 @@ def collect(vault: Path) -> dict:
         "all_stems": all_stems,
         "inbound": {k: sorted(v) for k, v in inbound.items()},
         "wikilinks_by_file": wikilinks_by_file,
-        "vault": vault,
     }
 
 
@@ -375,40 +373,6 @@ def detect_stale_wiki(fm_records: list, today: date, stale_days: int = STALE_WIK
                 f"— recompile or re-verify the page",
             ))
     return findings
-
-
-def _promotion_candidates_from_manifest(vault: Path) -> list:
-    """Return manifest entries with promotion_candidate=True for E8 classification.
-
-    Silently skips pre-v3 manifests (schema_version gate introduced in PR 4c).
-    Each result carries refs_in and access_count for detail construction.
-    """
-    path = vault / ".vault-bridge" / "manifest.json"
-    if not path.is_file():
-        return []
-    try:
-        data = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError, UnicodeDecodeError):
-        return []
-    schema_version = data.get("schema_version", 1)
-    if not (isinstance(schema_version, int) and schema_version >= 3):
-        return []
-    results = []
-    for f in data.get("files") or []:
-        if f.get("promotion_candidate") is not True:
-            continue
-        rel = f.get("path", "")
-        # Skip stale manifest entries: file deleted since last manifest refresh
-        # would otherwise surface as a phantom E8 finding.
-        if not rel or not (vault / rel).is_file():
-            continue
-        results.append({
-            "rel": rel,
-            "type": f.get("type", ""),
-            "refs_in": f.get("references_in", 0),
-            "access_count": f.get("access_count", 0),
-        })
-    return results
 
 
 def _camel_to_snake(key: str) -> str:
@@ -593,7 +557,7 @@ def classify(bundle: dict) -> dict:
             detail = "연결 후보 없음 (공유 태그 없음)"
         add("E5_orphan_note", rec["rel"], detail, candidates=candidates)
 
-    # E6 + E7: stagnation (v4 §6.1 Step 2). Uses frontmatter `created:` —
+    # E6: stagnation (v4 §6.1 Step 2). Uses frontmatter `created:` —
     # mtime is unreliable across git clones.
     for rec in bundle["fm_records"]:
         rel_path = Path(rec["rel"])
@@ -601,6 +565,8 @@ def classify(bundle: dict) -> dict:
         if not rel_path.parts:
             continue
         top = rel_path.parts[0]
+        if top != "inbox":
+            continue
         created = parse_created_date(fm.get("created"))
         if created is None:
             continue
@@ -609,16 +575,9 @@ def classify(bundle: dict) -> dict:
         # Non-string status (e.g., list from `status: [raw]` YAML) is treated
         # as absent — the audit's job is to flag malformed status via E1/E2.
         status = raw_status.strip() if isinstance(raw_status, str) else ""
-
-        # E6/E7 are mutually exclusive (top folder is a single value).
-        if top == "inbox":
-            if status in INBOX_RAW_STATUSES and age_days > STALE_INBOX_DAYS:
-                add("E6_stale_inbox", rec["rel"],
-                    f"age {age_days}d > {STALE_INBOX_DAYS}d (status:{status or 'none'}, created {fm.get('created')})")
-        elif top == "notes" and rel_path.name != "_index.md":
-            if status == "draft" and age_days > STALE_DRAFT_DAYS:
-                add("E7_stale_draft", rec["rel"],
-                    f"age {age_days}d > {STALE_DRAFT_DAYS}d (status:draft, created {fm.get('created')})")
+        if status in INBOX_RAW_STATUSES and age_days > STALE_INBOX_DAYS:
+            add("E6_stale_inbox", rec["rel"],
+                f"age {age_days}d > {STALE_INBOX_DAYS}d (status:{status or 'none'}, created {fm.get('created')})")
 
     # E12a: wiki staleness (v5 §7 U3) — deterministic slice of the wiki self-audit
     # rule. Semantic cross-page contradiction (E12b) is the deferred --deep LLM path.
@@ -679,20 +638,6 @@ def classify(bundle: dict) -> dict:
         add("E11_unstructured_path", rec["rel"],
             f"top folder '{top}/' is not canonical (inbox/notes/assets/wiki)")
 
-    # E8: promotion candidates from manifest (schema_version ≥ 3 only).
-    # note/decision meeting refs_in or access_count thresholds — manual
-    # status→evergreen. capture meeting access_count only (Model X, no
-    # references_in signal) — recalled ore, no status field to flip; the
-    # next action is /vault-save or /wiki, not a status edit.
-    for cand in _promotion_candidates_from_manifest(bundle["vault"]):
-        r = cand["refs_in"]
-        a = cand["access_count"]
-        if cand["type"] == "capture":
-            detail = f"refs_in={r}, access={a} (recalled capture ore — consider /vault-save or /wiki to promote)"
-        else:
-            detail = f"refs_in={r}, access={a} (manual: status→evergreen)"
-        add("E8_promotion_candidate", cand["rel"], detail)
-
     # E9: tag/property vocabulary inconsistency (#119). Vault-LEVEL findings —
     # path is "" because the inconsistency is a property of the vault, not of
     # one file. Each detected pair is one finding (DoD counts pairs). The
@@ -725,8 +670,6 @@ SEED_PREFIXES = {
     "E4_broken_wikilink": ("path", "audit-e4-"),
     "E5_orphan_note": ("path", "audit-e5-"),
     "E6_stale_inbox": ("path", "audit-e6-"),
-    "E7_stale_draft": ("path", "audit-e7-"),
-    "E8_promotion_candidate": ("path", "audit-e8-"),
     "E10_misplaced_file": ("path", "audit-e10-"),
     "E11_unstructured_path": ("path", "audit-e11-"),
     "E12_wiki_stale": ("path", "audit-e12-"),
@@ -818,12 +761,7 @@ def dod_report(findings: list) -> dict:
 
 
 def read_manifest_summary(vault: Path) -> Optional[dict]:
-    """Read .vault-bridge/manifest.json if present.
-
-    Returns summary dict or None. promotion_candidate_count is None for
-    pre-v3 manifests (field not available), and an integer (possibly 0) for
-    v3+ manifests so callers can distinguish "unavailable" from "no candidates".
-    """
+    """Read .vault-bridge/manifest.json if present. Returns summary dict or None."""
     path = vault / ".vault-bridge" / "manifest.json"
     if not path.is_file():
         return None
@@ -832,20 +770,10 @@ def read_manifest_summary(vault: Path) -> Optional[dict]:
     except (OSError, json.JSONDecodeError, UnicodeDecodeError):
         return None
 
-    schema_version = data.get("schema_version", 1)
-    if isinstance(schema_version, int) and schema_version >= 3:
-        files = data.get("files") or []
-        promotion_count: Optional[int] = sum(
-            1 for f in files if f.get("promotion_candidate") is True
-        )
-    else:
-        promotion_count = None
-
     return {
         "file_count": data.get("file_count"),
         "generated_at": data.get("generated_at"),
         "schema_version": data.get("schema_version"),
-        "promotion_candidate_count": promotion_count,
     }
 
 

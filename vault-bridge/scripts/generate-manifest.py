@@ -7,15 +7,14 @@ vault v5 note: this manifest is also the ④ wiki recall index. `type: wiki`
 pages (the A layer, ~/vault/wiki/) are picked up automatically via type opt-in
 (`wiki` is not in EXCLUDED_DIRS), and the existing recall signals — access_count
 (7-day git touches) + references_in — rank them for vault-searcher with no
-manifest code change. `promotion_candidate` stays None for wiki (eligible types
-are note/decision/capture only): A is the recall layer, not a promotion source.
+manifest code change.
 
 Note on references_in vs references_out:
   references_in is per-source-file (a note linking [[X]] three times counts
   once for X, and self-links are excluded), while references_out is per
   occurrence (every wikilink in the source counts, no dedup). The asymmetry
-  exists because in measures cross-note weight for promotion thresholds,
-  while out is a raw outbound link density signal.
+  exists because in measures cross-note weight, while out is a raw outbound
+  link density signal.
 
 Usage:
   python3 generate-manifest.py [--vault-root PATH] [--force] [--out PATH]
@@ -46,29 +45,6 @@ SCHEMA_VERSION = 3
 # either restore version-based invalidation for that bump or require --force.
 SUMMARY_MAX_CHARS = 400
 EXCLUDED_DIRS = {".vault-bridge", ".claude", "assets", ".git"}
-
-def _env_int(name: str, default: int) -> int:
-    """Read an int from env with fallback on missing/invalid values.
-    A typo'd override (e.g. `VAULT_AUDIT_PROMOTION_REFS=abc`) must not crash
-    module import — the manifest generator runs in hot paths (session-start).
-    """
-    raw = os.environ.get(name)
-    if raw is None:
-        return default
-    try:
-        return int(raw)
-    except ValueError:
-        print(
-            f"WARNING: invalid int for {name}={raw!r}; falling back to {default}",
-            file=sys.stderr,
-        )
-        return default
-
-
-# Promotion candidate thresholds (env-overridable)
-PROMOTION_REFS_THRESHOLD = _env_int("VAULT_AUDIT_PROMOTION_REFS", 3)
-PROMOTION_ACCESS_THRESHOLD = _env_int("VAULT_AUDIT_PROMOTION_ACCESS", 5)
-
 
 def _default_vault_root() -> str:
     """Resolve the default vault root with 3-level priority:
@@ -321,7 +297,8 @@ def _load_existing_manifest(out_path: Path) -> dict | None:
 
     v3 in-place upgrade: accepts manifests with older schema_version instead of
     triggering a full invalidation. Missing new fields (references_in, references_out,
-    access_count, promotion_candidate) are patched by generate() after loading.
+    access_count) are patched by generate() after loading; a stale `promotion_candidate`
+    field from a pre-#480 manifest is dropped by generate()'s _enrich.
     """
     if not out_path.exists():
         return None
@@ -377,15 +354,12 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
     def _enrich(entry: dict, rel: str) -> dict:
         """Patch global meta fields into entry (mutates + returns entry)."""
         stem = Path(rel).stem
-        ref_in = inbound_counts.get(stem, 0)
-        ref_out = outbound_counts.get(rel, 0)
-        acc = access_counts.get(rel, 0)
-        entry["references_in"] = ref_in
-        entry["references_out"] = ref_out
-        entry["access_count"] = acc
-        entry["promotion_candidate"] = _compute_promotion_candidate(
-            entry.get("type", "unknown"), ref_in, acc
-        )
+        entry["references_in"] = inbound_counts.get(stem, 0)
+        entry["references_out"] = outbound_counts.get(rel, 0)
+        entry["access_count"] = access_counts.get(rel, 0)
+        # Drop a stale promotion_candidate carried over from a pre-#480 manifest —
+        # the incremental path reuses existing_entry as-is otherwise (#480).
+        entry.pop("promotion_candidate", None)
         return entry
 
     existing = None if force else _load_existing_manifest(out_path)
@@ -477,7 +451,7 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Global meta: wikilink index, git access count, promotion candidate
+# Global meta: wikilink index, git access count
 # ---------------------------------------------------------------------------
 
 def _build_wikilink_index(
@@ -490,8 +464,8 @@ def _build_wikilink_index(
 
     Inbound is per-source-file: three [[X]] mentions in one note count as one
     inbound reference for X, and self-links (a note linking to its own stem)
-    are excluded so promotion_candidate thresholds reflect real cross-note
-    weight rather than internal repetition.
+    are excluded so the count reflects real cross-note weight rather than
+    internal repetition.
     """
     inbound: dict[str, int] = {}
     outbound: dict[str, int] = {}
@@ -562,30 +536,6 @@ def _compute_all_access_counts(vault_root: Path, is_git: bool) -> dict[str, int]
         return {}
     except Exception:
         return {}
-
-
-def _compute_promotion_candidate(
-    entry_type: str, references_in: int, access_count: int
-) -> bool | None:
-    """
-    Compute the promotion_candidate flag.
-
-    `note`/`decision` are eligible via references_in OR access_count. `capture`
-    is eligible via access_count only — inbox ore rarely gets wikilinked in, so
-    references_in is not a fair signal there. This only surfaces recalled
-    capture ore as a display-only E8 candidate (audit/retro never auto-fixes
-    it; retro's status-machine PROMOTE step still only flips note/decision).
-    All other types return None (not applicable).
-
-    Thresholds (env-overridable):
-      VAULT_AUDIT_PROMOTION_REFS   (default 3) — inbound link threshold
-      VAULT_AUDIT_PROMOTION_ACCESS (default 5) — git 7-day access threshold
-    """
-    if entry_type in ("note", "decision"):
-        return references_in >= PROMOTION_REFS_THRESHOLD or access_count >= PROMOTION_ACCESS_THRESHOLD
-    if entry_type == "capture":
-        return access_count >= PROMOTION_ACCESS_THRESHOLD
-    return None
 
 
 def _iso_now() -> str:

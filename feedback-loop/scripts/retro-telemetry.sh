@@ -18,10 +18,11 @@
 # Usage:
 #   retro-telemetry.sh stamp
 #       Write the Phase-1 start time (ms) to the per-session stamp file.
-#   retro-telemetry.sh emit <processed> <promoted> <deduped> <budget_used>
+#   retro-telemetry.sh emit <processed> <deduped> <budget_used>
 #       Append ONE schema-valid retro skill_invoke line whose meta carries the
-#       four retro counters PLUS duration_ms (now − stamp; null when the stamp
-#       is missing/corrupt), then remove the stamp.
+#       three retro counters PLUS duration_ms (now − stamp; null when the stamp
+#       is missing/corrupt), then remove the stamp. (items_promoted was dropped
+#       with the PROMOTE phase, #480 — retro no longer writes the vault.)
 
 set -uo pipefail
 
@@ -43,7 +44,7 @@ case "${1:-}" in
     ;;
 
   emit)
-    PROCESSED="${2:-0}"; PROMOTED="${3:-0}"; DEDUPED="${4:-0}"; BUDGET_USED="${5:-0}"
+    PROCESSED="${2:-0}"; DEDUPED="${3:-0}"; BUDGET_USED="${4:-0}"
     # duration_ms = now − start stamp; require both all-digits before arithmetic
     # so a corrupt/non-numeric stamp falls back to null, not a bogus 0.
     START_MS="$(cat "$STAMP" 2>/dev/null || true)"
@@ -56,13 +57,13 @@ case "${1:-}" in
     LINE="$(jq -nc \
       --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
       --arg sid "${CLAUDE_SESSION_ID:-unknown}" --arg cwd "$PROJ_ROOT" \
-      --argjson processed "$PROCESSED" --argjson promoted "$PROMOTED" \
+      --argjson processed "$PROCESSED" \
       --argjson deduped "$DEDUPED" --argjson budget "$BUDGET_USED" \
       --argjson duration "$DURATION_MS" \
       '{ts:$ts, session_id:$sid, cwd:$cwd, plugin:"feedback-loop",
         event:"skill_invoke", name:"retro", qualified_name:"feedback-loop:retro",
         trigger:"explicit", outcome:"success", tool_use_id:"",
-        meta:{retro_items_processed:$processed, items_promoted:$promoted,
+        meta:{retro_items_processed:$processed,
               items_deduped:$deduped, budget_used:$budget, duration_ms:$duration}}' 2>/dev/null)"
     # PIPE_BUF guard mirrors event-logger.sh / validate-schema.py (3500B).
     [ -n "$LINE" ] && [ "${#LINE}" -lt 3500 ] && \

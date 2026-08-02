@@ -221,22 +221,6 @@ bash feedback-loop/scripts/test/test-events-dir-resolution.sh
 python3 feedback-loop/scripts/test/test-sequence.py
 # Expected: OK: all 10 sequence lifecycle-pair checks passed.
 
-# retro E8 manifest-read regression (#460). retro read the manifest with `cat`; the harness
-# persists a large Bash result and passes the model a 2 KB PREVIEW, so on a 121 KB / 168-file
-# vault exactly 3 entries arrived and retro reported "승격 후보 없음" from a 1.8% scan —
-# indistinguishable from a real full scan (the #456/#451 silent-fail-open shape). Static prose
-# would not have caught it (the SKILL.md text was right, the runtime behaviour wasn't), so the
-# filter is a real script and this EXECUTES it: absent/unparseable -> exit 3 (skip PROMOTE,
-# never "0 candidates"), 0-of-168 -> exit 0 with `scanned`, and `promotion_candidate: true` +
-# `status: archived` is NOT a candidate (the leaf flag ignores status, #435). Plus static
-# checks so the call site cannot drift back to `cat`. `status` is emitted but NOT screened:
-# it is the one field PROMOTE re-reads from the note, so filtering the manifest's possibly
-# stale copy could silently drop a candidate — the same under-report the script exists to
-# close. Malformed-but-parseable input takes exit 3 too; a traceback would be a fourth
-# branch retro has no instruction for.
-python3 feedback-loop/scripts/test/test-e8-candidates.py
-# Expected: OK: all 19 e8-candidates checks passed.
-
 # add-policy source gate + distill anti-capture floor + retro rule-branch routing (#459).
 # add-policy by design never re-judges worth-keeping, because its input contract assumed every
 # candidate arrived already judged (user-stated, or distill-ruled). A third kind — one the AGENT
@@ -373,14 +357,6 @@ python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
 python3 obsidian-vault-manager/scripts/test/test-git-activity.py
 # Expected: OK: all 18 cases passed
 
-# read_manifest_summary schema_version gate (None vs 0 semantics)
-python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
-# Expected: OK: all cases passed (7 cases)
-
-# E8 promotion candidate finding regression
-python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
-# Expected: OK: all 9 cases passed
-
 # E2 auto-fix tag inference regression (#127)
 python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test
 # Expected: OK: all 6 infer-tags cases + E2 auto-fix simulation passed
@@ -419,8 +395,6 @@ python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
 # Expected: OK: all cases passed
 
 # audit DoD 측정 (mechanical reference impl)
-# gen-fixture.sh --with-audit-errors now internally calls generate-manifest.py
-# and patches access_count=5 for the E8 access-target seed.
 rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
   bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
@@ -431,11 +405,11 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py \
 python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 # Expected: OK: audit DoD invariants hold (...)
 # Expected (G8+) — the values assert-dod.py enforces:
-#   dod.seeded_detected = {E1:5, E2:5, E3:5, E4:5, E5:6, E6:5, E7:5, E8:2, E9:2, E10:5, E11:5, E12:5}
+#   dod.seeded_detected = {E1:5, E2:5, E3:5, E4:5, E5:6, E6:5, E9:2, E10:5, E11:5, E12:5}
 #     (E2 has 5: base only — the 5 status-missing seeds went away with the status
 #      machine (#480), since a note with no `status:` now conforms; E5 has 6: 5 w/ tag candidates +
-#      1 empty-tags graceful orphan; E6=stale_inbox; E7=stale_draft;
-#      E8 has 2: promotion-target via refs_in=3, access-target via manifest patch;
+#      1 empty-tags graceful orphan; E6=stale_inbox (E7/E8 retired with the B-layer
+#      promotion gate, v5 §5/§6, #480 — no manifest patch step, no promotion seeds);
 #      E9 has 2: vault-level vocabulary pairs (E9a api/apis singular-plural +
 #      E9b sourceUrl/source_url camel/snake), path-less findings, P2/no-autofix,
 #      counted per pair, FP-guarded by both forms appearing in >=3 files;

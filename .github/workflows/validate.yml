@@ -151,8 +151,6 @@ jobs:
           # #458 sequence.py drops the started/success lifecycle pair before the n-gram window
           # (a single call used to read as an X -> X repeat, i.e. a waste signal to retro).
           python3 feedback-loop/scripts/test/test-sequence.py
-          # #460 retro's E8 read is filtered, not `cat`-truncated to a 2 KB preview.
-          python3 feedback-loop/scripts/test/test-e8-candidates.py
           # #459 agent-inferred rule candidates are bounced to /distill, not landed unjudged.
           python3 feedback-loop/scripts/test/test-distill-gate-routing.py --self-test
           python3 feedback-loop/scripts/test/test-distill-gate-routing.py
@@ -210,8 +208,6 @@ jobs:
         run: |
           python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
           python3 obsidian-vault-manager/scripts/test/test-git-activity.py
-          python3 obsidian-vault-manager/scripts/test/test-read-manifest-summary.py
-          python3 obsidian-vault-manager/scripts/test/test-promotion-finding.py
           python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test
           bash obsidian-vault-manager/scripts/test/test-infer-tags-batch.sh
           python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py

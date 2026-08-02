@@ -10,7 +10,7 @@ allowed-tools: Read Bash Glob Grep AskUserQuestion
 # distill — retrospective discovery of procedural techniques (layer ⑤)
 
 `distill` closes a different half of the measure→improve loop than `retro`: where
-`retro` acts on what the leaf layers measured (audit E8, telemetry waste),
+`retro` acts on what the leaf layers measured (telemetry waste),
 `distill` looks at **this session's procedure** and asks "is there a *class-level
 reusable technique* here worth keeping?" It is the **retrospective discovery
 layer** that the now-removed OMC `learner`/`skillify` used to occupy. It ports the

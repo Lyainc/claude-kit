@@ -2,9 +2,11 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Eleven error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`). Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
+Ten error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
 
-> **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduces a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extends with P1 stagnation. PR 4d adds **E8 `promotion_candidate`** (P2/Info), read from the vault-bridge manifest. Manifest-level *stale-manifest* checks (e.g., stale manifest as an Info finding) remain deferred to PR 6+.
+> **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduced a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extended with P1 stagnation. PR 4d added **E8 `promotion_candidate`** (P2/Info), read from the vault-bridge manifest.
+>
+> **v5 removal (#480, 2026-08-02)**: E7 `stale_draft` and E8 `promotion_candidate` were removed. Both existed only to serve the B-layer promotion gate (raw/draft → evergreen), and that gate itself was abolished (v5 §5/§6, #477 범주 오류 — a gate that only acts after intake cannot defend intake). E7 never fired in practice (`/vault-save` writes no `status:` field, so no new file could ever reach `status: draft`); E8 kept firing on `status: archived` notes because it read `type`+refs/access without consulting `status` at all (#435) — noise for a gate that no longer existed. The codes E7/E8 are retired, not reused; a future check takes a new number.
 
 ## Priority Mapping
 
@@ -18,16 +20,14 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E4   | P0       | Broken wikilink → navigation hazard with Critical severity (data graph integrity). |
 | E5   | P2       | Orphan note → quality signal, not integrity risk. |
 | E6   | P1       | Stale inbox → raw input never processed; loses freshness, signals review needed. |
-| E7   | P1       | Stale draft → notes/ `status: draft` sitting too long; either promote to evergreen or archive. |
-| E8   | P2       | Promotion candidate → high inbound refs or access count; suggests manual `status: evergreen`. Manifest-sourced, never auto-fixed. |
 | E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. E9a/E9b are deterministic; E9c semantic synonym ships as the skill-only `--deep` LLM opt-in (#167, see the `## E9` section below). |
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `inbox/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
 | E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
 
 > **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
-> **P1 = 정체/구조 (stagnation / structure)**: E6 and E7 surface unprocessed inputs and stalled drafts; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / promote / archive / move / recompile).
-> **P2 = quality**: E5 orphan notes, E8 promotion candidates, and E9 vocabulary inconsistencies are quality signals, not integrity defects.
+> **P1 = 정체/구조 (stagnation / structure)**: E6 surfaces unprocessed inputs; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / archive / move / recompile).
+> **P2 = quality**: E5 orphan notes and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
 > **Code numbering**: E9 (#119, #167) is the tag/property vocabulary check below. Its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship in `audit-validate.py`; E9c (semantic synonyms) ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336) is the wiki self-audit: E12a staleness ships deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` — the same deterministic/semantic split E9 draws around E9c, and both now ship behind the same `--deep` flag.
 
@@ -199,32 +199,6 @@ for each record in frontmatter_records where path startswith "inbox/":
 ```
 
 **Rationale**: Captures (and any unprocessed inbox file) accumulate freshness debt — review and either promote to `notes/` or delete. `type: session` notes carry `status: active`/`closed` and are skipped, so historical session records don't pollute the stagnation report.
-
-## E7 — `stale_draft` [Warning]
-
-**Rule**: A file in `notes/` has `status: draft` and its `created:` date is more than `STALE_DRAFT_DAYS` (= 30) days before today.
-**Source**: `frontmatter_records` (uses `fm.created` + `fm.status`).
-**Guard**: Only `status: draft` triggers — `evergreen`, `archived`, `raw` (with the `note` type) are out of scope.
-
-**Detection pseudocode**:
-
-```
-for each record in frontmatter_records where path startswith "notes/":
-  if fm.status != "draft": skip
-  if parse(fm.created) is None: skip
-  age_days = today - parse(fm.created)
-  if age_days > STALE_DRAFT_DAYS: → stale_draft
-```
-
-**Rationale**: A draft sitting beyond a month signals a decision is needed — promote to `evergreen`, move to `archived`, or delete. The audit surfaces them; the user decides.
-
-## E8 — `promotion_candidate` [Info]
-
-**Rule**: A note flagged `promotion_candidate: true` in the vault-bridge manifest (`schema_version ≥ 3`). The flag is computed by `vault-bridge/scripts/generate-manifest.py` (PR 4c), **not** by the audit CLASSIFY phase — audit consumes it as a read-side signal (no detection pseudocode here).
-**Source**: `manifest.json` `files[]` entries where `promotion_candidate == true` — `type: note`/`decision` via `references_in ≥ VAULT_AUDIT_PROMOTION_REFS` (3) OR `access_count ≥ VAULT_AUDIT_PROMOTION_ACCESS` (5); `type: capture` via `access_count` alone (Model X — inbox ore rarely gets wikilinked in, so `references_in` isn't a fair signal there).
-**Guard**: Absent or `schema_version < 3` manifest → no E8 findings (graceful skip). Manifest entries whose underlying files were deleted are skipped (phantom guard).
-
-**Rationale**: A note with high inbound references or frequent access is a candidate for manual promotion to `status: evergreen`. A recalled `capture` has no `status` field to flip (v4 §3.3 — capture can never become evergreen directly); its finding instead points at `/vault-save` or `/wiki` to promote. Surfaced as Info/P2 — the user decides; never auto-fixed.
 
 ## E9 — `tag_vocabulary_inconsistency` [Warning]
 
@@ -454,7 +428,7 @@ for each record in frontmatter_records:
   if (today - verified).days > STALE_WIKI_DAYS: → wiki_stale
 ```
 
-**Rationale**: A stale wiki page is a **display-only** P1 warning (staleness = 정체, same tier as E6/E7) — the next action (recompile / re-verify) is a semantic decision, never auto-fixed. Regression-covered by the DoD fixture (5 seeded `wiki/` pages with `verified: 2020-01-01` → `seeded_detected.E12 == 5`; 2 fresh pages stamped with the run date → `fp_on_clean.E12 == 0`, date-independent) plus a scoping unit test (`test-wiki-self-audit.py`).
+**Rationale**: A stale wiki page is a **display-only** P1 warning (staleness = 정체, same tier as E6) — the next action (recompile / re-verify) is a semantic decision, never auto-fixed. Regression-covered by the DoD fixture (5 seeded `wiki/` pages with `verified: 2020-01-01` → `seeded_detected.E12 == 5`; 2 fresh pages stamped with the run date → `fp_on_clean.E12 == 0`, date-independent) plus a scoping unit test (`test-wiki-self-audit.py`).
 
 ## Auto-fix eligibility
 
@@ -464,7 +438,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → parent folder; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6/E7 (stagnation requires semantic decision: process / promote / archive), E8 (manifest-sourced promotion signal — manual `status` decision), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b contradiction, is a semantic decision — display-only warning).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b contradiction, is a semantic decision — display-only warning).
 
 ## Manifest Summary (display-only)
 
@@ -473,9 +447,7 @@ The audit REPORT header shows manifest metadata when `.vault-bridge/manifest.jso
 - `file_count` — number of files indexed by vault-bridge
 - `generated_at` — ISO timestamp of last manifest refresh
 
-Absence is non-fatal: the header shows `매니페스트: 없음 (vault-bridge 미설치)`. No finding is emitted for missing or stale manifest in PR 4.
-
-> **Not Step 0**: v4 §6.1 Step 0 describes manifest compute (`references_in/out`, `access_count`, `promotion_candidate`). That write-side Step 0 is deferred to PR 5+. PR 4 only reads `file_count` and `generated_at` from the vault-bridge-generated manifest for display purposes.
+Absence is non-fatal: the header shows `매니페스트: 없음 (vault-bridge 미설치)`. No finding is emitted for missing or stale manifest.
 
 ---
 
@@ -490,7 +462,7 @@ window auto-compaction re-attaches. Illustration only — actual content varies 
 볼트 감사 완료
 ──────────────────────────────────────────
 볼트 상태: 42 노트 / clean 38 · dirty 3 · untracked 1
-발견된 이슈: 4건 (P0 2건 · P1 1건 · P2 1건)
+발견된 이슈: 3건 (P0 2건 · P1 1건)
 ──────────────────────────────────────────
 
 [P0 / Critical] missing_frontmatter — 1건
@@ -505,13 +477,9 @@ window auto-compaction re-attaches. Illustration only — actual content varies 
   • inbox/capture-2026-03-15-old-topic.md
       상세: age 73d > 14d (status:raw, created 2026-03-15)
 
-[P2 / Info] promotion_candidate — 1건
-  • notes/high-ref-note.md
-      상세: refs_in=5, access=2 (manual: status→evergreen)
-
 ──────────────────────────────────────────
 자동 수정 가능: 0건
-수동 처리 필요: 4건
+수동 처리 필요: 3건
 ```
 
 > **git 활동 줄**: `commits == 0`이거나 vault가 git 저장소가 아닌 경우 해당 줄을 출력하지 않습니다.

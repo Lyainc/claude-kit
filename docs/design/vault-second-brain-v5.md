@@ -176,7 +176,7 @@ A(wiki)와 B는 **연동은 가능하되 목적이 다른 별개 공간**이다 
 
 ---
 
-## 6. 승격 게이트 — 폐기 (2026-08-02 #477/#480). 남은 코드는 후속 정리
+## 6. 승격 게이트 — 폐기 (2026-08-02 #477/#480). 남은 코드도 같은 날 정리 완료
 
 §5의 결정 1로 **B 내부 promotion 게이트(raw/draft → evergreen)는 폐기됐다.** 이 절이 규정하던 것 —
 audit E8 후보 제시 + retro의 인간 yes/no 확정 + frontmatter status 전이 — 은 전부 무효다. A(wiki)→B
@@ -184,11 +184,15 @@ audit E8 후보 제시 + retro의 인간 yes/no 확정 + frontmatter status 전�
 
 - **이번 변경에서 같이 뺀 것**: E2 필수 필드에서 `status`(v4 §3.3 status machine에 딸려 있던 요구). 새
   파일이 `status:`를 안 쓰는데 audit이 그걸 Critical로 잡으면 문서와 코드가 첫날부터 어긋난다.
-- **아직 안 뺀 것 (후속, #480 잔여)**: audit **E7**(`stale_draft`)·**E8**(`promotion_candidate`),
-  `generate-manifest.py`의 `_compute_promotion_candidate`, retro Phase 2 PROMOTE, `e8-candidates.py`.
-  E7은 새 파일에 `status: draft`가 없어 발화하지 않지만, E8은 status를 안 보고 `type`+refs/access로
-  계산하므로 **폐기된 게이트의 후보를 계속 띄운다** — 노이즈이자 문서-코드 불일치라 남은 정리 대상이다.
-- **inbox stale(E6)도 같은 후속에 걸린다**: B가 참고자료 창고면 `inbox/`는 임시 대기열이 아니라 영구
+- **후속에서 마저 뺀 것 (2026-08-02, #480 완료)**: audit **E7**(`stale_draft`)·**E8**(`promotion_candidate`),
+  `generate-manifest.py`의 `_compute_promotion_candidate`(+ 관련 env 임계값), retro Phase 2 PROMOTE,
+  `e8-candidates.py`, `vault-commit-message.py`의 promote 메시지 분기 — 딸린 테스트·픽스처·DoD 기대값·
+  `docs/VALIDATION.md`·`reference/vault-audit-rules.md`까지 한 덩어리로 정리됐다. `generate-manifest.py`가
+  건네주는 매니페스트를 읽는 코드를 고치는 김에, 4일째 무음 정지 중이던 SessionStart 훅의 macOS
+  `timeout` 부재 버그(#484)도 선행 조건으로 같이 고쳤다. E7은 새 파일에 `status: draft`가 없어 발화한
+  적이 없었고, E8은 status를 안 보고 `type`+refs/access로만 계산해 **폐기된 게이트의 후보를 계속
+  띄우고** 있었다(#435) — 대상 자체가 사라졌으므로 #435는 종결 대상.
+- **inbox stale(E6)은 아직 남아 있다**: B가 참고자료 창고면 `inbox/`는 임시 대기열이 아니라 영구
   보관처인데 E6은 나이로 stale을 잡는다. 이건 폴더 3분할(`inbox`→`sources`, #477 하위 B)과 한 덩어리라
   거기서 같이 처리한다.
 
@@ -343,8 +347,11 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
 ## 15. 미결 / 별 트랙 (구현 아님 — 본 문서는 설계)
 
 - ~~**구현은 별 세션**(goal G22 제약)~~ — 초판 제약. A는 #215~#344로, B는 #480으로 구현됐고, 이 문서는 그 구현의 명세다.
-- **#480 잔여 (후속 세션)**: audit E7/E8 + `_compute_promotion_candidate` + retro PROMOTE +
-  `e8-candidates.py` 제거(§6), 볼트 `type: decision` 처분 판정(#477 미결 2), `/wiki` 배치 정렬
+- ~~**#480 잔여 — 승격 기계 제거**(§6): audit E7/E8, `_compute_promotion_candidate`, retro PROMOTE,
+  `e8-candidates.py`, `vault-commit-message.py` promote 분기.~~ — **완료 (2026-08-02).** 딸린
+  테스트·픽스처·DoD 기대값·`docs/VALIDATION.md`·`reference/vault-audit-rules.md`까지 정합됐고,
+  선행 조건이던 SessionStart 훅의 `timeout` 부재 버그(#484)도 같이 고쳤다. #435는 대상 소멸로 종결.
+- **#480 잔여 (후속 세션)**: 볼트 `type: decision` 처분 판정(#477 미결 2), `/wiki` 배치 정렬
   (#477 미결 3), 재고 `provenance:` 백필과 E2 확장. 폴더 3분할(`inbox`→`sources`)은 #477 하위 B.
 - ~~**U4 측정(recall hit)**~~ — **완료.** 측정 게이트 폐기, 1회 build-verify로 대체(§8, PR #337, #267).
   상시 계측(telemetry Option B)은 여전히 미착수지만 더 이상 U4의 전제가 아니다.
