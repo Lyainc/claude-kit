@@ -124,6 +124,7 @@ extract_end_meta() {
       + (if ($u.input_tokens != null) then {input_tokens: $u.input_tokens} else {} end)
       + (if ($u.output_tokens != null) then {output_tokens: $u.output_tokens} else {} end)
       + (if ($u.cache_read_input_tokens != null) then {cache_read_tokens: $u.cache_read_input_tokens} else {} end)
+      + (if ($u.cache_creation_input_tokens != null) then {cache_creation_tokens: $u.cache_creation_input_tokens} else {} end)
   ' 2>/dev/null || printf '{}'
 }
 

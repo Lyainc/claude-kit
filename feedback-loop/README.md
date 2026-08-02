@@ -116,7 +116,7 @@ python3 feedback-loop/scripts/sequence.py --n=2 --top=20      # repeated n-gram 
   "trigger": "explicit",
   "outcome": "success",
   "tool_use_id": "toolu_01ABC",
-  "meta": { "duration_ms": 1234, "input_tokens": 500, "output_tokens": 120, "cache_read_tokens": 42 }
+  "meta": { "duration_ms": 1234, "input_tokens": 500, "output_tokens": 120, "cache_read_tokens": 42, "cache_creation_tokens": 17 }
 }
 ```
 
