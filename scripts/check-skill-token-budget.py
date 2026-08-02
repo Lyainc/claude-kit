@@ -17,8 +17,11 @@ a measurement to justify it, all three share the existing 5,000-token line: agen
 passed it going in (5 files, 1,481-4,648 tokens, #473's own survey), so extending the guard to
 them cost nothing; CLAUDE.md was the one file over (5,510), and came down by moving lookup-only
 sections to docs/ (see docs/REFERENCE.md's abandon-priority table) rather than by trimming
-content — the anchor check stays SKILL.md-only since `## Rules`/`AskUserQuestion` name a SKILL.md
-gate specifically, and CLAUDE.md/agents/*.md carry neither.
+content — `check()` runs the anchor check uniformly on all three file kinds (no kind-based
+gating), but it only ever fires meaningfully on SKILL.md: `## Rules`/`AskUserQuestion` name a
+SKILL.md gate specifically, CLAUDE.md/agents/*.md carry neither, and any anchor one of those two
+did contain past the boundary would already be subsumed by that file's own over-budget
+violation (see WHY BOTH CHECKS below).
 
 OBJECTIVE DAMAGE (#447, not taste): Claude Code keeps an invoked skill's body in context
 across turns, and auto-compaction re-attaches only **the first 5,000 tokens of each skill**.
@@ -431,8 +434,9 @@ def main(argv=None):
                 print(f"  {rel}: {line}", file=sys.stderr)
         print(
             "\nFix: move the rationale/narrative out to a doc the file points to on demand "
-            "(a reference.md for a skill, docs/REFERENCE.md for CLAUDE.md); keep gates and "
-            "invariants in place. Always split, never trim.",
+            "(a reference.md for a skill, docs/REFERENCE.md for CLAUDE.md, the owning plugin's "
+            "own reference doc for agents/*.md); keep gates and invariants in place. Always "
+            "split, never trim.",
             file=sys.stderr,
         )
         return 1
