@@ -15,6 +15,19 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "scripts" / "generate-manifest.py"
 
 
+def _current_schema_version() -> int:
+    """Read SCHEMA_VERSION out of generate-manifest.py.
+
+    Hardcoding it here with a "mirrors SCHEMA_VERSION" comment drifted silently
+    once already (#518 bumped 3 -> 4 and this test kept asserting 3), so read the
+    real value instead of promising to keep two numbers in sync by hand.
+    """
+    for line in SCRIPT.read_text(encoding="utf-8").splitlines():
+        if line.startswith("SCHEMA_VERSION"):
+            return int(line.split("=", 1)[1].strip())
+    raise AssertionError(f"SCHEMA_VERSION not found in {SCRIPT}")
+
+
 def _make_note(path: Path, frontmatter: str, body: str = "Body text.") -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text(f"---\n{frontmatter}\n---\n\n{body}\n", encoding="utf-8")
@@ -92,7 +105,7 @@ def case_schema_version_inplace_upgrade_v1(errors: list[str]) -> None:
             return
 
         manifest = json.loads(out.read_text(encoding="utf-8"))
-        current_schema = 3  # mirrors SCHEMA_VERSION in generate-manifest.py
+        current_schema = _current_schema_version()
         if manifest.get("schema_version") == current_schema:
             print(f"  ok   manifest upgraded to schema_version={current_schema}")
         else:
