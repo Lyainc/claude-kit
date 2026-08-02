@@ -34,17 +34,20 @@ Analyze the user's request using the decision tree below to select the appropria
 
 ### Decision Tree
 
+build-spec vs unknown-discovery turns on one question: does the answer come out as a **spec**
+(what to build) or a **list** (what's unknown)? Detail: `../reference/ud-bs-boundary.md`.
+
 ```
 Analyze user request
 │
 ├── Creative/diversity needed? ───────────────▶ diverse-sampling
 │   (brainstorming, alternatives, ideas)
 │
-├── Vague idea to crystallize into a spec? ────▶ build-spec
+├── Build target decided, needs crystallizing into a spec? ─▶ build-spec
 │   (seed 생성, 명세 만들기, 아이디어 구체화)
 │
-├── Blind spots/risks to discover? ───────────▶ unknown-discovery
-│   (missed items, blind spots, review)
+├── Blind spots/risks to discover (target may be undecided)? ▶ unknown-discovery
+│   (missed items, blind spots, review, 빠르게/간단히 맹점)
 │
 ├── Multi-perspective discussion/evaluation? ──▶ expert-panel
 │   (pros/cons, expert opinions, trade-offs)
