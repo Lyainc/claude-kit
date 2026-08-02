@@ -77,3 +77,36 @@ Inject as Phase 1 context prefix: "현재 프로젝트: {name} — {description}
 | Context | — | 0.15 | 0.60 |
 
 Brownfield weights sum to 1.00: 0.34 + 0.26 + 0.25 + 0.15 = 1.00.
+
+---
+
+## 5. Backlog Scan — why closed issues, and why the skip must be loud (#489)
+
+**Closed issues are the higher-risk half.** X3 (conflicts) asks whether the spec collides with a
+decision already made. A decision that has been *made* is normally a **closed** issue — closed as
+COMPLETED means "this is settled, do not go the other way". The open backlog holds what is still
+undecided, which is the weaker signal of the two. So a scan restricted to `--state open` misses
+precisely the class it exists to catch.
+
+This is not hypothetical. Until #489 the scan ran `gh issue list --state open --limit 100`, and with
+that filter **build-spec's own scan could not find #407 and #140** — the two closed decisions that
+govern build-spec itself (#407: add the issue adapter to build-spec, no new skill; #140: ② leaf,
+no thin plugin). On 2026-08-02 three days of design were built on the assumption that gap was still
+open, because the closed record was unreachable from every tool that looked.
+
+**Why a script instead of a wider `gh` call.** `--state all` on this repo returns 200+ closed issues;
+their bodies would swallow the interview's context budget. `scripts/backlog-prefilter.py` reads the
+whole corpus **in the shell**, scores by term overlap, and prints only a budgeted digest — open
+candidates with trimmed bodies, closed candidates as titles. Same shape as
+obsidian-vault-manager audit Phase 1: deterministic narrowing at zero LLM cost. The `--limit 100`
+ceiling goes away with it (open 500 / closed 1000).
+
+**Why the skip line is loud.** The old text said `gh` failure → *skip silently*. A silent skip makes
+"scanned, no conflicts" and "never scanned" produce identical output, so the safety check can be off
+without anyone noticing — the #443·#447 failure class. The script therefore always prints: either a
+digest or a `[backlog-scan SKIPPED]` line, and that line is copied verbatim into
+`context.backlog_scan`.
+
+**Known ceiling.** Term overlap is not meaning: a conflicting issue sharing no vocabulary with the
+target scores 0 and never surfaces. Closed candidates are ranked on titles only. Both are recorded in
+SKILL.md Known Limitations — the scan narrows the search, it does not close it.

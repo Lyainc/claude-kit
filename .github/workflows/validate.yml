@@ -63,6 +63,10 @@ jobs:
           python3 scripts/check-ci-coverage.py --self-test
           python3 scripts/check-ci-coverage.py --strict
 
+          # build-spec Phase 0 backlog prefilter (#489): closed candidates must render,
+          # and an unreadable corpus must announce the skip instead of returning silence.
+          python3 thinking-tools/scripts/backlog-prefilter.py --self-check
+
           # Release tooling self-tests (lockstep bump + per-plugin notes generation +
           # the release-trigger policy: label / backstop / bump derivation).
           python3 scripts/bump-version.py --self-test
