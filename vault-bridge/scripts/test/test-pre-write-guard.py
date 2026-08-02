@@ -70,10 +70,10 @@ def _make_payload(
 # Cases
 # ---------------------------------------------------------------------------
 
-def case_main_context_inbox_write(errors: list[str], vault_root: str) -> None:
+def case_main_context_sources_write(errors: list[str], vault_root: str) -> None:
     """No agent_id + valid path → clean pass (exit 0, stdout empty)."""
-    print("\ncase: main_context_inbox_write")
-    path = f"{vault_root}/inbox/session-2026-05-12.md"
+    print("\ncase: main_context_sources_write")
+    path = f"{vault_root}/sources/session-2026-05-12.md"
     payload = _make_payload(path)
     proc = _run(payload, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
@@ -83,7 +83,7 @@ def case_main_context_inbox_write(errors: list[str], vault_root: str) -> None:
 def case_subagent_enforce_default(errors: list[str], vault_root: str) -> None:
     """subagent_type present + no VAULT_BRIDGE_WRITE_CONTRACT → enforce (actual default at line 91)."""
     print("\ncase: subagent_enforce_default")
-    path = f"{vault_root}/inbox/session-2026-05-12.md"
+    path = f"{vault_root}/sources/session-2026-05-12.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="vault-searcher")
     proc = _run(payload, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
@@ -96,7 +96,7 @@ def case_subagent_enforce_default(errors: list[str], vault_root: str) -> None:
 def case_subagent_warn_explicit(errors: list[str], vault_root: str) -> None:
     """VAULT_BRIDGE_WRITE_CONTRACT=warn → explicit warn mode (log + allow); default is enforce."""
     print("\ncase: subagent_warn_explicit")
-    path = f"{vault_root}/inbox/session-2026-05-12.md"
+    path = f"{vault_root}/sources/session-2026-05-12.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="vault-searcher")
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "warn"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
@@ -109,7 +109,7 @@ def case_subagent_warn_explicit(errors: list[str], vault_root: str) -> None:
 def case_subagent_enforce(errors: list[str], vault_root: str) -> None:
     """VAULT_BRIDGE_WRITE_CONTRACT=enforce → permissionDecision:deny."""
     print("\ncase: subagent_enforce")
-    path = f"{vault_root}/inbox/session-2026-05-12.md"
+    path = f"{vault_root}/sources/session-2026-05-12.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="executor")
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "enforce"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
@@ -120,7 +120,7 @@ def case_subagent_enforce(errors: list[str], vault_root: str) -> None:
 def case_subagent_off(errors: list[str], vault_root: str) -> None:
     """VAULT_BRIDGE_WRITE_CONTRACT=off → contract bypassed; stdout empty."""
     print("\ncase: subagent_off")
-    path = f"{vault_root}/inbox/session-2026-05-12.md"
+    path = f"{vault_root}/sources/session-2026-05-12.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="executor")
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "off"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
@@ -199,13 +199,13 @@ def case_notes_base_uppercase_violation(errors: list[str], vault_root: str) -> N
     _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
 
 
-def case_inbox_base_violation(errors: list[str], vault_root: str) -> None:
-    """inbox/{view-name}.base → naming violation (.base is a notes/ view file, not inbox/).
+def case_sources_base_violation(errors: list[str], vault_root: str) -> None:
+    """sources/{view-name}.base → naming violation (.base is a notes/ view file, not sources/).
 
-    The .base extension widening is scoped to notes/; inbox/ keeps {type}-DATE.md only.
+    The .base extension widening is scoped to notes/; sources/ keeps {type}-DATE.md only.
     """
-    print("\ncase: inbox_base_violation")
-    path = f"{vault_root}/inbox/inbox-raw.base"
+    print("\ncase: sources_base_violation")
+    path = f"{vault_root}/sources/inbox-raw.base"
     payload = _make_payload(path)
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root=vault_root)
     _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
@@ -225,14 +225,14 @@ def case_notes_moc_named_passes(errors: list[str], vault_root: str) -> None:
     _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
 
 
-def case_inbox_moc_named_violation(errors: list[str], vault_root: str) -> None:
-    """inbox/moc-overview.md + STRICT_NAMING=1 → exit 2.
+def case_sources_moc_named_violation(errors: list[str], vault_root: str) -> None:
+    """sources/moc-overview.md + STRICT_NAMING=1 → exit 2.
 
     Proves the moc-*.md whitelist case was actually removed (#166): with no
-    whitelist, the file now fails the inbox capture|session pattern.
+    whitelist, the file now fails the sources capture|session pattern.
     """
-    print("\ncase: inbox_moc_named_violation")
-    path = f"{vault_root}/inbox/moc-overview.md"
+    print("\ncase: sources_moc_named_violation")
+    path = f"{vault_root}/sources/moc-overview.md"
     payload = _make_payload(path)
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root=vault_root)
     _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
@@ -340,7 +340,7 @@ def case_wiki_subagent_enforce(errors: list[str], vault_root: str) -> None:
 def case_filename_violation_warn_mode(errors: list[str], vault_root: str) -> None:
     """Subagent + bad filename + warn → both CONTRACT WARNING and NAMING VIOLATION in stderr."""
     print("\ncase: filename_violation_warn_mode")
-    path = f"{vault_root}/inbox/badname.md"
+    path = f"{vault_root}/sources/badname.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="executor")
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "warn"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
@@ -353,7 +353,7 @@ def case_filename_violation_warn_mode(errors: list[str], vault_root: str) -> Non
 def case_filename_violation_strict_naming(errors: list[str], vault_root: str) -> None:
     """No agent_id + bad filename + VAULT_BRIDGE_STRICT_NAMING=1 → exit 2."""
     print("\ncase: filename_violation_strict_naming")
-    path = f"{vault_root}/inbox/badname.md"
+    path = f"{vault_root}/sources/badname.md"
     payload = _make_payload(path)
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root=vault_root)
     _assert(proc.returncode == 2, f"exit 2 (got: {proc.returncode})", errors)
@@ -362,7 +362,7 @@ def case_filename_violation_strict_naming(errors: list[str], vault_root: str) ->
 def case_subagent_filename_violation_enforce(errors: list[str], vault_root: str) -> None:
     """Subagent + bad filename + enforce → deny fires first; filename check never reached."""
     print("\ncase: subagent_filename_violation_enforce")
-    path = f"{vault_root}/inbox/badname.md"
+    path = f"{vault_root}/sources/badname.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="executor")
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "enforce"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
@@ -376,7 +376,7 @@ def case_subagent_filename_violation_enforce(errors: list[str], vault_root: str)
 def case_kill_switch(errors: list[str], vault_root: str) -> None:
     """VAULT_BRIDGE_DISABLE=1 → exit 0, stdout empty regardless of contract mode."""
     print("\ncase: kill_switch")
-    path = f"{vault_root}/inbox/session-2026-05-12.md"
+    path = f"{vault_root}/sources/session-2026-05-12.md"
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="vault-searcher")
     proc = _run(
         payload,
@@ -428,7 +428,7 @@ def case_bash_subagent_writes_denied(errors: list[str], vault_root: str) -> None
         f'echo x | tee {v}/notes/x.md',                      # tee after a pipe
         f'cd {v} && echo x > notes/y.md',                    # relative target after cd
         f'sed -i "" s/a/b/ {v}/notes/x.md',                  # in-place edit
-        f'touch {v}/inbox/capture-2026-01-01.md',
+        f'touch {v}/sources/capture-2026-01-01.md',
         f'mkdir -p {v}/notes/newdir',
         f'rm {v}/notes/x.md',                                # deletion is a write too
         f'sudo cp /tmp/a.md {v}/notes/x.md',                 # wrapper prefix
@@ -542,14 +542,14 @@ def main() -> int:
     # ~/vault is never touched. The hook only requires the directory to exist.
     with tempfile.TemporaryDirectory() as tmp:
         vault_root = tmp
-        # Create the top-level dirs the hook navigates (v4: inbox, notes, assets; v5 adds wiki)
-        for d in ("inbox", "notes", "assets", "wiki"):
+        # Create the top-level dirs the hook navigates (v4: sources, notes, assets; v5 adds wiki)
+        for d in ("sources", "notes", "assets", "wiki"):
             Path(vault_root, d).mkdir(parents=True, exist_ok=True)
         # Sub-folders for the notes/ and wiki/ sub-folder tests
         Path(vault_root, "notes", "diary").mkdir(parents=True, exist_ok=True)
         Path(vault_root, "wiki", "tools").mkdir(parents=True, exist_ok=True)
 
-        case_main_context_inbox_write(errors, vault_root)
+        case_main_context_sources_write(errors, vault_root)
         case_subagent_enforce_default(errors, vault_root)
         case_subagent_warn_explicit(errors, vault_root)
         case_subagent_enforce(errors, vault_root)
@@ -561,9 +561,9 @@ def main() -> int:
         case_notes_base_view(errors, vault_root)
         case_notes_base_subfolder(errors, vault_root)
         case_notes_base_uppercase_violation(errors, vault_root)
-        case_inbox_base_violation(errors, vault_root)
+        case_sources_base_violation(errors, vault_root)
         case_notes_moc_named_passes(errors, vault_root)
-        case_inbox_moc_named_violation(errors, vault_root)
+        case_sources_moc_named_violation(errors, vault_root)
         case_notes_index_structural(errors, vault_root)
         case_notes_subfolder_index(errors, vault_root)
         case_root_index(errors, vault_root)

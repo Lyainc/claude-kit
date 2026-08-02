@@ -92,8 +92,8 @@ Skills across `obsidian-vault-manager` and `vault-bridge` share overlapping doma
 
 | Area | obsidian-vault-manager | vault-bridge |
 |------|----------------------|--------------|
-| 참고자료 저장 (B 입구) | N/A (#480으로 `/capture`·`/note` retire) | `/vault-save` — 원문 → `inbox/`, 내가 쓴 것 → `notes/`, status 없음·provenance 필수 |
-| Session record | `wiki` (compiled session knowledge → `wiki/`) — `/save-session` retired #331, wiki-first | `/vault-save` (raw session ore → `inbox/`); `/vault-commit` commits the vault |
+| 참고자료 저장 (B 입구) | N/A (#480으로 `/capture`·`/note` retire) | `/vault-save` — 원문 → `sources/`, 내가 쓴 것 → `notes/`, status 없음·provenance 필수 |
+| Session record | `wiki` (compiled session knowledge → `wiki/`) — `/save-session` retired #331, wiki-first | `/vault-save` (raw session ore → `sources/`); `/vault-commit` commits the vault |
 | Domain context search | `vault-knowledge-manager` (direct mdfind/grep, OVM-internal) | `vault-searcher` Mode 2 (external, read-only lightweight) |
 
 Within `thinking-tools`:

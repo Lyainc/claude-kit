@@ -81,9 +81,9 @@ def case_write_guard_vault_path(errors: list[str]) -> None:
     """pre-write-guard must enforce naming rules inside custom VAULT_BRIDGE_VAULT_PATH."""
     print("\ncase: write_guard_vault_path")
     with tempfile.TemporaryDirectory() as custom_vault:
-        # Valid name → no naming violation (v4: inbox/ pattern)
+        # Valid name → no naming violation (v4: sources/ pattern)
         today = datetime.date.today().isoformat()
-        valid_path = f"{custom_vault}/inbox/session-{today}.md"
+        valid_path = f"{custom_vault}/sources/session-{today}.md"
         rc, out, _ = _run_hook(
             WRITE_HOOK,
             _write_payload(valid_path),
@@ -95,8 +95,8 @@ def case_write_guard_vault_path(errors: list[str]) -> None:
         _assert("NAMING VIOLATION" not in out,
                 "no naming violation for valid session filename", errors)
 
-        # Invalid name → naming warning emitted (inbox/ pattern mismatch)
-        bad_path = f"{custom_vault}/inbox/random-name.md"
+        # Invalid name → naming warning emitted (sources/ pattern mismatch)
+        bad_path = f"{custom_vault}/sources/random-name.md"
         rc2, out2, _ = _run_hook(
             WRITE_HOOK,
             _write_payload(bad_path),

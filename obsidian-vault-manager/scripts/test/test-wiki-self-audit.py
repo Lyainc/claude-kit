@@ -93,7 +93,7 @@ def main() -> int:
     old = _verified_days_ago(STALE_WIKI_DAYS + 100)
     recs = [
         _rec("notes/note.md", type="note", verified=old),
-        _rec("inbox/cap.md", type="capture", verified=old),
+        _rec("sources/cap.md", type="capture", verified=old),
     ]
     _assert(_flagged_paths(recs) == set(), "stale verified on non-wiki file is not flagged", errors)
 

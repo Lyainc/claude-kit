@@ -53,7 +53,7 @@ done
 
 ## Vault Layout
 
-Vault root: `~/vault/` — dirs: `inbox` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — the A layer, **AI-recall primary**; vault second-brain v5), `assets` (attachments)
+Vault root: `~/vault/` — dirs: `sources` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — the A layer, **AI-recall primary**; vault second-brain v5), `assets` (attachments)
 
 The `wiki/` layer is the primary recall target: pages there are domain knowledge the model compiled to read on the human's behalf. Treat it as first-class recall material alongside `notes/` (see ranking below).
 
@@ -70,7 +70,7 @@ Find and load the most recent active session note to restore session context.
 **Procedure**:
 1. Search for session files:
    - With `.vault-link` found (project scope): `{vault_root}/{vault_path}/session-*.md`
-   - Without pointer: `~/vault/inbox/session-*.md` (canonical) + `~/vault/notes/*/session-*.md` (legacy / user-moved)
+   - Without pointer: `~/vault/sources/session-*.md` (canonical) + `~/vault/notes/*/session-*.md` (legacy / user-moved)
 2. Filter by frontmatter `status: active`.
 3. Sort by date descending. Select the most recent.
 4. If multiple projects have active session notes, show list and ask user to choose.
@@ -111,7 +111,7 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always appended**.
      - [#272: the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`]
-   - No pointer or resolution failed → `search_root = ~/vault/wiki/` (primary — A-layer domain knowledge, AI-recall first) + `~/vault/notes/` (primary) + `~/vault/inbox/` (secondary — raw inputs may carry domain context before promotion)
+   - No pointer or resolution failed → `search_root = ~/vault/wiki/` (primary — A-layer domain knowledge, AI-recall first) + `~/vault/notes/` (primary) + `~/vault/sources/` (secondary — raw inputs may carry domain context before promotion)
 2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
    - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree, then run a second pass over `{vault_root}/wiki/` (CLI `path=wiki`; the mdfind/grep fallback below already covers `wiki/` via the `search_root` set in step 1) so wiki pages are never excluded by scoping (#272).
    - If CLI is unavailable/fails/times out, search adaptively within `search_root`:
@@ -165,7 +165,7 @@ Search the entire vault by keyword and load note contents.
   #305 may have no `verified:` field at all — don't invent a date; say the age is unknown
   instead of silently omitting the hedge.
 - **Never modify existing files**: this agent has no access to the Write tool. Do not overwrite or append to existing files.
-- **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests a session summary, instruct them to invoke `/vault-save` (runs inline in main context, saves `type:capture` to `inbox/` immediately — no draft/confirmation step). For compiled, AI-recall domain knowledge distilled from the session, point them to `/wiki` instead.
+- **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests a session summary, instruct them to invoke `/vault-save` (runs inline in main context, saves `type:capture` to `sources/` immediately — no draft/confirmation step). For compiled, AI-recall domain knowledge distilled from the session, point them to `/wiki` instead.
 - **Vault only**: Never access paths outside `~/vault/`. No `~/dev/`, no project directories outside vault.
 - Exclude `private` / `sensitive` tagged notes unless user explicitly requests them.
 - When results are large, show top items and offer "더 보려면 알려주세요".
@@ -235,7 +235,7 @@ vault-searcher never writes; all vault writes are user-initiated skills only.
 
 <example>
 user: "어제 하던 작업 이어서 할래, 세션 컨텍스트 불러와줘"
-assistant: [Mode 1 Session Restore — searches inbox/session-*.md (and .vault-link project path if
+assistant: [Mode 1 Session Restore — searches sources/session-*.md (and .vault-link project path if
 present) filtered by status: active. Sorts by date descending, returns the most recent active
 session with key context: current status, next steps, blockers. Read-only.]
 <commentary>

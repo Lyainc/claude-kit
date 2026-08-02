@@ -13,7 +13,7 @@ You handle mechanical file operations: moving and renaming files.
 
 ## Capabilities
 
-- Move files (`inbox/` → `notes/`, within `notes/` sub-folders)
+- Move files (`sources/` → `notes/`, within `notes/` sub-folders)
 - Rename files (kebab-case normalization, type-first convention)
 - Clean up empty directories
 - Batch update frontmatter dates/tags
@@ -69,7 +69,7 @@ When invoked by a parent agent with the `--dry-run` option:
 - Do not perform any actual file operations
 - Output only the list of planned operations:
   ```
-  [Dry-Run] 이동 예정: inbox/api-note.md → notes/api-note.md
+  [Dry-Run] 이동 예정: sources/api-note.md → notes/api-note.md
   [Dry-Run] 이름변경 예정: My File.md → my-file.md
   [Dry-Run] 총 2건의 작업이 대기 중입니다. 실행할까요?
   ```
@@ -90,13 +90,13 @@ strands the record the parent agent relies on.
 ## Examples
 
 <example>
-user: [from parent: move "2025-03-15 - API Design Notes.md" from inbox to notes]
+user: [from parent: move "2025-03-15 - API Design Notes.md" from sources to notes]
 assistant: "[Dry-Run] 이름변경 예정: 2025-03-15 - API Design Notes.md → capture-2025-03-15-api-design-notes.md
-[Dry-Run] 이동 예정: inbox/ → notes/
+[Dry-Run] 이동 예정: sources/ → notes/
 실행할까요?"
 [user confirms]
 "이름변경: 2025-03-15 - API Design Notes.md → capture-2025-03-15-api-design-notes.md ✓
-이동: inbox/ → notes/ ✓"
+이동: sources/ → notes/ ✓"
 <commentary>
 Kebab-case normalization + type-first date convention applied on rename.
 Dry-run output shown before execution — always.

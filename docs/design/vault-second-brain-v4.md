@@ -58,7 +58,7 @@ Obsidian + Claude Code + git 외 의존성 0. omc, graphify, llm-wiki, ouroboros
 
 ```
 ~/vault/
-├── inbox/      ─ raw 입력 (clip, capture)
+├── sources/      ─ raw 입력 (clip, capture)
 ├── notes/      ─ 모든 작성된 콘텐츠 (사용자 자유 하위 폴더 가능)
 └── assets/     ─ 첨부 (이미지, PDF 등)
 ```
@@ -153,8 +153,8 @@ revisit_when: ... # 1줄 (선택)
 ### 3.6 파일명 컨벤션
 
 ```
-inbox/capture-YYYY-MM-DD-{slug}.md
-inbox/session-YYYY-MM-DD.md       (vault-bridge 생성)
+sources/capture-YYYY-MM-DD-{slug}.md
+sources/session-YYYY-MM-DD.md       (vault-bridge 생성)
 notes/{slug}.md                    (evergreen 후보, 날짜 없음)
 notes/decision-YYYY-MM-DD-{slug}.md
 notes/plan-YYYY-MM-DD-{slug}.md
@@ -230,19 +230,19 @@ tags: [capture, clip]
 {{content}}
 ```
 
-저장 위치: `inbox/capture-YYYY-MM-DD-{slug}.md`
+저장 위치: `sources/capture-YYYY-MM-DD-{slug}.md`
 
 ### 5.2 `/capture` 스킬 강화
 
 - `/capture url1 url2 url3` — 다중 URL 병렬 defuddle 처리
-- `/capture` (인자 없음) — `inbox/`의 `status: raw` 파일 일괄 처리
+- `/capture` (인자 없음) — `sources/`의 `status: raw` 파일 일괄 처리
 
 정제 단계: defuddle 결과 + 사용자 한 줄 요약 → notes/로 승격 + `status: draft`. 한 줄 요약이 *암묵적 reformulation*.
 
 **type 전이**: 정제 시 `type: capture`인 inbox 파일이 `notes/`로 이동하면서 `type: note`로 변경된다. 이는 *concept-oriented*로 reformulation됐다는 사용자 선언(§2.4)에 해당. 원본 `source`, `url`, `clipped_at` 필드는 보존되어 출처 추적 가능. 파일명도 `capture-YYYY-MM-DD-{slug}.md` → `{slug}.md`로 변경 (날짜 prefix 제거).
 
 ```
-inbox/capture-2026-05-26-deepseek-v3.md   (type: capture, status: raw)
+sources/capture-2026-05-26-deepseek-v3.md   (type: capture, status: raw)
    ↓ [/capture 정제 + 사용자 요약]
 notes/deepseek-v3.md                       (type: note, status: draft, source: web-clipper 유지)
 ```
@@ -251,7 +251,7 @@ notes/deepseek-v3.md                       (type: note, status: draft, source: w
 
 | 스킬 | 책임 |
 |------|------|
-| `capture` | inbox/에 raw 저장 (다중 URL, web clipper 호환) |
+| `capture` | sources/에 raw 저장 (다중 URL, web clipper 호환) |
 | `note` | notes/에 type 노트 작성 (`--type note\|decision\|plan`), inbox → notes 정제 |
 | `audit` | Brain화 의식: 무결성 + 정체 + promotion candidate + Phase 2 패턴 추출 (§6.1 명세) |
 

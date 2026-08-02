@@ -106,7 +106,7 @@ Where `{file_list}` lists each file on its own line with a status prefix (`수�
 file list is scrolled past, not read, and the approval stops being a real one:
 
 ```
-wiki/ 23 · notes/ 2 · inbox/ 4 · .obsidian/ 2 · 기타 1
+wiki/ 23 · notes/ 2 · sources/ 4 · .obsidian/ 2 · 기타 1
 ```
 
 ### Step 6 — Handle user choice
@@ -121,7 +121,7 @@ git -C "{vault_root}" commit -m "{auto_msg}"
 **Option B — "그룹별로 나눠서 커밋"** (index 1):
 
 Split the staged changes into one commit per path group. Grouping is **deterministic —
-the first path segment, nothing else** (`wiki/`, `notes/`, `inbox/`, `assets/`, `.obsidian/`,
+the first path segment, nothing else** (`wiki/`, `notes/`, `sources/`, `assets/`, `.obsidian/`,
 …). Never group by reading file *content*: the same staged set must produce the same
 commits on every run.
 

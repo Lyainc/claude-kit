@@ -338,7 +338,7 @@ filename=$(basename "$abs_path")
 # The hand-written MOC pattern (moc-*.md) was retired per v4 §9.5 (#166): MOC is
 # rejected as a separate slot and #118 `.base` views replace hand-written MOC.
 # After removal, moc-foo.md in notes/ still passes via the kebab pattern; in
-# inbox/ it now correctly fails the capture|session pattern.
+# sources/ it now correctly fails the capture|session pattern.
 #
 # Home.md|home.md stay as landing-page aliases (out of #166 scope).
 # ---------------------------------------------------------------------------
@@ -365,11 +365,11 @@ violation=""
 expected_pattern=""
 
 case "$top_dir" in
-  inbox)
+  sources)
     # capture and session notes only (v4 §3.6). plan/decision/note live in notes/.
     expected_pattern='^(capture|session)-[0-9]{4}-[0-9]{2}-[0-9]{2}(-[a-z0-9-]+)?(-v[0-9]+)?\.md$'
     if ! validate_pattern "$filename" "$expected_pattern"; then
-      violation="inbox/ filenames must match: {type}-YYYY-MM-DD[-slug][-vN].md  (type ∈ capture|session — plan/decision/note belong in notes/)"
+      violation="sources/ filenames must match: {type}-YYYY-MM-DD[-slug][-vN].md  (type ∈ capture|session — plan/decision/note belong in notes/)"
     fi
     ;;
   notes)

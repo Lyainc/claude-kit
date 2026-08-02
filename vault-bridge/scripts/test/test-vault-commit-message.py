@@ -269,7 +269,7 @@ def case_modify_session_with_status_change(errors: list[str]) -> None:
     with tempfile.TemporaryDirectory() as tmp:
         vault_root = Path(tmp)
         _init_git_repo(vault_root)
-        rel = "inbox/session-2026-05-28.md"
+        rel = "sources/session-2026-05-28.md"
         _write_note(vault_root, rel, "session", "raw")
         _commit_file(str(vault_root), rel, "add session")
         _write_note(vault_root, rel, "session", "draft")
