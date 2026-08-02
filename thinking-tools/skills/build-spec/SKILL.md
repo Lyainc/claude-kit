@@ -244,8 +244,12 @@ ends at Phase 3, exactly as before.
 is empty whenever the blind-spot pass found nothing or was skipped. A rendered-but-empty heading
 reads as "we looked and there was nothing", which is a different claim from "this does not apply here".
 
+**Title**: match the repo's own convention, which is often `type(scope): 무엇` rather than labels —
+check `gh issue list --state all --limit 10 --json title` first. The raw `{target}` slug is a title
+only when existing issues look like that too (`reference.md` §5).
+
 Show the assembled body and get approval before creating anything, then
-`gh issue create --title "{target}" --body-file <path>`. Report the returned URL.
+`gh issue create --title "{title}" --body-file <path>`. Report the returned URL.
 `gh` absent or no GitHub remote → write the body to `docs/specs/{slug}-issue.md` and say so; never
 create an issue without the approval step.
 
