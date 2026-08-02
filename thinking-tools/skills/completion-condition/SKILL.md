@@ -230,5 +230,7 @@ RUNNERS  · audit E4 제거 (독립이라 언제 해도 되고, 이번 슬라이
 
 ## References
 
-- `/goal` completion conditions: https://code.claude.com/docs/en/goal
+- `/goal` completion conditions: https://code.claude.com/docs/en/goal — conditions are capped at
+  4,000 characters and the feature requires Claude Code v2.1.139+; on an older CLI a Skip renders
+  cleanly instead of a broken paste.
 - Loop design and falsifiability: https://code.claude.com/docs/en/best-practices
