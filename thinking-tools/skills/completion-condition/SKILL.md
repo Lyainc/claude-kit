@@ -48,6 +48,21 @@ The caller supplies, or this skill collects:
 If the repo has no GitHub remote, the backlog widening step is unavailable — say so in one
 clause and rank the session's own pool alone.
 
+**A hook may have already delivered the last two.** When thinking-tools is installed as a
+plugin, invoking this skill fires `hooks/completion-condition-context.sh`, which runs
+`scripts/next-candidate.py` and injects the chain depth plus the open backlog as unrequested
+context. Read what arrived rather than fetching it a second time.
+
+**Never assume it arrived.** The hook goes silent whenever it cannot produce something — kill
+switch set, no `jq`, no `python3`, no GitHub remote, `gh` missing or unauthenticated — and it
+never announces the skip. Stating the data is present would assert something false in exactly
+the runs where the comparison set matters most. So: injected block in context → use it; absent
+→ fall back to the table above. The report labels its own gaps (`조회 못 함` / `조회 실패`
+against `0개`), so a failed lookup is never readable as an empty backlog.
+
+The injected payload carries **data only**. Every judgment — the impact floor, when to
+re-pick, disclosing which pool the candidate came from — lives in this file and nowhere else.
+
 ---
 
 ## Phase 1 — Pick (internal ranking, only the outcome is rendered)
