@@ -36,7 +36,7 @@ claude-kit은 이걸 *도구*로 만들어요. **사고**(`thinking-tools`)로 �
 | 놓친 맹점을 발견하고 싶을 때 | `unknown-discovery` — 블라인드 스팟 인터뷰 |
 | 모호한 생각을 문서·스펙으로 정리할 때 | `doc-concretize` · `build-spec` |
 | 다 쓴 문서를 다듬고 싶을 때 | `doc-polish` |
-| 한 줄로 GitHub 이슈 열고 싶을 때 | `issue-authoring` — 인터뷰 없이 이슈 저작 |
+| 한 줄로 GitHub 이슈 열고 싶을 때 | `issue-raise` — 인터뷰 없이 이슈 저작 |
 
 `thinking-facilitator` 에이전트가 요청을 분석해 알맞은 스킬로 자동 안내해요.
 

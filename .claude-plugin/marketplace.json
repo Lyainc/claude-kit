@@ -30,7 +30,7 @@
         "adversarial-review",
         "build-spec",
         "completion-condition",
-        "issue-authoring"
+        "issue-raise"
       ],
       "homepage": "https://github.com/Lyainc/claude-kit",
       "repository": "https://github.com/Lyainc/claude-kit",
