@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 test-manifest-meta.py — Unit tests for generate-manifest.py global meta fields
-(references_in/out, access_count, type opt-in, schema upgrade).
+(references_in/out, recent_commits, type opt-in, schema upgrade).
 
 Uses an in-memory fixture vault (no real ~/vault reads).
 
@@ -101,8 +101,8 @@ This file has no type: in frontmatter — invisible to claude-kit.
 
 print()
 
-# ── Case 2: non-git vault → access_count = 0 (not null) ─────────────────
-print("Case 2: non-git vault → access_count = 0 (not null)")
+# ── Case 2: non-git vault → recent_commits = 0 (not null) ─────────────────
+print("Case 2: non-git vault → recent_commits = 0 (not null)")
 
 with tempfile.TemporaryDirectory() as tmp:
     vault = Path(tmp)
@@ -111,18 +111,18 @@ with tempfile.TemporaryDirectory() as tmp:
     ))
 
     out = vault / ".vault-bridge" / "manifest.json"
-    # No .git dir → _is_git_repo returns False → access_count = 0
+    # No .git dir → _is_git_repo returns False → recent_commits = 0
     manifest, _ = generate(vault, out, force=True)
 
     note = next((f for f in manifest["files"] if "regular-note" in f["path"]), None)
     ok("note found in manifest", note is not None)
     if note:
-        ok("access_count = 0 for non-git vault (not null)",
-           note["access_count"] == 0,
-           f"got {note['access_count']}")
-        ok("access_count is int (not None)",
-           isinstance(note["access_count"], int),
-           f"type: {type(note['access_count'])}")
+        ok("recent_commits = 0 for non-git vault (not null)",
+           note["recent_commits"] == 0,
+           f"got {note['recent_commits']}")
+        ok("recent_commits is int (not None)",
+           isinstance(note["recent_commits"], int),
+           f"type: {type(note['recent_commits'])}")
 
 print()
 
@@ -154,7 +154,7 @@ with tempfile.TemporaryDirectory() as tmp:
                 "size_bytes": 100,
                 "references_in": 0,
                 "references_out": 0,
-                "access_count": 0,
+                "access_count": 0,  # pre-v4 name — must be dropped, not kept beside recent_commits (#518)
                 "promotion_candidate": True,
             }
         ],
@@ -175,10 +175,13 @@ with tempfile.TemporaryDirectory() as tmp:
     if note:
         ok("references_in field patched in", "references_in" in note,
            f"fields: {list(note.keys())}")
-        ok("access_count field patched in", "access_count" in note,
+        ok("recent_commits field patched in", "recent_commits" in note,
            f"fields: {list(note.keys())}")
         ok("stale promotion_candidate field dropped (#480)",
            "promotion_candidate" not in note,
+           f"fields: {list(note.keys())}")
+        ok("pre-v4 access_count field dropped, not kept beside recent_commits (#518)",
+           "access_count" not in note,
            f"fields: {list(note.keys())}")
 
 print()

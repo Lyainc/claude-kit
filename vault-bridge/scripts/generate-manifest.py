@@ -5,7 +5,7 @@ Generates ~/vault/.vault-bridge/manifest.json from vault .md files.
 
 vault v5 note: this manifest is also the ④ wiki recall index. `type: wiki`
 pages (the A layer, ~/vault/wiki/) are picked up automatically via type opt-in
-(`wiki` is not in EXCLUDED_DIRS), and the existing recall signals — access_count
+(`wiki` is not in EXCLUDED_DIRS), and the existing recall signals — recent_commits
 (7-day git touches) + references_in — rank them for vault-searcher with no
 manifest code change.
 
@@ -38,7 +38,7 @@ import sys
 import time
 from pathlib import Path
 
-SCHEMA_VERSION = 3
+SCHEMA_VERSION = 4
 # Schema bumps are handled via in-place upgrade in _load_existing_manifest:
 # existing entries are preserved and missing fields are patched by _enrich.
 # Future breaking changes to entry structure (not just additive fields) must
@@ -297,7 +297,7 @@ def _load_existing_manifest(out_path: Path) -> dict | None:
 
     v3 in-place upgrade: accepts manifests with older schema_version instead of
     triggering a full invalidation. Missing new fields (references_in, references_out,
-    access_count) are patched by generate() after loading; a stale `promotion_candidate`
+    recent_commits) are patched by generate() after loading; a stale `promotion_candidate`
     field from a pre-#480 manifest is dropped by generate()'s _enrich.
     """
     if not out_path.exists():
@@ -345,21 +345,24 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
 
     # Global metrics must be recomputed every run, not incrementally: a single
     # new file may add inbound links to any existing entry, so we cannot trust
-    # cached references_in/out. access_count batches into one git log call to
+    # cached references_in/out. recent_commits batches into one git log call to
     # keep total overhead low even on large vaults.
     inbound_counts, outbound_counts = _build_wikilink_index(md_files)
     is_git = _is_git_repo(vault_root)
-    access_counts = _compute_all_access_counts(vault_root, is_git)
+    commit_counts = _compute_recent_commits(vault_root, is_git)
 
     def _enrich(entry: dict, rel: str) -> dict:
         """Patch global meta fields into entry (mutates + returns entry)."""
         stem = Path(rel).stem
         entry["references_in"] = inbound_counts.get(stem, 0)
         entry["references_out"] = outbound_counts.get(rel, 0)
-        entry["access_count"] = access_counts.get(rel, 0)
+        entry["recent_commits"] = commit_counts.get(rel, 0)
         # Drop a stale promotion_candidate carried over from a pre-#480 manifest —
         # the incremental path reuses existing_entry as-is otherwise (#480).
         entry.pop("promotion_candidate", None)
+        # Same for access_count, this field's pre-v4 name (#518): the in-place
+        # upgrade would otherwise leave it beside recent_commits, never refreshed.
+        entry.pop("access_count", None)
         return entry
 
     existing = None if force else _load_existing_manifest(out_path)
@@ -505,7 +508,7 @@ def _is_git_repo(vault_root: Path) -> bool:
         return False
 
 
-def _compute_all_access_counts(vault_root: Path, is_git: bool) -> dict[str, int]:
+def _compute_recent_commits(vault_root: Path, is_git: bool) -> dict[str, int]:
     """
     Run a single `git log` to count 7-day commit touches per file.
     Returns rel_path -> touch_count (empty dict for non-git vaults or on error).
@@ -530,7 +533,7 @@ def _compute_all_access_counts(vault_root: Path, is_git: bool) -> dict[str, int]
         return counts
     except subprocess.TimeoutExpired:
         print(
-            "WARNING: git log timed out after 30s — access_count defaulted to 0",
+            "WARNING: git log timed out after 30s — recent_commits defaulted to 0",
             file=sys.stderr,
         )
         return {}
