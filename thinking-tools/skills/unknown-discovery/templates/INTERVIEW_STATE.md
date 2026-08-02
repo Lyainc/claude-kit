@@ -1,23 +1,11 @@
 # Interview State
 
-인터뷰 진행 중 상태를 STATE 블록으로 추적한다.
+인터뷰 진행 중 상태를 STATE 블록으로 추적한다. STATE 블록의 정확한 필드는 [SKILL.md](../SKILL.md)의
+State Management 섹션이 유일 소스다 — 필드가 바뀔 때마다 이 파일까지 고칠 필요가 없도록, 여기서는
+필드를 다시 나열하지 않는다.
 
-## STATE Block Format
-
-매 체크포인트마다 다음 형식을 출력:
-
-```
-<!-- STATE:CHECKPOINT -->
-Target: {name} | Domain: {domain} | Maturity: {idea|plan|execution} | Phase: {0|1|2|3}
-Progress: [assumptions:{status}:{score}%] [trade-offs:{status}:{score}%] [edge-cases:{status}:{score}%] [blindspots:{status}:{score}%]
-Depth: {weighted_avg}% | Q: {total_count} | CP: {checkpoint_count}
-Challenges: [inverter:{done|pending}] [outsider:{done|pending}] [pre-mortem:{done|pending}]
-
-Discoveries:
-1. [{C|I|N}] {finding title} — {one-line description}
-2. ...
-<!-- /STATE -->
-```
+저장 트리거·복원 절차 등 `build-spec`과 공유하는 계약은
+[../../../reference/interview-state.md](../../../reference/interview-state.md) 참고.
 
 ## Field Reference
 
@@ -30,6 +18,7 @@ Discoveries:
 | Maturity | `idea`, `plan`, `execution` (상세: [reference.md](../reference.md) §9) |
 | Priority | `C`=Critical, `I`=Important, `N`=Nice-to-have |
 | Challenge | `done`=사용됨, `pending`=미사용 |
+| scoring_isolated | `true`=격리 채점(게이트 임박 라운드), `false`=인라인 채점(그 외 라운드, 또는 격리 실패) |
 
 ## Termination Signals
 
@@ -43,18 +32,11 @@ Discoveries:
 
 ## Termination Gate
 
-- **Depth ≥ 65%**: Phase 2 진입 가능 (사용자 동의 필요)
+- **Depth ≥ 65% AND 진입한 모든 Core 영역에서 D4=Y**: Phase 2 진입 가능 (사용자 동의 필요, 상세: [reference.md](../reference.md) §6)
 - **Depth < 65% + Saturation**: 사용자에게 경고 후 진행 가능
 - 기존 포화 감지는 보조 지표로 유지
 
-## Compaction Recovery
-
-Compaction 발생 시, 가장 최근 STATE 블록에서 상태를 복원하여 인터뷰를 이어간다.
-복원 시 Depth 점수와 Challenge Mode 상태도 함께 복원한다.
-
 ## File Persistence (Optional)
-
-사용자 요청 시 인터뷰 상태를 파일로 저장하여 세션 간 재개를 지원한다.
 
 ### 저장 경로
 
@@ -63,11 +45,6 @@ docs/discovery/{target-name}/state.md
 ```
 
 `{target-name}`은 분석 대상을 kebab-case로 변환 (예: "결제 시스템 도입" → `payment-system`).
-
-### 저장 트리거
-
-- 사용자 명시적 요청: "저장해줘", "save state", "나중에 이어하자"
-- Phase 2 진입 전 사용자에게 저장 여부 확인 (선택)
 
 ### 저장 파일 형식
 
@@ -81,13 +58,7 @@ phase: {0|1|2|3}
 ---
 
 <!-- STATE:CHECKPOINT -->
-Target: {name} | Domain: {domain} | Maturity: {maturity} | Phase: {phase}
-Progress: [assumptions:{status}:{score}%] [trade-offs:{status}:{score}%] [edge-cases:{status}:{score}%] [blindspots:{status}:{score}%]
-Depth: {weighted_avg}% | Q: {total_count} | CP: {checkpoint_count}
-Challenges: [inverter:{done|pending}] [outsider:{done|pending}] [pre-mortem:{done|pending}]
-
-Discoveries:
-1. [{C|I|N}] {finding title} — {one-line description}
+...세션의 현재 STATE 블록을 SKILL.md 형식 그대로 붙여넣는다 (필드를 여기서 다시 정의하지 않음)...
 <!-- /STATE -->
 
 ## Interview History
@@ -100,8 +71,5 @@ Discoveries:
 
 ### 재개 절차
 
-1. 새 세션에서 사용자가 "이어서 해줘", "resume", "이전 인터뷰 계속" 등 요청
-2. `docs/discovery/` 하위 디렉토리에서 저장된 state 파일 탐색
-3. STATE 블록에서 Phase, Depth, Progress, Challenges 복원
-4. Interview History에서 이전 질문/발견 맥락 복원
-5. 복원된 상태를 사용자에게 요약 후 인터뷰 재개
+저장 트리거·일반 복원 단계는 [../../../reference/interview-state.md](../../../reference/interview-state.md) 참고.
+UD 고유: 복원 후 Interview History 테이블에서 이전 질문/발견 맥락도 함께 복원한다.
