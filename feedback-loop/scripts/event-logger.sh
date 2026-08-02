@@ -47,6 +47,11 @@ PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null
 LOG_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${PROJECT_ROOT}/.claude-kit/telemetry/events}"
 LOG_FILE="${LOG_DIR}/events-$(date -u +%Y-%m-%d).jsonl"
 PLUGIN_MAP="${SCRIPT_DIR}/plugin-map.json"
+# session_start caches the payload's model field here, keyed by sanitized
+# session_id, because PostToolUse payloads carry no model field at all (#511 —
+# SessionStart is the only hook event that does) and each hook invocation is a
+# fresh process with no in-memory state to relay it through otherwise.
+SESSION_MODEL_DIR="${LOG_DIR}/.session-model"
 
 mkdir -p "$LOG_DIR" 2>/dev/null || exit 0
 
@@ -117,7 +122,17 @@ resolve_plugin() {
 # (Latency analysis treats null as "no datum"). Any jq error → `{}`.
 extract_end_meta() {
   local payload="$1"
-  printf '%s' "$payload" | jq -c '
+  local session_id="${2:-}"
+  local model_dir="${3:-}"
+  local model=""
+  if [ -n "$session_id" ] && [ -n "$model_dir" ]; then
+    local sid_safe
+    sid_safe="$(printf '%s' "$session_id" | tr -cd 'A-Za-z0-9_-')"
+    if [ -n "$sid_safe" ] && [ -f "${model_dir}/${sid_safe}" ]; then
+      model="$(cat "${model_dir}/${sid_safe}" 2>/dev/null || true)"
+    fi
+  fi
+  printf '%s' "$payload" | jq -c --arg model "$model" '
     (.tool_response // {}) as $r
     | ($r.usage // {}) as $u
     | {duration_ms: ($r.duration_ms // .duration_ms // null)}
@@ -125,6 +140,7 @@ extract_end_meta() {
       + (if ($u.output_tokens != null) then {output_tokens: $u.output_tokens} else {} end)
       + (if ($u.cache_read_input_tokens != null) then {cache_read_tokens: $u.cache_read_input_tokens} else {} end)
       + (if ($u.cache_creation_input_tokens != null) then {cache_creation_tokens: $u.cache_creation_input_tokens} else {} end)
+      + (if ($model != "") then {model: $model} else {} end)
   ' 2>/dev/null || printf '{}'
 }
 
@@ -173,7 +189,7 @@ case "$EVENT_TYPE" in
       else
         OUTCOME="success"
       fi
-      META="$(extract_end_meta "$PAYLOAD")"
+      META="$(extract_end_meta "$PAYLOAD" "$SESSION_ID" "$SESSION_MODEL_DIR")"
     fi
     ;;
 
@@ -190,7 +206,7 @@ case "$EVENT_TYPE" in
       else
         OUTCOME="success"
       fi
-      META="$(extract_end_meta "$PAYLOAD")"
+      META="$(extract_end_meta "$PAYLOAD" "$SESSION_ID" "$SESSION_MODEL_DIR")"
     fi
     ;;
 
@@ -221,6 +237,15 @@ case "$EVENT_TYPE" in
     OUTCOME="success"
     if [ "$EVENT_TYPE" = "stop" ]; then
       META="$(extract_stop_meta "$PAYLOAD")"
+    elif [ "$EVENT_TYPE" = "session_start" ]; then
+      # SessionStart is the only hook event that carries a model field (#511) —
+      # cache it for this session so later PostToolUse end events can relay it.
+      SESSION_MODEL="$(printf '%s' "$PAYLOAD" | jq -r '.model // empty' 2>/dev/null || true)"
+      SID_SAFE="$(printf '%s' "$SESSION_ID" | tr -cd 'A-Za-z0-9_-')"
+      if [ -n "$SESSION_MODEL" ] && [ -n "$SID_SAFE" ]; then
+        mkdir -p "$SESSION_MODEL_DIR" 2>/dev/null \
+          && printf '%s' "$SESSION_MODEL" > "${SESSION_MODEL_DIR}/${SID_SAFE}" 2>/dev/null || true
+      fi
     fi
     ;;
 

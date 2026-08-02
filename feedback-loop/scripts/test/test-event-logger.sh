@@ -45,7 +45,9 @@ fi
 # extractors keep all inner braces indented, so the marker holds — preserve that
 # (indent inner braces) when editing event-logger.sh's extract_* functions.
 FN_SLICE="$(mktemp 2>/dev/null || printf '/tmp/test-event-logger-%s.sh' "$$")"
-trap 'rm -f "$FN_SLICE"' EXIT
+MODEL_DIR="$(mktemp -d 2>/dev/null || printf '/tmp/test-event-logger-model-%s' "$$")"
+mkdir -p "$MODEL_DIR" 2>/dev/null || true
+trap 'rm -f "$FN_SLICE"; rm -rf "$MODEL_DIR"' EXIT
 
 awk '
   /^extract_end_meta\(\)/  { grab=1 }
@@ -137,6 +139,27 @@ end_invalid='{ this is not json'
 assert_json_eq "end:jq-invalid -> {} fallback" \
   "$(extract_end_meta "$end_invalid")" \
   '{}'
+
+# ============================================================================
+# extract_end_meta — meta.model relay from session-scoped state (#511)
+# ============================================================================
+
+# session_id has a cached model -> meta.model rides alongside duration/tokens.
+printf '%s' "claude-sonnet-5" > "${MODEL_DIR}/sess-1"
+assert_json_eq "end:cached session model injected" \
+  "$(extract_end_meta "$end_happy" "sess-1" "$MODEL_DIR")" \
+  '{"duration_ms":1234,"input_tokens":500,"output_tokens":120,"cache_read_tokens":42,"model":"claude-sonnet-5"}'
+
+# session_id with no cached model file -> model key omitted, same as no session_id.
+assert_json_eq "end:no cached model -> model omitted" \
+  "$(extract_end_meta "$end_happy" "sess-unknown" "$MODEL_DIR")" \
+  '{"duration_ms":1234,"input_tokens":500,"output_tokens":120,"cache_read_tokens":42}'
+
+# Traversal-guard: a crafted session_id with path-escape chars is sanitized before
+# the filesystem lookup, so it neither crashes nor reads outside MODEL_DIR.
+assert_json_eq "end:traversal-guard session_id -> model omitted safely" \
+  "$(extract_end_meta "$end_happy" "../../etc/passwd" "$MODEL_DIR")" \
+  '{"duration_ms":1234,"input_tokens":500,"output_tokens":120,"cache_read_tokens":42}'
 
 # ============================================================================
 # extract_stop_meta — Stop-event meta (#168 confirmed: no usage in real payload)

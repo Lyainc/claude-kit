@@ -116,9 +116,15 @@ python3 feedback-loop/scripts/sequence.py --n=2 --top=20      # repeated n-gram 
   "trigger": "explicit",
   "outcome": "success",
   "tool_use_id": "toolu_01ABC",
-  "meta": { "duration_ms": 1234, "input_tokens": 500, "output_tokens": 120, "cache_read_tokens": 42, "cache_creation_tokens": 17 }
+  "meta": { "duration_ms": 1234, "input_tokens": 500, "output_tokens": 120, "cache_read_tokens": 42, "cache_creation_tokens": 17, "model": "claude-sonnet-5" }
 }
 ```
+
+`meta.model` (#511): PostToolUse payloads carry no model field at all — only `session_start`
+does. `event-logger.sh` caches it there (session-scoped, keyed by `session_id`, under
+`${events dir}/.session-model/`) and `extract_end_meta` relays it into `skill_invoke_end` /
+`agent_spawn_end` events. Omitted when the session never fired `session_start` with telemetry
+on, or when the payload didn't carry a model.
 
 | event | hook | source |
 |-------|------|--------|

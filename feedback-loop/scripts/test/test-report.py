@@ -558,12 +558,27 @@ def case_token_cost_unregistered_model_excluded(errors: list[str]) -> None:
             errors)
 
 
+def case_token_cost_date_suffixed_model_matches_bare_key(errors: list[str]) -> None:
+    """#510 item 1 / #511: a real model id carrying a date suffix beyond a
+    registered bare key (e.g. Sonnet 5 gaining a future dated release) still
+    prices correctly via prefix match, instead of silently landing in
+    unpriced_models."""
+    print("\ncase: token_cost_date_suffixed_model_matches_bare_key")
+    events = [_meta_ev(model="claude-sonnet-5-20260601", input_tokens=1_000_000)]
+    res = report.token_cost_view(events)
+    _assert(res["cost"] is not None, "date-suffixed sonnet id still prices", errors)
+    _assert(abs(res["cost"]["input"] - 3.00) < 1e-9,
+            f"prefix match uses the bare sonnet rate (got: {res['cost']})", errors)
+    _assert(res["priced_events"] == 1 and res["excluded_events"] == 0,
+            "date-suffixed id counts as priced, not excluded/unpriced", errors)
+
+
 def case_token_cost_mixed_priced_and_unpriced(errors: list[str]) -> None:
     """Mixing a priced and an unpriced event: cost reflects only the priced one,
     and the unpriced one is surfaced as excluded rather than silently dropped."""
     print("\ncase: token_cost_mixed_priced_and_unpriced")
     events = [
-        _meta_ev(model="claude-haiku-4-5", input_tokens=1_000_000),
+        _meta_ev(model="claude-haiku-4-5-20251001", input_tokens=1_000_000),
         _meta_ev(model=None, input_tokens=1_000_000),  # no model at all
     ]
     res = report.token_cost_view(events)
@@ -684,6 +699,7 @@ def main() -> int:
     case_token_cost_ranking_inversion(errors)
     case_token_cost_missing_model_excluded(errors)
     case_token_cost_unregistered_model_excluded(errors)
+    case_token_cost_date_suffixed_model_matches_bare_key(errors)
     case_token_cost_mixed_priced_and_unpriced(errors)
     case_token_cost_no_token_data(errors)
     case_token_cost_zero_cost_not_mislabeled_omitted(errors)
