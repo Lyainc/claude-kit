@@ -118,7 +118,10 @@ Quick Mode output format:
 Scoring runs in a **separate Agent subagent**, not inline — the interviewer scoring its own interview is the same self-verification bias that isolated Judge removes in `adversarial-review`. Pass the subagent only `{the area's Q&A transcript + the §6 checklist + the findings claimed for that area}`; it returns the 6 Y/N marks, the reasons, and the area score. The same call verifies the "발견 1건 이상 도출" item, so a claimed finding is confirmed by a context that never saw it being produced.
 
 - One call per checkpoint, and a checkpoint fires on completing a single area, so this is one area per call (4 Core areas → ~4-6 calls per session).
-- **Agent call fails / unavailable** → score inline against the same checklist and mark `scoring_isolated: false` in STATE. Do not announce the fallback; the session must look identical either way.
+- **Agent call fails / unavailable** → score inline against the same checklist and mark `scoring_isolated: false` in STATE. Add one line to the checkpoint output before the progress summary:
+  `[격리 채점 실패 — 자체 채점, 신뢰도 낮음]`. One line, not a new round — then proceed exactly as
+  isolated mode would (#433: a self-scored Depth and an isolated one differ in confidence and must
+  not render identically).
 
 ```
 Round N | Area: {current_area} (targeting lowest area) | 진행 중/충분
