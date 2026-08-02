@@ -144,6 +144,13 @@ python3 scripts/test/test-subagent-git-guard.py
 bash scripts/test/test-no-pyyaml-guard.sh
 # Expected: OK: all no-pyyaml-guard cases passed (12)
 
+# build-spec Phase 0 백로그 prefilter (#489): open+closed 전량을 셸에서 읽고 예산 안의
+# 다이제스트만 내보내는지 — 특히 (1) 닫힌 후보가 다이제스트에 실제로 렌더되는지(#489의 요지),
+# (2) 코퍼스를 못 읽었을 때 빈 문자열이 아니라 `[backlog-scan SKIPPED]` 줄을 내는지.
+# (2)가 빠지면 "스캔했는데 충돌 없음"과 "스캔이 안 돎"이 출력상 구분되지 않는다(#443·#447 클래스).
+python3 thinking-tools/scripts/backlog-prefilter.py --self-check
+# Expected: self-check ok
+
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test
 # Expected: OK: all bump-version self-test cases passed
