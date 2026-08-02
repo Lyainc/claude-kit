@@ -95,6 +95,7 @@ findings:
 | **Action Plan** | 발견 기반 구체적 실행 계획 작성 |
 | **Deep Dive** | 특정 Critical 항목에 대해 새 인터뷰 세션 |
 | **Export** | 이 보고서를 파일로 저장 |
+| **Seed로 넘기기** | 대상 Seed가 있을 때만 — 다음 세션에서 이 리포트를 `build-spec` refine mode에 넘겨 Seed v2 산출 |
 
 ───
 *N개 질문 · N개 영역 완료 · N개 Unknown Unknowns 발견 · Depth N%*

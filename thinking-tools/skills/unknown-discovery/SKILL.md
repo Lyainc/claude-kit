@@ -2,12 +2,15 @@
 name: unknown-discovery
 
 description: |
-  Discover Unknown Unknowns through iterative Socratic interviews.
-  Systematically uncover blind spots in projects/plans.
+  Discover Unknown Unknowns through iterative Socratic interviews. Systematically uncover
+  blind spots in projects/plans — the answer comes out as a list of what's unknown, not a
+  spec of what to build (that's build-spec). Has a Quick Discovery Mode (5-7 questions).
 
   Trigger when user mentions: 맹점, 놓친 것, 빠진 것, 심층 분석, 인터뷰해줘, 누락된 것, 맹점 검토,
-  blind spot, unknown unknown, "내가 놓치고 있는 게 뭐야?", "이 기획에서 빠진 게 있을까?".
-  Routing: 1:1 주장 공격은 adversarial-review, 다관점 합의는 expert-panel.
+  blind spot, unknown unknown, "내가 놓치고 있는 게 뭐야?", "이 기획에서 빠진 게 있을까?",
+  빠르게 맹점만, 간단히 맹점, quick discovery.
+  Routing: 만들 대상이 정해져 있고 명세로 굳혀야 하면 build-spec, 1:1 주장 공격은 adversarial-review,
+  다관점 합의는 expert-panel.
 allowed-tools: AskUserQuestion Read Write Agent Grep Glob
 ---
 
@@ -72,6 +75,7 @@ Quick Mode output format:
 1. Analyze the target (project / document / idea).
 2. Confirm the domain (Tech/Biz/Creative/Custom) → confirm with the user via AskUserQuestion.
 2a. **Repo Context Intake** (when the target is a codebase / an idea about one): `Glob("{README.md,CLAUDE.md,package.json,pyproject.toml,plugin.json,go.mod,Cargo.toml}")`, then `Grep` the hits for the target's own keywords. Feed what you find into the interview as *grounded* questions ("README says X is the only supported path — what happens when Y?") instead of abstract ones. Detail: [reference.md](reference.md) §15. No hits / not a codebase → skip silently, interview proceeds as a pure conversation.
+2b. **Seed Detection** (bridge from `build-spec`): `Glob("docs/specs/*.yaml")`. If the user's target names or matches an existing Seed file (by slug or explicit path), treat that Seed as the interview target — its `goal`/`constraints`/`success_criteria` anchor the interview, and each area's questions probe against fields the Seed already committed to instead of starting from a blank context. Findings from this interview are meant to fold into that Seed's `blindspots[]` later via a `build-spec` refine-mode session (see [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md)). No match → skip silently, interview proceeds as normal.
 3. Detect maturity (Idea/Plan/Execution):
    - **Auto-detect first**: infer maturity from signals in the user's input context (detail: [reference.md](reference.md) §9)
      - No concrete numbers/timeline, "~할 것 같다" hedging → Idea
@@ -160,6 +164,7 @@ Round N | Area: {current_area} (targeting lowest area) | 진행 중/충분
    - **Action Plan**: 발견 기반 구체적 실행 계획 작성
    - **Deep Dive**: 특정 Critical 항목에 대해 새 인터뷰 세션 시작
    - **Export**: 보고서를 파일로 저장
+   - **Seed로 넘기기** (대상 Seed가 있을 때만 노출 — Phase 0 Seed Detection §2b 참고): 리포트를 저장하고, 다음 세션에서 그 대상 Seed 경로 + 이 리포트를 `build-spec` refine mode(`"이 스펙 다듬어줘"`)에 넘기는 방법을 안내. 왕복은 같은 세션에서 하지 않는다 — [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md) 세 경로 참고
 
 ## Termination Conditions
 
@@ -260,6 +265,7 @@ See [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md)
 - **Decision criteria guide**: See [reference.md](reference.md)
 - **Workflow examples**: See [examples.md](examples.md)
 - **Output templates**: See `templates/` folder
+- **Role boundary vs build-spec**: [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md)
 
 ## Quick Start
 
