@@ -58,6 +58,90 @@ def _git_toplevel() -> str | None:
 
 EVENTS_DIR = resolve_events_dir()
 
+# Cost-per-MTok ($) by model, standard (non-intro, non-1h-TTL) API rates.
+# cache_write = 1.25x input, cache_read = 0.1x input (5m TTL default) — the
+# Anthropic prompt-caching multiplier convention (shared/prompt-caching.md
+# "Economics"), not a per-model special case. Actual invoices may differ
+# (discounts, plan tiers, intro pricing, 1h TTL) — this is sticker price only.
+MODEL_PRICING = {
+    "claude-fable-5":   {"input": 10.00, "output": 50.00, "cache_write": 12.50, "cache_read": 1.00},
+    "claude-opus-5":    {"input": 5.00,  "output": 25.00, "cache_write": 6.25,  "cache_read": 0.50},
+    "claude-sonnet-5":  {"input": 3.00,  "output": 15.00, "cache_write": 3.75,  "cache_read": 0.30},
+    "claude-haiku-4-5": {"input": 1.00,  "output": 5.00,  "cache_write": 1.25,  "cache_read": 0.10},
+}
+
+# meta key -> token-kind label used throughout the cost view.
+_TOKEN_META_KEYS = {
+    "input_tokens": "input",
+    "output_tokens": "output",
+    "cache_creation_tokens": "cache_write",
+    "cache_read_tokens": "cache_read",
+}
+
+# HONESTY BOUNDS — read before interpreting (mirrors rule-fire liveness above):
+#  - token-count share and cost share are DIFFERENT rankings on the same data — cache
+#    reads are ~94% of tokens but ~49% of cost, cache writes are ~5% of tokens but
+#    ~32% of cost (measured, Sonnet 5, #499/#500). Never read one ranking as a stand-in
+#    for the other.
+#  - cost is priced per-event from that event's meta.model; an event with no model or
+#    an unregistered model contributes to the token totals but NEVER to cost — there is
+#    no estimated/blended rate. If zero events carry a priced model, the cost column is
+#    omitted entirely rather than guessed.
+#  - rates are official sticker price (see MODEL_PRICING comment) — not the actual bill.
+_COST_CAVEAT = (
+    "토큰 수 순위 ≠ 비용 순위(캐시읽기: 토큰 최대·비용 중간, 캐시쓰기: 토큰 최소·비용 상위권). "
+    "비용은 event.meta.model이 있고 단가표에 등록된 이벤트에서만 계산 — 없으면 그 이벤트는 "
+    "비용 열에서 제외(추정치로 채우지 않음). 단가는 공식 sticker price로 실제 청구액과 다를 수 있음."
+)
+
+
+def token_cost_view(events: list[dict]) -> dict:
+    """Aggregate token counts and priced cost per kind (input/output/cache_write/cache_read).
+
+    Token totals sum every event carrying a numeric token field, regardless of model.
+    Cost is priced per-event against MODEL_PRICING using that event's meta.model; an
+    event with no model or an unregistered model contributes to tokens but is excluded
+    from cost — see _COST_CAVEAT. `cost` is None when no event could be priced at all.
+    """
+    tokens = {"input": 0, "output": 0, "cache_write": 0, "cache_read": 0}
+    cost = {"input": 0.0, "output": 0.0, "cache_write": 0.0, "cache_read": 0.0}
+    priced_events = 0
+    excluded_events = 0
+    unpriced_models: set[str] = set()
+
+    for e in events:
+        meta = e.get("meta")
+        if not isinstance(meta, dict):
+            continue
+        present = {
+            kind: meta[key]
+            for key, kind in _TOKEN_META_KEYS.items()
+            if isinstance(meta.get(key), (int, float)) and not isinstance(meta.get(key), bool)
+        }
+        if not present:
+            continue
+        for kind, v in present.items():
+            tokens[kind] += v
+
+        model = meta.get("model")
+        rates = MODEL_PRICING.get(model) if isinstance(model, str) else None
+        if rates is None:
+            excluded_events += 1
+            unpriced_models.add(model if isinstance(model, str) and model else "(model 없음)")
+            continue
+        priced_events += 1
+        for kind, v in present.items():
+            cost[kind] += v / 1_000_000 * rates[kind]
+
+    return {
+        "tokens": tokens,
+        "cost": cost if priced_events > 0 else None,
+        "priced_events": priced_events,
+        "excluded_events": excluded_events,
+        "unpriced_models": sorted(unpriced_models),
+    }
+
+
 # Stale threshold for lifecycle view (days since last use).
 _STALE_DAYS = 14
 # Bottom-N threshold for lifecycle view.
@@ -361,6 +445,7 @@ def main() -> int:
 
     lifecycle = skill_lifecycle_view(events, since_days=since_days)
     rule_fire_counts = rule_fire_view(events)
+    token_cost = token_cost_view(events)
 
     if args.format == "json":
         payload = {
@@ -410,6 +495,24 @@ def main() -> int:
             # ships alongside so a consumer never reads a fire count as an adherence rate.
             "rule_fire": rule_fire_counts,
             "rule_fire_caveat": _RULE_FIRE_CAVEAT if rule_fire_counts else None,
+            # Token/cost view: token counts always present when any token data exists;
+            # cost is null (with a reason) when no event could be priced. See
+            # _COST_CAVEAT for why token-count share and cost share diverge.
+            "token_cost": {
+                "tokens": token_cost["tokens"],
+                "cost": (
+                    {k: round(v, 4) for k, v in token_cost["cost"].items()}
+                    if token_cost["cost"] is not None else None
+                ),
+                "cost_omitted_reason": (
+                    None if token_cost["cost"] is not None
+                    else "priced 이벤트 0건 (model 없음 또는 미등록: "
+                         f"{', '.join(token_cost['unpriced_models']) or '해당 없음'})"
+                ),
+                "excluded_events": token_cost["excluded_events"],
+                "unpriced_models": token_cost["unpriced_models"],
+            } if sum(token_cost["tokens"].values()) else None,
+            "token_cost_caveat": _COST_CAVEAT if sum(token_cost["tokens"].values()) else None,
         }
         print(json.dumps(payload, indent=2))
         return 0
@@ -475,6 +578,36 @@ def main() -> int:
         for rid, c in sorted(rule_fire_counts.items(), key=lambda x: (-x[1], x[0])):
             print(f"  {c:>5}  {rid}")
         print(f"  ! {_RULE_FIRE_CAVEAT}")
+    # Token/cost view — only render when some event carries token data. Token counts
+    # and cost render SIDE BY SIDE (never one without the other) so the reader sees
+    # both rankings on the same rows — showing only tokens is exactly the misreading
+    # this view exists to prevent. The caveat prints inline, same pattern as rule-fire.
+    total_tokens = sum(token_cost["tokens"].values())
+    if total_tokens:
+        print()
+        print("Token/cost breakdown (종류별 토큰 수 vs 비용):")
+        total_cost = sum(token_cost["cost"].values()) if token_cost["cost"] is not None else None
+        for kind in ("input", "output", "cache_write", "cache_read"):
+            tok = token_cost["tokens"][kind]
+            tok_pct = (tok / total_tokens * 100) if total_tokens else 0.0
+            if total_cost:
+                cost_val = token_cost["cost"][kind]
+                cost_pct = (cost_val / total_cost * 100) if total_cost else 0.0
+                cost_str = f"${cost_val:.4f} ({cost_pct:5.1f}%)"
+            else:
+                cost_str = "(생략)"
+            print(f"  {kind:<12} tokens={tok:>10} ({tok_pct:5.1f}%)  cost={cost_str}")
+        if token_cost["cost"] is None:
+            print(
+                f"  ! 비용 열 생략: priced 이벤트 0건 (model 없음 또는 미등록: "
+                f"{', '.join(token_cost['unpriced_models']) or '해당 없음'})"
+            )
+        elif token_cost["excluded_events"]:
+            print(
+                f"  ! {token_cost['excluded_events']}개 이벤트는 model 없음/미등록"
+                f"({', '.join(token_cost['unpriced_models'])})으로 비용 계산에서 제외"
+            )
+        print(f"  ! {_COST_CAVEAT}")
     return 0
 
 
