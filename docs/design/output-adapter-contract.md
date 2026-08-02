@@ -1,6 +1,6 @@
 # 출력 어댑터 계약 — 균일 호출 인터페이스 + 포맷×동작 매핑 + net-new gap
 
-**Status**: design · **Created**: 2026-06-04 · **Last reconciled**: 2026-08-02 (#490 — 닫힌 이슈 대조) · **Issue**: #101 · **Epic**: #108
+**Status**: design · **Created**: 2026-06-04 · **Last reconciled**: 2026-08-03 (#502 — L2·L3 잔여 한계 해소) · **Issue**: #101 · **Epic**: #108
 **선행**: #99(경계 A — `docs/design/claude-kit-boundary.md`)
 **하류 소비처**: #102(출력 레이어 물리 구조 — 이 *논리* 계약을 입력) · #103/#104(② 출력 레이어 조립) · #122 Gap-ROUTE(라우터가 이 어댑터로 슬라이스를 위임) · #133(issue-authoring 경계)
 **Source**: #108 레이어 재설계 논의 C-5(신설 최소화 만장일치) · G2 어댑터 슬라이스 · goal-doc-spec §3.5
@@ -78,7 +78,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 | 5 | ~~`session`~~ | ~~`record`~~ | ~~**`/save-session`**~~ — **RETIRED (#331, 2026-07-10)**: 세션지식 경로가 wiki-first로 재정의돼 OVM `/wiki` + native memory로 이관. 원석 캡처는 OVM `/capture`가 담당 | — | — | — | — |
 | 6 | `md` | `author` | **doc-concretize** (신규 MD 구조화 저작) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (임의 `.md`) | `success` |
 | 7 | `md` | `edit` | **doc-polish** (기존 MD 린트·개선, Editor-not-Writer) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (기존 `.md` in-place Edit) | `success` |
-| 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) + **build-spec Phase 4** (본문 저작 어댑터 — #407) | 외부 도구 (③ GitHub 딜리버리) + ② 출력 leaf | 셸 Bash + 모델 호출 스킬 | `github` (이슈 URL) | `success` · **본문 *저작* gap은 #407로 해소 → §4.1** |
+| 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) + **`issue-authoring` 스킬** (본문 저작 어댑터 — #502, #407이 얹었던 build-spec Phase 4를 대체) | 외부 도구 (③ GitHub 딜리버리) + ② 출력 leaf | 셸 Bash + 모델 호출 스킬 (build-spec Seed 서브콜 또는 직접 호출) | `github` (이슈 URL) | `success` · **본문 *저작* gap은 #407로 해소, 잔여 한계는 #502로 해소 → §4.1** |
 
 > **매핑 정직성 주의 (#3 goal-doc=build-spec)**: build-spec의 *실제 산출물*은 요구사항 3요소(`goal`/`constraints`/`success_criteria`)를 담은 **YAML Seed**(`docs/specs/{slug}.yaml`)지, `goal-doc-spec` §1~§2의 frontmatter 8필드+본문 5섹션 **goal-doc이 아니에요**. 매핑 `goal-doc=build-spec`는 *"명세 결정화 출력"이라는 intent 수준* 정합이고, Seed→goal-doc 산출물 재프레임(build-spec를 ② goal-doc 출력 스킬로 포지셔닝/개명할지)은 **#111(build-spec reconcile)의 소관**이에요 — 이 문서는 그걸 **재정의하지 않고 위임만** 해요. 따라서 goal-doc 저작은 §4 net-new gap이 *아니에요*(기존 #111 트랙이 소유).
 
@@ -141,10 +141,10 @@ C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설*
 | # | 한계 | 어디서 |
 |---|------|--------|
 | L1 | **닫힌 이슈 미조회** — Phase 0 백로그 스캔이 `--state open`만 훑어, COMPLETED로 닫힌 결정(= "이미 정해졌으니 반대로 가지 마라")을 구조적으로 못 봐요. 이 문서의 §4.1 드리프트를 만든 실패와 같은 뿌리. → **#489** |
-| L2 | **Seed 강제** — Phase 4는 Phase 3(Seed 방출) 뒤에만 열려요. 이슈 하나 쓰려고 Socratic 인터뷰 전체를 통과해야 하니, 짧은 버그 리포트 경로가 없어요. |
-| L3 | **bug 템플릿 형식 도달 불가** — Phase 4 필드 매핑이 배경/스코프/제약/Acceptance/의존/열린 질문으로 고정이라, `.github/ISSUE_TEMPLATE/bug.md`의 증상/재현 절차/기대 동작/환경 형식이 어떤 입력으로도 안 나와요. |
+| L2 | ~~**Seed 강제**~~ — **해소됨 (#502)**: `issue-authoring` 스킬이 인터뷰·Ambiguity 게이트 없이 자연어 한 줄로 바로 진입해요. build-spec은 Seed가 있을 때만 그 스킬을 서브콜하고, 짧은 버그 리포트는 build-spec을 거치지 않아요. |
+| L3 | ~~**bug 템플릿 형식 도달 불가**~~ — **해소됨 (#502)**: 고정 필드 매핑 대신 `issue-authoring`이 `.github/ISSUE_TEMPLATE/*.md`를 호출 시점에 `Read`해서 그 헤딩을 그대로 따라요 — 템플릿이 바뀌면 출력도 같이 바뀌고, 스킬 안에 헤딩을 하드코딩하지 않아요. |
 
-> **L2·L3를 별도 스킬로 풀지 마세요 (2026-08-02, 시도했다가 폐기)**: 위 §4.1이 낡아 있던 동안 프로젝트 스코프 프로토타입(`.claude/skills/issue/` — 중복 판정 게이트 + 타이틀 포맷 가드 훅 + 결정적 prefilter)이 실제로 만들어졌고, 판단 근거를 바로잡은 뒤 폐기했어요. 근거: (1) **#407의 hard 제약이 issue-authoring 신설 자체를 금지**해요(#113 세 번째 저작 도구 트리거 ↔ #140 thin 플러그인 금지 충돌), (2) prefilter는 `thinking-tools/scripts/backlog-prefilter.py`로 이식돼 중복이 됐고(#489), (3) 타이틀 가드가 실증한 유일한 catch는 build-spec Phase 4의 타이틀 결함이라 build-spec 안에서 직접 고쳤으며 그 가드 자체는 따옴표 멘션 오탐을 냈고, (4) 중복 저작 사건은 관측 0건이에요. **L2·L3가 실제로 물리면 build-spec 안에서 고치세요** — 새 스킬은 #407이 닫아둔 문이에요.
+> **L2·L3 해소 경위 (#502, 2026-08-03) — 별도 스킬로 풀되, #407이 닫은 문과는 다른 문이었다**: 2026-08-02 시점 이 절은 "별도 스킬로 풀지 말라"고 적혀 있었고, 그 근거였던 프로젝트 스코프 프로토타입(`.claude/skills/issue/`) 폐기 판단 4개는 #502 실증으로 재검토됐어요. (1) **#407/#140의 hard 제약은 새 *플러그인*을 금지했지 새 *스킬*을 금지하지 않아요** — #140 C-2가 막은 건 thin 플러그인이고, thinking-tools 안의 스킬은 애초에 대상이 아니에요; 이전 문장이 "신설 자체를 금지"라고 적은 건 플러그인과 스킬을 혼동한 오독이었어요. #113(3번째 format-agnostic primitive 트리거)도 해당 없어요 — issue-authoring은 `format=issue`로 format-specific이고, #113 클로징이 위임한 "3번째 primitive를 실제로 만들 때 1회 판정"은 이 이슈가 그 판정 자리였어요. (2) 중복 검사는 `backlog-prefilter.py`를 **재구현 없이 그대로 호출**해 중복을 안 만들었어요. (3) 타이틀 가드 훅은 **다시 만들지 않았어요** — 폐기된 프로토타입의 따옴표 멘션 오탐을 재현하지 않으려고, 컨벤션을 저작 *생성 시점*에만 따르고 검증 훅은 두지 않았어요. (4) "중복 저작 사건 관측 0건"은 무효로 판정됐어요 — 그 0은 사용자가 매 이슈마다 수동으로 중복 검사를 지시하던 기간의 산물이라, 사람의 보상으로 만들어진 숫자였지 자동화가 불필요하다는 증거가 아니었어요. 상세: `thinking-tools/skills/issue-authoring/`.
 
 ### 4.2 net-new이 *아닌* 것 (정직성 — 명시 배제)
 
@@ -153,7 +153,7 @@ C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설*
 - **goal-doc 저작 (build-spec Seed↔goal-doc)**: §2 #3 주의대로 Seed→goal-doc 재프레임은 **#111 트랙**이지 #101 신설 gap이 아니에요. **#111은 CLOSED/COMPLETED (2026-07-05, PR #322)** — spec-first→build-spec 리네임으로 항목 전건 해소. goal-doc 포맷 자체는 그 뒤 #282/#283이 철회했으므로, 이 배제는 이제 "다른 트랙이 소유"가 아니라 **"대상이 사라져 종결"**로 읽어야 해요.
 - **debug · quality**(⑤ 실행 스킬 신설 후보): 이건 *출력 포맷* gap이 아니라 **⑤ 실행 스킬** 축이라 #133 소관이에요. 출력 어댑터(이 문서)의 net-new에 안 셈 — 축이 다름(§5.2). **#133도 CLOSED/COMPLETED (2026-06-04, PR #137)**, 다만 산출물 `execution-skill-inventory.md`는 #282/#283 철회로 삭제됐어요(§ 서두 주의).
 
-> **결론 (2026-08-02 갱신)**: #101 출력-포맷 축의 net-new는 **issue-authoring 1건**이었고(≤2 충족, C-5 "≤1-2" 준수), **#407/PR #419로 신설 없이 닫혔어요**. 명시 배제 2건이 위임하던 하류 트랙(#111·#133)도 전부 종결 상태예요. **즉 이 §4에 열려 있는 net-new gap은 0건이고, 남은 건 §4.1 L1–L3 잔여 한계뿐이에요.**
+> **결론 (2026-08-03 갱신, #502)**: #101 출력-포맷 축의 net-new는 **issue-authoring 1건**이었고(≤2 충족, C-5 "≤1-2" 준수), **#407/PR #419로 신설 없이 닫혔어요**. 명시 배제 2건이 위임하던 하류 트랙(#111·#133)도 전부 종결 상태예요. **이 §4에 열려 있는 net-new gap은 여전히 0건이에요.** 다만 §4.1이 남긴 잔여 한계 3종 중 L2·L3는 그 뒤 **#502가 (플러그인이 아닌) 스킬 하나(`issue-authoring`)로 해소**했고, 남은 건 **L1**뿐이에요.
 
 ---
 
@@ -202,4 +202,4 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 
 ---
 
-**참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·[§2 ② 레이어 표](claude-kit-boundary.md#2-5-레이어-모델)·[§3 issue ② 귀속](claude-kit-boundary.md#3-의존-방향--단방향-harness--leaf)) · #99/#100/#102/#111/#122/#132/#133 (**전부 CLOSED** — 이 문서가 위임한 하류 트랙에 열려 있는 것은 없어요) · #407/PR #419(§4.1 해소) · #490(이 갱신). (goal-doc-spec·omc-to-native-substrate·execution-skill-inventory·G2 goal-doc·레이어 재설계 토론 문서는 goal-doc 하네스 철회(#282/#283)와 함께 삭제됐어요 — 근거는 각 이슈 번호로 찾으세요.)
+**참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·[§2 ② 레이어 표](claude-kit-boundary.md#2-5-레이어-모델)·[§3 issue ② 귀속](claude-kit-boundary.md#3-의존-방향--단방향-harness--leaf)) · #99/#100/#102/#111/#122/#132/#133 (**전부 CLOSED** — 이 문서가 위임한 하류 트랙에 열려 있는 것은 없어요) · #407/PR #419(§4.1 해소) · #490(2026-08-02 갱신) · #502(2026-08-03 갱신 — L2·L3 해소, `issue-authoring` 스킬 신설). (goal-doc-spec·omc-to-native-substrate·execution-skill-inventory·G2 goal-doc·레이어 재설계 토론 문서는 goal-doc 하네스 철회(#282/#283)와 함께 삭제됐어요 — 근거는 각 이슈 번호로 찾으세요.)
