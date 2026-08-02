@@ -64,11 +64,30 @@ EVENTS_DIR = resolve_events_dir()
 # "Economics"), not a per-model special case. Actual invoices may differ
 # (discounts, plan tiers, intro pricing, 1h TTL) — this is sticker price only.
 MODEL_PRICING = {
-    "claude-fable-5":   {"input": 10.00, "output": 50.00, "cache_write": 12.50, "cache_read": 1.00},
-    "claude-opus-5":    {"input": 5.00,  "output": 25.00, "cache_write": 6.25,  "cache_read": 0.50},
-    "claude-sonnet-5":  {"input": 3.00,  "output": 15.00, "cache_write": 3.75,  "cache_read": 0.30},
-    "claude-haiku-4-5": {"input": 1.00,  "output": 5.00,  "cache_write": 1.25,  "cache_read": 0.10},
+    "claude-fable-5":            {"input": 10.00, "output": 50.00, "cache_write": 12.50, "cache_read": 1.00},
+    "claude-opus-5":             {"input": 5.00,  "output": 25.00, "cache_write": 6.25,  "cache_read": 0.50},
+    "claude-sonnet-5":           {"input": 3.00,  "output": 15.00, "cache_write": 3.75,  "cache_read": 0.30},
+    # Haiku 4.5's real runtime model ID carries a date suffix, unlike the other
+    # three (#510 item 1 / #511) — keyed on the exact string the SessionStart
+    # hook payload emits.
+    "claude-haiku-4-5-20251001": {"input": 1.00,  "output": 5.00,  "cache_write": 1.25,  "cache_read": 0.10},
 }
+
+
+def _pricing_for(model: str | None) -> dict | None:
+    """MODEL_PRICING lookup that tolerates a date-suffixed model id extending a
+    registered bare key (#510 item 1) — e.g. a future 'claude-sonnet-5-20260601'
+    against the registered 'claude-sonnet-5'. Exact match wins; otherwise the
+    longest registered key the model id extends with '-<suffix>' wins.
+    """
+    if not isinstance(model, str) or not model:
+        return None
+    if model in MODEL_PRICING:
+        return MODEL_PRICING[model]
+    for key in sorted(MODEL_PRICING, key=len, reverse=True):
+        if model.startswith(key + "-"):
+            return MODEL_PRICING[key]
+    return None
 
 # meta key -> token-kind label used throughout the cost view.
 _TOKEN_META_KEYS = {
@@ -124,7 +143,7 @@ def token_cost_view(events: list[dict]) -> dict:
             tokens[kind] += v
 
         model = meta.get("model")
-        rates = MODEL_PRICING.get(model) if isinstance(model, str) else None
+        rates = _pricing_for(model)
         if rates is None:
             excluded_events += 1
             unpriced_models.add(model if isinstance(model, str) and model else "(model 없음)")

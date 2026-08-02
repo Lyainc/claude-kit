@@ -187,6 +187,7 @@ def run_self_test() -> int:
             "output_tokens": 120,
             "cache_read_tokens": 42,
             "cache_creation_tokens": 17,
+            "model": "claude-sonnet-5",
         },
     })
     # duration_ms may be null when timing is unavailable — still valid.
