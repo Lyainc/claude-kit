@@ -11,8 +11,9 @@ cannot isolate, all against `detect_stale_wiki`:
   - type-only scope: a page under `wiki/` whose `type:` is not `wiki` is skipped.
   - staleness boundary: age == STALE_WIKI_DAYS is NOT stale (strict `>`); +1 is.
   - graceful skip: a wiki page with missing / unparseable `verified:` is skipped
-    (staleness is uncomputable; the field is write-time auto-stamped so absence is
-    a write-path bug, not a staleness signal — flagging it would be a false E12).
+    BY `detect_stale_wiki` (staleness is uncomputable) — but NOT dropped: it must
+    surface via `detect_unverifiable_wiki` instead (#494), since a pre-v5-§4.1
+    page the auto-stamp never touched would otherwise never trip E12 at all.
 
 E12b (cross-page semantic contradiction) ships nowhere here — it is the deferred
 `--deep` LLM path (mirrors E9c). No test asserts it because the deterministic
@@ -36,6 +37,7 @@ _mod = importlib.util.module_from_spec(_spec)  # type: ignore[arg-type]
 _spec.loader.exec_module(_mod)  # type: ignore[union-attr]
 
 detect_stale_wiki = _mod.detect_stale_wiki
+detect_unverifiable_wiki = _mod.detect_unverifiable_wiki
 STALE_WIKI_DAYS = _mod.STALE_WIKI_DAYS
 
 # Fixed "today" so the boundary assertions are date-independent.
@@ -52,6 +54,14 @@ def _verified_days_ago(n: int) -> str:
 
 def _flagged_paths(records: list) -> set:
     return {rel for rel, _ in detect_stale_wiki(records, TODAY)}
+
+
+def _unverifiable_paths(records: list) -> set:
+    return {rel for rel, _ in detect_unverifiable_wiki(records)}
+
+
+def _unverifiable_details(records: list) -> dict:
+    return dict(detect_unverifiable_wiki(records))
 
 
 def _assert(cond: bool, desc: str, errors: list) -> None:
@@ -108,6 +118,46 @@ def main() -> int:
     ]
     _assert(_flagged_paths(recs) == {"wiki/stale-a.md", "wiki/stale-b.md"},
             "mixed batch surfaces only stale wiki pages", errors)
+
+    # 8. detect_unverifiable_wiki (#494): missing verified → flagged there instead,
+    # with a reason distinct from staleness (never computed as stale-or-fresh).
+    recs = [_rec("wiki/no-verified.md", type="wiki")]
+    _assert(_unverifiable_paths(recs) == {"wiki/no-verified.md"},
+            "missing verified is flagged by detect_unverifiable_wiki", errors)
+    _assert(_unverifiable_details(recs)["wiki/no-verified.md"] == "verified 필드 없음 — stale 판정 불가",
+            "missing-verified detail names the reason", errors)
+
+    # 9. Unparseable verified (string, list, wrong shape) → also flagged there,
+    # with the raw value surfaced for diagnosis.
+    recs = [
+        _rec("wiki/bad-verified.md", type="wiki", verified="soon"),
+        _rec("wiki/list-verified.md", type="wiki", verified=["x"]),
+    ]
+    _assert(_unverifiable_paths(recs) == {"wiki/bad-verified.md", "wiki/list-verified.md"},
+            "unparseable verified (string/list) is flagged by detect_unverifiable_wiki", errors)
+    _assert("raw: 'soon'" in _unverifiable_details(recs)["wiki/bad-verified.md"],
+            "unparseable-verified detail surfaces the raw value", errors)
+
+    # 10. detect_stale_wiki and detect_unverifiable_wiki are mutually exclusive —
+    # a page is never double-counted across the two.
+    recs = [
+        _rec("wiki/stale.md", type="wiki", verified=_verified_days_ago(STALE_WIKI_DAYS + 1)),
+        _rec("wiki/fresh.md", type="wiki", verified=_verified_days_ago(1)),
+        _rec("wiki/missing.md", type="wiki"),
+    ]
+    _assert(_flagged_paths(recs) == {"wiki/stale.md"},
+            "stale-only page does not appear in detect_unverifiable_wiki's domain", errors)
+    _assert(_unverifiable_paths(recs) == {"wiki/missing.md"},
+            "missing-verified page does not appear in detect_stale_wiki's domain", errors)
+
+    # 11. Same wiki/ + type:wiki scope guard applies to detect_unverifiable_wiki —
+    # a non-wiki file or a wiki/ file with type != wiki is out of scope, not flagged.
+    recs = [
+        _rec("notes/note.md", type="note"),
+        _rec("wiki/stray.md", type="note"),
+    ]
+    _assert(_unverifiable_paths(recs) == set(),
+            "detect_unverifiable_wiki respects the wiki/ + type:wiki scope guard", errors)
 
     if errors:
         print(f"\nFAILED: {len(errors)} assertion(s) failed")

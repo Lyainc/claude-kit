@@ -378,10 +378,12 @@ bash obsidian-vault-manager/scripts/test/test-infer-tags-batch.sh
 python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
 # Expected: OK: all cases passed
 
-# E12 wiki self-audit staleness scoping unit test (#330) — pins detect_stale_wiki's
-# wiki-only + type:wiki scope, the strict-> staleness boundary, and the graceful skip
-# on missing/unparseable `verified:`. Complements the DoD end-to-end (which only counts
-# seeded/fp). E12b cross-page contradiction is the deferred --deep path, not tested here.
+# E12 wiki self-audit staleness scoping unit test (#330, #494) — pins detect_stale_wiki's
+# wiki-only + type:wiki scope and the strict-> staleness boundary, and pins that a
+# missing/unparseable `verified:` is skipped by detect_stale_wiki but surfaced instead by
+# detect_unverifiable_wiki (E12_wiki_unverified) — never silently dropped. Complements the
+# DoD end-to-end (which only counts seeded/fp). E12b cross-page contradiction is the
+# deferred --deep path, not tested here.
 python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 # Expected: OK: all cases passed
 
@@ -412,7 +414,8 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py \
 python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 # Expected: OK: audit DoD invariants hold (...)
 # Expected (G8+) — the values assert-dod.py enforces:
-#   dod.seeded_detected = {E1:5, E2:5, E3:5, E4:5, E5:6, E6:5, E9:2, E10:5, E11:5, E12:5}
+#   dod.seeded_detected = {E1:5, E2:5, E3:5, E4:5, E5:6, E6:5, E9:2, E10:5, E11:5, E12:5,
+#     E12_wiki_unverified:2}
 #     (E2 has 5: base only — the 5 status-missing seeds went away with the status
 #      machine (#480), since a note with no `status:` now conforms; E5 has 6: 5 w/ tag candidates +
 #      1 empty-tags graceful orphan; E6=stale_inbox (E7/E8 retired with the B-layer
@@ -424,9 +427,13 @@ python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 #      (2 root-direct + 3 in 20_Projects/), root _index.md exempt;
 #      E12 has 5: wiki/ pages with verified:2020 > STALE_WIKI_DAYS (90) — the
 #      DETERMINISTIC half of the wiki self-audit rule; cross-page semantic
-#      contradiction (E12b) is the deferred --deep LLM path, not seeded)
-#   dod.fp_on_clean per type = 0   (incl. E9/E10/E11/E12; root _index.md exercises E11
-#     exempt guard; 2 fresh wiki pages stamped with the run date exercise E12 fp=0)
+#      contradiction (E12b) is the deferred --deep LLM path, not seeded;
+#      E12_wiki_unverified has 2 (#494): wiki/ pages whose `verified:` is missing
+#      or unparseable — a case detect_stale_wiki cannot compute staleness for and
+#      used to skip forever; now surfaced as its own finding instead)
+#   dod.fp_on_clean per type = 0   (incl. E9/E10/E11/E12/E12_wiki_unverified; root
+#     _index.md exercises E11 exempt guard; 2 fresh wiki pages stamped with the run
+#     date exercise E12 fp=0)
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []
 #   dod.e3_with_suggestion >= 5    (E3 권장 파일명 present); dod.e5_with_candidates > 0

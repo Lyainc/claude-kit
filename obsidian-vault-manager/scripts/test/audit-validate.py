@@ -15,7 +15,10 @@ is out of scope, deferred to a separate issue.
 E12 (#330) = wiki self-audit (v5 §7 U3). The rule has two halves, split on the
 audit's LLM-0 (deterministic-only) boundary — the SAME split E9 makes:
   - E12a wiki staleness: `verified:` age > STALE_WIKI_DAYS. DETERMINISTIC (date
-    arithmetic) → SHIPS here as E12_wiki_stale.
+    arithmetic) → SHIPS here as E12_wiki_stale. A page whose `verified:` is
+    missing/unparseable is uncomputable for staleness, not stale-or-fresh — it
+    SHIPS separately as E12_wiki_unverified (#494) so it is never silently
+    skipped forever.
   - E12b cross-page semantic contradiction: two wiki pages asserting conflicting
     claims. NON-deterministic (needs LLM judgment) → OUT of scope for the
     reference impl, deferred to a `--deep` LLM opt-in exactly like E9c. Building a
@@ -69,6 +72,7 @@ PRIORITY_BY_TYPE = {
     "E10_misplaced_file": "P1",
     "E11_unstructured_path": "P1",
     "E12_wiki_stale": "P1",
+    "E12_wiki_unverified": "P1",
 }
 # E9 (#119) frequency threshold: report a vocabulary pair only when BOTH forms
 # appear in this many files or more (per-form file count). Suppresses one-off
@@ -343,18 +347,10 @@ def parse_created_date(value) -> Optional[date]:
         return None
 
 
-def detect_stale_wiki(fm_records: list, today: date, stale_days: int = STALE_WIKI_DAYS) -> list:
-    """E12a: return (rel, detail) for wiki/ pages whose `verified:` age > stale_days.
-
-    Deterministic reference-impl slice of the E12 wiki self-audit rule (v5 §7 U3).
-    Scoped to genuine wiki pages only (top folder `wiki/` AND `type: wiki`) so a
-    stray old `verified:` on a non-wiki file is never flagged. Pages with a
-    missing/unparseable `verified:` are SKIPPED: staleness is uncomputable without
-    it, and the field is auto-stamped on every wiki write (v5 §4.1) so absence is
-    near-impossible in practice (an absent field is a write-path bug, not a staleness
-    signal). Cross-page semantic contradiction (E12b) is the deferred `--deep` path.
+def _wiki_pages(fm_records: list):
+    """Yield (rel, fm) for genuine wiki pages only (top folder `wiki/` AND `type: wiki`)
+    — a stray old/missing `verified:` on a non-wiki file is never in scope for E12.
     """
-    findings: list = []
     for rec in fm_records:
         rel_path = Path(rec["rel"])
         if not rel_path.parts or rel_path.parts[0] != "wiki":
@@ -362,16 +358,53 @@ def detect_stale_wiki(fm_records: list, today: date, stale_days: int = STALE_WIK
         fm = rec.get("fm") or {}
         if fm.get("type") != "wiki":
             continue
+        yield rec["rel"], fm
+
+
+def detect_stale_wiki(fm_records: list, today: date, stale_days: int = STALE_WIKI_DAYS) -> list:
+    """E12a: return (rel, detail) for wiki/ pages whose `verified:` age > stale_days.
+
+    Deterministic reference-impl slice of the E12 wiki self-audit rule (v5 §7 U3).
+    Pages with a missing/unparseable `verified:` are SKIPPED here — staleness is
+    uncomputable without it — but they are NOT silently dropped: `detect_unverifiable_wiki`
+    below surfaces them as a separate finding (#494), since a missing field is itself
+    a signal (a pre-v5-§4.1 page the auto-stamp never touched), not proof of freshness.
+    Cross-page semantic contradiction (E12b) is the deferred `--deep` path.
+    """
+    findings: list = []
+    for rel, fm in _wiki_pages(fm_records):
         verified = parse_created_date(fm.get("verified"))
         if verified is None:
             continue
         age_days = (today - verified).days
         if age_days > stale_days:
             findings.append((
-                rec["rel"],
+                rel,
                 f"verified {age_days}d old > {stale_days}d (verified {fm.get('verified')}) "
                 f"— recompile or re-verify the page",
             ))
+    return findings
+
+
+def detect_unverifiable_wiki(fm_records: list) -> list:
+    """E12a companion (#494): wiki/ pages whose `verified:` is missing or unparseable.
+
+    `detect_stale_wiki` skips these because staleness is uncomputable — but that skip
+    was previously the end of the story, so a page could sit unverified forever without
+    ever tripping E12. This surfaces them separately, for a different reason (판정
+    불가, not "confirmed fresh"). NOT a `created:` fallback: `created` is when the page
+    was authored, not when it was last touched — using it as a staleness proxy would
+    conflate the two and understate the age of an old, never-re-verified page.
+    """
+    findings: list = []
+    for rel, fm in _wiki_pages(fm_records):
+        raw = fm.get("verified")
+        if parse_created_date(raw) is not None:
+            continue
+        if raw in (None, ""):
+            findings.append((rel, "verified 필드 없음 — stale 판정 불가"))
+        else:
+            findings.append((rel, f"verified 필드 파싱 불가 (raw: {raw!r}) — stale 판정 불가"))
     return findings
 
 
@@ -584,6 +617,11 @@ def classify(bundle: dict) -> dict:
     for rel, detail in detect_stale_wiki(bundle["fm_records"], today):
         add("E12_wiki_stale", rel, detail)
 
+    # E12a companion (#494): wiki/ pages a missing/unparseable `verified:` would
+    # otherwise skip forever — surfaced as their own finding, distinct reason.
+    for rel, detail in detect_unverifiable_wiki(bundle["fm_records"]):
+        add("E12_wiki_unverified", rel, detail)
+
     # E10 + E11 prep: set of files already flagged for E1/E2 (integrity defects).
     # Misplaced/unstructured checks skip these — fix integrity first.
     integrity_flagged = {
@@ -673,6 +711,7 @@ SEED_PREFIXES = {
     "E10_misplaced_file": ("path", "audit-e10-"),
     "E11_unstructured_path": ("path", "audit-e11-"),
     "E12_wiki_stale": ("path", "audit-e12-"),
+    "E12_wiki_unverified": ("path", "audit-e12-unverified-"),
 }
 
 

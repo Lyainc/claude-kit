@@ -38,6 +38,7 @@ EXPECTED_SEEDED = {
     "E10_misplaced_file": 5,
     "E11_unstructured_path": 5,
     "E12_wiki_stale": 5,
+    "E12_wiki_unverified": 2,
 }
 
 
