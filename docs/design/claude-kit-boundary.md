@@ -56,7 +56,7 @@ claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`
 > **재정정 (D1, 2026-07-08)**: `/vault-link` 존속 판정(위)은 그대로 유효하지만, 같은 #304 논의에서
 > 나왔던 "`/save-session`은 B층 자기 목적으로 독자 생존한다"는 별도 결론은 **뒤집혔어요** — owner
 > 승인(#331 배경 문단 — 원 스펙 c9)으로 `/save-session`이 session-note 저작을
-> 그만두고 session 요약을 `type:capture`로 `inbox/`에 적재하는 캡처 문으로 재목적화됐어요(`/capture`와
+> 그만두고 session 요약을 `type:capture`로 `sources/`에 적재하는 캡처 문으로 재목적화됐어요(`/capture`와
 > 동일한 원석 산출물). 상세 근거·재정정 텍스트: #304 논의 + 위 spec c9. 출력 어댑터 매핑도 같이 갱신됨 — `docs/design/output-adapter-contract.md` §2 row #5.
 
 **§2.5 — ⑤ 슬라이스 루프 완료조건 계약 (#285)**: 슬라이스 루프 입력인 START-PROMPT(session-close ④가 저작, 이 레포 외부)는 native `/goal` 평가자가 판정해요. 그 평가자는 **대화에 surfaced된 증거로만 완료를 판정**하고 파일·명령을 독립 실행하지 않아요([공식](https://code.claude.com/docs/en/goal)). 따라서 START-PROMPT의 `완료조건`은 surfaced-evidence 3레버(L1 단일 도구호출 반증 · L2 독립 리뷰 게이트 · L3 auto mode+턴 상한)를 만족해야 평가 가능해요 — 표준 정본은 #285.

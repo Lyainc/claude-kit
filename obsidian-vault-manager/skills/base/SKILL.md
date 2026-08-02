@@ -21,14 +21,14 @@ Parse `$ARGUMENTS`:
 
 ## Built-in View Templates
 
-Each template's filter is aligned with the B-layer folder split (v5 §5 — source text in `inbox/`, your own prose in `notes/`). The status machine the old `inbox-raw`/`draft-notes`/`evergreen` templates filtered on was abolished in #480, so those three were replaced. **Every filter MUST include `property.type != null`** so notes without a `type:` field stay invisible (v4 §2.2 type opt-in) — never drop this condition.
+Each template's filter is aligned with the B-layer folder split (v5 §5 — source text in `sources/`, your own prose in `notes/`). The status machine the old `inbox-raw`/`draft-notes`/`evergreen` templates filtered on was abolished in #480, so those three were replaced. **Every filter MUST include `property.type != null`** so notes without a `type:` field stay invisible (v4 §2.2 type opt-in) — never drop this condition.
 
-### sources — everything in `inbox/` (source text kept as-is)
+### sources — everything in `sources/` (source text kept as-is)
 
 ```yaml
 filters:
   and:
-    - file.inFolder("inbox")
+    - file.inFolder("sources")
     - property.type != null
 views:
   - type: table

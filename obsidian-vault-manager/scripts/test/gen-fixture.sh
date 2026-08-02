@@ -6,7 +6,7 @@
 #                         error types (25 total) for DoD verification.
 #                         Also adds 200 extra clean notes for FP measurement.
 #
-# v4 layout: inbox/ + notes/ + assets/ (no 00_Inbox, 20_Projects, 30_Notes)
+# v4 layout: sources/ + notes/ + assets/ (no 00_Inbox, 20_Projects, 30_Notes)
 #
 # Fixture naming convention (IMPORTANT):
 #   Seeded error files: "audit-eN-*.md" (e1–e5); clean files: "audit-clean-*.md".
@@ -59,10 +59,10 @@ log() { echo "$*" >&2; }
 
 log "Generating fixture vault at $FIXTURE_DIR ..."
 
-# ── create directory structure (v4: inbox/ + notes/ + assets/) ────────────────
+# ── create directory structure (v4: sources/ + notes/ + assets/) ────────────────
 
 mkdir -p \
-  "$FIXTURE_DIR/inbox" \
+  "$FIXTURE_DIR/sources" \
   "$FIXTURE_DIR/notes" \
   "$FIXTURE_DIR/assets" \
   "$FIXTURE_DIR/.ovm"
@@ -74,15 +74,15 @@ write_file() {
   cat > "$path"
 }
 
-# ── inbox/: 30 captures + 10 sessions ────────────────────────────────────────
+# ── sources/: 30 captures + 10 sessions ────────────────────────────────────────
 
 for i in $(seq 1 30); do
   date="2026-04-$(printf '%02d' $((i % 28 + 1)))"
   topic="topic-$(printf '%03d' $i)"
-  write_file "$FIXTURE_DIR/inbox/capture-${date}-${topic}.md" <<EOF
+  write_file "$FIXTURE_DIR/sources/capture-${date}-${topic}.md" <<EOF
 ---
 created: ${date}
-tags: [capture, inbox]
+tags: [capture, sources]
 type: capture
 ---
 
@@ -96,7 +96,7 @@ done
 
 for i in $(seq 1 10); do
   date="2026-04-$(printf '%02d' $i)"
-  write_file "$FIXTURE_DIR/inbox/session-${date}.md" <<EOF
+  write_file "$FIXTURE_DIR/sources/session-${date}.md" <<EOF
 ---
 created: ${date}
 tags: [session]
@@ -241,7 +241,7 @@ PYEOF
 log ""
 log "Fixture vault created at: $FIXTURE_DIR"
 log "  Structure (v4):"
-log "    inbox/          : 30 captures + 10 sessions"
+log "    sources/          : 30 captures + 10 sessions"
 log "    notes/          : 200 clean + 30 intentional issues"
 log "      Issues: 5 missing frontmatter, 5 bad filenames, 5 broken links,"
 log "              5 missing fields, 10 orphans"
@@ -357,10 +357,10 @@ EOF
   # the audit runs. type:session would be exempt via status:active — we use
   # type:capture + status:raw to deliberately trigger E6.
   for i in $(seq 1 5); do
-    write_file "$FIXTURE_DIR/inbox/audit-e6-stale-capture-$(printf '%03d' $i).md" <<EOF
+    write_file "$FIXTURE_DIR/sources/audit-e6-stale-capture-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2020-01-01
-tags: [capture, inbox]
+tags: [capture, sources]
 type: capture
 status: raw
 ---
@@ -372,7 +372,7 @@ EOF
   done
 
   # ── E10: misplaced_file (5 files) ─────────────────────────────────────────────
-  # type:session belongs in inbox/ (EXPECTED_FOLDER) but seeded in notes/.
+  # type:session belongs in sources/ (EXPECTED_FOLDER) but seeded in notes/.
   # Ring-linked so they don't also trip E5 orphan detection.
   for i in $(seq 1 5); do
     next=$(( (i % 5) + 1 ))
@@ -387,13 +387,13 @@ status: active
 
 # Audit E10 Misplaced Session ${i}
 
-type:session placed in notes/ instead of inbox/ — should trigger E10. Links to [[${link_target}]].
+type:session placed in notes/ instead of sources/ — should trigger E10. Links to [[${link_target}]].
 EOF
   done
 
   # ── E11: unstructured_path (5 files: 2 root-direct + 3 arbitrary folder) ───────
   # Root-direct files (no canonical top folder) and an arbitrary "20_Projects/"
-  # folder both fall outside {inbox,notes,assets}. Each carries valid frontmatter
+  # folder both fall outside {sources,notes,assets}. Each carries valid frontmatter
   # (so E1/E2 don't fire) and a self-edge wikilink to avoid noise.
   for i in 1 2; do
     write_file "$FIXTURE_DIR/audit-e11-root-$(printf '%03d' $i).md" <<EOF
@@ -633,7 +633,7 @@ EOF
   log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix; suggested_filename)"
   log "    E4 broken_wikilink                  : 5 files"
   log "    E5 orphan_note                      : 6 files (5 w/ tag candidates + 1 empty-tags graceful)"
-  log "    E6 stale_inbox                      : 5 files (inbox raw, created 2020)"
+  log "    E6 stale_inbox                      : 5 files (sources raw, created 2020)"
   log "    E9 tag_vocabulary_inconsistency     : 2 pairs (api↔apis, sourceUrl↔source_url; 12 files, 3 per form)"
   log "    E10 misplaced_file                  : 5 files (type:session in notes/, ring-linked)"
   log "    E11 unstructured_path               : 5 files (2 root-direct + 3 in 20_Projects/)"

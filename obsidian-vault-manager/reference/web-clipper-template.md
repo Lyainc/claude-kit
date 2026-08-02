@@ -49,13 +49,13 @@ Obsidian Web Clipper 브라우저 확장으로 웹 페이지를 vault v4 형식�
     }
   ],
   "noteNameFormat": "capture-{{date:YYYY-MM-DD}}-{{title|lower|replace: :-|truncate:40}}",
-  "path": "inbox"
+  "path": "sources"
 }
 ```
 
 ## 생성되는 노트 예시
 
-파일: `inbox/capture-2026-05-26-how-llms-work-from-scratch.md`
+파일: `sources/capture-2026-05-26-how-llms-work-from-scratch.md`
 
 ```yaml
 ---
@@ -82,7 +82,7 @@ title: How LLMs Work From Scratch
 
 | 필드 | 값 | 설명 |
 |------|----|------|
-| `path` | `inbox` | vault root 기준 상대 경로. `~/vault/inbox/`에 저장. |
+| `path` | `sources` | vault root 기준 상대 경로. `~/vault/sources/`에 저장. |
 | `behavior` | `create` | 항상 새 파일 생성. 기존 파일 덮어쓰지 않음. |
 | `type` | `capture` | **type opt-in 마커** — 이 필드가 있어야 claude-kit이 파일을 관리 대상으로 인식 (vault v4 §2.2). |
 | `source` | `web-clipper` | `/vault-save` URL 캡처(`provenance: url-capture`)와 출처 구분. |

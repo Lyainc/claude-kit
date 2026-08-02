@@ -30,7 +30,7 @@ property 비교는 `property.{key}` 형태로 참조해요. 함수형 비교를 
 |------|------|------|
 | 동등 비교 | `property.type == "capture"` | type이 capture인 노트 |
 | 함수 비교 | `property.type != null` | type property가 존재하는 노트 (type opt-in 가드) |
-| 폴더 조건 | `file.inFolder("inbox")` | inbox/ 하위 파일 |
+| 폴더 조건 | `file.inFolder("sources")` | sources/ 하위 파일 |
 | 폴더 조건 | `file.inFolder("notes")` | notes/ 하위 파일 |
 | 논리 결합 | `and: [...]` | 모든 하위 조건 만족 |
 
@@ -54,14 +54,14 @@ views:
 
 ## 빌트인 템플릿 3종
 
-`base` 스킬이 제공하는 3종 뷰 — 각 필터는 B층 폴더 분할(v5 §5: 원문 `inbox/`, 내가 쓴 것 `notes/`)과 정렬되고, `property.type != null` opt-in 가드를 반드시 포함해요. status machine은 #480에서 폐기돼 필터 조건에서 빠졌어요.
+`base` 스킬이 제공하는 3종 뷰 — 각 필터는 B층 폴더 분할(v5 §5: 원문 `sources/`, 내가 쓴 것 `notes/`)과 정렬되고, `property.type != null` opt-in 가드를 반드시 포함해요. status machine은 #480에서 폐기돼 필터 조건에서 빠졌어요.
 
-### sources — inbox/ 전체 (원문 그대로 보관한 자료)
+### sources — sources/ 전체 (원문 그대로 보관한 자료)
 
 ```yaml
 filters:
   and:
-    - file.inFolder("inbox")
+    - file.inFolder("sources")
     - property.type != null
 views:
   - type: table

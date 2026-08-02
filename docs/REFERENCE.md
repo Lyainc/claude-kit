@@ -118,7 +118,7 @@ separate plugin.
 
 **Skills** (`skills/*/SKILL.md`; migrated from `commands/*.md` in #94):
 
-- **`/vault-save`**: the single reference-material entry (#480) — source text as-is → `inbox/`,
+- **`/vault-save`**: the single reference-material entry (#480) — source text as-is → `sources/`,
   prose you wrote → `notes/`. Saves immediately with no confirmation, always writes `provenance:`,
   never writes `status:`. Replaced OVM's retired `/capture` and `/note`.
 - **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault
@@ -140,7 +140,7 @@ Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (
 brain v4, extended by v5 — see `docs/design/vault-second-brain-v4.md` and
 `docs/design/vault-second-brain-v5.md`).
 
-**Folder layout** (v4 §3.1; v5 §3 adds `wiki/`): four top-level folders — `inbox/` (raw input),
+**Folder layout** (v4 §3.1; v5 §3 adds `wiki/`): four top-level folders — `sources/` (raw input),
 `notes/` (all content; free sub-folders allowed), `wiki/` (LLM-compiled domain knowledge — the v5
 A layer, AI-recall primary; free sub-folders allowed), `assets/` (attachments).
 
@@ -149,8 +149,8 @@ A layer, AI-recall primary; free sub-folders allowed), `assets/` (attachments).
 
 | Type | Example | Path |
 |------|---------|------|
-| `session` | `session-2026-04-12.md` | `inbox/` |
-| `capture` | `capture-2026-04-12-api-changes.md` | `inbox/` |
+| `session` | `session-2026-04-12.md` | `sources/` |
+| `capture` | `capture-2026-04-12-api-changes.md` | `sources/` |
 | `note` | `{topic}.md` (no date) | `notes/` |
 | `decision` | `decision-2026-04-12-{topic}.md` | `notes/` |
 | `plan` | `plan-2026-04-12-{topic}.md` | `notes/{project}/` (linked via `.vault-link`) |

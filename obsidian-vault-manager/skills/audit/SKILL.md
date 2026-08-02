@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 10 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale or unverifiable wiki pages (E12a, stale/missing/unparseable `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 10 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale sources (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale or unverifiable wiki pages (E12a, stale/missing/unparseable `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep AskUserQuestion
 ---
@@ -250,7 +250,7 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 
        추론된 태그 (제안):
        • notes/llm/decision-2026-04-12-context-window.md → [decision, context, window, llm]
-       • inbox/capture-2026-05-01-obsidian-api.md → [capture, obsidian, api]
+       • sources/capture-2026-05-01-obsidian-api.md → [capture, obsidian, api]
 
        태그는 type·파일명·폴더에서 추론한 제안입니다. frontmatter만 수정하며
        파일 이름 · 내용 · 위치는 변경하지 않습니다.

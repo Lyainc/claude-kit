@@ -2,7 +2,7 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Ten error types cover v4's three-folder vault layout (`inbox/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
+Ten error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
 
 > **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduced a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extended with P1 stagnation. PR 4d added **E8 `promotion_candidate`** (P2/Info), read from the vault-bridge manifest.
 >
@@ -19,10 +19,10 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E3   | P0       | v3-style filename → convention violation that blocks future automated routing. |
 | E4   | P0       | Broken wikilink → navigation hazard with Critical severity (data graph integrity). |
 | E5   | P2       | Orphan note → quality signal, not integrity risk. |
-| E6   | P1       | Stale inbox → raw input never processed; loses freshness, signals review needed. |
+| E6   | P1       | Stale sources → raw input never processed; loses freshness, signals review needed. |
 | E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. E9a/E9b are deterministic; E9c semantic synonym ships as the skill-only `--deep` LLM opt-in (#167, see the `## E9` section below). |
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
-| E11  | P1       | Unstructured path → file outside `inbox/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
+| E11  | P1       | Unstructured path → file outside `sources/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
 | E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; its companion `E12_wiki_unverified` (#494) flags a `wiki/` page whose `verified:` is missing or unparseable — staleness is uncomputable, so it is reported for a different reason instead of being skipped forever; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
 
 > **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
@@ -90,7 +90,7 @@ infer_tags(rel, fm):
 
 **Examples**:
 - `notes/llm/decision-2026-04-12-context-window.md`, `type: decision` → `[decision, context, window, llm]`
-- `inbox/capture-2026-05-01-obsidian-api.md`, `type: capture` → `[capture, obsidian, api]`
+- `sources/capture-2026-05-01-obsidian-api.md`, `type: capture` → `[capture, obsidian, api]`
 
 **Graceful empty slug**: a date-only filename (e.g. `session-2026-04-12.md`)
 leaves an empty slug after prefix stripping → the proposal falls back to the
@@ -108,10 +108,10 @@ v4 filename rules per folder:
 | Folder | Convention | Example violation |
 |--------|-----------|-------------------|
 | `notes/` | `{slug}.md` (no date prefix) — or `{type}-YYYY-MM-DD-{slug}.md` for dated types (`decision`, `plan`) | `2026-04-bad-name.md` (`\d{4}-\d{2}-` date-first, v3 style) |
-| `inbox/` | Exempt — raw input zone; any filename accepted | — |
+| `sources/` | Exempt — raw input zone; any filename accepted | — |
 | `assets/` | Exempt — attachments; any filename accepted | — |
 
-**Guard**: `_index.md` is always valid (skip). Files in `inbox/` and `assets/` are exempt.
+**Guard**: `_index.md` is always valid (skip). Files in `sources/` and `assets/` are exempt.
 
 **Detection pseudocode** for files in `notes/`:
 
@@ -155,7 +155,7 @@ only suggests; the user decides.
 
 **Rule**: A `.md` file in `notes/` (any depth) has zero entries in `inbound_links[stem]`.
 **Source**: `inbound_links` (built from full vault scan).
-**Guard**: `_index.md` files are never orphans. Files in `inbox/` are exempt (unprocessed captures). Files in `assets/` are exempt.
+**Guard**: `_index.md` files are never orphans. Files in `sources/` are exempt (unprocessed captures). Files in `assets/` are exempt.
 
 **Connection candidates** (#130, display-only): for each orphan, compute the top-3
 `notes/` files sharing the most tags (exact-match intersection only — no semantic
@@ -183,14 +183,14 @@ Linking position is the user's decision — the audit only suggests candidates.
 
 ## E6 — `stale_inbox` [Warning]
 
-**Rule**: A file in `inbox/` is still "raw" and its `created:` date is more than `STALE_INBOX_DAYS` (= 14) days before today.
+**Rule**: A file in `sources/` is still "raw" and its `created:` date is more than `STALE_INBOX_DAYS` (= 14) days before today.
 **Source**: `frontmatter_records` (uses `fm.created` + `fm.status`).
 **Guard**: Files with explicit non-raw status (e.g., `type: session` + `status: active`, or any other processed marker) are exempt. Files without a parseable `created:` field are skipped (no false positive on malformed frontmatter — E1/E2 catch those separately).
 
 **Detection pseudocode**:
 
 ```
-for each record in frontmatter_records where path startswith "inbox/":
+for each record in frontmatter_records where path startswith "sources/":
   status = normalize(fm.status)            # non-string or missing → ""
   if status not in {"", "raw"}: skip       # explicit non-raw → exempt
   if parse(fm.created) is None: skip       # malformed → E1/E2 territory
@@ -198,7 +198,7 @@ for each record in frontmatter_records where path startswith "inbox/":
   if age_days > STALE_INBOX_DAYS: → stale_inbox
 ```
 
-**Rationale**: Captures (and any unprocessed inbox file) accumulate freshness debt — review and either promote to `notes/` or delete. `type: session` notes carry `status: active`/`closed` and are skipped, so historical session records don't pollute the stagnation report.
+**Rationale**: Captures (and any unprocessed sources file) accumulate freshness debt — review and either promote to `notes/` or delete. `type: session` notes carry `status: active`/`closed` and are skipped, so historical session records don't pollute the stagnation report.
 
 ## E9 — `tag_vocabulary_inconsistency` [Warning]
 
@@ -310,7 +310,7 @@ for (A, B) in unordered_pairs(frequent_tags):
 
 ```python
 EXPECTED_FOLDER = {
-    "session": "inbox", "capture": "inbox",
+    "session": "sources", "capture": "sources",
     "note": "notes", "decision": "notes", "plan": "notes",
     "wiki": "wiki",   # v5 §3 — A-layer LLM wiki; a type:wiki file outside wiki/ is misplaced
 }
@@ -331,20 +331,20 @@ for each record in frontmatter_records:
   if record in E1/E2 findings: skip
   top = path.parts[0]
   if top startswith "." or top == "assets": skip
-  if path is root-direct or top not in {inbox,notes,assets,wiki}: skip   # E11 owns these
+  if path is root-direct or top not in {sources,notes,assets,wiki}: skip   # E11 owns these
   type = fm.type ; if type not str: skip
   expected = EXPECTED_FOLDER.get(type) ; if expected is None: skip
   if top != expected: → misplaced_file
 ```
 
-**Rationale**: A `type: session` note in `notes/` (or a `type: note` in `inbox/`) breaks the folder-as-routing contract. Moving the file affects inbound wikilinks, so this is a **display-only** P1 warning — never auto-moved.
+**Rationale**: A `type: session` note in `notes/` (or a `type: note` in `sources/`) breaks the folder-as-routing contract. Moving the file affects inbound wikilinks, so this is a **display-only** P1 warning — never auto-moved.
 
 ## E11 — `unstructured_path` [Warning]
 
-**Rule**: A `.md` file lives outside the canonical top-level folders (v4 §3.1; v5 §3 adds `wiki/`). Only `inbox/`, `notes/`, `assets/`, `wiki/` are canonical; anything else (arbitrary folders, root-direct files) is structural drift.
+**Rule**: A `.md` file lives outside the canonical top-level folders (v4 §3.1; v5 §3 adds `wiki/`). Only `sources/`, `notes/`, `assets/`, `wiki/` are canonical; anything else (arbitrary folders, root-direct files) is structural drift.
 
 ```python
-CANONICAL_FOLDERS = {"inbox", "notes", "assets", "wiki"}  # v5 §3 adds wiki/ (A layer)
+CANONICAL_FOLDERS = {"sources", "notes", "assets", "wiki"}  # v5 §3 adds wiki/ (A layer)
 EXEMPT_FILES = {"_index.md"}
 ```
 
@@ -362,7 +362,7 @@ for each record in frontmatter_records:
   if path is root-direct ("/" not in path): → unstructured_path
   top = path.parts[0]
   if top startswith ".": skip                       # hidden dir
-  if top in CANONICAL_FOLDERS: skip                 # inbox/notes/assets OK
+  if top in CANONICAL_FOLDERS: skip                 # sources/notes/assets OK
   → unstructured_path
 ```
 
@@ -479,7 +479,7 @@ window auto-compaction re-attaches. Illustration only — actual content varies 
       상세: v3 날짜 우선 파일명 — {type}-YYYY-MM-DD-{slug}.md 또는 {slug}.md로 변경 필요
 
 [P1 / Warning] stale_inbox — 1건
-  • inbox/capture-2026-03-15-old-topic.md
+  • sources/capture-2026-03-15-old-topic.md
       상세: age 73d > 14d (status:raw, created 2026-03-15)
 
 ──────────────────────────────────────────
@@ -513,7 +513,7 @@ plausibly passes a future E9 vocabulary check:
 | 3 | parent folder | `notes/{domain}/...` → add `domain` |
 
 Examples: `notes/llm/decision-2026-04-12-context-window.md` (`type: decision`)
-→ `[decision, context, window, llm]`; `inbox/capture-2026-05-01-obsidian-api.md`
+→ `[decision, context, window, llm]`; `sources/capture-2026-05-01-obsidian-api.md`
 (`type: capture`) → `[capture, obsidian, api]`. Empty slug (date-only filename,
 e.g. `session-2026-04-12.md`) gracefully falls back to the type tag only.
 The proposal is never auto-committed — `audit/SKILL.md` Phase 4 previews it in the

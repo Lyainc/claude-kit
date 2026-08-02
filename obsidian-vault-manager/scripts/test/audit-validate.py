@@ -6,7 +6,7 @@ Mechanically applies the audit SKILL.md Phase 1 SCAN + Phase 2 CLASSIFY rules to
 a fixture or live vault. Outputs per-type finding counts and a flat list of
 finding records as JSON. Stdlib only.
 
-v4 layout: inbox/ + notes/ + assets/  (no 00_Inbox, 20_Projects, 30_Notes)
+v4 layout: sources/ + notes/ + assets/  (no 00_Inbox, 20_Projects, 30_Notes)
 Error types: E1-E12. E9 (#119) = tag/property vocabulary inconsistency, a
 vault-LEVEL check (findings carry path:""); only deterministic sub-checks ship
 (E9a singular/plural, E9b camel/snake property naming). E9c (semantic synonyms)
@@ -82,8 +82,8 @@ E9_MIN_FILES = 3
 E9_CAMEL_RE = re.compile(r"[a-z][A-Z]")
 # E10 type↔folder placement (v4 §3.1; v5 §3 adds wiki): each managed type lives in one folder.
 EXPECTED_FOLDER = {
-    "session": "inbox",
-    "capture": "inbox",
+    "session": "sources",
+    "capture": "sources",
     "note": "notes",
     "decision": "notes",
     "plan": "notes",
@@ -93,7 +93,7 @@ EXPECTED_FOLDER = {
 # `wiki/` is the A-layer (LLM-compiled domain knowledge) — recognized here so wiki pages
 # are NOT flagged as unstructured. Full wiki self-audit E-rules (contradiction / provenance
 # gaps) are a separate slice (v5 §7); MVP only makes the folder canonical.
-CANONICAL_FOLDERS = {"inbox", "notes", "assets", "wiki"}
+CANONICAL_FOLDERS = {"sources", "notes", "assets", "wiki"}
 # Files exempt from E11 (vault-level index lives at the root or any folder root).
 EXEMPT_FILES = {"_index.md"}
 # E5 candidate tuning (v4 §6.1): top-N tag-intersection candidates per orphan.
@@ -159,14 +159,14 @@ def filename_conforms(rel: Path) -> bool:
     """
     v4 filename convention check.
 
-    - inbox/ and assets/ are exempt (raw input / attachments)
+    - sources/ and assets/ are exempt (raw input / attachments)
     - notes/ (any depth): VIOLATION if filename starts with YYYY-MM- (v3 date-first)
     - _index.md is always valid
     """
     if rel.name == "_index.md":
         return True
     top = rel.parts[0]
-    if top in ("inbox", "assets"):
+    if top in ("sources", "assets"):
         return True
     if top == "notes":
         return not re.match(r"^\d{4}-\d{2}-", rel.name)
@@ -598,7 +598,7 @@ def classify(bundle: dict) -> dict:
         if not rel_path.parts:
             continue
         top = rel_path.parts[0]
-        if top != "inbox":
+        if top != "sources":
             continue
         created = parse_created_date(fm.get("created"))
         if created is None:
@@ -666,7 +666,7 @@ def classify(bundle: dict) -> dict:
         # Root-direct file (no folder component): top folder is the file itself.
         if "/" not in rec["rel"]:
             add("E11_unstructured_path", rec["rel"],
-                "root-direct file outside canonical folders (inbox/notes/assets/wiki)")
+                "root-direct file outside canonical folders (sources/notes/assets/wiki)")
             continue
         top = rel_path.parts[0]
         if top.startswith("."):
@@ -674,7 +674,7 @@ def classify(bundle: dict) -> dict:
         if top in CANONICAL_FOLDERS:
             continue
         add("E11_unstructured_path", rec["rel"],
-            f"top folder '{top}/' is not canonical (inbox/notes/assets/wiki)")
+            f"top folder '{top}/' is not canonical (sources/notes/assets/wiki)")
 
     # E9: tag/property vocabulary inconsistency (#119). Vault-LEVEL findings —
     # path is "" because the inconsistency is a property of the vault, not of
@@ -883,15 +883,15 @@ def _infer_self_test() -> int:
         ("notes/llm/decision-2026-04-12-context-window.md",
          {"type": "decision", "created": "2026-04-12"},
          ["decision", "context", "window", "llm"]),
-        ("inbox/capture-2026-05-01-obsidian-api.md",
+        ("sources/capture-2026-05-01-obsidian-api.md",
          {"type": "capture", "created": "2026-05-01"},
          ["capture", "obsidian", "api"]),
-        # Tier-3 only fires for notes/{domain}/...; inbox/ has no domain folder.
+        # Tier-3 only fires for notes/{domain}/...; sources/ has no domain folder.
         ("notes/some-topic.md",
          {"type": "note", "created": "2026-04-01"},
          ["note", "some", "topic"]),
         # Graceful empty slug: date-only filename → type tag only, no crash.
-        ("inbox/session-2026-04-12.md",
+        ("sources/session-2026-04-12.md",
          {"type": "session", "created": "2026-04-12"},
          ["session"]),
         # No type field → slug + domain only (type tier skipped, no crash).

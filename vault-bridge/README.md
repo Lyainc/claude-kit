@@ -54,7 +54,7 @@ vault-searcher is read-only. Vault *content* writes are user-initiated slash com
 
 | Command | Plugin | Destination |
 |---------|--------|-------------|
-| `/vault-save` | **vault-bridge** | source text as-is → `~/vault/inbox/`, prose you wrote → `~/vault/notes/` |
+| `/vault-save` | **vault-bridge** | source text as-is → `~/vault/sources/`, prose you wrote → `~/vault/notes/` |
 | `/wiki` | obsidian-vault-manager | compiled AI-recall domain knowledge → `~/vault/wiki/` |
 
 `/vault-save` is the single reference-material entry — it replaced OVM's `/capture` and `/note` in #480, when B stopped being a promotion pipeline and became a reference warehouse (v5 §5). It writes no `status:` field and always writes `provenance:`. A past-tense session summary is just a `/vault-save`; distilled session knowledge for later AI recall compiles to `/wiki` (`/save-session` was retired 2026-07-10, #331).
@@ -165,7 +165,7 @@ stdout: `{"generated": 142, "updated": 3, "removed": 1, "elapsed_ms": 450}`
 
 ## Vault-Project Link
 
-`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) and session-restore (Mode 1) searches. It does **not** affect `/vault-save`, which always writes to `~/vault/inbox/` regardless of `.vault-link` (see [Write Workflow](#write-workflow)).
+`.vault-link` is a pointer file that binds a code repository to a specific vault project. When present, it scopes vault-searcher's domain-context (Mode 2) and session-restore (Mode 1) searches. It does **not** affect `/vault-save`, which always writes to `~/vault/sources/` regardless of `.vault-link` (see [Write Workflow](#write-workflow)).
 
 ### Schema
 
@@ -194,11 +194,11 @@ vault-searcher walks upward from CWD (git-style) until it finds `.vault-link`. T
 |---------|-----------------------|--------------------|
 | **vault-searcher Mode 2 (Domain Context Load)** | Searches all of `~/vault/` | Searches only `{vault_root}/{vault_path}/` |
 
-vault-searcher Mode 3 (Keyword Search) is unaffected by `.vault-link` scope. `/vault-save` always writes to `~/vault/inbox/`, `.vault-link` or not.
+vault-searcher Mode 3 (Keyword Search) is unaffected by `.vault-link` scope. `/vault-save` always writes to `~/vault/sources/`, `.vault-link` or not.
 
 ### Recovery
 
-If the `vault_path` directory does not exist, vault-searcher checks `notes/` for candidates with edit distance ≤ 2 and asks the user to confirm. If no candidates are found, it falls back silently to full-vault scope and inbox save target.
+If the `vault_path` directory does not exist, vault-searcher checks `notes/` for candidates with edit distance ≤ 2 and asks the user to confirm. If no candidates are found, it falls back silently to full-vault scope and sources save target.
 
 ### `/vault-link` skill
 
@@ -222,7 +222,7 @@ vault-bridge v1.5.0 introduced vault write governance; v1.9.0 narrows vault-sear
 
 | Target | File types |
 |--------|-----------|
-| `inbox/` | `session-*`, `capture-*` (new files only) |
+| `sources/` | `session-*`, `capture-*` (new files only) |
 | `notes/{project}/` | `session-*`, `capture-*`, `plan-*` (new files only, when `.vault-link` resolves to that project) |
 
 ### Forbidden writes
@@ -246,7 +246,7 @@ vault-bridge v1.5.0 adds a **PreToolUse hook** (`hooks/pre-write-guard.sh`) that
 
 | Directory | Required pattern | Example |
 |-----------|-----------------|---------|
-| `inbox/` | `^(session\|capture)-YYYY-MM-DD[-topic][-vN].md$` | `session-2026-04-18.md`, `capture-2026-04-18-jwt-debug.md` |
+| `sources/` | `^(session\|capture)-YYYY-MM-DD[-topic][-vN].md$` | `session-2026-04-18.md`, `capture-2026-04-18-jwt-debug.md` |
 | `notes/` | `^[a-z0-9-]+\.md$` (no date prefix) | `oauth-flow.md` |
 | `notes/{project}/` | `^(session\|plan\|capture\|decision)-YYYY-MM-DD[-topic][-vN].md$` | `plan-2026-04-18-vault-bridge-value-prop.md` |
 
@@ -300,7 +300,7 @@ VAULT_BRIDGE_WRITE_CONTRACT=off claude
 | Aspect | vault-bridge | obsidian-vault-manager |
 | --- | --- | --- |
 | Use context | External project access | Internal vault management session |
-| Write scope | `/vault-save` reference material (`inbox/`, `notes/`) + `.vault-link` binding + git commits (`/vault-commit`) | `/wiki` compilation + audit/views |
+| Write scope | `/vault-save` reference material (`sources/`, `notes/`) + `.vault-link` binding + git commits (`/vault-commit`) | `/wiki` compilation + audit/views |
 | Role | Cross-session bridge (read + git commit) | Full knowledge management |
 
 - vault-bridge **never modifies or deletes existing vault content files** — `/vault-save` only creates new ones, and knowledge compilation (`/wiki`) belongs to obsidian-vault-manager.
@@ -366,7 +366,7 @@ Migrated from `commands/*.md` to `skills/*/SKILL.md` in #94 — invocation (`/va
 
 | Skill | Description |
 |---------|-------------|
-| `/vault-save` | Save reference material into the vault — source text as-is → `inbox/`, prose you wrote → `notes/`. Saves immediately, no confirmation, `provenance:` always written, no `status:` (#480) |
+| `/vault-save` | Save reference material into the vault — source text as-is → `sources/`, prose you wrote → `notes/`. Saves immediately, no confirmation, `provenance:` always written, no `status:` (#480) |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |
