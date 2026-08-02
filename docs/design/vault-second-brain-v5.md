@@ -69,7 +69,7 @@ v4는 "인간이 채우는 second-brain"을 전제했으나, 측정·증언·디
 |---|---|---|---|---|
 | **repo** | 코드 + 코드구조맵(AGENTS.md) | AI+인간 | — | git repo |
 | **vault wiki A** | 도메인 지식(작업하다 알게 된 것) | **AI recall** + 인간 | AI 자율 compounding | `vault/wiki/` |
-| **vault notes B** | 참고자료(클리핑·논문·분석·브레인스토밍·초기 기획·공부 노트) | 인간(기획할 때 인출, §5) | 인간 저작 + 외부 원문 보관, 선별 없음(§5) | `vault/inbox/`, `vault/notes/` |
+| **vault notes B** | 참고자료(클리핑·논문·분석·브레인스토밍·초기 기획·공부 노트) | 인간(기획할 때 인출, §5) | 인간 저작 + 외부 원문 보관, 선별 없음(§5) | `vault/sources/`, `vault/notes/` |
 | **rules** | work-policy("어떻게 일하나") | AI+인간 | 인간, 안정 | `~/.claude/rules`, `rules/RULES.md` |
 | **memory** | 프로젝트 사실 | AI | auto | `~/.claude/projects/.../memory` |
 
@@ -146,14 +146,14 @@ B는 **선별에서 살아남은 것**이 아니라 **나중에 꺼내 쓰려고
 
 ```yaml
 created: YYYY-MM-DD
-type: capture | note | decision   # 폴더 마커 (inbox/ = capture, notes/ = note·decision)
+type: capture | note | decision   # 폴더 마커 (sources/ = capture, notes/ = note·decision)
 tags: [{type}, {keyword}]
 provenance: "{출처 — URL·세션 주제·대화·책·회의}"   # 必
 # status: 없음 (폐기)
 ```
 
 - **입구 = `/vault-save`(vault-bridge 신설), `/capture`·`/note`는 폐지.** 하나의 입구가 저작 주체로만
-  기계적으로 갈린다: 원문 그대로 가져온 것(URL·붙여넣은 원문·세션 덤프) → `inbox/`, 내가 쓴 서술 →
+  기계적으로 갈린다: 원문 그대로 가져온 것(URL·붙여넣은 원문·세션 덤프) → `sources/`, 내가 쓴 서술 →
   `notes/`. 정제도로 나누지 않으므로 "capture와 note 중 뭘 쓰지"라는 판단이 입구에서 사라진다.
 - **입구가 vault-bridge인 이유**: B는 프로젝트에서 일하다 자료를 넣는 층이라 ③ delivery I/O 기판에 붙는
   게 맞다. OVM은 **사서**로 남는다 — 컴파일(`/wiki`)·감사(`/audit`)·뷰(`/base`), 즉 들어온 다음의 일.

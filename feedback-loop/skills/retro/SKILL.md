@@ -28,7 +28,7 @@ Single source of truth: [`docs/design/claude-kit-boundary.md`](../../../docs/des
   `retro`'s PROMOTE phase used to re-confirm was abolished (v5 §5/§6, #480) —
   `/vault-save` writes no `status:` field at all, so there is nothing left to
   promote. Every vault write is surfaced as a `/vault-save` slash command (raw
-  session ore → `inbox/`) or `/wiki` (compiled domain knowledge → `wiki/`) for
+  session ore → `sources/`) or `/wiki` (compiled domain knowledge → `wiki/`) for
   the USER to run — `retro` does not write it. (Session knowledge is
   wiki-first: local context is native memory, active recall is `/wiki`; the old
   `/save-session` command was retired #331.)
@@ -117,7 +117,7 @@ opts in (offer them, do not run silently).
 | Branch | Source | Mechanism | Default |
 |--------|--------|-----------|---------|
 | **액션 (action)** | repeat/waste patterns | git issue via `gh` — `scope: harness` → harness-level issue, `scope: local` → this-repo issue | **ON** (confirm before filing) |
-| **기억 (memory)** | session insights | surface the exact `/vault-save …` (raw ore → `inbox/`) or `/wiki` (compiled knowledge → `wiki/`) command for the USER to run — user-initiated slash; `retro` does NOT write vault | off (offer) |
+| **기억 (memory)** | session insights | surface the exact `/vault-save …` (raw ore → `sources/`) or `/wiki` (compiled knowledge → `wiki/`) command for the USER to run — user-initiated slash; `retro` does NOT write vault | off (offer) |
 | **규칙 (rule)** | validated patterns | surface a ready-to-run `/distill` invocation (propose-only handoff — `distill` judges worth-keeping, then hands it to `add-policy`; `retro` does NOT `Edit`) | off (offer) |
 
 - **Action**: for each deduped waste pattern, draft `{title, body}` (body cites
