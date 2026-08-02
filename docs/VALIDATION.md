@@ -440,7 +440,7 @@ python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 #     E12_wiki_unverified:2}
 #     (E2 has 5: base only — the 5 status-missing seeds went away with the status
 #      machine (#480), since a note with no `status:` now conforms; E5 has 6: 5 w/ tag candidates +
-#      1 empty-tags graceful orphan; E6=stale_inbox (E7/E8 retired with the B-layer
+#      1 empty-tags graceful orphan; E6=stale_sources (E7/E8 retired with the B-layer
 #      promotion gate, v5 §5/§6, #480 — no manifest patch step, no promotion seeds);
 #      E9 has 2: vault-level vocabulary pairs (E9a api/apis singular-plural +
 #      E9b sourceUrl/source_url camel/snake), path-less findings, P2/no-autofix,
@@ -462,5 +462,5 @@ python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 #   dod.e2_tags_missing = 10; dod.e2_with_inferred_tags = 10   (#127 — every E2
 #     tags-missing finding carries a deterministic inferred tag proposal)
 # Note: dod.priority_counts is informational only (P1 includes existing
-# fixture inbox captures with old created: dates, varies by run date).
+# fixture sources captures with old created: dates, varies by run date).
 ```

@@ -64,7 +64,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 | 커맨드 | 하는 일 |
 |---|---|
-| `/vault-save` | 참고자료를 vault에 저장 — 원문은 `inbox/`, 내가 쓴 건 `notes/` (확인 없이 즉시 저장) |
+| `/vault-save` | 참고자료를 vault에 저장 — 원문은 `sources/`, 내가 쓴 건 `notes/` (확인 없이 즉시 저장) |
 | `/vault-link` | 프로젝트를 특정 vault 위치에 바인딩 |
 | `/vault-commit` | vault 변경사항 커밋 |
 
@@ -100,7 +100,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 ### 1. vault 초기화
 
 ```bash
-mkdir -p ~/vault/{inbox,notes,assets}
+mkdir -p ~/vault/{sources,notes,assets}
 cd ~/vault
 git init
 git add -A
@@ -127,7 +127,7 @@ Claude Code를 재시작하면 적용됩니다.
 /vault-link
 ```
 
-`.vault-link` 파일은 `vault-searcher`의 recall scoping(세션 복원·도메인 컨텍스트 검색 범위)에 쓰입니다. `/vault-save`는 `.vault-link`와 무관하게 항상 `~/vault/inbox/`에 저장합니다.
+`.vault-link` 파일은 `vault-searcher`의 recall scoping(세션 복원·도메인 컨텍스트 검색 범위)에 쓰입니다. `/vault-save`는 `.vault-link`와 무관하게 항상 `~/vault/sources/`에 저장합니다.
 
 ### 4. 첫 캡처
 
@@ -135,7 +135,7 @@ Claude Code를 재시작하면 적용됩니다.
 /vault-save 오늘 배운 것: Claude Code 플러그인 구조
 ```
 
-`~/vault/inbox/capture-YYYY-MM-DD-{slug}.md`로 저장됩니다. URL을 전달하면 본문을 자동 추출해요 (`defuddle` 설치 시).
+`~/vault/sources/capture-YYYY-MM-DD-{slug}.md`로 저장됩니다. URL을 전달하면 본문을 자동 추출해요 (`defuddle` 설치 시).
 
 ### 5. 세션 지식을 wiki로 컴파일
 
@@ -181,7 +181,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | 목적 | 경로 |
 |---|---|
 | 로컬 세션 컨텍스트 | native memory (자동) |
-| 가공 없는 원석 캡처 | `/vault-save` (vault-bridge) → `~/vault/inbox/` |
+| 가공 없는 원석 캡처 | `/vault-save` (vault-bridge) → `~/vault/sources/` |
 | 컴파일된 도메인 지식 (AI recall) | `/wiki` (obsidian-vault-manager) → `~/vault/wiki/` |
 | 다음 세션 인수인계 | 머신 레벨 `session-close` 스킬 (claude-kit 미포함) |
 

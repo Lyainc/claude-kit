@@ -87,7 +87,7 @@ type: capture | note | decision | session | plan
 
 ```
                        [사용자 액션]
-inbox ─raw─►  draft  ────────────►  evergreen
+sources ─raw─►  draft  ────────────►  evergreen
                 │                       │
                 └─────► archived ◄──────┘   (어디서든 exit)
 ```
@@ -239,7 +239,7 @@ tags: [capture, clip]
 
 정제 단계: defuddle 결과 + 사용자 한 줄 요약 → notes/로 승격 + `status: draft`. 한 줄 요약이 *암묵적 reformulation*.
 
-**type 전이**: 정제 시 `type: capture`인 inbox 파일이 `notes/`로 이동하면서 `type: note`로 변경된다. 이는 *concept-oriented*로 reformulation됐다는 사용자 선언(§2.4)에 해당. 원본 `source`, `url`, `clipped_at` 필드는 보존되어 출처 추적 가능. 파일명도 `capture-YYYY-MM-DD-{slug}.md` → `{slug}.md`로 변경 (날짜 prefix 제거).
+**type 전이**: 정제 시 `type: capture`인 sources 파일이 `notes/`로 이동하면서 `type: note`로 변경된다. 이는 *concept-oriented*로 reformulation됐다는 사용자 선언(§2.4)에 해당. 원본 `source`, `url`, `clipped_at` 필드는 보존되어 출처 추적 가능. 파일명도 `capture-YYYY-MM-DD-{slug}.md` → `{slug}.md`로 변경 (날짜 prefix 제거).
 
 ```
 sources/capture-2026-05-26-deepseek-v3.md   (type: capture, status: raw)
@@ -252,7 +252,7 @@ notes/deepseek-v3.md                       (type: note, status: draft, source: w
 | 스킬 | 책임 |
 |------|------|
 | `capture` | sources/에 raw 저장 (다중 URL, web clipper 호환) |
-| `note` | notes/에 type 노트 작성 (`--type note\|decision\|plan`), inbox → notes 정제 |
+| `note` | notes/에 type 노트 작성 (`--type note\|decision\|plan`), sources → notes 정제 |
 | `audit` | Brain화 의식: 무결성 + 정체 + promotion candidate + Phase 2 패턴 추출 (§6.1 명세) |
 
 ### 제거된 스킬 (이전 7개에서)
@@ -280,7 +280,7 @@ notes/deepseek-v3.md                       (type: note, status: draft, source: w
 P0 항목 존재 시 *먼저 출력*하고 사용자 확인 후 다음 단계 진행.
 
 **Step 2 — 정체 (우선순위 P1)**
-- inbox `status: raw` 파일 카운트 (임계: 5개 이상 또는 14일 이상 묵힘)
+- sources `status: raw` 파일 카운트 (임계: 5개 이상 또는 14일 이상 묵힘)
 - notes `status: draft` 30일 이상 묵힘
 - 임계 미만이면 *침묵* (노이즈 방지)
 
