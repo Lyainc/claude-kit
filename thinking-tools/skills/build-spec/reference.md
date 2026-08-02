@@ -110,12 +110,6 @@ without anyone noticing — the #443·#447 failure class. The script therefore a
 digest or a `[backlog-scan SKIPPED]` line, and that line is copied verbatim into
 `context.backlog_scan`.
 
-**Phase 4 title convention.** Phase 4 used to pass the spec slug straight through
-(`gh issue create --title "{target}"`). Many repos — claude-kit among them — carry type and scope in
-the title (`fix(vault-bridge): 매니페스트가 archived 노트를 올린다`) instead of in labels, and some
-enforce it with a `gh issue create` guard hook, so a bare slug is rejected outright. Phase 4 now reads
-the repo's own recent titles and follows their shape rather than assuming one.
-
 **Known ceiling.** Term overlap is not meaning: a conflicting issue sharing no vocabulary with the
 target scores 0 and never surfaces. Closed candidates are ranked on titles only. Both are recorded in
 SKILL.md Known Limitations — the scan narrows the search, it does not close it.

@@ -1,7 +1,7 @@
 {
   "name": "thinking-tools",
   "version": "4.4.0",
-  "description": "Claude Code thinking-tools plugin: 8 skills for structured reasoning, debate, document polish, blind-spot detection, idea crystallization, and next-session completion conditions, plus a thinking-facilitator agent.",
+  "description": "Claude Code thinking-tools plugin: 9 skills for structured reasoning, debate, document polish, blind-spot detection, idea crystallization, issue authoring, and next-session completion conditions, plus a thinking-facilitator agent.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -20,7 +20,8 @@
     "thinking-facilitator",
     "adversarial-review",
     "build-spec",
-    "completion-condition"
+    "completion-condition",
+    "issue-authoring"
   ],
   "hooks": {
     "SessionStart": [

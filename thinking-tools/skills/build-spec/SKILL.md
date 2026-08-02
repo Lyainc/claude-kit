@@ -8,7 +8,7 @@ description: |
   seed 생성, ambiguity gate, requirements crystallize.
   Routing: 만들 대상이 아직 정해지지 않았거나 위험이 커서 먼저 맹점부터 훑어야 하면 unknown-discovery,
   "구체화"만 단독이면 doc-concretize, 만들 대상이 정해져 있고 YAML Seed 스펙으로 굳힐 때만 build-spec.
-allowed-tools: AskUserQuestion Read Write Glob Grep Agent Bash
+allowed-tools: AskUserQuestion Read Write Glob Grep Agent Bash Skill
 model: sonnet
 ---
 
@@ -203,50 +203,12 @@ When gate opens OR user explicitly exits:
    - `{slug}` = kebab-case of target name, e.g., `task-cli-tool`
    - If file exists: append `-v2`, `-v3`
 3. Display summary and file path
-4. The Seed file is the terminal deliverable — downstream *execution* handoff is out of scope (Phase 4
-   is an output adapter, not a runtime)
+4. The Seed file is the terminal deliverable — build-spec crystallizes *what* to build, not *how*.
+5. Offer once: "이 Seed로 GitHub 이슈를 열까요?" Accepted → `Skill(skill: "issue-authoring", args:
+   "<seed-path>")` — one sub-call, no new user-typed command (same pattern as
+   diverse-sampling → doc-concretize). Declined → build-spec ends here, exactly as before.
 
 **Seed spec schema**: see `templates/SEED_SPEC.yaml`
-
-### Phase 4: Issue Adapter (opt-in)
-
-The Seed YAML stays the terminal deliverable and still assumes no execution runtime. build-spec
-crystallizes *what* to build (goal / constraints / success-criteria); *how* to build it — slice
-ordering, execution loop, E2E verification — belongs to whatever consumes the Seed, and build-spec
-still invokes no build loop or agent runtime.
-
-What Phase 4 adds is one **output adapter**, which is a rendering of the same fields, not a runtime.
-A GitHub issue body carries exactly the Seed's information under different headings
-(`docs/design/output-adapter-contract.md` §2 row 8 already registers `format=issue` ×
-`destination=github` and marks body *authoring* as the gap this fills).
-
-Offer it once, right after the Seed file is written: "이 Seed로 GitHub 이슈를 열까요?" Decline → build-spec
-ends at Phase 3, exactly as before.
-
-**Field mapping** — the adapter is this table plus `gh issue create`, nothing else:
-
-| Seed field | Issue section |
-|---|---|
-| `goal.statement` + `context.existing_stack` | `## 배경` |
-| `context.integration_points` | `## 스코프` — one row per integration point |
-| `constraints[]`, `hard: true` first, each with its `rationale` | `## 제약` |
-| `success_criteria[]` | `## Acceptance` — one `- [ ]` per criterion, `measurable_via` inline |
-| `context.backlog_scan` + `context.dependencies` | `## 의존 / 참조` — conflicting issues as `#N` so GitHub back-links them, or the explicit no-conflict verdict |
-| `blindspots[]` kept in Phase 2.5 | `## 열린 질문` |
-
-**Omit any section whose source field is empty**, heading included — an empty `## 스코프` or
-`## 의존 / 참조` is the normal greenfield case (`context.*` is brownfield-only), and `## 열린 질문`
-is empty whenever the blind-spot pass found nothing or was skipped. A rendered-but-empty heading
-reads as "we looked and there was nothing", which is a different claim from "this does not apply here".
-
-**Title**: match the repo's own convention, which is often `type(scope): 무엇` rather than labels —
-check `gh issue list --state all --limit 10 --json title` first. The raw `{target}` slug is a title
-only when existing issues look like that too (`reference.md` §5).
-
-Show the assembled body and get approval before creating anything, then
-`gh issue create --title "{title}" --body-file <path>`. Report the returned URL.
-`gh` absent or no GitHub remote → write the body to `docs/specs/{slug}-issue.md` and say so; never
-create an issue without the approval step.
 
 ## Termination Conditions
 
@@ -271,7 +233,7 @@ Output a STATE block after every interview round and at every gate check.
 ```
 <!-- STATE:CHECKPOINT -->
 skill: build-spec
-phase: {0|1|2|3|4}
+phase: {0|1|2|3}
 target: {name} | domain: {tech|biz|creative} | brownfield: {true|false}
 round: {N} | refine_generation: {N or 0}
 clarity: [goal:{score:.2f}] [constraint:{score:.2f}] [success:{score:.2f}] [context:{score:.2f}]
