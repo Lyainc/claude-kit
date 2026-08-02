@@ -44,10 +44,10 @@ Analyze user request
 │   (brainstorming, alternatives, ideas)
 │
 ├── Build target decided, needs crystallizing into a spec? ─▶ build-spec
-│   (seed 생성, 명세 만들기, 아이디어 구체화)
+│   (seed 생성, 명세 만들기, 아이디어를 스펙으로)
 │
 ├── Blind spots/risks to discover (target may be undecided)? ▶ unknown-discovery
-│   (missed items, blind spots, review, 빠르게/간단히 맹점)
+│   (missed items, blind spots, blind-spot review, 빠르게/간단히 맹점)
 │
 ├── Multi-perspective discussion/evaluation? ──▶ expert-panel
 │   (pros/cons, expert opinions, trade-offs)
@@ -56,7 +56,7 @@ Analyze user request
 │   (반증, 공격, steelman, survival score)
 │
 ├── Document writing/concretization needed? ───▶ doc-concretize
-│   (documentation, organizing, concretizing)
+│   (documentation, organizing, concretizing, 구체화)
 │
 ├── Document quality check needed? ────────────▶ doc-polish
 │   (proofreading, polishing, quality check)
@@ -72,14 +72,18 @@ Analyze user request
 
 | Skill | Strong Signals | Weak Signals |
 |-------|---------------|--------------|
-| build-spec | seed 생성, 명세 만들기, 아이디어 구체화, ambiguity gate | requirements, 스펙으로, 구체화 |
+| build-spec | seed 생성, 명세 만들기, 아이디어를 스펙으로, ambiguity gate | requirements, 스펙으로 |
 | diverse-sampling | brainstorming, diverse ideas, VS, alternatives | what's better, options, other ways |
-| unknown-discovery | blind spot, missed items, what's missing | review this, is it okay, any issues |
+| unknown-discovery | blind spot, missed items, what's missing | blind-spot review, anything I'm missing, gaps I'm not seeing |
 | expert-panel | expert discussion, pros/cons, trade-offs | advantages/disadvantages, evaluate, opinions, 단일 주제 평가 |
 | adversarial-review | 반증, 공격, steelman, survival score, 악마의 변호인 | claim attack, 약점, 검증, 논리 허점 |
-| doc-concretize | concretize, document, organize, write it up | explain, elaborate |
+| doc-concretize | concretize, document, organize, write it up, 구체화 | explain, elaborate |
 | doc-polish | polish, proofread, lint, quality check | fix this, correct this (document target) |
 | completion-condition | 완료조건, START-PROMPT, goal 조건 작성, completion condition, next goal | 다음 세션 목표, 다음 작업 정해줘, what should I do next session |
+
+"구체화" is doc-concretize's alone (bare = free-form document, no spec keyword). build-spec's
+signal is the real SKILL.md trigger "아이디어를 스펙으로", not a shorthand that happens to
+collide with it. Detail + sample table: `../reference/ud-bs-boundary.md`. (#431)
 
 ### Multi-Skill Detection
 
@@ -170,12 +174,15 @@ and execute immediately — no AskUserQuestion needed for single strong signals.
 </example>
 
 <example>
-user: "이 설계를 구체화하고 검토해줘"
+user: "이 설계를 구체화하고 빠진 거 없는지 봐줘"
 assistant: "두 가지 신호가 감지됐어요 — doc-concretize(문서 구체화)와 unknown-discovery(누락 항목 검토).
 순서 제안: doc-concretize로 설계 문서화 → unknown-discovery로 맹점 탐색.
 이 순서로 진행할까요?"
 <commentary>
-Ambiguous multi-trigger: "구체화" matches doc-concretize, "검토해줘" matches unknown-discovery.
+Ambiguous multi-trigger: "구체화" matches doc-concretize, "빠진 거" matches unknown-discovery's
+real SKILL.md trigger ("빠진 것"). A bare "검토해줘" no longer weak-signals unknown-discovery by
+itself (#431) — it was too broad and absorbed unrelated review requests, so it now routes
+to the Unclear branch instead of silently defaulting to unknown-discovery.
 2-skill case → confirm execution order with user before starting.
 </commentary>
 </example>
