@@ -121,7 +121,7 @@ Cycle through 4 attack vectors in order. Each round:
 In isolated execution mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
 In standard mode, visibility is best-effort (prompt contract only — the LLM shares full conversation history across personas; isolated execution mode provides mechanical isolation via subagent context boundaries).
 
-**Agent call fails / unavailable in isolated mode** → evaluate the Judge inline instead (same input
+**Agent call fails / unavailable in isolated mode (including a policy denial)** → evaluate the Judge inline instead (same input
 as the standard-mode prompt contract) and set `judge_isolated: false` in STATE. Before that round's
 Judge scoring line, add one line: `[격리 판정 실패 — 자체 판정, 신뢰도 낮음]` — one line, not a new
 round. Mirrors the isolated-fallback pattern `build-spec`/`unknown-discovery` already use for their
