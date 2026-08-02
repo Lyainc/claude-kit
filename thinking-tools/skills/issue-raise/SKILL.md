@@ -1,5 +1,5 @@
 ---
-name: issue-authoring
+name: issue-raise
 description: |
   Author and file one GitHub issue from a single natural-language line, or from a build-spec
   Seed handoff — no Socratic interview, no Ambiguity gate. Reads the matching
@@ -91,7 +91,7 @@ Show the assembled title + body. `AskUserQuestion` for approval before creating 
 **URL**: {gh issue create 반환 URL, 또는 폴백 파일 경로}
 
 ───
-*issue-authoring 완료*
+*issue-raise 완료*
 ```
 
 ## Known Limitations

@@ -20,7 +20,7 @@ skills:
   - adversarial-review
   - build-spec
   - completion-condition
-  - issue-authoring
+  - issue-raise
 ---
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
@@ -65,7 +65,7 @@ Analyze user request
 ├── Next-session completion condition needed? ─▶ completion-condition
 │   (완료조건, 다음 세션 목표, START-PROMPT, goal 조건 작성)
 │
-├── One-line GitHub issue to file (bug/feature)? ▶ issue-authoring
+├── One-line GitHub issue to file (bug/feature)? ▶ issue-raise
 │   (이슈 만들어줘, 버그 리포트 열어줘, file an issue)
 │
 └── Unclear ────────────────────────────────────▶ AskUserQuestion
@@ -84,7 +84,7 @@ Analyze user request
 | doc-concretize | concretize, document, organize, write it up, 구체화 | explain, elaborate |
 | doc-polish | polish, proofread, lint, quality check | fix this, correct this (document target) |
 | completion-condition | 완료조건, START-PROMPT, goal 조건 작성, completion condition, next goal | 다음 세션 목표, 다음 작업 정해줘, what should I do next session |
-| issue-authoring | 이슈 만들어줘, 버그 리포트 열어줘, file an issue, open a github issue | 기능 제안 이슈, write this up as an issue |
+| issue-raise | 이슈 만들어줘, 버그 리포트 열어줘, file an issue, open a github issue | 기능 제안 이슈, write this up as an issue |
 
 "구체화" is doc-concretize's alone (bare = free-form document, no spec keyword). build-spec's
 signal is the real SKILL.md trigger "아이디어를 스펙으로", not a shorthand that happens to
