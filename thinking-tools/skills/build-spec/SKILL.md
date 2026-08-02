@@ -7,8 +7,7 @@ description: |
   Trigger when user mentions: build-spec, 명세 만들기, 아이디어를 스펙으로, 요구사항 명확화, 아이디어를 명세로,
   seed 생성, ambiguity gate, requirements crystallize.
   Routing: 만들 대상이 아직 정해지지 않았거나 위험이 커서 먼저 맹점부터 훑어야 하면 unknown-discovery,
-  "구체화"만 있고 스펙/명세/seed 같은 산출물 키워드가 없으면 doc-concretize, 만들 대상이 정해져
-  있고 YAML Seed 스펙으로 굳힐 때만 build-spec (#431 판정 기준: thinking-tools/reference/ud-bs-boundary.md).
+  "구체화"만 단독이면 doc-concretize, 만들 대상이 정해져 있고 YAML Seed 스펙으로 굳힐 때만 build-spec.
 allowed-tools: AskUserQuestion Read Write Glob Grep Agent Bash
 model: sonnet
 ---
