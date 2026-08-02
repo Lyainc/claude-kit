@@ -450,6 +450,185 @@ def case_rule_fire_view_end_to_end(errors: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Token/cost view cases (#500)
+# ---------------------------------------------------------------------------
+
+def _meta_ev(model=None, input_tokens=None, output_tokens=None,
+            cache_creation_tokens=None, cache_read_tokens=None) -> dict:
+    """Build a bare event with only a meta dict (no plugin/event/name needed
+    by token_cost_view — it only reads meta)."""
+    meta = {}
+    if model is not None:
+        meta["model"] = model
+    if input_tokens is not None:
+        meta["input_tokens"] = input_tokens
+    if output_tokens is not None:
+        meta["output_tokens"] = output_tokens
+    if cache_creation_tokens is not None:
+        meta["cache_creation_tokens"] = cache_creation_tokens
+    if cache_read_tokens is not None:
+        meta["cache_read_tokens"] = cache_read_tokens
+    return {"meta": meta}
+
+
+def case_token_cost_weighted_calculation(errors: list[str]) -> None:
+    """Priced events: tokens sum plainly, cost is token_count/1e6 * per-model rate."""
+    print("\ncase: token_cost_weighted_calculation")
+    events = [
+        _meta_ev(model="claude-sonnet-5", input_tokens=1_000_000,
+                 output_tokens=100_000, cache_creation_tokens=50_000,
+                 cache_read_tokens=2_000_000),
+    ]
+    res = report.token_cost_view(events)
+    _assert(res["tokens"] == {"input": 1_000_000, "output": 100_000,
+                               "cache_write": 50_000, "cache_read": 2_000_000},
+            f"token totals match input (got: {res['tokens']})", errors)
+    # Sonnet 5 rates: input $3, output $15, cache_write $3.75, cache_read $0.30 per MTok
+    expected_cost = {
+        "input": 1.0 * 3.00, "output": 0.1 * 15.00,
+        "cache_write": 0.05 * 3.75, "cache_read": 2.0 * 0.30,
+    }
+    _assert(res["cost"] is not None, "cost computed when model is priced", errors)
+    for kind, exp in expected_cost.items():
+        got = res["cost"][kind]
+        _assert(abs(got - exp) < 1e-9,
+                f"cost[{kind}] == {exp} (got: {got})", errors)
+    _assert(res["priced_events"] == 1 and res["excluded_events"] == 0,
+            f"1 priced, 0 excluded (got: priced={res['priced_events']} "
+            f"excluded={res['excluded_events']})", errors)
+
+
+def case_token_cost_ranking_inversion(errors: list[str]) -> None:
+    """The #499/#500 motivating case: cache_read dominates token share, cache_write
+    dominates cost share less than expected by tokens alone — rankings must differ."""
+    print("\ncase: token_cost_ranking_inversion")
+    events = [
+        _meta_ev(model="claude-sonnet-5",
+                 cache_read_tokens=50_400_000,   # 94.4% of tokens
+                 cache_creation_tokens=2_600_000,  # 4.9% of tokens
+                 output_tokens=400_000,           # 0.7% of tokens
+                 input_tokens=1_000),
+    ]
+    res = report.token_cost_view(events)
+    tokens = res["tokens"]
+    cost = res["cost"]
+    total_tok = sum(tokens.values())
+    total_cost = sum(cost.values())
+    tok_rank = sorted(tokens, key=lambda k: -tokens[k])
+    cost_rank = sorted(cost, key=lambda k: -cost[k])
+    _assert(tok_rank[0] == "cache_read",
+            f"token ranking: cache_read is #1 by volume (got: {tok_rank})", errors)
+    _assert(cost_rank[0] == "cache_read" and cost_rank[1] == "cache_write",
+            f"cost ranking: cache_read #1, cache_write #2 (got: {cost_rank})", errors)
+    # cache_write's token share is tiny but its cost share is not proportional to it —
+    # the entire point of #500. Assert the share actually diverges.
+    cw_tok_share = tokens["cache_write"] / total_tok
+    cw_cost_share = cost["cache_write"] / total_cost
+    _assert(cw_cost_share > cw_tok_share * 3,
+            f"cache_write cost share ({cw_cost_share:.3f}) far exceeds its token "
+            f"share ({cw_tok_share:.3f}) — the ranking inversion #500 exists to surface",
+            errors)
+
+
+def case_token_cost_missing_model_excluded(errors: list[str]) -> None:
+    """No model on any event → tokens still counted, cost is None with a reason."""
+    print("\ncase: token_cost_missing_model_excluded")
+    events = [_meta_ev(input_tokens=500, output_tokens=100)]
+    res = report.token_cost_view(events)
+    _assert(res["tokens"] == {"input": 500, "output": 100, "cache_write": 0, "cache_read": 0},
+            f"tokens counted even with no model (got: {res['tokens']})", errors)
+    _assert(res["cost"] is None, "cost is None when no event has a model", errors)
+    _assert(res["excluded_events"] == 1 and res["priced_events"] == 0,
+            f"1 excluded, 0 priced (got: excluded={res['excluded_events']} "
+            f"priced={res['priced_events']})", errors)
+    _assert("(model 없음)" in res["unpriced_models"],
+            f"unpriced_models names the no-model case (got: {res['unpriced_models']})",
+            errors)
+
+
+def case_token_cost_unregistered_model_excluded(errors: list[str]) -> None:
+    """A model not in MODEL_PRICING is excluded from cost, never estimated."""
+    print("\ncase: token_cost_unregistered_model_excluded")
+    events = [_meta_ev(model="claude-made-up-9", input_tokens=1000)]
+    res = report.token_cost_view(events)
+    _assert(res["cost"] is None,
+            "cost is None when the only event's model is unregistered", errors)
+    _assert(res["unpriced_models"] == ["claude-made-up-9"],
+            f"unpriced_models names the unregistered model (got: {res['unpriced_models']})",
+            errors)
+
+
+def case_token_cost_mixed_priced_and_unpriced(errors: list[str]) -> None:
+    """Mixing a priced and an unpriced event: cost reflects only the priced one,
+    and the unpriced one is surfaced as excluded rather than silently dropped."""
+    print("\ncase: token_cost_mixed_priced_and_unpriced")
+    events = [
+        _meta_ev(model="claude-haiku-4-5", input_tokens=1_000_000),
+        _meta_ev(model=None, input_tokens=1_000_000),  # no model at all
+    ]
+    res = report.token_cost_view(events)
+    _assert(res["tokens"]["input"] == 2_000_000,
+            f"token total includes both events (got: {res['tokens']['input']})", errors)
+    _assert(res["cost"] is not None, "cost is present (one event was priced)", errors)
+    _assert(abs(res["cost"]["input"] - 1.00) < 1e-9,
+            f"cost reflects only the priced haiku event (got: {res['cost']['input']})",
+            errors)
+    _assert(res["priced_events"] == 1 and res["excluded_events"] == 1,
+            f"1 priced + 1 excluded (got: priced={res['priced_events']} "
+            f"excluded={res['excluded_events']})", errors)
+
+
+def case_token_cost_no_token_data(errors: list[str]) -> None:
+    """Events with no numeric token fields at all contribute nothing."""
+    print("\ncase: token_cost_no_token_data")
+    events = [{"meta": {}}, {"meta": None}, {}]
+    res = report.token_cost_view(events)
+    _assert(sum(res["tokens"].values()) == 0,
+            f"no token data → all zero (got: {res['tokens']})", errors)
+    _assert(res["cost"] is None, "no token data → cost is None", errors)
+
+
+def case_token_cost_view_end_to_end(errors: list[str]) -> None:
+    """main(): json carries token_cost + caveat; table renders both tokens and cost
+    side by side, and omits cost with a reason when nothing was priced."""
+    print("\ncase: token_cost_view_end_to_end")
+    priced = [
+        {**_ev("skill_invoke", 10, name="a"),
+         "meta": {"duration_ms": 10, "model": "claude-sonnet-5",
+                   "input_tokens": 1_000_000, "output_tokens": 100_000}},
+    ]
+    out = _run_main_with(priced, ["report.py", "--since=all", "--format=json"])
+    payload = json.loads(out)
+    _assert(payload.get("token_cost") is not None, "json has non-null token_cost", errors)
+    tc = payload["token_cost"]
+    _assert(tc["tokens"]["input"] == 1_000_000, f"json tokens.input (got: {tc['tokens']})", errors)
+    _assert(tc["cost"] is not None and tc["cost"]["input"] == 3.0,
+            f"json cost.input priced at $3/MTok (got: {tc['cost']})", errors)
+    _assert(bool(payload.get("token_cost_caveat")), "json carries token_cost_caveat", errors)
+    _assert("순위" in (payload.get("token_cost_caveat") or ""),
+            "caveat states token-rank != cost-rank", errors)
+
+    tout = _run_main_with(priced, ["report.py", "--since=all", "--format=table"])
+    _assert("Token/cost breakdown" in tout, "table renders token/cost section", errors)
+    _assert("cost=$3.0000" in tout or "cost=$3.00" in tout or "$3.0000" in tout,
+            f"table shows priced cost for input (excerpt not found in output)", errors)
+
+    # No model anywhere → cost omitted with an explicit reason, tokens still shown.
+    unpriced = [
+        {**_ev("skill_invoke", 10, name="a"),
+         "meta": {"duration_ms": 10, "input_tokens": 500}},
+    ]
+    uout = _run_main_with(unpriced, ["report.py", "--since=all", "--format=json"])
+    upayload = json.loads(uout)
+    utc = upayload["token_cost"]
+    _assert(utc["cost"] is None, "json cost is null when nothing priced", errors)
+    _assert(bool(utc.get("cost_omitted_reason")),
+            "json carries a cost_omitted_reason when cost is null", errors)
+    utout = _run_main_with(unpriced, ["report.py", "--since=all", "--format=table"])
+    _assert("비용 열 생략" in utout, "table states cost was omitted, with a reason", errors)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -472,6 +651,13 @@ def main() -> int:
     case_lifecycle_fired_bottom_e2e(errors)
     case_rule_fire_per_rule_id(errors)
     case_rule_fire_view_end_to_end(errors)
+    case_token_cost_weighted_calculation(errors)
+    case_token_cost_ranking_inversion(errors)
+    case_token_cost_missing_model_excluded(errors)
+    case_token_cost_unregistered_model_excluded(errors)
+    case_token_cost_mixed_priced_and_unpriced(errors)
+    case_token_cost_no_token_data(errors)
+    case_token_cost_view_end_to_end(errors)
 
     print()
     if errors:
