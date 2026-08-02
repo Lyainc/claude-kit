@@ -49,7 +49,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
 │   ├── skills/                          # 3개 스킬 (vault-link, vault-manifest-refresh, vault-commit; commands/→skills/ 마이그레이션 #94)
-│   ├── hooks/                           # 3개 hook handler (session-start-manifest, pre-access-guard, pre-write-guard)
+│   ├── hooks/                           # 2개 hook handler (session-start-manifest, pre-write-guard)
 │   └── scripts/                         # generate-manifest.py + tests/
 ├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
 │   ├── .claude-plugin/plugin.json       # hooks 키: 8 event-type 등록 (opt-in telemetry)
@@ -68,7 +68,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 
 ## vault-bridge Hooks & Skills
 
-vault-bridge registers 3 hook handlers + 3 skills. All hooks are **deterministic shell scripts**
+vault-bridge registers 2 hook handlers + 3 skills. All hooks are **deterministic shell scripts**
 unless explicitly noted otherwise — no per-turn LLM cost.
 
 **Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for
@@ -96,10 +96,6 @@ separate plugin.
 - **SessionStart** (`hooks/session-start-manifest.sh`, deterministic): incremental manifest
   refresh — checks staleness and updates `{vault_root}/.vault-bridge/manifest.json` only for
   changed files (background, never blocks session start).
-- **PreToolUse Read|Grep|Glob** (`hooks/pre-access-guard.sh`, deterministic): emits
-  `systemMessage` warning when the configured vault root is accessed directly. Soft warning,
-  never blocks. As of v1.9.0, this hook exempts vault-searcher's own reads to avoid the
-  self-reference loop that previously caused haiku to misinterpret its own warning as a denial.
 - **PreToolUse Write|Edit|Bash** (`hooks/pre-write-guard.sh`, deterministic): validates vault
   file naming conventions AND enforces the **Write Role Contract** — the read/write asymmetry at
   the core of vault-bridge. Vault *reads* are haiku-delegable (the `vault-searcher` agent), but
@@ -130,7 +126,7 @@ separate plugin.
 (`/handoff` was retired in G26 — the next-session continuation function moved to the
 machine-level `session-close` skill, outside claude-kit.)
 
-The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse guards) and
+The remaining hooks (deterministic SessionStart manifest refresh + PreToolUse write-role guard) and
 explicit skills ensure zero per-turn LLM cost, no loops. The session-lifecycle auto-hooks (Stop
 capture suggestion, SessionEnd safety-net auto-save) were cut in G24; capture ore is written only
 via obsidian-vault-manager's explicit `/capture` skill.
