@@ -57,11 +57,15 @@ State the routing decision briefly before continuing, so the user can correct it
 
 The wiki *compounds* — a topic that already has a page is **updated**, never duplicated.
 
-1. Find existing pages on the same topic. **Primary: the manifest** — when it exists and is reasonably fresh, match `type:wiki` entries on title + tags (catches same-topic pages on a different slug, e.g. `defuddle.md` vs `defuddle-cli.md`, which slug-only matching misses):
+1. Find existing pages on the same topic. **Primary: the manifest** — when it exists and is reasonably fresh, match `type:wiki` entries on title + tags (catches same-topic pages on a different slug, e.g. `defuddle.md` vs `defuddle-cli.md`, which slug-only matching misses). **Never `cat` the manifest directly** — on a real vault it can run past 100 KB, and the harness truncates large Bash output to a 2 KB preview before this reads it, so a raw `cat` silently degrades to whichever few entries survive the cut (#468, same defect class as #460). Use the filter script instead, which reads the full file on disk and returns only `type:wiki` entries (`path`/`title`/`tags`):
    ```bash
-   cat ~/vault/.vault-bridge/manifest.json 2>/dev/null   # match type:wiki entries on title/tags
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-wiki-match.py" ~/vault/.vault-bridge/manifest.json
    ```
-   **Fallback (manifest absent):** list pages and match by slug / filename:
+   Exit 0 → parse stdout as `{scanned, wiki_entries[]}` and match `wiki_entries` on title + tags.
+   Exit 3 (manifest absent, unparseable, or malformed) → same as a hard-absent manifest, fall
+   through to the slug/filename fallback below — never re-attempt with a raw `cat`.
+
+   **Fallback (manifest absent or exit 3 above):** list pages and match by slug / filename:
    ```bash
    ls ~/vault/wiki/ 2>/dev/null
    ```

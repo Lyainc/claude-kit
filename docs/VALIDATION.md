@@ -387,6 +387,16 @@ python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
 python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 # Expected: OK: all cases passed
 
+# manifest-summary.py + manifest-wiki-match.py regression (#468, mirrors #460's retired
+# e8-candidates.py pattern) — audit/SKILL.md and wiki/SKILL.md both used to `cat` the raw
+# .vault-bridge/manifest.json (100+ KB on a real vault), silently truncated to a 2 KB harness
+# preview before the model ever saw it. Runs both filter scripts against real temp fixtures
+# (missing/unparseable/malformed/valid), asserts the wiki filter's output stays under the 2 KB
+# cut and serializes `scanned` before `wiki_entries`, then statically greps the live SKILL.md
+# call sites to pin that neither ever regresses back to a raw `cat`.
+python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
+# Expected: OK: all manifest-read checks passed
+
 # audit-state corrupt-input handling (#443) — parse failure and shape mismatch take the
 # SAME path: exit 3, original copied to `audit-state.json.corrupt-<ISO8601>`, the state
 # file itself untouched, no `.bak` rotation. The two-ops case is the single-slot `.bak`
