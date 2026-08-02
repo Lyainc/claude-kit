@@ -450,6 +450,105 @@ def case_rule_fire_view_end_to_end(errors: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Liveness aggregation cases (#491)
+# ---------------------------------------------------------------------------
+
+def case_liveness_excluded_from_outcomes(errors: list[str]) -> None:
+    """rule_fire (outcome=fired) never appears in the outcome mix; it gets its
+    own liveness total/by_event instead, in both json and table."""
+    print("\ncase: liveness_excluded_from_outcomes")
+    fixture = [
+        {**_ev("rule_fire", name="no-pyyaml"), "outcome": "fired"},
+        {**_ev("rule_fire", name="no-pyyaml"), "outcome": "fired"},
+        {**_ev("rule_fire", name="trash-not-rm"), "outcome": "fired"},
+        _ev("skill_invoke", 10, name="note"),
+        _ev("skill_invoke", 10, name="note"),
+    ]
+    out = _run_main_with(fixture, ["report.py", "--since=all", "--format=json"])
+    payload = json.loads(out)
+    _assert("fired" not in payload["outcomes"],
+            f"'fired' absent from outcomes (got: {payload['outcomes']})", errors)
+    _assert(payload["outcomes"] == {"ok": 2},
+            f"outcomes reflects only non-liveness events (got: {payload['outcomes']})",
+            errors)
+    _assert(payload["liveness"] == {"total": 3, "by_event": {"rule_fire": 3}},
+            f"liveness total/by_event correct (got: {payload.get('liveness')})", errors)
+
+    tout = _run_main_with(fixture, ["report.py", "--since=all", "--format=table"])
+    outcomes_line = next((ln for ln in tout.splitlines() if ln.startswith("Outcomes:")), "")
+    _assert("fired" not in outcomes_line,
+            f"table Outcomes line excludes fired (got: {outcomes_line!r})", errors)
+    _assert("Liveness (enforcement heartbeat" in tout,
+            "table renders a dedicated liveness line", errors)
+
+
+def case_liveness_no_fires_no_line(errors: list[str]) -> None:
+    """No rule_fire events → liveness.total is 0 and the table prints no liveness line."""
+    print("\ncase: liveness_no_fires_no_line")
+    fixture = [_ev("skill_invoke", 10, name="note")]
+    out = _run_main_with(fixture, ["report.py", "--since=all", "--format=json"])
+    payload = json.loads(out)
+    _assert(payload["liveness"] == {"total": 0, "by_event": {}},
+            f"liveness is zeroed, not omitted (got: {payload.get('liveness')})", errors)
+    tout = _run_main_with(fixture, ["report.py", "--since=all", "--format=table"])
+    _assert("Liveness (" not in tout, "no liveness line when nothing fired", errors)
+
+
+def case_liveness_excluded_from_top_by_default(errors: list[str]) -> None:
+    """Top N excludes liveness events by default, even when they'd dominate by count."""
+    print("\ncase: liveness_excluded_from_top_by_default")
+    fixture = (
+        [{**_ev("rule_fire", name="noisy-rule"), "outcome": "fired"} for _ in range(5)]
+        + [_ev("skill_invoke", 10, name="note")]
+    )
+    out = _run_main_with(fixture, ["report.py", "--since=all", "--format=json"])
+    payload = json.loads(out)
+    top_events = {row["event"] for row in payload["top"]}
+    _assert("rule_fire" not in top_events,
+            f"rule_fire absent from Top N by default (got: {payload['top']})", errors)
+    _assert("skill_invoke" in top_events, "skill_invoke present in Top N", errors)
+    _assert(payload["top_includes_liveness"] is False,
+            "top_includes_liveness reflects the default (False)", errors)
+
+    tout = _run_main_with(fixture, ["report.py", "--since=all", "--format=table"])
+    _assert("liveness events excluded" in tout,
+            "table Top N header states the default exclusion", errors)
+    # The dedicated "Rule-fire liveness" section legitimately names noisy-rule —
+    # only the Top N block itself must exclude it.
+    top_block = tout.split("Top 10")[1].split("Skill lifecycle")[0]
+    _assert("noisy-rule" not in top_block,
+            f"excluded rule_fire name absent from the Top N block (got: {top_block!r})",
+            errors)
+
+
+def case_liveness_included_with_flag(errors: list[str]) -> None:
+    """--top-include-liveness folds liveness events back into Top N (opt-in)."""
+    print("\ncase: liveness_included_with_flag")
+    fixture = (
+        [{**_ev("rule_fire", name="noisy-rule"), "outcome": "fired"} for _ in range(5)]
+        + [_ev("skill_invoke", 10, name="note")]
+    )
+    out = _run_main_with(
+        fixture, ["report.py", "--since=all", "--format=json", "--top-include-liveness"]
+    )
+    payload = json.loads(out)
+    top_events = {row["event"]: row["count"] for row in payload["top"]}
+    _assert(top_events.get("rule_fire") == 5,
+            f"rule_fire folded back into Top N with the flag (got: {payload['top']})", errors)
+    _assert(payload["top_includes_liveness"] is True,
+            "top_includes_liveness reflects the flag (True)", errors)
+    # outcome mix stays excluded regardless — the flag only affects Top N.
+    _assert("fired" not in payload["outcomes"],
+            "outcome mix still excludes liveness even with the flag", errors)
+
+    tout = _run_main_with(
+        fixture, ["report.py", "--since=all", "--format=table", "--top-include-liveness"]
+    )
+    _assert("liveness events included" in tout,
+            "table Top N header states liveness is included with the flag", errors)
+
+
+# ---------------------------------------------------------------------------
 # Token/cost view cases (#500)
 # ---------------------------------------------------------------------------
 
@@ -695,6 +794,10 @@ def main() -> int:
     case_lifecycle_fired_bottom_e2e(errors)
     case_rule_fire_per_rule_id(errors)
     case_rule_fire_view_end_to_end(errors)
+    case_liveness_excluded_from_outcomes(errors)
+    case_liveness_no_fires_no_line(errors)
+    case_liveness_excluded_from_top_by_default(errors)
+    case_liveness_included_with_flag(errors)
     case_token_cost_weighted_calculation(errors)
     case_token_cost_ranking_inversion(errors)
     case_token_cost_missing_model_excluded(errors)

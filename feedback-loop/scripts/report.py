@@ -407,6 +407,17 @@ _RULE_FIRE_CAVEAT = (
 )
 
 
+# Liveness-type events (#491, extends G20 #258): these emit an enforcement/
+# instrumentation heartbeat, not a real skill/agent/command invocation. Mixed into
+# the general outcome distribution or Top N, a single noisy rule swamps real usage
+# signal — rule_fire measured 52% of all events over a real 7d window (#491). Only
+# rule_fire qualifies as of this writing: it is the sole VALID_EVENTS member whose
+# outcome is a fire/catch signal rather than a start/success/error/blocked lifecycle
+# state. Re-check VALID_EVENTS (validate-schema.py) before assuming this stays a
+# one-element set.
+LIVENESS_EVENTS = {"rule_fire"}
+
+
 def rule_fire_view(events: list[dict]) -> dict[str, int]:
     """Per-rule_id fire counts from rule_fire events (enforcement liveness).
 
@@ -437,6 +448,11 @@ def main() -> int:
     p.add_argument("--event", default="all")
     p.add_argument("--top", type=int, default=10)
     p.add_argument("--format", choices=("table", "json"), default="table")
+    p.add_argument(
+        "--top-include-liveness", action="store_true",
+        help="include liveness events (rule_fire) in the Top N ranking "
+             "(excluded by default, #491 — they drown out real usage signal)",
+    )
     args = p.parse_args()
 
     since_days = parse_since(args.since)
@@ -451,11 +467,21 @@ def main() -> int:
         print(f"No events matched (since={args.since}, plugin={args.plugin}, event={args.event})")
         return 0
 
+    # #491: liveness events (rule_fire) are enforcement heartbeats, not usage —
+    # split them out before computing the outcome mix and Top N so a noisy rule
+    # can't drown out real skill/agent/command signal. --top-include-liveness
+    # restores the old undifferentiated behavior for Top N only; the outcome mix
+    # always excludes them (they get their own liveness line below/in JSON).
+    non_liveness = [e for e in events if e.get("event") not in LIVENESS_EVENTS]
+    liveness_events = [e for e in events if e.get("event") in LIVENESS_EVENTS]
+    top_source = events if args.top_include_liveness else non_liveness
+
     counts = Counter(
         (e.get("plugin", "?"), e.get("event", "?"), e.get("name", ""))
-        for e in events
+        for e in top_source
     )
-    outcomes = Counter(e.get("outcome", "?") for e in events)
+    outcomes = Counter(e.get("outcome", "?") for e in non_liveness)
+    liveness_by_event = Counter(e.get("event", "?") for e in liveness_events)
     plugin_unknown = sum(1 for e in events if e.get("plugin") == "unknown")
     unknown_ratio = plugin_unknown / len(events)
 
@@ -471,6 +497,15 @@ def main() -> int:
             "total": len(events),
             "since": args.since,
             "outcomes": dict(outcomes),
+            # #491: liveness events (rule_fire) never appear in `outcomes` above —
+            # they get their own line here so a reader can't misread "fired" as a
+            # normal outcome share. Always an object; by_event is empty when
+            # nothing fired this window (never omitted/null).
+            "liveness": {
+                "total": len(liveness_events),
+                "by_event": dict(liveness_by_event),
+            },
+            "top_includes_liveness": args.top_include_liveness,
             "plugin_unknown_ratio": round(unknown_ratio, 4),
             "latency": (
                 {
@@ -538,6 +573,11 @@ def main() -> int:
 
     print(f"Total events: {len(events)} (since={args.since})")
     print(f"Outcomes: {dict(outcomes)}")
+    # #491: liveness (rule_fire) is deliberately excluded from Outcomes above —
+    # printed as its own line so it stays visible without dominating the mix.
+    if liveness_events:
+        print(f"Liveness (enforcement heartbeat, excluded from Outcomes above): "
+              f"{len(liveness_events)} {dict(liveness_by_event)}")
     print(f"plugin=unknown ratio: {unknown_ratio:.1%}")
     print()
     print("Latency p50/p95 (events with duration_ms only):")
@@ -557,7 +597,10 @@ def main() -> int:
                 f"p50={s['p50']:.0f}ms  p95={s['p95']:.0f}ms"
             )
     print()
-    print(f"Top {args.top}:")
+    if args.top_include_liveness:
+        print(f"Top {args.top} (liveness events included, --top-include-liveness):")
+    else:
+        print(f"Top {args.top} (liveness events excluded — see --top-include-liveness):")
     for (plg, ev, nm), c in counts.most_common(args.top):
         label = f"{plg}:{ev}" + (f" ({nm})" if nm else "")
         print(f"  {c:>5}  {label}")

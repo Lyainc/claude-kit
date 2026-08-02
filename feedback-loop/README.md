@@ -86,6 +86,8 @@ ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
 ```bash
 python3 feedback-loop/scripts/validate-schema.py --since=7d   # schema health
 python3 feedback-loop/scripts/report.py --top=10              # top events, outcomes, latency, skill lifecycle
+                                                                #   (liveness events like rule_fire excluded from
+                                                                #   outcomes/Top N by default; --top-include-liveness to include)
 python3 feedback-loop/scripts/sequence.py --n=2 --top=20      # repeated n-gram patterns (review-round churn)
 ```
 
@@ -124,7 +126,8 @@ python3 feedback-loop/scripts/sequence.py --n=2 --top=20      # repeated n-gram 
 does. `event-logger.sh` caches it there (session-scoped, keyed by `session_id`, under
 `${events dir}/.session-model/`) and `extract_end_meta` relays it into `skill_invoke_end` /
 `agent_spawn_end` events. Omitted when the session never fired `session_start` with telemetry
-on, or when the payload didn't carry a model.
+on, or when the payload didn't carry a model. Cache files older than 2 days are swept on the
+next `session_start` (#514), so `.session-model/` stays bounded to recent sessions.
 
 | event | hook | source |
 |-------|------|--------|
@@ -158,6 +161,20 @@ consensus gate)**: a fire = a violation was *caught*, NOT that the rule was *fol
 landed-rule registry to diff against). `report.py` ships this caveat inline; the
 rule_fire view is an enforcement-**liveness** tally, never a compliance measure.
 `scripts/no-pyyaml-guard.sh` is the reference emitter.
+
+**Aggregation treatment of liveness events (#491)**: `report.py` never mixes a
+liveness-type event (today, `rule_fire` is the only one — see `LIVENESS_EVENTS` in
+`report.py`) into the outcome mix or the Top N ranking by default. A real 7d
+measurement window showed `rule_fire` alone at 52% of all events, which would drown
+out real skill/agent/command usage signal in both views. Instead:
+
+- the outcome mix (`Outcomes: {...}` / json `outcomes`) always excludes liveness
+  events — they render on their own `Liveness (...)` line (table) / `liveness` key
+  (json) instead, so a fire count is never misread as a normal outcome share;
+- Top N excludes liveness events by default; pass `--top-include-liveness` to fold
+  them back in when you deliberately want the undifferentiated view.
+
+Any future event added to `LIVENESS_EVENTS` gets the same treatment automatically.
 
 ## Lock strategy: lockless POSIX O_APPEND
 
