@@ -65,7 +65,8 @@ expression* (stance·voice) → the top-level **`~/.claude/CLAUDE.md`** persona 
 → the machine **work-rule catalogue `~/.claude/rules`** *if it exists*, **otherwise fall back to
 `~/.claude/CLAUDE.md`**. It routes by the layer §2 already computed — no new site, no new axis.
 The fallback is **non-negotiable: never hardcode the machine's `rules/` structure**: detect it
-(`[ -d "$HOME/.claude/rules" ]`) and degrade to CLAUDE.md where it is absent.
+(`[ -d "$HOME/.claude/rules" ]`) and degrade to CLAUDE.md where it is absent. The conflict-check
+target per site, and why the fallback is non-negotiable: [reference.md](reference.md) §3-sites.
 
 **Thin pointer + backing detail (catalogue channel):** machine-level reminders ride in *every*
 session's context, so the catalogue holds the detail and `~/.claude/CLAUDE.md` gets at most a
