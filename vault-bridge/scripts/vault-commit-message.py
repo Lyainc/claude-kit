@@ -78,15 +78,14 @@ _IMPORTANCE = {
 
 
 def _importance(msg: str) -> int:
-    # Status transitions (promote/archive) are highest priority within their type
+    # Status transitions (archive) are highest priority within their type
     # — surface them as the title in multi-file commits.
     #
-    # These two literals are the same set as `_TRANSITION_SUBOPS`, which
+    # This literal is the same set as `_TRANSITION_SUBOPS`, which
     # `_synthesize` groups and ranks by. They stay separate because each needs a
-    # distinct score here, not a membership test — so adding a third transition
-    # means editing both places.
-    if "(promote)" in msg:
-        return -2  # higher than any type
+    # distinct score here, not a membership test — so adding another transition
+    # means editing both places. (`promote` was removed with the B-layer
+    # promotion gate, v5 §5/§6, #480 — no path writes `status:` anymore.)
     if "(archive)" in msg:
         return -1
     for key, rank in _IMPORTANCE.items():
@@ -136,7 +135,7 @@ def _msg_for_added(vault_root: str, rel_path: str) -> str:
 def _type_prefix(new_type: str | None) -> str | None:
     """Map frontmatter type to commit message prefix.
 
-    Returns None for types without a meaningful promote/archive semantic
+    Returns None for types without a meaningful archive semantic
     (session/capture/unknown) — caller should fall back to a generic vault label.
     """
     if new_type in ("decision", "plan", "note"):
@@ -165,19 +164,12 @@ def _msg_for_modified(vault_root: str, rel_path: str) -> str:
 
     prefix = _type_prefix(new_type)
 
-    # Status transitions only apply to types with promote/archive semantics.
-    if prefix is not None:
-        if old_status is not None and new_status is not None and old_status != new_status:
-            if new_status == "archived":
-                return f"{prefix}(archive): {stem}"
-            elif old_status == "raw" and new_status == "draft":
-                return f"{prefix}(promote): {stem} {{raw→draft}}"
-            elif old_status == "draft" and new_status == "evergreen":
-                return f"{prefix}(promote): {stem} {{draft→evergreen}}"
-            else:
-                return f"{prefix}(promote): {stem} {{{old_status}→{new_status}}}"
-        elif new_status == "archived" and old_status != "archived":
-            return f"{prefix}(archive): {stem}"
+    # Status transitions only apply to types with archive semantics. Promotion
+    # (raw→draft, draft→evergreen) was removed with the B-layer promotion gate
+    # (v5 §5/§6, #480) — no path writes `status:` anymore, so a non-archival
+    # status change (a manual hand-edit) falls through to a plain content update.
+    if prefix is not None and new_status == "archived" and old_status != "archived":
+        return f"{prefix}(archive): {stem}"
 
     # Content change without status change. `wiki` never reaches the transition
     # block above (`_type_prefix` returns None) because the A layer carries no
@@ -237,20 +229,21 @@ def _kind(msg: str) -> str:
     return re.split(r"[(:]", msg, maxsplit=1)[0].strip()
 
 
-# Status transitions, the two sub-ops `_importance` scores below every type.
-# Neither value can collide with a git-status op (add/update/delete/rename).
-_TRANSITION_SUBOPS = ("promote", "archive")
+# Status transitions, the sub-op `_importance` scores below every type.
+# Cannot collide with a git-status op (add/update/delete/rename). (`promote`
+# was removed with the B-layer promotion gate, v5 §5/§6, #480.)
+_TRANSITION_SUBOPS = ("archive",)
 
 
 def _subop(msg: str, op: str) -> str:
     """The sub-op a message groups under.
 
-    A promote and an ordinary content edit are both git status `M`, so keying
-    the group on the status letter alone put `note(promote): x {draft→evergreen}`
-    and `note(update): y` in one bucket — the transition then disappeared into a
+    An archive and an ordinary content edit are both git status `M`, so keying
+    the group on the status letter alone put `note(archive): x` and
+    `note(update): y` in one bucket — the transition then disappeared into a
     generic "note: update 2 files".
 
-    Only promote/archive are split out. `note(draft)` vs `note(evergreen)` on a
+    Only archive is split out. `note(draft)` vs `note(evergreen)` on a
     new note is a status *value*, not a different operation, so both stay under
     the status letter; splitting them would fragment ordinary groups and undo
     the count-based titling this grouping exists for.
@@ -282,7 +275,7 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     # Four ranking levels, in order — all four are load-bearing, so a change
     # here needs the tie cases in test-vault-commit-message.py to stay green:
     #   1. a status transition present at all, since `_importance` scores
-    #      promote/archive below every type precisely to say "this outranks
+    #      archive below every type precisely to say "this outranks
     #      everything". Count-based titling was introduced to stop one
     #      *ordinary* file outranking twenty, not to demote a transition.
     #   2. file count, descending
@@ -295,7 +288,7 @@ def _synthesize(records: list[tuple[str, str]]) -> str:
     # Each group carries [count, best _importance, the message scoring it]. The
     # representative is tracked rather than re-derived from `sorted_msgs`: a
     # one-file winner must be titled by *its own* member. Today the global sort
-    # happens to agree, but only because `_importance` puts promote/archive
+    # happens to agree, but only because `_importance` puts archive
     # below every type — reorder that map and a global sort would title a
     # single-file winner with a losing group's message.
     groups: dict[tuple[str, str], list] = {}

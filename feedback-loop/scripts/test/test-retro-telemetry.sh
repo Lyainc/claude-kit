@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Regression for feedback-loop/scripts/retro-telemetry.sh (the extracted retro
-# Phase-1 stamp + Phase-4 emit helper). Asserts: opt-in gate, schema-shaped emit
-# line with the four retro counters, numeric duration after a stamp, and the
+# Phase-1 stamp + Phase-3 emit helper). Asserts: opt-in gate, schema-shaped emit
+# line with the three retro counters, numeric duration after a stamp, and the
 # null fallback when the stamp is missing/corrupt.
 set -uo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -19,29 +19,29 @@ STAMP_FILE="/tmp/retro-start-${CLAUDE_SESSION_ID}.ms"
 trap 'trash-put "$STAMP_FILE" 2>/dev/null || true' EXIT
 
 # 1. opt-in off → no write
-( unset CLAUDE_KIT_TELEMETRY; "$SCRIPT" emit 1 1 1 1 )
+( unset CLAUDE_KIT_TELEMETRY; "$SCRIPT" emit 1 1 1 )
 [ -f "$LOG" ] && fail "wrote a line while telemetry off"
 
 # 2. stamp + emit → one schema-shaped line, numeric duration, stamp cleaned
 "$SCRIPT" stamp
 [ -f "$STAMP_FILE" ] || fail "stamp not written"
-"$SCRIPT" emit 5 2 1 5
+"$SCRIPT" emit 5 2 5
 LINE="$(cat "$LOG")"
 echo "$LINE" | jq -e '.event=="skill_invoke" and .name=="retro" and .qualified_name=="feedback-loop:retro" and .plugin=="feedback-loop"' >/dev/null || fail "envelope shape wrong"
-echo "$LINE" | jq -e '.meta.retro_items_processed==5 and .meta.items_promoted==2 and .meta.items_deduped==1 and .meta.budget_used==5' >/dev/null || fail "meta counters wrong"
+echo "$LINE" | jq -e '.meta.retro_items_processed==5 and .meta.items_deduped==2 and .meta.budget_used==5' >/dev/null || fail "meta counters wrong"
 echo "$LINE" | jq -e '.meta.duration_ms|type=="number"' >/dev/null || fail "duration not numeric after stamp"
 [ -f "$STAMP_FILE" ] && fail "stamp not cleaned after emit"
 
 # 3. corrupt stamp → duration null (must NOT resolve to 0)
 echo "not-a-number" > "$STAMP_FILE"
 : > "$LOG"
-"$SCRIPT" emit 1 0 0 1
+"$SCRIPT" emit 1 0 1
 cat "$LOG" | jq -e '.meta.duration_ms==null' >/dev/null || fail "corrupt stamp did not fall back to null"
 
 # 4. missing stamp → duration null
 trash-put "$STAMP_FILE" 2>/dev/null || true
 : > "$LOG"
-"$SCRIPT" emit 1 0 0 1
+"$SCRIPT" emit 1 0 1
 cat "$LOG" | jq -e '.meta.duration_ms==null' >/dev/null || fail "missing stamp did not fall back to null"
 
 echo "OK: all retro-telemetry cases passed"

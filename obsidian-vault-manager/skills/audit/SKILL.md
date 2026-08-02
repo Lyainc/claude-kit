@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 12 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), stale draft (E7), promotion candidates (E8), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale wiki pages (E12a, stale `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 10 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale wiki pages (E12a, stale `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep AskUserQuestion
 ---
@@ -69,12 +69,12 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    find ~/vault -name '*.md' -not -path '*/.*'
    ```
 
-8. Read manifest summary (used for REPORT header and E8 classification):
+8. Read manifest summary (used for REPORT header):
    ```bash
    cat "$VAULT_ROOT/.vault-bridge/manifest.json" 2>/dev/null
    ```
    Use the resolved `$VAULT_ROOT` from Steps 4–7 (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`), not a hardcoded path.
-   Extract `file_count`, `generated_at`, `schema_version`, and `files[]` if the file exists and is valid JSON. If absent or unparseable, set `manifest_summary` to null. For `schema_version ≥ 3`, entries with `promotion_candidate: true` are passed to CLASSIFY to generate E8 findings.
+   Extract `file_count` and `generated_at` if the file exists and is valid JSON. If absent or unparseable, set `manifest_summary` to null.
 
 9. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
    ```bash
@@ -104,7 +104,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (12 types: E1–E11 v4, E12 v5). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
+**Error types** (10 types: E1–E6, E9–E11 v4, E12 v5 — E7/E8 were removed with the v4 §3.3 status-machine promotion gate, v5 §6, #480). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
@@ -114,14 +114,12 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | E4 | `broken_wikilink` | Critical | P0 | `wikilinks_by_file` | — |
 | E5 | `orphan_note` | Warning | P2 | `inbound_links` | — (suggests tag-based `연결 후보`) |
 | E6 | `stale_inbox` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
-| E7 | `stale_draft` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
-| E8 | `promotion_candidate` | Info | P2 | `manifest.json` (`promotion_candidate: true`) | — |
 | E9 | `tag_vocabulary_inconsistency` | Warning | P2 | `frontmatter_records` (vault-wide tags + keys) | — (display-only; `path: ""`) |
 | E10 | `misplaced_file` | Warning | P1 | `frontmatter_records` (`type` + folder) | — (display-only) |
 | E11 | `unstructured_path` | Warning | P1 | `frontmatter_records` (path) | — (display-only) |
 | E12 | `wiki_self_audit` | Warning | P1 | `frontmatter_records` (`wiki/` path + `type: wiki` + `verified`) | — (display-only) |
 
-> **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6–E7, E10–E12 = P1 (정체·구조/stagnation·structure). E5, E8, E9 = P2 (quality signal). (E10/E11 are the structural checks per #128/#129; E12 is the wiki self-audit per #330.)
+> **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6, E10–E12 = P1 (정체·구조/stagnation·structure). E5, E9 = P2 (quality signal). (E10/E11 are the structural checks per #128/#129; E12 is the wiki self-audit per #330.)
 > **E9 vocabulary** (#119): a **vault-level** check, not per-file — aggregates tags/keys across the whole vault and emits one finding per inconsistent pair with `path: ""`. E9a = a tag and its regular `+s` plural both used (`api`↔`apis`); E9b = a frontmatter key in camelCase and its snake_case equivalent both used (`sourceUrl`↔`source_url`). FP guard: report only when BOTH forms appear in ≥3 files. E9c (semantic synonyms, e.g. `llm`↔`large-language-model`) ships as the skill-only `--deep` LLM opt-in (#167) — see Phase 2.5 below (mirrors E12b's skill-only design). Never auto-fixed — the canonical form is the user's choice.
 > **E3 / E5 / E10 / E11 detail** (suggested filename, orphan connection candidates,
 > misplaced-file and unstructured-path scoping): all display-only, full criteria in
@@ -173,11 +171,11 @@ Output is grouped by priority:
 - **P1** (WARNING findings): Should-fix items
 - **P2** (INFO findings): Nice-to-fix items
 
-Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3→E4 within P0; E6→E7→E10→E11→E12 within P1; E5→E8→E9 within P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
+Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3→E4 within P0; E6→E10→E11→E12 within P1; E5→E9 within P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
 
 Each finding line format: `[E-code/priority/severity] type — N건` header, then one bullet per file with path and one-line description.
 
-Report header: vault state summary (note count, clean/dirty/untracked), manifest info, promotion candidate count, recent git activity (omit if 0 commits or not a git repo).
+Report header: vault state summary (note count, clean/dirty/untracked), manifest info, recent git activity (omit if 0 commits or not a git repo).
 
 Footer: auto-fixable count, manual-action count.
 
@@ -186,7 +184,7 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 A representative sample of this layout (header, per-priority groups, footer) is in
 `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` under **REPORT output example**.
 
-> **사용자 확인 게이트는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다** — 그 외 항목은 표시만 합니다. E6/E7/E8/E9/E10/E11/E12는 의미적 판단(처리/promote/archive/이동/정준형 선택/재컴파일)이 필요해 auto-fix 대상이 아닙니다. (정렬 순서는 위 REPORT Output Contract 참조.)
+> **사용자 확인 게이트는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다** — 그 외 항목은 표시만 합니다. E6/E9/E10/E11/E12는 의미적 판단(처리/archive/이동/정준형 선택/재컴파일)이 필요해 auto-fix 대상이 아닙니다. (정렬 순서는 위 REPORT Output Contract 참조.)
 
 **Termination condition**: Report displayed. Proceed to OPTIONAL-FIX if auto-fixable items exist and user has not already opted out. Otherwise exit after marking clean.
 

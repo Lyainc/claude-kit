@@ -34,8 +34,6 @@ EXPECTED_SEEDED = {
     "E4_broken_wikilink": 5,
     "E5_orphan_note": 6,
     "E6_stale_inbox": 5,
-    "E7_stale_draft": 5,
-    "E8_promotion_candidate": 2,
     "E9_tag_vocabulary_inconsistency": 2,
     "E10_misplaced_file": 5,
     "E11_unstructured_path": 5,
