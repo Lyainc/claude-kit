@@ -1,6 +1,6 @@
 # 출력 어댑터 계약 — 균일 호출 인터페이스 + 포맷×동작 매핑 + net-new gap
 
-**Status**: design · **Created**: 2026-06-04 · **Issue**: #101 · **Epic**: #108
+**Status**: design · **Created**: 2026-06-04 · **Last reconciled**: 2026-08-02 (#490 — 닫힌 이슈 대조) · **Issue**: #101 · **Epic**: #108
 **선행**: #99(경계 A — `docs/design/claude-kit-boundary.md`)
 **하류 소비처**: #102(출력 레이어 물리 구조 — 이 *논리* 계약을 입력) · #103/#104(② 출력 레이어 조립) · #122 Gap-ROUTE(라우터가 이 어댑터로 슬라이스를 위임) · #133(issue-authoring 경계)
 **Source**: #108 레이어 재설계 논의 C-5(신설 최소화 만장일치) · G2 어댑터 슬라이스 · goal-doc-spec §3.5
@@ -78,7 +78,7 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 | 5 | ~~`session`~~ | ~~`record`~~ | ~~**`/save-session`**~~ — **RETIRED (#331, 2026-07-10)**: 세션지식 경로가 wiki-first로 재정의돼 OVM `/wiki` + native memory로 이관. 원석 캡처는 OVM `/capture`가 담당 | — | — | — | — |
 | 6 | `md` | `author` | **doc-concretize** (신규 MD 구조화 저작) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (임의 `.md`) | `success` |
 | 7 | `md` | `edit` | **doc-polish** (기존 MD 린트·개선, Editor-not-Writer) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (기존 `.md` in-place Edit) | `success` |
-| 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) | 외부 도구 (③ GitHub 딜리버리) | 셸 Bash | `github` (이슈 URL) | `success` · **본문 *저작*은 gap → §4 issue-authoring** |
+| 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) + **build-spec Phase 4** (본문 저작 어댑터 — #407) | 외부 도구 (③ GitHub 딜리버리) + ② 출력 leaf | 셸 Bash + 모델 호출 스킬 | `github` (이슈 URL) | `success` · **본문 *저작* gap은 #407로 해소 → §4.1** |
 
 > **매핑 정직성 주의 (#3 goal-doc=build-spec)**: build-spec의 *실제 산출물*은 요구사항 3요소(`goal`/`constraints`/`success_criteria`)를 담은 **YAML Seed**(`docs/specs/{slug}.yaml`)지, `goal-doc-spec` §1~§2의 frontmatter 8필드+본문 5섹션 **goal-doc이 아니에요**. 매핑 `goal-doc=build-spec`는 *"명세 결정화 출력"이라는 intent 수준* 정합이고, Seed→goal-doc 산출물 재프레임(build-spec를 ② goal-doc 출력 스킬로 포지셔닝/개명할지)은 **#111(build-spec reconcile)의 소관**이에요 — 이 문서는 그걸 **재정의하지 않고 위임만** 해요. 따라서 goal-doc 저작은 §4 net-new gap이 *아니에요*(기존 #111 트랙이 소유).
 
@@ -113,7 +113,7 @@ slice N+1  : payload_{N+1} := artifact_path_N            # ← "→"의 런타�
 - 호환 예: doc-concretize(`file:.md`) `→` doc-polish(`payload=source_path` 수용) ✅
 - 비호환 예: gh(`github-url`) `→` doc-polish(`.md` 파일 기대) ✗ — 변환 슬라이스 필요
 
-`goal-doc-spec` §3.2가 *바인딩 타겟 resolution*을 INV-4 비검증·라우터 런타임 책임(#122)으로 둔 것과 동형으로, **체이닝 타입 호환성도 INV-4 스키마 검증 대상이 아니라 라우터 런타임 책임**이에요. 어댑터는 `artifact_path` 타입을 *선언*만 하고, 호환성 *판정/거부*는 Gap-ROUTE 라우터(#122 S2 `test-slice-router.py` 예정)가 해요. 이 분리가 "표기/계약 = 설계 수준, resolution/호환 = 런타임 수준"이라는 linchpin 경계와 정합해요(`goal-doc-spec` §5 주석).
+`goal-doc-spec` §3.2가 *바인딩 타겟 resolution*을 INV-4 비검증·라우터 런타임 책임(#122)으로 둔 것과 동형으로, **체이닝 타입 호환성도 INV-4 스키마 검증 대상이 아니라 라우터 런타임 책임**이에요. 어댑터는 `artifact_path` 타입을 *선언*만 하고, 호환성 *판정/거부*는 Gap-ROUTE 라우터(#122)가 하기로 위임돼 있었어요 — **다만 그 라우터는 빌드되지 않았어요**: #282/PR #283이 slice-router를 포함한 ⑤ self-build 하네스를 통째로 철회했고(native `/goal`+START-PROMPT로 대체), `test-slice-router.py`도 `workflow-harness` 플러그인도 이 레포에 없어요. 따라서 이 위임은 **미구현 상태로 종결**이고, 체이닝 타입 호환은 지금 어떤 코드도 검증하지 않아요. 이 분리가 "표기/계약 = 설계 수준, resolution/호환 = 런타임 수준"이라는 linchpin 경계와 정합해요(`goal-doc-spec` §5 주석).
 
 ### 3.3 조건분기 verdict와 `status` (§3.4 인접)
 
@@ -123,25 +123,35 @@ slice N+1  : payload_{N+1} := artifact_path_N            # ← "→"의 런타�
 
 ## 4. net-new gap 목록 (≤2)
 
-C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설**, 무근거 신설 금지. §2의 8매핑이 전부 기존 자산이므로 net-new는 다음 **1건**이에요(상한 2 이내).
+C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설**, 무근거 신설 금지. §2의 8매핑이 전부 기존 자산이므로 net-new는 다음 **1건**이었고(상한 2 이내), 그 1건도 **새 스킬 없이 기존 build-spec 확장으로 닫혔어요**(§4.1).
 
-### 4.1 issue-authoring (net-new #1, 유일 firm)
+> **이 절을 읽는 사람에게 (2026-08-02)**: 이 §4는 한때 issue-authoring을 미해결 gap으로 선언한 채 굳어 있었고, 실제로 그 낡은 선언을 근거로 "② 출력 leaf 신설"이 사흘간 설계됐어요 — #407이 이미 2026-07-21에 COMPLETED로 닫은 뒤였는데도요(#490). **이 문서의 gap 선언은 닫힌 이슈에 대조하기 전엔 current state가 아니에요.** `~/.claude/rules` P5.
+
+### 4.1 issue-authoring — **해소됨 (#407, 2026-07-21)**
 
 | 항목 | 내용 |
 |------|------|
-| **gap** | `format=issue`의 §2 #8 매핑은 gh CLI로 *기계적* 생성/종료/라벨만 커버해요. issue **본문 저작**(템플릿 선택·라벨 추론·**기존 이슈 대비 중복 검출**·Acceptance 구조화)은 gh CLI에 빈틈이에요. |
-| **왜 native·기존으로 안 되나** | gh는 전송 도구지 저작기가 아니에요. doc-concretize(②)는 임의 MD 저작이라 이슈 *스키마*(라벨 체계·중복 검출)를 모르고, OVM note(②)는 vault 전용이에요. |
-| **레이어 귀속** | **② 출력 leaf**. 근거: `claude-kit-boundary.md` 레이어 표(line 25)가 `issue`를 이미 ②로, line 38이 "issue-skill의 ②출력 leaf 귀속"을 단일 출처로 확정. intra-leaf 합성(diverse-sampling Mode B → issue 본문 후보 생성)은 boundary §3 "규율 범위"로 허용. |
-| **#133 경계** | 이 gap의 *선언*은 #101(이 문서), *실행스킬 인벤토리 귀속 판정*은 #133. 중복 0 — §5.2 참조. |
+| **원래 gap** | `format=issue`의 §2 #8 매핑은 gh CLI로 *기계적* 생성/종료/라벨만 커버했고, issue **본문 저작**(템플릿 선택·라벨 추론·기존 이슈 대비 중복 검출·Acceptance 구조화)이 빈틈이었어요. |
+| **어떻게 닫혔나** | **#407 COMPLETED (2026-07-21, PR #419)** — 새 스킬을 신설하지 않고 기존 **build-spec에 Phase 4 이슈 어댑터**를 얹었어요(`thinking-tools/skills/build-spec/SKILL.md` Phase 0 백로그 스캔 + Phase 4 필드 매핑 + `gh issue create`). 물리 빌드 위치는 **#140 COMPLETED (같은 날)** 이 "② leaf, 새 플러그인 없음"으로 확정. |
+| **레이어 귀속** | **② 출력 leaf**. 근거: `claude-kit-boundary.md` [§2 5-레이어 모델](claude-kit-boundary.md#2-5-레이어-모델) 표가 `issue`를 이미 ②로, [§3 의존 방향 — 규율 범위](claude-kit-boundary.md#3-의존-방향--단방향-harness--leaf)가 "issue-skill의 ②출력 leaf 귀속"을 단일 출처로 확정. intra-leaf 합성(diverse-sampling Mode B → issue 본문 후보 생성)도 같은 §3로 허용. |
+| **#133 경계** | 이 gap의 *선언*은 #101(이 문서), *실행스킬 인벤토리 귀속 판정*은 #133(CLOSED/COMPLETED 2026-06-04). 중복 0 — §5.2 참조. |
+
+**잔여 한계 3종** — "해소됨"은 "완전함"이 아니에요. 아래는 #407 구현이 *남긴* 것이고, 새 net-new gap이 아니라 build-spec 트랙의 후속이에요:
+
+| # | 한계 | 어디서 |
+|---|------|--------|
+| L1 | **닫힌 이슈 미조회** — Phase 0 백로그 스캔이 `--state open`만 훑어, COMPLETED로 닫힌 결정(= "이미 정해졌으니 반대로 가지 마라")을 구조적으로 못 봐요. 이 문서의 §4.1 드리프트를 만든 실패와 같은 뿌리. → **#489** |
+| L2 | **Seed 강제** — Phase 4는 Phase 3(Seed 방출) 뒤에만 열려요. 이슈 하나 쓰려고 Socratic 인터뷰 전체를 통과해야 하니, 짧은 버그 리포트 경로가 없어요. |
+| L3 | **bug 템플릿 형식 도달 불가** — Phase 4 필드 매핑이 배경/스코프/제약/Acceptance/의존/열린 질문으로 고정이라, `.github/ISSUE_TEMPLATE/bug.md`의 증상/재현 절차/기대 동작/환경 형식이 어떤 입력으로도 안 나와요. |
 
 ### 4.2 net-new이 *아닌* 것 (정직성 — 명시 배제)
 
 1:1 정합을 흐리지 않으려고, gap처럼 보이나 net-new가 아닌 항목을 명시 배제해요:
 
-- **goal-doc 저작 (build-spec Seed↔goal-doc)**: §2 #3 주의대로 Seed→goal-doc 재프레임은 **#111의 기존 트랙**이지 #101 신설 gap이 아니에요. build-spec는 이미 존재하는 ② 자산이고, 포지셔닝/개명은 #111이 소유.
-- **debug · quality**(⑤ 실행 스킬 신설 후보): 이건 *출력 포맷* gap이 아니라 **⑤ 실행 스킬** 축이라 #133 소관이에요. 출력 어댑터(이 문서)의 net-new에 안 셈 — 축이 다름(§5.2).
+- **goal-doc 저작 (build-spec Seed↔goal-doc)**: §2 #3 주의대로 Seed→goal-doc 재프레임은 **#111 트랙**이지 #101 신설 gap이 아니에요. **#111은 CLOSED/COMPLETED (2026-07-05, PR #322)** — spec-first→build-spec 리네임으로 항목 전건 해소. goal-doc 포맷 자체는 그 뒤 #282/#283이 철회했으므로, 이 배제는 이제 "다른 트랙이 소유"가 아니라 **"대상이 사라져 종결"**로 읽어야 해요.
+- **debug · quality**(⑤ 실행 스킬 신설 후보): 이건 *출력 포맷* gap이 아니라 **⑤ 실행 스킬** 축이라 #133 소관이에요. 출력 어댑터(이 문서)의 net-new에 안 셈 — 축이 다름(§5.2). **#133도 CLOSED/COMPLETED (2026-06-04, PR #137)**, 다만 산출물 `execution-skill-inventory.md`는 #282/#283 철회로 삭제됐어요(§ 서두 주의).
 
-> **결론**: #101 출력-포맷 축의 net-new = **issue-authoring 1건**(≤2 충족, C-5 "≤1-2" 준수). debug/quality는 #133 실행-스킬 축의 별도 후보이고, 두 축이 만나는 유일 지점이 issue(=②, §5.2)예요.
+> **결론 (2026-08-02 갱신)**: #101 출력-포맷 축의 net-new는 **issue-authoring 1건**이었고(≤2 충족, C-5 "≤1-2" 준수), **#407/PR #419로 신설 없이 닫혔어요**. 명시 배제 2건이 위임하던 하류 트랙(#111·#133)도 전부 종결 상태예요. **즉 이 §4에 열려 있는 net-new gap은 0건이고, 남은 건 §4.1 L1–L3 잔여 한계뿐이에요.**
 
 ---
 
@@ -162,13 +172,17 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 | gap *선언* + 어댑터 *매핑* (`issue=gh CLI` + 본문 저작 빈틈) | **#101** (이 문서 §2 #8 + §4.1) | "issue-authoring이 net-new gap이다" + 호출 규약 |
 | 실행스킬 *판정* + *레이어 귀속* (재사용/native/신설, ②) | **#133** | "gh CLI=외부 재사용, issue-authoring=신설 ② leaf" |
 
-두 doc은 서로 **참조만** 하고 상대 영역을 재정의하지 않아요. net-new gap은 #101이 *한 번* 선언하고, 레이어 귀속은 #133이 *한 번* 판정해요(`boundary` line 25/38 단일 출처 인용). → 중복 0.
+두 doc은 서로 **참조만** 하고 상대 영역을 재정의하지 않아요. net-new gap은 #101이 *한 번* 선언하고, 레이어 귀속은 #133이 *한 번* 판정해요(`boundary` [§2 5-레이어 모델](claude-kit-boundary.md#2-5-레이어-모델)·[§3 규율 범위](claude-kit-boundary.md#3-의존-방향--단방향-harness--leaf) 단일 출처 인용). → 중복 0.
+
+> **줄번호 인용을 앵커로 교체 (#490)**: 이 문서는 원래 boundary를 `line 25`·`line 38`로 인용했는데, 실제 위치는 이미 27·72로 밀려 있었어요. 줄번호 인용은 대상 파일이 한 줄만 바뀌어도 낡으므로 **섹션 앵커로만** 인용해요.
 
 > **의사결정 기록(거울 표 해소)**: 이 분할표는 한때 #133 문서 §4에 거울로도 존재했고 수동 동기화 대상이었어요. 그 문서가 goal-doc 하네스 철회(#282/#283)로 삭제되면서 **이 §5.2가 유일한 출처**가 됐어요 — 동기화 부담도 drift 리스크도 함께 사라졌어요.
 
 ### 5.3 #122 Gap-ROUTE와의 경계
 
-라우터(#132 Gap-ROUTE)는 `work_type`→슬라이스 시퀀스를 결정한 뒤, 각 슬라이스 바인딩을 **이 어댑터 계약으로 호출**해요. 즉 어댑터 = 라우터가 이질적 출력 자산을 균일 호출하는 인터페이스 layer. resolution(타겟 실재)·체이닝 타입 호환은 §3.2대로 라우터 런타임 책임.
+라우터(#132 Gap-ROUTE)는 `work_type`→슬라이스 시퀀스를 결정한 뒤, 각 슬라이스 바인딩을 **이 어댑터 계약으로 호출**하는 것으로 설계됐어요. 즉 어댑터 = 라우터가 이질적 출력 자산을 균일 호출하는 인터페이스 layer. resolution(타겟 실재)·체이닝 타입 호환은 §3.2대로 라우터 런타임 책임.
+
+> **라우터는 존재하지 않아요 (#282/#283, 2026-06-29)**: 위 문단은 설계 당시 전제고, slice-router는 ⑤ self-build 하네스 철회로 빌드되지 않았어요(§3.2 주의 참조). 이 §5.3은 **어댑터 계약이 무엇에 소비되도록 설계됐는지의 기록**으로 읽으세요 — 현재 실제 소비자는 라우터가 아니라 스킬을 직접 호출하는 사람/세션이에요.
 
 ---
 
@@ -178,7 +192,7 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 |-----------------|----------|
 | **계약 doc** (슬라이스가 출력 스킬을 호출하는 균일 인터페이스: 입력 intent/format/payload/destination, 출력 artifact path + 상태) | §1(4-튜플 입력 + 2-튜플 출력) |
 | **포맷×동작 매트릭스** (html=graphify, note=OVM note, goal-doc=build-spec, handoff=/handoff [G26 retire → 머신 레벨 `session-close`], session=/save-session [#331 retire → OVM `/wiki`+memory], md저작=doc-concretize, md편집=doc-polish, issue=gh CLI) | §2(8매핑 표) |
-| **net-new gap 목록**(≤2, 유력 issue-authoring) | §4(issue-authoring 1건 + 명시 배제) |
+| **net-new gap 목록**(≤2, 유력 issue-authoring) | §4(issue-authoring 1건 + 명시 배제) · **그 1건은 #407/PR #419로 해소, 현재 열린 gap 0건** |
 | (정합) `goal-doc-spec` §3.5 산출 체이닝 런타임 계약 | §3(`artifact_path(N)→payload(N+1)` + 타입 호환) |
 | (정합) #133 issue-authoring 경계 중복 0 | §5.2(소유권 분할표) |
 
@@ -186,4 +200,4 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 
 ---
 
-**참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·② 레이어 표·issue ② 귀속 line 25/38) · #99/#100/#102/#111/#122/#132/#133. (goal-doc-spec·omc-to-native-substrate·execution-skill-inventory·G2 goal-doc·레이어 재설계 토론 문서는 goal-doc 하네스 철회(#282/#283)와 함께 삭제됐어요 — 근거는 각 이슈 번호로 찾으세요.)
+**참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·[§2 ② 레이어 표](claude-kit-boundary.md#2-5-레이어-모델)·[§3 issue ② 귀속](claude-kit-boundary.md#3-의존-방향--단방향-harness--leaf)) · #99/#100/#102/#111/#122/#132/#133 (**전부 CLOSED** — 이 문서가 위임한 하류 트랙에 열려 있는 것은 없어요) · #407/PR #419(§4.1 해소) · #490(이 갱신). (goal-doc-spec·omc-to-native-substrate·execution-skill-inventory·G2 goal-doc·레이어 재설계 토론 문서는 goal-doc 하네스 철회(#282/#283)와 함께 삭제됐어요 — 근거는 각 이슈 번호로 찾으세요.)
