@@ -117,12 +117,13 @@ Quick Mode output format:
 3. On detecting an uncertainty signal, mark that area's checklist item D5 as N (that is the 10% deduction) and add 1Q (detail: [reference.md](reference.md) §3, §6)
 4. When the Core 4 clear the Depth Gate (≥ 65% **and** D4 = Y in every entered area — [reference.md](reference.md) §6), ask the user whether to enter Extended areas
 
-**Exploration Depth Scoring** (isolated, checklist-based): at each checkpoint, score the four areas via the **6-item Y/N checklist** in [reference.md](reference.md) §6 — `area_score = Σ(weight of each Y item)`, never a free 0-100% judgement — and record each item's Y/N plus a one-line reason in the STATE block's `scoring_rationale`.
+**Exploration Depth Scoring** (checklist-based): at each checkpoint, score the just-completed area via the **6-item Y/N checklist** in [reference.md](reference.md) §6 — `area_score = Σ(weight of each Y item)`, never a free 0-100% judgement — and record each item's Y/N plus a one-line reason in the STATE block's `scoring_rationale`. Scoring stays inline by default; only a **gate-imminent round** escalates to isolated re-scoring — same cheap-by-default shape as `build-spec` Phase 2 (`build-spec/reference.md` §2).
 
-Scoring runs in a **separate Agent subagent**, not inline — the interviewer scoring its own interview is the same self-verification bias that isolated Judge removes in `adversarial-review`. Pass the subagent only `{the area's Q&A transcript + the §6 checklist + the findings claimed for that area}`; it returns the 6 Y/N marks, the reasons, and the area score. The same call verifies the "발견 1건 이상 도출" item, so a claimed finding is confirmed by a context that never saw it being produced.
+**Gate-imminent round**: the checkpoint whose own inline scores already satisfy the Depth Gate (Depth ≥ 65% AND D4=Y in every entered Core area — [reference.md](reference.md) §6) — the same test as the Termination Gate itself, evaluated one step early against inline numbers.
 
-- One call per checkpoint, and a checkpoint fires on completing a single area, so this is one area per call (4 Core areas → ~4-6 calls per session).
-- **Agent call fails / unavailable** → score inline against the same checklist and mark `scoring_isolated: false` in STATE. Add one line to the checkpoint output before the progress summary:
+- **Gate-imminent round only**: re-score the same checklist in a **separate Agent subagent** — the interviewer scoring its own interview is the same self-verification bias that isolated Judge removes in `adversarial-review`. Pass the subagent `{each entered Core area's Q&A transcript + the §6 checklist + the findings claimed for each area}`; it returns the 6 Y/N marks, the reasons, and the area score, per area. The same call verifies the "발견 1건 이상 도출" item, so a claimed finding is confirmed by a context that never saw it being produced. It is this recomputed result, not the inline one, that actually opens the gate.
+- Every other checkpoint: `scoring_isolated: false` in STATE — inline by design, not a failure.
+- **Agent call fails / unavailable at a gate-imminent round** → score inline against the same checklist and keep `scoring_isolated: false` in STATE. Add one line to the checkpoint output before the progress summary:
   `[격리 채점 실패 — 자체 채점, 신뢰도 낮음]`. One line, not a new round — then proceed exactly as
   isolated mode would (#433: a self-scored Depth and an isolated one differ in confidence and must
   not render identically).
@@ -235,7 +236,7 @@ Detailed format: [templates/INTERVIEW_STATE.md](templates/INTERVIEW_STATE.md)
 | Tool | When | Example |
 |------|------|---------|
 | AskUserQuestion | Domain selection, each interview question, checkpoints | "Which domain best fits?" |
-| Agent | Isolated Depth scoring + finding verification at each checkpoint | Pass area Q&A + §6 checklist, get Y/N marks back |
+| Agent | Isolated Depth scoring + finding verification, gate-imminent checkpoint only | Pass area Q&A + §6 checklist, get Y/N marks back |
 | Glob / Grep | Phase 0 Repo Context Intake only (§15) | `Glob("{README.md,CLAUDE.md,...}")` → grep for target keywords |
 | (None) | Deep thinking, synthesis | Internal processing |
 
