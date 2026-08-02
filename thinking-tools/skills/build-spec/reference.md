@@ -117,3 +117,22 @@ the repo's own recent titles and follows their shape rather than assuming one.
 **Known ceiling.** Term overlap is not meaning: a conflicting issue sharing no vocabulary with the
 target scores 0 and never surfaces. Closed candidates are ranked on titles only. Both are recorded in
 SKILL.md Known Limitations — the scan narrows the search, it does not close it.
+
+---
+
+## 6. UD Handoff — Phase 2.5 Skip Condition (#430)
+
+**Why detect the feedback source at all.** `<feedback>` may arrive as a file path — a Refine-mode
+session's `<feedback>` can be an `unknown-discovery` Discovery Report handed off asynchronously via
+a Seed file (`../../reference/ud-bs-boundary.md`'s "UD → BS" path). Phase 1's A3 has to `Read` that
+path before injecting it, or Phase 2.5's skip condition below has nothing to check — a condition
+that can never observe its own trigger is not a condition, it is dead text.
+
+**Why skip Phase 2.5 when it fires.** Phase 2.5 exists to catch dimensions the interview never
+asked about. `unknown-discovery`'s interview already ran a deeper version of exactly that sweep
+against this same spec — more rounds, isolated Depth scoring, four dedicated areas — so re-running
+the one-`Agent`-call version on top of it is redundant, not additive, and would just spend a call
+re-deriving findings the UD report already states with more rigor.
+
+**Detection.** The report's frontmatter carries `skill: unknown-discovery` (common-schema.md);
+absent that (a bare prose feedback string), the user naming it explicitly is enough.

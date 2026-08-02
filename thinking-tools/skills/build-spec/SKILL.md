@@ -21,12 +21,9 @@ model: sonnet
   - If user writes in English → English output
   - Persona labels and STATE block keys: English
 
-## Role Boundary
-
-unknown-discovery와의 축·세 경로·findings 매핑: [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md).
-
 ## Prerequisites
 
+- Role boundary vs unknown-discovery: [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md)
 - A vague idea, feature request, or requirement to crystallize
 - Quick mode: include "빠르게", "스펙만", or "quick" at the start of your request (selects the compressed interview before Phase 1 begins)
 - Brownfield repo: detected automatically via Glob; name the project/repo root in prose if needed
@@ -112,9 +109,7 @@ Iterative Socratic interview to raise clarity across all active dimensions.
 - Read `<prev-seed-path>` → restore dimension scores and goal/constraints/success
 - Skip Phase 0 (reuse domain, brownfield status)
 - Phase 1 starts from the dimension with the lowest clarity score
-- `<feedback>` may be prose, or a file path (e.g. an `unknown-discovery` Discovery Report). If it is a
-  path, `Read` it before injecting — its frontmatter (`skill: unknown-discovery`) is what Phase 2.5's
-  skip condition checks for, so this read has to happen for that condition to ever be reachable.
+- `<feedback>` may be a file path — `Read` it before injecting (`reference.md` §6)
 - Inject `<feedback>` as Phase 1 preamble context
 - STATE block records `refine_generation: N`
 
@@ -185,13 +180,9 @@ The clarity gate only scores dimensions that were *asked*. A dimension nobody ra
 it is not scored at all, so all four dimensions can sit at 0.9 while the spec still collides with a
 decision made elsewhere. This pass is what looks at the unasked.
 
-**Skip condition — UD handoff**: if this Refine-mode session's (A3) `<feedback>` is itself an
-`unknown-discovery` Discovery Report (frontmatter `skill: unknown-discovery`, or the user names it
-as one), skip this pass entirely instead of running it — see
-[../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md). UD already ran a deeper
-version of the same sweep against this exact spec; running Phase 2.5 again on top of it is
-redundant, not additive. Record `blindspot_pass: skipped` in STATE with reason
-`"already covered by prior unknown-discovery pass"` and proceed straight to Phase 3.
+**Skip condition — UD handoff** (`reference.md` §6): `<feedback>` is an `unknown-discovery` Discovery
+Report (`skill: unknown-discovery`, or user-named) → skip, record `blindspot_pass: skipped`
+in STATE (`"already covered by prior unknown-discovery pass"`), Phase 3.
 
 - One `Agent` call. Pass `{the drafted Seed fields + the Phase 0 backlog scan result}` and ask for **at
   most 3** findings the interview never covered, each stated as a falsifiable question against the spec
@@ -357,7 +348,6 @@ scoring_rationale:
 - **Scoring rubric**: [reference.md](reference.md)
 - **Workflow examples**: [examples.md](examples.md)
 - **Seed template**: [templates/SEED_SPEC.yaml](templates/SEED_SPEC.yaml)
-- **Role boundary vs unknown-discovery**: [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md)
 - **Question templates**: [templates/questions/](templates/questions/)
 - **Common output schema**: [../../reference/common-schema.md](../../reference/common-schema.md)
 
