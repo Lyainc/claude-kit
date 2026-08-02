@@ -588,6 +588,35 @@ def case_token_cost_no_token_data(errors: list[str]) -> None:
     _assert(res["cost"] is None, "no token data → cost is None", errors)
 
 
+def case_token_cost_zero_cost_not_mislabeled_omitted(errors: list[str]) -> None:
+    """PR #509 review nit (#510 item 2): a priced event whose cost sums to exactly
+    $0.00 must render as a real (zero) cost, never as 'omitted' — `cost is None` is
+    the only honest signal for omission, not truthiness of the summed value.
+
+    Needs total_tokens > 0 (else the whole section is skipped) while the priced
+    event itself contributes zero cost — so an unpriced event supplies the nonzero
+    token volume, and the priced event's own fields are all zero.
+    """
+    print("\ncase: token_cost_zero_cost_not_mislabeled_omitted")
+    events = [
+        {**_ev("skill_invoke", 10, name="a"),
+         "meta": {"duration_ms": 10, "model": "claude-sonnet-5",
+                   "input_tokens": 0, "output_tokens": 0,
+                   "cache_creation_tokens": 0, "cache_read_tokens": 0}},
+        {**_ev("skill_invoke", 10, name="b"),
+         "meta": {"duration_ms": 10, "input_tokens": 500}},  # no model — unpriced
+    ]
+    res = report.token_cost_view(events)
+    _assert(res["cost"] is not None and sum(res["cost"].values()) == 0.0,
+            f"cost is a real zero, not None (got: {res['cost']})", errors)
+
+    out = _run_main_with(events, ["report.py", "--since=all", "--format=table"])
+    _assert("비용 열 생략" not in out,
+            "a real (zero) cost is not mislabeled as omitted", errors)
+    _assert("cost=$0.0000" in out,
+            f"the zero cost renders explicitly (excerpt not found in: {out!r})", errors)
+
+
 def case_token_cost_view_end_to_end(errors: list[str]) -> None:
     """main(): json carries token_cost + caveat; table renders both tokens and cost
     side by side, and omits cost with a reason when nothing was priced."""
@@ -657,6 +686,7 @@ def main() -> int:
     case_token_cost_unregistered_model_excluded(errors)
     case_token_cost_mixed_priced_and_unpriced(errors)
     case_token_cost_no_token_data(errors)
+    case_token_cost_zero_cost_not_mislabeled_omitted(errors)
     case_token_cost_view_end_to_end(errors)
 
     print()

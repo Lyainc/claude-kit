@@ -590,7 +590,7 @@ def main() -> int:
         for kind in ("input", "output", "cache_write", "cache_read"):
             tok = token_cost["tokens"][kind]
             tok_pct = (tok / total_tokens * 100) if total_tokens else 0.0
-            if total_cost:
+            if total_cost is not None:
                 cost_val = token_cost["cost"][kind]
                 cost_pct = (cost_val / total_cost * 100) if total_cost else 0.0
                 cost_str = f"${cost_val:.4f} ({cost_pct:5.1f}%)"
