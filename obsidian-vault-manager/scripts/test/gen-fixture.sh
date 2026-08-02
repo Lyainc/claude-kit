@@ -598,7 +598,7 @@ EOF
 
   log "  Audit error fixtures (v4, E1-E11):"
   log "    E1 missing_frontmatter              : 5 files"
-  log "    E2 missing_required_fields          : 10 files (5 base + 5 status-missing)"
+  log "    E2 missing_required_fields          : 5 files (5 base)"
   log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix; suggested_filename)"
   log "    E4 broken_wikilink                  : 5 files"
   log "    E5 orphan_note                      : 6 files (5 w/ tag candidates + 1 empty-tags graceful)"
@@ -607,7 +607,7 @@ EOF
   log "    E10 misplaced_file                  : 5 files (type:session in notes/, ring-linked)"
   log "    E11 unstructured_path               : 5 files (2 root-direct + 3 in 20_Projects/)"
   log "    E12 wiki_stale                      : 5 files (wiki/ verified:2020 > STALE_WIKI_DAYS; contradiction=--deep, deferred)"
-  log "    Total seeded errors                 : 51 files + 12 E9 files (2 pairs)"
+  log "    Total seeded errors                 : 46 files + 12 E9 files (2 pairs)"
   log "    Extra clean notes (FP base)         : 200 + root _index.md (E11 exempt guard) + 2 fresh wiki (E12 fp guard)"
   log ""
 fi
