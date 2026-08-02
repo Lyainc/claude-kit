@@ -1,38 +1,14 @@
 # Build Spec — Interview State Template
 
-## Usage
+STATE 블록의 정확한 필드는 [SKILL.md](../SKILL.md)의 STATE Block Contract 섹션이 유일 소스다 —
+필드가 바뀔 때마다 이 파일까지 고칠 필요가 없도록, 여기서는 필드를 다시 나열하지 않는다.
 
-Save trigger is **user-initiated only**. Write this file when the user explicitly
-asks to pause and resume later (Korean: "저장해줘", "나중에 이어하자", "여기까지 저장";
-English: "save state", "pause and resume later").
-
-The Phase 1 loop does NOT proactively persist state — the in-memory STATE block
-(emitted after every round) is the canonical run-time checkpoint. File persistence
-exists for cross-session continuity only.
-
-Restore by reading this file at the start of a new session.
-
-## STATE Block Format
-
-```
-<!-- STATE:CHECKPOINT -->
-skill: build-spec
-phase: {0|1|2|3|4}
-target: {name} | domain: {tech|biz|creative} | brownfield: {true|false}
-round: {N} | refine_generation: {0|N}
-clarity: [goal:{score:.2f}] [constraint:{score:.2f}] [success:{score:.2f}] [context:{score:.2f or N/A}]
-ambiguity: {value:.2f} | gate: {open|closed} | consecutive_gate: {0|1|2+}
-scoring_rationale:
-  goal: "{last rationale}"
-  constraint: "{last rationale}"
-  success: "{last rationale}"
-  context: "{last rationale or N/A}"
-<!-- /STATE -->
-```
+저장 트리거·복원 절차 등 `unknown-discovery`와 공유하는 계약은
+[../../../reference/interview-state.md](../../../reference/interview-state.md) 참고.
 
 ## File Persistence Format
 
-When saving to file (`docs/specs/{target}/state.md`):
+저장 경로: `docs/specs/{target}/state.md`
 
 ```markdown
 ---
@@ -43,7 +19,7 @@ saved_at: {ISO-datetime}
 ---
 
 <!-- STATE:CHECKPOINT -->
-...full STATE block content...
+...세션의 현재 STATE 블록을 SKILL.md 형식 그대로 붙여넣는다 (필드를 여기서 다시 정의하지 않음)...
 <!-- /STATE -->
 
 ## Discoveries so far
@@ -61,10 +37,7 @@ saved_at: {ISO-datetime}
 {integration points and existing stack notes}
 ```
 
-## Restoration Instructions
+## Restoration
 
-On new session start:
-1. Read this file
-2. Restore STATE block values
-3. Display to user: "이전 인터뷰를 이어서 시작합니다. Round {N}부터 재개해요."
-4. Resume from the dimension with lowest clarity score (not from Round 1)
+저장 트리거·일반 복원 단계는 [../../../reference/interview-state.md](../../../reference/interview-state.md) 참고.
+build-spec 고유: 복원 시 "이전 인터뷰를 이어서 시작합니다. Round {N}부터 재개해요."를 먼저 표시한다.
