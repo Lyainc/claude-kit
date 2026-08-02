@@ -492,6 +492,37 @@ Fresh wiki page (verified today) — must NOT trip E12_wiki_stale (fp guard).
 EOF
   done
 
+  # ── E12 companion: wiki_unverified — missing/unparseable `verified:` (#494) ──
+  # A pre-v5-§4.1 wiki page (verified auto-stamp didn't exist yet) has no
+  # `verified:` at all; a hand-edited one can carry a malformed value. Both are
+  # uncomputable for staleness, so detect_stale_wiki skips them — but that skip
+  # must not be a permanent black hole, so they trip E12_wiki_unverified instead.
+  write_file "$FIXTURE_DIR/wiki/audit-e12-unverified-001.md" <<EOF
+---
+created: 2020-01-01
+tags: [wiki, domain]
+type: wiki
+provenance: fixture-seed-e12-unverified-1
+---
+
+# Audit E12 Unverified Wiki 1
+
+Wiki page with NO \`verified:\` field — E12_wiki_unverified, not E12_wiki_stale.
+EOF
+  write_file "$FIXTURE_DIR/wiki/audit-e12-unverified-002.md" <<EOF
+---
+created: 2020-01-01
+tags: [wiki, domain]
+type: wiki
+verified: TBD
+provenance: fixture-seed-e12-unverified-2
+---
+
+# Audit E12 Unverified Wiki 2
+
+Wiki page with an unparseable \`verified: TBD\` — E12_wiki_unverified.
+EOF
+
   # ── E9: tag_vocabulary_inconsistency (2 pairs, vault-wide) ────────────────────
   # E9 is a VAULT-LEVEL check (findings carry path:"") — DoD counts PAIRS, not
   # files. We seed two pairs, each form in 3 files (== E9_MIN_FILES) so the
@@ -607,7 +638,8 @@ EOF
   log "    E10 misplaced_file                  : 5 files (type:session in notes/, ring-linked)"
   log "    E11 unstructured_path               : 5 files (2 root-direct + 3 in 20_Projects/)"
   log "    E12 wiki_stale                      : 5 files (wiki/ verified:2020 > STALE_WIKI_DAYS; contradiction=--deep, deferred)"
-  log "    Total seeded errors                 : 46 files + 12 E9 files (2 pairs)"
+  log "    E12 wiki_unverified                 : 2 files (verified missing / unparseable, #494)"
+  log "    Total seeded errors                 : 48 files + 12 E9 files (2 pairs)"
   log "    Extra clean notes (FP base)         : 200 + root _index.md (E11 exempt guard) + 2 fresh wiki (E12 fp guard)"
   log ""
 fi

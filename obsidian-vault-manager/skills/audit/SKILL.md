@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 10 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale wiki pages (E12a, stale `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 10 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale inbox (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale or unverifiable wiki pages (E12a, stale/missing/unparseable `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep AskUserQuestion
 ---
@@ -117,14 +117,14 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | E9 | `tag_vocabulary_inconsistency` | Warning | P2 | `frontmatter_records` (vault-wide tags + keys) | — (display-only; `path: ""`) |
 | E10 | `misplaced_file` | Warning | P1 | `frontmatter_records` (`type` + folder) | — (display-only) |
 | E11 | `unstructured_path` | Warning | P1 | `frontmatter_records` (path) | — (display-only) |
-| E12 | `wiki_self_audit` | Warning | P1 | `frontmatter_records` (`wiki/` path + `type: wiki` + `verified`) | — (display-only) |
+| E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified`, #494) | Warning | P1 | `frontmatter_records` (`wiki/` path + `type: wiki` + `verified`) | — (display-only) |
 
 > **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6, E10–E12 = P1 (정체·구조/stagnation·structure). E5, E9 = P2 (quality signal). (E10/E11 are the structural checks per #128/#129; E12 is the wiki self-audit per #330.)
 > **E9 vocabulary** (#119): a **vault-level** check, not per-file — aggregates tags/keys across the whole vault and emits one finding per inconsistent pair with `path: ""`. E9a = a tag and its regular `+s` plural both used (`api`↔`apis`); E9b = a frontmatter key in camelCase and its snake_case equivalent both used (`sourceUrl`↔`source_url`). FP guard: report only when BOTH forms appear in ≥3 files. E9c (semantic synonyms, e.g. `llm`↔`large-language-model`) ships as the skill-only `--deep` LLM opt-in (#167) — see Phase 2.5 below (mirrors E12b's skill-only design). Never auto-fixed — the canonical form is the user's choice.
 > **E3 / E5 / E10 / E11 detail** (suggested filename, orphan connection candidates,
 > misplaced-file and unstructured-path scoping): all display-only, full criteria in
 > `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md`.
-> **E12 wiki self-audit** (#330, v5 §7 U3): flags a `wiki/` page (top folder `wiki/` AND `type: wiki`) whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) — staleness is the abandonment risk for the LLM wiki. A missing/unparseable `verified:` is skipped (uncomputable). Display-only (recompile/re-verify is a semantic decision). E12a (staleness) ships deterministically in CLASSIFY. E12b (cross-page semantic contradiction, #336) ships as the skill-only `--deep` LLM opt-in — see Phase 2.5 DEEP below (mirrors E9c's skill-only design).
+> **E12 wiki self-audit** (#330, v5 §7 U3): flags a `wiki/` page (top folder `wiki/` AND `type: wiki`) whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) — staleness is the abandonment risk for the LLM wiki. A missing/unparseable `verified:` is uncomputable for staleness, so it does NOT get skipped — it surfaces as the companion finding `wiki_unverified` instead (#494), for a distinct reason (판정 불가, not confirmed fresh), so a `wiki/` page predating the v5 §4.1 auto-stamp never goes permanently invisible to E12. Display-only (recompile/re-verify is a semantic decision). E12a (staleness + its unverified companion) ships deterministically in CLASSIFY. E12b (cross-page semantic contradiction, #336) ships as the skill-only `--deep` LLM opt-in — see Phase 2.5 DEEP below (mirrors E9c's skill-only design).
 
 **Output**: Findings list:
 ```

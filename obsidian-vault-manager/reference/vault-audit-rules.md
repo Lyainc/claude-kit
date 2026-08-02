@@ -23,7 +23,7 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. E9a/E9b are deterministic; E9c semantic synonym ships as the skill-only `--deep` LLM opt-in (#167, see the `## E9` section below). |
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `inbox/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
-| E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
+| E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; its companion `E12_wiki_unverified` (#494) flags a `wiki/` page whose `verified:` is missing or unparseable — staleness is uncomputable, so it is reported for a different reason instead of being skipped forever; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
 
 > **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
 > **P1 = 정체/구조 (stagnation / structure)**: E6 surfaces unprocessed inputs; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / archive / move / recompile).
@@ -375,6 +375,7 @@ for each record in frontmatter_records:
 | Sub-check | What it catches | Determinism | Status |
 |-----------|-----------------|-------------|--------|
 | **E12a** wiki staleness | a wiki page whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) | deterministic — date arithmetic only | **SHIPS** (`E12_wiki_stale`, `audit-validate.py`) |
+| **E12a companion** wiki unverified (#494) | a wiki page whose `verified:` is missing or unparseable — staleness is uncomputable, not confirmed fresh | deterministic — presence/parse check only | **SHIPS** (`E12_wiki_unverified`, `audit-validate.py`) |
 | **E12b** cross-page contradiction | two wiki pages asserting conflicting claims | **non-deterministic** — needs semantic LLM judgment | **SHIPS** (#336) as a skill-only `--deep` LLM opt-in (`wiki_contradiction`, mirrors E9c) |
 
 **Why the split, not one rule**: the audit is a deterministic reference impl (`audit-validate.py` runs with LLM cost 0). Cross-page *semantic* contradiction cannot be decided by a mechanical rule — a keyword/regex proxy would only manufacture false positives against the audit's `fp_on_clean == 0` contract. Rather than fake determinism, E12b follows the E9c precedent: it never touches `audit-validate.py` or the `--dod` gate (both stay deterministic-only, unmodified by #336). Instead the LLM judgment lives entirely in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md`, gated behind explicit `--deep` opt-in and a mandatory `AskUserQuestion` confirm step for false-positive mitigation. E12a — staleness — remains the honest deterministic slice `audit-validate.py` ships and is DoD-measured. This resolves the G23-S1 design fork ("deterministic audit vs. semantic contradiction detection") the same way #167 intends to resolve it for E9 (E9c itself remains unimplemented/open).
@@ -415,7 +416,7 @@ STALE_WIKI_DAYS = 90   # `verified:` is auto-stamped on every wiki write (v5 §4
 ```
 
 **Source**: `frontmatter_records` (uses path + `type` + `verified` only).
-**Scope guard** (`detect_stale_wiki`): flags a page **only** when its top folder is `wiki/` AND `type: wiki` — a stray old `verified:` on a non-wiki file is never an E12. A page with a missing or unparseable `verified:` is **skipped** (staleness is uncomputable without it; the field is write-time auto-stamped, so absence is a write-path bug rather than a staleness signal — flagging it would be a false E12).
+**Scope guard** (`detect_stale_wiki` / `detect_unverifiable_wiki` share the same `_wiki_pages` filter): flags a page **only** when its top folder is `wiki/` AND `type: wiki` — a stray old/missing `verified:` on a non-wiki file is never an E12. A page with a missing or unparseable `verified:` is **skipped by `detect_stale_wiki`** (staleness is uncomputable without it) but **not dropped** — it is reported by the E12a companion `E12_wiki_unverified` instead (#494), so a page the write-time auto-stamp (v5 §4.1) never touched — every `wiki/` page compiled before that landed — does not go permanently invisible to the audit.
 
 **Detection pseudocode**:
 
@@ -424,11 +425,15 @@ for each record in frontmatter_records:
   if path.parts[0] != "wiki": skip          # wiki/-scoped
   if fm.type != "wiki": skip                # type:wiki only
   verified = parse_date(fm.verified)
-  if verified is None: skip                 # missing/unparseable → uncomputable
+  if verified is None:                      # missing/unparseable → uncomputable
+    → wiki_unverified                       # E12a companion (#494), NOT skipped
+    continue
   if (today - verified).days > STALE_WIKI_DAYS: → wiki_stale
 ```
 
-**Rationale**: A stale wiki page is a **display-only** P1 warning (staleness = 정체, same tier as E6) — the next action (recompile / re-verify) is a semantic decision, never auto-fixed. Regression-covered by the DoD fixture (5 seeded `wiki/` pages with `verified: 2020-01-01` → `seeded_detected.E12 == 5`; 2 fresh pages stamped with the run date → `fp_on_clean.E12 == 0`, date-independent) plus a scoping unit test (`test-wiki-self-audit.py`).
+**Why not fall back to `created:`**: the issue this shipped against (#494) considered defaulting staleness age to `fm.created` when `verified` is absent. Rejected — `created` is the page's authoring date, not its last-touched date; treating it as a staleness proxy conflates the two and can UNDERSTATE the age of a page that was genuinely re-verified since creation but never re-stamped (pre-v5-§4.1 cohort). Reporting "verified 판정 불가" instead of a guessed age keeps the finding honest about what is actually known.
+
+**Rationale**: A stale wiki page is a **display-only** P1 warning (staleness = 정체, same tier as E6) — the next action (recompile / re-verify) is a semantic decision, never auto-fixed. `E12_wiki_unverified` carries the same P1/display-only treatment, for a different reason: the page's freshness is simply unknown. Regression-covered by the DoD fixture (5 seeded `wiki/` pages with `verified: 2020-01-01` → `seeded_detected.E12_wiki_stale == 5`; 2 seeded `wiki/` pages with missing/unparseable `verified:` → `seeded_detected.E12_wiki_unverified == 2`; 2 fresh pages stamped with the run date → `fp_on_clean == 0` for both types, date-independent) plus a scoping unit test (`test-wiki-self-audit.py`).
 
 ## Auto-fix eligibility
 
