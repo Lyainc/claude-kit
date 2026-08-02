@@ -121,6 +121,13 @@ Cycle through 4 attack vectors in order. Each round:
 In isolated execution mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
 In standard mode, visibility is best-effort (prompt contract only — the LLM shares full conversation history across personas; isolated execution mode provides mechanical isolation via subagent context boundaries).
 
+**Agent call fails / unavailable in isolated mode** → evaluate the Judge inline instead (same input
+as the standard-mode prompt contract) and set `judge_isolated: false` in STATE. Before that round's
+Judge scoring line, add one line: `[격리 판정 실패 — 자체 판정, 신뢰도 낮음]` — one line, not a new
+round. Mirrors the isolated-fallback pattern `build-spec`/`unknown-discovery` already use for their
+own gate-imminent scoring (#433): a self-judged round and an isolated one differ in confidence and
+must not render identically.
+
 **Automated Defense Quality Floor** (자동 방어 mode only):
 Spawn Defender as a separate Agent subagent — not inline generation — regardless of the 격리 실행 toggle. An inline auto-defender shares context with the Attacker turn that just produced the attack, which biases it toward a generic, half-hearted rebuttal; a dedicated subagent call removes that bias the same way isolated Judge removes evaluation bias.
 Pass `{claim text + full steelman (including Phase 0 Agreement Points + Learned Points) + current round attack only}` as the subagent prompt — the same inputs the Role Visibility Contract already grants Defender, just delivered via a dedicated call.
@@ -198,6 +205,7 @@ Target: {name} | Claims: {N} | Phase: {0|1|2}
 Current Claim: {idx}/{N} | Round: {r}/5 | Angle: {P-id|adhoc}
 Survival: [logic:{score}%] [evidence:{score}%] [counter:{score}%] [scope:{score}%]
 Resilience: {탄탄|보통|취약} | Weighted Score: {weighted_avg}% | Attacks: {count} | Defenses: {success}/{total}
+judge_isolated: {true|false}
 Verdict-so-far: [claim1:survived|collapsed|pending] [claim2:...] ...
 <!-- /STATE -->
 ```
