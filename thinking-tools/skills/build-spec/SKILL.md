@@ -6,7 +6,8 @@ description: |
 
   Trigger when user mentions: build-spec, 명세 만들기, 아이디어를 스펙으로, 요구사항 명확화, 아이디어를 명세로,
   seed 생성, ambiguity gate, requirements crystallize.
-  Routing: 단순 문서 구체화는 doc-concretize, YAML Seed 스펙이 필요할 때만 build-spec.
+  Routing: 만들 대상이 아직 정해지지 않았거나 위험이 커서 먼저 맹점부터 훑어야 하면 unknown-discovery,
+  단순 문서 구체화는 doc-concretize, 만들 대상이 정해져 있고 YAML Seed 스펙으로 굳힐 때만 build-spec.
 allowed-tools: AskUserQuestion Read Write Glob Grep Agent Bash
 model: sonnet
 ---
@@ -20,15 +21,9 @@ model: sonnet
   - If user writes in English → English output
   - Persona labels and STATE block keys: English
 
-## MECE Positioning
+## Role Boundary
 
-| Skill | Mode | When |
-|-------|------|------|
-| unknown-discovery | Diagnostic — find blind spots in existing plans | Plan/idea already exists |
-| **build-spec** | **Constructive — clarify vague idea into structured spec** | **No plan yet** |
-| diverse-sampling | Creative — generate diverse alternatives | Exploring multiple directions |
-| expert-panel | Evaluative — multi-perspective debate | Options exist, need judgment |
-| adversarial-review | Attack — stress-test a specific claim | Claim/proposal exists |
+unknown-discovery와의 축·세 경로·findings 매핑: [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md).
 
 ## Prerequisites
 
@@ -117,6 +112,9 @@ Iterative Socratic interview to raise clarity across all active dimensions.
 - Read `<prev-seed-path>` → restore dimension scores and goal/constraints/success
 - Skip Phase 0 (reuse domain, brownfield status)
 - Phase 1 starts from the dimension with the lowest clarity score
+- `<feedback>` may be prose, or a file path (e.g. an `unknown-discovery` Discovery Report). If it is a
+  path, `Read` it before injecting — its frontmatter (`skill: unknown-discovery`) is what Phase 2.5's
+  skip condition checks for, so this read has to happen for that condition to ever be reachable.
 - Inject `<feedback>` as Phase 1 preamble context
 - STATE block records `refine_generation: N`
 
@@ -186,6 +184,14 @@ skill abandoned in real use. After the gate it reads an already-sharp spec, so i
 The clarity gate only scores dimensions that were *asked*. A dimension nobody raised is not scored low —
 it is not scored at all, so all four dimensions can sit at 0.9 while the spec still collides with a
 decision made elsewhere. This pass is what looks at the unasked.
+
+**Skip condition — UD handoff**: if this Refine-mode session's (A3) `<feedback>` is itself an
+`unknown-discovery` Discovery Report (frontmatter `skill: unknown-discovery`, or the user names it
+as one), skip this pass entirely instead of running it — see
+[../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md). UD already ran a deeper
+version of the same sweep against this exact spec; running Phase 2.5 again on top of it is
+redundant, not additive. Record `blindspot_pass: skipped` in STATE with reason
+`"already covered by prior unknown-discovery pass"` and proceed straight to Phase 3.
 
 - One `Agent` call. Pass `{the drafted Seed fields + the Phase 0 backlog scan result}` and ask for **at
   most 3** findings the interview never covered, each stated as a falsifiable question against the spec
@@ -351,6 +357,7 @@ scoring_rationale:
 - **Scoring rubric**: [reference.md](reference.md)
 - **Workflow examples**: [examples.md](examples.md)
 - **Seed template**: [templates/SEED_SPEC.yaml](templates/SEED_SPEC.yaml)
+- **Role boundary vs unknown-discovery**: [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md)
 - **Question templates**: [templates/questions/](templates/questions/)
 - **Common output schema**: [../../reference/common-schema.md](../../reference/common-schema.md)
 
