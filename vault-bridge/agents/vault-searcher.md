@@ -93,8 +93,10 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
    a. Read `{vault_root}/.vault-bridge/manifest.json`.
    b. Filter entries using any combination of: `type`, `tags` (contains domain keyword), `workstream`, `path` prefix matching `.vault-link` `vault_path`, or `status`. (`wiki/` entries are always included regardless of path-prefix scoping — the A-layer wiki is repo-transcending domain knowledge, same as the standard scan in #272.)
    c. Sort candidates: `status=active` first, then by recall-weight signals already in
-      the manifest entry — `access_count` descending (count of git commits touching the
-      file in the **last 7 days** = recent activity, not all-time work), then
+      the manifest entry — `recent_commits` descending (count of git commits touching the
+      file in the **last 7 days** = recent activity, not all-time work; it measures *writing*,
+      never reads, and a vault left uncommitted for a week scores 0 everywhere — silent, not
+      meaningful, so never read a 0 as "this page is cold"), then
       `references_in` descending (cross-note wikilink weight), then `type: wiki` preferred
       (the A layer is the primary recall target, so a wiki page wins a tie over an
       equally-scored note — a *tiebreaker only*, never an override that buries a more
@@ -138,7 +140,7 @@ Search the entire vault by keyword and load note contents.
      - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
 3. Sort: title match > tag match > body match > recent modification. When candidates come
    from the manifest pre-filter (step 1), break ties *within the same match tier* by
-   `access_count` then `references_in` descending, then `type: wiki` preferred (A-layer
+   `recent_commits` then `references_in` descending, then `type: wiki` preferred (A-layer
    recall priority — a wiki page wins an otherwise-even tie; tiebreaker only, never an
    override) — so a recently-active (7-day git touches), heavily-linked, or compiled-wiki
    page surfaces above an equally-matched but cold one. Grep/CLI-fallback candidates have

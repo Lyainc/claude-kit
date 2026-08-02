@@ -123,14 +123,14 @@ url: ...                   # capture만, 선택
   "path": "notes/something.md",
   "references_in": 5,
   "references_out": 3,
-  "access_count": 12,
+  "recent_commits": 12,
   "promotion_candidate": true
 }
 ```
 
 → 노트 파일이 시스템 메타로 오염되지 않는다. Obsidian에서 보이는 frontmatter는 깔끔하게 유지.
 
-**갱신 트리거**: `manifest.json`의 시스템 메타(`references_in/out`, `access_count`, `promotion_candidate`)는 `/audit` 호출 시 일괄 재계산된다. SessionStart 훅은 manifest 파일 자체의 incremental 갱신(파일 추가/변경 반영)만 수행하며 시스템 메타는 갱신하지 않는다. 따라서 `promotion_candidate` 신호는 *마지막 `/audit` 시점 기준*이다. 자동 push 없음 원칙(§9.1)과 정렬.
+**갱신 트리거**: `manifest.json`의 시스템 메타(`references_in/out`, `recent_commits`, `promotion_candidate`)는 `/audit` 호출 시 일괄 재계산된다. SessionStart 훅은 manifest 파일 자체의 incremental 갱신(파일 추가/변경 반영)만 수행하며 시스템 메타는 갱신하지 않는다. 따라서 `promotion_candidate` 신호는 *마지막 `/audit` 시점 기준*이다. 자동 push 없음 원칙(§9.1)과 정렬.
 
 ### 3.5 Decision 노트 템플릿 (Phase 2 준비)
 
@@ -270,7 +270,7 @@ notes/deepseek-v3.md                       (type: note, status: draft, source: w
 `/audit` 호출 시 다음 항목을 *우선순위 순*으로 점검·출력한다. 시스템 메타 일괄 재계산은 첫 단계.
 
 **Step 0 — 시스템 메타 재계산 (silent)**
-모든 `type:` 있는 노트에 대해 `references_in/out`, `access_count`(git log 기반), `promotion_candidate` 재계산. `manifest.json` 갱신.
+모든 `type:` 있는 노트에 대해 `references_in/out`, `recent_commits`(git log 기반), `promotion_candidate` 재계산. `manifest.json` 갱신.
 
 **Step 1 — 무결성 (우선순위 P0)**
 - frontmatter 누락 / 필수 필드(`type`, `status`) 부재
@@ -285,7 +285,7 @@ P0 항목 존재 시 *먼저 출력*하고 사용자 확인 후 다음 단계 �
 - 임계 미만이면 *침묵* (노이즈 방지)
 
 **Step 3 — Promotion Candidate (우선순위 P2)**
-- `references_in >= 3` 또는 `access_count >= 5` 노트 목록
+- `references_in >= 3` 또는 `recent_commits >= 5` 노트 목록
 - `type: note` 또는 `type: decision`만 (§3.3 승격 자격)
 - 출력 형식: 파일명 + 신호값. evergreen 승격은 *사용자 수동 frontmatter 편집*
 
@@ -311,7 +311,7 @@ P0 항목 존재 시 *먼저 출력*하고 사용자 확인 후 다음 단계 �
 | 컴포넌트 | 변경 |
 |---------|------|
 | `pre-write-guard.sh` | `00_Inbox` → `inbox` 패턴 갱신. type 없는 노트는 패스 |
-| `generate-manifest.py` | EXCLUDED_DIRS 갱신, type 필터링, 시스템 메타 추적 (`references_in/out`, `access_count`, `promotion_candidate`) |
+| `generate-manifest.py` | EXCLUDED_DIRS 갱신, type 필터링, 시스템 메타 추적 (`references_in/out`, `recent_commits`, `promotion_candidate`) |
 | `vault-searcher.md` | 경로 갱신, type 기반 우선순위, Mode 1/2/3 출력 경계 명세 정비 |
 | `/save-session` | 저장 경로 갱신 |
 | `/vault-commit` | Commit message 컨벤션 자동 생성 |
