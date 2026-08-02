@@ -160,10 +160,8 @@ The ✓/✗ per dimension is the user-facing progress signal — it shows *which
 **Gate open**: Ambiguity ≤ 0.20 + all floors met + 2 consecutive rounds.
 **Gate closed**: continue interview. Auto-select lowest-clarity dimension.
 
-**Isolated gate verdict**: the interviewer asking, scoring, and then declaring its own gate open is a
-1-in-3-roles loop — the same self-verification bias `adversarial-review` removes by spawning its Judge
-as a separate `Agent` subagent, and `unknown-discovery` removes for Depth scoring. So the verdict that
-actually opens the gate comes from a subagent, not from this context.
+**Isolated gate verdict**: the verdict that opens the gate comes from a subagent, not from this
+context — rationale in `reference.md` §2.
 
 - **When**: only on rounds where the inline score already suggests the gate is about to open (inline
   Ambiguity ≤ 0.20 and every floor met). Every other round stays inline — cheap by default, the
@@ -171,13 +169,13 @@ actually opens the gate comes from a subagent, not from this context.
 - **Input**: `{the Q&A transcript for each active dimension + the reference.md §1 checklist for those
   dimensions}` only. Not the running scores, not the rationale that produced them, not the gate state
   — a judge shown the score it is meant to check is not isolated.
-- **Output**: per checklist item, `Y/N` + a one-line reason, and a `clarity` value **per dimension**.
-  Never a single Ambiguity number: floors are hard gates that bind independently of the weighted sum
-  (`reference.md` §2), so a verdict collapsed to one number silently deletes them. The gate is then
-  recomputed from the returned per-dimension values, and it is that recomputed result — not the inline
-  one — that counts toward `consecutive_gate`.
+- **Output**: per checklist item, `Y/N` + a one-line reason, and a `clarity` value **per dimension**
+  — never a single Ambiguity number (why: `reference.md` §2). The gate is then recomputed from the
+  returned per-dimension values, and it is that recomputed result — not the inline one — that counts
+  toward `consecutive_gate`.
 - **Agent call fails / unavailable** → score inline against the same checklist and set
-  `scoring_isolated: false` in STATE. Do not announce the fallback; the session looks identical either way.
+  `scoring_isolated: false` in STATE. Before the Gate Check block, add one line:
+  `[격리 판정 실패 — 자체 채점, 신뢰도 낮음]` — one line, not a new round (rationale: `reference.md` §2).
 
 ### Phase 2.5: Blind-spot Pass
 
