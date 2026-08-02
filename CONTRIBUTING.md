@@ -49,3 +49,10 @@ claude-kit은 lockstep 릴리즈입니다 — 모든 플러그인이 같은 버�
 ## 개발 가이드
 
 [CLAUDE.md](CLAUDE.md) 참조
+
+## Prerequisites
+
+`scripts/check-test-exitcode.py`가 등록한 검증 커맨드 일부(예: `check-skill-token-budget.py`)는
+`uv run --with tiktoken ...` 형태로 [uv](https://docs.astral.sh/uv/getting-started/installation/)를
+필요로 합니다. CI는 `astral-sh/setup-uv`로 자동 설치하지만, 로컬에서 pre-push 검증을 그대로
+돌리려면 uv를 먼저 설치하세요 — 없으면 `exit 127: uv: command not found`로 실패합니다.
