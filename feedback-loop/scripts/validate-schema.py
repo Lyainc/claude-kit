@@ -186,6 +186,7 @@ def run_self_test() -> int:
             "input_tokens": 500,
             "output_tokens": 120,
             "cache_read_tokens": 42,
+            "cache_creation_tokens": 17,
         },
     })
     # duration_ms may be null when timing is unavailable — still valid.
