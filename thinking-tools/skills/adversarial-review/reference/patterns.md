@@ -125,6 +125,7 @@ verdicts:
   collapsed: {N}
   pending: {N}
 angle: {P-id|adhoc}        # Attacker domain angle — thinking-tools/reference/personas.md rank 1
+backlog_scan: {scanned|skipped}  # Phase 0 backlog-prefilter result, #524
 ---
 
 ## Adversarial Review Report
@@ -135,6 +136,8 @@ angle: {P-id|adhoc}        # Attacker domain angle — thinking-tools/reference/
 ---
 
 ### Claim {idx}: {claim text}
+
+**Backlog scan**: {`[backlog-scan SKIPPED]` line verbatim, or conflicting issue(s)/no-conflict statement}
 
 **Steelman**: {steelman version used}
 
@@ -179,6 +182,8 @@ Used instead of the full report in summary output mode ("요약만", "간단히"
 | Claim | Verdict | Resilience |
 |-------|---------|------------|
 | {claim text} | survived / collapsed / pending | 탄탄 / 보통 / 취약 |
+
+**Backlog scan**: {`[backlog-scan SKIPPED]` line verbatim, or conflicting issue(s)/no-conflict statement — per claim, #524}
 
 **Recommendations**: {action items for collapsed/pending claims}
 ```
