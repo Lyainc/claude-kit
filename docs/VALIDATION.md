@@ -422,6 +422,13 @@ python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
 python3 obsidian-vault-manager/scripts/test/test-notes-filename-consistency.py
 # Expected: OK: all cases passed
 
+# E5 orphan connection-candidate ranking regression (#495) — pins the rarity-weighted
+# score (score(P,Q) = Sum 1/log(1+df(t)), E9a-style vault-wide df aggregation) ranking a
+# rare-tag match above a common-tag-only match, the top-N cap, and the E5_MIN_CANDIDATE_SCORE
+# floor collapsing an all-common-tag pool to candidates:[] instead of force-filling top-3.
+python3 obsidian-vault-manager/scripts/test/test-e5-candidate-ranking.py
+# Expected: OK: all cases passed
+
 # E12 wiki self-audit staleness scoping unit test (#330, #494) — pins detect_stale_wiki's
 # wiki-only + type:wiki scope and the strict-> staleness boundary, and pins that a
 # missing/unparseable `verified:` is skipped by detect_stale_wiki but surfaced instead by
@@ -473,8 +480,10 @@ python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 #   dod.seeded_detected = {E1:5, E2:5, E3:5, E5:6, E6:5, E9:2, E10:5, E11:5, E12:5,
 #     E12_wiki_unverified:2}
 #     (E2 has 5: base only — the 5 status-missing seeds went away with the status
-#      machine (#480), since a note with no `status:` now conforms; E5 has 6: 5 w/ tag candidates +
-#      1 empty-tags graceful orphan; E6=stale_inbox (E7/E8 retired with the B-layer
+#      machine (#480), since a note with no `status:` now conforms; E5 has 6: 5 orphans
+#      sharing only the vault-wide `note` tag (candidates:[] under the #495 rarity-weighted
+#      floor — see dod.e5_with_candidates below) + 1 empty-tags graceful orphan; E6=stale_inbox
+#      (E7/E8 retired with the B-layer
 #      promotion gate, v5 §5/§6, #480 — no manifest patch step, no promotion seeds);
 #      E9 has 2: vault-level vocabulary pairs (E9a api/apis singular-plural +
 #      E9b sourceUrl/source_url camel/snake), path-less findings, P2/no-autofix,
@@ -492,7 +501,11 @@ python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 #     date exercise E12 fp=0)
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []
-#   dod.e3_with_suggestion >= 5    (E3 권장 파일명 present); dod.e5_with_candidates > 0
+#   dod.e3_with_suggestion >= 5    (E3 권장 파일명 present); dod.e5_with_candidates == 0
+#     (#495 — the fixture's 5 tag-bearing orphans all connect only through the vault-wide
+#      `note` tag, which no longer clears E5_MIN_CANDIDATE_SCORE alone; candidate-ranking
+#      + the floor's non-empty branch are unit-tested directly by
+#      test-e5-candidate-ranking.py, not by this fixture)
 #   dod.e2_tags_missing = 10; dod.e2_with_inferred_tags = 10   (#127 — every E2
 #     tags-missing finding carries a deterministic inferred tag proposal)
 # Note: dod.priority_counts is informational only (P1 includes existing
