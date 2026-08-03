@@ -100,8 +100,13 @@ When an expert states a **numeric or factual claim** (statistics, performance fi
 
 ### Phase 0: Preparation
 1. Analyze the review target → split into topics
-2. Run the [personas.md](../../reference/personas.md) Selection Rule on each topic's text → panel composition (confirm with the user only when they asked to pick the experts themselves)
-3. Generate discussion agenda
+2. **Backlog prefilter scan (#524)**: once, before any expert speaks, on the user's original topic text (before splitting):
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{review target text}"
+   ```
+   `[backlog-scan SKIPPED]` output → record `Backlog: skipped`, carry that line verbatim into Phase 2. Otherwise record `Backlog: scanned` and give the digest to every expert as grounding, same status as [Citation Contract](#citation-contract) sources — never a verdict the panel is bound to. Rationale + zero-cost note: [reference.md](reference.md).
+3. Run the [personas.md](../../reference/personas.md) Selection Rule on each topic's text → panel composition (confirm with the user only when they asked to pick the experts themselves)
+4. Generate discussion agenda
 
 ### Phase 1: Topic Rounds
 
@@ -131,6 +136,7 @@ dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). Th
 <!-- STATE:CHECKPOINT -->
 Topic: {idx}/{total} | Phase: {0|1|2} | Round: {r}/3
 Mode: [isolated:{on|off}] [summary-only:{on|off}]
+Backlog: {scanned|skipped}
 Personas: [{P-id} ...] adhoc:{n}
 Independent: {k}/{N}
 Rebuttal: [t{n}:e{i}:{k}/{N}]
@@ -141,7 +147,7 @@ Tie-break: [used:{yes|no}] [margin:{n|—}]
 <!-- /STATE -->
 ```
 
-**Field semantics, isolated-mode multi-round loop tracking, and compaction-restore defaults**: see [reference.md → STATE Block 복원 상세](reference.md) — load it before resuming a compacted isolated-mode session. Load-bearing invariants (kept here so restore is safe even before that load): `Rebuttal` is the authoritative isolated-mode loop cursor and **wins over `Independent` on any divergence**; on compaction, restore from the most recent STATE block, defaulting missing fields to the low-loss side — Mode flags → `off` (full output), Citation → `skipped`, Topic-status → `pending`, Votes → no-consensus, `Independent → 0` (re-collect) **only while `Rebuttal` is at `e1`** (at `e2`/`e3` independent collection is already done — re-running E1 would discard rebuttal progress). A missing `Personas` field is recovered by re-running the Selection Rule on the same topic text — it is deterministic, so recomputation returns the identical set (ad-hoc personas are the exception: they are session-local, so recover those from the transcript instead).
+**Field semantics, isolated-mode multi-round loop tracking, and compaction-restore defaults**: see [reference.md → STATE Block 복원 상세](reference.md) — load it before resuming a compacted isolated-mode session. Load-bearing invariants (kept here so restore is safe even before that load): `Rebuttal` is the authoritative isolated-mode loop cursor and **wins over `Independent` on any divergence**; on compaction, restore from the most recent STATE block, defaulting missing fields to the low-loss side — Mode flags → `off` (full output), Backlog → `skipped`, Citation → `skipped`, Topic-status → `pending`, Votes → no-consensus, `Independent → 0` (re-collect) **only while `Rebuttal` is at `e1`** (at `e2`/`e3` independent collection is already done — re-running E1 would discard rebuttal progress). A missing `Personas` field is recovered by re-running the Selection Rule on the same topic text — it is deterministic, so recomputation returns the identical set (ad-hoc personas are the exception: they are session-local, so recover those from the transcript instead).
 
 **Tie-Breaking Mechanism**:
 When consensus cannot be reached after 3 rounds:
@@ -183,6 +189,10 @@ After all topics are discussed, produce output according to session scope:
 **Lightweight / single-topic sessions** (default path when none of the triggers below apply):
 - Produce an **inline SUMMARY** in the current conversation — consensus items, recommendations, action items, unresolved issues. No files written.
 - This is sufficient for quick, single-topic reviews and avoids unnecessary file I/O for routine use.
+
+**Backlog scan carry-over (#524)**: state the Phase 0 backlog result in the output — the
+`[backlog-scan SKIPPED]` line verbatim if skipped, else one line naming conflicts or a no-conflict
+statement. An empty field is not a pass (mirrors `build-spec`'s `context.backlog_scan`, #489).
 
 **Full 3-file generation** is required when ANY of the following apply:
 - Session covers **multiple topics** (2+)
