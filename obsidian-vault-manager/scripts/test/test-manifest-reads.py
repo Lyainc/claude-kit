@@ -140,7 +140,7 @@ def main() -> int:
         raw_size = len(json.dumps({"files": real_scale}))
         r = run(_WIKI_SCRIPT, real_scale_json)
         out = json.loads(r.stdout) if r.returncode == 0 else {}
-        assert out.get("wiki_entries") is not None, "wiki-match real-scale fixture must parse"
+        check(out.get("wiki_entries") is not None, "wiki-match: real-scale fixture parses (rc=0)")
         check(len(out.get("wiki_entries") or []) == 41,
               "wiki-match: real-scale (182 files/41 wiki) fixture returns all 41, none dropped (#523 defect class)")
         check(len(r.stdout) < raw_size / 5,
