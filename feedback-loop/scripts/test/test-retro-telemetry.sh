@@ -44,4 +44,15 @@ trash-put "$STAMP_FILE" 2>/dev/null || true
 "$SCRIPT" emit 1 0 1
 cat "$LOG" | jq -e '.meta.duration_ms==null' >/dev/null || fail "missing stamp did not fall back to null"
 
+# 5. #528 batching regression guard: the 4 independent Phase-1 collect commands
+# (stamp / report.py / sequence.py / prior-retro grep) must live in ONE fenced
+# code block in retro/SKILL.md, not four separate ones (else the wrap chain
+# pays 4 Bash-tool turns instead of 1).
+SKILL="${SCRIPT_DIR}/../../skills/retro/SKILL.md"
+BLOCK="$(awk '/retro-telemetry\.sh" stamp/{f=1} f{print} f&&/```$/{exit}' "$SKILL")"
+echo "$BLOCK" | grep -q 'retro-telemetry.sh" stamp' || fail "#528: stamp missing from the combined collect block"
+echo "$BLOCK" | grep -q 'report\.py"' || fail "#528: report.py not batched into the combined collect block"
+echo "$BLOCK" | grep -q 'sequence\.py"' || fail "#528: sequence.py not batched into the combined collect block"
+echo "$BLOCK" | grep -q 'name":"retro"' || fail "#528: prior-retro grep not batched into the combined collect block"
+
 echo "OK: all retro-telemetry cases passed"
