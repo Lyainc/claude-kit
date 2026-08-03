@@ -1,7 +1,7 @@
 ---
 name: audit
 description: "Scan the vault for structural defects and surface a triage report. Detects 9 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), orphan notes (E5, with tag-based connection candidates), stale sources (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale or unverifiable wiki pages (E12a, stale/missing/unparseable `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
-model: haiku
+effort: low
 allowed-tools: Read Write Edit Bash Glob Grep AskUserQuestion
 ---
 
@@ -149,7 +149,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Skip condition**: `--deep` not passed → skip this phase entirely and go to REPORT. This is the default.
 
-**When `--deep` IS passed**: read `${CLAUDE_PLUGIN_ROOT}/reference/audit-deep.md` and follow it. It holds the full procedure for both sub-checks — E12b (cross-page wiki contradiction, #336) and E9c (tag semantic synonym, #167) — each with its own deterministic candidate prefilter and its own per-candidate `AskUserQuestion` confirm gate. Every confirmed pair becomes a finding appended to the CLASSIFY list (E12b → `wiki_contradiction`; E9c → the existing `tag_vocabulary_inconsistency` bucket). A declined candidate is dropped silently.
+**When `--deep` IS passed**: this is the only path with real LLM judgment (cross-page contradiction, semantic synonym) — run it at `effort: medium` or higher, not the skill's default `low`. Read `${CLAUDE_PLUGIN_ROOT}/reference/audit-deep.md` and follow it. It holds the full procedure for both sub-checks — E12b (cross-page wiki contradiction, #336) and E9c (tag semantic synonym, #167) — each with its own deterministic candidate prefilter and its own per-candidate `AskUserQuestion` confirm gate. Every confirmed pair becomes a finding appended to the CLASSIFY list (E12b → `wiki_contradiction`; E9c → the existing `tag_vocabulary_inconsistency` bucket). A declined candidate is dropped silently.
 
 **Termination condition**: All candidate pairs judged and either confirmed or declined. Proceed to REPORT.
 
