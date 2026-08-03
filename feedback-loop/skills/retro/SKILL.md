@@ -99,11 +99,22 @@ Zero mutation. Produce a deduped, priority-sorted item list.
 5. **Dedup** (count → `items_deduped`):
    - *Within session*: collapse duplicate `(path, error_type)` pairs to one.
    - *Action cross-run*: before proposing an issue, check existing open issues so
-     a repeat pattern is not filed twice. Use a **title search** so the match is
-     targeted (not capped at the first 100 issues):
+     a repeat pattern is not filed twice. This is a **comparison-set** read (does
+     something like this already exist), not a live-status render — so it goes
+     through the shared open-issue cache instead of its own `gh` call:
      ```bash
-     gh issue list --state open --search "in:title <pattern keywords>" --json number,title 2>/dev/null
+     bash "${CLAUDE_PLUGIN_ROOT}/scripts/gh-issues-cache.sh" get
      ```
+     `gh-issues-cache.sh` returns the cached open-issue JSON (`number,title,body,labels,updatedAt`)
+     when a fetch from this session is still fresh (≤5 min), else fetches live
+     (`--limit 300`, ponytail: widen if a repo actually exceeds this) and refreshes the
+     cache — cutting the redundant `gh` call when `thinking-tools/scripts/next-candidate.py`
+     already populated it (or vice versa) earlier in the same `/wrap` run. Match each
+     candidate pattern against the returned titles locally (case-insensitive substring is
+     enough — this is dedup, not the report). **Never reuse this cache for a live-status
+     render** (a specific PR/issue's current state shown to the user) — session-close's
+     pre-render lookups must stay live; a cached one already misjudged a PR merged 9 hours
+     earlier as still open (2026-07-30).
    - *Prior retro*: use the `grep` output already collected in step 2 above —
      do not re-invoke it here.
 

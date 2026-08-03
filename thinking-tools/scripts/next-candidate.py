@@ -99,6 +99,49 @@ def has_github_remote(cwd):
     return "github.com" in run(["git", "remote", "-v"], cwd)
 
 
+# Shared open-issue backlog cache for comparison-set lookups (#528). retro's dedup
+# step (feedback-loop/skills/retro/SKILL.md) independently implements the same
+# cache-path/TTL convention in bash (scripts/gh-issues-cache.sh) rather than this
+# script calling into it — CON-5 forbids a leaf script from depending on a harness
+# one, so the two stay separate code that happen to agree on where the cache lives.
+# NEVER read this cache for a live-status render (a specific PR/issue's current state
+# shown to the user) — only "does something like this already exist" comparison
+# reads, where a few minutes of staleness is harmless.
+GH_CACHE_TTL = 300   # ponytail: flat 300s ceiling, long enough to span one /wrap run.
+GH_CACHE_LIMIT = 300  # ponytail: open-issue cap; widen if a repo actually exceeds this.
+
+
+def _repo_root(cwd):
+    return os.environ.get("CLAUDE_PROJECT_DIR") or run(
+        ["git", "rev-parse", "--show-toplevel"], cwd
+    ).strip() or cwd
+
+
+def _gh_cache_path(cwd):
+    return os.path.join(_repo_root(cwd), ".claude-kit", "cache", "gh-open-issues.json")
+
+
+def _read_gh_cache(cwd):
+    path = _gh_cache_path(cwd)
+    try:
+        if time.time() - os.path.getmtime(path) > GH_CACHE_TTL:
+            return None
+        with open(path) as f:
+            return json.load(f)
+    except Exception:
+        return None
+
+
+def _write_gh_cache(cwd, issues):
+    path = _gh_cache_path(cwd)
+    try:
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w") as f:
+            json.dump(issues, f)
+    except Exception:
+        pass  # the cache is an optimization, never a requirement
+
+
 def open_issues(cwd):
     """Return (issues, failure_reason). A failure is never reported as an empty backlog.
 
@@ -106,6 +149,10 @@ def open_issues(cwd):
     backlog is genuinely exhausted, the second says nothing at all — so collapsing them into
     one blank section is how a lookup failure gets read as a clean result.
     """
+    cached = _read_gh_cache(cwd)
+    if cached is not None:
+        return cached, None
+
     if not has_github_remote(cwd):
         return [], "no-remote"
     if not _which("gh"):
@@ -113,7 +160,7 @@ def open_issues(cwd):
 
     try:
         p = subprocess.run(
-            ["gh", "issue", "list", "--state", "open", "--limit", "100",
+            ["gh", "issue", "list", "--state", "open", "--limit", str(GH_CACHE_LIMIT),
              "--json", "number,title,body,labels,updatedAt"],
             cwd=cwd, capture_output=True, text=True, timeout=15,
         )
@@ -123,9 +170,12 @@ def open_issues(cwd):
     if p.returncode != 0:
         return [], "gh-failed"
     try:
-        return (json.loads(p.stdout) if p.stdout.strip() else []), None
+        issues = json.loads(p.stdout) if p.stdout.strip() else []
     except Exception:
         return [], "gh-failed"
+
+    _write_gh_cache(cwd, issues)
+    return issues, None
 
 
 def _which(binary):
