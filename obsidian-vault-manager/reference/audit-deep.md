@@ -16,7 +16,7 @@ not optional and not summarisable — a semantic judgment never becomes a findin
 
 **Purpose**: Detect `wiki/` pages that assert conflicting claims about the same subject (#336).
 
-**Inputs**: `frontmatter_records` and `wikilinks_by_file` from the scan bundle (already collected, no re-scan).
+**Inputs**: `frontmatter_records` and `inbound_links` from the scan bundle (already collected, no re-scan).
 
 **Tools used**: Read, AskUserQuestion.
 
@@ -30,7 +30,7 @@ not optional and not summarisable — a semantic judgment never becomes a findin
 
 2. Build **candidate pairs** deterministically (no LLM, cheap prefilter — bounds the expensive judgment step to topically-related pages instead of every O(n²) pair): two wiki pages `(A, B)` are a candidate when EITHER holds:
    - they share at least one tag (case-insensitive intersection of `fm.tags`), or
-   - one wikilinks to the other (via `wikilinks_by_file`).
+   - one wikilinks to the other (via `inbound_links` — the target-stem → source-paths index E5 also reads; check both directions since it is keyed by target).
 
    If zero candidate pairs, exit phase (no findings).
 

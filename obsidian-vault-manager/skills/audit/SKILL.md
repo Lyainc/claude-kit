@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 10 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), broken wikilinks (E4), orphan notes (E5, with tag-based connection candidates), stale sources (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale or unverifiable wiki pages (E12a, stale/missing/unparseable `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 9 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, with rename suggestion), orphan notes (E5, with tag-based connection candidates), stale sources (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; optional `--deep` LLM opt-in for E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale or unverifiable wiki pages (E12a, stale/missing/unparseable `verified:`; optional `--deep` LLM opt-in for E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
 model: haiku
 allowed-tools: Read Write Edit Bash Glob Grep AskUserQuestion
 ---
@@ -56,20 +56,15 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-filename ~/vault
    ```
 
-6. Run wikilink extraction on every dirty `.md` file:
-   ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks ~/vault/<relpath>
-   ```
-   Collect: `{source_path, links[]}` for each file. Wikilinks inside code fences or inline code are masked out before extraction (#434) — a backticked `[[Note]]` is a syntax example, so it must never reach E4.
+6. Build a global link index: `{target_stem → [source_paths]}` from all extracted wikilinks across the full vault. This is required for orphan detection (which needs the full inbound-link map).
 
-7. Build a global link index: `{target_stem → [source_paths]}` from all extracted wikilinks across the full vault (not just dirty files). This is required for orphan detection (which needs the full inbound-link map).
-
-   To build the full link index efficiently, run `extract-wikilinks` on all `.md` files found by:
+   To build the full link index, run `extract-wikilinks` on all `.md` files found by:
    ```bash
    find ~/vault -name '*.md' -not -path '*/.*'
    ```
+   Wikilinks inside code fences or inline code are masked out before extraction (#434) — a backticked `[[Note]]` is a syntax example, not a real link, and over-masking would hide a real inbound link and manufacture a false E5 orphan.
 
-8. Read manifest summary (used for REPORT header). **Never `cat` the manifest directly** — on
+7. Read manifest summary (used for REPORT header). **Never `cat` the manifest directly** — on
    a real vault it can run past 100 KB, and the harness truncates large Bash output to a 2 KB
    preview before this reads it, so a raw `cat` silently degrades to whichever few entries
    survive the cut (#468, same defect class as #460). Use the filter script instead, which
@@ -77,12 +72,12 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
-   Use the resolved `$VAULT_ROOT` from Steps 4–7 (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`), not a hardcoded path.
+   Use the resolved `$VAULT_ROOT` from Steps 4–6 (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`), not a hardcoded path.
    Exit 0 → parse stdout as `{file_count, generated_at}` and use it as `manifest_summary`.
    Exit 3 (manifest absent, unparseable, or missing a required field) → set `manifest_summary`
    to null — never re-attempt with a raw `cat` as a fallback.
 
-9. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
+8. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" detect-vocabulary "$VAULT_ROOT"
    ```
@@ -93,7 +88,6 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 {
   frontmatter_records[],   // from scan-frontmatter
   filename_records[],      // from scan-filename
-  wikilinks_by_file{},     // source_path → links[]
   inbound_links{}          // target_stem → source_paths[]
   manifest_summary?        // {file_count, generated_at} or null
   vocabulary_pairs[]       // from detect-vocabulary (E9, vault-wide)
@@ -110,14 +104,13 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (10 types: E1–E6, E9–E11 v4, E12 v5 — E7/E8 were removed with the v4 §3.3 status-machine promotion gate, v5 §6, #480). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
+**Error types** (9 types: E1–E3, E5–E6, E9–E11 v4, E12 v5 — E4 was removed as a native-Obsidian duplicate, #482; E7/E8 were removed with the v4 §3.3 status-machine promotion gate, v5 §6, #480). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
 | E1 | `missing_frontmatter` | Critical | P0 | `frontmatter_records` | — |
 | E2 | `missing_required_fields` | Critical | P0 | `frontmatter_records` | ✓ (add fields; `tags:` inferred via type/slug/folder — see Phase 4) |
 | E3 | `filename_convention_violation` | Warning | P0 | `filename_records` | — (suggests `권장 파일명`) |
-| E4 | `broken_wikilink` | Critical | P0 | `wikilinks_by_file` | — |
 | E5 | `orphan_note` | Warning | P2 | `inbound_links` | — (suggests tag-based `연결 후보`) |
 | E6 | `stale_inbox` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
 | E9 | `tag_vocabulary_inconsistency` | Warning | P2 | `frontmatter_records` (vault-wide tags + keys) | — (display-only; `path: ""`) |
@@ -125,7 +118,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | E11 | `unstructured_path` | Warning | P1 | `frontmatter_records` (path) | — (display-only) |
 | E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified`, #494) | Warning | P1 | `frontmatter_records` (`wiki/` path + `type: wiki` + `verified`) | — (display-only) |
 
-> **Priority mapping** (v4 §6.1): E1–E4 = P0 (무결성/integrity). E6, E10–E12 = P1 (정체·구조/stagnation·structure). E5, E9 = P2 (quality signal). (E10/E11 are the structural checks per #128/#129; E12 is the wiki self-audit per #330.)
+> **Priority mapping** (v4 §6.1): E1–E3 = P0 (무결성/integrity). E6, E10–E12 = P1 (정체·구조/stagnation·structure). E5, E9 = P2 (quality signal). (E10/E11 are the structural checks per #128/#129; E12 is the wiki self-audit per #330.)
 > **E9 vocabulary** (#119): a **vault-level** check, not per-file — aggregates tags/keys across the whole vault and emits one finding per inconsistent pair with `path: ""`. E9a = a tag and its regular `+s` plural both used (`api`↔`apis`); E9b = a frontmatter key in camelCase and its snake_case equivalent both used (`sourceUrl`↔`source_url`). FP guard: report only when BOTH forms appear in ≥3 files. E9c (semantic synonyms, e.g. `llm`↔`large-language-model`) ships as the skill-only `--deep` LLM opt-in (#167) — see Phase 2.5 below (mirrors E12b's skill-only design). Never auto-fixed — the canonical form is the user's choice.
 > **E3 / E5 / E10 / E11 detail** (suggested filename, orphan connection candidates,
 > misplaced-file and unstructured-path scoping): all display-only, full criteria in
@@ -136,7 +129,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 ```
 [
   {
-    "error_type": "broken_wikilink",
+    "error_type": "missing_frontmatter",
     "severity": "Critical|Warning|Info",
     "priority": "P0|P1|P2",
     "path": "relpath",
@@ -177,7 +170,7 @@ Output is grouped by priority:
 - **P1** (WARNING findings): Should-fix items
 - **P2** (INFO findings): Nice-to-fix items
 
-Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3→E4 within P0; E6→E10→E11→E12 within P1; E5→E9 within P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
+Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3 within P0; E6→E10→E11→E12 within P1; E5→E9 within P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
 
 Each finding line format: `[E-code/priority/severity] type — N건` header, then one bullet per file with path and one-line description.
 
@@ -218,7 +211,6 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 
 **Auto-fix NOT eligible** (never mutate):
 - `missing_frontmatter` (E1): body structure unknown, skip.
-- `broken_wikilink` (E4): requires human decision on rename/delete.
 - `orphan_note` (E5): requires human decision on content value (connection candidates are suggestions only).
 - `filename_convention_violation` (E3): renaming affects all inbound links (`권장 파일명` is a suggestion only).
 - `tag_vocabulary_inconsistency` (E9): canonical-form choice + rewriting every affected file is the user's decision — display-only, vault-level.

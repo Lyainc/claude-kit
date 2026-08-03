@@ -2,11 +2,13 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Ten error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
+Nine error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
 
 > **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduced a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extended with P1 stagnation. PR 4d added **E8 `promotion_candidate`** (P2/Info), read from the vault-bridge manifest.
 >
 > **v5 removal (#480, 2026-08-02)**: E7 `stale_draft` and E8 `promotion_candidate` were removed. Both existed only to serve the B-layer promotion gate (raw/draft → evergreen), and that gate itself was abolished (v5 §5/§6, #477 범주 오류 — a gate that only acts after intake cannot defend intake). E7 never fired in practice (`/vault-save` writes no `status:` field, so no new file could ever reach `status: draft`); E8 kept firing on `status: archived` notes because it read `type`+refs/access without consulting `status` at all (#435) — noise for a gate that no longer existed. The codes E7/E8 are retired, not reused; a future check takes a new number.
+>
+> **v5 removal (#482, #477 하위 C)**: E4 `broken_wikilink` was removed as a native-Obsidian duplicate — Obsidian's own unresolved-link highlighting already surfaces the same signal inside the app, and E4's own extractor had a measured 33% false-positive rate on backticked syntax examples before the #434 masking fix. The masking logic (`mask_code`, `CODE_FENCE`/`UNCLOSED_FENCE`/`INLINE_CODE`) is preserved — E5 orphan detection reads the same masked inbound-link index, so over-masking still silently manufactures a false orphan even with E4 gone. The code E4 is retired, not reused; a future check takes a new number.
 
 ## Priority Mapping
 
@@ -17,7 +19,6 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E1   | P0       | Frontmatter absent → file is invisible to type opt-in (v4 §2.2); blocks all downstream tooling. |
 | E2   | P0       | Required fields missing → status machine and type routing break. |
 | E3   | P0       | v3-style filename → convention violation that blocks future automated routing. |
-| E4   | P0       | Broken wikilink → navigation hazard with Critical severity (data graph integrity). |
 | E5   | P2       | Orphan note → quality signal, not integrity risk. |
 | E6   | P1       | Stale sources → raw input never processed; loses freshness, signals review needed. |
 | E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. E9a/E9b are deterministic; E9c semantic synonym ships as the skill-only `--deep` LLM opt-in (#167, see the `## E9` section below). |
@@ -25,7 +26,7 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E11  | P1       | Unstructured path → file outside `sources/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
 | E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; its companion `E12_wiki_unverified` (#494) flags a `wiki/` page whose `verified:` is missing or unparseable — staleness is uncomputable, so it is reported for a different reason instead of being skipped forever; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
 
-> **P0 = 무결성 (integrity)**: All four E1–E4 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
+> **P0 = 무결성 (integrity)**: All three E1–E3 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
 > **P1 = 정체/구조 (stagnation / structure)**: E6 surfaces unprocessed inputs; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / archive / move / recompile).
 > **P2 = quality**: E5 orphan notes and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
@@ -144,12 +145,6 @@ suggested_filename(rel, fm):
 
 Rename is **never auto-applied** — it affects inbound wikilinks, so the audit
 only suggests; the user decides.
-
-## E4 — `broken_wikilink` [Critical]
-
-**Rule**: For each `[[target]]` in a file — look up `target` stem in the vault file set. If no file exists with that stem (case-insensitive match), it is broken.
-**Source**: `wikilinks_by_file`, global file index.
-**Guard**: Ignore embed links `![[image.png]]` where target has a non-`.md` extension or no extension at all and a matching file exists in assets. Ignore links to headings / blocks within a found note. **Ignore anything inside a code fence or inline code** (#434) — a backticked `[[Note]]` is a syntax example, not a link, and so is bash's `[[ "$x" == y ]]`. Extraction masks fenced blocks (an unterminated fence runs to EOF) and inline spans of any backtick run-length *before* matching, in both `extract-wikilinks` and the reference impl.
 
 ## E5 — `orphan_note` [Warning]
 
@@ -390,7 +385,9 @@ for each record in frontmatter_records:
 wiki_pages = [r for r in frontmatter_records if r.path.parts[0] == "wiki" and r.fm.type == "wiki"]
 for (A, B) in unordered_pairs(wiki_pages):
   shared_tags = set(lower(t) for t in A.fm.tags) & set(lower(t) for t in B.fm.tags)
-  links = A in wikilinks_by_file[B] or B in wikilinks_by_file[A]
+  # inbound_links: target_stem -> [source_paths] (same index E5 uses, #482 removed
+  # the per-file wikilinks_by_file that used to serve this — E4 was its only consumer).
+  links = B.path in inbound_links.get(stem(A.path), []) or A.path in inbound_links.get(stem(B.path), [])
   if shared_tags or links:
     candidate_pairs.append((A, B))
 ```
@@ -443,7 +440,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → parent folder; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E4 (requires human decision on rename/delete), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b contradiction, is a semantic decision — display-only warning).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b contradiction, is a semantic decision — display-only warning).
 
 ## Manifest Summary (display-only)
 

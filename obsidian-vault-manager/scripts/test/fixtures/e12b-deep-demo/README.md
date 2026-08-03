@@ -57,5 +57,5 @@ non-contradictory (but topically overlapping) pair — the acceptance criterion 
 Point a vault root at this directory's `wiki/` (e.g. `VAULT_BRIDGE_VAULT_ROOT` set
 to this fixture dir) and run `/audit --deep` in a session with the
 `obsidian-vault-manager` plugin installed. Phase 2.5 DEEP re-derives the same two
-candidate pairs from `frontmatter_records`/`wikilinks_by_file` and performs the same
+candidate pairs from `frontmatter_records`/`inbound_links` and performs the same
 judgment live.
