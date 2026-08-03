@@ -3,7 +3,7 @@
 #
 # Regression gate for the shared events-dir rule:
 #
-#     ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT:-<git toplevel>}/.claude-kit/telemetry/events}
+#     ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR:-<git toplevel>}/.claude-kit/telemetry/events}
 #
 # The bug this pins: the fallback used to be plain `$PWD`. A hook fires with
 # whatever CWD it happens to have, so any hook invoked from a subdirectory built
@@ -17,12 +17,18 @@
 #   read side  — report.py, validate-schema.py
 #
 # Cases:
-#   1. event-logger.sh run from a subdirectory, CLAUDE_PROJECT_ROOT unset
+#   1. event-logger.sh run from a subdirectory, CLAUDE_PROJECT_DIR unset
 #      -> event lands at git toplevel, and NO .claude-kit/ appears in the subdir
 #   2. CLAUDE_KIT_TELEMETRY_DIR set -> still wins over everything (highest priority)
-#   3. CLAUDE_PROJECT_ROOT set -> still wins over the git toplevel
+#   3. CLAUDE_PROJECT_DIR set -> still wins over the git toplevel
 #   4. report.py / validate-schema.py resolve the same dir from a subdirectory
 #   5. retro-telemetry.sh reads the toplevel events dir from a subdirectory
+#   6. CLAUDE_PROJECT_DIR set to repo A while CWD has `cd`-drifted into an
+#      unrelated repo B -> events land under A, never under B's toplevel (#533 —
+#      a prior revision spelled the var CLAUDE_PROJECT_ROOT, which the harness
+#      never sets, so this branch silently never fired and every hook fell to
+#      git-toplevel-of-CWD; a session that `cd`s into e.g. an Obsidian vault
+#      mid-session then wrote telemetry into that unrelated repo)
 #
 # Standalone-runnable. Exits non-zero on any assertion failure.
 #
@@ -68,7 +74,7 @@ TODAY="$(date -u +%Y-%m-%d)"
 # --- case 1: subdirectory CWD, no env override -> git toplevel --------------
 (
   cd "$SUBDIR" || exit 1
-  printf '{}' | env -u CLAUDE_PROJECT_ROOT -u CLAUDE_KIT_TELEMETRY_DIR \
+  printf '{}' | env -u CLAUDE_PROJECT_DIR -u CLAUDE_KIT_TELEMETRY_DIR \
     CLAUDE_KIT_TELEMETRY=1 \
     bash "${SCRIPTS_DIR}/event-logger.sh" session_start >/dev/null 2>&1
 )
@@ -96,26 +102,26 @@ else
   _assert "case 2: CLAUDE_KIT_TELEMETRY_DIR honored" "yes" "no"
 fi
 
-# --- case 3: CLAUDE_PROJECT_ROOT wins over the git toplevel -----------------
+# --- case 3: CLAUDE_PROJECT_DIR wins over the git toplevel -----------------
 PROJ="${FIXTURE}/as-project-root"
 mkdir -p "$PROJ"
 (
   cd "$SUBDIR" || exit 1
   printf '{}' | env -u CLAUDE_KIT_TELEMETRY_DIR \
-    CLAUDE_KIT_TELEMETRY=1 CLAUDE_PROJECT_ROOT="$PROJ" \
+    CLAUDE_KIT_TELEMETRY=1 CLAUDE_PROJECT_DIR="$PROJ" \
     bash "${SCRIPTS_DIR}/event-logger.sh" session_start >/dev/null 2>&1
 )
 if [ -f "${PROJ}/.claude-kit/telemetry/events/events-${TODAY}.jsonl" ]; then
-  _assert "case 3: CLAUDE_PROJECT_ROOT honored over git toplevel" "yes" "yes"
+  _assert "case 3: CLAUDE_PROJECT_DIR honored over git toplevel" "yes" "yes"
 else
-  _assert "case 3: CLAUDE_PROJECT_ROOT honored over git toplevel" "yes" "no"
+  _assert "case 3: CLAUDE_PROJECT_DIR honored over git toplevel" "yes" "no"
 fi
 
 # --- case 4: the Python read side resolves the same dir from a subdirectory --
 for PY in report.py validate-schema.py; do
   RESOLVED="$(
     cd "$SUBDIR" || exit 1
-    env -u CLAUDE_PROJECT_ROOT -u CLAUDE_KIT_TELEMETRY_DIR python3 -c "
+    env -u CLAUDE_PROJECT_DIR -u CLAUDE_KIT_TELEMETRY_DIR python3 -c "
 import importlib.util, sys
 spec = importlib.util.spec_from_file_location('m', '${SCRIPTS_DIR}/${PY}')
 m = importlib.util.module_from_spec(spec)
@@ -138,7 +144,7 @@ STAMP_FILE="/tmp/retro-start-test-events-dir.ms"
 trash-put "$STAMP_FILE" 2>/dev/null || true
 (
   cd "$SUBDIR" || exit 1
-  env -u CLAUDE_PROJECT_ROOT -u CLAUDE_KIT_TELEMETRY_DIR \
+  env -u CLAUDE_PROJECT_DIR -u CLAUDE_KIT_TELEMETRY_DIR \
     CLAUDE_KIT_TELEMETRY=1 CLAUDE_SESSION_ID=test-events-dir \
     bash "${SCRIPTS_DIR}/retro-telemetry.sh" stamp >/dev/null 2>&1
 )
@@ -148,6 +154,30 @@ else
   _assert "case 5: retro-telemetry.sh resolves the toplevel events dir" "yes" "no"
 fi
 trash-put "$STAMP_FILE" 2>/dev/null || true
+
+# --- case 6 (#533): CLAUDE_PROJECT_DIR set to repo A, CWD drifted into an
+# unrelated repo B -> events land under A, nothing appears under B. This is
+# the exact shape of the bug: a session working in claude-kit `cd`s into
+# ~/vault mid-session (e.g. for /vault-commit), and a hook fires while CWD is
+# still B. Wrong var name -> CLAUDE_PROJECT_DIR ignored -> falls to
+# git-toplevel-of-CWD -> events land inside the vault repo.
+REPO_A="${FIXTURE}/repo-a"
+mkdir -p "$REPO_A"
+REPO_B="${FIXTURE}/repo-b"
+git -C "$FIXTURE" init -q "$REPO_B" 2>/dev/null || { printf 'FAIL: git init repo-b failed\n' >&2; exit 1; }
+(
+  cd "$REPO_B" || exit 1
+  printf '{}' | env -u CLAUDE_KIT_TELEMETRY_DIR \
+    CLAUDE_KIT_TELEMETRY=1 CLAUDE_PROJECT_DIR="$REPO_A" \
+    bash "${SCRIPTS_DIR}/event-logger.sh" session_start >/dev/null 2>&1
+)
+if [ -f "${REPO_A}/.claude-kit/telemetry/events/events-${TODAY}.jsonl" ]; then
+  _assert "case 6: event lands under CLAUDE_PROJECT_DIR (repo A), not CWD" "yes" "yes"
+else
+  _assert "case 6: event lands under CLAUDE_PROJECT_DIR (repo A), not CWD" "yes" "no"
+fi
+_assert "case 6: no .claude-kit/ leaked into the CWD repo (B)" "" \
+  "$(find "${REPO_B}" -type d -name '.claude-kit' 2>/dev/null | head -1)"
 
 if [ "$FAILED" -ne 0 ]; then
   exit 1

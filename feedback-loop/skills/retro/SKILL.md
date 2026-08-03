@@ -96,7 +96,7 @@ Zero mutation. Produce a deduped, priority-sorted item list.
      the same opt-in gate as Phase 3): read prior `retro` events to report
      cumulative processing (best-effort):
      ```bash
-     EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}"
+     EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}"
      [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ] && \
        grep -h '"name":"retro"' "$EVENTS_DIR"/events-*.jsonl 2>/dev/null | tail -n 20
      ```

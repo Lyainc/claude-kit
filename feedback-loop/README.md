@@ -23,7 +23,7 @@ Two pieces ship together:
 ## Definition — project-unit, nudge-only, zero local dependency (#229)
 
 feedback-loop is scoped **per project**, not per machine. Telemetry events are
-written under the project's own tree (`${CLAUDE_PROJECT_ROOT}/.claude-kit/...`, see
+written under the project's own tree (`${CLAUDE_PROJECT_DIR}/.claude-kit/...`, see
 *Events directory*) and `retro` reviews that project's signal. There is no
 machine-global state and no shared store across projects.
 
@@ -71,12 +71,12 @@ Events go to a **user-writable** path (never the plugin install cache). The sing
 resolution rule is shared by the logger, `retro`, and the analysis scripts:
 
 ```
-${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
+${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR}/.claude-kit/telemetry/events}
 ```
 
 - `CLAUDE_KIT_TELEMETRY_DIR` — explicit override (highest priority).
-- otherwise `${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events` (falls back to the
-  git toplevel, then the CWD, when `CLAUDE_PROJECT_ROOT` is unset — plain CWD would
+- otherwise `${CLAUDE_PROJECT_DIR}/.claude-kit/telemetry/events` (falls back to the
+  git toplevel, then the CWD, when `CLAUDE_PROJECT_DIR` is unset — plain CWD would
   scatter event dirs across subdirectories when a hook fires from one).
 
 `.claude-kit/` is gitignored, so events are never committed.

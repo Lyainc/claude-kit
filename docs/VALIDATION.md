@@ -222,7 +222,11 @@ python3 feedback-loop/scripts/test/test-retro-telemetry-stamp-isolation.py
 # hook firing from a subdirectory built its own .claude-kit/telemetry/ there (5 stray
 # copies accumulated, one under .github/ISSUE_TEMPLATE/). The rule is duplicated
 # across 4 leaf-standalone scripts, so this asserts all of them together — a partial
-# revert would silently split writers from readers.
+# revert would silently split writers from readers. Case 6 pins #533: the primary
+# override was misspelled CLAUDE_PROJECT_ROOT (the harness sets CLAUDE_PROJECT_DIR),
+# so it silently never fired and every hook fell to git-toplevel-of-CWD — a session
+# that `cd`s into an unrelated repo mid-session (e.g. ~/vault for /vault-commit)
+# then wrote telemetry there instead, measured live 2026-08-03.
 bash feedback-loop/scripts/test/test-events-dir-resolution.sh
 # Expected: OK: all events-dir resolution cases passed
 

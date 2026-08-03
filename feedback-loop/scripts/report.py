@@ -30,15 +30,15 @@ def resolve_events_dir() -> Path:
     """Events live in a user-writable dir, NOT the plugin install cache.
 
     Single shared rule (mirrors event-logger.sh + retro):
-        ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
-    CLAUDE_PROJECT_ROOT falls back to the git toplevel, then CWD (CLI / test
+        ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR}/.claude-kit/telemetry/events}
+    CLAUDE_PROJECT_DIR falls back to the git toplevel, then CWD (CLI / test
     invocation). Plain CWD alone reads the wrong dir when invoked from a
     subdirectory — the same slip that scattered write-side dirs across 5 subdirs.
     """
     env = os.environ.get("CLAUDE_KIT_TELEMETRY_DIR")
     if env:
         return Path(env)
-    proj = os.environ.get("CLAUDE_PROJECT_ROOT") or _git_toplevel() or os.getcwd()
+    proj = os.environ.get("CLAUDE_PROJECT_DIR") or _git_toplevel() or os.getcwd()
     return Path(proj) / ".claude-kit" / "telemetry" / "events"
 
 

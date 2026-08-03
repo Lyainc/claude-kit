@@ -24,12 +24,12 @@ PLUGIN_DIR = SCRIPT_DIR.parent          # feedback-loop/
 
 def resolve_events_dir() -> Path:
     """User-writable events dir (mirrors event-logger.sh + report.py):
-        ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT}/.claude-kit/telemetry/events}
+        ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR}/.claude-kit/telemetry/events}
     """
     env = os.environ.get("CLAUDE_KIT_TELEMETRY_DIR")
     if env:
         return Path(env)
-    proj = os.environ.get("CLAUDE_PROJECT_ROOT") or _git_toplevel() or os.getcwd()
+    proj = os.environ.get("CLAUDE_PROJECT_DIR") or _git_toplevel() or os.getcwd()
     return Path(proj) / ".claude-kit" / "telemetry" / "events"
 
 
