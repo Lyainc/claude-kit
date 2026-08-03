@@ -295,7 +295,7 @@ def _build_entry(rel_path: str, abs_path: Path, vault_root: Path) -> dict:
 def _load_existing_manifest(out_path: Path) -> dict | None:
     """Load existing manifest JSON; return None if absent or corrupt.
 
-    v3 in-place upgrade: accepts manifests with older schema_version instead of
+    In-place upgrade: accepts manifests with older schema_version instead of
     triggering a full invalidation. Missing new fields (references_in, references_out,
     recent_commits) are patched by generate() after loading; a stale `promotion_candidate`
     field from a pre-#480 manifest is dropped by generate()'s _enrich.
