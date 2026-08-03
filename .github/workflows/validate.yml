@@ -229,6 +229,9 @@ jobs:
           python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
           python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
           python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
+          # #531 notes/ filename convention parity gate: audit's filename_conforms() vs
+          # pre-write-guard.sh's notes/ pattern must agree.
+          python3 obsidian-vault-manager/scripts/test/test-notes-filename-consistency.py
           echo "obsidian-vault-manager tests OK"
 
   audit-dod:
