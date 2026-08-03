@@ -3,7 +3,8 @@ name: doc-concretize
 
 description: |
   Transform abstract concepts into concrete, well-structured documentation
-  through step-by-step recursive writing with verification at each step.
+  through step-by-step recursive writing, checked once by an isolated final
+  verification pass over the assembled document.
   Output-layer md-author adapter (format=md × intent=author): creates NEW
   markdown documents while preserving the recursive-concretization cognitive core.
   For editing/improving an existing MD file, use doc-polish.
@@ -55,7 +56,6 @@ Transform abstract concepts into concrete, well-structured documentation through
   ],
   "current": 0,
   "style_ref": "user_doc.md or null",
-  "verify_count": {},
   "quality_gate": "pending"
 }
 ```
@@ -67,7 +67,7 @@ Transform abstract concepts into concrete, well-structured documentation through
 When estimated output is 800-2000 characters, use compressed workflow:
 
 1. **Phase 1**: Concept Analysis (same as Full Mode)
-2. **Phase 3**: Content Build with Build → Verify → Reflect cycle (skip Phase 2 Structure Design — use linear ordering)
+2. **Phase 3**: Content Build (skip Phase 2 Structure Design — use linear ordering; isolated final Verify still runs after assembly, same as Full Mode)
 3. **Phase 4 (Reduced)**: Single completeness review pass (skip adversarial check and self-critique questions)
 4. **Phase 5**: Basic Polish (same as Full Mode)
 
@@ -85,7 +85,7 @@ Plan document architecture and determine optimal ordering patterns:
 
 ### Phase 3: Content Build
 
-For each segment, execute **Build → Verify → Reflect** cycle:
+For each segment:
 
 ```
 [Build]
@@ -94,37 +94,42 @@ For each segment, execute **Build → Verify → Reflect** cycle:
    - One idea per sentence
    - No detail omission
    - Clear subject-predicate structure
+   - Fact uncertain → call AskUserQuestion or WebFetch
+```
 
-[Verify] — ALL must pass
-□ Logical connection with previous content?
+A per-segment self-check on top of this draft would be written and checked by the same context —
+exactly the self-verification loop that lets a draft pass its own bar. So drafting stops at
+[Build]; verification happens once, below, over the assembled whole.
+
+**Isolated final Verify** (required before the document is handed to the user): once all segments
+are drafted, run this 4-item checklist over the whole document in a **separate Agent subagent** —
+pass only `{the assembled document + the intent/audience one-liner + the 4 Verify items}`, and
+never the drafting rationale:
+
+```
+□ Logical connection between sections?
 □ No contradictions or redundancy?
 □ Consistent tone and manner?
 □ Reference style maintained? (if applicable)
-
-[Reflect]
-- All passed → proceed to next segment
-- 1-2 failed → revise and re-verify (max 3 attempts)
-- 3+ failed → rewrite entire segment
-- Fact uncertain → call AskUserQuestion or WebFetch
 ```
 
-**Isolated final Verify** (required before the document is handed to the user): the per-segment
-Verify above is written and checked by the same context, which is exactly the self-verification
-loop that lets a draft pass its own bar. So once all segments are assembled, run the same 4-item
-checklist over the whole document in a **separate Agent subagent** — pass only
-`{the assembled document + the intent/audience one-liner + the 4 Verify items}`, and never the
-drafting rationale. Prefix each segment in that document with its own marker — `[S1] {segment title}`,
-`[S2] ...` — because without them the subagent guesses segment boundaries from headings, which is not
-the same partition. It returns pass/fail per `S{n}` plus the failing line. Failures go back into
-[Reflect] (same max-3-attempts rule). One call per document, not per segment. **Agent call fails**
-→ verify inline against the same checklist and tell the user the final pass was not isolated.
+Prefix each segment in that document with its own marker — `[S1] {segment title}`,
+`[S2] ...` — because without them the subagent guesses segment boundaries from headings, which is
+not the same partition. It returns pass/fail per `S{n}` plus the failing line. One call per
+document, not per segment. **Agent call fails** → verify inline against the same checklist and
+tell the user the final pass was not isolated.
+
+**[Reflect]** — fires only on an isolated-Verify failure, never per segment:
+- All `S{n}` passed → document is done
+- 1-2 `S{n}` failed → revise the failing segment(s) and re-run the isolated Verify (max 3 attempts)
+- 3+ `S{n}` failed → rewrite the failing segment(s) entirely
 
 **Critical Issues** (require user approval):
 - Core premise has multiple interpretations
 - Conflicting information discovered
 - Sensitive claims or judgments involved
 
-**Quality Gate**: All verify checks passed for current segment → proceed
+**Quality Gate**: All segments drafted + isolated Verify passed for all `S{n}` → proceed
 
 ### Phase 4: Completeness Check
 
@@ -204,7 +209,7 @@ User: "Document our service's core values.
 
 → Phase 1: Concept Analysis - Decompose core values and identify relationships
 → Phase 2: Structure Design - Plan document architecture and ordering
-→ Phase 3: Content Build - Build → Verify → Reflect cycle for each segment
+→ Phase 3: Content Build - draft each segment, then one isolated final Verify over the whole
 → Phase 4: Completeness Check - Review for logical gaps and missing content
 → Phase 5: Basic Polish - Fix grammar and maintain reference style
 → Output: Structured core values document (~1,500 chars)
