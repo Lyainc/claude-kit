@@ -377,6 +377,13 @@ bash thinking-tools/scripts/test/test-session-start-welcome.sh
 bash thinking-tools/scripts/test/test-completion-condition-hook.sh
 # Expected: OK: all 16 completion-condition-hook cases passed
 
+# next-candidate.py chain_depth()/top_areas() unit tests (#521) — the hook test above only
+# exercises these through single-commit e2e fixtures; this asserts the edges directly:
+# zero commits, a bare root file's `·`-prefixed area, and multi-area branching (including a
+# commit whose changed files span more than one area).
+python3 thinking-tools/scripts/test/test-next-candidate.py
+# Expected: OK: all 5 test-next-candidate checks passed
+
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
 bash -n thinking-tools/hooks/session-start-welcome.sh   # #117 first-run onboarding hint
