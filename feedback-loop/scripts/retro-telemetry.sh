@@ -13,7 +13,7 @@
 # LLM-visible path).
 #
 # Events-dir rule (single shared rule, same as event-logger.sh):
-#   ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}
+#   ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}
 #
 # Usage:
 #   retro-telemetry.sh stamp
@@ -28,7 +28,7 @@ set -uo pipefail
 
 # --- opt-in gate + events dir (single shared rule) -------------------------
 [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] || exit 0
-PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")}"
+PROJ_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")}"
 EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${PROJ_ROOT}/.claude-kit/telemetry/events}"
 [ -d "$EVENTS_DIR" ] || exit 0
 

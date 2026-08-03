@@ -17,8 +17,12 @@
 #   - ${CLAUDE_PLUGIN_ROOT} resolves THIS handler in the plugin.json hook command
 #     path only — never the events output path.
 #   - The events OUTPUT dir is user-writable (NOT the plugin install cache):
-#       ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_ROOT:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}
+#       ${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}
 #     This is the single events-dir rule shared by retro + report/validate scripts.
+#     CLAUDE_PROJECT_DIR is the harness-provided project-root var (#533 — a prior
+#     revision spelled it CLAUDE_PROJECT_ROOT, which the harness never sets, so
+#     this branch silently never fired and always fell to the git-toplevel of
+#     whatever CWD a mid-session `cd` had left the shell in).
 #   - plugin-map.json ships with the plugin, so it stays SCRIPT_DIR-relative.
 #
 # Invocation:
@@ -43,7 +47,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" 2>/dev/null && pwd)" || exit 0
 # $PWD is the hook's CWD, which is NOT the project root when a hook fires from a
 # subdirectory — that scattered .claude-kit/telemetry/ dirs across 5 subdirs
 # (feedback-loop/, .github/ISSUE_TEMPLATE/, ...). git toplevel is the stable anchor.
-PROJECT_ROOT="${CLAUDE_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")}"
+PROJECT_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")}"
 LOG_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${PROJECT_ROOT}/.claude-kit/telemetry/events}"
 LOG_FILE="${LOG_DIR}/events-$(date -u +%Y-%m-%d).jsonl"
 PLUGIN_MAP="${SCRIPT_DIR}/plugin-map.json"
