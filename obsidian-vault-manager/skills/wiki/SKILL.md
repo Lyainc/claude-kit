@@ -2,7 +2,7 @@
 name: wiki
 description: "Compile domain knowledge learned during work into a ~/vault/wiki/ page (the LLM wiki, A layer for AI recall). Gated, explicit compile — never always-on. Examples: '/wiki Defuddle CLI extracts the first H1 as the title', '이거 위키에 정리해줘', '방금 알아낸 거 wiki로 저장'. KR triggers: 'wiki에 정리', '위키 페이지로', '알아낸 거 저장', '도메인 지식 컴파일'. EN triggers: 'compile to wiki', 'save to wiki', 'add wiki page'."
 allowed-tools: Read Write Bash Glob
-model: sonnet
+effort: medium
 ---
 
 **User language: Korean.** All user-facing output (responses, AskUserQuestion prompts, generated content, file contents) MUST be in Korean.
