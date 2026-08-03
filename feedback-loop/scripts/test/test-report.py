@@ -23,6 +23,7 @@ import contextlib
 import io
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 # report.py lives in the parent dir; put it on sys.path and import directly.
@@ -297,6 +298,76 @@ def case_lifecycle_never_fired(errors: list[str]) -> None:
             "active skill absent from never_fired", errors)
     _assert(len(result["never_fired"]) == 1,
             f"exactly one never-fired skill (got: {result['never_fired']})", errors)
+
+
+def case_scan_skill_catalog_repo_layout(errors: list[str]) -> None:
+    """Repo checkout shape: <root>/{plugin}/skills/{skill}/SKILL.md, unaffected by #522."""
+    print("\ncase: scan_skill_catalog_repo_layout")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "pluginA" / "skills" / "skillX").mkdir(parents=True)
+        (root / "pluginA" / "skills" / "skillX" / "SKILL.md").write_text("x")
+        catalog = report.scan_skill_catalog(repo_root=root)
+        _assert(catalog == ["pluginA:skillX"],
+                f"repo-shape catalog resolves plugin:skill directly (got: {catalog})", errors)
+
+
+def case_scan_skill_catalog_cache_layout(errors: list[str]) -> None:
+    """Plugin-cache shape inserts a semver version dir: {plugin}/{version}/skills/{skill}/SKILL.md.
+
+    #522: PLUGIN_DIR.parent (== this function's repo_root arg) lands ON the
+    single-plugin cache dir, one level too deep — the naive repo-shape glob
+    then reads the version directory as the plugin name (`4.0.1:retro`) and
+    every real qualified_name match fails, so the lifecycle view reports 100%
+    never_fired. The fix must detect the version-looking path component,
+    escalate to the marketplace root (repo_root.parent) so sibling plugins are
+    found too, and dedup repeats across every cached version of the same skill.
+
+    Also covers a gap found in fresh-context review of the first cut of this
+    fix: the plugin cache keeps EVERY version it ever installed (only the live
+    one lacks a `.orphaned_at` marker, confirmed against the real cache on
+    this machine — every plugin has exactly one non-orphaned version). A skill
+    retired in the live version but still present in an old orphaned version's
+    SKILL.md must NOT resurrect as a permanently never-fired catalog entry —
+    that is the exact false signal #522 was written to kill, just relocated
+    from "misread as a version" to "read from a dead version".
+    """
+    print("\ncase: scan_skill_catalog_cache_layout")
+    with tempfile.TemporaryDirectory() as td:
+        cache_root = Path(td) / "cache" / "some-marketplace"
+        for version in ("4.0.1", "4.5.0"):
+            skill_dir = cache_root / "feedback-loop" / version / "skills" / "retro"
+            skill_dir.mkdir(parents=True)
+            (skill_dir / "SKILL.md").write_text("x")
+        (cache_root / "feedback-loop" / "4.5.0" / "skills" / "add-policy").mkdir(parents=True)
+        (cache_root / "feedback-loop" / "4.5.0" / "skills" / "add-policy" / "SKILL.md").write_text("x")
+        (cache_root / "thinking-tools" / "4.5.0" / "skills" / "expert-panel").mkdir(parents=True)
+        (cache_root / "thinking-tools" / "4.5.0" / "skills" / "expert-panel" / "SKILL.md").write_text("x")
+        # A skill retired by 4.5.0 but still on disk in the orphaned 4.0.1 dir.
+        retired_dir = cache_root / "feedback-loop" / "4.0.1" / "skills" / "retired-skill"
+        retired_dir.mkdir(parents=True)
+        (retired_dir / "SKILL.md").write_text("x")
+        (cache_root / "feedback-loop" / "4.0.1" / ".orphaned_at").write_text("2026-01-01")
+        # 4.5.0 is the live version: no .orphaned_at marker.
+
+        # Simulates REPO_ROOT = PLUGIN_DIR.parent when report.py runs from
+        # .../feedback-loop/4.5.0/scripts/report.py in the real cache.
+        catalog = report.scan_skill_catalog(repo_root=cache_root / "feedback-loop")
+
+        _assert(not any(c.split(":", 1)[0][0].isdigit() for c in catalog),
+                f"no version string ever appears as a plugin name (got: {catalog})", errors)
+        _assert("feedback-loop:retro" in catalog,
+                "feedback-loop:retro resolved despite two cached versions", errors)
+        _assert(catalog.count("feedback-loop:retro") == 1,
+                "the two cached versions of retro dedup to one catalog entry", errors)
+        _assert("feedback-loop:add-policy" in catalog,
+                "feedback-loop:add-policy resolved", errors)
+        _assert("thinking-tools:expert-panel" in catalog,
+                "sibling plugin (thinking-tools) is found via the marketplace root, not just feedback-loop's own cache dir",
+                errors)
+        _assert("feedback-loop:retired-skill" not in catalog,
+                "a skill retired in the live version does not resurrect from an orphaned old-version cache dir",
+                errors)
 
 
 def case_lifecycle_stale_note(errors: list[str]) -> None:
@@ -788,6 +859,8 @@ def main() -> int:
     case_table_output_end_to_end(errors)
     case_event_filter_end_to_end(errors)
     case_lifecycle_never_fired(errors)
+    case_scan_skill_catalog_repo_layout(errors)
+    case_scan_skill_catalog_cache_layout(errors)
     case_lifecycle_stale_note(errors)
     case_lifecycle_caveat_in_output(errors)
     case_lifecycle_caveat_in_json(errors)

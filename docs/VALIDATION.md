@@ -196,6 +196,11 @@ python3 feedback-loop/scripts/validate-schema.py --self-test
 
 # feedback-loop report.py latency_by_event regression gate (#164)
 # + per-skill lifecycle view (never-fired / stale / bottom-N vs */skills/*/SKILL.md catalog, #203)
+# + scan_skill_catalog cache-layout regression (#522): the plugin-cache install path
+# (cache/{marketplace}/{plugin}/{version}/scripts/report.py) inserts a semver version
+# dir the naive repo-shape glob reads as the plugin name (`4.0.1:retro`), so every
+# real qualified_name match fails and the lifecycle view reports 100% never_fired —
+# #477's "'/capture'·'/note' 호출 0회" citation traces back to exactly this view.
 python3 feedback-loop/scripts/test/test-report.py
 # Expected: OK: all cases passed
 # event-logger meta-extractor unit test (extract_end_meta / extract_stop_meta)

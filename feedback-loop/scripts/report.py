@@ -15,6 +15,7 @@ import argparse
 import json
 import math
 import os
+import re
 import subprocess
 import sys
 from collections import Counter
@@ -286,25 +287,69 @@ def latency_by_event(events: list[dict]) -> dict[str, dict[str, float | int]]:
     return out
 
 
+_VERSION_DIR_RE = re.compile(r"^\d+\.\d+\.\d+$")
+
+
 def scan_skill_catalog(repo_root: Path | None = None) -> list[str]:
     """Return sorted list of '{plugin}:{skill}' identifiers from SKILL.md files.
 
     Glob pattern: <repo_root>/*/skills/*/SKILL.md (depth-2 only, no hidden dirs).
     plugin = first path component (e.g. 'thinking-tools').
     skill  = third path component (e.g. 'expert-panel').
+
+    Plugin-cache installs (`cache/{marketplace}/{plugin}/{version}/scripts/...`)
+    insert a semver version directory between the plugin name and its content,
+    so <repo_root> (PLUGIN_DIR.parent) lands one level too deep for the pattern
+    above — it matches `{version}/skills/*/SKILL.md` and the version string gets
+    read as the plugin name (#522, e.g. `4.0.1:retro`), which then never matches
+    a real `qualified_name` and the lifecycle view reports every skill
+    never-fired. Detected by the first path component looking like a version;
+    when it does, the scan retries one level up with an extra path segment for
+    the version layer, skipping any version dir carrying a `.orphaned_at`
+    marker (the cache keeps every version it ever installed, each still
+    holding its own SKILL.md files — without this filter a skill retired in
+    a later version keeps reappearing as permanently never-fired via its
+    stale old-version copy, the same false signal #522 was written to kill,
+    just relocated. Verified live: every plugin here has exactly one
+    non-orphaned version).
     """
     root = repo_root if repo_root is not None else REPO_ROOT
-    catalog: list[str] = []
+    catalog: set[str] = set()
     for skill_md in root.glob("*/skills/*/SKILL.md"):
         parts = skill_md.relative_to(root).parts
         # Expected: (plugin, 'skills', skill_name, 'SKILL.md') → 4 parts
         if len(parts) != 4:
             continue
         plugin, _, skill_name, _ = parts
+        if _VERSION_DIR_RE.match(plugin):
+            return _scan_cache_layout(root.parent)
         # Skip hidden directories
         if plugin.startswith("."):
             continue
-        catalog.append(f"{plugin}:{skill_name}")
+        catalog.add(f"{plugin}:{skill_name}")
+    return sorted(catalog)
+
+
+def _scan_cache_layout(cache_root: Path) -> list[str]:
+    """plugin/version/skills/skill_name/SKILL.md, one level above the repo-shape root.
+
+    Skips any {plugin}/{version} dir marked `.orphaned_at` — the plugin manager
+    keeps every version it ever installed, so an unfiltered scan would keep
+    resurrecting skills retired in a newer version via their stale old-version
+    SKILL.md.
+    """
+    catalog: set[str] = set()
+    for skill_md in cache_root.glob("*/*/skills/*/SKILL.md"):
+        parts = skill_md.relative_to(cache_root).parts
+        # Expected: (plugin, version, 'skills', skill_name, 'SKILL.md') → 5 parts
+        if len(parts) != 5:
+            continue
+        plugin, version, _, skill_name, _ = parts
+        if plugin.startswith("."):
+            continue
+        if (cache_root / plugin / version / ".orphaned_at").exists():
+            continue
+        catalog.add(f"{plugin}:{skill_name}")
     return sorted(catalog)
 
 
