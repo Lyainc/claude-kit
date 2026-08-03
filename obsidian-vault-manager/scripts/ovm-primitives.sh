@@ -349,7 +349,7 @@ PYEOF
 #   1) type: field        → always the first tag
 #   2) filename slug       → words after stripping the date + {type}- prefix,
 #                            split on `-`/`_`
-#   3) parent folder       → notes/{domain}/... → add `domain`
+#   3) first segment under notes/ → notes/{domain}/... → add `domain`
 # Empty slug (date-only filename) → type tag only (graceful, never crashes).
 # The proposal is NOT auto-committed — the audit skill keeps the "수정 실행" gate.
 #
@@ -448,7 +448,7 @@ def infer_one(abs_file):
         for word in re.split(r'[-_]+', slug):
             push(word)
 
-    # Tier 3: parent folder domain — only inside notes/{domain}/...
+    # Tier 3: first segment under notes/ — only inside notes/{domain}/...
     parts = rel.split(os.sep)
     if len(parts) >= 3 and parts[0] == 'notes':
         push(parts[1])
