@@ -26,6 +26,16 @@ status for domain; title/summary substring for keyword) *before* anything crosse
 the calling agent's context. Each prints one JSON line:
 `{"candidate_count": N, "candidates": [...]}`.
 
+## `status == active` is unconditional, on purpose (for now)
+
+Mode 2's `status == active` match arm fires regardless of `domain`/`vault_path` — this
+is a literal carry-over of the pre-#523 prose ("any combination of: type, tags,
+workstream, path prefix, or status"), not a new behavior this fix introduced. On a
+vault with several concurrent active projects it means an unrelated active note can
+surface as a domain-context candidate. Not addressed here because #523's scope is the
+truncation defect, not a redesign of the match semantics — tracked as a follow-up
+if it proves noisy in practice.
+
 ## The truncation-check invariant
 
 Even with the prefilter running out-of-context, a caller must never trust a candidate
