@@ -208,6 +208,16 @@ bash feedback-loop/scripts/test/test-event-logger.sh
 bash feedback-loop/scripts/test/test-retro-telemetry.sh
 # Expected: OK: all retro-telemetry cases passed
 
+# retro-telemetry sid-less stamp isolation (#529 — concurrent sessions with no
+# CLAUDE_SESSION_ID used to collide on one /tmp/retro-start-unknown.ms, so one
+# session's emit deleted the stamp the other was still using; measured live
+# 2026-08-03 as duration_ms null on one of two sid-less emits). Forces the
+# exact interleaving that exposes it (A.stamp, B.stamp, A.emit, B.emit) rather
+# than running each session start-to-finish, which would never overlap on the
+# shared file and so would pass identically whether or not the fix is in place.
+python3 feedback-loop/scripts/test/test-retro-telemetry-stamp-isolation.py
+# Expected: OK: interleaved sid-less sessions get isolated stamp paths, no cross-session null
+
 # events-dir resolution regression gate. The fallback was once plain `$PWD`, so a
 # hook firing from a subdirectory built its own .claude-kit/telemetry/ there (5 stray
 # copies accumulated, one under .github/ISSUE_TEMPLATE/). The rule is duplicated

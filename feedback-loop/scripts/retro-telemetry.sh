@@ -32,9 +32,15 @@ PROJ_ROOT="${CLAUDE_PROJECT_ROOT:-$(git rev-parse --show-toplevel 2>/dev/null ||
 EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${PROJ_ROOT}/.claude-kit/telemetry/events}"
 [ -d "$EVENTS_DIR" ] || exit 0
 
-# Per-session stamp path. `:-unknown` is benign: retro runs single-session per
-# sid, so sid-less concurrent retros only theoretically share the path.
-STAMP="/tmp/retro-start-${CLAUDE_SESSION_ID:-unknown}.ms"
+# Per-session stamp path. Measured 2026-08-03 (#529): concurrent sid-less
+# retros DO collide on a shared `unknown` path in practice — one session's
+# `emit` deletes the stamp out from under the other, forcing its duration_ms
+# to null. `$PPID` is the harness's persistent per-session shell PID (stable
+# across the separate `stamp` and `emit` Bash calls within one retro run,
+# distinct across concurrent sessions), so it substitutes for a real PID
+# without breaking the stamp/emit pairing a raw `$$` would (a new process
+# each invocation).
+STAMP="/tmp/retro-start-${CLAUDE_SESSION_ID:-$PPID}.ms"
 
 now_ms() { python3 -c 'import time;print(int(time.time()*1000))' 2>/dev/null || true; }
 
