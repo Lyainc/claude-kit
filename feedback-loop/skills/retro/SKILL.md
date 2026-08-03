@@ -54,37 +54,49 @@ are counted under `items_deduped`, not "미처리").
 
 Zero mutation. Produce a deduped, priority-sorted item list.
 
-1. **Read config**: `RETRO_BUDGET` (default 10). Then **stamp the pipeline
-   start** for the Phase-3 `duration_ms` datum (each Bash call is a fresh
-   shell, so the start time must live on disk, not in a variable):
+1. **Read config**: `RETRO_BUDGET` (default 10).
+
+2. **Collect telemetry + prior-retro signals in one Bash call.** These four
+   commands share no dependency on one another's output, so run them together
+   in a single Bash invocation instead of four separate calls (#528 — cuts 3
+   turns off the wrap chain):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/retro-telemetry.sh" stamp
-   ```
-   The helper owns the events-dir rule + opt-in gate (shared with
-   `feedback-loop/scripts/event-logger.sh`): it no-ops unless telemetry is opted in
-   AND the events dir is resolvable — the SAME branch the Phase-3 emit + stamp cleanup
-   run inside, so no stamp is orphaned in `/tmp` when telemetry output is unreachable.
-
-2. **Waste signals** (action-branch source). If the project-local telemetry
-   dogfooding output exists (the events dir — `.claude-kit/telemetry/events/`
-   by default, see `feedback-loop/README.md`) and `CLAUDE_KIT_TELEMETRY=1`,
-   surface repeat-waste patterns (the report/sequence scripts self-resolve the
-   events dir via the same shared rule):
-   ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/report.py" 2>/dev/null        # outcome/error mix, latency (default 7d window)
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/sequence.py" --n=2 --top=20 2>/dev/null # repeated n-grams (review-round churn)
+   EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}"
+   [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ] && \
+     grep -h '"name":"retro"' "$EVENTS_DIR"/events-*.jsonl 2>/dev/null | tail -n 20
    ```
-   Plus this session's observable waste (repeated failed tool calls, repeated
-   review rounds, repeated same-error retries). Each signal:
-   `{pattern, count, scope}` where `scope` = `harness` (workflow/tooling waste →
-   harness issue) or `local` (this-repo waste → local issue). If telemetry is
-   absent, fall back to session-observed waste only.
+   - `retro-telemetry.sh stamp` — stamps the pipeline start for the Phase-3
+     `duration_ms` datum (each Bash call is a fresh shell, so the start time
+     must live on disk, not in a variable). The helper owns the events-dir
+     rule + opt-in gate (shared with `feedback-loop/scripts/event-logger.sh`):
+     it no-ops unless telemetry is opted in AND the events dir is resolvable
+     — the SAME branch the Phase-3 emit + stamp cleanup run inside, so no
+     stamp is orphaned in `/tmp` when telemetry output is unreachable.
+   - `report.py` / `sequence.py` — waste signals (action-branch source). Both
+     self-resolve the events dir via the same shared rule and are safe to run
+     unconditionally (`2>/dev/null` no-ops on absent/empty telemetry). Use
+     their output only when the project-local telemetry dogfooding output
+     exists (the events dir — `.claude-kit/telemetry/events/` by default, see
+     `feedback-loop/README.md`) and `CLAUDE_KIT_TELEMETRY=1`; otherwise fall
+     back to session-observed waste only.
+   - `EVENTS_DIR`/`grep` — prior-retro read (dedup source, only when
+     `CLAUDE_KIT_TELEMETRY=1` AND the events dir exists — the same opt-in gate
+     as Phase 3): reports cumulative processing (best-effort).
 
-3. **Session insights** (memory-branch source): notable decisions/learnings worth
+3. **Waste signals**: from the collected output above, plus this session's
+   observable waste (repeated failed tool calls, repeated review rounds,
+   repeated same-error retries). Each signal: `{pattern, count, scope}` where
+   `scope` = `harness` (workflow/tooling waste → harness issue) or `local`
+   (this-repo waste → local issue).
+
+4. **Session insights** (memory-branch source): notable decisions/learnings worth
    keeping. **Validated patterns** (rule-branch source): repeated user corrections
    that could become a project rule.
 
-4. **Dedup** (count → `items_deduped`):
+5. **Dedup** (count → `items_deduped`):
    - *Within session*: collapse duplicate `(path, error_type)` pairs to one.
    - *Action cross-run*: before proposing an issue, check existing open issues so
      a repeat pattern is not filed twice. Use a **title search** so the match is
@@ -92,16 +104,10 @@ Zero mutation. Produce a deduped, priority-sorted item list.
      ```bash
      gh issue list --state open --search "in:title <pattern keywords>" --json number,title 2>/dev/null
      ```
-   - *Prior retro* (only when `CLAUDE_KIT_TELEMETRY=1` AND the events dir exists —
-     the same opt-in gate as Phase 3): read prior `retro` events to report
-     cumulative processing (best-effort):
-     ```bash
-     EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}"
-     [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ] && \
-       grep -h '"name":"retro"' "$EVENTS_DIR"/events-*.jsonl 2>/dev/null | tail -n 20
-     ```
+   - *Prior retro*: use the `grep` output already collected in step 2 above —
+     do not re-invoke it here.
 
-5. **Prioritize**: tag each item P0/P1/P2. Waste signals: harness-level
+6. **Prioritize**: tag each item P0/P1/P2. Waste signals: harness-level
    repeated waste = P1, local nit = P2, integrity-breaking repeat = P0. Sort
    P0 → P1 → P2.
 
