@@ -202,7 +202,7 @@ A representative sample of this layout (header, per-priority groups, footer) is 
 
 **Tag inference** (#127, deterministic — no LLM; batched #152): when `tags:` is missing, do
 NOT insert an empty `tags: []`. Derive a tag PROPOSAL from three tiers (1 `type:` field, 2
-filename slug, 3 parent folder) via a SINGLE batched call
+filename slug, 3 first segment under `notes/`) via a SINGLE batched call
 `ovm-primitives.sh infer-tags <relpath1> <relpath2> ...` — one Python process for all E2
 findings, not one per finding. It emits a JSON array, one element per path, order preserved,
 duplicates dropped, all lowercased. The tier rules and worked examples are in
