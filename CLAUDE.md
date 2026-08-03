@@ -75,6 +75,7 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 # context: fork                # 선택: fork 시 별도 에이전트에서 실행
 # agent: Explore               # 선택: fork 시 사용할 에이전트 타입
 # model: haiku                 # 선택: 스킬 실행 시 사용할 모델 (haiku|sonnet|opus|inherit)
+# effort: low                   # 선택: reasoning effort 오버라이드 (low|medium|high|xhigh|max) — 티어 다운그레이드(model:)보다 이걸 우선 (#448)
 ---
 ```
 
