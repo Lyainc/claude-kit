@@ -152,6 +152,7 @@ jobs:
           python3 feedback-loop/scripts/test/test-report.py
           bash feedback-loop/scripts/test/test-event-logger.sh
           bash feedback-loop/scripts/test/test-retro-telemetry.sh
+          python3 feedback-loop/scripts/test/test-retro-telemetry-stamp-isolation.py
           bash feedback-loop/scripts/test/test-events-dir-resolution.sh
           # #458 sequence.py drops the started/success lifecycle pair before the n-gram window
           # (a single call used to read as an X -> X repeat, i.e. a waste signal to retro).
