@@ -218,6 +218,13 @@ jobs:
           bash thinking-tools/scripts/test/test-completion-condition-hook.sh
           echo "completion-condition-hook OK"
 
+      - name: Run next-candidate chain_depth/top_areas unit tests
+        run: |
+          # #521 — direct edge coverage (0 commits, root-file `·` prefix, multi-area
+          # branching) the e2e hook test above only exercises indirectly.
+          python3 thinking-tools/scripts/test/test-next-candidate.py
+          echo "next-candidate unit tests OK"
+
       - name: Run obsidian-vault-manager unit tests
         run: |
           python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
