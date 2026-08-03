@@ -242,7 +242,7 @@ def infer_tags(rel: Path, fm: dict) -> list:
       Tier 1 — `type:` field      → always the first tag (type: note → note)
       Tier 2 — filename slug      → meaningful words after stripping the date
                                     and the {type}- prefix, split on `-`/`_`
-      Tier 3 — parent folder      → notes/{domain}/... → add `domain`
+      Tier 3 — first segment under notes/ → notes/{domain}/... → add `domain`
 
     All tokens are lowercased; stopwords and pure-numeric tokens are dropped so
     the result plausibly passes a future E9 vocabulary check (#119, still open):
@@ -270,7 +270,7 @@ def infer_tags(rel: Path, fm: dict) -> list:
         for word in re.split(r"[-_]+", slug):
             _push(word)
 
-    # Tier 3: parent folder domain. Only meaningful inside notes/{domain}/...,
+    # Tier 3: first segment under notes/. Only meaningful inside notes/{domain}/...,
     # where parts == ("notes", "{domain}", ..., "file.md"). The immediate
     # vault-root folder ("notes") itself is structural, not a domain.
     parts = rel.parts
