@@ -136,7 +136,7 @@ check "fresh cache served without gh on PATH" "$got" "1"
 
 # An expired cache must NOT be served — it falls back to a live fetch (or, with no
 # `gh` on PATH here, the same "조회 못 함" as an uncached miss).
-python3 -c "import os,sys; os.utime(sys.argv[1], (0, 0))" "$tmp/gh/.claude-kit/cache/gh-open-issues.json"
+python3 -c "import os,sys,time; t=time.time()-100000; os.utime(sys.argv[1], (t, t))" "$tmp/gh/.claude-kit/cache/gh-open-issues.json"
 got="$(env PATH=/usr/bin:/bin python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '조회 못 함')"
 check "expired cache falls back to a live lookup" "$got" "1"
 
