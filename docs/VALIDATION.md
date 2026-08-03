@@ -436,8 +436,10 @@ python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
 python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
 # Expected: OK: all cases passed
 
-# E4 false-positive regression: wikilinks in code are not links (#434) — 27/82 findings
-# (33%) on a 158-note vault were already-backticked syntax examples. Drives BOTH
+# wikilink-masking regression: wikilinks in code are not links (#434, originally the E4
+# false-positive story — 27/82 findings (33%) on a 158-note vault were already-backticked
+# syntax examples; #482 removed E4 itself, but E5 orphan detection reads the same masked
+# inbound-link index, so the masking accuracy this test guards still matters). Drives BOTH
 # extractors (ovm-primitives.sh extract-wikilinks via subprocess + audit-validate.py
 # collect in-process, the #165 parity pattern) over one fixture, asserts the extracted
 # set is EXACTLY the real prose links, and unit-tests mask_code's fence/inline edges.
@@ -455,11 +457,11 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py \
 python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
 # Expected: OK: audit DoD invariants hold (...)
 # Expected (G8+) — the values assert-dod.py enforces:
-#   dod.seeded_detected = {E1:5, E2:5, E3:5, E4:5, E5:6, E6:5, E9:2, E10:5, E11:5, E12:5,
+#   dod.seeded_detected = {E1:5, E2:5, E3:5, E5:6, E6:5, E9:2, E10:5, E11:5, E12:5,
 #     E12_wiki_unverified:2}
 #     (E2 has 5: base only — the 5 status-missing seeds went away with the status
 #      machine (#480), since a note with no `status:` now conforms; E5 has 6: 5 w/ tag candidates +
-#      1 empty-tags graceful orphan; E6=stale_sources (E7/E8 retired with the B-layer
+#      1 empty-tags graceful orphan; E6=stale_inbox (E7/E8 retired with the B-layer
 #      promotion gate, v5 §5/§6, #480 — no manifest patch step, no promotion seeds);
 #      E9 has 2: vault-level vocabulary pairs (E9a api/apis singular-plural +
 #      E9b sourceUrl/source_url camel/snake), path-less findings, P2/no-autofix,

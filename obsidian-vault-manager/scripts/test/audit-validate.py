@@ -65,7 +65,6 @@ PRIORITY_BY_TYPE = {
     "E1_missing_frontmatter": "P0",
     "E2_missing_required_fields": "P0",
     "E3_filename_convention_violation": "P0",
-    "E4_broken_wikilink": "P0",
     "E5_orphan_note": "P2",
     "E6_stale_inbox": "P1",
     "E9_tag_vocabulary_inconsistency": "P2",
@@ -101,9 +100,11 @@ E5_CANDIDATE_TOP_N = 3
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 # #434: mirrors ovm-primitives.sh's mask_code — [[...]] inside a code fence or inline
 # code is a syntax example, not a link. The two copies are kept behaviourally identical;
-# the E4 FP regression test drives BOTH over the same fixture.
-# Each bound guards against over-masking, which is silent: a swallowed region stops E4
-# reporting real broken links and manufactures E5 orphans. See ovm-primitives.sh for the
+# the wikilink-masking regression test (test-wikilink-code-masking.py, originally the E4
+# FP regression, #482 removed E4 itself since Obsidian's own unresolved-link display
+# already covers it) drives BOTH over the same fixture.
+# Each bound guards against over-masking, which is silent: a swallowed region hides a
+# real inbound link and manufactures a false E5 orphan. See ovm-primitives.sh for the
 # full rationale — a closed fence opens and closes at any indent, only a column-0 fence
 # runs to EOF unclosed, and an inline span never crosses a blank line.
 CODE_FENCE = re.compile(
@@ -290,8 +291,6 @@ def collect(vault: Path) -> dict:
     fm_records: list = []
     files: list = []
     inbound: dict = {}
-    wikilinks_by_file: dict = {}
-    all_stems: set = set()
 
     for path in sorted(vault.rglob("*.md")):
         if any(part.startswith(".") for part in path.relative_to(vault).parts):
@@ -302,7 +301,6 @@ def collect(vault: Path) -> dict:
         except OSError:
             continue
         files.append(rel)
-        all_stems.add(path.stem.lower())
 
         fm = parse_frontmatter(content)
         has_fm = fm is not None
@@ -323,14 +321,11 @@ def collect(vault: Path) -> dict:
         for m in WIKILINK_PATTERN.finditer(mask_code(content)):
             target = m.group(1).strip().lower()
             inbound.setdefault(target, set()).add(str(rel))
-            wikilinks_by_file.setdefault(str(rel), []).append(target)
 
     return {
         "fm_records": fm_records,
         "files": [str(f) for f in files],
-        "all_stems": all_stems,
         "inbound": {k: sorted(v) for k, v in inbound.items()},
-        "wikilinks_by_file": wikilinks_by_file,
     }
 
 
@@ -530,12 +525,6 @@ def classify(bundle: dict) -> dict:
                 detail = f"권장 파일명: {suggested}"
             add("E3_filename_convention_violation", str(rel_path), detail)
 
-    # E4: broken wikilinks
-    for rel, targets in bundle["wikilinks_by_file"].items():
-        for target in targets:
-            if target not in bundle["all_stems"]:
-                add("E4_broken_wikilink", rel, target)
-
     # E5: orphan notes in notes/ (any depth).
     # Pre-build a notes/ tag index once (avoids O(N²) re-scan inside the loop).
     # Index entry: (rel_str, frozenset(tags)). Only notes/ files with non-empty
@@ -705,7 +694,6 @@ SEED_PREFIXES = {
     "E1_missing_frontmatter": ("path", "audit-e1-"),
     "E2_missing_required_fields": ("path", "audit-e2-"),
     "E3_filename_convention_violation": ("path", "audit-e3-"),
-    "E4_broken_wikilink": ("path", "audit-e4-"),
     "E5_orphan_note": ("path", "audit-e5-"),
     "E6_stale_inbox": ("path", "audit-e6-"),
     "E10_misplaced_file": ("path", "audit-e10-"),

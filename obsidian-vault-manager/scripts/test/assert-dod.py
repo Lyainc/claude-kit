@@ -31,7 +31,6 @@ EXPECTED_SEEDED = {
     "E1_missing_frontmatter": 5,
     "E2_missing_required_fields": 5,
     "E3_filename_convention_violation": 5,
-    "E4_broken_wikilink": 5,
     "E5_orphan_note": 6,
     "E6_stale_inbox": 5,
     "E9_tag_vocabulary_inconsistency": 2,
