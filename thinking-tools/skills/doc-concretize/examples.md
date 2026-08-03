@@ -36,9 +36,7 @@ User: "Document our startup's core values.
 
 ### Phase 3: Content Build
 
-**Segment 1: Customer Focus**
-
-[Build]
+**Segment 1: Customer Focus** [Build]
 ```
 Customer focus is the first question we ask in every decision.
 "What value does this bring to our customers?"
@@ -49,17 +47,7 @@ Quarterly customer interviews, weekly NPS reviews, and real-time support channel
 are the concrete methods that execute this principle.
 ```
 
-[Verify]
-- □ Logical connection: Passed (definition → execution method)
-- □ No contradictions: Passed
-- □ Tone and manner: Passed (plain declarative)
-
-[Reflect]
-- All passed → proceed to next segment
-
-**Segment 2: Fast Execution**
-
-[Build]
+**Segment 2: Fast Execution** [Build]
 ```
 Fast execution means not waiting for perfection.
 When we have 80% confidence, we start. We refine the rest while executing.
@@ -70,14 +58,7 @@ and quickly adjust direction based on results.
 Weekly sprints and daily standups maintain this rhythm.
 ```
 
-[Verify]
-- □ Logical connection: Passed (contrasts with previous section's deliberate approach)
-- □ No contradictions: Passed
-- □ Tone and manner: Passed
-
-**Segment 3: Transparency**
-
-[Build]
+**Segment 3: Transparency** [Build]
 ```
 Transparency means information defaults to open.
 If there's no reason to hide it, we share it.
@@ -88,12 +69,17 @@ This principle may cause short-term discomfort,
 but it's the fastest path to building long-term trust.
 ```
 
-[Verify]
-- □ Logical connection: Passed
-- □ No contradictions: Passed
-- □ Tone and manner: Passed
+**Isolated final Verify** (one `Agent` subagent call, whole document, once — not per segment):
+```
+[S1] Customer Focus / [S2] Fast Execution / [S3] Transparency
+□ Logical connection between sections: Passed
+□ No contradictions or redundancy: Passed
+□ Consistent tone and manner: Passed (plain declarative throughout)
+□ Reference style maintained: N/A (no style reference given)
+```
+Result: S1 pass, S2 pass, S3 pass → document done, no [Reflect] revision needed.
 
-*[Internal: Build→Verify→Reflect cycle completed for all 3 segments, quality gates passed]*
+*[Internal: all 3 segments built, isolated Verify passed for all S{n}]*
 
 **Completeness Review** (integrated in Phase 3):
 - Weak evidence claims? → "fastest path to building trust" - abstract but acceptable for values document
@@ -208,9 +194,9 @@ Ask immediately when you need help. No hesitation.
 Deliver feedback directly. No talking behind backs.
 ```
 
-[Verify]
+**Isolated final Verify**:
 - □ Reference style maintained: Passed (short sentences, firm tone, negative emphasis)
-- □ Tone and manner: Passed (matches assertiveness)
+- □ Consistent tone and manner: Passed (matches assertiveness)
 
 ### Final Output
 
@@ -247,10 +233,8 @@ User: "Document our company's AI adoption strategy.
 The expected efficiency improvement from AI adoption is approximately 30%.
 ```
 
-[Verify]
-- □ Fact-check needed: **FAILED** - 30% has no stated basis
-
-[Reflect - Critical Issue]
+Fact uncertain (30% has no stated basis) → this is a [Build]-time trigger, not a Verify
+finding — it fires immediately while drafting, before the segment is considered done:
 
 ```
 AskUserQuestion called:
@@ -304,10 +288,13 @@ It allows one program to call another program's functions.
 
 ```
 [Problem]
-Segment 1 written → verify failed → revise → verify failed → revise → verify failed...
+Running a self-check after every segment draft — the same context grading its own
+draft trivially passes its own bar, so it adds cost without adding a real check.
 
 [Solution]
-Max 2 re-verifications, then force proceed with issue marked
+Draft all segments via [Build] only, then run ONE isolated final Verify (separate Agent
+subagent, whole document). On failure: revise and re-run isolated Verify (max 3 attempts),
+then rewrite the failing segment(s) if still failing.
 ```
 
 ### Anti-Pattern 2: Ignoring Style Reference
