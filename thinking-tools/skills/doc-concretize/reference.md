@@ -142,16 +142,19 @@ Detailed procedures and guidelines.
 4. Explain technical terms on first appearance
 ```
 
-### Verify Checklist
+### Isolated Final Verify Checklist
+
+Detail for the whole-document checklist SKILL.md's isolated final Verify runs once, in a
+separate Agent subagent, over all assembled segments — never per segment (see SKILL.md Phase 3):
 
 ```
 [Logical Connection]
-□ Natural transitions/connectors with previous section
+□ Natural transitions/connectors between sections
 □ Clear cause-effect relationships between concepts
 □ No logical leaps
 
 [Contradiction Check]
-□ No conflict with previously mentioned content
+□ No conflict between sections
 □ Consistent meaning of same terms
 □ Numbers and facts match
 
@@ -163,13 +166,17 @@ Detailed procedures and guidelines.
 
 ### Reflect Branching
 
+Fires only on an isolated-Verify failure — never per segment (see SKILL.md Phase 3):
+
 ```
-Verify Result → Branch
-├─ All passed → Next segment
-├─ 1-2 failed → Revise and re-verify (max 2 attempts)
-├─ 3+ failed → Rewrite entire segment
-└─ Fact uncertain → Call tool or mark for later
+Isolated Verify Result → Branch
+├─ All S{n} passed → Document done
+├─ 1-2 S{n} failed → Revise failing segment(s), re-run isolated Verify (max 3 attempts)
+└─ 3+ S{n} failed → Rewrite failing segment(s) entirely
 ```
+
+`Fact uncertain` is a [Build]-time trigger (call AskUserQuestion or WebFetch while drafting),
+not a Reflect branch — see SKILL.md Phase 3.
 
 ### Critical Issue Judgment Criteria
 
@@ -331,7 +338,6 @@ doc-polish focuses on expression quality (style, clarity, readability).
       "resolved": false
     }
   ],
-  "verify_count": {"1": 0, "2": 1},
   "quality_gate": "pending|passed|failed"
 }
 ```
