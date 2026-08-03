@@ -126,6 +126,7 @@ jobs:
         run: |
           python3 vault-bridge/scripts/test/test-pre-write-guard.py
           python3 vault-bridge/scripts/test/test-manifest-type-optin.py
+          python3 vault-bridge/scripts/test/test-manifest-candidates.py
           python3 vault-bridge/scripts/test/test-vault-commit-message.py
           echo "vault-bridge tests OK"
 
