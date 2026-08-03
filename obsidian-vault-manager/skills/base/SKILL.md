@@ -1,7 +1,7 @@
 ---
 name: base
 description: "Generate an Obsidian Bases (.base) view file in ~/vault/notes/ from enforced frontmatter — a live, non-destructive view that never modifies existing notes. Built-in templates: sources, notes, recent. Examples: '/base sources', '/base notes', '/base recent', '/base my-clippings --template sources'"
-model: sonnet
+effort: low
 allowed-tools: Read Write Bash Glob
 ---
 
