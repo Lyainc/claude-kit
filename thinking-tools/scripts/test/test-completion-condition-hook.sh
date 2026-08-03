@@ -127,12 +127,15 @@ done
 # === 6. gh-open-issues cache reuse (#528) ==========================================
 # Test 4's "genuinely empty" call above already populated $tmp/gh's shared cache
 # (.claude-kit/cache/gh-open-issues.json) with a successful empty-backlog fetch.
-# With `gh` now entirely unavailable, a cache-hit must still read as "genuinely
-# empty" — not fall through to "조회 못 함" — proving the fresh cache is served
-# without shelling out again. retro's dedup step (feedback-loop/skills/retro/SKILL.md)
-# reads the same cache via feedback-loop/scripts/gh-issues-cache.sh.
+# A cache hit returns before has_github_remote/_which("gh") are ever checked, so this
+# assertion is NOT a gh-presence test (it would pass identically with a real `gh` on
+# PATH, #542) — it proves the fresh cache short-circuits to "genuinely empty" instead
+# of falling through to a live fetch/"조회 못 함". $no_gh_dir is used only for
+# consistency with the rest of this block, not because gh's absence matters here.
+# retro's dedup step (feedback-loop/skills/retro/SKILL.md) reads the same cache via
+# feedback-loop/scripts/gh-issues-cache.sh.
 got="$(env PATH="$no_gh_dir" python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '실제로 비어')"
-check "fresh cache served without gh on PATH" "$got" "1"
+check "fresh cache short-circuits to genuinely-empty" "$got" "1"
 
 # An expired cache must NOT be served — it falls back to a live fetch (or, with no
 # `gh` on PATH here, the same "조회 못 함" as an uncached miss). GH_CACHE_TTL_OVERRIDE=-1
