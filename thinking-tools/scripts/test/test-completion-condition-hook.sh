@@ -131,7 +131,7 @@ done
 # empty" — not fall through to "조회 못 함" — proving the fresh cache is served
 # without shelling out again. retro's dedup step (feedback-loop/skills/retro/SKILL.md)
 # reads the same cache via feedback-loop/scripts/gh-issues-cache.sh.
-got="$(env PATH=/usr/bin:/bin python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '실제로 비어')"
+got="$(env PATH="$no_gh_dir" python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '실제로 비어')"
 check "fresh cache served without gh on PATH" "$got" "1"
 
 # An expired cache must NOT be served — it falls back to a live fetch (or, with no
@@ -139,7 +139,10 @@ check "fresh cache served without gh on PATH" "$got" "1"
 # forces immediate expiry deterministically — OS mtime writes vs. reads across two
 # separate process invocations are not guaranteed to order/resolve identically across
 # platforms/filesystems, which is what made this flake on Linux CI while passing locally.
-got="$(env PATH=/usr/bin:/bin GH_CACHE_TTL_OVERRIDE=-1 python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '조회 못 함')"
+# $no_gh_dir (not a raw PATH like /usr/bin:/bin) is the hermetic "gh missing" simulation —
+# #535 already found that guessing which system dirs lack gh breaks wherever gh happens to
+# actually live there (this file's own CI run, on GitHub-hosted Ubuntu, is exactly that case).
+got="$(env PATH="$no_gh_dir" GH_CACHE_TTL_OVERRIDE=-1 python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '조회 못 함')"
 check "expired cache falls back to a live lookup" "$got" "1"
 
 # === report ========================================================================
