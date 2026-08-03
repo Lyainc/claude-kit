@@ -14,7 +14,7 @@ description: |
   "무엇을 다음에 할지 + 어떤 조건으로 닫을지"만 담당한다. 아이디어를 명세로 굳히는 건
   build-spec, 문서 저작은 doc-concretize.
 allowed-tools: Read Bash Grep Glob
-model: sonnet
+effort: medium
 ---
 
 # Completion Condition
