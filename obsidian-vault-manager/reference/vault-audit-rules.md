@@ -155,26 +155,57 @@ only suggests; the user decides.
 **Source**: `inbound_links` (built from full vault scan).
 **Guard**: `_index.md` files are never orphans. Files in `sources/` are exempt (unprocessed captures). Files in `assets/` are exempt.
 
-**Connection candidates** (#130, display-only): for each orphan, compute the top-3
-`notes/` files sharing the most tags (exact-match intersection only — no semantic
-synonyms). Build a `notes/` tag index once before the orphan loop to avoid O(N²).
+**Connection candidates** (#130, display-only; rarity-weighted scoring #495): for
+each orphan, compute the top-3 `notes/` files by a **rarity-weighted** shared-tag
+score — not raw shared-tag COUNT — so a tag common across the vault (e.g. every
+note tagged `note`) doesn't manufacture a "connection" on its own; a tag seen on
+only a couple of files outweighs it. Exact-match intersection only, no semantic
+synonyms. Build a `notes/` tag index once before the orphan loop to avoid O(N²).
 
 ```
 notes_tag_index = [(rel, frozenset(tags)) for rel in notes/ if rel != _index.md]
 
+df(t) = count of notes_tag_index entries whose tagset contains t   # E9a-style
+        vault-wide aggregation, built once from notes_tag_index (no 2nd scan)
+
+score(P, Q) = Σ_{t ∈ P.tags ∩ Q.tags} 1 / log(1 + df(t))
+
 for each orphan P:
   orphan_tags = frozenset(P.tags)            # [] when tags empty
-  scored = [(len(orphan_tags & Q.tags), Q.rel, sorted(shared))
-            for Q in notes_tag_index if Q != P and (orphan_tags & Q.tags)]
-  scored.sort by (shared desc, path asc)
-  candidates = scored[:3]                     # [{path, shared_tags}]
+  scored = [(score(P, Q), Q.rel, sorted(shared))
+            for Q in notes_tag_index if Q != P and (shared := orphan_tags & Q.tags)]
+  scored.sort by (score desc, path asc)
+  if not scored:
+    candidates, floor_gated = [], False       # no note shares ANY tag with P
+  elif scored[0].score < E5_MIN_CANDIDATE_SCORE:
+    candidates, floor_gated = [], True         # shared tags exist, but the best
+                                                # match is still noise — don't
+                                                # force-fill top-3 with weak matches
+  else:
+    candidates, floor_gated = scored[:3], False  # [{path, shared_tags}]
 ```
+
+`floor_gated` is NOT the same condition as `candidates == []` on its own — it
+distinguishes *why* candidates is empty, so the rendered `detail` (below) can
+say which. Conflating the two (e.g. testing only `orphan_tags` truthiness) had
+misreported an orphan whose tag is shared by NO ONE as "공유 태그가 너무 흔해" —
+backwards, since there was no shared tag, common or otherwise.
+
+`E5_MIN_CANDIDATE_SCORE` (= 0.5) is the floor the BEST-scoring candidate must
+clear. A single shared tag scores `1/log(1+df)`: a tag exclusive to this
+orphan+candidate pair (df=2) scores ~0.91, down to shared with 4 other notes
+too (df=6) at ~0.51 — both clear the floor. A tag common enough to sit on 7+
+notes/ files (df>=7) scores <=0.48 alone, so it takes >=2 such tags, or one
+genuinely rarer one, to count as a real connection signal.
 
 The finding carries a **structured** `candidates: [{path, shared_tags}]` field
 (REPORT renders the `연결 후보` line from it) AND a rendered `detail`:
 
 - with candidates: `연결 후보: [[X]] (공유 태그: a, b); [[Y]] (공유 태그: a)`
-- no shared tags / empty tags: `연결 후보 없음 (공유 태그 없음)`, `candidates: []`
+- empty tags, or tags present but no other note shares any of them (`floor_gated`
+  is False): `연결 후보 없음 (공유 태그 없음)`, `candidates: []`
+- shared tags exist but the best score misses the floor (`floor_gated` is True):
+  `연결 후보 없음 (공유 태그가 너무 흔해 신호가 되지 못함)`, `candidates: []`
 
 Empty-tags orphans are handled gracefully (no candidate computation, no error).
 Linking position is the user's decision — the audit only suggests candidates.
