@@ -59,10 +59,12 @@ def chain_depth(cwd, n_commits):
     """How many of the most recent commits, consecutively, share an area with the newest one.
 
     The top-level directory is a proxy for "same thread", and it is repo-shaped. It reads true
-    where top-level dirs are genuine areas — validated on claude-kit 2026-07-24, which returns
-    depth 3 at e9d98ee (three consecutive docs/ commits) and 2 at 91ab783. It reads LOW where
-    top-level dirs are layers of one thing: a repo that splits a single thread across
-    rules/ + policies/ + skills/ reports depth 1 for three commits of one piece of work.
+    where top-level dirs are genuine areas. One-time calibration note, not a standing guarantee
+    (the repo's history moves on, so this will drift and is not re-checked): on claude-kit at
+    2026-07-24, it returned depth 3 at e9d98ee (three consecutive docs/ commits) and 2 at
+    91ab783. It reads LOW where top-level dirs are layers of one thing: a repo that splits a
+    single thread across rules/ + policies/ + skills/ reports depth 1 for three commits of one
+    piece of work.
 
     So a low depth is never an all-clear. It is an *additional* trigger for widening the pool,
     never a gate on the impact floor — the skill runs the floor test regardless, which is what
@@ -217,9 +219,11 @@ def link_terms(paths):
 
     Bare filename stems are NOT usable here: README, SKILL, CLAUDE, plugin match every issue
     in a repo like this one, and a link signal that fires on everything discriminates never.
-    Measured on claude-kit 2026-07-24: stem matching linked 5 of 5 open issues; requiring a
-    path separator linked 3, all genuine. So: full paths, and directory prefixes with at
-    least two segments. Every term contains a '/'.
+    One-time calibration note, not a standing guarantee (the open-issue backlog moves on, so
+    this will drift and is not re-checked): measured on claude-kit at 2026-07-24, stem
+    matching linked 5 of 5 open issues; requiring a path separator linked 3, all genuine.
+    So: full paths, and directory prefixes with at least two segments. Every term contains
+    a '/'.
     """
     terms = set()
     for p in paths:
