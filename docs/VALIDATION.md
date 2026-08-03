@@ -392,7 +392,7 @@ bash thinking-tools/scripts/test/test-completion-condition-hook.sh
 # zero commits, a bare root file's `·`-prefixed area, and multi-area branching (including a
 # commit whose changed files span more than one area).
 python3 thinking-tools/scripts/test/test-next-candidate.py
-# Expected: OK: all 5 test-next-candidate checks passed
+# Expected: OK: all 6 test-next-candidate checks passed
 
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
