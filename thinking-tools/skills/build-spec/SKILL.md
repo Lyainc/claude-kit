@@ -9,7 +9,7 @@ description: |
   Routing: 만들 대상이 아직 정해지지 않았거나 위험이 커서 먼저 맹점부터 훑어야 하면 unknown-discovery,
   "구체화"만 단독이면 doc-concretize, 만들 대상이 정해져 있고 YAML Seed 스펙으로 굳힐 때만 build-spec.
 allowed-tools: AskUserQuestion Read Write Glob Grep Agent Bash Skill
-model: sonnet
+effort: medium
 ---
 
 # Build Spec
