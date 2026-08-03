@@ -37,6 +37,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import math
 import os
 import re
 import subprocess
@@ -97,6 +98,14 @@ CANONICAL_FOLDERS = {"sources", "notes", "assets", "wiki"}
 EXEMPT_FILES = {"_index.md"}
 # E5 candidate tuning (v4 §6.1): top-N tag-intersection candidates per orphan.
 E5_CANDIDATE_TOP_N = 3
+# E5 rarity-weighting floor (#495): the best-scoring candidate must clear this
+# score or candidates fall back to []. A single shared tag scores 1/log(1+df) —
+# df=2 (the tag exists ONLY on this orphan+candidate pair) scores ~0.91, down to
+# df=6 (shared with 4 other notes too) at ~0.51 — all clear 0.5. df>=7 (a tag
+# common enough to sit on 7+ notes/ files) scores <=0.48 alone, so a vault-wide
+# generic tag no longer manufactures a "connection" by itself — it takes >=2
+# such tags, or one genuinely rarer one, to clear the floor.
+E5_MIN_CANDIDATE_SCORE = 0.5
 WIKILINK_PATTERN = re.compile(r"\[\[([^\[\]|#]+)(?:#[^\]]*)?(?:\|[^\]]*)?\]\]")
 # #434: mirrors ovm-primitives.sh's mask_code — [[...]] inside a code fence or inline
 # code is a syntax example, not a link. The two copies are kept behaviourally identical;
@@ -482,6 +491,66 @@ def detect_vocabulary_pairs(fm_records: list) -> list:
     return pairs
 
 
+def _e5_tag_df(notes_tag_index: list) -> dict:
+    """Vault-wide (E9a-style) document frequency of each notes/ tag (#495).
+
+    df(t) = number of notes/ files (any depth, incl. _index-excluded index
+    entries themselves) carrying tag t. Built once from the same
+    notes_tag_index E5 already indexes — no second vault scan.
+    """
+    df: dict = {}
+    for _, tags in notes_tag_index:
+        for t in tags:
+            df[t] = df.get(t, 0) + 1
+    return df
+
+
+def score_e5_candidate(shared_tags, tag_df: dict) -> float:
+    """Rarity-weighted E5 candidate score (#495): sum(1/log(1+df(t))).
+
+    A tag shared with few other notes/ files contributes more than one shared
+    with many — so a candidate connected through a rare tag outranks one
+    connected only through a vault-wide-common tag.
+    """
+    return sum(1.0 / math.log(1 + tag_df[t]) for t in shared_tags)
+
+
+def rank_e5_candidates(orphan_rel: str, orphan_tags, notes_tag_index: list,
+                        tag_df: dict) -> tuple:
+    """Top-N connection candidates for one E5 orphan, rarity-weighted (#495).
+
+    Scores every notes/ file sharing >=1 tag with the orphan via
+    score_e5_candidate, sorted by score desc then path asc. If the BEST score
+    doesn't clear E5_MIN_CANDIDATE_SCORE — every shared tag is common enough
+    across the vault to be noise rather than a real connection — candidates
+    fall back to [] instead of force-filling E5_CANDIDATE_TOP_N with weak
+    matches.
+
+    Returns (candidates, floor_gated). floor_gated is True only in that "shared
+    tags exist but all scored below the floor" case — distinct from "no note
+    shares any tag with this orphan at all" (also candidates == []) — so the
+    caller can render an accurate reason instead of conflating the two.
+    """
+    if not orphan_tags:
+        return [], False
+    scored = []
+    for cand_rel, cand_tags in notes_tag_index:
+        if cand_rel == orphan_rel:
+            continue
+        shared = orphan_tags & cand_tags
+        if shared:
+            scored.append((score_e5_candidate(shared, tag_df), cand_rel, sorted(shared)))
+    if not scored:
+        return [], False
+    scored.sort(key=lambda x: (-x[0], x[1]))
+    if scored[0][0] < E5_MIN_CANDIDATE_SCORE:
+        return [], True
+    return [
+        {"path": cand_rel, "shared_tags": shared_sorted}
+        for _, cand_rel, shared_sorted in scored[:E5_CANDIDATE_TOP_N]
+    ], False
+
+
 def classify(bundle: dict) -> dict:
     findings: list = []
     today = date.today()
@@ -540,6 +609,7 @@ def classify(bundle: dict) -> dict:
             t for t in raw_tags if isinstance(t, str) and t
         ) if isinstance(raw_tags, list) else frozenset()
         notes_tag_index.append((rec["rel"], tagset))
+    tag_df = _e5_tag_df(notes_tag_index)
 
     for rec in bundle["fm_records"]:
         rel_path = Path(rec["rel"])
@@ -555,19 +625,7 @@ def classify(bundle: dict) -> dict:
         orphan_tags = frozenset(
             t for t in raw_tags if isinstance(t, str) and t
         ) if isinstance(raw_tags, list) else frozenset()
-        candidates: list = []
-        if orphan_tags:
-            scored = []
-            for cand_rel, cand_tags in notes_tag_index:
-                if cand_rel == rec["rel"]:
-                    continue
-                shared = orphan_tags & cand_tags
-                if shared:
-                    scored.append((len(shared), cand_rel, sorted(shared)))
-            # Sort: shared count desc, then path asc.
-            scored.sort(key=lambda x: (-x[0], x[1]))
-            for _, cand_rel, shared_sorted in scored[:E5_CANDIDATE_TOP_N]:
-                candidates.append({"path": cand_rel, "shared_tags": shared_sorted})
+        candidates, floor_gated = rank_e5_candidates(rec["rel"], orphan_tags, notes_tag_index, tag_df)
 
         if candidates:
             rendered = "; ".join(
@@ -575,6 +633,8 @@ def classify(bundle: dict) -> dict:
                 for c in candidates
             )
             detail = f"연결 후보: {rendered}"
+        elif floor_gated:
+            detail = "연결 후보 없음 (공유 태그가 너무 흔해 신호가 되지 못함)"
         else:
             detail = "연결 후보 없음 (공유 태그 없음)"
         add("E5_orphan_note", rec["rel"], detail, candidates=candidates)
