@@ -76,7 +76,7 @@ E9 standard.
 |------|--------|------|
 | 1 | `type:` field | always the first tag (`type: note` → `note`) |
 | 2 | filename slug | strip the date prefix (`YYYY-MM-DD-` / `YYYY-MM-`) and a leading `{type}-`, then split the remainder on `-`/`_` into one tag per word |
-| 3 | parent folder | only inside `notes/{domain}/...` (path depth ≥ 3) → add `domain`. The vault-root folder name itself (`notes`) is structural, not a domain. |
+| 3 | first segment under `notes/` | only inside `notes/{segment}/...` (path depth ≥ 3) → add `segment`. This is `rel.parts[1]`, **not** the file's literal parent folder — at depth 4+ (`notes/diary/2026/x.md`) it tags `diary`, never `2026`. The vault-root folder name itself (`notes`) is structural, not a domain. |
 
 ```
 infer_tags(rel, fm):
@@ -85,7 +85,10 @@ infer_tags(rel, fm):
   slug = strip_date_and_type_prefix(rel.name)
   for word in split(slug, /[-_]+/): push(word)   # tier 2
   if rel.parts[0] == "notes" and len(rel.parts) >= 3:
-    push(rel.parts[1])                  # tier 3 domain
+    push(rel.parts[1])                  # tier 3: first segment under notes/, always index 1 —
+                                         # a pure-digit segment (a year folder) is dropped by
+                                         # push()'s digit filter, so no separate year exception
+                                         # is needed here.
   return tags                           # push() lowercases, dedups, drops stopwords/digits
 ```
 
@@ -438,7 +441,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 
 | Type | Auto-fix action |
 |------|-----------------|
-| `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → parent folder; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
+| `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → first segment under `notes/`; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
 
 Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b contradiction, is a semantic decision — display-only warning).
 
@@ -507,7 +510,7 @@ plausibly passes a future E9 vocabulary check:
 |------|--------|------|
 | 1 | `type:` field | always the first tag (`type: note` → `note`) |
 | 2 | filename slug | words after stripping the date + `{type}-` prefix, split on `-`/`_` |
-| 3 | parent folder | `notes/{domain}/...` → add `domain` |
+| 3 | first segment under `notes/` | `notes/{segment}/...` → add `segment` (`rel.parts[1]`, not the literal parent folder — see the E2 Tag inference section above) |
 
 Examples: `notes/llm/decision-2026-04-12-context-window.md` (`type: decision`)
 → `[decision, context, window, llm]`; `sources/capture-2026-05-01-obsidian-api.md`

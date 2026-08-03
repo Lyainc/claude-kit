@@ -30,7 +30,7 @@ command -v jq >/dev/null 2>&1 || { echo "FAIL: jq required on PATH" >&2; exit 1;
 
 VAULT="$(mktemp -d)"
 trap 'rm -rf "$VAULT"' EXIT
-mkdir -p "$VAULT/notes/devops"
+mkdir -p "$VAULT/notes/devops" "$VAULT/notes/diary/2026" "$VAULT/notes/2026"
 cat > "$VAULT/notes/devops/decision-2026-01-02-ci-cache.md" <<'MD'
 ---
 type: decision
@@ -39,6 +39,18 @@ created: 2026-01-02
 body
 MD
 cat > "$VAULT/notes/note-foo-bar.md" <<'MD'
+---
+type: note
+---
+body
+MD
+cat > "$VAULT/notes/diary/2026/entry.md" <<'MD'
+---
+type: note
+---
+body
+MD
+cat > "$VAULT/notes/2026/diary-x.md" <<'MD'
 ---
 type: note
 ---
@@ -116,6 +128,22 @@ out="$(VAULT_ROOT="$VAULT" bash "$PRIM" infer-tags "$F1" '../escape.md' 2>/dev/n
 if [ $rc -eq 1 ] && [ -z "$out" ]; then
   ok "traversal among valid paths: whole batch hard-dies"
 else bad "mixed traversal hard-fail" "rc=$rc out=$out"; fi
+
+# 10. tier-3 (#531): notes/diary/2026/entry.md -> domain tag is `diary` (rel.parts[1]),
+#     NEVER the file's literal parent folder `2026`.
+out="$(VAULT_ROOT="$VAULT" bash "$PRIM" infer-tags "notes/diary/2026/entry.md")"; rc=$?
+tags="$(printf '%s' "$out" | jq -c '.[0].inferred_tags')"
+if [ $rc -eq 0 ] && printf '%s' "$tags" | jq -e 'index("diary")' >/dev/null && ! printf '%s' "$tags" | jq -e 'index("2026")' >/dev/null; then
+  ok "tier-3 depth-4: tags include 'diary', not '2026' ($tags)"
+else bad "tier-3 depth-4" "rc=$rc tags=$tags"; fi
+
+# 11. tier-3 (#531): notes/2026/diary-x.md -> parts[1] is the pure-digit '2026', dropped by
+#     push()'s digit filter, so it never becomes a domain tag.
+out="$(VAULT_ROOT="$VAULT" bash "$PRIM" infer-tags "notes/2026/diary-x.md")"; rc=$?
+tags="$(printf '%s' "$out" | jq -c '.[0].inferred_tags')"
+if [ $rc -eq 0 ] && ! printf '%s' "$tags" | jq -e 'index("2026")' >/dev/null; then
+  ok "tier-3 year-folder: '2026' never proposed as a domain tag ($tags)"
+else bad "tier-3 year-folder" "rc=$rc tags=$tags"; fi
 
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
