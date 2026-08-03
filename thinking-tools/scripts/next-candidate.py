@@ -26,6 +26,7 @@ Standalone use: python3 scripts/next-candidate.py [--hours N] [--commits N] [--c
 """
 
 import argparse
+import calendar
 import json
 import os
 import subprocess
@@ -202,7 +203,10 @@ BACKLOG_UNAVAILABLE = {
 
 def age_days(iso):
     try:
-        t = time.mktime(time.strptime(iso, "%Y-%m-%dT%H:%M:%SZ")) - time.timezone
+        # calendar.timegm treats the parsed struct as UTC directly — unlike
+        # `time.mktime(...) - time.timezone`, it needs no DST correction (#542:
+        # the mktime form was off by up to an hour whenever local time was in DST).
+        t = calendar.timegm(time.strptime(iso, "%Y-%m-%dT%H:%M:%SZ"))
         return max(0, int((time.time() - t) // 86400))
     except Exception:
         return -1
