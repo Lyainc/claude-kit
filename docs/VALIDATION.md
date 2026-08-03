@@ -416,6 +416,12 @@ bash obsidian-vault-manager/scripts/test/test-infer-tags-batch.sh
 python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
 # Expected: OK: all cases passed
 
+# notes/ filename convention parity gate (#531): audit-validate.py's filename_conforms()
+# (report-time E3) and vault-bridge/hooks/pre-write-guard.sh's notes/ pattern (write-time)
+# must agree on the same filename set, e.g. a bare YYYY-MM- date under notes/.
+python3 obsidian-vault-manager/scripts/test/test-notes-filename-consistency.py
+# Expected: OK: all cases passed
+
 # E12 wiki self-audit staleness scoping unit test (#330, #494) — pins detect_stale_wiki's
 # wiki-only + type:wiki scope and the strict-> staleness boundary, and pins that a
 # missing/unparseable `verified:` is skipped by detect_stale_wiki but surfaced instead by

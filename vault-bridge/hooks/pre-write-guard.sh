@@ -373,11 +373,16 @@ case "$top_dir" in
     fi
     ;;
   notes)
-    # Intentionally loose kebab-case — preserves user freedom (v4 §3.1); OVM `note` enforces prefix convention.
+    # Intentionally loose kebab-case — preserves user freedom (v4 §3.6); OVM `note` enforces prefix convention.
     # .base allowed alongside .md (Obsidian Bases view files, #118): same kebab stem, NEVER overwrites notes.
-    expected_pattern='^[a-z0-9][a-z0-9-]*(-v[0-9]+)?\.(md|base)$'
+    # Bare YYYY-MM- prefix excluded (#531): v4 §3.6 reserves that shape for sources/capture-*
+    # and sources/session-*; a date-first name under notes/ needs a {type}- prefix
+    # (decision-/plan-YYYY-MM-DD-{slug}, still allowed below) or no date at all. Without this
+    # exclusion the guard let through exactly what audit-validate.py's filename_conforms()
+    # flags as a P0 filename_convention_violation on every run.
+    expected_pattern='^(?!\d{4}-\d{2}-)[a-z0-9][a-z0-9-]*(-v[0-9]+)?\.(md|base)$'
     if ! validate_pattern "$filename" "$expected_pattern"; then
-      violation="notes/ filenames must match: {lowercase-kebab}[-vN].(md|base)"
+      violation="notes/ filenames must match: {lowercase-kebab}[-vN].(md|base), and may not start with a bare YYYY-MM- date (that shape is reserved for sources/)"
     fi
     ;;
   wiki)
