@@ -90,27 +90,21 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 
 1. **Check manifest existence**: `[ -f "{vault_root}/.vault-bridge/manifest.json" ]`
 2. **If manifest exists**:
-   a. Run the candidate prefilter via `manifest-domain-candidates.py` — **never `Read` the raw
-      manifest file** (#523: a full-file `Read` overflows the Read tool's 2,000-line cap on a
-      real vault, and since `generate-manifest.py` sorts entries by `rel_path`, `wiki/`
-      (alphabetically last) landed 100% inside the truncated tail, silently breaking the
-      "wiki/ always included" contract below). The script reads the manifest file directly off
-      disk (untruncated) and does the filtering *before* anything crosses into your context:
+   a. Run the candidate prefilter via `manifest-domain-candidates.py` (never `Read` the raw
+      manifest — why, #523: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`). Reads the
+      manifest untruncated off disk and filters before anything enters context:
       ```bash
       python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-domain-candidates.py" \
         --domain "{domain}" --vault-path "{vault_path}" "{vault_root}/.vault-bridge/manifest.json"
       ```
-      This already applies: `type == wiki` (always included regardless of path-prefix scoping —
-      the A-layer wiki is repo-transcending domain knowledge, same as the standard scan in
-      #272), `path` prefix matching `.vault-link` `vault_path`, `tags` contains domain keyword,
-      or `status == active`. Output is one line: `{"candidate_count": N, "candidates": [...]}`.
-   b. **Truncation check (never silent — #523)**: if the output fails to parse as JSON, or
-      `len(candidates) != candidate_count`, the result was cut off mid-stream — do not proceed
-      with a partial candidate set. Log "manifest 후보 목록이 잘렸을 수 있어 전체 스캔으로
-      대체합니다." and fall through to the standard scan below. If `python3` or the script
-      itself is unavailable, skip straight to the standard scan too (graceful degradation).
-      A nonzero exit code (3) means the manifest is absent/unparseable/malformed — same
-      fallback, distinct from a legitimately empty vault (`candidate_count: 0` with exit 0).
+      Applies `type == wiki` (always included — #272, the A layer is the primary recall
+      target), `.vault-link` `vault_path` prefix, domain-keyword tag match, or
+      `status == active`. Output: `{"candidate_count": N, "candidates": [...]}`.
+   b. **Truncation check**: parse failure, or `len(candidates) != candidate_count`, means
+      truncation — don't trust a partial set. Log "manifest 후보 목록이 잘렸을 수 있어 전체
+      스캔으로 대체합니다." and fall through to the standard scan below. Same fallback when
+      `python3`/the script is unavailable or it exits 3 (manifest absent/unparseable) —
+      distinct from a legitimately empty vault (`candidate_count: 0`, exit 0).
    c. Sort candidates: `status=active` first, then by recall-weight signals already in
       the manifest entry — `recent_commits` descending (count of git commits touching the
       file in the **last 7 days** = recent activity, not all-time work; it measures *writing*,
@@ -149,22 +143,17 @@ Search the entire vault by keyword and load note contents.
 
 **Procedure**:
 1. **Manifest-first pre-filter** (if `{vault_root}/.vault-bridge/manifest.json` exists):
-   - Run `manifest-keyword-candidates.py` — **never `Read` the raw manifest file** (#523: same
-     truncation defect as Mode 2 — a full-file `Read` overflows the Read tool's 2,000-line cap,
-     and `wiki/` sorted alphabetically last always landed in the truncated tail, so a keyword
-     that only matched a wiki page could never surface it):
+   - Run `manifest-keyword-candidates.py` (never `Read` the raw manifest — why, #523:
+     `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`):
      ```bash
      python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-keyword-candidates.py" \
        "{keyword}" "{vault_root}/.vault-bridge/manifest.json"
      ```
-     Output is one line: `{"candidate_count": N, "candidates": [...]}`, matching `{keyword}`
-     against each entry's `title` and `summary` (case-insensitive substring).
-   - **Truncation check (never silent — #523)**: if the output fails to parse as JSON, or
-     `len(candidates) != candidate_count`, treat the result as unusable — log "manifest 후보
-     목록이 잘렸을 수 있어 전체 스캔으로 대체합니다." and fall through to step 2. Same fallback
-     if `python3`/the script is unavailable, or the script exits 3 (manifest absent/unparseable).
-   - If `candidates` has ≥ 1 entry, skip step 2 and use these candidates directly.
-   - If no manifest matches (`candidate_count: 0` with exit 0), fall through to step 2.
+     Matches `{keyword}` against `title`/`summary` (case-insensitive substring); outputs
+     `{"candidate_count": N, "candidates": [...]}`.
+   - **Truncation check**: same rule as Mode 2 step 2b.
+   - `candidates` ≥ 1 → skip step 2, use directly. `candidate_count: 0` (exit 0) → fall
+     through to step 2.
 2. Search (exclude `.claude/`, `assets/`):
    - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{keyword}" limit=20` and use the returned vault-relative paths as candidates.
    - If the CLI path is unavailable, fails, times out, or returns no useful candidates, fall back:
