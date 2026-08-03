@@ -385,7 +385,7 @@ bash thinking-tools/scripts/test/test-session-start-welcome.sh
 # gh를 PATH에 스텁으로 깔아 네트워크 없이 결정적으로 돈다. 페이로드가 판정문(임팩트 바닥 등)을
 # 싣지 않는지도 함께 핀 — 판정은 SKILL.md 소유고 양쪽에 두면 경계를 가로지른 중복이다.
 bash thinking-tools/scripts/test/test-completion-condition-hook.sh
-# Expected: OK: all 16 completion-condition-hook cases passed
+# Expected: OK: all 18 completion-condition-hook cases passed
 
 # next-candidate.py chain_depth()/top_areas() unit tests (#521) — the hook test above only
 # exercises these through single-commit e2e fixtures; this asserts the edges directly:
