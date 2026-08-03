@@ -107,7 +107,9 @@ def has_github_remote(cwd):
 # NEVER read this cache for a live-status render (a specific PR/issue's current state
 # shown to the user) — only "does something like this already exist" comparison
 # reads, where a few minutes of staleness is harmless.
-GH_CACHE_TTL = 300   # ponytail: flat 300s ceiling, long enough to span one /wrap run.
+GH_CACHE_TTL = int(os.environ.get("GH_CACHE_TTL_OVERRIDE", 300))  # ponytail: flat 300s ceiling,
+# long enough to span one /wrap run. Override lets a test force an immediate expiry
+# (GH_CACHE_TTL_OVERRIDE=-1) without depending on OS mtime-manipulation timing.
 GH_CACHE_LIMIT = 300  # ponytail: open-issue cap; widen if a repo actually exceeds this.
 
 
