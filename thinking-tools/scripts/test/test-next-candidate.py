@@ -12,10 +12,15 @@ Exit codes: 0 all passed, 1 one or more failed
 
 from __future__ import annotations
 
+import atexit
+import calendar
 import importlib.util
+import os
+import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -48,6 +53,7 @@ def _commit(cwd, paths, msg):
 
 def _repo():
     d = tempfile.mkdtemp(prefix="test-next-candidate-")
+    atexit.register(shutil.rmtree, d, ignore_errors=True)
     _git(d, "init", "-q")
     return d
 
@@ -116,6 +122,33 @@ def check_partial_overlap() -> list[str]:
     return failures
 
 
+def check_age_days_dst() -> list[str]:
+    """age_days() must use calendar.timegm (UTC-exact), not local mktime — DST fix regression guard (#542).
+
+    Picks an input 30 minutes shy of a day boundary under a DST-observing local zone: the old
+    `time.mktime(...) - time.timezone` form could be off by up to an hour, which is enough to
+    flip the floored day count across that boundary.
+    """
+    failures = []
+    orig_tz = os.environ.get("TZ")
+    try:
+        os.environ["TZ"] = "America/New_York"
+        time.tzset()
+        now = calendar.timegm(time.gmtime())
+        target = now - (3 * 86400 - 1800)
+        iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(target))
+        got = nc.age_days(iso)
+        if got != 2:
+            failures.append(f"age_days DST check: expected 2, got {got} (TZ={os.environ.get('TZ')})")
+    finally:
+        if orig_tz is None:
+            os.environ.pop("TZ", None)
+        else:
+            os.environ["TZ"] = orig_tz
+        time.tzset()
+    return failures
+
+
 def check_root_file_prefix_breaks_chain() -> list[str]:
     """A root file's `·`-prefixed area must not accidentally intersect a real top-level dir."""
     failures = []
@@ -137,6 +170,7 @@ def main() -> int:
         check_multi_area_branching,
         check_partial_overlap,
         check_root_file_prefix_breaks_chain,
+        check_age_days_dst,
     ]
     failures = []
     for check in checks:
