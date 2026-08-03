@@ -163,7 +163,10 @@ def case_audit_validate_collect(errors: list) -> None:
     with tempfile.TemporaryDirectory() as td:
         vault = seed_vault(Path(td))
         bundle = collect(vault)
-        targets = set(bundle["wikilinks_by_file"].get("notes/doc.md", []))
+        # #482 removed E4 and its per-file `wikilinks_by_file` alongside it — `inbound`
+        # (target_stem -> source_paths, the field E5 orphan detection reads) carries the
+        # same information the other way around, so invert it back to "targets doc.md links to".
+        targets = {stem for stem, sources in bundle["inbound"].items() if "notes/doc.md" in sources}
         check_targets(targets, "audit-validate", errors)
 
 

@@ -299,23 +299,6 @@ Non-conforming v3 date-first filename.
 EOF
   done
 
-  # ── E4: broken_wikilink (5 files) ────────────────────────────────────────────
-  # Files referencing stems that don't exist anywhere in the vault.
-  for i in $(seq 1 5); do
-    write_file "$FIXTURE_DIR/notes/audit-e4-broken-links-$(printf '%03d' $i).md" <<EOF
----
-created: 2026-04-01
-tags: [note]
-type: note
-status: raw
----
-
-# Audit E4 Note ${i}
-
-Links to [[audit-ghost-target-${i}]] which does not exist.
-EOF
-  done
-
   # ── E5: orphan_note (5 files + 1 empty-tags graceful case) ────────────────────
   # Clean notes that no other file links to. tags:[note] ensures tag-intersection
   # candidates are non-empty (#130) — shares the [note] tag with the 200 clean
@@ -530,7 +513,7 @@ EOF
   #   E9a singular/plural : tag `api` (3 files) ↔ `apis` (3 files)
   #   E9b property naming : key `sourceUrl` (3 files) ↔ `source_url` (3 files)
   # All 12 files carry full valid frontmatter + conforming names + a ring
-  # wikilink within their group, so they trip ONLY E9 (no E1/E2/E3/E4/E5).
+  # wikilink within their group, so they trip ONLY E9 (no E1/E2/E3/E5).
   # The "note"/"notes" tag can never pair here — no `notes` tag exists in the
   # fixture, so E9a only reports the api/apis pair.
 
@@ -631,7 +614,6 @@ EOF
   log "    E1 missing_frontmatter              : 5 files"
   log "    E2 missing_required_fields          : 5 files (5 base)"
   log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix; suggested_filename)"
-  log "    E4 broken_wikilink                  : 5 files"
   log "    E5 orphan_note                      : 6 files (5 w/ tag candidates + 1 empty-tags graceful)"
   log "    E6 stale_inbox                      : 5 files (sources raw, created 2020)"
   log "    E9 tag_vocabulary_inconsistency     : 2 pairs (api↔apis, sourceUrl↔source_url; 12 files, 3 per form)"
