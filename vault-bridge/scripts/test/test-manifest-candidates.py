@@ -152,6 +152,40 @@ def main() -> int:
               f"domain: comma-separated domains are OR'd individually, not matched as one joined "
               f"substring (got {matched})")
 
+        # vault_path is a DIRECTORY-boundary prefix, not a raw string prefix — a sibling
+        # directory that merely shares a string prefix (notes/api-legacy) must not leak into
+        # a search scoped to notes/api.
+        prefix_manifest = {
+            "generated_at": "2026-08-03T00:00:00+00:00", "file_count": 3, "schema_version": 4,
+            "files": [
+                _note("notes/api.md"),
+                _note("notes/api/sub.md"),
+                _note("notes/api-legacy/old.md"),
+            ],
+        }
+        prefix_path = tmp / "prefix.json"
+        prefix_path.write_text(json.dumps(prefix_manifest), encoding="utf-8")
+        r = run(_DOMAIN_SCRIPT, "--domain", "", "--vault-path", "notes/api", prefix_path)
+        out = json.loads(r.stdout)
+        matched = {c["path"] for c in out["candidates"]}
+        check(matched == {"notes/api/sub.md"},
+              f"domain: vault_path is a directory boundary — a genuine subpath "
+              f"(notes/api/sub.md) matches but the sibling file (notes/api.md) and sibling "
+              f"directory (notes/api-legacy/old.md) do NOT leak in (got {matched})")
+
+        # workstream is a match arm alongside tags (pre-#523 contract listed both; the #523
+        # rewrite must not silently drop workstream as a match criterion).
+        workstream_manifest = {
+            "generated_at": "2026-08-03T00:00:00+00:00", "file_count": 1, "schema_version": 4,
+            "files": [_note("notes/proj.md", workstream="claude-kit-migration")],
+        }
+        workstream_path = tmp / "workstream.json"
+        workstream_path.write_text(json.dumps(workstream_manifest), encoding="utf-8")
+        r = run(_DOMAIN_SCRIPT, "--domain", "migration", "--vault-path", "", workstream_path)
+        out = json.loads(r.stdout)
+        check(any(c["path"] == "notes/proj.md" for c in out["candidates"]),
+              "domain: a domain term matching only the workstream field still selects the entry")
+
         # ---- 3. FIX: manifest-keyword-candidates.py finds a keyword that only lives in wiki/ ----
 
         kw_manifest = _real_scale_manifest(wiki_count=39, notes_count=20, inbox_count=5, legacy_count=2)
@@ -194,6 +228,8 @@ def main() -> int:
         wrong_shape.write_text(json.dumps({"files": "nope"}), encoding="utf-8")
         r = run(_DOMAIN_SCRIPT, wrong_shape)
         check(r.returncode == 3, "domain: files not a list -> rc=3")
+        r = run(_KEYWORD_SCRIPT, "x", wrong_shape)
+        check(r.returncode == 3, "keyword: files not a list -> rc=3")
 
         # ---- 4. OBSERVABLE: a truncated script response is detectable, never silent ----
 
