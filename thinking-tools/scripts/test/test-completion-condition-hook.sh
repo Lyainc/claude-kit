@@ -124,6 +124,22 @@ for verdict in '임팩트 바닥' '다시 고르세요' '밝히세요' '반드�
   check "payload omits verdict [$verdict]" "$(printf '%s' "$ctx" | grep -c "$verdict")" "0"
 done
 
+# === 6. gh-open-issues cache reuse (#528) ==========================================
+# Test 4's "genuinely empty" call above already populated $tmp/gh's shared cache
+# (.claude-kit/cache/gh-open-issues.json) with a successful empty-backlog fetch.
+# With `gh` now entirely unavailable, a cache-hit must still read as "genuinely
+# empty" — not fall through to "조회 못 함" — proving the fresh cache is served
+# without shelling out again. retro's dedup step (feedback-loop/skills/retro/SKILL.md)
+# reads the same cache via feedback-loop/scripts/gh-issues-cache.sh.
+got="$(env PATH=/usr/bin:/bin python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '실제로 비어')"
+check "fresh cache served without gh on PATH" "$got" "1"
+
+# An expired cache must NOT be served — it falls back to a live fetch (or, with no
+# `gh` on PATH here, the same "조회 못 함" as an uncached miss).
+python3 -c "import os,sys; os.utime(sys.argv[1], (0, 0))" "$tmp/gh/.claude-kit/cache/gh-open-issues.json"
+got="$(env PATH=/usr/bin:/bin python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '조회 못 함')"
+check "expired cache falls back to a live lookup" "$got" "1"
+
 # === report ========================================================================
 if [ "$fail" -eq 0 ]; then
   echo "OK: all ${pass} completion-condition-hook cases passed"
