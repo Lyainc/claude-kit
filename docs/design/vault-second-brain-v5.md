@@ -76,6 +76,10 @@ v4는 "인간이 채우는 second-brain"을 전제했으나, 측정·증언·디
 - **policy/memory ≠ wiki**: wiki는 휘발·축적·AI 저작, policy는 안정·권위·인간 저작 — 성격 반대.
   policy를 wiki에 넣으면 U3(오염 복리)로 규칙 변질 + 출처 분리 위반.
 - **decision은 GitHub 이슈가 정전**(trail 정책): 레포 바운드 decision은 이슈로 간다. B로 안 간다.
+- **A의 인간 부차 소비 경로**: OVM `/base`(§9). 빌트인 `recent` 템플릿은 폴더 필터가 없어 `wiki/` 페이지도
+  이미 섞여 나온다 — wiki만 따로 보려면 커스텀 `.base` 파일(`file.inFolder("wiki")`)을 직접 작성해야 한다,
+  이 스킬이 자동 생성하는 건 3개 빌트인(`sources`/`notes`/`recent`)뿐이라서다. 브라우징이 설계 밖이라서가
+  아니라 A의 主 소비자가 AI recall이라 전용 빌트인을 아직 안 만들었을 뿐이다(#530).
 
 ---
 
@@ -249,7 +253,7 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 | wiki(A) 컴파일·링크·일관성·self-audit | **OVM 확장**(audit가 E1~E11 보유) |
 | ~~B 내부 promotion 게이트~~ | **폐기**(§6, #480) — 귀속처 자체가 없어졌다 |
 | B 입구(참고자료 저장) | **vault-bridge `/vault-save`**(§5, #480) — 프로젝트에서 호출 |
-| B 사서 일(감사·뷰) | **OVM** `/audit`·`/base` — 들어온 다음의 일 |
+| B 사서 일(감사·뷰) | **OVM** `/audit`·`/base` — 들어온 다음의 일. `/base recent`는 폴더 무관이라 A도 섞여 나옴(§3) |
 | wiki read(AI recall) 인덱스 | **vault-bridge manifest 재용도** |
 | wiki read 위임 | **vault-bridge vault-searcher**(haiku, recall 정렬 完) |
 | A `--save` 진입점(`/wiki`) | **OVM skill**(호출형), hook 아님 |
