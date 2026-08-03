@@ -120,7 +120,16 @@ provenance: {session/query}  # U3 추적용 必 — 어느 탐구가 이 페이�
 ### 4.3 recall = AI가 인간 대신 읽음
 
 - vault-searcher(haiku) + manifest access-ranking 인덱스로 wiki 페이지 recall. **#211 작업2(access-ranking)
-  CLOSED라 인프라 完.** manifest는 ③ delivery staleness 추적에서 **④ wiki recall 인덱스로 재용도**(§10 보류분).
+  CLOSED**로 랭킹 시그널(`recent_commits`/`references_in`/`type` 가중치)은 갖췄지만, 그 인덱스를 읽는
+  경로 자체가 결함이었다 — vault-searcher.md가 manifest 전체를 `Read`했는데, 실제 vault 규모(180개
+  엔트리 / 3,338줄)에서 Read 도구 2,000줄 상한에 걸려 뒤가 잘렸고, `generate-manifest.py`가 `rel_path`
+  사전순 정렬이라 `wiki/`가 항상 그 잘린 쪽에 몰려 **wiki 39개 전량이 조용히 후보 집합에서 사라졌다**
+  (#523, "인프라 完" 선언과 정반대로 A 레이어만 골라 떨어뜨림). #523에서 manifest를 Python 스크립트
+  (`manifest-domain-candidates.py`/`manifest-keyword-candidates.py`)로 먼저 필터링해 후보만 좁혀
+  넘기는 방식으로 정정했다 — Read 도구 경유를 우회해 원본 파일 크기가 상한에 안 걸리게 하고,
+  `candidate_count`를 배열보다 먼저 직렬화해 다시 잘리더라도 불일치로 드러나게 한다(#468의 OVM
+  manifest-wiki-match.py와 같은 패턴). manifest는 ③ delivery staleness 추적에서 **④ wiki recall
+  인덱스로 재용도**(§10 보류분).
 
 ---
 
