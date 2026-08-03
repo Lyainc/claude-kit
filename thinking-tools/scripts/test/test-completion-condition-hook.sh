@@ -43,6 +43,17 @@ mk_repo() {  # $1 = dir, $2 = remote url (empty for none)
 mk_repo "$tmp/plain" ""
 mk_repo "$tmp/gh" "https://github.com/example/example.git"
 
+# --- hermetic "gh absent" PATH ------------------------------------------------------
+# Never assume gh is missing from /usr/bin or /bin — GitHub Actions ubuntu runners ship
+# gh preinstalled there, which is exactly what made "gh missing -> 조회 못 함" fail
+# deterministically in CI while always passing on a local macOS/Homebrew PATH (#535).
+# Build a PATH containing only symlinks to what this one invocation actually needs
+# (python3 to run the script, git for its `git remote -v` check), with no gh in it.
+no_gh_dir="$tmp/bin-no-gh"
+mkdir -p "$no_gh_dir"
+ln -s "$(command -v python3)" "$no_gh_dir/python3"
+ln -s "$(command -v git)" "$no_gh_dir/git"
+
 # --- gh stubs ----------------------------------------------------------------------
 stub_dir="$tmp/bin"
 mkdir -p "$stub_dir"
@@ -88,7 +99,7 @@ got="$(python3 "$script" --cwd "$tmp/plain" 2>/dev/null | grep -c '조회 안 �
 check "no remote -> '조회 안 함'" "$got" "1"
 
 # gh absent, GitHub remote present: reported as could-not-look.
-got="$(env PATH=/usr/bin:/bin python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '조회 못 함')"
+got="$(env PATH="$no_gh_dir" python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '조회 못 함')"
 check "gh missing -> '조회 못 함'" "$got" "1"
 
 # gh present but failing (auth expired / no access): reported as failed, not empty.
