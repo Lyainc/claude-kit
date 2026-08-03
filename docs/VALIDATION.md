@@ -177,6 +177,16 @@ python3 vault-bridge/scripts/test/test-pre-write-guard.py
 # vault-bridge manifest type opt-in regression (v4 §2.2)
 python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 
+# vault-bridge manifest-candidates regression (#523, mirrors #468's OVM test-manifest-reads.py)
+# — vault-searcher.md used to `Read` the whole manifest, overflowing the Read tool's 2,000-line
+# cap and silently dropping 100% of wiki/ entries (alphabetically sorted last by
+# generate-manifest.py). Pins: the real-scale repro precondition, that both
+# manifest-domain-candidates.py and manifest-keyword-candidates.py recover every wiki/ entry by
+# reading the manifest off disk directly, and that a downstream truncation of their own compact
+# output is detectable (parse failure or candidate_count/length mismatch) rather than silent.
+python3 vault-bridge/scripts/test/test-manifest-candidates.py
+# Expected: OK: all manifest-candidate checks passed
+
 # vault-commit message generation (status-transition aware)
 python3 vault-bridge/scripts/test/test-vault-commit-message.py
 # Expected: OK: all cases passed (currently 14 cases)
