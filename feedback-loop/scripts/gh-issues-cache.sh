@@ -46,7 +46,13 @@ else:
     # Only a successful fetch is cache-worthy — a failure must never be written down
     # and later read back as "genuinely zero open issues" (matches next-candidate.py's
     # fail-open/fail-empty distinction).
-    [ -n "$OUT" ] && printf '%s' "$OUT" > "$CACHE" 2>/dev/null
+    # Write to a temp file then rename (atomic on the same filesystem) so a concurrent
+    # reader (next-candidate.py writes the same path independently, #542) never sees a
+    # partially-written file.
+    if [ -n "$OUT" ]; then
+      TMP="${CACHE}.tmp.$$"
+      printf '%s' "$OUT" > "$TMP" 2>/dev/null && mv -f "$TMP" "$CACHE" 2>/dev/null
+    fi
     printf '%s' "${OUT:-[]}"
     ;;
   *)

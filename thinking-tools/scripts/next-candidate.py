@@ -138,8 +138,13 @@ def _write_gh_cache(cwd, issues):
     path = _gh_cache_path(cwd)
     try:
         os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w") as f:
+        # Write to a temp file then os.replace (atomic on the same filesystem) so a
+        # concurrent reader (gh-issues-cache.sh writes the same path independently,
+        # #542) never observes a partially-written file.
+        tmp = f"{path}.tmp.{os.getpid()}"
+        with open(tmp, "w") as f:
             json.dump(issues, f)
+        os.replace(tmp, path)
     except Exception:
         pass  # the cache is an optimization, never a requirement
 
