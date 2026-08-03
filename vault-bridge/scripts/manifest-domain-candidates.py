@@ -14,8 +14,12 @@ Usage:
 
 Selection (OR'd, matches vault-searcher.md Mode 2 Manifest-First Protocol):
     - type == "wiki"                     (always included — #272, L94 contract)
-    - path startswith --vault-path       (.vault-link project scoping)
-    - any tag contains --domain          (substring, case-insensitive; comma-separated domains
+    - path == --vault-path, or path startswith --vault-path + "/"
+                                          (.vault-link project scoping, directory-boundary safe —
+                                           a raw string prefix would let "notes/api" match the
+                                           sibling "notes/api-legacy/...")
+    - any tag, or the workstream field, contains --domain
+                                          (substring, case-insensitive; comma-separated domains
                                            are split and OR'd, matching the standard-scan
                                            fallback's "query each individually" handling)
     - status == "active"
@@ -53,12 +57,17 @@ def vault_root() -> Path:
 def _matches(entry: dict, domain: str, vault_path: str) -> bool:
     if entry.get("type") == "wiki":
         return True
-    if vault_path and str(entry.get("path") or "").startswith(vault_path):
-        return True
+    if vault_path:
+        entry_path = str(entry.get("path") or "")
+        if entry_path == vault_path or entry_path.startswith(vault_path + "/"):
+            return True
     if domain:
         tags = entry.get("tags") or []
         domains = [d.strip().lower() for d in domain.split(",") if d.strip()]
         if any(dom in str(t).lower() for t in tags for dom in domains):
+            return True
+        workstream = str(entry.get("workstream") or "").lower()
+        if workstream and any(dom in workstream for dom in domains):
             return True
     if entry.get("status") == "active":
         return True

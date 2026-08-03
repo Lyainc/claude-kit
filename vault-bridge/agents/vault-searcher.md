@@ -91,15 +91,15 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 1. **Check manifest existence**: `[ -f "{vault_root}/.vault-bridge/manifest.json" ]`
 2. **If manifest exists**:
    a. Run the candidate prefilter via `manifest-domain-candidates.py` (never `Read` the raw
-      manifest — why, #523: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`). Reads the
-      manifest untruncated off disk and filters before anything enters context:
+      manifest — why, #523: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`). Reads it
+      untruncated, filters out of context:
       ```bash
       python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-domain-candidates.py" \
         --domain "{domain}" --vault-path "{vault_path}" "{vault_root}/.vault-bridge/manifest.json"
       ```
-      Applies `type == wiki` (always included — #272, the A layer is the primary recall
-      target), `.vault-link` `vault_path` prefix, domain-keyword tag match, or
-      `status == active`. Output: `{"candidate_count": N, "candidates": [...]}`.
+      Applies `type == wiki` (always included — #272), `.vault-link` `vault_path`
+      directory-scoped prefix, domain-keyword tag/workstream match, or `status == active`.
+      Output: `{"candidate_count": N, "candidates": [...]}`.
    b. **Truncation check**: parse failure, or `len(candidates) != candidate_count`, means
       truncation — don't trust a partial set. Log "manifest 후보 목록이 잘렸을 수 있어 전체
       스캔으로 대체합니다." and fall through to the standard scan below. Same fallback when
