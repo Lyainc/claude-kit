@@ -126,6 +126,26 @@ def main() -> int:
         check(len(r.stdout) < 2000,
               "wiki-match: filtered output for a 168-file manifest stays under the 2 KB preview cut")
 
+        # #528: real vault is 182 files / 41 type:wiki as of 2026-08-03 (grew past the 168/3
+        # synthetic fixture above) — pin that scale too, so a truncation regression (#523's
+        # defect class, different consumer) can't hide behind "only tested at toy size".
+        real_scale = [_note("notes/a.md", type_="note")] + \
+            [_note(f"wiki/w{i}.md", type_="wiki", title=f"Topic {i}", tags=["t"]) for i in range(41)] + \
+            [_note(f"notes/n{i}.md") for i in range(140)]
+        real_scale_json = tmp / "real-scale.json"
+        real_scale_json.write_text(json.dumps({
+            "generated_at": "2026-08-03T00:00:00+00:00", "file_count": len(real_scale),
+            "schema_version": 3, "files": real_scale,
+        }), encoding="utf-8")
+        raw_size = len(json.dumps({"files": real_scale}))
+        r = run(_WIKI_SCRIPT, real_scale_json)
+        out = json.loads(r.stdout) if r.returncode == 0 else {}
+        assert out.get("wiki_entries") is not None, "wiki-match real-scale fixture must parse"
+        check(len(out.get("wiki_entries") or []) == 41,
+              "wiki-match: real-scale (182 files/41 wiki) fixture returns all 41, none dropped (#523 defect class)")
+        check(len(r.stdout) < raw_size / 5,
+              "wiki-match: real-scale filtered output stays a fraction of the raw manifest size")
+
         no_wiki = tmp / "no-wiki.json"
         no_wiki.write_text(json.dumps({
             "generated_at": "2026-08-03T00:00:00+00:00", "file_count": 1,
