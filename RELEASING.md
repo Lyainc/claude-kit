@@ -49,12 +49,15 @@ flag to hide a half-wired skill behind, so the branch *is* the flag. Everything 
 depends on this premise: it is what lets a release fire without ever asking "is the
 feature done yet?" Break it, and no trigger — label, count, or clock — is safe.
 
-**Primary trigger — the `release` label.** Put the `release` label on a PR and merging it
-cuts a release. The decision rides on the merge you are already performing, at the one
-moment you have full context on whether the work forms a shippable whole; it never
-becomes a separate ritual to forget (which is precisely how the 79-commit drift happened).
-An explicit label always releases — even a docs-only PR, because an explicit human "ship
-this" outranks the default.
+**Primary trigger — the `release` label.** Put the `release` label on a PR — before OR
+after it merges — and it cuts a release. The decision rides on the merge you are already
+performing (or a label you add once you decide, after the fact, that what already landed
+should ship); it never becomes a separate ritual to forget (which is precisely how the
+79-commit drift happened). An explicit label always releases — even a docs-only PR,
+because an explicit human "ship this" outranks the default. (#493: before 2026-08-04 the
+workflow only watched the label at the merge instant — adding it after merge silently did
+nothing, no error, no skipped run, nothing. `auto-release.yml` now also wakes on the
+`labeled` event, so attaching it later works the same as attaching it before.)
 
 **Backstop — 10 unreleased user-visible commits.** If `feat`/`fix`/`perf`/`refactor` (or
 anything breaking) accumulate to 10 since the last tag, CI releases with no label at all.

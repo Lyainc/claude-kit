@@ -162,6 +162,18 @@ python3 scripts/gen-release-notes.py --self-test
 python3 scripts/next-version.py --self-test
 # Expected: OK: all 23 self-test cases passed
 
+# auto-release.yml 트리거 회귀 (#493): 머지 후에 붙인 `release` 라벨이 어떤 경로로도 안
+# 읽히던 결함 — `pull_request: closed`는 머지 순간 한 번만 발화하고, 라벨을 나중에 붙여도
+# `pull_request: labeled`가 트리거 목록에 없어 워크플로가 아예 안 깨어났다(실증: PR #488).
+# 고침은 `types: [closed, labeled]`뿐 — 기존 `if:`(merged==true + release 라벨 포함)가
+# `labeled` 이벤트에서도 그대로 안전하게 맞아떨어진다(payload가 라벨 추가 후 상태를 반영).
+# 라이브 YAML을 정적으로 파싱해 그 3가지(types에 labeled 포함, if가 merged+라벨 조건 유지,
+# decide 스텝이 pull_request 이벤트에 대해 무조건 --labeled를 넘기는지)를 핀한다.
+python3 scripts/test/test-auto-release-trigger.py --self-test
+# Expected: OK: all 10 self-test cases passed
+python3 scripts/test/test-auto-release-trigger.py
+# Expected: OK: auto-release.yml #493 fix intact (7 checks)
+
 # 플러그인 스펙 전체 검증 (frontmatter·hooks 스키마 포함)
 # claude plugin validate  # Claude Code 설치 환경에서 실행
 
