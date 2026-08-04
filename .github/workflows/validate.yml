@@ -190,6 +190,20 @@ jobs:
           python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
           echo "feedback-loop telemetry + add-policy-routing checks OK"
 
+      - name: Run feedback-loop trigger regression
+        run: |
+          # #471 — routing-SSOT drift guard extended to feedback-loop/skills/*/SKILL.md.
+          python3 feedback-loop/scripts/test/check-trigger-regression.py --self-test
+          ec=0
+          python3 feedback-loop/scripts/test/check-trigger-regression.py origin/main || ec=$?
+          if [ "$ec" -eq 2 ]; then
+            echo "::warning::feedback-loop trigger-regression base ref unresolved (origin/main) — diff did NOT run"
+          elif [ "$ec" -eq 1 ]; then
+            echo "feedback-loop trigger-regression: removals reported above (non-blocking, reviewer decides)"
+          else
+            echo "feedback-loop trigger regression OK (no removals)"
+          fi
+
       - name: Run thinking-tools trigger regression
         run: |
           python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
