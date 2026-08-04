@@ -1,6 +1,6 @@
 # Vault Second Brain 설계안 v5 — LLM-compiled wiki (A 主) + 참고자료 창고 (B, 승격 게이트 폐기)
 
-> 작성일: 2026-06-23 · 최종 개정: 2026-08-02(#480) · 상태: **구현됨** — A(wiki)·B(참고자료 창고) 모두 코드에 반영, 잔여는 §15
+> 작성일: 2026-06-23 · 최종 개정: 2026-08-04(#477) · 상태: **구현됨** — A(wiki)·B(참고자료 창고) 모두 코드에 반영, §15 전 항목 완료
 > 대체 대상: `vault-second-brain-v4.md` (인간 저작 second-brain 모델)
 > 방향 출처 — **정전(SSOT) = GitHub #215**(④ 재설계). 근거 트레일: 토론 문서 `docs/discussions/20260612_vault-llm-wiki-redesign/`
 > (SUMMARY+UNRESOLVED+RESOLUTIONS-draft) · `docs/discussions/20260623_vault-debloat-reckoning/DECISION.md`(5레이어) ·
@@ -172,9 +172,17 @@ provenance: "{출처 — URL·세션 주제·대화·책·회의}"   # 必
   게 맞다. OVM은 **사서**로 남는다 — 컴파일(`/wiki`)·감사(`/audit`)·뷰(`/base`), 즉 들어온 다음의 일.
   신설이라 #102 ADR 폐기가 아니고(입구 스킬이 새로 생긴 것), OVM 정체성도 안 바뀌며, 프로젝트 어디서든
   호출 가능해진다 — 셋이 동시에 성립한다.
-- **`--type decision`은 잠정 유지**: 볼트 decision 레코드의 처분(유지/GitHub 이슈 흡수/rules 이관)이
-  아직 미결이라(#477 미결 2) 저작 수단만 `/vault-save`로 옮겨 붙였다. 레포 바운드 결정은 지금도 이슈로
-  간다(§10) — 이건 그 판정 전까지 능력을 안 죽이려는 보류지 결정이 아니다.
+- **`--type decision`은 KEEP으로 확정 (#477 미결 2, 2026-08-04 판정)**: 볼트 재고를 실측한 결과
+  `type: decision` 실물은 `.legacy/20_Projects/claude-kit/decision-2026-06-03-workflow-harness-architecture.md`
+  단 1개뿐이었고, 이미 v4 마이그레이션 시점에 라이브 구조(`sources/`·`notes/`) 밖 `.legacy/`로 archive돼
+  있었다. 그 내용(harness/leaf 단방향, goal-doc, retro E8 승격, 3-tier 규칙)은 문서 자체의 "Issue 매핑"
+  절이 "기존 보강 후보"로 #99·#100·#108·#115·#119를 스스로 지목했고, "신규 후보"로 든 workflow-harness는
+  같은 날 등록된 #122(신규 플러그인)와 주제가 일치한다(문서가 #122를 번호로 인용하진 않는다 — 정정,
+  fresh-context 리뷰). 그 아키텍처(⑤ 자체 하네스·retro E8 승격)는
+  이후 #282(2026-06-28, native `/goal`로 retire)·#480(E8 승격 기계 제거)로 더 나아가 폐기까지 됐다 —
+  **이슈 흡수로 이미 종결**, 마이그레이션 불필요. 라이브 B층엔 `type: decision` 실물이 0개라 `--type decision`
+  능력 자체의 존폐만 남는데, 레포 바운드 결정은 §10 라우팅으로 계속 이슈로 가고 이 플래그는 레포 비바운드
+  범용 결정(예: 개인 도구 선택)에만 쓰이므로 **KEEP** — 삭제하면 그 쓰임이 갈 곳이 없어진다.
 
 ### 5.1 두-볼트(A/B) 목적 분리 (discovery 교정, #354)
 
@@ -364,8 +372,14 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
   `e8-candidates.py`, `vault-commit-message.py` promote 분기.~~ — **완료 (2026-08-02).** 딸린
   테스트·픽스처·DoD 기대값·`docs/VALIDATION.md`·`reference/vault-audit-rules.md`까지 정합됐고,
   선행 조건이던 SessionStart 훅의 `timeout` 부재 버그(#484)도 같이 고쳤다. #435는 대상 소멸로 종결.
-- **#480 잔여 (후속 세션)**: 볼트 `type: decision` 처분 판정(#477 미결 2), `/wiki` 배치 정렬
-  (#477 미결 3), 재고 `provenance:` 백필과 E2 확장. 폴더 3분할(`inbox`→`sources`)은 #477 하위 B.
+- ~~**#480 잔여 (후속 세션)**: 볼트 `type: decision` 처분 판정(#477 미결 2), `/wiki` 배치 정렬
+  (#477 미결 3), 재고 `provenance:` 백필과 E2 확장.~~ — **완료 (2026-08-04, #477 정리 세션)**.
+  미결 1(입구 frontmatter 규격)은 `/vault-save` 코드(`created`/`type`/`tags`/`provenance`, `status:` 없음)가
+  이미 본 문서 §5와 정확히 일치해 재확인만으로 종결. 미결 2(decision 처분)는 §5의 KEEP 판정 참조. 미결 3
+  (`/wiki` 배치)는 §9 표(`/wiki`=OVM skill, `/vault-save`=vault-bridge)가 이미 그 정렬 상태라 재확인만으로
+  종결. `provenance:` 백필은 sources/notes/wiki 135개 파일을 git add-commit 이력(날짜+커밋 메시지)에서
+  역산해 채웠고, 그 위에서 E2를 `provenance`까지 확장했다(`ovm-primitives.sh`·`audit-validate.py`·
+  `reference/vault-audit-rules.md`, DoD 재검증 통과). 폴더 3분할(`inbox`→`sources`)은 #477 하위 B로 이미 완료.
 - ~~**U4 측정(recall hit)**~~ — **완료.** 측정 게이트 폐기, 1회 build-verify로 대체(§8, PR #337, #267).
   상시 계측(telemetry Option B)은 여전히 미착수지만 더 이상 U4의 전제가 아니다.
 - ~~**#94**(commands→skills): 살아남는 커맨드 셋 확정 후(#215 mooted 해소).~~ — **완료.**
