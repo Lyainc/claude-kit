@@ -84,6 +84,7 @@ for i in $(seq 1 30); do
 created: ${date}
 tags: [capture, sources]
 type: capture
+provenance: fixture-seed-capture-${i}
 ---
 
 # Capture ${i}
@@ -102,6 +103,7 @@ created: ${date}
 tags: [session]
 type: session
 status: active
+provenance: fixture-seed-session-${i}
 ---
 
 # Session ${i}
@@ -120,6 +122,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Note ${i}
@@ -147,6 +150,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Bad Filename Note ${i}
@@ -164,6 +168,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Broken Links Note ${i}
@@ -195,6 +200,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Orphan Note ${i}
@@ -291,6 +297,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Audit E3 Note ${i}
@@ -310,6 +317,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Audit E5 Orphan Note ${i}
@@ -327,6 +335,7 @@ created: 2026-04-01
 tags: []
 type: note
 status: raw
+provenance: fixture-seed-e5-empty-tags
 ---
 
 # Audit E5 Orphan No Tags
@@ -346,6 +355,7 @@ created: 2020-01-01
 tags: [capture, sources]
 type: capture
 status: raw
+provenance: fixture-seed-e6-stale-${i}
 ---
 
 # Audit E6 Stale Capture ${i}
@@ -366,6 +376,7 @@ created: 2026-04-01
 tags: [session]
 type: session
 status: active
+provenance: fixture-seed-e10-${i}
 ---
 
 # Audit E10 Misplaced Session ${i}
@@ -385,6 +396,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Audit E11 Root File ${i}
@@ -401,6 +413,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Audit E11 Arbitrary Folder ${i}
@@ -419,6 +432,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: evergreen
+provenance: fixture-seed-index
 ---
 
 # Vault Index
@@ -526,6 +540,7 @@ created: 2026-04-01
 tags: [note, api]
 type: note
 status: raw
+provenance: fixture-seed-e9-api-${i}
 ---
 
 # Audit E9a API ${i}
@@ -543,6 +558,7 @@ created: 2026-04-01
 tags: [note, apis]
 type: note
 status: raw
+provenance: fixture-seed-e9-apis-${i}
 ---
 
 # Audit E9a APIs ${i}
@@ -561,6 +577,7 @@ tags: [note]
 type: note
 status: raw
 source_url: https://example.com/snake-${i}
+provenance: fixture-seed-e9-snake-${i}
 ---
 
 # Audit E9b snake ${i}
@@ -580,6 +597,7 @@ tags: [note]
 type: note
 status: raw
 sourceUrl: https://example.com/camel-${i}
+provenance: fixture-seed-e9-camel-${i}
 ---
 
 # Audit E9b camel ${i}
@@ -602,6 +620,7 @@ created: 2026-04-01
 tags: [note]
 type: note
 status: raw
+provenance: fixture-seed
 ---
 
 # Audit Clean Note ${i}

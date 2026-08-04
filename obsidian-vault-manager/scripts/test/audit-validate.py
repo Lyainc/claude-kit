@@ -46,10 +46,12 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-REQUIRED_FM_FIELDS = ("created", "tags", "type")
+REQUIRED_FM_FIELDS = ("created", "tags", "type", "provenance")
 # `status` was required for note/decision until the v4 §3.3 status machine was abolished
 # (v5 §5/§6, #480) — B is a reference warehouse now, and /vault-save writes no status field.
 # Requiring it would flag every new file as E2 Critical on day one.
+# `provenance` joined the required set once the existing inventory was backfilled from
+# git add-commit history (v5 §4.1/§5, #477) — no longer would flag every old file.
 # Stagnation threshold (v4 §6.1 Step 2). STALE_DRAFT_DAYS (E7) was removed with the
 # promotion gate (v5 §6, #480) — /vault-save writes no `status:` field, so no file
 # can ever reach `status: draft` again.
@@ -964,7 +966,9 @@ def _infer_self_test() -> int:
     # would populate. (#127 acceptance: inferred result, not an empty array.)
     sim = simulate_e2_autofix(
         Path("notes/llm/decision-2026-04-12-context-window.md"),
-        {"type": "decision", "created": "2026-04-12"},  # tags missing (status is no longer required, #480)
+        # tags missing (status is no longer required, #480); provenance present so
+        # only `tags` is under test here (provenance has its own #477 coverage).
+        {"type": "decision", "created": "2026-04-12", "provenance": "test-fixture"},
     )
     if not sim["inferred_tags"]:
         failures += 1

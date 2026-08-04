@@ -199,6 +199,10 @@ A representative sample of this layout (header, per-priority groups, footer) is 
 
 **Auto-fix eligible types**:
 - `missing_required_fields` (E2): add missing `tags`, `type`, `created` fields with inferred values.
+  `provenance` is a required E2 field (#477 item 4) but is NOT auto-fillable — unlike `tags`,
+  there is no safe deterministic inference for "where did this come from." When `provenance` is
+  among the missing fields, surface it in the confirmation gate and ask the user for the actual
+  origin instead of writing a placeholder.
 
 **Tag inference** (#127, deterministic — no LLM; batched #152): when `tags:` is missing, do
 NOT insert an empty `tags: []`. Derive a tag PROPOSAL from three tiers (1 `type:` field, 2
@@ -256,6 +260,8 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 3. If "수정 실행":
    - For each `missing_required_fields` finding: use Edit to add the missing fields to the existing frontmatter block.
      - When `tags` is missing, write the inferred proposal from Step 1 (never an empty `tags: []`).
+     - When `provenance` is missing, do NOT write a placeholder — ask the user for the real origin
+       (or skip that field on this file if they don't know it) rather than fabricate one.
    - All edits are **frontmatter-only** — never touch the markdown body.
 
 4. After all fixes, mark all processed files clean:
