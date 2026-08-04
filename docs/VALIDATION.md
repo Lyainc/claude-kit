@@ -201,6 +201,15 @@ python3 vault-bridge/scripts/test/check-trigger-regression.py --self-test
 python3 vault-bridge/scripts/test/check-trigger-regression.py origin/main
 # Removals are reported (not hard-gated) — reviewer decides if intentional.
 
+# vault-bridge SKILL.md trigger-regression check (#471 — routing-SSOT drift guard extended
+# to the face the two checks above didn't cover: vault-bridge/skills/*/SKILL.md. 3 of its 4
+# skills carry `disable-model-invocation: true` and are structurally skipped — no
+# natural-language trigger surface to regress — leaving only vault-save guarded.)
+python3 vault-bridge/scripts/test/check-skill-trigger-regression.py --self-test
+# Expected: OK: all 7 self-test cases passed
+python3 vault-bridge/scripts/test/check-skill-trigger-regression.py origin/main
+# Removals are reported (not hard-gated) — reviewer decides if intentional.
+
 # feedback-loop telemetry schema self-test (#217 — telemetry absorbed into feedback-loop)
 python3 feedback-loop/scripts/validate-schema.py --self-test
 

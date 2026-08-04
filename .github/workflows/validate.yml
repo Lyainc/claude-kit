@@ -145,6 +145,20 @@ jobs:
             echo "vault-bridge trigger regression OK (no removals)"
           fi
 
+      - name: Run vault-bridge SKILL.md trigger regression
+        run: |
+          # #471 — sibling to the agent check above, covers vault-bridge/skills/*/SKILL.md.
+          python3 vault-bridge/scripts/test/check-skill-trigger-regression.py --self-test
+          ec=0
+          python3 vault-bridge/scripts/test/check-skill-trigger-regression.py origin/main || ec=$?
+          if [ "$ec" -eq 2 ]; then
+            echo "::warning::vault-bridge SKILL.md trigger-regression base ref unresolved (origin/main) — diff did NOT run"
+          elif [ "$ec" -eq 1 ]; then
+            echo "vault-bridge SKILL.md trigger-regression: removals reported above (non-blocking, reviewer decides)"
+          else
+            echo "vault-bridge SKILL.md trigger regression OK (no removals)"
+          fi
+
       - name: Check feedback-loop telemetry + add-policy scripts
         run: |
           bash -n feedback-loop/scripts/event-logger.sh
