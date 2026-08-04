@@ -224,6 +224,22 @@ jobs:
             echo "thinking-tools trigger regression OK (no removals)"
           fi
 
+      - name: Run thinking-tools AGENT trigger regression
+        run: |
+          # #471 — sibling to the SKILL.md check above, covers thinking-tools/agents/*.md
+          # (thinking-facilitator.md's inline `(e.g., '...')` example clause, not the
+          # `Trigger when user mentions:` block the skill-level check parses).
+          python3 thinking-tools/scripts/test/check-agent-trigger-regression.py --self-test
+          ec=0
+          python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/main || ec=$?
+          if [ "$ec" -eq 2 ]; then
+            echo "::warning::thinking-tools agent trigger-regression base ref unresolved (origin/main) — diff did NOT run"
+          elif [ "$ec" -eq 1 ]; then
+            echo "thinking-tools agent trigger-regression: removals reported above (non-blocking, reviewer decides)"
+          else
+            echo "thinking-tools agent trigger regression OK (no removals)"
+          fi
+
       - name: Run expert-panel mode-compose regression
         run: |
           # #228 — guards the "all combinations compose silently" claim in expert-panel SKILL.md.
