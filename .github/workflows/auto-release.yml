@@ -22,7 +22,14 @@ name: Auto Release
 
 on:
   pull_request:
-    types: [closed]
+    # `closed` catches the label already being on the PR at merge time (the common case).
+    # `labeled` catches it being added AFTER merge (#493): GitHub does not re-fire `closed`
+    # when a label changes on an already-closed PR, so without this type a post-merge
+    # `release` label silently did nothing — no error, no skipped-run marker, nothing. The
+    # SAME `if:` below (merged == true + labels contains `release`) already handles a
+    # `labeled` event correctly: the payload's `pull_request.labels` reflects the label set
+    # AFTER the add, so no separate branch is needed for it.
+    types: [closed, labeled]
     # BASE-branch filter, and it is load-bearing. Chained PRs are normal here (CLAUDE.md:
     # "child PR base = parent's feature branch"), so without this a `release` label on a
     # PR merging into a *feature* branch would still fire — and since `decide` deliberately

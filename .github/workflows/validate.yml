@@ -72,6 +72,11 @@ jobs:
           python3 scripts/bump-version.py --self-test
           python3 scripts/gen-release-notes.py --self-test
           python3 scripts/next-version.py --self-test
+          # #493 — a `release` label added AFTER merge used to silently do nothing (no
+          # `pull_request:labeled` trigger existed). Pins the live auto-release.yml trigger
+          # + if-condition against that regressing back.
+          python3 scripts/test/test-auto-release-trigger.py --self-test
+          python3 scripts/test/test-auto-release-trigger.py
           echo "Governance guards OK"
 
       - name: Check work-rules guards (#216)
