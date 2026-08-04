@@ -366,6 +366,16 @@ python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main
 # descriptions. Removals are reported (not hard-gated) — reviewer decides if intentional.
 # Restore any CLAUDE.md-mandated trigger (e.g. expert-panel "다양한 관점에서 평가해줘").
 
+# thinking-tools AGENT trigger-regression check (#471 — routing-SSOT drift guard extended to
+# the face the check above doesn't cover: thinking-tools/agents/*.md. thinking-facilitator.md
+# has no `Trigger when user mentions:` block — its only structured trigger surface is an
+# inline `(e.g., '구체화', '검사해줘', '반증해줘')` illustrative-example clause, so this
+# extractor targets that shape instead of forcing the skill-level marker onto it.
+python3 thinking-tools/scripts/test/check-agent-trigger-regression.py --self-test
+# Expected: OK: all 5 self-test cases passed
+python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/main
+# Removals are reported (not hard-gated) — reviewer decides if intentional.
+
 # expert-panel mode-compose regression (#228) — verifies the SKILL.md's "all combinations
 # compose silently" claim: every declared mode toggle (격리/요약 + citation grounding +
 # Phase 2 inline path) is described and non-contradictory. Run after editing expert-panel
