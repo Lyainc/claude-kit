@@ -25,9 +25,9 @@ to keep; that judgment happens when you go looking for it again.
 
 - `{slug}`: 2–4 kebab-case words from the topic or the extracted title.
 - Unsure which side? If the text would survive unchanged without you, it is source → `sources/`.
-- `--type decision` is kept only because the fate of vault decision records is still open
-  (#477 open item 2: keep / absorb into GitHub issues / move to rules). A **repo-bound** design
-  decision belongs in a GitHub issue, not here (v5 §10) — say so and stop rather than writing one.
+- `--type decision` is KEEP, confirmed (#477 item 2, 2026-08-04) — for non-repo-bound decisions
+  only (e.g. a personal tool choice). A **repo-bound** design decision belongs in a GitHub issue,
+  not here (v5 §10) — say so and stop rather than writing one.
 
 ## Frontmatter
 
