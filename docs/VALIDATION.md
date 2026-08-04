@@ -486,6 +486,17 @@ python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
 # Expected: OK: all manifest-read checks passed
 
+# obsidian-vault-manager trigger-regression check (#471 — routing-SSOT drift guard extended
+# to a previously-unguarded face: obsidian-vault-manager/skills/*/SKILL.md +
+# obsidian-vault-manager/agents/*.md, one script for both since the issue's face table lists
+# them as a single 5+2-item row). Reuses the vault-bridge KR/EN-triggers extractor where a
+# file has that label (wiki/SKILL.md); audit/base/vault-file-organizer carry no structured
+# trigger list at all and correctly extract an empty set rather than a false regression.
+python3 obsidian-vault-manager/scripts/test/check-trigger-regression.py --self-test
+# Expected: OK: all 7 self-test cases passed
+python3 obsidian-vault-manager/scripts/test/check-trigger-regression.py origin/main
+# Removals are reported (not hard-gated) — reviewer decides if intentional.
+
 # audit-state corrupt-input handling (#443) — parse failure and shape mismatch take the
 # SAME path: exit 3, original copied to `audit-state.json.corrupt-<ISO8601>`, the state
 # file itself untouched, no `.bak` rotation. The two-ops case is the single-slot `.bak`
