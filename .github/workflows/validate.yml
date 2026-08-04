@@ -287,6 +287,21 @@ jobs:
           python3 obsidian-vault-manager/scripts/test/test-notes-filename-consistency.py
           echo "obsidian-vault-manager tests OK"
 
+      - name: Run obsidian-vault-manager trigger regression
+        run: |
+          # #471 — routing-SSOT drift guard extended to obsidian-vault-manager/skills/*/SKILL.md
+          # + obsidian-vault-manager/agents/*.md (one script, one face per the issue's table).
+          python3 obsidian-vault-manager/scripts/test/check-trigger-regression.py --self-test
+          ec=0
+          python3 obsidian-vault-manager/scripts/test/check-trigger-regression.py origin/main || ec=$?
+          if [ "$ec" -eq 2 ]; then
+            echo "::warning::obsidian-vault-manager trigger-regression base ref unresolved (origin/main) — diff did NOT run"
+          elif [ "$ec" -eq 1 ]; then
+            echo "obsidian-vault-manager trigger-regression: removals reported above (non-blocking, reviewer decides)"
+          else
+            echo "obsidian-vault-manager trigger regression OK (no removals)"
+          fi
+
   audit-dod:
     # Heavy reference-impl DoD gate (#175): gen-fixture builds a seeded vault and
     # audit-validate --dod re-derives detection counts. Split into its own job so it
