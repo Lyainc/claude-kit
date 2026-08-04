@@ -50,16 +50,17 @@ The priority mapping is canonical in `scripts/test/audit-validate.py` (constant 
 
 | Scope | Fields |
 |-------|--------|
-| All types (universal) | `created`, `tags`, `type` |
+| All types (universal) | `created`, `tags`, `type`, `provenance` |
 
 `status` is **not** a required field for any type. It used to be required for `type: note` and
 `type: decision` (v4 §3.3 status machine); that machine was abolished when B became a reference
 warehouse (v5 §5/§6, #480), and `/vault-save` writes no `status` at all — requiring it would flag
 every newly saved file as Critical. A `status:` still present on an older file is not an error.
 
-`provenance:` is required by the v5 §5 spec but is **not** an E2 field yet — the enforcement point
-is the `/vault-save` entry. Extending E2 to it needs the existing inventory backfilled first
-(#480 follow-up).
+`provenance:` joined E2 (#477 item 4) — it was required by the v5 §4.1/§5 spec at the
+`/vault-save` and `/wiki` write points from the start, but E2 itself couldn't enforce it until the
+pre-v5 inventory was backfilled: the 135 sources/notes/wiki files that predated the requirement now
+carry a `provenance:` derived from each file's git add-commit (date + subject) as the origin record.
 
 **Tag inference** (#127, display-only proposal): when `tags:` is among the
 missing fields, the OPTIONAL-FIX step does **not** insert an empty `tags: []`.

@@ -44,7 +44,7 @@ bash ovm-primitives.sh scan-frontmatter ~/vault/30_Notes
 [
   {
     "path": "relative/path.md",
-    "frontmatter": { "created": "2026-04-01", "tags": ["note"], "type": "note" },
+    "frontmatter": { "created": "2026-04-01", "tags": ["note"], "type": "note", "provenance": "..." },
     "missing_required": [],
     "has_frontmatter": true,
     "mtime": 1713571200,
@@ -53,7 +53,7 @@ bash ovm-primitives.sh scan-frontmatter ~/vault/30_Notes
 ]
 ```
 
-`missing_required` lists any of `{created, tags, type}` absent from the frontmatter.
+`missing_required` lists any of `{created, tags, type, provenance}` absent from the frontmatter.
 
 ### `scan-filename <dir>`
 

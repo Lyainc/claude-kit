@@ -99,9 +99,11 @@ def parse_frontmatter(content):
 
 target_dir = sys.argv[1]
 records = []
-required_fields = {'created', 'tags', 'type'}
+required_fields = {'created', 'tags', 'type', 'provenance'}
 # `status` dropped from the required set — the v4 §3.3 status machine is abolished
 # (v5 §5/§6, #480); /vault-save writes no status field.
+# `provenance` added (v5 §4.1/§5, #477) — the existing inventory was backfilled
+# from git add-commit history first, so this adds no new false positives.
 
 for root, dirs, files in os.walk(target_dir):
     # Skip hidden dirs
