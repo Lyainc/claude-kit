@@ -254,6 +254,15 @@ python3 feedback-loop/scripts/test/test-retro-telemetry-stamp-isolation.py
 bash feedback-loop/scripts/test/test-events-dir-resolution.sh
 # Expected: OK: all events-dir resolution cases passed
 
+# feedback-loop SKILL.md trigger-regression check (#471 — routing-SSOT drift guard extended
+# to a previously-unguarded face). feedback-loop's skills use a third description shape
+# (single-line quoted, inline `Trigger: <phrase list>. Routing: ...` label) that neither the
+# thinking-tools nor vault-bridge extractor's regex matches, hence its own script.
+python3 feedback-loop/scripts/test/check-trigger-regression.py --self-test
+# Expected: OK: all 7 self-test cases passed
+python3 feedback-loop/scripts/test/check-trigger-regression.py origin/main
+# Removals are reported (not hard-gated) — reviewer decides if intentional.
+
 # sequence.py lifecycle-pair regression (#458). The stream logs `started` and then
 # `success`/`error` for the SAME call, and both rows used to enter the in-session n-gram
 # window — so every single call produced an `X -> X` self-transition. retro reads that
