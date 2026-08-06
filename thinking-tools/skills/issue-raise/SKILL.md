@@ -54,7 +54,10 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{title ca
 
 Never reimplement this scan. Show its result to the user before drafting the body — that
 satisfies the record requirement without inventing a heading the template doesn't have. A
-`[backlog-scan SKIPPED]` line is shown verbatim, never dropped. If the target already has a
+`[backlog-scan SKIPPED]` line is shown verbatim, never dropped. Same for a `[backlog-scan
+PARTIAL]` line (#561) — one side's fetch failed while the other rendered normally, so the
+`{backlog-prefilter 요약 한 줄}` in Output Format must fold that warning in, not compress it
+away; that side's "0 hits" is unconfirmed, not clean. If the target already has a
 Seed with its own `context.backlog_scan`, run this anyway — Phase 0's scan ran before the
 issue title existed, and title terms sharpen the match. Conflicting candidates → confirm with
 the user whether to proceed, dedupe against one, or link it (into `관련 이슈·문서`/`## 관련`
