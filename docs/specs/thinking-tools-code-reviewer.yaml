@@ -65,8 +65,10 @@ constraints:
   - id: c5
     type: other
     description: 타 레포에 남은 OMC code-reviewer 잔재 정리는 이 작업 범위 밖이다.
-    hard: false
-    rationale: claude-kit 레포 내 신규 에이전트 추가만이 이 Seed의 스코프다.
+    hard: true
+    rationale: >-
+      claude-kit 레포 내 신규 에이전트 추가만이 이 Seed의 스코프다. 범위 밖 정리를
+      끌어들이면 c4의 "동명이인, 계약 무관" 판단 자체가 타 레포 상태에 좌우되게 된다.
 
   - id: c6
     type: technical
