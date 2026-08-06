@@ -145,7 +145,7 @@ success_criteria:
   - id: ac1
     description: check-agent-tools-field.py를 통과한다.
     verifiable: true
-    measurable_via: python3 thinking-tools/scripts/test/check-agent-tools-field.py 실행 결과
+    measurable_via: python3 scripts/check-agent-tools-field.py 실행 결과
 
   - id: ac2
     description: check-version-sync.py를 통과한다.
