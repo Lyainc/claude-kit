@@ -104,7 +104,7 @@ When an expert states a **numeric or factual claim** (statistics, performance fi
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{review target text}"
    ```
-   `[backlog-scan SKIPPED]` output → record `Backlog: skipped`, carry that line verbatim into Phase 2. Otherwise record `Backlog: scanned` and give the digest to every expert as grounding, same status as [Citation Contract](#citation-contract) sources — never a verdict the panel is bound to. Rationale + zero-cost note: [reference.md](reference.md).
+   `[backlog-scan SKIPPED]` output → record `Backlog: skipped`, carry that line verbatim into Phase 2. A `[backlog-scan PARTIAL]` prefix (#561 — one side's `gh` fetch failed while the other rendered normally) → record `Backlog: partial`, carry that line verbatim into Phase 2 too, and still give the rendered digest below it to every expert — PARTIAL means one side is unconfirmed, not that nothing rendered. Otherwise record `Backlog: scanned` and give the digest to every expert as grounding, same status as [Citation Contract](#citation-contract) sources — never a verdict the panel is bound to. Rationale + zero-cost note: [reference.md](reference.md).
 3. Run the [personas.md](../../reference/personas.md) Selection Rule on each topic's text → panel composition (confirm with the user only when they asked to pick the experts themselves)
 4. Generate discussion agenda
 
@@ -136,7 +136,7 @@ dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). Th
 <!-- STATE:CHECKPOINT -->
 Topic: {idx}/{total} | Phase: {0|1|2} | Round: {r}/3
 Mode: [isolated:{on|off}] [summary-only:{on|off}]
-Backlog: {scanned|skipped}
+Backlog: {scanned|partial|skipped}
 Personas: [{P-id} ...] adhoc:{n}
 Independent: {k}/{N}
 Rebuttal: [t{n}:e{i}:{k}/{N}]

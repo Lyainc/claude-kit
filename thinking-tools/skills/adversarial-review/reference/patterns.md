@@ -125,7 +125,7 @@ verdicts:
   collapsed: {N}
   pending: {N}
 angle: {P-id|adhoc}        # Attacker domain angle — thinking-tools/reference/personas.md rank 1
-backlog_scan: {scanned|skipped}  # Phase 0 backlog-prefilter result, #524
+backlog_scan: {scanned|partial|skipped}  # Phase 0 backlog-prefilter result, #524 (partial: #561)
 ---
 
 ## Adversarial Review Report
