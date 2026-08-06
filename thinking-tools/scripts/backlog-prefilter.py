@@ -22,6 +22,11 @@ Usage:
 Always prints something. When the corpus is unreadable (`gh` absent, no GitHub
 remote, network down) it prints a SKIP line — build-spec records that line
 verbatim in `context.backlog_scan` so a skipped scan never looks like a clean one.
+
+A fetch failure on only ONE side (open or closed) still renders the other side's
+real hits, but is prefixed with a PARTIAL warning naming which side failed (#561)
+— without it, "that side genuinely has 0 matches" and "that side's fetch failed"
+were indistinguishable in the output.
 """
 
 import argparse
@@ -53,15 +58,27 @@ SKIP_NO_TERMS = (
 )
 
 
+def _partial_skip(state_kr, state_flag):
+    return (
+        f"[backlog-scan PARTIAL] {state_kr} 이슈 조회가 실패했어요 — 아래 결과의 "
+        f"{state_kr} 쪽은 '진짜 0건'인지 '조회가 안 된 것'인지 구분이 안 돼요. "
+        f"`gh issue list --state {state_flag}`로 직접 확인하세요."
+    )
+
+
 def gh(args, cwd=None):
-    """Run gh and parse JSON. Any failure yields an empty list — fail open."""
+    """Run gh and parse JSON. Returns (data, ok) — data fails open to [] on any
+    failure (unchanged), but ok=False lets the caller tell 'genuinely empty'
+    apart from 'the fetch itself failed' (#561)."""
     try:
         out = subprocess.run(
             ["gh", *args], cwd=cwd, capture_output=True, text=True, timeout=20
         )
-        return json.loads(out.stdout) if out.returncode == 0 else []
+        if out.returncode != 0:
+            return [], False
+        return json.loads(out.stdout), True
     except Exception:
-        return []
+        return [], False
 
 
 def terms(text):
@@ -155,16 +172,32 @@ def build(intent, cwd=None):
     ts = terms(intent)
     if not ts:
         return SKIP_NO_TERMS
-    op = gh(
+    op, op_ok = gh(
         ["issue", "list", "--state", "open", "--limit", "500",
          "--json", "number,title,body,labels"], cwd)
-    cl = gh(
+    cl, cl_ok = gh(
         ["issue", "list", "--state", "closed", "--limit", "1000",
          "--json", "number,title"], cwd)
-    if not op and not cl:
-        return SKIP_NO_CORPUS  # never silent: a skipped scan must not read as a clean one
-    return render(intent, rank(op, ts, OPEN_K), rank(cl, ts, CLOSED_K),
-                  len(op), len(cl))
+    if not op_ok and not cl_ok:
+        return SKIP_NO_CORPUS  # both fetches failed — nothing to show
+
+    warnings = []
+    if not op_ok:
+        warnings.append(_partial_skip("열린", "open"))
+    if not cl_ok:
+        warnings.append(_partial_skip("닫힌", "closed"))
+
+    if not op and not cl and not warnings:
+        # both fetches succeeded and the corpus is genuinely empty — a real skip,
+        # not a failure (#561: a failed side never reaches here without a warning,
+        # since gh() only returns [] with ok=False, and that's caught above).
+        return SKIP_NO_CORPUS
+
+    txt = render(intent, rank(op, ts, OPEN_K), rank(cl, ts, CLOSED_K),
+                 len(op), len(cl))
+    if warnings:
+        txt = "\n\n".join(warnings) + "\n\n" + txt
+    return txt
 
 
 def self_check():
@@ -209,6 +242,58 @@ def self_check():
     # #489: an unreadable corpus must ANNOUNCE the skip, never return silence.
     assert build("무엇이든", cwd="/nonexistent-dir-for-self-check") == SKIP_NO_CORPUS
     assert build("가") == SKIP_NO_TERMS, "no usable terms → explicit skip line"
+
+    # #561: gh() failing on only ONE side must not render as an indistinguishable
+    # "0건" — it must say so, even though the other side's real hits still show.
+    global gh
+    _real_gh = gh
+
+    def _fake_gh_closed_fails(args, cwd=None):
+        if "closed" in args:
+            return [], False
+        return ([{"number": 1, "title": "fix(vault-bridge): 매니페스트 버그",
+                   "body": "매니페스트", "labels": []}], True)
+
+    gh = _fake_gh_closed_fails
+    out = build("매니페스트 문제")
+    gh = _real_gh
+    assert "PARTIAL" in out, "closed-side gh() failure must surface a PARTIAL warning"
+    assert "#1" in out, "the open side that DID succeed must still render"
+
+    def _fake_gh_open_fails(args, cwd=None):
+        if "open" in args:
+            return [], False
+        return ([{"number": 2, "title": "매니페스트 회고", "body": "", "labels": []}], True)
+
+    gh = _fake_gh_open_fails
+    out2 = build("매니페스트 문제")
+    gh = _real_gh
+    assert "PARTIAL" in out2, "open-side gh() failure must surface a PARTIAL warning"
+
+    def _fake_gh_open_ok_closed_empty_ok(args, cwd=None):
+        if "closed" in args:
+            return [], True  # genuinely zero closed hits — the fetch itself succeeded
+        return ([{"number": 3, "title": "매니페스트 이슈", "body": "", "labels": []}], True)
+
+    gh = _fake_gh_open_ok_closed_empty_ok
+    out3 = build("매니페스트 이슈")
+    gh = _real_gh
+    assert "PARTIAL" not in out3, "a genuinely empty side (fetch succeeded) must not warn"
+    assert "#3" in out3
+
+    # #561 review gap: one side fails WHILE the other genuinely has zero hits —
+    # must still warn (not silently fall into the generic SKIP_NO_CORPUS path,
+    # which would erase which side actually failed).
+    def _fake_gh_open_fails_closed_empty_ok(args, cwd=None):
+        if "open" in args:
+            return [], False
+        return [], True  # closed fetch succeeded, genuinely zero closed issues
+
+    gh = _fake_gh_open_fails_closed_empty_ok
+    out4 = build("매니페스트 이슈")
+    gh = _real_gh
+    assert out4 != SKIP_NO_CORPUS, "a real partial failure must not collapse into the generic skip"
+    assert "PARTIAL" in out4, "open-side failure must still warn even when closed is genuinely empty"
 
     print("self-check ok")
 
