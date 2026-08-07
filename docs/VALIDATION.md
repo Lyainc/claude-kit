@@ -68,7 +68,7 @@ python3 scripts/check-agent-tools-field.py
 # the listed tools match the body is the sibling guard below. Registered here by #577; before
 # that it lived in scripts/ but ran in neither CI nor this list.
 python3 scripts/check-agent-tools-usage.py --self-test
-# Expected: OK: all 16 check-agent-tools-usage self-test cases passed
+# Expected: OK: all 20 check-agent-tools-usage self-test cases passed
 python3 scripts/check-agent-tools-usage.py
 # Expected: OK: all N agent(s) declare exactly the tools their body uses
 # #577: the declared set and the body must agree, in both directions. UNDECLARED (body says
