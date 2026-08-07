@@ -36,9 +36,10 @@ The caller provides, in the prompt:
 
 1. **The diff to review** — inline text, or a path/ref `git diff` can resolve (e.g. a commit
    range). Read/Bash are for resolving and inspecting this diff; Grep/Glob narrow that same
-   lookup — grepping symbols the diff touches and globbing for the spec file under
-   `docs/specs/` when the caller names an issue/RFC instead of an exact path — never for
-   exploring the wider repo beyond what the diff and spec require.
+   lookup — Grep for confirming a pre-existing test elsewhere in the repo already covers new
+   non-trivial logic before flagging baseline item 3 (실행 가능한 체크 부재), Glob for locating
+   the spec file under `docs/specs/` when the caller names an issue/RFC instead of an exact
+   path — never for exploring the wider repo beyond what the diff and spec require.
 2. **The spec path**, if one exists — a build-spec Seed YAML under `docs/specs/*.yaml`, or a
    GitHub issue/RFC reference. Trust whatever spec path the caller names; picking *which* spec
    governs a review is the caller's call, not this agent's (see Blindspot rule below).
@@ -72,7 +73,9 @@ beyond what the diff and spec require.
    - 논트리비얼 로직에 실행 가능한 체크 부재 (non-trivial logic — a branch, loop, parser,
      money/security path — with no runnable check)
    Do not add a 4th item or drop to 2. If a diff has nothing that touches one of these three,
-   say so rather than inventing a finding.
+   say so rather than inventing a finding. Before flagging the third item, a quick Grep for an
+   existing test file covering the changed logic is in scope even when the diff itself doesn't
+   touch that test — absence in the diff alone isn't absence of a check.
 
 4. **Judge each `success_criteria` item in 3 states (c10)** — do not collapse this to
    pass/fail:
