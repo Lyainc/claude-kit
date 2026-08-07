@@ -416,7 +416,7 @@ python3 thinking-tools/scripts/test/test-persona-selection.py
 bash thinking-tools/scripts/test/test-session-start-welcome.sh
 # Expected: OK: all session-start-welcome cases passed
 
-# completion-condition 후보 풀 훅 회귀 (#517) — 두 실패가 프로덕션에서 조용하다.
+# next-goal 후보 풀 훅 회귀 (#517) — 두 실패가 프로덕션에서 조용하다.
 # (1) matcher가 안 맞기 시작하는 것: 플러그인 스킬은 `plugin:skill`, 머신 스킬은 bare로
 #     도착한다. 이 훅은 bare 키로 된 머신 훅에서 이식됐고, #406이 그 키를 그대로 옮기면
 #     "영영 발화하지 않는다"고 기록했다 — 발화 안 하는 훅은 할 말 없는 훅과 구분되지 않는다.
@@ -424,8 +424,8 @@ bash thinking-tools/scripts/test/test-session-start-welcome.sh
 #     판단으로 이어지는데 한 칸에 합치면 gh 부재가 정리된 백로그로 읽힌다(#443·#447 클래스).
 # gh를 PATH에 스텁으로 깔아 네트워크 없이 결정적으로 돈다. 페이로드가 판정문(임팩트 바닥 등)을
 # 싣지 않는지도 함께 핀 — 판정은 SKILL.md 소유고 양쪽에 두면 경계를 가로지른 중복이다.
-bash thinking-tools/scripts/test/test-completion-condition-hook.sh
-# Expected: OK: all 18 completion-condition-hook cases passed
+bash thinking-tools/scripts/test/test-next-goal-hook.sh
+# Expected: OK: all 18 next-goal-hook cases passed
 
 # next-candidate.py chain_depth()/top_areas() unit tests (#521) — the hook test above only
 # exercises these through single-commit e2e fixtures; this asserts the edges directly:
@@ -437,7 +437,7 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
 bash -n thinking-tools/hooks/session-start-welcome.sh   # #117 first-run onboarding hint
-bash -n thinking-tools/hooks/completion-condition-context.sh   # #517 candidate-pool injection
+bash -n thinking-tools/hooks/next-goal-context.sh   # #517 candidate-pool injection
 bash -n feedback-loop/scripts/event-logger.sh
 bash -n feedback-loop/scripts/retro-telemetry.sh   # #294 retro stamp/emit helper
 bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
