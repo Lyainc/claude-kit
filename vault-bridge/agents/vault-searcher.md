@@ -178,8 +178,12 @@ Search the entire vault by keyword and load note contents.
    - If the CLI path is unavailable, fails, times out, or returns no useful candidates, fall back:
      - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
      - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
-3. Sort: title match > tag match > body match > recent modification. When candidates come
-   from the manifest pre-filter (step 1), break ties *within the same match tier* by
+3. Apply the Question-Type Routing tier (§ above) as the top grouping: for a 정의/사실 질문, sort
+   `wiki/` hits before `notes/`+`sources/` hits; for a 경위/이력 질문, sort `notes/`+`sources/` hits
+   before `wiki/` hits; for 분류 불가, skip this grouping (existing behavior). Within each group
+   (or across all hits when ungrouped), sort: title match > tag match > body match > recent
+   modification. When candidates come from the manifest pre-filter (step 1), break ties *within
+   the same match tier* by
    `recent_commits` then `references_in` descending, then `type: wiki` preferred (A-layer
    recall priority — a wiki page wins an otherwise-even tie; tiebreaker only, never an
    override) — so a recently-active (7-day git touches), heavily-linked, or compiled-wiki
