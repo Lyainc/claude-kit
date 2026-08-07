@@ -121,7 +121,7 @@ jobs:
         run: |
           bash -n vault-bridge/hooks/*.sh
           bash -n thinking-tools/hooks/session-start-welcome.sh
-          bash -n thinking-tools/hooks/completion-condition-context.sh
+          bash -n thinking-tools/hooks/next-goal-context.sh
           bash -n scripts/rules-checklist-hook.sh
           bash -n scripts/subagent-git-guard.sh
           bash -n scripts/no-pyyaml-guard.sh
@@ -260,13 +260,13 @@ jobs:
           bash thinking-tools/scripts/test/test-session-start-welcome.sh
           echo "session-start-welcome OK"
 
-      - name: Run completion-condition candidate-pool hook regression
+      - name: Run next-goal candidate-pool hook regression
         run: |
           # #517 — matcher must fire on the qualified plugin skill name (#406: porting the
           # bare machine key makes it never fire), and a failed backlog lookup must never
           # render as an empty backlog. gh is stubbed on PATH, so this needs no network.
-          bash thinking-tools/scripts/test/test-completion-condition-hook.sh
-          echo "completion-condition-hook OK"
+          bash thinking-tools/scripts/test/test-next-goal-hook.sh
+          echo "next-goal-hook OK"
 
       - name: Run next-candidate chain_depth/top_areas unit tests
         run: |
