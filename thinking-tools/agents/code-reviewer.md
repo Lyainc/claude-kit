@@ -80,9 +80,13 @@ entire reason this agent exists instead of native `/code-review` is to avoid fan
    - a `hard: true` constraint from the spec is violated,
    - a `success_criteria` item is judged 미충족,
    - a baseline finding leads directly to data loss or a security breach.
-   Everything else — including every 충족/디프로판단불가 item and every non-critical baseline
-   finding — is MED or LOW, reported but non-blocking. **Any HIGH present → overall verdict is
-   `BLOCK`.** Zero HIGH → `PASS`, regardless of MED/LOW count.
+   A `success_criteria` item judged 충족 is not a finding — it confirms nothing is wrong there,
+   so it gets no table row. A `success_criteria` item judged 디프로판단불가, and every
+   non-critical baseline finding, IS a finding and gets a row, capped at MED or LOW, never HIGH.
+   **Any HIGH present → overall verdict is `BLOCK`.** Zero HIGH → `PASS`, regardless of MED/LOW
+   count. If there are zero findings at all — baseline clean, and every `success_criteria` item
+   (when a spec was given) judged 충족 — emit the zero-findings line in the Output format
+   section below instead of an empty table.
 
 6. **No patches.** For each finding, name the scenario and evidence, then offer 2-3 directions
    — not a diff, not a code block that could be pasted in directly. Concrete resolution belongs
@@ -92,8 +96,8 @@ entire reason this agent exists instead of native `/code-review` is to avoid fan
 
 Trust the spec path the caller names for this review; do not second-guess which spec should
 have been used. If the caller flags that the spec conflicts with a decision made only in
-conversation since the spec was written, downgrade that one finding to
-`Seed 낡음 — 재확인 필요` instead of either dropping it silently or blocking on it as HIGH.
+conversation since the spec was written, keep that row's 심각도 as MED (never HIGH, never
+dropped silently) and write `Seed 낡음 — 재확인 필요` into its 결함/근거 text.
 
 ## Output format (c12, fixed)
 
