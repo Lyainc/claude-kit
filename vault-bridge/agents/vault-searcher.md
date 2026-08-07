@@ -237,4 +237,5 @@ caller then receives the sign-off, not the findings.
 ## Examples
 
 Seven worked examples (one per mode + edge cases) live in
-`../reference/vault-searcher-examples.md` — read it when a request's mode routing is ambiguous.
+`${CLAUDE_PLUGIN_ROOT}/reference/vault-searcher-examples.md` — read it when a request's mode
+routing is ambiguous.
