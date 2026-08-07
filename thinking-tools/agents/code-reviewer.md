@@ -35,8 +35,10 @@ of scope here; do not chase that while reviewing a diff.
 The caller provides, in the prompt:
 
 1. **The diff to review** — inline text, or a path/ref `git diff` can resolve (e.g. a commit
-   range). Read/Bash are for resolving and inspecting this diff, not for exploring the wider
-   repo beyond what the diff and spec require.
+   range). Read/Bash are for resolving and inspecting this diff; Grep/Glob narrow that same
+   lookup — grepping symbols the diff touches and globbing for the spec file under
+   `docs/specs/` when the caller names an issue/RFC instead of an exact path — never for
+   exploring the wider repo beyond what the diff and spec require.
 2. **The spec path**, if one exists — a build-spec Seed YAML under `docs/specs/*.yaml`, or a
    GitHub issue/RFC reference. Trust whatever spec path the caller names; picking *which* spec
    governs a review is the caller's call, not this agent's (see Blindspot rule below).
@@ -85,7 +87,7 @@ beyond what the diff and spec require.
    - a `success_criteria` item is judged 미충족,
    - a baseline finding leads directly to data loss or a security breach.
    A `success_criteria` item judged 충족 is not a finding — it confirms nothing is wrong there,
-   so it gets no table row. A `success_criteria` item judged 디프로판단불가, and every
+   so it gets no table row. A `success_criteria` item judged diff로 판단 불가, and every
    non-critical baseline finding, IS a finding and gets a row, capped at MED or LOW, never HIGH.
    **Any HIGH present → overall verdict is `BLOCK`.** Zero HIGH → `PASS`, regardless of MED/LOW
    count. If there are zero findings at all — baseline clean, and every `success_criteria` item
