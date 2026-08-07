@@ -113,7 +113,7 @@ Within `thinking-tools`:
 ## Adding a New Agent
 
 1. 해당 플러그인의 `agents/{agent-name}.md` 생성 (frontmatter: name, description, model, skills)
-2. **`tools:`를 명시** (#472) — 생략하면 하네스에 연결된 도구 전부를 상속합니다. 에이전트 본문이 실제로 호출하는 도구만 나열하세요 (Bash 커맨드·Read·Grep·Glob·Write 등을 본문에서 grep해 확인). `scripts/check-agent-tools-field.py`로 `tools:` 필드 존재 여부만 검사할 수 있습니다 — 목록이 본문 사용과 정확히 일치하는지는 수동 판단입니다.
+2. **`tools:`를 명시** (#472) — 생략하면 하네스에 연결된 도구 전부를 상속합니다. 에이전트 본문이 실제로 호출하는 도구만 나열하세요 (Bash 커맨드·Read·Grep·Glob·Write 등을 본문에서 grep해 확인). `scripts/check-agent-tools-field.py`가 `tools:` 필드 존재를, `scripts/check-agent-tools-usage.py`가 선언 목록과 본문 사용의 일치를 양방향으로 검사합니다 (#577). 후자는 본문이 도구를 **이름으로 언급**해야 근거로 인정하므로, 셸 커맨드로만 쓰는 도구도 본문에 이름을 적으세요.
 3. `plugin.json`의 `keywords`에 에이전트명 추가
 4. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
 

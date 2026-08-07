@@ -99,6 +99,12 @@ jobs:
           # #385 E1-EN audit-error-type label drift guard.
           python3 scripts/check-error-label-drift.py --self-test
           python3 scripts/check-error-label-drift.py
+          # #472 tools: field existence, #577 declared-vs-body-usage. The first was in
+          # scripts/ but wired into neither CI nor docs/VALIDATION.md until #577.
+          python3 scripts/check-agent-tools-field.py --self-test
+          python3 scripts/check-agent-tools-field.py
+          python3 scripts/check-agent-tools-usage.py --self-test
+          python3 scripts/check-agent-tools-usage.py
           python3 scripts/check-plugin-root-paths.py --self-test
           python3 scripts/check-plugin-root-paths.py
           # SKILL.md compaction budget (#454). tiktoken is fetched ephemerally by `uv run
