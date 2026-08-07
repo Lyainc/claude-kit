@@ -20,7 +20,7 @@
     "thinking-facilitator",
     "adversarial-review",
     "build-spec",
-    "completion-condition",
+    "next-goal",
     "issue-raise",
     "code-reviewer"
   ],
@@ -43,7 +43,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/completion-condition-context.sh",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/next-goal-context.sh",
             "timeout": 20
           }
         ]
