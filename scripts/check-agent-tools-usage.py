@@ -85,20 +85,29 @@ KNOWN_TOOLS = [
 
 # Tools that can create or modify a file. A body claiming the Write Role Contract may hold none.
 WRITE_TOOLS = ("Write", "Edit", "NotebookEdit")
+# Self-directed phrasings only. A bare "read-only" was tried and removed: it is a substring
+# test over the whole body, so it fires on an agent describing something *else* as read-only
+# ("the manifest is a read-only input", "delegate to vault-searcher, which is read-only") and
+# hard-blocks a legitimate writer. It also caught nothing the specific markers miss.
 READONLY_MARKERS = (
     "write role contract",
     "cannot write",
     "no access to the write tool",
-    "read-only",
 )
 
 _VERBS = r"(?:use|uses|using|call|calls|calling|invoke|invokes|invoking|via|through)"
 # Up to two filler words between verb and tool ("use the `X` tool", "call into X").
 _FILLER = r"(?:\s+(?:a|an|the|into|to|with|by)){0,2}"
 NEGATORS = ("not", "never", "without", "cannot", "no", "neither", "nor")
-# How far back to read for a negation, and where that read stops.
+# How far back to read for a negation, and where that read stops. The trim is at CLAUSE
+# boundaries, not sentence boundaries: agent prose is full of conditionals that negate
+# something other than the verb ("...or returns no useful candidates, use Grep instead"), and
+# a sentence-wide window lets that stray `no` suppress a genuine directive — silently, since
+# a suppressed UNDECLARED finding prints nothing at all.
+# A newline is deliberately NOT a boundary: these bodies are hard-wrapped, so a wrap can land
+# anywhere, including between the negator and its verb.
 _LOOKBACK = 160
-_SENTENCE_END_RE = re.compile(r"[.!?](?:\s|$)")
+_CLAUSE_END_RE = re.compile(r"[.!?;:,]")
 
 
 def _imperative_re(tool):
@@ -120,14 +129,15 @@ def _mention_re(tool):
 
 
 def _is_negated(body, start):
-    """True when the sentence leading up to `start` negates the reach.
+    """True when the clause leading up to `start` negates the reach.
 
-    Read backwards from the match through the whole preceding sentence rather than a fixed
-    same-line window: "do not re-invoke yourself, do\\nnot use the `Agent` tool" puts the
-    negator on the previous line, and one prose rewrap moves it further still.
+    Reads backwards from the match to the nearest clause boundary, so a newline between the
+    negator and the verb is crossed ("do not re-invoke yourself, do\\nnot use the `Agent`
+    tool") while a negator belonging to an earlier clause is not ("...or returns no useful
+    candidates, use Grep instead" is a directive, not a prohibition).
     """
     window = body[max(0, start - _LOOKBACK):start]
-    ends = list(_SENTENCE_END_RE.finditer(window))
+    ends = list(_CLAUSE_END_RE.finditer(window))
     if ends:
         window = window[ends[-1].end():]
     lowered = window.lower()
@@ -144,14 +154,31 @@ def split_frontmatter(text):
     return m.group(1), m.group(2)
 
 
+def _split_outside_parens(value):
+    """Split on commas that are not inside a scoped `Bash(git add:*, git commit:*)` suffix."""
+    parts, depth, current = [], 0, []
+    for ch in value:
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth = max(0, depth - 1)
+        if ch == "," and depth == 0:
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(ch)
+    parts.append("".join(current))
+    return [p for p in (p.strip() for p in parts) if p]
+
+
 def declared_tools(frontmatter):
-    """Read `tools:` in either the inline comma form or a YAML block list."""
+    """Read `tools:` in the inline comma form, a YAML flow sequence, or a block list."""
     tm = TOOLS_KEY_RE.search(frontmatter or "")
     if not tm:
         return []
     inline = tm.group(1).strip()
     if inline:
-        return [t.strip() for t in inline.split(",") if t.strip()]
+        return _split_outside_parens(inline)
     tools = []
     for line in frontmatter[tm.end():].lstrip("\r\n").split("\n"):
         item = TOOLS_BLOCK_ITEM_RE.match(line)
@@ -162,7 +189,17 @@ def declared_tools(frontmatter):
 
 
 def normalise(tool):
-    """Strip the scoped `Bash(git diff:*)` suffix so the base name can be looked up."""
+    """Reduce a declaration to its bare tool name.
+
+    Strips what valid YAML and this repo's own conventions can wrap around it — a `#` comment
+    tail, a CR from CRLF frontmatter, flow-sequence brackets, surrounding quotes, and the
+    scoped `Bash(git diff:*)` suffix. Anything left that is not a real tool name is a typo,
+    which is what the `unknown` finding is for.
+    """
+    tool = tool.split("#", 1)[0]
+    tool = tool.strip().strip("\r").strip("[]").strip()
+    if len(tool) >= 2 and tool[0] == tool[-1] and tool[0] in "\"'":
+        tool = tool[1:-1]
     return tool.split("(", 1)[0].strip()
 
 
@@ -245,19 +282,24 @@ SELF_TEST_CASES = [
         ["Skill"], [], [], [],
     ),
     (
-        "negation on the previous line still suppresses",
-        "---\nname: a\ntools: Read\n---\nDo not re-invoke yourself, do\nnot use the `Agent` tool. Read the diff.",
+        "a negator wrapped onto the previous line still suppresses",
+        "---\nname: a\ntools: Read\n---\nDo not\nuse the `Agent` tool. Read the diff.",
         [], [], [], [],
     ),
     (
-        "a negator further back in the same sentence suppresses",
-        "---\nname: a\ntools: Read\n---\nThis agent must never, under any circumstance whatsoever in any mode, use the `Agent` tool. Read on.",
-        [], [], [], [],
+        "a negator in an EARLIER CLAUSE does not suppress",
+        "---\nname: a\ntools: Read\n---\nIf the search returns no useful candidates, use Grep instead. Read the hits.",
+        ["Grep"], [], [], [],
     ),
     (
         "a negator in the PREVIOUS sentence does not suppress",
         "---\nname: a\ntools: Read\n---\nThis is not a review tool. Use Grep for the scan. Read on.",
         ["Grep"], [], [], [],
+    ),
+    (
+        "negation applies to the call-syntax alternative too",
+        "---\nname: a\ntools: Read\n---\nDo not call Artifact(path) here. Read only.",
+        [], [], [], [],
     ),
     (
         "passing mention is not a call",
@@ -290,6 +332,16 @@ SELF_TEST_CASES = [
         [], [], [], [],
     ),
     (
+        "a scoped suffix containing a comma is one declaration, not two",
+        "---\nname: a\ntools: Read, Bash(git add:*, git commit:*)\n---\nRead it, then use Bash.",
+        [], [], [], [],
+    ),
+    (
+        "quotes, flow sequences, comment tails and CRLF are all just YAML",
+        "---\r\nname: a\r\ntools: [\"Read\", 'Bash']  # both needed\r\n---\r\nRead it, then use Bash.",
+        [], [], [], [],
+    ),
+    (
         "an unknown tool name is reported, mcp__ and scoped forms are not",
         "---\nname: a\ntools: Read, Bash(git diff:*), mcp__foo__bar, Reed\n---\nRead it, then use Bash.",
         [], [], ["Reed"], [],
@@ -298,6 +350,11 @@ SELF_TEST_CASES = [
         "a read-only body may not hold a write tool",
         "---\nname: a\ntools: Read, Write\n---\nThis agent is read-only by the Write Role Contract. Read and report.",
         [], [], [], ["Write"],
+    ),
+    (
+        "calling something ELSE read-only does not make this agent read-only",
+        "---\nname: a\ntools: Read, Write\n---\nThe manifest is a read-only input. Read it, then use Write to emit the report.",
+        [], [], [], [],
     ),
     (
         "clean agent",
