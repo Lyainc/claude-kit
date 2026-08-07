@@ -127,20 +127,28 @@ def check_age_days_dst() -> list[str]:
 
     Picks an input 30 minutes shy of a day boundary under a DST-observing local zone: the old
     `time.mktime(...) - time.timezone` form could be off by up to an hour, which is enough to
-    flip the floored day count across that boundary.
+    flip the floored day count across that boundary. That error only occurs when the target,
+    interpreted as America/New_York local wall-clock time, actually falls inside DST (roughly
+    Mar-Nov) — anchoring the fixture to the real `now` made the guard's power to catch a
+    reintroduced bug depend on which season CI happened to run in (#553). Anchoring `now` to a
+    fixed mid-July instant (deep inside DST, no transition nearby) via a `time.time()`
+    monkeypatch keeps the guard effective year-round regardless of when this test runs.
     """
     failures = []
     orig_tz = os.environ.get("TZ")
+    orig_time = time.time
     try:
         os.environ["TZ"] = "America/New_York"
         time.tzset()
-        now = calendar.timegm(time.gmtime())
+        now = calendar.timegm(time.strptime("2026-07-15T12:00:00Z", "%Y-%m-%dT%H:%M:%SZ"))
+        time.time = lambda: now
         target = now - (3 * 86400 - 1800)
         iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(target))
         got = nc.age_days(iso)
         if got != 2:
             failures.append(f"age_days DST check: expected 2, got {got} (TZ={os.environ.get('TZ')})")
     finally:
+        time.time = orig_time
         if orig_tz is None:
             os.environ.pop("TZ", None)
         else:
