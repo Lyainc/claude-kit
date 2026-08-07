@@ -67,6 +67,10 @@ jobs:
           # and an unreadable corpus must announce the skip instead of returning silence.
           python3 thinking-tools/scripts/backlog-prefilter.py --self-check
 
+          # issue-raise template-heading conformance guard (#563): #562's actual defect
+          # (`## 제안 (선택)` assembled as `## 제안`, marker dropped) pinned as a regression case.
+          python3 thinking-tools/scripts/check-heading-match.py --self-test
+
           # Release tooling self-tests (lockstep bump + per-plugin notes generation +
           # the release-trigger policy: label / backstop / bump derivation).
           python3 scripts/bump-version.py --self-test
