@@ -70,6 +70,29 @@ template's own order. Skip a heading only when it is marked `(선택)` **and** n
 content exists for it — never invent content for an empty optional heading, never invent a
 heading the template doesn't have. Field-mapping detail: [reference.md](reference.md) §1.
 
+### Phase 2.5: Heading Conformance Check (mandatory, zero LLM cost)
+
+Write the assembled body to a temp file, then:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check-heading-match.py" --template {template path from Phase 0} --draft {temp file path}
+```
+
+Never skip this — Phase 2 only *instructs* headings be copied verbatim; nothing before this
+step mechanically confirms they were (#563; observed live in #562, where the template's
+`## 제안 (선택)` was assembled as `## 제안`, the `(선택)` marker silently dropped).
+
+- **Exit 0** → proceed to Phase 3 unchanged.
+- **Exit 1** (heading mismatch) → the printed table names the exact heading and position.
+  Re-render Phase 2's mapping against it, then **re-run this same command against the new
+  draft** before moving on — do not proceed to Phase 3 on an unverified re-render, or the
+  marker-drop failure mode can slip through a second time undetected. If Phase 0's source data
+  legitimately changes a heading (not an assembly error), surface the mismatch inside Phase 3's
+  approval prompt instead of silently overriding or silently proceeding.
+- **Exit 2** (usage error — an unreadable template/draft path) → this is a plumbing failure,
+  not a heading mismatch, and re-rendering the body fixes nothing here. Report the raw error to
+  the user and stop; do not loop on Phase 2 trying to fix a path/I-O problem.
+
 ### Phase 3: Title + Create
 
 Follow the repo's live convention, not a fixed pattern — `gh issue list --state all --limit 10
@@ -107,11 +130,16 @@ Show the assembled title + body. `AskUserQuestion` for approval before creating 
   ranked by title only — see `backlog-prefilter.py`'s own docstring.
 - **Seed→feature.md mapping is one fixed shape** (reference.md §1); a Seed whose content is
   actually a defect report is out of scope — build-spec crystallizes things to build, not bugs.
+- **Heading conformance check (Phase 2.5) is a plain regex diff, not a markdown parser** — a
+  `## ` inside a fenced code block in the draft (e.g. pasted code with a comment that starts
+  with `## `) would be read as a heading. Templates carry no code fences today, so this hasn't
+  fired in practice; a draft that legitimately needs one is the case to watch (#563).
 
 ## References
 
 - **Field mapping + title convention rationale**: [reference.md](reference.md)
 - **Backlog scan script**: `../../scripts/backlog-prefilter.py` (shared with build-spec, #489)
+- **Heading conformance script**: `../../scripts/check-heading-match.py` (#563)
 - **Common output schema**: [../../reference/common-schema.md](../../reference/common-schema.md)
 
 ## Korean I/O Directive
