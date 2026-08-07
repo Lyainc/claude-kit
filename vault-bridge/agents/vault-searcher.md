@@ -55,7 +55,24 @@ done
 
 Vault root: `~/vault/` — dirs: `sources` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — the A layer, **AI-recall primary**; vault second-brain v5), `assets` (attachments)
 
-The `wiki/` layer is the primary recall target: pages there are domain knowledge the model compiled to read on the human's behalf. Treat it as first-class recall material alongside `notes/` (see ranking below).
+The `wiki/` layer is the primary recall target: pages there are domain knowledge the model compiled to read on the human's behalf. Treat it as first-class recall material alongside `notes/` (see ranking below) — this is the default weighting when a query doesn't classify under Question-Type Routing below, which checks `notes/`+`sources/` first for history-type questions instead.
+
+## Question-Type Routing (#519)
+
+Classify the query by its question form before searching. This decides which layer is checked
+*first*; the other layer is always still checked as fallback, so an answer sitting in the
+non-preferred layer is still found — routing only reorders, never excludes.
+
+- **정의/사실 질문** (what-is / what-changed / do-we-have-notes — e.g. "X가 뭐야", "어떻게 동작해",
+  "뭘 바꿨나", "전에 정리해둔 게 있나", "우리가 아는 게 뭐지", "what is X", "how does X work", "what
+  did X change"): compiled domain knowledge answers this. Check `wiki/` first, `notes/`+`sources/`
+  as fallback regardless of whether wiki produced a hit.
+- **경위/이력 질문** (why-did-we / how-did-we-do-it-before — e.g. "왜 그랬더라", "왜 이렇게 했지",
+  "전에 어떻게 했지", "과거 리서치/조사 자료", "why did we do that", "how did we handle this
+  before"): session records answer this. Check `notes/`+`sources/` first, `wiki/` as fallback
+  regardless.
+- **분류 불가 / 혼합 질문**: no priority — scan `wiki/` + `notes/` + `sources/` together as today,
+  `type: wiki` as tiebreaker only.
 
 ## Modes
 
