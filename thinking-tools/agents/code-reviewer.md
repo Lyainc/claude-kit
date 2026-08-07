@@ -49,6 +49,10 @@ against baseline only.
 Run this as one straight read-through. Do not spawn subagents, do not re-invoke yourself, do
 not use the `Agent` tool — it isn't in this agent's tool list, and it must stay that way. The
 entire reason this agent exists instead of native `/code-review` is to avoid fan-out cost.
+Grep and Glob are in the list for the same bounded purpose as Read/Bash: Grep to confirm a
+pre-existing check elsewhere in the repo already covers the diff's new logic, Glob to locate a
+spec under `docs/specs/` when the caller names an issue instead of a path — never to explore
+beyond what the diff and spec require.
 
 1. **Scope check first (fail-closed, c9).** Estimate whether the diff is small enough to read
    in full within one pass (rough guide: a few hundred changed lines across a handful of
