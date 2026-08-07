@@ -39,7 +39,7 @@ The caller provides, in the prompt:
    lookup — Grep for confirming a pre-existing test elsewhere in the repo already covers new
    non-trivial logic before flagging baseline item 3 (실행 가능한 체크 부재), Glob for locating
    the spec file under `docs/specs/` when the caller names an issue/RFC instead of an exact
-   path — never for exploring the wider repo beyond what the diff and spec require.
+   path — never for exploring the wider repo beyond what the diff, spec, and baseline require.
 2. **The spec path**, if one exists — a build-spec Seed YAML under `docs/specs/*.yaml`, or a
    GitHub issue/RFC reference. Trust whatever spec path the caller names; picking *which* spec
    governs a review is the caller's call, not this agent's (see Blindspot rule below).
