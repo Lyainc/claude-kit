@@ -1,7 +1,3 @@
----
-tools: Read
----
-
 # vault-searcher — Examples
 
 Illustrative only — the procedures in `vault-searcher.md` are authoritative; these examples show

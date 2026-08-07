@@ -236,5 +236,5 @@ caller then receives the sign-off, not the findings.
 
 ## Examples
 
-Seven worked examples (one per mode + edge cases) live in `vault-searcher-examples.md` (same
-directory) — read it when a request's mode routing is ambiguous.
+Seven worked examples (one per mode + edge cases) live in
+`../reference/vault-searcher-examples.md` — read it when a request's mode routing is ambiguous.
