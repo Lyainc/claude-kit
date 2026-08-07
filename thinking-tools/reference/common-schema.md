@@ -62,7 +62,7 @@ verdicts:
   collapsed: <N>
   pending: <N>
 angle: <P-id|adhoc>           # Attacker domain angle — a personas.md entry ID
-backlog_scan: <scanned|skipped>  # Phase 0 backlog-prefilter result, #524
+backlog_scan: <scanned|partial|skipped>  # Phase 0 backlog-prefilter result, #524 (partial: #561)
 ```
 
 ### expert-panel
