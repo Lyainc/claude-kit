@@ -68,7 +68,7 @@ python3 scripts/check-agent-tools-field.py
 # the listed tools match the body is the sibling guard below. Registered here by #577; before
 # that it lived in scripts/ but ran in neither CI nor this list.
 python3 scripts/check-agent-tools-usage.py --self-test
-# Expected: OK: all 8 check-agent-tools-usage self-test cases passed
+# Expected: OK: all 16 check-agent-tools-usage self-test cases passed
 python3 scripts/check-agent-tools-usage.py
 # Expected: OK: all N agent(s) declare exactly the tools their body uses
 # #577: the declared set and the body must agree, in both directions. UNDECLARED (body says
@@ -76,10 +76,13 @@ python3 scripts/check-agent-tools-usage.py
 # vault-searcher.md's .vault-link recovery. UNUSED (`tools:` grants Write/Grep that the body
 # never names) re-creates the over-permission #472 exists to prevent — found live in
 # vault-file-organizer.md. The two directions match on deliberately different signals: an
-# imperative (`use X`, `call X`, `X(`, negations excluded) for UNDECLARED, a bare mention
-# anywhere for UNUSED. Fenced code and HTML comments are stripped first, and usage is never
-# inferred from a shell command — a body must NAME the tools it relies on, which is what
-# CLAUDE.md's "Adding a New Agent" §2 already asks for.
+# imperative (`use X`, `call X`, `X(`, negations excluded sentence-wide) for UNDECLARED, a bare
+# mention anywhere for UNUSED. Fenced code and HTML comments are stripped first, and usage is
+# never inferred from a shell command — a body must NAME the tools it relies on, which is what
+# CLAUDE.md's "Adding a New Agent" §2 already asks for. A third finding, CONTRACT, covers what
+# the weak UNUSED signal structurally cannot: a body claiming the Write Role Contract while
+# `tools:` grants Write/Edit/NotebookEdit — the sentence stating the prohibition contains the
+# word `Write`, so a bare-mention check always passes it.
 python3 scripts/check-plugin-root-paths.py --self-test
 # Expected: OK: all 6 check-plugin-root-paths self-test cases passed
 python3 scripts/check-plugin-root-paths.py

@@ -183,6 +183,8 @@ Search the entire vault by keyword and load note contents.
    - If the CLI path is unavailable, fails, times out, or returns no useful candidates, fall back:
      - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
      - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
+   - To narrow the shortlist those return down to the matching lines, use Grep over the
+     candidate paths rather than reading each file whole.
 3. Apply the Question-Type Routing tier (§ above) as the top grouping: for a 정의/사실 질문, sort
    `wiki/` hits before `notes/`+`sources/` hits; for a 경위/이력 질문, sort `notes/`+`sources/` hits
    before `wiki/` hits; for 분류 불가, skip this grouping (existing behavior). Within each group
