@@ -125,3 +125,8 @@ HIGH: N건 · MED: N건 · LOW: N건
 ```
 
 If there are no findings at all, output exactly: `판정: PASS — 발견 없음`
+
+**Third shape — scope-exceeded (c9).** The count header and table both presuppose a completed
+scan; step 1's early exit has none to report, so it is not a zero-findings PASS and does not
+get the count header either — emitting `HIGH: 0건 · MED: 0건 · LOW: 0건` there would misstate
+a skipped scan as a clean one. Output exactly: `판정: BLOCK — 범위 초과, 분할 필요`
