@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Unit tests for next-candidate.py's chain_depth()/top_areas() edge cases (#521).
 
-test-completion-condition-hook.sh only exercises these through single-commit e2e fixtures
+test-next-goal-hook.sh only exercises these through single-commit e2e fixtures
 routed via the hook, so three edges chain_depth's own docstring documents as load-bearing
 were never directly asserted: zero commits, a bare root file's `·` prefix, and multi-area
 branching (including a commit whose changed files span more than one area).

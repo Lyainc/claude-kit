@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""next-candidate — the comparison set completion-condition's ranking cannot compute for itself.
+"""next-candidate — the comparison set next-goal's ranking cannot compute for itself.
 
 Why this exists. Phase 1 picks the next session's candidate from "this session's high-ROI
 follow-ups". That pool is closed: a session that just finished polishing one module leaves

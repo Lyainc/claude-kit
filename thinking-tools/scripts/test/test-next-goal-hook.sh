@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# completion-condition candidate-pool hook + next-candidate.py regression (#517).
+# next-goal candidate-pool hook + next-candidate.py regression (#517).
 #
 # Two failure shapes this pins, both of which are silent in production:
 #
@@ -17,7 +17,7 @@
 set -uo pipefail
 
 root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"   # thinking-tools/
-hook="${root}/hooks/completion-condition-context.sh"
+hook="${root}/hooks/next-goal-context.sh"
 script="${root}/scripts/next-candidate.py"
 
 pass=0
@@ -68,10 +68,10 @@ fire() {  # $1 = skill name, $2 = cwd; echoes hook stdout
 }
 
 # === 1. matcher ====================================================================
-out="$(fire "thinking-tools:completion-condition" "$tmp/gh")"
+out="$(fire "thinking-tools:next-goal" "$tmp/gh")"
 check "qualified skill name fires" "$([ -n "$out" ] && echo yes || echo no)" "yes"
 
-out="$(fire "completion-condition" "$tmp/gh")"
+out="$(fire "next-goal" "$tmp/gh")"
 check "bare skill name fires" "$([ -n "$out" ] && echo yes || echo no)" "yes"
 
 out="$(fire "thinking-tools:expert-panel" "$tmp/gh")"
@@ -82,12 +82,12 @@ out="$(printf '{"tool_name":"Bash","tool_input":{"command":"ls"},"cwd":"%s"}' "$
 check "non-Skill tool stays silent" "$([ -n "$out" ] && echo yes || echo no)" "no"
 
 # === 2. kill switch ================================================================
-out="$(printf '{"tool_name":"Skill","tool_input":{"skill":"completion-condition"},"cwd":"%s"}' "$tmp/gh" \
+out="$(printf '{"tool_name":"Skill","tool_input":{"skill":"next-goal"},"cwd":"%s"}' "$tmp/gh" \
   | CLAUDE_KIT_NEXT_CANDIDATE_DISABLE=1 CLAUDE_PLUGIN_ROOT="$root" bash "$hook" 2>/dev/null)"
 check "kill switch silences" "$([ -n "$out" ] && echo yes || echo no)" "no"
 
 # === 3. output shape ===============================================================
-out="$(fire "completion-condition" "$tmp/gh")"
+out="$(fire "next-goal" "$tmp/gh")"
 event="$(printf '%s' "$out" | jq -r '.hookSpecificOutput.hookEventName' 2>/dev/null)"
 check "emits PreToolUse envelope" "$event" "PreToolUse"
 has_decision="$(printf '%s' "$out" | jq -r 'has("permissionDecision") or (.hookSpecificOutput|has("permissionDecision"))' 2>/dev/null)"
@@ -117,7 +117,7 @@ check "genuinely empty is not a failure line" "$(printf '%s' "$out" | grep -c '�
 # The impact floor / re-pick / disclose-your-pool rules belong to SKILL.md alone; shipping
 # them in the payload too is duplication across the boundary (claude-kit-boundary altitude).
 make_stub 'echo "[]"'
-ctx="$(printf '{"tool_name":"Skill","tool_input":{"skill":"completion-condition"},"cwd":"%s"}' "$tmp/gh" \
+ctx="$(printf '{"tool_name":"Skill","tool_input":{"skill":"next-goal"},"cwd":"%s"}' "$tmp/gh" \
   | env PATH="$stub_dir:$PATH" CLAUDE_PLUGIN_ROOT="$root" bash "$hook" 2>/dev/null \
   | jq -r '.hookSpecificOutput.additionalContext' 2>/dev/null)"
 for verdict in '임팩트 바닥' '다시 고르세요' '밝히세요' '반드시 비교'; do
@@ -150,7 +150,7 @@ check "expired cache falls back to a live lookup" "$got" "1"
 
 # === report ========================================================================
 if [ "$fail" -eq 0 ]; then
-  echo "OK: all ${pass} completion-condition-hook cases passed"
+  echo "OK: all ${pass} next-goal-hook cases passed"
   exit 0
 fi
 echo "FAILED: ${fail} of $((pass + fail)) cases" >&2
