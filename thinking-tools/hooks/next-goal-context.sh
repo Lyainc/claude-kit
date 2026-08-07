@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# thinking-tools PreToolUse(Skill) hook — completion-condition candidate-pool injection (#517).
+# thinking-tools PreToolUse(Skill) hook — next-goal candidate-pool injection (#517).
 #
-# Fires only when the `completion-condition` skill is invoked, and pushes next-candidate.py's
+# Fires only when the `next-goal` skill is invoked, and pushes next-candidate.py's
 # output into the model's context as additionalContext — unrequested.
 #
 # Why injection rather than an instruction to go look. Phase 1 ranks "this session's high-ROI
@@ -37,11 +37,11 @@ payload=$(cat 2>/dev/null || true)
 tool=$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || true)
 [ "$tool" = "Skill" ] || exit 0
 
-# Plugin skills arrive qualified (`thinking-tools:completion-condition`); the bare form is
+# Plugin skills arrive qualified (`thinking-tools:next-goal`); the bare form is
 # accepted too so a direct invocation or a future re-host does not silently stop firing.
 skill=$(printf '%s' "$payload" | jq -r '.tool_input.skill_name // .tool_input.skill // empty' 2>/dev/null || true)
 case "$skill" in
-  thinking-tools:completion-condition|completion-condition) ;;
+  thinking-tools:next-goal|next-goal) ;;
   *) exit 0 ;;
 esac
 
@@ -52,7 +52,7 @@ command -v python3 >/dev/null 2>&1 || exit 0
 report=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-candidate.py" --cwd "$cwd" 2>/dev/null || true)
 [ -z "$report" ] && exit 0
 
-ctx="[completion-condition 후보 풀 — 훅이 자동 주입, 요청해서 받은 게 아니에요]
+ctx="[next-goal 후보 풀 — 훅이 자동 주입, 요청해서 받은 게 아니에요]
 
 ${report}
 

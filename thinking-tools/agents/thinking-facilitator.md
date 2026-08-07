@@ -19,7 +19,7 @@ skills:
   - unknown-discovery
   - adversarial-review
   - build-spec
-  - completion-condition
+  - next-goal
   - issue-raise
 ---
 
@@ -62,7 +62,7 @@ Analyze user request
 ├── Document quality check needed? ────────────▶ doc-polish
 │   (proofreading, polishing, quality check)
 │
-├── Next-session completion condition needed? ─▶ completion-condition
+├── Next-session completion condition needed? ─▶ next-goal
 │   (완료조건, 다음 세션 목표, START-PROMPT, goal 조건 작성)
 │
 ├── One-line GitHub issue to file (bug/feature)? ▶ issue-raise
@@ -83,7 +83,7 @@ Analyze user request
 | adversarial-review | 반증, 공격, steelman, survival score, 악마의 변호인 | claim attack, 약점, 검증, 논리 허점 |
 | doc-concretize | concretize, document, organize, write it up, 구체화 | explain, elaborate |
 | doc-polish | polish, proofread, lint, quality check | fix this, correct this (document target) |
-| completion-condition | 완료조건, START-PROMPT, goal 조건 작성, completion condition, next goal | 다음 세션 목표, 다음 작업 정해줘, what should I do next session |
+| next-goal | 완료조건, START-PROMPT, goal 조건 작성, completion condition, next goal | 다음 세션 목표, 다음 작업 정해줘, what should I do next session |
 | issue-raise | 이슈 만들어줘, 버그 리포트 열어줘, file an issue, open a github issue | 기능 제안 이슈, write this up as an issue |
 
 "구체화" is doc-concretize's alone (bare = free-form document, no spec keyword). build-spec's

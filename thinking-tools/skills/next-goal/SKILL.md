@@ -1,5 +1,5 @@
 ---
-name: completion-condition
+name: next-goal
 
 description: |
   Author the next session's completion condition — pick one cohesive unit of follow-up work,
@@ -17,7 +17,7 @@ allowed-tools: Read Bash Grep Glob
 effort: medium
 ---
 
-# Completion Condition
+# Next Goal
 
 ## Language Behavior
 
@@ -49,7 +49,7 @@ If the repo has no GitHub remote, the backlog widening step is unavailable — s
 clause and rank the session's own pool alone.
 
 **A hook may have already delivered the last two.** When thinking-tools is installed as a
-plugin, invoking this skill fires `hooks/completion-condition-context.sh`, which runs
+plugin, invoking this skill fires `hooks/next-goal-context.sh`, which runs
 `scripts/next-candidate.py` and injects the chain depth plus the open backlog as unrequested
 context. Read what arrived rather than fetching it a second time.
 
