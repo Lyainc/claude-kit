@@ -59,6 +59,27 @@ python3 scripts/check-error-label-drift.py
 # max elsewhere in the same paragraph (a versioned breakdown, a `--dod` scope note, a
 # multi-line priority mapping) is not flagged — only docs/plans/** and docs/discussions/**
 # (dated historical records) are excluded by path.
+python3 scripts/check-agent-tools-field.py --self-test
+# Expected: OK: all check-agent-tools-field self-test cases passed
+python3 scripts/check-agent-tools-field.py
+# Expected: OK: all N agent(s) declare `tools:`
+# #472 BLOCK guard: an agent with no `tools:` frontmatter inherits every tool in the harness,
+# regardless of what its body says it may do. Checks key existence only, on purpose — whether
+# the listed tools match the body is the sibling guard below. Registered here by #577; before
+# that it lived in scripts/ but ran in neither CI nor this list.
+python3 scripts/check-agent-tools-usage.py --self-test
+# Expected: OK: all 8 check-agent-tools-usage self-test cases passed
+python3 scripts/check-agent-tools-usage.py
+# Expected: OK: all N agent(s) declare exactly the tools their body uses
+# #577: the declared set and the body must agree, in both directions. UNDECLARED (body says
+# "use AskUserQuestion" but `tools:` omits it) makes that branch dead prose — found live in
+# vault-searcher.md's .vault-link recovery. UNUSED (`tools:` grants Write/Grep that the body
+# never names) re-creates the over-permission #472 exists to prevent — found live in
+# vault-file-organizer.md. The two directions match on deliberately different signals: an
+# imperative (`use X`, `call X`, `X(`, negations excluded) for UNDECLARED, a bare mention
+# anywhere for UNUSED. Fenced code and HTML comments are stripped first, and usage is never
+# inferred from a shell command — a body must NAME the tools it relies on, which is what
+# CLAUDE.md's "Adding a New Agent" §2 already asks for.
 python3 scripts/check-plugin-root-paths.py --self-test
 # Expected: OK: all 6 check-plugin-root-paths self-test cases passed
 python3 scripts/check-plugin-root-paths.py
