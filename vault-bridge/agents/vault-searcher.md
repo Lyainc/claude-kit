@@ -152,7 +152,12 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
    - Comma-separated domains: query each individually, merge results.
 3. Collect titles and tags from matched notes.
 4. If a `status: active` session note exists for the domain, show as "In Progress" priority section.
-5. Show recent notes first (default 20).
+5. Apply the Question-Type Routing tier (§ above) as the top grouping, same as Mode 3: for a
+   정의/사실 질문, show `wiki/` hits before `notes/`+`sources/` hits; for a 경위/이력 질문, the
+   reverse; for 분류 불가, skip this grouping (existing behavior) — the `search_root` order from
+   step 1 alone doesn't survive into the final listing without this, since results get merged
+   before display. Within each group (or across all hits when ungrouped), show recent notes
+   first (default 20).
 
 ### 3. Keyword Search
 
