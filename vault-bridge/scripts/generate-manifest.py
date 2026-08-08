@@ -18,6 +18,7 @@ Note on references_in vs references_out:
 
 Usage:
   python3 generate-manifest.py [--vault-root PATH] [--force] [--out PATH]
+  python3 generate-manifest.py --self-test
 
 Stdout (always JSON):
   {"generated": N, "updated": N, "removed": N, "elapsed_ms": N}
@@ -26,6 +27,12 @@ Exit codes:
   0 — success
   1 — vault_root does not exist
   2 — write failure
+
+manifest.json is written atomically (temp file + os.replace) via _atomic_write_text —
+both call paths that regenerate it (hooks/session-start-manifest.sh's automatic refresh
+and skills/vault-manifest-refresh's manual --force) share this same write, so a hard kill
+mid-write never leaves a torn manifest.json on disk. --self-test pins that invariant by
+simulating the kill at each write boundary.
 """
 
 import argparse
@@ -33,8 +40,10 @@ import datetime
 import json
 import os
 import re
+import stat
 import subprocess
 import sys
+import tempfile
 import time
 from pathlib import Path
 
@@ -292,6 +301,35 @@ def _build_entry(rel_path: str, abs_path: Path, vault_root: Path) -> dict:
 # Manifest I/O
 # ---------------------------------------------------------------------------
 
+def _atomic_write_text(path: Path, text: str) -> None:
+    """Write text to path atomically via temp file + os.replace.
+
+    The session-start hook (background, auto) and /vault-manifest-refresh (foreground,
+    manual --force) both funnel through this same write, and a hard kill (SIGKILL, host
+    sleep) can land mid-write. os.replace() is a single atomic rename, so `path` is never
+    touched until that call — a kill before it corrupts at most the sibling temp file,
+    never the manifest the rest of vault-bridge reads.
+    """
+    fd, tmp_name = tempfile.mkstemp(dir=str(path.parent), prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            f.write(text)
+        # mkstemp() always creates the temp file at 0600 regardless of umask — without
+        # this, os.replace() would silently narrow an existing 0644 manifest.json to
+        # 0600 on every regeneration. Preserve the current file's mode if there is one.
+        try:
+            os.chmod(tmp_name, stat.S_IMODE(path.stat().st_mode))
+        except FileNotFoundError:
+            pass  # no existing file to inherit a mode from — keep mkstemp's default
+        os.replace(tmp_name, str(path))
+    except BaseException:
+        try:
+            os.unlink(tmp_name)
+        except OSError:
+            pass
+        raise
+
+
 def _load_existing_manifest(out_path: Path) -> dict | None:
     """Load existing manifest JSON; return None if absent or corrupt.
 
@@ -548,6 +586,94 @@ def _iso_now() -> str:
 
 
 # ---------------------------------------------------------------------------
+# Self-test (mutation: simulate a kill at each write boundary)
+# ---------------------------------------------------------------------------
+
+def run_self_test() -> int:
+    failures: list[str] = []
+
+    # --- case: successful round trip, no stray temp file left behind -----------------
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "manifest.json"
+        _atomic_write_text(target, '{"a": 1}')
+        if target.read_text(encoding="utf-8") != '{"a": 1}':
+            failures.append("  success: content mismatch after atomic write")
+        if list(Path(tmp).glob(".manifest.json.*.tmp")):
+            failures.append("  success: stray temp file left behind")
+
+    # --- case: kill mid-write (temp file only partially written, before os.replace) --
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "manifest.json"
+        target.write_text('{"original": true}', encoding="utf-8")
+
+        real_fdopen = os.fdopen
+
+        def _dying_fdopen(fd, *a, **kw):
+            f = real_fdopen(fd, *a, **kw)
+            real_write = f.write
+
+            def _write(data):
+                real_write(data)
+                raise OSError("simulated kill mid-write")
+
+            f.write = _write
+            return f
+
+        os.fdopen = _dying_fdopen
+        try:
+            _atomic_write_text(target, '{"new": true}')
+            failures.append("  kill-mid-write: expected OSError, got none")
+        except OSError:
+            pass
+        finally:
+            os.fdopen = real_fdopen
+
+        if target.read_text(encoding="utf-8") != '{"original": true}':
+            failures.append("  kill-mid-write: destination corrupted, expected untouched original")
+        if list(Path(tmp).glob(".manifest.json.*.tmp")):
+            failures.append("  kill-mid-write: stray temp file not cleaned up")
+
+    # --- case: kill exactly at the os.replace boundary --------------------------------
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "manifest.json"
+        target.write_text('{"original": true}', encoding="utf-8")
+
+        real_replace = os.replace
+
+        def _dying_replace(*a, **kw):
+            raise OSError("simulated kill at replace")
+
+        os.replace = _dying_replace
+        try:
+            _atomic_write_text(target, '{"new": true}')
+            failures.append("  kill-at-replace: expected OSError, got none")
+        except OSError:
+            pass
+        finally:
+            os.replace = real_replace
+
+        if target.read_text(encoding="utf-8") != '{"original": true}':
+            failures.append("  kill-at-replace: destination corrupted, expected untouched original")
+
+    # --- case: existing file's permission bits survive a regeneration -----------------
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "manifest.json"
+        target.write_text('{"original": true}', encoding="utf-8")
+        os.chmod(target, 0o644)
+        _atomic_write_text(target, '{"new": true}')
+        got_mode = stat.S_IMODE(target.stat().st_mode)
+        if got_mode != 0o644:
+            failures.append(f"  mode-preserved: expected 0o644, got {oct(got_mode)} (mkstemp's 0600 leaked through)")
+
+    if failures:
+        print("FAIL: generate-manifest self-test")
+        print("\n".join(failures))
+        return 1
+    print("OK: all generate-manifest self-test cases passed")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Entry point
 # ---------------------------------------------------------------------------
 
@@ -568,7 +694,15 @@ def main() -> None:
         default=None,
         help="Output path (default: {vault-root}/.vault-bridge/manifest.json)",
     )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="Run in-memory atomic-write mutation cases and exit",
+    )
     args = parser.parse_args()
+
+    if args.self_test:
+        sys.exit(run_self_test())
 
     vault_root = Path(args.vault_root).expanduser().resolve()
     if not vault_root.is_dir():
@@ -587,7 +721,7 @@ def main() -> None:
         sys.exit(2)
 
     try:
-        out_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2), encoding="utf-8")
+        _atomic_write_text(out_path, json.dumps(manifest, ensure_ascii=False, indent=2))
     except OSError as exc:
         print(f"ERROR: write failed ({out_path}): {exc}", file=sys.stderr)
         sys.exit(2)
