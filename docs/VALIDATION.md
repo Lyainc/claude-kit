@@ -86,16 +86,23 @@ python3 scripts/check-agent-tools-usage.py
 # `tools:` grants Write/Edit/NotebookEdit — the sentence stating the prohibition contains the
 # word `Write`, so a bare-mention check always passes it.
 python3 scripts/check-plugin-root-paths.py --self-test
-# Expected: OK: all 6 check-plugin-root-paths self-test cases passed
+# Expected: OK: all 14 check-plugin-root-paths self-test cases passed
 python3 scripts/check-plugin-root-paths.py
-# Expected: OK: plugin-root-paths clean — N SKILL.md checked, every bundled-script
-#   invocation is ${CLAUDE_PLUGIN_ROOT}-anchored
+# Expected: OK: plugin-root-paths clean — N SKILL.md + N agents/*.md checked, every
+#   bundled-script invocation / plugin-internal pointer is ${CLAUDE_PLUGIN_ROOT}-anchored
 # A SKILL.md code block runs with CWD = the CONSUMER's project, so a repo-relative call like
 # `python3 feedback-loop/scripts/report.py 2>/dev/null` resolves ONLY inside this checkout —
 # for every plugin-installed user it silently no-ops. Found live in retro/SKILL.md (4 call
 # sites, shipped in v4.0.0). Scans source plugins only (dirs with a plugin.json), so any
 # vendored third-party plugin cache is never touched. Markdown `../../reference/*.md` links are NOT
 # flagged — those resolve relative to the SKILL.md file and stay correct once installed.
+# #579 widens the same guard to agents/*.md with the OPPOSITE markdown-link judgment: an
+# agent body is injected as a subagent's system prompt, not read relative to a file on disk,
+# so `../reference/foo.md` or a bare `foo.md` (same directory) resolves nowhere once
+# installed — found live in vault-searcher.md (#566). Scoped to agents whose `tools:` grants
+# Read or Bash (no other tool can act on the pointer) and to backtick paths anchored at
+# reference/scripts/hooks/, so human doc links, vault paths, and another plugin's own path
+# are never flagged; fenced examples and HTML comments are stripped before scanning.
 # Always-loaded/always-attached instruction budget guard (#454/#461 SKILL.md, widened to
 # CLAUDE.md + agents/*.md by #473). For SKILL.md: auto-compaction re-attaches only the FIRST
 # 5,000 TOKENS of an invoked skill and drops the rest silently, so a confirmation gate or an
