@@ -4,8 +4,9 @@
 RULE: docs/VALIDATION.md's `## Validation` section is the canonical list of regression-guard
 commands for this repo. This tool extracts the actual runnable command strings from that
 section's fenced code blocks (skipping comments / pure-comment lines / inline-comment
-tails) and provides a runner that executes each command and asserts it exits 0, reporting
-every command whose exit code is nonzero.
+tails) and provides a runner that executes each command, asserts it exits 0, and — when the
+command is immediately followed by a `# Expected: ...` comment — asserts its stdout matches
+that text too. Reports every command whose exit code is nonzero or whose stdout diverges.
 
 OBJECTIVE DAMAGE (c6): a test that is *registered* in docs/VALIDATION.md but has silently
 broken (nonzero exit) is a dead regression guard — the protection it documents no longer
@@ -14,6 +15,27 @@ the claimed safety net is a lie. CI already runs these tests directly; this scri
 LOCAL pre-push convenience that runs the *documented* list as a single batch and fails if
 any documented command does not exit 0. It does not encode any style/format preference —
 it only runs what docs/VALIDATION.md already declares runnable and checks the OS exit code.
+
+OBJECTIVE DAMAGE, part 2 (#578): the exit-code check above says nothing about the
+`# Expected: ...` comment that follows most commands — nothing ever compared it to real
+stdout, so it silently rots. #577 needed its self-test count comment hand-fixed 3 times as
+the count grew; a reviewer catching every one was luck, not enforcement. This adds that
+comparison, with three buckets so a mismatch caused by inherent per-run variance (a file
+count, a case count, a filesystem path) isn't confused with a mismatch caused by the doc
+just being wrong:
+  1. The `# Expected:` text contains no placeholder (no standalone `N`, no `...`) → the
+     command's stdout must match it EXACTLY (after whitespace normalization), anchored to
+     the END of stdout (most commands print several progress lines before their final
+     summary; only the summary is documented, so matching is tail-anchored, not full-string).
+  2. It contains a placeholder → `N` becomes `\\d+` and `...` becomes `.*` before matching,
+     so a self-test case count or a checked-file count or a machine-specific path doesn't
+     make the guard flap.
+  3. The command has NO `# Expected:` comment at all → skipped, and the skip count is
+     always printed (never silently), because a silent skip is exactly the "looks enforced,
+     isn't" gap this guard exists to close.
+A multi-line `# Expected:` (a `#   `-indented, 3+-space continuation right after it) is
+joined with spaces into one logical expected string — that's wrapping for readability in
+the .md, not multiple stdout lines.
 
 Note (scope): the extractor returns command strings verbatim so the runner executes the
 exact thing docs/VALIDATION.md documents. It joins trailing-backslash continuations, strips
@@ -31,12 +53,14 @@ Usage:
     --timeout SEC Per-command timeout in seconds (default: 300). A timeout counts as a
                   failure for that command.
     --json        Emit a machine-readable JSON report.
-    --self-test   Validate the RUNNER logic in-memory with fake commands (one exits 0,
-                  one exits 1) and assert the runner reports exactly the failing one.
+    --self-test   Validate the RUNNER + Expected-text matcher logic in-memory with fake
+                  commands/fixtures.
 
 Exit codes:
-    0 = all extracted commands exited 0 (or --list / --self-test succeeded)
-    1 = at least one command failed (nonzero exit / timeout), or self-test mismatch
+    0 = all extracted commands exited 0 and every `# Expected:` text matched (or --list /
+        --self-test succeeded)
+    1 = at least one command failed (nonzero exit / timeout / stdout mismatch), or
+        self-test mismatch
     2 = usage error / docs/VALIDATION.md unreadable / no '## Validation' section
 """
 import argparse
@@ -88,6 +112,54 @@ def _git_toplevel():
         return None
 
 
+# The comment immediately after a command, if it starts with this, documents that
+# command's expected stdout. A 3+-space-indented `#` line right after it is a wrapped
+# continuation of the same text (word-wrap for .md readability, not a second stdout line);
+# a single-space `# ...` comment, a blank line, or the next command all end the block.
+_EXPECTED_RE = re.compile(r"^#\s*Expected:\s*(.*)$")
+_CONTINUATION_RE = re.compile(r"^#\s{3,}(\S.*)$")
+
+
+def extract_command_expected_pairs(section_text):
+    """Pair each extracted command with its immediately-following `# Expected:` text.
+
+    Same extraction rules as extract_commands (continuations joined, comment/blank lines
+    skipped, inline-comment tails stripped, de-duplicated by first occurrence). Returns an
+    ordered list of (command, expected_or_None); `expected` is whitespace-normalized and
+    has any 3+-space continuation lines folded in.
+    """
+    lines = _join_continuations(section_text)
+    n = len(lines)
+    pairs = []
+    seen = set()
+    for i, raw in enumerate(lines):
+        line = raw.strip()
+        if not line or line.startswith("#"):
+            continue
+        comment = re.search(r"\s#\s", line)
+        if comment:
+            line = line[: comment.start()].rstrip()
+        if not line or not _CMD_HEAD.match(line) or line in seen:
+            continue
+        seen.add(line)
+        expected = None
+        j = i + 1
+        if j < n:
+            m = _EXPECTED_RE.match(lines[j].strip())
+            if m:
+                parts = [m.group(1)]
+                j += 1
+                while j < n:
+                    cm = _CONTINUATION_RE.match(lines[j])
+                    if not cm:
+                        break
+                    parts.append(cm.group(1))
+                    j += 1
+                expected = " ".join(" ".join(parts).split())
+        pairs.append((line, expected))
+    return pairs
+
+
 def extract_commands(section_text):
     """Extract the ordered list of raw runnable command strings from section text.
 
@@ -96,26 +168,55 @@ def extract_commands(section_text):
     runnable command. Returns command strings verbatim (de-duplicated by first
     occurrence so the runner does not run the same command twice).
     """
-    commands = []
-    seen = set()
-    for raw in _join_continuations(section_text):
-        line = raw.strip()
-        if not line or line.startswith("#"):
-            continue
-        # drop a trailing inline comment (` # ...`); safe for these command shapes
-        comment = re.search(r"\s#\s", line)
-        if comment:
-            line = line[: comment.start()].rstrip()
-        if not line or not _CMD_HEAD.match(line):
-            continue
-        if line not in seen:
-            seen.add(line)
-            commands.append(line)
-    return commands
+    return [cmd for cmd, _ in extract_command_expected_pairs(section_text)]
+
+
+def _expected_pattern(expected):
+    """Compile `# Expected:` text into a tail-anchored regex honoring N/... placeholders.
+
+    A standalone `N` becomes `\\d+` (a variable count); `...` becomes `.*` (elided/variable
+    text — a path, a file list). Everything else is matched literally. Anchored to the END
+    of the (whitespace-collapsed) stdout, not the start: most commands print progress lines
+    before their final summary, and only the summary is documented here.
+    """
+    out = []
+    for part in re.split(r"(\.\.\.|\bN\b)", expected):
+        if part == "...":
+            out.append(".*")
+        elif part == "N":
+            out.append(r"\d+")
+        else:
+            out.append(re.escape(part))
+    return re.compile("".join(out) + r"\s*\Z")
+
+
+def expected_matches(stdout, expected):
+    """True if stdout's tail matches the (placeholder-aware) `# Expected:` text."""
+    normalized = " ".join((stdout or "").split())
+    return _expected_pattern(expected).search(normalized) is not None
+
+
+def failure_reason(entry):
+    """Classify why a run_commands() result entry failed, root cause first.
+
+    A crash (nonzero exit) is the root cause even when its partial/garbage stdout also
+    happens to fail the Expected match — report it as the crash, not a "stdout mismatch"
+    that reads like nothing more than a stale doc comment.
+    """
+    if entry["timed_out"]:
+        return "timeout"
+    if entry["exit"] != 0:
+        return f"exit {entry['exit']}"
+    if entry["expected_ok"] is False:
+        return "stdout mismatch"
+    return f"exit {entry['exit']}"
 
 
 def get_commands(root):
-    """Read root/docs/VALIDATION.md, locate ## Validation, return (commands, error_or_None)."""
+    """Read root/docs/VALIDATION.md, locate ## Validation, return (pairs, error_or_None).
+
+    Each pair is (command, expected_or_None) — see extract_command_expected_pairs.
+    """
     validation_path = os.path.join(root, "docs", "VALIDATION.md")
     if not os.path.isfile(validation_path):
         return None, f"docs/VALIDATION.md not found: {validation_path}"
@@ -127,27 +228,41 @@ def get_commands(root):
     section = extract_validation_section(text)
     if section is None:
         return None, "docs/VALIDATION.md has no '## Validation' section"
-    return extract_commands(section), None
+    return extract_command_expected_pairs(section), None
 
 
 def run_commands(commands, cwd, timeout):
     """Run each command via `bash -c` with the given cwd. Returns a report dict.
 
-    A command is a failure if it exits nonzero or times out. Each result records the
-    command, its exit code (None on timeout), and whether it passed.
+    `commands` is a list of either plain command strings or (command, expected_or_None)
+    pairs. A command is a failure if it exits nonzero, times out, OR (when it carries a
+    `# Expected:` text) its stdout doesn't match. `skipped_no_expected` counts commands
+    with no `# Expected:` text at all — always reported, never silent (#578).
     """
     results = []
-    for cmd in commands:
-        entry = {"command": cmd, "exit": None, "passed": False, "timed_out": False}
+    skipped_no_expected = 0
+    for item in commands:
+        cmd, expected = item if isinstance(item, tuple) else (item, None)
+        entry = {
+            "command": cmd, "exit": None, "passed": False, "timed_out": False,
+            "expected": expected, "expected_ok": None,
+        }
+        if expected is None:
+            skipped_no_expected += 1
         try:
             proc = subprocess.run(
                 ["bash", "-c", cmd],
                 cwd=cwd, capture_output=True, text=True, timeout=timeout,
             )
             entry["exit"] = proc.returncode
-            entry["passed"] = proc.returncode == 0
-            if not entry["passed"]:
+            exit_ok = proc.returncode == 0
+            if expected is not None:
+                entry["expected_ok"] = expected_matches(proc.stdout, expected)
+            entry["passed"] = exit_ok and entry["expected_ok"] is not False
+            if not exit_ok:
                 entry["stderr_tail"] = (proc.stderr or "").strip()[-500:]
+            if entry["expected_ok"] is False:
+                entry["stdout_tail"] = (proc.stdout or "").strip()[-500:]
         except subprocess.TimeoutExpired:
             entry["timed_out"] = True
             entry["passed"] = False
@@ -159,6 +274,7 @@ def run_commands(commands, cwd, timeout):
         "results": results,
         "failures": failures,
         "ok": len(failures) == 0,
+        "skipped_no_expected": skipped_no_expected,
     }
 
 
@@ -217,6 +333,82 @@ def run_self_test():
     if extract_commands("# only comments\n\nplain prose\n") != []:
         failures.append("  extractor: comment/prose-only section should yield no commands")
 
+    # 5) Pair extractor: single-line Expected, multi-line (continuation) Expected, a
+    #    single-space comment ending the continuation, and no-Expected-at-all.
+    pair_section = "\n".join([
+        'python3 scripts/foo.py',
+        '# Expected: OK: foo clean',
+        'python3 scripts/bar.py',
+        '# Expected: OK: bar clean — N file(s)',
+        '#   checked, no violations',
+        '# a regular single-space comment does not extend the block',
+        'python3 scripts/baz.py',
+    ])
+    pairs = extract_command_expected_pairs(pair_section)
+    expected_pairs = [
+        ('python3 scripts/foo.py', 'OK: foo clean'),
+        ('python3 scripts/bar.py', 'OK: bar clean — N file(s) checked, no violations'),
+        ('python3 scripts/baz.py', None),
+    ]
+    if pairs != expected_pairs:
+        failures.append(f"  pair extractor: expected {expected_pairs}, got {pairs}")
+
+    # 6) Matcher: fixed text needs an exact tail match; N/... are wildcards; a prefix of
+    #    progress lines before the documented summary is fine (tail-anchored, not full-string).
+    match_cases = [
+        ("OK: clean", "OK: clean", True),
+        ("OK: clean", "noise\nOK: clean", True),          # tail-anchored past a prefix line
+        ("OK: clean", "OK: clean\nextra", False),          # but not past a SUFFIX line
+        ("OK: all N cases passed", "OK: all 42 cases passed", True),
+        ("OK: N file(s), ...", "OK: 3 file(s), no violations (1 term)", True),
+        ("OK: version clean (root: ...)", "OK: version clean (root: /tmp/x)", True),
+        ("OK: all 7 cases passed", "OK: all 8 cases passed", False),  # stale literal count
+    ]
+    for expected_text, stdout, want in match_cases:
+        got = expected_matches(stdout, expected_text)
+        if got != want:
+            failures.append(
+                f"  matcher: expected_matches({stdout!r}, {expected_text!r}) "
+                f"= {got}, want {want}"
+            )
+
+    # 7) Runner: a documented command whose stdout doesn't match its Expected text fails,
+    #    even with exit 0 — and a command with no Expected text is counted as skipped, not
+    #    silently treated as passing evidence of anything.
+    mismatch_cmd = 'python3 -c "print(\'OK: wrong text\')"'
+    match_cmd = 'python3 -c "print(\'OK: right text\')"'
+    no_expected_cmd = 'python3 -c "pass"'
+    exp_report = run_commands(
+        [(mismatch_cmd, "OK: right text"), (match_cmd, "OK: right text"), no_expected_cmd],
+        cwd=os.getcwd(), timeout=30,
+    )
+    if exp_report["ok"]:
+        failures.append("  runner: a stdout/Expected mismatch should fail the batch")
+    if exp_report["skipped_no_expected"] != 1:
+        failures.append(
+            f"  runner: expected skipped_no_expected=1, got {exp_report['skipped_no_expected']}"
+        )
+    mismatch_entry = next(r for r in exp_report["results"] if r["command"] == mismatch_cmd)
+    if mismatch_entry["passed"] or mismatch_entry["expected_ok"] is not False:
+        failures.append("  runner: the mismatching command was not reported as a failure")
+    match_entry = next(r for r in exp_report["results"] if r["command"] == match_cmd)
+    if not match_entry["passed"] or match_entry["expected_ok"] is not True:
+        failures.append("  runner: the matching command was not reported as passed")
+
+    # 8) failure_reason: a crash (nonzero exit) outranks a coincidental stdout mismatch —
+    #    a command that both exits nonzero AND fails its Expected match is a crash, not a
+    #    "stdout mismatch" (a crash's garbage output will almost never match the doc anyway).
+    reason_cases = [
+        ({"timed_out": True, "exit": None, "expected_ok": None}, "timeout"),
+        ({"timed_out": False, "exit": 1, "expected_ok": False}, "exit 1"),
+        ({"timed_out": False, "exit": 1, "expected_ok": None}, "exit 1"),
+        ({"timed_out": False, "exit": 0, "expected_ok": False}, "stdout mismatch"),
+    ]
+    for entry, want in reason_cases:
+        got = failure_reason(entry)
+        if got != want:
+            failures.append(f"  failure_reason({entry}): expected {want!r}, got {got!r}")
+
     if failures:
         print("FAIL: check-test-exitcode self-test")
         print("\n".join(failures))
@@ -252,12 +444,13 @@ def main(argv=None):
         return 2
 
     if args.list:
+        cmds = [cmd for cmd, _ in commands]
         if args.json:
-            print(json.dumps({"root": root, "commands": commands}, ensure_ascii=False, indent=2))
+            print(json.dumps({"root": root, "commands": cmds}, ensure_ascii=False, indent=2))
         else:
-            for cmd in commands:
+            for cmd in cmds:
                 print(cmd)
-            print(f"# {len(commands)} command(s) extracted from docs/VALIDATION.md ## Validation "
+            print(f"# {len(cmds)} command(s) extracted from docs/VALIDATION.md ## Validation "
                   "(not run)", file=sys.stderr)
         return 0
 
@@ -268,21 +461,30 @@ def main(argv=None):
         print(json.dumps(report, ensure_ascii=False, indent=2))
     else:
         passed = report["total"] - len(report["failures"])
+        skipped = report["skipped_no_expected"]
+        # #578: skip count is always printed, success or failure — a silent skip is the gap
+        # this guard exists to close, not a detail to bury behind a failure branch.
+        skip_note = (f" ({skipped} command(s) have no `# Expected:` text, stdout unchecked)"
+                     if skipped else "")
         if report["ok"]:
             print(f"OK: check-test-exitcode clean — {report['total']} registered "
-                  f"command(s) ran, all exited 0")
+                  f"command(s) ran, all exited 0 and all documented stdout matched"
+                  f"{skip_note}")
         else:
             print(f"FAIL: {len(report['failures'])}/{report['total']} registered "
-                  f"command(s) did NOT exit 0 ({passed} passed):")
+                  f"command(s) did NOT pass ({passed} passed){skip_note}:")
             for r in report["failures"]:
-                why = "timeout" if r["timed_out"] else f"exit {r['exit']}"
+                why = failure_reason(r)
                 print(f"  - [{why}] {r['command']}")
                 # Show WHY it failed here, not only under --json: the CI review job quotes
                 # this output, and a bare exit code costs it a second run to diagnose.
+                if r["expected_ok"] is False:
+                    print(f"      expected (tail): {r['expected']}")
+                    print(f"      got (tail):      {r.get('stdout_tail', '')}")
                 for line in (r.get("stderr_tail") or "").splitlines():
                     print(f"      {line}")
-            print("Fix: repair the broken test or remove it from docs/VALIDATION.md's "
-                  "Validation section if it is intentionally retired.")
+            print("Fix: repair the broken test/stale `# Expected:` text, or remove it from "
+                  "docs/VALIDATION.md's Validation section if it is intentionally retired.")
 
     return 0 if report["ok"] else 1
 

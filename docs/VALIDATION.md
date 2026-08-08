@@ -23,14 +23,16 @@ python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
 python3 scripts/check-version-sync.py --self-test
 # Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check)
 python3 scripts/check-version-sync.py
-# Expected: OK: version-sync clean — 4 plugin(s), no drift (drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단)
+# Expected: OK: version-sync clean — 4 plugin(s), no drift (root: ...)
+# drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단.
 # marketplace.json은 plugin.json에서 derived — drift 시 `--fix`로 plugin.json 기준 동기화:
 #   python3 scripts/check-version-sync.py --fix
 python3 scripts/check-ci-coverage.py --self-test
 # Expected: OK: all check-ci-coverage self-test cases passed
 python3 scripts/check-ci-coverage.py
-# Expected: "CI coverage: N/N ... OK: every registered test is wired into CI." (gap=0).
-# CI runs this as `check-ci-coverage.py --strict` (#175): a coverage gap now BLOCKS
+# Expected: CI coverage: N/N docs/VALIDATION.md-registered tests run in validate.yml.
+#   OK: every registered test is wired into CI.
+# (gap=0.) CI runs this as `check-ci-coverage.py --strict` (#175): a coverage gap now BLOCKS
 # (warn-mode 도입은 #134, gap 0 도달 후 #175에서 --strict 승격).
 
 # 작업 규칙 minimal core 가드 (#216): claude-kit 특화 결정론 가드 + 외부 린터 위임.
@@ -47,7 +49,7 @@ python3 scripts/check-language-policy.py
 python3 scripts/check-banned-words.py --self-test
 # Expected: OK: all check-banned-words self-test cases passed
 python3 scripts/check-banned-words.py
-# Expected: OK: banned-words clean — N file(s) checked, no violations (terms from rules/banned-terms.txt)
+# Expected: OK: banned-words clean — N file(s) checked, no violations (N banned term(s) enforced)
 python3 scripts/check-error-label-drift.py --self-test
 # Expected: OK: all check-error-label-drift self-test cases passed
 python3 scripts/check-error-label-drift.py
@@ -232,14 +234,14 @@ python3 vault-bridge/scripts/test/test-manifest-candidates.py
 
 # vault-commit message generation (status-transition aware)
 python3 vault-bridge/scripts/test/test-vault-commit-message.py
-# Expected: OK: all cases passed (currently 14 cases)
+# Expected: OK: all cases passed
 
 # vault-bridge agent trigger-regression check (#338 — sibling to the thinking-tools
 # check below, adapted for vault-bridge's single-line quoted `description: "..."`
 # agent frontmatter with inline "KR triggers: ... EN triggers: ..." labels).
 # Self-test the extractor:
 python3 vault-bridge/scripts/test/check-trigger-regression.py --self-test
-# Expected: OK: all 7 self-test cases passed
+# Expected: OK: all 13 self-test cases passed
 # Diff trigger sets between a base ref and the working tree (exit 1 = removals found):
 python3 vault-bridge/scripts/test/check-trigger-regression.py origin/main
 # Removals are reported (not hard-gated) — reviewer decides if intentional.
@@ -426,7 +428,8 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/mai
 python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
 # Expected: OK: all 16 self-test cases passed
 python3 thinking-tools/scripts/test/test-mode-compose.py
-# Expected: OK: all 9 mode-compose checks passed. (static check against the live SKILL.md)
+# Expected: OK: all 9 mode-compose checks passed.
+# (static check against the live SKILL.md)
 
 # persona-pool selection guard (#418) — executes reference/personas.md's Selection Rule
 # against the live tag table: Latin tags must be word-start-safe (raw substring matching
@@ -436,7 +439,7 @@ python3 thinking-tools/scripts/test/test-mode-compose.py
 # skills must run the rule on the user's original topic text, never on the model-authored
 # Steelman. Run after editing the pool's tag list or either skill's Selection Rule wording.
 python3 thinking-tools/scripts/test/test-persona-selection.py --self-test
-# Expected: OK: all 7 test-persona-selection self-test cases passed
+# Expected: OK: all 17 test-persona-selection self-test cases passed
 python3 thinking-tools/scripts/test/test-persona-selection.py
 # Expected: OK: all persona-selection checks passed (10 pool entries, 7 topic fixtures, ...)
 
