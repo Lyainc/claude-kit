@@ -320,7 +320,15 @@ def _atomic_write_text(path: Path, text: str) -> None:
         try:
             os.chmod(tmp_name, stat.S_IMODE(path.stat().st_mode))
         except FileNotFoundError:
-            pass  # no existing file to inherit a mode from — keep mkstemp's default
+            # No existing file to inherit a mode from (first-ever write — new vault,
+            # or manifest.json deleted and regenerated). Falling through here would
+            # leave mkstemp()'s 0600, which is the SAME regression this function
+            # exists to prevent, just on the create path instead of the overwrite
+            # path: the old plain write_text() followed the umask like any normal
+            # file creation (usually 0644), so match that instead of mkstemp's default.
+            um = os.umask(0)
+            os.umask(um)
+            os.chmod(tmp_name, 0o666 & ~um)
         os.replace(tmp_name, str(path))
     except BaseException:
         try:
@@ -664,6 +672,25 @@ def run_self_test() -> int:
         got_mode = stat.S_IMODE(target.stat().st_mode)
         if got_mode != 0o644:
             failures.append(f"  mode-preserved: expected 0o644, got {oct(got_mode)} (mkstemp's 0600 leaked through)")
+
+    # --- case: brand-new file (no existing mode to inherit) gets the umask default,
+    # not mkstemp's 0600 (#584 P1 — the create path had the same regression the
+    # overwrite-path fix above already covers, just uncovered by this suite).
+    with tempfile.TemporaryDirectory() as tmp:
+        target = Path(tmp) / "manifest.json"
+        # Independent oracle: what a plain write_text() would have produced under
+        # this process's real umask, not a copy of the fix's own 0o666 & ~umask
+        # formula — so a bug in that shared formula can't pass both sides at once.
+        sibling = Path(tmp) / "sibling.json"
+        sibling.write_text("{}", encoding="utf-8")
+        want_mode = stat.S_IMODE(sibling.stat().st_mode)
+        _atomic_write_text(target, '{"first": true}')
+        got_mode = stat.S_IMODE(target.stat().st_mode)
+        if got_mode != want_mode:
+            failures.append(
+                f"  new-file-mode: expected umask default {oct(want_mode)}, got {oct(got_mode)} "
+                "(mkstemp's 0600 leaked through on first-ever write)"
+            )
 
     if failures:
         print("FAIL: generate-manifest self-test")
