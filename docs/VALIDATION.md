@@ -226,6 +226,16 @@ find obsidian-vault-manager/skills -name "SKILL.md" | sort
 # reads — grep/cat/`cd vault && git status`/`cp vault/x.md /tmp/` — must stay FP-free)
 python3 vault-bridge/scripts/test/test-pre-write-guard.py
 
+# vault-bridge manifest atomic-write self-test (#582) — manifest.json is written via
+# temp-file + os.replace so a hard kill mid-write can never leave a torn manifest on
+# disk; the two call paths that regenerate it (hooks/session-start-manifest.sh's
+# automatic refresh, skills/vault-manifest-refresh's manual --force) both funnel through
+# this same write. Simulates the kill at both boundaries (mid temp-file write, exactly
+# at the replace) by monkeypatching os.fdopen/os.replace to raise, and asserts the
+# original manifest content survives untouched in both cases.
+python3 vault-bridge/scripts/generate-manifest.py --self-test
+# Expected: OK: all generate-manifest self-test cases passed
+
 # vault-bridge manifest type opt-in regression (v4 §2.2)
 python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 
