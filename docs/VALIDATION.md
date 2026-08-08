@@ -278,21 +278,31 @@ python3 feedback-loop/scripts/test/test-report.py
 bash feedback-loop/scripts/test/test-event-logger.sh
 # Expected: OK: all event-logger meta-extractor cases passed
 
-# retro-telemetry helper regression (#294 — retro Phase-1 stamp + Phase-4 emit
+# retro-telemetry helper regression (#294 — retro Phase-1 stamp + Phase-3 emit
 # extracted from the SKILL.md inline bash to scripts/retro-telemetry.sh; this
 # pins the schema-shaped emit line + duration null-fallback against drift).
+# #580 rewrite: `stamp` no longer writes a /tmp file — it prints the start
+# time to stdout and `emit` takes it as an explicit `start_ms` argument
+# (Phase 1 and Phase 3 are separate Bash-tool calls, so no process/session id
+# was ever stable enough to key a shared file on; $PPID drifted between the
+# two calls within a single retro run, corrupting duration_ms to null and
+# orphaning stamp files). Also pins the SKILL.md Phase-3 call site actually
+# passing `$START_MS` first (#580) and the #528 batching shape.
 bash feedback-loop/scripts/test/test-retro-telemetry.sh
 # Expected: OK: all retro-telemetry cases passed
 
-# retro-telemetry sid-less stamp isolation (#529 — concurrent sessions with no
-# CLAUDE_SESSION_ID used to collide on one /tmp/retro-start-unknown.ms, so one
-# session's emit deleted the stamp the other was still using; measured live
-# 2026-08-03 as duration_ms null on one of two sid-less emits). Forces the
-# exact interleaving that exposes it (A.stamp, B.stamp, A.emit, B.emit) rather
-# than running each session start-to-finish, which would never overlap on the
-# shared file and so would pass identically whether or not the fix is in place.
+# retro-telemetry concurrent-session isolation (#529, #580). #529's original
+# bug — concurrent sid-less sessions colliding on one shared /tmp stamp file —
+# is now structurally impossible: #580 removed the file entirely, so there is
+# no shared state left for two sessions to collide on. This drives N genuinely
+# concurrent OS processes (not a forced interleaving of file operations, since
+# there is no longer any file state to force an interleaving of) through
+# stamp+emit and asserts no /tmp file ever appears, every session's
+# duration_ms survives non-null, and the one thing that IS still shared — N
+# processes appending to the same events-*.jsonl log at once — never produces
+# a torn/corrupted line.
 python3 feedback-loop/scripts/test/test-retro-telemetry-stamp-isolation.py
-# Expected: OK: interleaved sid-less sessions get isolated stamp paths, no cross-session null
+# Expected: OK: 6 concurrent stamp+emit sessions isolated, no /tmp file, no cross-session null, no torn writes
 
 # events-dir resolution regression gate. The fallback was once plain `$PWD`, so a
 # hook firing from a subdirectory built its own .claude-kit/telemetry/ there (5 stray

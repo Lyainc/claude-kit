@@ -135,25 +135,22 @@ print(m.resolve_events_dir())
 done
 
 # --- case 5: retro-telemetry.sh finds the toplevel events dir from a subdir --
-# The stamp itself lands in /tmp, not the events dir — but the script exits 0
-# early unless `[ -d "$EVENTS_DIR" ]` holds. So the stamp EXISTING is the proof
-# that resolution found the toplevel dir case 1 created: under a $PWD-only
-# fallback the subdirectory has no events dir, the gate short-circuits, and no
-# stamp is ever written.
-STAMP_FILE="/tmp/retro-start-test-events-dir.ms"
-trash-put "$STAMP_FILE" 2>/dev/null || true
-(
+# `stamp` prints the epoch-ms start time to stdout ONLY when both gates hold
+# (opt-in AND `[ -d "$EVENTS_DIR" ]`) — no file is written at all (#580). So
+# non-empty stdout is the proof that resolution found the toplevel dir case 1
+# created: under a $PWD-only fallback the subdirectory has no events dir, the
+# gate short-circuits, and stamp prints nothing.
+STAMP_OUT="$(
   cd "$SUBDIR" || exit 1
   env -u CLAUDE_PROJECT_DIR -u CLAUDE_KIT_TELEMETRY_DIR \
     CLAUDE_KIT_TELEMETRY=1 CLAUDE_SESSION_ID=test-events-dir \
-    bash "${SCRIPTS_DIR}/retro-telemetry.sh" stamp >/dev/null 2>&1
-)
-if [ -s "$STAMP_FILE" ]; then
+    bash "${SCRIPTS_DIR}/retro-telemetry.sh" stamp 2>/dev/null
+)"
+if [ -n "$STAMP_OUT" ]; then
   _assert "case 5: retro-telemetry.sh resolves the toplevel events dir" "yes" "yes"
 else
   _assert "case 5: retro-telemetry.sh resolves the toplevel events dir" "yes" "no"
 fi
-trash-put "$STAMP_FILE" 2>/dev/null || true
 
 # --- case 6 (#533): CLAUDE_PROJECT_DIR set to repo A, CWD drifted into an
 # unrelated repo B -> events land under A, nothing appears under B. This is
