@@ -68,13 +68,20 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ] && \
      grep -h '"name":"retro"' "$EVENTS_DIR"/events-*.jsonl 2>/dev/null | tail -n 20
    ```
-   - `retro-telemetry.sh stamp` — stamps the pipeline start for the Phase-3
-     `duration_ms` datum (each Bash call is a fresh shell, so the start time
-     must live on disk, not in a variable). The helper owns the events-dir
-     rule + opt-in gate (shared with `feedback-loop/scripts/event-logger.sh`):
-     it no-ops unless telemetry is opted in AND the events dir is resolvable
-     — the SAME branch the Phase-3 emit + stamp cleanup run inside, so no
-     stamp is orphaned in `/tmp` when telemetry output is unreachable.
+   - `retro-telemetry.sh stamp` — prints the Phase-1 start time (epoch ms) to
+     stdout; **read that value and carry it forward as `START_MS`.** No file
+     is written: Phase 1 and Phase 3 are separate Bash-tool calls (fresh
+     shell each time), so there is no process/session id stable enough to
+     key a shared `/tmp` file on — `$PPID` and `$CLAUDE_SESSION_ID` both
+     drift between the two calls in practice, which used to corrupt
+     `duration_ms` to `null` and orphan stamp files in `/tmp` (#580). This
+     skill is what connects the two calls instead: inline `START_MS` as the
+     first argument to the Phase-3 `emit` call below. The helper owns the
+     events-dir rule + opt-in gate (shared with
+     `feedback-loop/scripts/event-logger.sh`): it prints nothing UNLESS
+     telemetry is opted in AND the events dir is resolvable — off either
+     gate, `START_MS` is empty and Phase 3's `emit` falls back to
+     `duration_ms: null`.
    - `report.py` / `sequence.py` — waste signals (action-branch source). Both
      self-resolve the events dir via the same shared rule and are safe to run
      unconditionally (`2>/dev/null` no-ops on absent/empty telemetry). Use
@@ -169,15 +176,15 @@ opts in (offer them, do not run silently).
    No silent drop.
 2. **Report** (Korean): processed / deduped / budget_used + the remainder
    breakdown above.
-3. **Emit telemetry** (best-effort, opt-in). Pass the three retro counters to the
-   helper; it owns the shared opt-in gate + events-dir rule (so the emit only fires
-   when `CLAUDE_KIT_TELEMETRY=1` AND the events dir is resolvable), appends ONE
-   schema-valid `skill_invoke` line whose `meta` carries those counters **plus
-   `duration_ms`** (now − the Phase-1 start stamp; `null` when the stamp is
-   missing/corrupt, which is schema-valid — the latency collector treats null as "no
-   datum"), enforces the 3500B PIPE_BUF guard, and removes the start stamp:
+3. **Emit telemetry** (best-effort, opt-in). Pass `START_MS` (captured from Phase 1's
+   `stamp` output) plus the three retro counters to the helper; it owns the shared
+   opt-in gate + events-dir rule (so the emit only fires when `CLAUDE_KIT_TELEMETRY=1`
+   AND the events dir is resolvable), appends ONE schema-valid `skill_invoke` line
+   whose `meta` carries those counters **plus `duration_ms`** (now − `START_MS`;
+   `null` when `START_MS` is empty/non-numeric, which is schema-valid — the latency
+   collector treats null as "no datum"), and enforces the 3500B PIPE_BUF guard:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/retro-telemetry.sh" emit "$PROCESSED" "$DEDUPED" "$BUDGET_USED"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/retro-telemetry.sh" emit "$START_MS" "$PROCESSED" "$DEDUPED" "$BUDGET_USED"
    ```
    `report.py` latency reads `duration_ms`, so emitting it surfaces retro's own
    execution cost in the latency table; the other meta keys never pollute it.
