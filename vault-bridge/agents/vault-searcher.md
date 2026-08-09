@@ -141,7 +141,7 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 
 **Procedure** (standard, used when manifest is absent or stale):
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
-   - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always appended** — order between the two follows the Question-Type Routing tier: 정의/사실 checks `wiki/` before the scoped path, 경위/이력 or 분류 불가 checks the scoped path first (existing order, unchanged).
+   - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always included** — order between the two follows the Question-Type Routing tier: 정의/사실 checks `wiki/` before the scoped path, 경위/이력 or 분류 불가 checks the scoped path first (existing order, unchanged).
      - [#272: the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`]
    - No pointer or resolution failed → order `~/vault/wiki/`, `~/vault/notes/`, `~/vault/sources/` by the Question-Type Routing tier: 정의/사실 checks `wiki/` first with `notes/`+`sources/` as fallback; 경위/이력 checks `notes/`+`sources/` first with `wiki/` as fallback; 분류 불가 keeps the existing order (`wiki/` + `notes/` primary, `sources/` secondary).
 2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
