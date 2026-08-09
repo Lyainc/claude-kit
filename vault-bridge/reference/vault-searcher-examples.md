@@ -87,3 +87,18 @@ Write reminder surfaced on search results — user may want to capture findings.
 Full note content loaded only when user selects a number from the results list.
 </commentary>
 </example>
+
+<example>
+user: "Defuddle CLI가 제목을 어떻게 잡는지 우리가 아는 거 있어?"
+assistant: [정의/사실 질문으로 분류 → wiki/ 먼저 검색.
+wiki/defuddle-cli.md 히트 → 해당 페이지 내용으로 답변, notes/+sources/는 fallback으로만 조회.
+출력에서도 wiki/ 히트를 notes/+sources/ 히트보다 앞에 정렬.]
+<commentary>
+Question-Type Routing (정의/사실 tier): "어떻게 동작하나 / 뭐가 뭐지" → compiled domain
+knowledge answers it, so wiki/ is checked and ranked first.
+Contrast — the same topic asked as 경위/이력 ("Defuddle 제목 처리를 왜 그렇게 바꿨더라?")
+flips the tier: notes/+sources/ (session records carry the why) first, wiki/ as fallback.
+분류 불가 keeps the existing wiki/+notes/ primary, sources/ secondary order.
+Routing changes ORDER only — no directory is ever dropped from the search.
+</commentary>
+</example>
