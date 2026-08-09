@@ -63,6 +63,11 @@ verdicts:
   pending: <N>
 angle: <P-id|adhoc>           # Attacker domain angle — a personas.md entry ID
 backlog_scan: <scanned|partial|skipped>  # Phase 0 backlog-prefilter result, #524 (partial: #561)
+                                         # The scan runs per claim, this field is document-level:
+                                         # report the LEAST clean value across all claims
+                                         # (any skipped → skipped; else any partial → partial;
+                                         # else scanned), so it can never overclaim. Per-claim
+                                         # detail lives in each claim's "Backlog scan" line. #555
 ```
 
 ### expert-panel

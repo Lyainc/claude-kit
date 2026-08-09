@@ -126,6 +126,10 @@ verdicts:
   pending: {N}
 angle: {P-id|adhoc}        # Attacker domain angle — thinking-tools/reference/personas.md rank 1
 backlog_scan: {scanned|partial|skipped}  # Phase 0 backlog-prefilter result, #524 (partial: #561)
+                                         # Scan is per claim, this field is document-level: emit the
+                                         # LEAST clean value across claims (any skipped → skipped;
+                                         # else any partial → partial; else scanned). Per-claim detail
+                                         # stays in each claim's "Backlog scan" line below. #555
 ---
 
 ## Adversarial Review Report
