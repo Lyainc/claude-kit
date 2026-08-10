@@ -29,7 +29,7 @@ to keep; that judgment happens when you go looking for it again.
 - `--type decision` is KEEP, confirmed (#477 item 2, 2026-08-04) — for non-repo-bound decisions
   only (e.g. a personal tool choice). A **repo-bound** design decision belongs in a GitHub issue,
   not here (v5 §10) — say so and stop rather than writing one.
-- `--type discussion` is the one case that writes to `wiki/` (#593 c1) — the content is an AI
+- `--type discussion` is the one case that writes to `wiki/` (#586 c1) — the content is an AI
   compilation, not raw authorship, so it belongs with the rest of the A-layer even though it
   reads as history rather than fact (vault-discussion-history-wiring Seed, #586). Filename carries
   no date prefix — `wiki/`'s naming convention is evergreen kebab slugs, same as any other page
