@@ -335,17 +335,23 @@ python3 feedback-loop/scripts/test/check-trigger-regression.py --self-test
 python3 feedback-loop/scripts/test/check-trigger-regression.py origin/main
 # Removals are reported (not hard-gated) — reviewer decides if intentional.
 
-# sequence.py lifecycle-pair regression (#458). The stream logs `started` and then
-# `success`/`error` for the SAME call, and both rows used to enter the in-session n-gram
-# window — so every single call produced an `X -> X` self-transition. retro reads that
-# output as "repeated n-grams (review-round churn)", i.e. a WASTE signal, so the waste
-# detector was reporting its own instrumentation as waste (`retro -> retro` = 19 over 7d
-# for a skill that ran once per session) and the phantoms crowded out real repeats in
-# `--top=N`. The filter lives in sequence.py, NOT load_events: report.py's outcome mix
-# legitimately counts both rows (calls vs completions). Pins the other direction too —
-# real consecutive calls, `error` outcomes, and session boundaries must still count.
+# sequence.py lifecycle-pair regression (#458) + same-label run-collapse (#598). The
+# stream logs `started` and then `success`/`error` for the SAME call, and both rows used
+# to enter the in-session n-gram window — so every single call produced an `X -> X`
+# self-transition, and retro read that output as a WASTE signal, so the waste detector
+# was reporting its own instrumentation as waste (`retro -> retro` = 19 over 7d for a
+# skill that ran once per session). A second inflation survived that fix: N genuinely
+# consecutive real calls to the same label still produced N-1 adjacent-pair matches, so
+# one long isolated-subagent fan-out burst (expert-panel dispatching 9 personas in a row)
+# outscored every real repeat in `--top=N`. count_ngrams now excludes same-label windows
+# entirely; count_self_transition_runs reports them separately as ONE (label, run length)
+# entry, so a length-2 run (real re-delegation candidate) and a length-9 run (fan-out)
+# land in different buckets instead of one inflated count. The filter lives in
+# sequence.py, NOT load_events: report.py's outcome mix legitimately counts both rows
+# (calls vs completions). Pins the other direction too — real consecutive calls, `error`
+# outcomes, and session boundaries must still count.
 python3 feedback-loop/scripts/test/test-sequence.py
-# Expected: OK: all 10 sequence lifecycle-pair checks passed.
+# Expected: OK: all 16 sequence lifecycle-pair + run-collapse checks passed.
 
 # add-policy source gate + distill anti-capture floor + retro rule-branch routing (#459).
 # add-policy by design never re-judges worth-keeping, because its input contract assumed every
