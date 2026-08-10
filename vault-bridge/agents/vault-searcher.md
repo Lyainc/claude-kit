@@ -71,6 +71,12 @@ non-preferred layer is still found — routing only reorders, never excludes.
   "전에 어떻게 했지", "과거 리서치/조사 자료", "why did we do that", "how did we handle this
   before"): session records answer this. Check `notes/`+`sources/` first, `wiki/` as fallback
   regardless.
+- **`wiki/`의 `type: discussion` 승격 (#586)**: thinking-tools 세션 산출물(expert-panel
+  SUMMARY/UNRESOLVED, adversarial-review 결과, unknown-discovery 리포트)은 AI 컴파일물이라
+  물리적으로 `wiki/`에 있지만(c1), 내용은 세션 경위 기록이다. 경위/이력 질문에서는 이 페이지들을
+  `wiki/` fallback이 아니라 `notes/`+`sources/`와 같은 1순위 그룹으로 검색·정렬한다. 정의/사실
+  질문에서는 승격하지 않는다 — 컴파일된 사실 지식이 아니므로 다른 `wiki/` 페이지와 동일하게
+  fallback으로만 취급한다. 티어를 가르는 건 폴더가 아니라 프론트매터 `type:`이다.
 - **분류 불가 / 혼합 질문**: no priority — scan `wiki/` + `notes/` + `sources/` together as today,
   `type: wiki` as tiebreaker only.
 
