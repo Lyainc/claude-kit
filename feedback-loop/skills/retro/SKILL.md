@@ -63,7 +63,7 @@ Zero mutation. Produce a deduped, priority-sorted item list.
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/retro-telemetry.sh" stamp
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/report.py" 2>/dev/null        # outcome/error mix, latency (default 7d window)
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/sequence.py" --n=2 --top=20 2>/dev/null # repeated n-grams (review-round churn)
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/sequence.py" --n=2 --top=20 2>/dev/null # A->B repeats; same-label runs listed separately by length
    EVENTS_DIR="${CLAUDE_KIT_TELEMETRY_DIR:-${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel)}/.claude-kit/telemetry/events}"
    [ "${CLAUDE_KIT_TELEMETRY:-}" = "1" ] && [ -d "$EVENTS_DIR" ] && \
      grep -h '"name":"retro"' "$EVENTS_DIR"/events-*.jsonl 2>/dev/null | tail -n 20
@@ -88,7 +88,11 @@ Zero mutation. Produce a deduped, priority-sorted item list.
      their output only when the project-local telemetry dogfooding output
      exists (the events dir — `.claude-kit/telemetry/events/` by default, see
      `feedback-loop/README.md`) and `CLAUDE_KIT_TELEMETRY=1`; otherwise fall
-     back to session-observed waste only.
+     back to session-observed waste only. `sequence.py`'s "self-transition
+     runs" section is a length, not a count — a short run (length 2) is the
+     review-round-churn candidate worth an item; a long run is a skill
+     dispatching several isolated subagents by design (e.g. expert-panel's
+     per-persona rounds) and is not waste on its own (#598).
    - `EVENTS_DIR`/`grep` — prior-retro read (dedup source, only when
      `CLAUDE_KIT_TELEMETRY=1` AND the events dir exists — the same opt-in gate
      as Phase 3): reports cumulative processing (best-effort).
