@@ -71,12 +71,9 @@ non-preferred layer is still found — routing only reorders, never excludes.
   "전에 어떻게 했지", "과거 리서치/조사 자료", "why did we do that", "how did we handle this
   before"): session records answer this. Check `notes/`+`sources/` first, `wiki/` as fallback
   regardless.
-- **`wiki/`의 `type: discussion` 승격 (#586)**: thinking-tools 세션 산출물(expert-panel
-  SUMMARY/UNRESOLVED, adversarial-review 결과, unknown-discovery 리포트)은 AI 컴파일물이라
-  물리적으로 `wiki/`에 있지만(c1), 내용은 세션 경위 기록이다. 경위/이력 질문에서는 이 페이지들을
-  `wiki/` fallback이 아니라 `notes/`+`sources/`와 같은 1순위 그룹으로 검색·정렬한다. 정의/사실
-  질문에서는 승격하지 않는다 — 컴파일된 사실 지식이 아니므로 다른 `wiki/` 페이지와 동일하게
-  fallback으로만 취급한다. 티어를 가르는 건 폴더가 아니라 프론트매터 `type:`이다.
+- **`wiki/`의 `type: discussion` 승격 (#586)**: AI 컴파일이라 `wiki/`에 있지만(c1) 내용은 세션
+  경위 기록이다. 경위/이력 질문에서는 `wiki/` fallback이 아니라 `notes/`+`sources/`와 같은 1순위로
+  검색·정렬하고, 정의/사실 질문에서는 승격하지 않는다 — 티어는 폴더가 아니라 `type:`으로 가른다.
 - **분류 불가 / 혼합 질문**: no priority — scan `wiki/` + `notes/` + `sources/` together as today,
   `type: wiki` as tiebreaker only.
 
@@ -130,8 +127,8 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
       distinct from a legitimately empty vault (`candidate_count: 0`, exit 0).
    c. Sort candidates: `status=active` first, then by the Question-Type Routing tier (§ above —
       wiki candidates surface before notes/sources for a 정의/사실 질문, and vice versa for a
-      경위/이력 질문 — except a `type: discussion` candidate, which counts as notes/sources-tier
-      for a 경위/이력 질문; no reordering for 분류 불가), then by recall-weight signals already in
+      경위/이력 질문, `type: discussion` counts as notes/sources-tier; no reordering for 분류 불가),
+      then by recall-weight signals already in
       the manifest entry — `recent_commits` descending (count of git commits touching the
       file in the **last 7 days** = recent activity, not all-time work; it measures *writing*,
       never reads, and a vault left uncommitted for a week scores 0 everywhere — silent, not
@@ -161,8 +158,8 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 4. If a `status: active` session note exists for the domain, show as "In Progress" priority section.
 5. Apply the Question-Type Routing tier (§ above) as the top grouping, same as Mode 3: for a
    정의/사실 질문, show `wiki/` hits before `notes/`+`sources/` hits; for a 경위/이력 질문, the
-   reverse — except a `wiki/` hit with `type: discussion`, which joins the `notes/`+`sources/`
-   group instead of the `wiki/` group; for 분류 불가, skip this grouping (existing behavior) — the `search_root` order from
+   reverse (`type: discussion` joins the `notes/`+`sources/` group); for 분류 불가, skip this
+   grouping (existing behavior) — the `search_root` order from
    step 1 alone doesn't survive into the final listing without this, since results get merged
    before display. Within each group (or across all hits when ungrouped), show recent notes
    first (default 20).
@@ -195,8 +192,8 @@ Search the entire vault by keyword and load note contents.
      candidate paths rather than reading each file whole.
 3. Apply the Question-Type Routing tier (§ above) as the top grouping: for a 정의/사실 질문, sort
    `wiki/` hits before `notes/`+`sources/` hits; for a 경위/이력 질문, sort `notes/`+`sources/` hits
-   before `wiki/` hits — except a `wiki/` hit with `type: discussion`, sorted into the
-   `notes/`+`sources/` group instead; for 분류 불가, skip this grouping (existing behavior). Within each group
+   before `wiki/` hits (`type: discussion` sorts into the `notes/`+`sources/` group); for 분류
+   불가, skip this grouping (existing behavior). Within each group
    (or across all hits when ungrouped), sort: title match > tag match > body match > recent
    modification. When candidates come from the manifest pre-filter (step 1), break ties *within
    the same match tier* by
