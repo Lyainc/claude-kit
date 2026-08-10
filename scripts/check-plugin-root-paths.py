@@ -287,7 +287,7 @@ name: x
 tools: Read
 ---
 See `docs/design/claude-kit-boundary.md` for the boundary. Vault notes live under
-`~/vault/notes/`. (Same contract as OMC `code-reviewer.md`.)
+`~/vault/notes/`. (Same contract as `some-other-agent.md`.)
 """
     agent_fenced_example = """\
 ---

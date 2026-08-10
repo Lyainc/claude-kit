@@ -33,8 +33,8 @@ narrowest signal its own harm needs, and the asymmetry is deliberate:
     Contract", "vault writes are user-initiated") is not a directive and must not be flagged.
     The verb is matched case-insensitively so a numbered step beginning "Use Glob to…" counts,
     but the tool name itself stays case-exact so the verb `write` never reads as the tool
-    `Write`. Negations are excluded within the sentence leading up to the verb:
-    code-reviewer.md says "do not use the `Agent` tool", which is a prohibition, not a call.
+    `Write`. Negations are excluded within the sentence leading up to the verb: an agent body
+    saying "do not use the `Agent` tool" is a prohibition, not a call.
 
   UNUSED looks for the tool name appearing *anywhere* in the body, imperative or not. A weaker
     signal is correct here because the direction is inverted: any mention at all shows the grant
