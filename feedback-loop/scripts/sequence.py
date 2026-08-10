@@ -8,6 +8,15 @@ retro invokes this as a best-effort waste signal with `2>/dev/null` (SKILL.md
 Phase 1 §3), so a missing-events / empty-output run is a tolerated no-op rather
 than a failure. The n-gram counting itself IS gated — test-sequence.py (#458).
 
+`count_ngrams` never reports a same-label window (#598) — a run of N
+consecutive identical labels used to inflate into N-1 adjacent-pair matches,
+so a single 9-call isolated-subagent fan-out (expert-panel's E1/E2/E3 rounds,
+each a distinct persona) outscored every genuine A->B repeat in `--top=N` and
+read as the #1 waste pattern despite being zero-waste orchestration. Same-label
+runs are reported separately by `count_self_transition_runs`, keyed by run
+length — a length-2 run (real re-delegation candidate) and a length-9 run
+(fan-out) land in different buckets instead of one inflated count.
+
 Usage:
     sequence.py [--since=Nd] [--n=2|3] [--top=N]
 """
@@ -60,11 +69,43 @@ def session_sequences(events: list[dict]) -> dict[str, list[str]]:
 
 
 def count_ngrams(sessions: dict[str, list[str]], n: int) -> Counter:
+    """Count n-gram transitions, excluding windows where every item is the same label.
+
+    A same-label window is a fan-out/repeat RUN, not a transition — see
+    count_self_transition_runs. Counting it here too would double-report it under two
+    different units (window count vs. run length) and let a long run still dominate the
+    mixed-transition ranking via sheer window count (#598).
+    """
     ngrams: Counter = Counter()
     for seq in sessions.values():
         for i in range(len(seq) - n + 1):
-            ngrams[tuple(seq[i:i + n])] += 1
+            gram = tuple(seq[i:i + n])
+            if len(set(gram)) == 1:
+                continue
+            ngrams[gram] += 1
     return ngrams
+
+
+def count_self_transition_runs(sessions: dict[str, list[str]]) -> Counter:
+    """Count consecutive same-label runs (length >= 2), keyed by (label, run length).
+
+    Where the old adjacent-pair count turned one N-call run into N-1 matches, this turns
+    it into ONE entry at its actual length. A length-2 run (one immediate re-delegation)
+    and a length-9 run (a 9-persona panel round) never merge into the same bucket, so
+    length — not count — is what tells a real repeat apart from designed fan-out (#598).
+    """
+    runs: Counter = Counter()
+    for seq in sessions.values():
+        i = 0
+        while i < len(seq):
+            j = i
+            while j + 1 < len(seq) and seq[j + 1] == seq[i]:
+                j += 1
+            length = j - i + 1
+            if length >= 2:
+                runs[(seq[i], length)] += 1
+            i = j + 1
+    return runs
 
 
 def main() -> int:
@@ -82,14 +123,24 @@ def main() -> int:
 
     sessions = session_sequences(events)
     ngrams = count_ngrams(sessions, args.n)
+    runs = count_self_transition_runs(sessions)
 
-    if not ngrams:
+    if not ngrams and not runs:
         print(f"No {args.n}-grams found")
         return 0
 
-    print(f"Top {args.top} {args.n}-grams (across {len(sessions)} sessions):")
-    for gram, c in ngrams.most_common(args.top):
-        print(f"  {c:>4}  {' -> '.join(gram)}")
+    if ngrams:
+        print(f"Top {args.top} {args.n}-grams (across {len(sessions)} sessions):")
+        for gram, c in ngrams.most_common(args.top):
+            print(f"  {c:>4}  {' -> '.join(gram)}")
+
+    if runs:
+        if ngrams:
+            print()
+        print(f"Top {args.top} self-transition runs (across {len(sessions)} sessions) "
+              "— same label repeated consecutively, by run length:")
+        for (label, length), c in runs.most_common(args.top):
+            print(f"  {c:>4}x  {label}  (run length {length})")
     return 0
 
 
