@@ -130,7 +130,8 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
       distinct from a legitimately empty vault (`candidate_count: 0`, exit 0).
    c. Sort candidates: `status=active` first, then by the Question-Type Routing tier (§ above —
       wiki candidates surface before notes/sources for a 정의/사실 질문, and vice versa for a
-      경위/이력 질문; no reordering for 분류 불가), then by recall-weight signals already in
+      경위/이력 질문 — except a `type: discussion` candidate, which counts as notes/sources-tier
+      for a 경위/이력 질문; no reordering for 분류 불가), then by recall-weight signals already in
       the manifest entry — `recent_commits` descending (count of git commits touching the
       file in the **last 7 days** = recent activity, not all-time work; it measures *writing*,
       never reads, and a vault left uncommitted for a week scores 0 everywhere — silent, not
@@ -160,7 +161,8 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 4. If a `status: active` session note exists for the domain, show as "In Progress" priority section.
 5. Apply the Question-Type Routing tier (§ above) as the top grouping, same as Mode 3: for a
    정의/사실 질문, show `wiki/` hits before `notes/`+`sources/` hits; for a 경위/이력 질문, the
-   reverse; for 분류 불가, skip this grouping (existing behavior) — the `search_root` order from
+   reverse — except a `wiki/` hit with `type: discussion`, which joins the `notes/`+`sources/`
+   group instead of the `wiki/` group; for 분류 불가, skip this grouping (existing behavior) — the `search_root` order from
    step 1 alone doesn't survive into the final listing without this, since results get merged
    before display. Within each group (or across all hits when ungrouped), show recent notes
    first (default 20).
@@ -193,7 +195,8 @@ Search the entire vault by keyword and load note contents.
      candidate paths rather than reading each file whole.
 3. Apply the Question-Type Routing tier (§ above) as the top grouping: for a 정의/사실 질문, sort
    `wiki/` hits before `notes/`+`sources/` hits; for a 경위/이력 질문, sort `notes/`+`sources/` hits
-   before `wiki/` hits; for 분류 불가, skip this grouping (existing behavior). Within each group
+   before `wiki/` hits — except a `wiki/` hit with `type: discussion`, sorted into the
+   `notes/`+`sources/` group instead; for 분류 불가, skip this grouping (existing behavior). Within each group
    (or across all hits when ungrouped), sort: title match > tag match > body match > recent
    modification. When candidates come from the manifest pre-filter (step 1), break ties *within
    the same match tier* by
