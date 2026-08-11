@@ -115,10 +115,22 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   lineage source `discovery-2026-06-14.md f15`); per §0 claude-kit holds only the
   concrete form, self-contained, with **no** runtime reference to that layer. Sibling to
   the #209 git contract above — both govern how a delegated/concurrent agent touches the
-  repo. Enforcement is this rule plus the §4 self-check; there is no deterministic guard,
-  because "is someone else working this repo right now?" is a judgment call (the §3 SOFT
-  tier), not deterministically detectable in general — so it stays a §4 self-check, not a
-  HARD gate.
+  repo. The rule stays SOFT overall, because "is someone else working this repo right now?"
+  is a judgment call (the §3 SOFT tier), not deterministically detectable in general.
+  **One slice of it is detectable, and since #594 it is guarded**: the 8th recorded
+  near-miss was a session that never isolated *itself* — it edited the shared main checkout
+  on the default branch for several commits, found only by a stray `git status --short`.
+  "Am I writing the main checkout on its default branch?" is two git commands with no
+  judgment in it, so `scripts/worktree-isolation-guard.sh` (PreToolUse Write|Edit, wired
+  per-developer like the §4 reminder hook) warns on exactly that, once per session and repo.
+  It **warns**, it does not block (`CLAUDE_KIT_WORKTREE_GUARD=enforce` opts into blocking):
+  a false block costs a real session, which is why the rule keeps its SOFT tier and the §4
+  self-check remains the enforcement for everything the guard cannot see. What it cannot
+  see, deliberately: a write to the main checkout on a *feature* branch — #594's original
+  incident shape, but also ordinary solo work, and nothing distinguishes the two without a
+  record of who else is live (#594's claim-file proposal). Its regression test
+  (`scripts/test/test-worktree-isolation-guard.sh`) blocks in CI so the detection cannot
+  silently rot.
 - **Identifiers ride the global ID; local tracking IDs stay local (#214).** The
   single authority for identifier prefixes is `docs/design/glossary.md`. Anything
   worth tracking globally becomes a GitHub issue (`#N`) — do **not** invent a
@@ -252,7 +264,10 @@ deterministic script cannot fairly decide:
 - [ ] **Concurrent worktree isolation (#234)**: if another agent or tool was working
       this repo concurrently, your changes were made in a dedicated `git worktree`, not
       the shared main checkout — so concurrent writers did not race or trample each
-      other's in-flight work.
+      other's in-flight work. The detectable slice (writing the main checkout on its
+      default branch) is warned by `scripts/worktree-isolation-guard.sh` when it is wired
+      in your `.claude/settings.json`; the rest — a feature-branch write to the main
+      checkout while a sibling session is live — is still only this self-check (#594).
 - [ ] **HARD checks green**: the relevant `scripts/check-*.py` and external linters
       were run and pass (or are wired so CI will run them).
 - [ ] **Recurrence (c7)**: if this violation looks like a *repeat pattern*, enter the
