@@ -21,19 +21,24 @@ bad()  { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1" >&2; }
 # run <payload> <env...> — feed a payload, capture stdout, return exit code via $rc.
 run() { rc=0; out="$(printf '%s' "$1" | "${@:2}" bash "$GUARD" 2>/dev/null)" || rc=$?; }
 
+# denied <json> — true only if permissionDecision:deny is nested under hookSpecificOutput
+# (documented PreToolUse schema). A top-level permissionDecision is silently ignored by
+# Claude Code, so this must NOT match on substring alone.
+denied() { printf '%s' "$1" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null 2>&1; }
+
 # --- deny path: a PyYAML import in a .py write is blocked ---
 run '{"tool_input":{"file_path":"/x/foo.py","content":"import yaml\nx=yaml.load(s)"}}'
-echo "$out" | grep -q '"permissionDecision":"deny"' && ok "import yaml in .py → deny" || bad "import yaml in .py → deny (got: $out)"
+denied "$out" && ok "import yaml in .py → deny" || bad "import yaml in .py → deny (got: $out)"
 
 run '{"tool_input":{"file_path":"/x/foo.py","content":"from yaml import safe_load"}}'
-echo "$out" | grep -q '"permissionDecision":"deny"' && ok "from yaml import → deny" || bad "from yaml import → deny (got: $out)"
+denied "$out" && ok "from yaml import → deny" || bad "from yaml import → deny (got: $out)"
 
 run '{"tool_input":{"file_path":"/x/foo.py","content":"import yaml.cyaml"}}'
-echo "$out" | grep -q '"permissionDecision":"deny"' && ok "import yaml.cyaml (dotted) → deny" || bad "import yaml.cyaml → deny (got: $out)"
+denied "$out" && ok "import yaml.cyaml (dotted) → deny" || bad "import yaml.cyaml → deny (got: $out)"
 
 # Edit payload (new_string) is also inspected.
 run '{"tool_input":{"file_path":"/x/foo.py","new_string":"import yaml"}}'
-echo "$out" | grep -q '"permissionDecision":"deny"' && ok "Edit new_string import yaml → deny" || bad "Edit new_string → deny (got: $out)"
+denied "$out" && ok "Edit new_string import yaml → deny" || bad "Edit new_string → deny (got: $out)"
 
 # --- allow path: no output, exit 0 ---
 run '{"tool_input":{"file_path":"/x/foo.py","content":"import json\nd=json.load(f)"}}'

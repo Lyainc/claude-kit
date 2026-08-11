@@ -87,8 +87,10 @@ if [ "$MODE" = "warn" ]; then
   exit 0
 fi
 
-# enforce (default): deny the write. permissionDecisionReason drives the deny dialog;
-# systemMessage surfaces the override knob. (Native form matches subagent-git-guard.sh.)
+# enforce (default): deny the write. permissionDecision/permissionDecisionReason must nest
+# under hookSpecificOutput (documented PreToolUse schema) — a top-level permissionDecision
+# is silently ignored by Claude Code and the write goes through. systemMessage stays
+# top-level; it surfaces the override knob. (Native form matches subagent-git-guard.sh.)
 jq -nc --arg reason "$reason" \
-  '{permissionDecision:"deny", permissionDecisionReason:$reason, systemMessage:("no-pyyaml-guard: " + $reason + " Set CLAUDE_KIT_NO_PYYAML_CONTRACT=warn to allow, =off to disable.")}'
+  '{hookSpecificOutput:{hookEventName:"PreToolUse", permissionDecision:"deny", permissionDecisionReason:$reason}, systemMessage:("no-pyyaml-guard: " + $reason + " Set CLAUDE_KIT_NO_PYYAML_CONTRACT=warn to allow, =off to disable.")}'
 exit 0

@@ -77,10 +77,12 @@ emit_contract_violation() {
   local msg="Vault writes must be user-initiated slash commands (/vault-save, /vault-commit). Subagent ($agent_id) vault write blocked${detail}. To author content from a subagent, return a draft to the main context and let the user invoke a slash command."
 
   if [ "$contract_mode" = "enforce" ]; then
-    # Emit both permissionDecisionReason (for the deny dialog) AND systemMessage
-    # (so the user actually sees the revert/disable hint in their transcript).
+    # permissionDecision/permissionDecisionReason must nest under hookSpecificOutput
+    # (documented PreToolUse schema) — a top-level permissionDecision is silently
+    # ignored by Claude Code and the write/command goes through anyway. systemMessage
+    # stays top-level so the user still sees the revert/disable hint in their transcript.
     jq -nc --arg reason "$msg" \
-      '{permissionDecision:"deny", permissionDecisionReason:$reason, systemMessage:("vault-bridge contract: " + $reason + " Set VAULT_BRIDGE_WRITE_CONTRACT=warn to allow, =off to disable.")}'
+      '{hookSpecificOutput:{hookEventName:"PreToolUse", permissionDecision:"deny", permissionDecisionReason:$reason}, systemMessage:("vault-bridge contract: " + $reason + " Set VAULT_BRIDGE_WRITE_CONTRACT=warn to allow, =off to disable.")}'
   else
     printf '[vault-bridge pre-write-guard] CONTRACT WARNING: %s\n' "$msg" >&2
     jq -nc --arg msg "$msg" \

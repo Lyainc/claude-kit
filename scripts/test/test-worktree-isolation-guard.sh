@@ -56,7 +56,10 @@ payload() {  # payload <file_path> [session_id]
 }
 
 warned() { printf '%s' "$1" | grep -q 'worktree-isolation-guard'; }
-denied() { printf '%s' "$1" | grep -q '"permissionDecision":"deny"'; }
+# denied <json> — true only if permissionDecision:deny is nested under hookSpecificOutput
+# (documented PreToolUse schema). A top-level permissionDecision is silently ignored by
+# Claude Code, so this must NOT match on substring alone.
+denied() { printf '%s' "$1" | jq -e '.hookSpecificOutput.permissionDecision == "deny"' >/dev/null 2>&1; }
 silent() { [ -z "$out" ] && [ "$rc" -eq 0 ]; }
 
 # --- fixtures ---------------------------------------------------------------

@@ -129,8 +129,11 @@ MSG="P1 워크트리 격리 위반 가능성: 메인 체크아웃($TOPLEVEL)의 
 # the identical Write and it lands.
 if [ "$MODE" = "enforce" ]; then
   printf '[worktree-isolation-guard] %s\n' "$MSG" >&2
+  # permissionDecision/permissionDecisionReason must nest under hookSpecificOutput
+  # (documented PreToolUse schema) — a top-level permissionDecision is silently ignored
+  # by Claude Code and the write goes through anyway. systemMessage stays top-level.
   jq -nc --arg m "$MSG" \
-    '{permissionDecision:"deny", permissionDecisionReason:$m, systemMessage:("worktree-isolation-guard: " + $m)}'
+    '{hookSpecificOutput:{hookEventName:"PreToolUse", permissionDecision:"deny", permissionDecisionReason:$m}, systemMessage:("worktree-isolation-guard: " + $m)}'
   exit 0
 fi
 
