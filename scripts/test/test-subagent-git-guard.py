@@ -116,7 +116,7 @@ def case_violations_enforce(errors: list) -> None:
 def case_violation_alt_agent_fields(errors: list) -> None:
     """Each accepted agent-identifier field triggers the guard."""
     print("\ncase group: alternate agent-identifier fields")
-    for field in ("agent_name", "subagent_type", "attributionAgent"):
+    for field in ("agent_id", "agent_type", "agent_name", "subagent_type", "attributionAgent"):
         proc = _run(_payload("git push", agent_field=field, agent_value="some-agent"))
         _assert(_denied(proc), f"{field}: deny", errors)
     # nested .agent.name / .agent.type

@@ -104,6 +104,24 @@ def case_subagent_enforce_default(errors: list[str], vault_root: str) -> None:
             f"stdout contains systemMessage with vault-bridge contract (got: {proc.stdout!r})", errors)
 
 
+def case_subagent_enforce_agent_id_field(errors: list[str], vault_root: str) -> None:
+    """agent_id present (the actual field name this harness sends) → enforce.
+
+    subagent_type is the field every other case in this file uses, but it is not what a
+    real PreToolUse payload here carries for a Task/Agent-spawned subagent — that payload
+    carries top-level agent_id/agent_type instead (confirmed by live capture, #600
+    follow-up). A guard that only recognized subagent_type would never see a real
+    subagent at all and would silently no-op on every actual subagent write.
+    """
+    print("\ncase: subagent_enforce_agent_id_field")
+    path = f"{vault_root}/sources/session-2026-05-12.md"
+    payload = _make_payload(path, agent_id_field="agent_id", agent_id_value="a46255428d8f98ead")
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0, "exit 0", errors)
+    _assert(_denied(proc.stdout),
+            f"stdout contains hookSpecificOutput.permissionDecision:deny (got: {proc.stdout!r})", errors)
+
+
 def case_subagent_warn_explicit(errors: list[str], vault_root: str) -> None:
     """VAULT_BRIDGE_WRITE_CONTRACT=warn → explicit warn mode (log + allow); default is enforce."""
     print("\ncase: subagent_warn_explicit")
@@ -561,6 +579,7 @@ def main() -> int:
 
         case_main_context_sources_write(errors, vault_root)
         case_subagent_enforce_default(errors, vault_root)
+        case_subagent_enforce_agent_id_field(errors, vault_root)
         case_subagent_warn_explicit(errors, vault_root)
         case_subagent_enforce(errors, vault_root)
         case_subagent_off(errors, vault_root)

@@ -68,7 +68,7 @@ vault_abs=$(cd "$VAULT_ROOT" 2>/dev/null && pwd -P) || exit 0
 # ---------------------------------------------------------------------------
 contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-enforce}"
 agent_id=$(printf '%s' "$payload" | jq -r '
-  .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
+  .agent_id // .agent_type // .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
 ' 2>/dev/null || true)
 
 # Emit the contract decision (deny in enforce mode, systemMessage in warn mode).
