@@ -31,6 +31,17 @@ def _assert(cond: bool, desc: str, errors: list[str]) -> bool:
     return False
 
 
+def _denied(stdout: str) -> bool:
+    """True only if permissionDecision:deny is nested under hookSpecificOutput — the
+    documented PreToolUse schema. A top-level permissionDecision is silently ignored by
+    Claude Code, so this must NOT match on substring alone."""
+    try:
+        data = json.loads(stdout)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    return data.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
+
+
 def _run(payload: dict, env_overrides: dict | None = None, vault_root: str | None = None) -> subprocess.CompletedProcess:
     env = os.environ.copy()
     # Always unset the env vars under test so each case is hermetic
@@ -87,8 +98,8 @@ def case_subagent_enforce_default(errors: list[str], vault_root: str) -> None:
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="vault-searcher")
     proc = _run(payload, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
-    _assert('"permissionDecision":"deny"' in proc.stdout.replace(" ", ""),
-            f"stdout contains permissionDecision:deny (got: {proc.stdout!r})", errors)
+    _assert(_denied(proc.stdout),
+            f"stdout contains hookSpecificOutput.permissionDecision:deny (got: {proc.stdout!r})", errors)
     _assert("systemMessage" in proc.stdout and "vault-bridge contract" in proc.stdout,
             f"stdout contains systemMessage with vault-bridge contract (got: {proc.stdout!r})", errors)
 
@@ -113,8 +124,8 @@ def case_subagent_enforce(errors: list[str], vault_root: str) -> None:
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="executor")
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "enforce"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
-    _assert('"permissionDecision":"deny"' in proc.stdout.replace(" ", ""),
-            f"stdout contains permissionDecision:deny (got: {proc.stdout!r})", errors)
+    _assert(_denied(proc.stdout),
+            f"stdout contains hookSpecificOutput.permissionDecision:deny (got: {proc.stdout!r})", errors)
 
 
 def case_subagent_off(errors: list[str], vault_root: str) -> None:
@@ -333,8 +344,8 @@ def case_wiki_subagent_enforce(errors: list[str], vault_root: str) -> None:
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="executor")
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "enforce"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
-    _assert('"permissionDecision":"deny"' in proc.stdout.replace(" ", ""),
-            f"stdout contains permissionDecision:deny (got: {proc.stdout!r})", errors)
+    _assert(_denied(proc.stdout),
+            f"stdout contains hookSpecificOutput.permissionDecision:deny (got: {proc.stdout!r})", errors)
 
 
 def case_filename_violation_warn_mode(errors: list[str], vault_root: str) -> None:
@@ -366,8 +377,8 @@ def case_subagent_filename_violation_enforce(errors: list[str], vault_root: str)
     payload = _make_payload(path, agent_id_field="subagent_type", agent_id_value="executor")
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "enforce"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "exit 0", errors)
-    _assert('"permissionDecision":"deny"' in proc.stdout.replace(" ", ""),
-            f"stdout contains permissionDecision:deny (got: {proc.stdout!r})", errors)
+    _assert(_denied(proc.stdout),
+            f"stdout contains hookSpecificOutput.permissionDecision:deny (got: {proc.stdout!r})", errors)
     # Must NOT also emit a naming violation (contract deny exits before that check)
     _assert("NAMING VIOLATION" not in proc.stderr,
             f"stderr must not contain NAMING VIOLATION (got: {proc.stderr!r})", errors)
@@ -458,8 +469,7 @@ def case_bash_subagent_writes_denied(errors: list[str], vault_root: str) -> None
         payload = _make_bash_payload(cmd, agent_id_value="vault-file-organizer", cwd="/tmp")
         proc = _run(payload, vault_root=vault_root)
         _assert(proc.returncode == 0, f"exit 0 (deny is a decision, not an error): {cmd!r}", errors)
-        _assert('"permissionDecision":"deny"' in proc.stdout.replace(" ", ""),
-                f"denied: {cmd!r} (got: {proc.stdout!r})", errors)
+        _assert(_denied(proc.stdout), f"denied: {cmd!r} (got: {proc.stdout!r})", errors)
 
 
 def case_bash_reads_pass(errors: list[str], vault_root: str) -> None:
@@ -505,7 +515,7 @@ def case_bash_warn_and_off_modes(errors: list[str], vault_root: str) -> None:
 
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "warn"}, vault_root=vault_root)
     _assert(proc.returncode == 0, "warn: exit 0", errors)
-    _assert("permissionDecision" not in proc.stdout, f"warn: no deny (got: {proc.stdout!r})", errors)
+    _assert(not _denied(proc.stdout), f"warn: no deny (got: {proc.stdout!r})", errors)
     _assert("vault-bridge contract" in proc.stdout, f"warn: systemMessage present (got: {proc.stdout!r})", errors)
 
     proc = _run(payload, env_overrides={"VAULT_BRIDGE_WRITE_CONTRACT": "off"}, vault_root=vault_root)

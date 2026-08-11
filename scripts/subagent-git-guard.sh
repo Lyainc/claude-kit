@@ -165,8 +165,10 @@ if [ "$mode" = "warn" ]; then
   exit 0
 fi
 
-# enforce (default): deny the Bash call. Emit both permissionDecisionReason (deny dialog)
-# AND systemMessage (so the revert/disable hint lands in the transcript).
+# enforce (default): deny the Bash call. permissionDecision/permissionDecisionReason must
+# nest under hookSpecificOutput (documented PreToolUse schema) — a top-level
+# permissionDecision is silently ignored by Claude Code and the call goes through anyway.
+# systemMessage stays top-level so the revert/disable hint still lands in the transcript.
 jq -nc --arg reason "$reason" \
-  '{permissionDecision:"deny", permissionDecisionReason:$reason, systemMessage:("subagent-git-guard: " + $reason + " Set CLAUDE_KIT_SUBAGENT_GIT_CONTRACT=warn to allow, =off to disable.")}'
+  '{hookSpecificOutput:{hookEventName:"PreToolUse", permissionDecision:"deny", permissionDecisionReason:$reason}, systemMessage:("subagent-git-guard: " + $reason + " Set CLAUDE_KIT_SUBAGENT_GIT_CONTRACT=warn to allow, =off to disable.")}'
 exit 0

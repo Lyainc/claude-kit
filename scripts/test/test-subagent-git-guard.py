@@ -61,7 +61,14 @@ def _payload(command: str, *, tool_name: str = "Bash",
 
 
 def _denied(proc) -> bool:
-    return '"permissionDecision":"deny"' in proc.stdout.replace(" ", "")
+    """True only if permissionDecision:deny is nested under hookSpecificOutput — the
+    documented PreToolUse schema. A top-level permissionDecision is silently ignored by
+    Claude Code, so this must NOT match on substring alone."""
+    try:
+        data = json.loads(proc.stdout)
+    except (json.JSONDecodeError, ValueError):
+        return False
+    return data.get("hookSpecificOutput", {}).get("permissionDecision") == "deny"
 
 
 def _clean(proc) -> bool:
