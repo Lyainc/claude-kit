@@ -84,7 +84,12 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   against an explicit "Do NOT commit" prompt. It is wired per-developer in
   `.claude/settings.json` (like the §4 reminder hook), and its regression test
   (`scripts/test/test-subagent-git-guard.py`) blocks in CI so the guard logic cannot
-  silently regress.
+  silently regress. **Correction (#600):** from this hook's introduction until #600,
+  the deny JSON put `permissionDecision` at the top level instead of nested under
+  `hookSpecificOutput` (the documented PreToolUse schema) — Claude Code silently
+  ignored it and the blocked git call went through anyway. The regression test's
+  substring assertion could not catch this (it matched the key anywhere in the
+  output, nesting or not). Both the hook and the test now require the nested shape.
 - **A subagent's deliverable rides its final message — pin it (#211).** "Only the last
   assistant message returns to the caller" is a property of *every* subagent — native
   `Agent`/`Task` and schema-less Workflow `agent()` alike. A subagent can do correct work
@@ -130,7 +135,9 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   incident shape, but also ordinary solo work, and nothing distinguishes the two without a
   record of who else is live (#594's claim-file proposal). Its regression test
   (`scripts/test/test-worktree-isolation-guard.sh`) blocks in CI so the detection cannot
-  silently rot.
+  silently rot. **Correction (#600):** `CLAUDE_KIT_WORKTREE_GUARD=enforce`'s deny JSON had
+  the same top-level-vs-`hookSpecificOutput` defect as the #209 guard (same fix applies) —
+  the default warn path was never affected, since it only emits `systemMessage`.
 - **Identifiers ride the global ID; local tracking IDs stay local (#214).** The
   single authority for identifier prefixes is `docs/design/glossary.md`. Anything
   worth tracking globally becomes a GitHub issue (`#N`) — do **not** invent a
