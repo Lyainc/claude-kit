@@ -99,6 +99,10 @@ jobs:
           # #385 E1-EN audit-error-type label drift guard.
           python3 scripts/check-error-label-drift.py --self-test
           python3 scripts/check-error-label-drift.py
+          # #601 CLAUDE.md single-plugin script-attribution drift guard (same bug class
+          # as #385 above and #380 hook-count miscount).
+          python3 scripts/check-claude-md-attribution.py --self-test
+          python3 scripts/check-claude-md-attribution.py
           # #472 tools: field existence, #577 declared-vs-body-usage. The first was in
           # scripts/ but wired into neither CI nor docs/VALIDATION.md until #577.
           python3 scripts/check-agent-tools-field.py --self-test
