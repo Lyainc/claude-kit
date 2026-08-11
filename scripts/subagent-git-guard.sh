@@ -66,7 +66,7 @@ tool_name=$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || 
 # Subagent identity: act ONLY when a subagent identifier is present. Main context (no
 # identifier) owns git and is always allowed. Same fields as vault-bridge pre-write-guard.
 agent_id=$(printf '%s' "$payload" | jq -r '
-  .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
+  .agent_id // .agent_type // .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
 ' 2>/dev/null || true)
 [ -n "$agent_id" ] || exit 0
 
