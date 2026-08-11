@@ -129,6 +129,9 @@ jobs:
           python3 scripts/test/test-review-silence-guard.py
           # #259 no-PyYAML guard: deny/allow/warn/off + regex boundary + rule_fire emit on/off.
           bash scripts/test/test-no-pyyaml-guard.sh
+          # #594 worktree isolation guard: real repos + a real linked worktree; fire condition,
+          # the three silent cases, default-branch resolution, mode matrix, per-session dedup.
+          bash scripts/test/test-worktree-isolation-guard.sh
           echo "Work-rules guards OK"
 
       - name: Check shell hook syntax
@@ -137,6 +140,7 @@ jobs:
           bash -n thinking-tools/hooks/session-start-welcome.sh
           bash -n thinking-tools/hooks/next-goal-context.sh
           bash -n scripts/rules-checklist-hook.sh
+          bash -n scripts/worktree-isolation-guard.sh
           bash -n scripts/subagent-git-guard.sh
           bash -n scripts/no-pyyaml-guard.sh
           echo "Hook syntax OK"
