@@ -177,6 +177,14 @@ python3 scripts/test/test-subagent-git-guard.py
 bash scripts/test/test-no-pyyaml-guard.sh
 # Expected: OK: all no-pyyaml-guard cases passed (12)
 
+# 워크트리 격리 가드 회귀 (#594): scripts/worktree-isolation-guard.sh PreToolUse Write|Edit
+# 훅이 "메인 체크아웃 + 기본 브랜치" 쓰기만 경고하는지 — 실제 git repo와 실제 linked worktree를
+# 임시 디렉토리에 만들어 검증한다 (탐지가 git-dir vs git-common-dir와 기본 브랜치 해석에
+# 전적으로 기대므로 손으로 만든 fixture로는 정직하게 안 걸린다). 침묵해야 하는 세 경우
+# (linked worktree·feature 브랜치·gitignore 경로) + 모드 매트릭스 + (세션, repo)당 1회 dedup을 핀.
+bash scripts/test/test-worktree-isolation-guard.sh
+# Expected: OK: all worktree-isolation-guard cases passed (N)
+
 # build-spec Phase 0 백로그 prefilter (#489): open+closed 전량을 셸에서 읽고 예산 안의
 # 다이제스트만 내보내는지 — 특히 (1) 닫힌 후보가 다이제스트에 실제로 렌더되는지(#489의 요지),
 # (2) 코퍼스를 못 읽었을 때 빈 문자열이 아니라 `[backlog-scan SKIPPED]` 줄을 내는지.
@@ -510,6 +518,7 @@ bash -n feedback-loop/scripts/retro-telemetry.sh   # #294 retro stamp/emit helpe
 bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
 bash -n scripts/subagent-git-guard.sh     # #209 subagent git side-effect deny hook
 bash -n scripts/no-pyyaml-guard.sh        # #259 no-PyYAML guard (add-policy dogfood + rule_fire emitter)
+bash -n scripts/worktree-isolation-guard.sh  # #594 P1 self-isolation warn hook
 
 # parse_created_date unit test (audit-validate Phase 2 helper)
 python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
