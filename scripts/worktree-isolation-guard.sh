@@ -142,9 +142,35 @@ SID="$(printf '%s' "$PAYLOAD" | jq -r '.session_id // empty' 2>/dev/null || true
 if [ -n "$SID" ]; then
   KEY="$(printf '%s|%s' "$SID" "$COMMONDIR" | shasum 2>/dev/null | cut -c1-16)"
   if [ -n "$KEY" ]; then
-    MARKER="${TMPDIR:-/tmp}/claude-kit-worktree-guard.$KEY"
-    [ -e "$MARKER" ] && exit 0
-    : >"$MARKER" 2>/dev/null || true
+    # The marker lives inside a per-uid, mode-700 subdirectory of TMPDIR rather than
+    # directly in shared TMPDIR (#605). A predictable name in a world-writable directory is
+    # a TOCTOU/symlink window (CWE-377/CWE-59): `[ -e ] && : >` follows a pre-planted symlink
+    # and truncates/creates whatever it points at. Once the subdirectory is confirmed to be a
+    # real directory (never a symlink — a symlink could resolve to an attacker-controlled or
+    # merely wrong-permission target), owned by us, and mode 700, no other local user can
+    # create anything inside it, so the file-level race is moot; `set -C` on the write is
+    # defense in depth on top of that.
+    GUARD_UID="$(id -u 2>/dev/null || true)"
+    if [ -n "$GUARD_UID" ]; then
+      GUARDDIR="${TMPDIR:-/tmp}/claude-kit-worktree-guard.$GUARD_UID"
+      mkdir -m 700 "$GUARDDIR" 2>/dev/null || true
+      if [ ! -L "$GUARDDIR" ] && [ -d "$GUARDDIR" ]; then
+        # GNU (-c) tried first: GNU's `-f` means --file-system (no argument), so on Linux
+        # `stat -f '%u' "$GUARDDIR"` misparses `%u` as a second file operand — it still exits
+        # nonzero (that bogus operand fails to stat) but prints filesystem info for $GUARDDIR
+        # to stdout first, and `||` then runs the -c fallback too, concatenating both commands'
+        # stdout into one corrupted value. BSD's `-c` fails cleanly with no stdout, so trying
+        # -c first and falling back to -f is safe in both directions (verified on this repo's
+        # macOS dev machine: `stat -c` errors with no stdout, `stat -f` never runs spuriously).
+        DIR_OWNER="$(stat -c '%u' "$GUARDDIR" 2>/dev/null || stat -f '%u' "$GUARDDIR" 2>/dev/null || true)"
+        DIR_PERM="$(stat -c '%a' "$GUARDDIR" 2>/dev/null || stat -f '%Lp' "$GUARDDIR" 2>/dev/null || true)"
+        if [ "$DIR_OWNER" = "$GUARD_UID" ] && [ "$DIR_PERM" = "700" ]; then
+          MARKER="$GUARDDIR/$KEY"
+          [ -e "$MARKER" ] && exit 0
+          (set -C; : >"$MARKER") 2>/dev/null || true
+        fi
+      fi
+    fi
   fi
 fi
 
