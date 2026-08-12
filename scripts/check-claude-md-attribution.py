@@ -2,7 +2,9 @@
 """check-claude-md-attribution.py — CLAUDE.md single-plugin script-attribution drift guard (#601).
 
 RULE: when root `CLAUDE.md` names a guard script as belonging to ONE plugin
-(`<plugin>는/은/가` followed by a backtick-quoted script name), that script must
+(`<plugin>는/은/가/이` followed by a backtick-quoted script name — the full topic/subject
+particle set: 는/은 mark topic, 가/이 mark subject, and each pairs with a vowel- vs
+consonant-final plugin name), that script must
 actually be exclusive to that plugin. #250 (E1-EN label drift, guarded by
 check-error-label-drift.py) and #380 (hook count miscount) were earlier instances of
 the same bug class: CLAUDE.md's descriptive
@@ -143,6 +145,16 @@ def run_self_test():
             failures.append(f"  violating case: expected shared.py flagged, got {report['violations']}")
         if report["violations"] and report["violations"][0]["actual_owners"] != ["plugin-a", "plugin-b"]:
             failures.append(f"  violating case: wrong actual_owners {report['violations']}")
+
+        # violating, via the 이 particle (subject case, consonant-final pair of 가) instead of
+        # 는 (topic case) — locks in that 이-particle matching is intentional Korean grammar
+        # coverage, not accidental overmatching (#603). 은/가 are not separately exercised here;
+        # this case plus the pre-existing 는 case above are the two particles #603 was about.
+        with open(os.path.join(td, CLAUDE_MD_REL), "w", encoding="utf-8") as fh:
+            fh.write("guard doc(plugin-a이 `shared.py`를 검사), rest of sentence.\n")
+        ok1b, report1b = check_attribution(td)
+        if ok1b or [v["script"] for v in report1b["violations"]] != ["shared.py"]:
+            failures.append(f"  이-particle case: expected shared.py flagged, got {report1b['violations']}")
 
         # clean: correctly attributed to the plugin that exclusively owns it.
         with open(os.path.join(td, CLAUDE_MD_REL), "w", encoding="utf-8") as fh:

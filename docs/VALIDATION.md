@@ -69,7 +69,7 @@ python3 scripts/check-claude-md-attribution.py
 # #601: root CLAUDE.md single-plugin script-attribution drift guard. Same bug class as
 # #385 above and #380 (hook count miscount) — CLAUDE.md's descriptive scope stops
 # tracking reality once a guard/feature spreads from one plugin to several. Flags any
-# `<plugin>는/은/가 \`<script>\`` mention in CLAUDE.md whose named script is NOT
+# `<plugin>는/은/가/이 \`<script>\`` mention in CLAUDE.md whose named script is NOT
 # exclusively owned by that plugin's scripts/ tree (e.g. #601's `check-trigger-regression.py`
 # called thinking-tools-only when all 4 plugins carry a copy).
 python3 scripts/check-agent-tools-field.py --self-test
