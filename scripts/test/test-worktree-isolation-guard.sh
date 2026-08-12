@@ -212,6 +212,49 @@ run "$(payload "$MAIN/a.md" enf)" "$MAIN" env CLAUDE_KIT_WORKTREE_GUARD=enforce
 denied "$out" && ok "enforce never dedups: same session + same file → denies again" \
   || bad "enforce dedup second (out=$out)"
 
+# --- dedup marker: TOCTOU / symlink safety (#605) ---------------------------
+# The marker used to be a predictable path directly in shared TMPDIR: `[ -e ] && : >` follows
+# a pre-planted symlink (CWE-377/CWE-59). It now lives inside a per-uid subdirectory that must
+# verify as a real directory (not a symlink), owned by us, mode 700, before being trusted.
+# Each case below gets its own throwaway TMPDIR so it can't collide with the guard directory
+# the dedup tests above already created for real.
+UIDNOW="$(id -u)"
+
+SYMTMP="$WORK/symlink-tmp"
+mkdir -p "$SYMTMP"
+VICTIM="$WORK/victim-dir"
+mkdir -p "$VICTIM"
+ln -s "$VICTIM" "$SYMTMP/claude-kit-worktree-guard.$UIDNOW"
+run "$(payload "$MAIN/a.md" symtest)" "$MAIN" env TMPDIR="$SYMTMP"
+warned "$out" && ok "pre-planted symlink at guard dir → still warns (fail-open, no dedup)" \
+  || bad "symlink guard dir (out=$out rc=$rc)"
+[ -z "$(ls -A "$VICTIM" 2>/dev/null)" ] && ok "symlink target left untouched (not written into)" \
+  || bad "symlink target was written into: $(ls -A "$VICTIM")"
+[ -L "$SYMTMP/claude-kit-worktree-guard.$UIDNOW" ] && ok "attacker's symlink left in place, not replaced" \
+  || bad "guard dir symlink was replaced/removed"
+
+WRONGTMP="$WORK/wrongperm-tmp"
+mkdir -p "$WRONGTMP"
+mkdir -m 755 "$WRONGTMP/claude-kit-worktree-guard.$UIDNOW"
+run "$(payload "$MAIN/a.md" permtest)" "$MAIN" env TMPDIR="$WRONGTMP"
+warned "$out" && ok "guard dir with wrong perms (755) → still warns (fail-open, no dedup)" \
+  || bad "wrong-perm guard dir (out=$out rc=$rc)"
+run "$(payload "$MAIN/b.md" permtest)" "$MAIN" env TMPDIR="$WRONGTMP"
+warned "$out" && ok "wrong-perm guard dir → untrusted every time, never dedups" \
+  || bad "wrong-perm guard dir dedup (out=$out rc=$rc)"
+
+# The guard-dir path pre-occupied by a plain regular file (not a symlink, not a directory):
+# `mkdir` fails (EEXIST), and the `[ -d ]` check must reject it same as the other two shapes.
+FILETMP="$WORK/wrongtype-tmp"
+mkdir -p "$FILETMP"
+: >"$FILETMP/claude-kit-worktree-guard.$UIDNOW"
+run "$(payload "$MAIN/a.md" filetest)" "$MAIN" env TMPDIR="$FILETMP"
+warned "$out" && ok "guard dir path occupied by a plain file → still warns (fail-open, no dedup)" \
+  || bad "file-at-guard-dir-path (out=$out rc=$rc)"
+[ -f "$FILETMP/claude-kit-worktree-guard.$UIDNOW" ] && [ ! -d "$FILETMP/claude-kit-worktree-guard.$UIDNOW" ] \
+  && ok "pre-existing file left as-is, not replaced with a directory" \
+  || bad "file at guard-dir path was altered"
+
 # ---------------------------------------------------------------------------
 printf '\n'
 if [ "$FAIL" -gt 0 ]; then
