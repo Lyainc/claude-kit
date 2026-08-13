@@ -17,8 +17,8 @@ Set `VAULT_BRIDGE_DISABLE=1` to make all scripts exit 0 silently.
 
 | Variable | Default | Description |
 |---|---|---|
-| `VAULT_ROOT` | `~/vault` | Root of the Obsidian vault |
-| `AUDIT_STATE_PATH` | `~/vault/.ovm/audit-state.json` | Sidecar audit state file |
+| `VAULT_ROOT` | `VAULT_BRIDGE_VAULT_ROOT` \> `VAULT_BRIDGE_VAULT_PATH` \> `~/vault` | Root of the Obsidian vault. Direct `VAULT_ROOT` always wins (used by tests/callers); otherwise falls through the same env-var chain as vault-bridge's `pre-write-guard.sh`. |
+| `AUDIT_STATE_PATH` | `$VAULT_ROOT/.ovm/audit-state.json` | Sidecar audit state file |
 
 ---
 
