@@ -245,6 +245,14 @@ find obsidian-vault-manager/skills -name "SKILL.md" | sort
 # reads — grep/cat/`cd vault && git status`/`cp vault/x.md /tmp/` — must stay FP-free)
 python3 vault-bridge/scripts/test/test-pre-write-guard.py
 
+# vault path resolution regression (#613/#616) — VAULT_BRIDGE_VAULT_ROOT > VAULT_BRIDGE_VAULT_PATH
+# > ~/vault must resolve identically across pre-write-guard.sh, the Python helpers, and
+# obsidian-vault-manager's ovm-primitives.sh (the one place that used to fall straight to
+# $HOME/vault, ignoring both env vars — breaking /audit for non-default vaults and writing
+# audit state to the wrong one).
+python3 vault-bridge/scripts/test/test-vault-path.py
+# Expected: OK: all 5 vault-path cases passed
+
 # vault-bridge manifest atomic-write self-test (#582) — manifest.json is written via
 # temp-file + os.replace so a hard kill mid-write can never leave a torn manifest on
 # disk; the two call paths that regenerate it (hooks/session-start-manifest.sh's
