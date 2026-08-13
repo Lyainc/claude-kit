@@ -67,6 +67,21 @@ vault_abs=$(cd "$VAULT_ROOT" 2>/dev/null && pwd -P) || exit 0
 # context, which owns vault writes and is always allowed.
 # ---------------------------------------------------------------------------
 contract_mode="${VAULT_BRIDGE_WRITE_CONTRACT:-enforce}"
+
+# Claude Code parses this hook's stdout as ONE JSON document. Warn mode can produce two
+# messages for a single call (contract violation, then filename violation), and printing
+# them as two objects back to back makes the whole thing unparseable — so BOTH are
+# dropped, in the one case warn mode exists to cover (#615). Queue instead, and flush a
+# single object on the way out; the trap covers every intermediate `exit` below, so a
+# message queued before an early return still reaches the user.
+_pending_msg=""
+queue_message() { _pending_msg="${_pending_msg:+$_pending_msg }$1"; }
+flush_messages() {
+  [ -n "$_pending_msg" ] || return 0
+  jq -nc --arg msg "$_pending_msg" '{systemMessage: $msg}'
+}
+trap flush_messages EXIT
+
 agent_id=$(printf '%s' "$payload" | jq -r '
   .agent_id // .agent_type // .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
 ' 2>/dev/null || true)
@@ -85,8 +100,7 @@ emit_contract_violation() {
       '{hookSpecificOutput:{hookEventName:"PreToolUse", permissionDecision:"deny", permissionDecisionReason:$reason}, systemMessage:("vault-bridge contract: " + $reason + " Set VAULT_BRIDGE_WRITE_CONTRACT=warn to allow, =off to disable.")}'
   else
     printf '[vault-bridge pre-write-guard] CONTRACT WARNING: %s\n' "$msg" >&2
-    jq -nc --arg msg "$msg" \
-      '{systemMessage: ("vault-bridge contract: " + $msg + " Set VAULT_BRIDGE_WRITE_CONTRACT=enforce to block, =off to disable.")}'
+    queue_message "vault-bridge contract: $msg Set VAULT_BRIDGE_WRITE_CONTRACT=enforce to block, =off to disable."
   fi
 }
 
@@ -430,13 +444,8 @@ if [ "$strict" = "1" ]; then
   exit 2
 fi
 
-# Log-only mode: emit systemMessage and exit 0 (never blocks)
-jq -nc \
-  --arg path "$rel_path" \
-  --arg violation "$violation" \
-  --arg filename "$filename" \
-  '{
-    systemMessage: ("vault-bridge naming warning: \"" + $filename + "\" in vault:/" + $path + " may not follow the vault file naming convention. " + $violation + ". Set VAULT_BRIDGE_STRICT_NAMING=1 to block non-conforming writes. Set VAULT_BRIDGE_DISABLE=1 to silence all vault-bridge hooks.")
-  }'
+# Log-only mode: queue the systemMessage and exit 0 (never blocks). The trap emits it,
+# merged with any contract warning already queued above.
+queue_message "vault-bridge naming warning: \"$filename\" in vault:/$rel_path may not follow the vault file naming convention. $violation. Set VAULT_BRIDGE_STRICT_NAMING=1 to block non-conforming writes. Set VAULT_BRIDGE_DISABLE=1 to silence all vault-bridge hooks."
 
 exit 0

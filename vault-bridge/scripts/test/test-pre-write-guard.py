@@ -377,6 +377,21 @@ def case_filename_violation_warn_mode(errors: list[str], vault_root: str) -> Non
             f"stderr contains CONTRACT WARNING (got: {proc.stderr!r})", errors)
     _assert("NAMING VIOLATION" in proc.stderr,
             f"stderr contains NAMING VIOLATION (got: {proc.stderr!r})", errors)
+    # #615: stderr carries the two warnings as separate lines, but stdout is parsed as ONE
+    # JSON document. Emitting the contract object and the naming object back to back makes
+    # it unparseable, and Claude Code then drops BOTH warnings — the one case warn mode
+    # exists for. Assert the shape, not the text: the text assertions above stayed green
+    # through the whole regression.
+    try:
+        data = json.loads(proc.stdout)
+        parsed = True
+    except (json.JSONDecodeError, ValueError):
+        data, parsed = {}, False
+    _assert(parsed, f"stdout is a single JSON document (got: {proc.stdout!r})", errors)
+    if parsed:
+        msg = data.get("systemMessage", "")
+        _assert("vault-bridge contract" in msg and "naming warning" in msg,
+                f"one systemMessage carries both warnings (got: {msg!r})", errors)
 
 
 def case_filename_violation_strict_naming(errors: list[str], vault_root: str) -> None:
