@@ -8,8 +8,12 @@ if [[ "${VAULT_BRIDGE_DISABLE:-}" == "1" ]]; then
   exit 0
 fi
 
-VAULT_ROOT="${VAULT_ROOT:-$HOME/vault}"
-AUDIT_STATE_PATH="${AUDIT_STATE_PATH:-$HOME/vault/.ovm/audit-state.json}"
+# Priority: VAULT_ROOT (direct override, used by tests/callers) > VAULT_BRIDGE_VAULT_ROOT
+# (env override) > VAULT_BRIDGE_VAULT_PATH (userConfig) > $HOME/vault (default). Mirrors
+# vault-bridge/hooks/pre-write-guard.sh's chain so both plugins agree on one vault.
+VAULT_ROOT="${VAULT_ROOT:-${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-$HOME/vault}}}"
+VAULT_ROOT="${VAULT_ROOT/#\~/$HOME}"
+AUDIT_STATE_PATH="${AUDIT_STATE_PATH:-$VAULT_ROOT/.ovm/audit-state.json}"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 # ── helpers ────────────────────────────────────────────────────────────────────
