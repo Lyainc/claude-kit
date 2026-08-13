@@ -107,19 +107,21 @@ if [ "$tool_name" = "Bash" ]; then
 
   cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null || true)
 
-  # Cheap pre-filter: any command that reaches the vault must name it (its root's
-  # basename appears in every absolute/~/$HOME form) — unless the call already runs
-  # from inside the vault, where a bare relative path suffices.
-  case "$command_str" in
-    *"$(basename "$vault_abs")"*) : ;;
-    *)
-      case "${cwd:-}" in
-        "$vault_abs"|"$vault_abs"/*) : ;;
-        *) exit 0 ;;
-      esac
-      ;;
-  esac
-
+  # There is deliberately NO cheap pre-filter here (#612). The one that used to sit at this
+  # point matched the command string against `basename "$vault_abs"` — a REALPATH-resolved
+  # name — and so went blind the moment any symlink spelled the vault: `~/vault ->
+  # real-obsidian` (the ordinary iCloud / Dropbox / external-drive Obsidian layout), or a
+  # convenience link pointing into a vault whose configured root is already physical. Either
+  # way the command names the link, the basename says otherwise, and the whole Bash arm of
+  # the contract switched itself off silently — while the Write/Edit arm, which realpaths its
+  # target below, kept denying. Gating the shortcut on "is the ROOT a symlink" only closes
+  # the first shape; nothing static can know which of a machine's links spell the vault, so
+  # the shortcut cannot be made sound and is gone instead.
+  #
+  # Cost of the removal, measured: 37ms for a subagent Bash call that now always reaches the
+  # detector vs 19ms for one the pre-filter used to drop — inside this hook's <50ms target,
+  # and paid only when `agent_id` is set (main-context calls already exited above).
+  #
   # Precise detection: tokenize quote-aware (shlex, non-POSIX so a quoted ">" stays
   # quoted and is NOT a redirection), split into shell segments, and flag only writes
   # whose TARGET resolves inside the vault. Reads pass: `grep -r x ~/vault`,
