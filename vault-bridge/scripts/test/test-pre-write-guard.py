@@ -435,6 +435,59 @@ def case_kill_switch(errors: list[str], vault_root: str) -> None:
 # reads, which is the more expensive failure here.
 # ---------------------------------------------------------------------------
 
+def case_bash_symlinked_vault_denied(errors: list[str]) -> None:
+    """#612: a symlink spelling the vault must not switch the Bash arm off.
+
+    The removed pre-filter matched the command string against the REALPATH-resolved
+    basename, so any link naming the vault made the command miss it and exit 0 before
+    precise detection ran. There are two shapes, and gating the shortcut on "is the ROOT
+    a symlink" closes only the first — both are asserted here:
+
+      A. the configured root IS the link (`~/vault -> real-obsidian`; iCloud/Dropbox)
+      B. the configured root is physical and only the COMMAND goes through a link into
+         it (a settings-supplied absolute vault path plus the user's habitual ~/vault)
+
+    The Write/Edit arm realpaths its target and never regressed, so this has to go
+    through Bash to see the hole.
+
+    Provisions its own vault because the shared fixture is a plain directory.
+    """
+    print("\ncase: bash_symlinked_vault_denied")
+    with tempfile.TemporaryDirectory() as tmp:
+        real = Path(tmp, "real-obsidian")
+        (real / "sources").mkdir(parents=True)
+        link = Path(tmp, "vault")
+        link.symlink_to(real)
+
+        # A — the configured root is the link
+        proc = _run(_make_bash_payload(f"echo hi > {link}/sources/x.md",
+                                       agent_id_value="executor"), vault_root=str(link))
+        _assert(_denied(proc.stdout),
+                f"A: write via the link, root=link, denied (got: {proc.stdout!r})", errors)
+
+        proc = _run(_make_bash_payload(f"echo hi > {real}/sources/x.md",
+                                       agent_id_value="executor"), vault_root=str(link))
+        _assert(_denied(proc.stdout),
+                f"A: write via the resolved path, root=link, denied (got: {proc.stdout!r})", errors)
+
+        # B — the configured root is physical; only the command goes through the link
+        proc = _run(_make_bash_payload(f"echo hi > {link}/sources/x.md",
+                                       agent_id_value="executor"), vault_root=str(real))
+        _assert(_denied(proc.stdout),
+                f"B: write via the link, root=physical, denied (got: {proc.stdout!r})", errors)
+
+        # FP=0 is load-bearing: reads must still pass in both shapes.
+        proc = _run(_make_bash_payload(f"cat {link}/sources/x.md",
+                                       agent_id_value="executor"), vault_root=str(link))
+        _assert(proc.stdout.strip() == "",
+                f"read via the link, root=link, passes (got: {proc.stdout!r})", errors)
+
+        proc = _run(_make_bash_payload(f"cat {link}/sources/x.md",
+                                       agent_id_value="executor"), vault_root=str(real))
+        _assert(proc.stdout.strip() == "",
+                f"read via the link, root=physical, passes (got: {proc.stdout!r})", errors)
+
+
 def _make_bash_payload(command: str, agent_id_value: str | None = None, cwd: str | None = None) -> dict:
     payload: dict = {"tool_name": "Bash", "tool_input": {"command": command}}
     if agent_id_value:
@@ -611,6 +664,9 @@ def main() -> int:
         case_bash_reads_pass(errors, vault_root)
         case_bash_main_context_allowed(errors, vault_root)
         case_bash_warn_and_off_modes(errors, vault_root)
+
+    # Provision their own vault roots
+    case_bash_symlinked_vault_denied(errors)
 
     # Non-vault path test needs no vault_root provisioning
     case_non_vault_path(errors)
