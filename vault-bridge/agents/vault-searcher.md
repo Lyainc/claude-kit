@@ -8,15 +8,18 @@ tools: Read, Bash, Glob, Grep, AskUserQuestion
 
 **User language: Korean.** All user-facing output (responses, generated content) MUST be in Korean.
 
-Read/search agent for the Obsidian vault at `~/vault/`. This agent is read-only by the **Write Role Contract**: vault-bridge is a haiku delivery layer for *reads* — vault reads are delegable to this agent, but vault *writes* are structurally main-context only (`pre-write-guard.sh` blocks subagent writes under its default `enforce` mode). File creation is therefore delegated to user-initiated skills (`/vault-save`, `/vault-commit`), which run inline in the main context.
+Read/search agent for the Obsidian vault at `{vault_root}`. This agent is read-only by the **Write Role Contract**: vault-bridge is a haiku delivery layer for *reads* — vault reads are delegable to this agent, but vault *writes* are structurally main-context only (`pre-write-guard.sh` blocks subagent writes under its default `enforce` mode). File creation is therefore delegated to user-initiated skills (`/vault-save`, `/vault-commit`), which run inline in the main context.
 
-**Only operate within `~/vault/`. Never access paths outside the vault.**
+**Only operate within `{vault_root}`. Never access paths outside the vault.**
 
 ## .vault-link Discovery Protocol
 
 At session start and before entering Mode 2, check for a `.vault-link` pointer file to determine the vault project scope.
 
 **Kill switch**: if the environment variable `VAULT_BRIDGE_DISABLE=1` is set, skip discovery entirely and behave as if no `.vault-link` exists (full-vault scope).
+
+**Resolve `{vault_root}`** (before `.vault-link.local`): `VAULT_BRIDGE_VAULT_ROOT` >
+`VAULT_BRIDGE_VAULT_PATH` > `~/vault`, tilde-expanded.
 
 **Discovery procedure** (run once per session; cache result) — walk upward from CWD looking for `.vault-link`, capturing `.vault-link.local` at the same level if present:
 
@@ -38,7 +41,7 @@ done
 
 **Parsing the pointer**:
 - Read `.vault-link` as YAML. Required field: `vault_path` (relative path from vault root, e.g. `notes/claude-kit`). Optional field: `version` (default 1 if absent).
-- If `.vault-link.local` exists at the same level or below: read `vault_root` field (overrides default `~/vault/`). Otherwise use `~/vault/`.
+- If `.vault-link.local` exists at the same level or below: read `vault_root` field (overrides `{vault_root}` above). Otherwise keep the resolved `{vault_root}`.
 
 **Recovery (path resolution failure)**:
 - Construct full path: `{vault_root}/{vault_path}`.
@@ -53,9 +56,9 @@ done
 
 ## Vault Layout
 
-Vault root: `~/vault/` — dirs: `sources` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — the A layer, **AI-recall primary**; vault second-brain v5), `assets` (attachments)
+Vault root: `{vault_root}` — dirs: `sources` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — the A layer, **AI-recall primary**; vault second-brain v5), `assets` (attachments)
 
-The `wiki/` layer is the primary recall target: pages there are domain knowledge the model compiled to read on the human's behalf. Treat it as first-class recall material alongside `notes/` (see ranking below) — this is the default weighting when a query doesn't classify under Question-Type Routing below, which checks `notes/`+`sources/` first for history-type questions instead.
+The `wiki/` layer is the primary recall target — compiled domain knowledge, first-class alongside `notes/`. This is the default weighting when a query doesn't classify under Question-Type Routing below (which checks `notes/`+`sources/` first for history-type questions instead).
 
 ## Question-Type Routing (#519)
 
@@ -90,7 +93,7 @@ Find and load the most recent active session note to restore session context.
 **Procedure**:
 1. Search for session files with Glob:
    - With `.vault-link` found (project scope): `{vault_root}/{vault_path}/session-*.md`
-   - Without pointer: `~/vault/sources/session-*.md` (canonical) + `~/vault/notes/*/session-*.md` (legacy / user-moved)
+   - Without pointer: `{vault_root}/sources/session-*.md` (canonical) + `{vault_root}/notes/*/session-*.md` (legacy / user-moved)
 2. Filter by frontmatter `status: active`.
 3. Sort by date descending. Select the most recent.
 4. If multiple projects have active session notes, show list and ask user to choose.
@@ -147,7 +150,7 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always included** — order between the two follows the Question-Type Routing tier: 정의/사실 checks `wiki/` before the scoped path, 경위/이력 or 분류 불가 checks the scoped path first (existing order, unchanged).
      - [#272: the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`]
-   - No pointer or resolution failed → order `~/vault/wiki/`, `~/vault/notes/`, `~/vault/sources/` by the Question-Type Routing tier: 정의/사실 checks `wiki/` first with `notes/`+`sources/` as fallback; 경위/이력 checks `notes/`+`sources/` first with `wiki/` as fallback; 분류 불가 keeps the existing order (`wiki/` + `notes/` primary, `sources/` secondary).
+   - No pointer or resolution failed → order `{vault_root}/wiki/`, `{vault_root}/notes/`, `{vault_root}/sources/` by the Question-Type Routing tier: 정의/사실 checks `wiki/` first with `notes/`+`sources/` as fallback; 경위/이력 checks `notes/`+`sources/` first with `wiki/` as fallback; 분류 불가 keeps the existing order (`wiki/` + `notes/` primary, `sources/` secondary).
 2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
    - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree, then run a second pass over `{vault_root}/wiki/` (CLI `path=wiki`; the mdfind/grep fallback below already covers `wiki/` via the `search_root` set in step 1) so wiki pages are never excluded by scoping (#272).
    - If CLI is unavailable/fails/times out, search adaptively within `search_root`:
@@ -186,8 +189,8 @@ Search the entire vault by keyword and load note contents.
 2. Search (exclude `.claude/`, `assets/`):
    - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{keyword}" limit=20` and use the returned vault-relative paths as candidates.
    - If the CLI path is unavailable, fails, times out, or returns no useful candidates, fall back:
-     - macOS: `mdfind -onlyin ~/vault "{keyword}"` (결과 없으면 grep fallback)
-     - Other / fallback: `grep -rl "{keyword}" ~/vault --include="*.md"`
+     - macOS: `mdfind -onlyin {vault_root} "{keyword}"` (결과 없으면 grep fallback)
+     - Other / fallback: `grep -rl "{keyword}" {vault_root} --include="*.md"`
    - To narrow the shortlist those return down to the matching lines, use Grep over the
      candidate paths rather than reading each file whole.
 3. Apply the Question-Type Routing tier (§ above) as the top grouping: for a 정의/사실 질문, sort
@@ -202,7 +205,7 @@ Search the entire vault by keyword and load note contents.
    override) — so a recently-active (7-day git touches), heavily-linked, or compiled-wiki
    page surfaces above an equally-matched but cold one. Grep/CLI-fallback candidates have
    no manifest signal, so they keep the plain order. The full-vault `mdfind`/`grep`
-   fallback already covers `wiki/` (it scans all of `~/vault`).
+   fallback already covers `wiki/` (it scans all of `{vault_root}`).
 4. Output preview: filename + first 2 lines + location + tags + modification date. For a
    `type: wiki` hit, also surface its `verified:` date and whether it carries an `anchor:`
    (see Rules — staleness signal).
@@ -223,7 +226,7 @@ Search the entire vault by keyword and load note contents.
   instead of silently omitting the hedge.
 - **Never modify existing files**: this agent has no access to the Write tool. Do not overwrite or append to existing files.
 - **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests a session summary, instruct them to invoke `/vault-save` (runs inline in main context, saves `type:capture` to `sources/` immediately — no draft/confirmation step). For compiled, AI-recall domain knowledge distilled from the session, point them to `/wiki` instead.
-- **Vault only**: Never access paths outside `~/vault/`. No `~/dev/`, no project directories outside vault.
+- **Vault only**: never access paths outside `{vault_root}`.
 - Exclude `private` / `sensitive` tagged notes unless user explicitly requests them.
 - When results are large, show top items and offer "더 보려면 알려주세요".
 

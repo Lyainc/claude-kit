@@ -13,8 +13,13 @@ Force-regenerate the vault manifest by running the manifest generator with `--fo
 
 ### Step 1 — Determine vault root
 
+Resolve in priority order — `VAULT_BRIDGE_VAULT_ROOT` (env override) > `VAULT_BRIDGE_VAULT_PATH`
+(userConfig) > `~/vault` (default), same chain as `hooks/pre-write-guard.sh`:
+
 ```bash
-echo "${VAULT_BRIDGE_VAULT_ROOT:-$HOME/vault}"
+_vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
+[ -z "$_vr" ] && _vr="$HOME/vault"
+echo "${_vr/#\~/$HOME}"
 ```
 
 If the resolved vault root does not exist as a directory, output the following and stop:

@@ -7,7 +7,7 @@ model: haiku  # kept: mechanical write only, no LLM judgment — merges /capture
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
 
-Save `$ARGUMENTS` into `~/vault/` immediately, without a confirmation prompt, then print only the saved path.
+Save `$ARGUMENTS` into `{vault_root}` immediately, without a confirmation prompt, then print only the saved path.
 
 This skill runs in the main context. Never delegate the write to a subagent — the vault-bridge
 Write Role Contract denies subagent vault writes (`hooks/pre-write-guard.sh`).
@@ -19,10 +19,10 @@ to keep; that judgment happens when you go looking for it again.
 
 | Input | Folder | `type:` | Filename |
 |-------|--------|---------|----------|
-| Source text taken as-is — a URL, a pasted article/paper/excerpt, a raw session dump | `~/vault/sources/` | `capture` | `capture-YYYY-MM-DD-{slug}.md` |
-| Prose you wrote — analysis, brainstorm, early plan, study note, meeting memo | `~/vault/notes/` | `note` | `{slug}.md` |
-| `--type decision {topic}` — an explicit decision record | `~/vault/notes/` | `decision` | `decision-YYYY-MM-DD-{slug}.md` |
-| `--type discussion {topic}` — a thinking-tools session artifact (expert-panel SUMMARY/UNRESOLVED, adversarial-review result, unknown-discovery report) | `~/vault/wiki/` | `discussion` | `{slug}.md` (no date prefix) |
+| Source text taken as-is — a URL, a pasted article/paper/excerpt, a raw session dump | `{vault_root}/sources/` | `capture` | `capture-YYYY-MM-DD-{slug}.md` |
+| Prose you wrote — analysis, brainstorm, early plan, study note, meeting memo | `{vault_root}/notes/` | `note` | `{slug}.md` |
+| `--type decision {topic}` — an explicit decision record | `{vault_root}/notes/` | `decision` | `decision-YYYY-MM-DD-{slug}.md` |
+| `--type discussion {topic}` — a thinking-tools session artifact (expert-panel SUMMARY/UNRESOLVED, adversarial-review result, unknown-discovery report) | `{vault_root}/wiki/` | `discussion` | `{slug}.md` (no date prefix) |
 
 - `{slug}`: 2–4 kebab-case words from the topic or the extracted title.
 - Unsure which side? If the text would survive unchanged without you, it is source → `sources/`.
@@ -61,18 +61,26 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 
 ## Procedure
 
-1. Parse `$ARGUMENTS`: strip a leading `--type decision` or `--type discussion` flag if present;
+1. Resolve `{vault_root}` — priority order `VAULT_BRIDGE_VAULT_ROOT` (env override) >
+   `VAULT_BRIDGE_VAULT_PATH` (userConfig) > `~/vault` (default), same chain as
+   `hooks/pre-write-guard.sh`:
+   ```bash
+   _vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
+   [ -z "$_vr" ] && _vr="$HOME/vault"
+   echo "${_vr/#\~/$HOME}"
+   ```
+2. Parse `$ARGUMENTS`: strip a leading `--type decision` or `--type discussion` flag if present;
    the rest is the content or URL.
-2. `mkdir -p` the target directory before writing.
-3. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
+3. `mkdir -p` the target directory before writing.
+4. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
    write the content as the body verbatim (keep the user's own wording — do not summarize).
-4. Filename collision (same stem already exists): append `-v2`, `-v3`, … automatically. This is a
+5. Filename collision (same stem already exists): append `-v2`, `-v3`, … automatically. This is a
    mechanical uniqueness guarantee, not a content check.
-5. Write the file. For `--type decision`, structure the body as `## 문제` / `## 선택지` /
+6. Write the file. For `--type decision`, structure the body as `## 문제` / `## 선택지` /
    `## 결정` / `## 근거`. `--type discussion` has no fixed structure — write whatever the caller
    already composed (SUMMARY/UNRESOLVED, adversarial-review verdicts, unknown-discovery findings)
    verbatim, same as a plain note.
-6. Output the saved path. No follow-up questions, no summary of what was saved.
+7. Output the saved path. No follow-up questions, no summary of what was saved.
 
 Use `[[wikilinks]]` for internal vault references and Markdown links for external URLs.
 
@@ -124,5 +132,5 @@ Body: the full `$DEFUDDLE_OUT` (including its H1) on success, the bare URL other
 - Save immediately regardless of the Defuddle outcome.
 - Output the saved path only.
 - `notes/` allows free sub-folder structure; do not auto-create sub-folders.
-- Never write to `~/vault/wiki/` except for `--type discussion` — every other type stays out of
-  `/wiki`'s (obsidian-vault-manager) A layer.
+- Never write to `{vault_root}/wiki/` except for `--type discussion` — every other type stays out
+  of `/wiki`'s (obsidian-vault-manager) A layer.
