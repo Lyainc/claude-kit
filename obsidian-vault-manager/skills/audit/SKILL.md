@@ -167,7 +167,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Skip condition**: `--deep` not passed → skip this phase entirely and go to REPORT. This is the default.
 
-**When `--deep` IS passed**: this is the only path with real LLM judgment (cross-page contradiction, semantic synonym) — run it at `effort: medium` or higher, not the skill's default `low`. Read `${CLAUDE_PLUGIN_ROOT}/reference/audit-deep.md` and follow it. It holds the full procedure for both sub-checks — E12b (cross-page wiki contradiction, #336) and E9c (tag semantic synonym, #167) — each with its own deterministic candidate prefilter and its own per-candidate `AskUserQuestion` confirm gate. Every confirmed pair becomes a finding appended to the CLASSIFY list (E12b → `wiki_contradiction`; E9c → the existing `tag_vocabulary_inconsistency` bucket). A declined candidate is dropped silently.
+**When `--deep` IS passed**: this is the only path with real LLM judgment (cross-page contradiction, semantic synonym). Read `${CLAUDE_PLUGIN_ROOT}/reference/audit-deep.md` and follow it. It holds the full procedure for both sub-checks — E12b (cross-page wiki contradiction, #336) and E9c (tag semantic synonym, #167) — each with its own deterministic candidate prefilter and its own per-candidate `AskUserQuestion` confirm gate. Every confirmed pair becomes a finding appended to the CLASSIFY list (E12b → `wiki_contradiction`; E9c → the existing `tag_vocabulary_inconsistency` bucket). A declined candidate is dropped silently.
 
 **Termination condition**: All candidate pairs judged and either confirmed or declined. Proceed to REPORT.
 
