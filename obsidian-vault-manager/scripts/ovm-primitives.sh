@@ -50,7 +50,7 @@ cmd_scan_frontmatter() {
   abs_dir="$(validate_vault_path "$dir")"
   [[ -d "$abs_dir" ]] || die "Not a directory: $abs_dir"
 
-  python3 - "$abs_dir" <<'PYEOF'
+  python3 - "$abs_dir" "$VAULT_ROOT" <<'PYEOF'
 import sys, os, re, json
 
 def parse_frontmatter(content):
@@ -102,6 +102,11 @@ def parse_frontmatter(content):
     return result
 
 target_dir = sys.argv[1]
+# realpath, matching validate_vault_path's resolution of target_dir — otherwise a
+# symlinked tmpdir (e.g. macOS /tmp -> /private/tmp) makes the two bases disagree and
+# os.path.relpath produces a bogus ../../.. traversal instead of "notes/x.md" (#619
+# e5-candidates precedent, extended here to scan-frontmatter's own --path scoping).
+vault_root = os.path.realpath(os.path.expanduser(sys.argv[2]))
 records = []
 required_fields = {'created', 'tags', 'type', 'provenance'}
 # `status` dropped from the required set — the v4 §3.3 status machine is abolished
@@ -116,7 +121,11 @@ for root, dirs, files in os.walk(target_dir):
         if not fname.endswith('.md'):
             continue
         fpath = os.path.join(root, fname)
-        relpath = os.path.relpath(fpath, target_dir)
+        # $VAULT_ROOT-relative, not target_dir-relative (#619/#631): a --path-scoped
+        # call (target_dir == "$VAULT_ROOT/notes") must still emit "notes/x.md" so
+        # CLASSIFY's E5 lookup can join this array against e5-candidates' output by
+        # the same key — a target_dir-relative "x.md" here silently missed every match.
+        relpath = os.path.relpath(fpath, vault_root)
         try:
             with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
                 content = f.read()
@@ -152,7 +161,7 @@ cmd_scan_filename() {
   abs_dir="$(validate_vault_path "$dir")"
   [[ -d "$abs_dir" ]] || die "Not a directory: $abs_dir"
 
-  python3 - "$abs_dir" <<'PYEOF'
+  python3 - "$abs_dir" "$VAULT_ROOT" <<'PYEOF'
 import sys, os, re, json
 
 # Valid types per vault spec
@@ -217,6 +226,9 @@ def parse_filename(fname):
     }
 
 target_dir = sys.argv[1]
+# $VAULT_ROOT-relative basis, matching scan-frontmatter's fix (#619/#631) — see that
+# function's comment for why target_dir-relative broke the CLASSIFY E5 join.
+vault_root = os.path.realpath(os.path.expanduser(sys.argv[2]))
 records = []
 
 for root, dirs, files in os.walk(target_dir):
@@ -225,7 +237,7 @@ for root, dirs, files in os.walk(target_dir):
         if not fname.endswith('.md'):
             continue
         fpath = os.path.join(root, fname)
-        relpath = os.path.relpath(fpath, target_dir)
+        relpath = os.path.relpath(fpath, vault_root)
         rec = parse_filename(fname)
         rec['path'] = relpath
         records.append(rec)
