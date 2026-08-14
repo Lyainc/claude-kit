@@ -37,6 +37,7 @@ claude-kit은 이걸 *도구*로 만들어요. **사고**(`thinking-tools`)로 �
 | 모호한 생각을 문서·스펙으로 정리할 때 | `doc-concretize` · `build-spec` |
 | 다 쓴 문서를 다듬고 싶을 때 | `doc-polish` |
 | 한 줄로 GitHub 이슈 열고 싶을 때 | `issue-raise` — 인터뷰 없이 이슈 저작 |
+| 다음 세션에서 뭘 할지, 어떤 조건으로 끝낼지 정할 때 | `next-goal` — 완료조건을 `/goal`-평가 가능한 문단으로 |
 
 `thinking-facilitator` 에이전트가 요청을 분석해 알맞은 스킬로 자동 안내해요.
 
@@ -50,7 +51,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 | 스킬 | 하는 일 |
 |---|---|
-| `audit` | vault 구조 무결성 감사 (E1–E12 오류 + 승격 후보 추적) |
+| `audit` | vault 구조 무결성 감사 (E1–E3·E5–E6·E9–E12 오류 추적) |
 | `wiki` | 도메인 지식을 LLM wiki 페이지로 컴파일 (AI recall, 게이트된 명시 액션) |
 | `base` | 비파괴 Obsidian Bases(.base) 뷰 생성 |
 
@@ -76,7 +77,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 ---
 
-> **feedback-loop** (실험적 · layer ⑤ 자기개선): measure→review→keep 루프예요 (실행/이터레이션 엔진 아님). `retro` 스킬(세션 회고 + vault 승격 후보 재확인)과 opt-in 로컬 telemetry로 이뤄져요. telemetry는 `CLAUDE_KIT_TELEMETRY=1` 아니면 아무것도 안 쓰고(silent), 턴당 LLM 비용 0, 외부 유출 0이에요.
+> **feedback-loop** (실험적 · layer ⑤ 자기개선): measure→review→keep 루프예요 (실행/이터레이션 엔진 아님). `retro` 스킬(세션 회고 + telemetry 낭비 패턴 라우팅)과 opt-in 로컬 telemetry로 이뤄져요. telemetry는 `CLAUDE_KIT_TELEMETRY=1` 아니면 아무것도 안 쓰고(silent), 턴당 LLM 비용 0, 외부 유출 0이에요.
 > ```bash
 > claude plugin install feedback-loop@Lyainc-claude-kit
 > ```

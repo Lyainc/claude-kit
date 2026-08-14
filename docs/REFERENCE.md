@@ -54,7 +54,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── scripts/                         # generate-manifest.py + tests/
 ├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
 │   ├── .claude-plugin/plugin.json       # hooks 키: 8 event-type 등록 (opt-in telemetry)
-│   ├── skills/                          # retro (#123 — E8 승격 + 3갈래 출력 + dedup + 회고예산)
+│   ├── skills/                          # retro (#123 — telemetry 낭비 패턴 3갈래 출력 + dedup + 회고예산)
 │   ├── scripts/                         # telemetry: event-logger.sh, report.py, sequence.py, validate-schema.py, plugin-map.json + test/
 │   └── README.md                        # measure→review→keep, opt-in·local-only·per-turn LLM 0
 ├── docs/                                # 살아있는 계약만 — 완료된 계획·죽은 설계는 삭제(근거는 GitHub 이슈)

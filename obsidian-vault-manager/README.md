@@ -1,6 +1,6 @@
 # obsidian-vault-manager
 
-Claude Code용 **Obsidian vault 지식 관리 플러그인** (v4). 2개 에이전트 + 5개 스킬로 vault를 체계적으로 관리합니다.
+Claude Code용 **Obsidian vault 지식 관리 플러그인** (v4). 2개 에이전트 + 3개 스킬로 vault를 체계적으로 관리합니다.
 
 ## 설치
 
@@ -19,19 +19,20 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 | Skill | Description |
 | --- | --- |
-| `audit` | vault 구조 무결성 감사 — E1–E12 오류 감지 (P0-P2 우선순위), stale 노트·promotion candidate 추적 |
+| `audit` | vault 구조 무결성 감사 — E1–E3·E5–E6·E9–E12 오류 감지 (P0-P2 우선순위), stale 노트·orphan 추적 |
 | `wiki` | 작업 중 알게 된 도메인 지식을 `~/vault/wiki/` 페이지로 컴파일 (LLM wiki, AI recall용 A 레이어; 게이트된 명시 액션) |
 | `base` | enforced frontmatter로 비파괴 Obsidian Bases(.base) 뷰 생성 — 기존 노트 불변, 내장 템플릿(sources/notes/recent) |
 
 ## v4 파일 컨벤션
 
-v4는 3-폴더 구조 (`sources/`, `notes/`, `assets/`)와 `type:` 옵트인을 사용해요.
+v4는 3-폴더 구조 (`sources/`, `notes/`, `assets/`)와 `type:` 옵트인을 사용하고, v5가 AI recall용 A 레이어 `wiki/`를 더해 4-폴더 구조가 됐어요 (E11 `CANONICAL_FOLDERS`).
 
 ```yaml
 ---
 created: YYYY-MM-DD          # 필수
 tags: [{type}, {domain}]     # 필수
-type: capture|note|decision|session|plan  # 필수 — type 없으면 claude-kit에 invisible
+type: capture|note|decision|session|plan|wiki  # 필수 — type 없으면 claude-kit에 invisible
+provenance: "{출처 — URL, 세션 토픽, 대화, 책, 회의}"  # 필수 — E2, 모든 type 공통
 ---
 ```
 
@@ -55,7 +56,7 @@ type: capture|note|decision|session|plan  # 필수 — type 없으면 claude-kit
 /audit
 ```
 
-E1–E12 오류(frontmatter 누락, stale sources/draft, promotion candidate 등)를 P0-P2 우선순위로 정렬해 보고해요. REPORT에 지난 7일 git 활동 요약도 포함됩니다.
+E1–E3·E5–E6·E9–E12 오류(frontmatter 누락, stale sources, orphan 노트, 태그 혼용 등)를 P0-P2 우선순위로 정렬해 보고해요. REPORT에 지난 7일 git 활동 요약도 포함됩니다.
 
 ## vault-bridge와의 관계
 

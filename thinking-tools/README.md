@@ -1,6 +1,6 @@
 # thinking-tools
 
-Claude Code용 **사고 도구 스킬 플러그인**. 분석, 문서 작성, 품질 검증을 위한 8개 스킬과 1개 에이전트를 제공합니다.
+Claude Code용 **사고 도구 스킬 플러그인**. 분석, 문서 작성, 품질 검증을 위한 9개 스킬과 1개 에이전트를 제공합니다.
 
 ## 설치
 
@@ -25,6 +25,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `unknown-discovery` | Discover blind spots through Socratic interviews | 맹점, 놓친 것, blind spot, 심층 인터뷰 |
 | `adversarial-review` | Stress-test claims with 1:1 attack rounds and Survival Score | 반증, 공격, 검증, adversarial review, 주장 반박 |
 | `build-spec` | Crystallize vague ideas into machine-readable Seed specs via Socratic interview + Ambiguity gating | 스펙 구체화, build spec, seed 스펙, 모호함 해소 |
+| `issue-raise` | Author and file one GitHub issue from a single natural-language line, no interview | 이슈 만들어줘, 이슈 저작, file an issue |
 | `next-goal` | Pick the next session's cohesive unit, then render it as a `/goal`-evaluable condition | 완료조건, 다음 세션 목표, START-PROMPT, next goal |
 
 ## 문제 해결
