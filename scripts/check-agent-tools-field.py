@@ -35,7 +35,30 @@ import subprocess
 import sys
 
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---", re.DOTALL)
-TOOLS_KEY_RE = re.compile(r"^tools:\s*(.*)$", re.MULTILINE)
+# `[ \t]*` and not `\s*`: `\s*` crosses the newline, so a bare `tools:` followed by any other
+# frontmatter key captured THAT line as the value and reported the agent as non-empty — the
+# #472 harm passing silently. Caught by #611's review; the sibling usage guard already carried
+# this note. The block-list form has to keep working, so an empty inline value falls through to
+# the item check below rather than being rejected outright.
+TOOLS_KEY_RE = re.compile(r"^tools:[ \t]*(.*)$", re.MULTILINE)
+TOOLS_BLOCK_ITEM_RE = re.compile(r"^[ \t]*-[ \t]*(\S.*?)[ \t]*$")
+
+
+def _block_items(rest):
+    """Yield the YAML block-list items following the key, skipping blanks and comments.
+
+    A comment or blank line between `tools:` and its first `- Read` is valid YAML, so stopping
+    at the first non-item line would reject a correct declaration. The scan still stops at the
+    next real key, which is what keeps an empty `tools:` from borrowing the line below it.
+    """
+    for line in rest.lstrip("\r\n").split("\n"):
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
+        item = TOOLS_BLOCK_ITEM_RE.match(line)
+        if not item:
+            return
+        yield item.group(1)
 
 
 def _git_toplevel():
@@ -62,8 +85,10 @@ def check_tools_field(text):
     tm = TOOLS_KEY_RE.search(frontmatter)
     if not tm:
         return False, False
-    value = tm.group(1).strip()
-    return True, bool(value)
+    value = tm.group(1).split("#", 1)[0].strip()
+    if value:
+        return True, True
+    return True, any(_block_items(frontmatter[tm.end():]))
 
 
 def run_self_test():
@@ -72,6 +97,12 @@ def run_self_test():
         ("---\nname: foo\ntools:\n---\nbody", True, False),          # empty value
         ("---\nname: foo\ntools: Read, Grep\n---\nbody", True, True),  # present
         ("no frontmatter at all", False, False),
+        # An empty value followed by another key: `\s*` used to capture `model: x` here.
+        ("---\nname: foo\ntools:\nmodel: x\n---\nbody", True, False),
+        ("---\nname: foo\ntools:\n  - Read\n  - Bash\n---\nbody", True, True),  # block list
+        ("---\nname: foo\ntools:  # none yet\nmodel: x\n---\nbody", True, False),
+        # A comment or blank line before the first item is valid YAML.
+        ("---\nname: foo\ntools:\n  # the list\n  - Read\n---\nbody", True, True),
     ]
     failures = []
     for text, expect_has, expect_nonempty in cases:
