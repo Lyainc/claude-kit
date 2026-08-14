@@ -1,27 +1,54 @@
 #!/usr/bin/env python3
-"""check-agent-tools-usage.py — an agent's `tools:` must match what its body says (#577).
+"""check-agent-tools-usage.py — declared tools must match what the body says (#577, #611).
 
-RULE: for every `*/agents/*.md`, the tools declared in frontmatter and the tools the body
-actually reaches for must be the same set. Three findings, three different harms:
+RULE: for every `*/agents/*.md` (`tools:`) and every `*/skills/*/SKILL.md` (`allowed-tools:`),
+the tools declared in frontmatter and the tools the body actually reaches for must be the same
+set. Four findings, four different harms:
 
-  UNDECLARED — the body directs the agent to call a tool that `tools:` omits. The call cannot
-    happen, so that branch of the agent is dead prose. Found live in vault-searcher.md, whose
-    `.vault-link` path-resolution recovery said "use AskUserQuestion" while `tools:` listed only
+  UNDECLARED — the body directs the file to call a tool the declaration omits. The call cannot
+    happen, so that branch is dead prose. Found live in vault-searcher.md, whose `.vault-link`
+    path-resolution recovery said "use AskUserQuestion" while `tools:` listed only
     Read/Bash/Glob/Grep (#577).
 
-  UNUSED — `tools:` grants a tool the body never reaches for. That is the over-permission #472
-    introduced the field to prevent, just re-created one entry at a time. Found live in
-    vault-file-organizer.md, which held Write and Grep while its body only moves files and edits
-    named frontmatter fields (#577).
+    Know what this rule cannot see. #611's headline pair — adversarial-review and expert-panel
+    directing a mandatory backlog-prefilter step with no `Bash` grant — was found by hand, not
+    by this rule, because the `python3 …` call sat inside a fenced block that `strip_noise`
+    drops. Both files became machine-checkable only once their prose was rewritten to name
+    `Bash`; a future skill that adds a fenced shell step and no grant reproduces #611 silently.
+    That is the deliberate cost of never inferring a tool from a shell command, and UNUSED is
+    what recovers it: once the grant is declared, an un-named tool is reported from the other
+    side.
 
-  CONTRACT — the body declares itself read-only (the Write Role Contract) yet `tools:` grants a
-    write tool. UNUSED cannot catch this on its own: the very sentence stating the prohibition
+  UNUSED — the declaration grants a tool the body never reaches for. That is the
+    over-permission #472 introduced the field to prevent, just re-created one entry at a time.
+    Found live in vault-file-organizer.md, which held Write and Grep while its body only moves
+    files and edits named frontmatter fields (#577), and across 17 of this repo's 19 skills in
+    #611 — retro/SKILL.md's `Edit` the sharpest, since its own body forbids editing rule files.
+
+  MISSING — a SKILL.md declares no usable `allowed-tools:` — the key is absent, or present with
+    an empty value — so the skill inherits every tool in the harness. Same harm
+    `check-agent-tools-field.py` blocks for agents, and its "exists AND is non-empty" bar is
+    matched here on purpose; skills had no equivalent until #611. No skill in this repo trips it
+    today, so it is a floor against the next one, not a live find. Agents are exempt because
+    that sibling guard already owns their side.
+
+  CONTRACT — the body declares itself read-only (the Write Role Contract) yet holds a write
+    tool. UNUSED cannot catch this on its own: the very sentence stating the prohibition
     ("no access to the Write tool") contains the word `Write`, which satisfies a bare-mention
     check. This is the repo's central write-safety invariant, so it gets its own rule.
+    **Agents only.** The contract binds subagents, and the skills that name it are the
+    main-context writers it authorises — firing there would block exactly the right holders.
 
-`check-agent-tools-field.py` is the sibling guard and deliberately stops at "the key exists and
-is non-empty" — its docstring calls this comparison a manual judgment call. This script is that
-judgment call, made mechanical.
+`check-agent-tools-field.py` is the sibling guard for agents and deliberately stops at "the key
+exists and is non-empty" — its docstring calls this comparison a manual judgment call. This
+script is that judgment call, made mechanical.
+
+## The two declaration forms
+
+Agents write `tools:` comma-separated, skills write `allowed-tools:` space-separated, and both
+forms also appear as YAML flow sequences or block lists. One splitter reads all of them: it
+breaks on commas *and* whitespace outside parentheses, so `Bash(git add:*, git commit:*)`
+survives intact under either convention.
 
 ## How usage is detected, and why the directions read differently
 
@@ -51,13 +78,14 @@ grant is not evidenced.
 Usage:
     python3 scripts/check-agent-tools-usage.py [--root DIR] [--json] [--self-test]
 
-    --root DIR    Repo root to check (default: git toplevel, else CWD). Scans DIR/*/agents/*.md.
+    --root DIR    Repo root to check (default: git toplevel, else CWD). Scans
+                  DIR/*/agents/*.md and DIR/*/skills/*/SKILL.md.
     --json        Emit a machine-readable JSON report instead of text.
     --self-test   Validate the matching logic in-memory against fixture strings and exit 0 only
                   if every case is detected as expected.
 
-Exit codes: 0 = every agent's declared tools match its body (or --self-test passed),
-            1 = at least one mismatch, 2 = usage error / no agents found.
+Exit codes: 0 = every declared tool set matches its body (or --self-test passed),
+            1 = at least one mismatch, 2 = usage error / nothing found to check.
 """
 import argparse
 import glob
@@ -68,9 +96,15 @@ import subprocess
 import sys
 
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n?(.*)\Z", re.DOTALL)
+
+
 # `[ \t]*` and not `\s*`: with re.MULTILINE, `\s*` eats the newline and swallows the first
 # entry of a YAML block list, so `tools:\n  - Read` would capture the literal `- Read`.
-TOOLS_KEY_RE = re.compile(r"^tools:[ \t]*(.*)$", re.MULTILINE)
+# `^` and not `\b`: `allowed-tools:` must not be matched by the agent key `tools:`.
+def _tools_key_re(key):
+    return re.compile(r"^" + re.escape(key) + r":[ \t]*(.*)$", re.MULTILINE)
+
+
 TOOLS_BLOCK_ITEM_RE = re.compile(r"^[ \t]*-[ \t]*(\S.*?)[ \t]*$")
 
 # Tool names this guard knows about. A name outside this set is reported as unknown rather than
@@ -155,14 +189,24 @@ def split_frontmatter(text):
 
 
 def _split_outside_parens(value):
-    """Split on commas that are not inside a scoped `Bash(git add:*, git commit:*)` suffix."""
+    """Split on commas AND whitespace that are not inside a scoped `Bash(git add:*)` suffix.
+
+    Both separators at once, because the two keys disagree: agents write `tools:` comma-
+    separated and skills write `allowed-tools:` space-separated. Treating each as a separator
+    makes `Read, Bash` yield an empty part between them, which the filter drops — so the comma
+    form reads identically to before.
+    """
+    # Close the gap in `Bash (git add:*)` first. Whitespace is a separator now, so a space
+    # before the scoped suffix would split one declaration into `Bash` plus a `(git add:*)`
+    # fragment that normalises to the empty string and gets reported as an unnamed unknown tool.
+    value = re.sub(r"\s+\(", "(", value)
     parts, depth, current = [], 0, []
     for ch in value:
         if ch == "(":
             depth += 1
         elif ch == ")":
             depth = max(0, depth - 1)
-        if ch == "," and depth == 0:
+        if depth == 0 and (ch == "," or ch.isspace()):
             parts.append("".join(current))
             current = []
         else:
@@ -171,16 +215,28 @@ def _split_outside_parens(value):
     return [p for p in (p.strip() for p in parts) if p]
 
 
-def declared_tools(frontmatter):
-    """Read `tools:` in the inline comma form, a YAML flow sequence, or a block list."""
-    tm = TOOLS_KEY_RE.search(frontmatter or "")
+def declared_tools(frontmatter, key="tools"):
+    """Read the declaration in the inline form, a YAML flow sequence, or a block list.
+
+    Returns None when the key is absent, which is a different fact from an empty list — the
+    MISSING finding needs to tell "no key at all" apart from "key present, nothing usable".
+    """
+    tm = _tools_key_re(key).search(frontmatter or "")
     if not tm:
-        return []
-    inline = tm.group(1).strip()
+        return None
+    # Strip a `# comment` tail before splitting: whitespace is a separator now, so the tail
+    # would otherwise arrive as three bogus `unknown` tools instead of one discarded suffix.
+    inline = tm.group(1).split("#", 1)[0].strip()
     if inline:
         return _split_outside_parens(inline)
     tools = []
     for line in frontmatter[tm.end():].lstrip("\r\n").split("\n"):
+        # Blank and comment lines are valid inside a YAML block list; stopping at one would
+        # read a correctly-commented declaration as empty. The scan still stops at the next
+        # real key, which is what keeps an empty declaration from borrowing the line below it.
+        stripped = line.strip()
+        if not stripped or stripped.startswith("#"):
+            continue
         item = TOOLS_BLOCK_ITEM_RE.match(line)
         if not item:
             break
@@ -219,12 +275,21 @@ def strip_noise(body):
     return body
 
 
-def check_agent(text):
-    """Return (undeclared, unused, unknown, contract) tool-name lists for one agent .md."""
+def check_agent(text, key="tools", require_key=False, check_contract=True):
+    """Return (undeclared, unused, unknown, contract, missing) for one agent/skill .md."""
     frontmatter, body = split_frontmatter(text)
     if frontmatter is None:
-        return [], [], [], []
-    declared = declared_tools(frontmatter)
+        return [], [], [], [], False
+    declared = declared_tools(frontmatter, key)
+    # `not declared` and not `declared is None`: a key present with an empty value grants
+    # nothing and inherits everything, exactly like an absent key. But only the skills side
+    # returns here — an agent must fall through with an empty set so UNDECLARED still reports
+    # what its body reaches for. Short-circuiting both scopes would let an agent declaring a
+    # bare `tools:` pass this guard silently while inheriting every tool in the harness.
+    if not declared:
+        if require_key:
+            return [], [], [], [], True
+        declared = []
     unknown = [t for t in declared if not is_known(t)]
     known_declared = [normalise(t) for t in declared if is_known(t) and not normalise(t).startswith("mcp__")]
     declared_bases = {normalise(t) for t in declared}
@@ -243,10 +308,10 @@ def check_agent(text):
 
     lowered = body.lower()
     contract = []
-    if any(marker in lowered for marker in READONLY_MARKERS):
+    if check_contract and any(marker in lowered for marker in READONLY_MARKERS):
         contract = [t for t in WRITE_TOOLS if t in declared_bases]
 
-    return undeclared, unused, unknown, contract
+    return undeclared, unused, unknown, contract, False
 
 
 def _git_toplevel():
@@ -262,6 +327,17 @@ def _git_toplevel():
 
 def find_agent_files(root):
     return sorted(glob.glob(os.path.join(root, "*", "agents", "*.md")))
+
+
+def find_skill_files(root):
+    return sorted(glob.glob(os.path.join(root, "*", "skills", "*", "SKILL.md")))
+
+
+# (label, glob, frontmatter key, key is mandatory, run the CONTRACT rule)
+SCOPES = (
+    ("agent", find_agent_files, "tools", False, True),
+    ("skill", find_skill_files, "allowed-tools", True, False),
+)
 
 
 SELF_TEST_CASES = [
@@ -332,6 +408,11 @@ SELF_TEST_CASES = [
         [], [], [], [],
     ),
     (
+        "a comment inside a block list does not truncate it",
+        "---\nname: a\ntools:\n  # the list\n  - Read\n  - Bash\n---\nRead the file, then use Bash to move it.",
+        [], [], [], [],
+    ),
+    (
         "a scoped suffix containing a comma is one declaration, not two",
         "---\nname: a\ntools: Read, Bash(git add:*, git commit:*)\n---\nRead it, then use Bash.",
         [], [], [], [],
@@ -366,21 +447,92 @@ SELF_TEST_CASES = [
         "just a reference doc",
         [], [], [], [],
     ),
+    (
+        # If `^tools:` also matched `allowed-tools:`, Write would read as declared and nothing
+        # would fire. UNDECLARED firing is what proves the two keys stay separate.
+        "the agent key does not read a skill's `allowed-tools:`",
+        "---\nname: a\nallowed-tools: Read Write\n---\nRead it, then use Write.",
+        ["Write"], [], [], [],
+    ),
+    (
+        "a space before the scoped suffix does not split the declaration",
+        "---\nname: a\ntools: Read, Bash (git diff:*)\n---\nRead it, then use Bash.",
+        [], [], [], [],
+    ),
+    (
+        "a bare `tools:` grants nothing, so the body's reaches are all UNDECLARED",
+        "---\nname: a\ntools:\nmodel: x\n---\nUse Write to emit the report, then use Bash to move it.",
+        ["Write", "Bash"], [], [], [],
+    ),
+]
+
+# Checked with key="allowed-tools", require_key=True, check_contract=False.
+# (label, text, undeclared, unused, unknown, contract, missing)
+SKILL_SELF_TEST_CASES = [
+    (
+        "space-separated declarations read like the comma form",
+        "---\nname: s\nallowed-tools: Read Bash Glob\n---\nRead it, use Bash to move it, use Glob to list.",
+        [], [], [], [], False,
+    ),
+    (
+        "a space-separated grant the body never names is UNUSED",
+        "---\nname: s\nallowed-tools: Read Write Glob\n---\nRead the file and report.",
+        [], ["Write", "Glob"], [], [], False,
+    ),
+    (
+        "the mandated shell step with no Bash grant is UNDECLARED (#611)",
+        "---\nname: s\nallowed-tools: Read Write\n---\nRun `python3 scripts/backlog-prefilter.py` via Bash. Read and Write the report.",
+        ["Bash"], [], [], [], False,
+    ),
+    (
+        "no allowed-tools at all is MISSING",
+        "---\nname: s\ndescription: x\n---\nRead the file.",
+        [], [], [], [], True,
+    ),
+    (
+        "an empty allowed-tools value is MISSING too — it grants nothing",
+        "---\nname: s\nallowed-tools:\neffort: low\n---\nRead the file.",
+        [], [], [], [], True,
+    ),
+    (
+        "a `tools:` line inside a description block scalar is not the declaration",
+        "---\nname: s\ndescription: |\n  Lists the tools: Read and Write.\nallowed-tools: Read\n---\nRead the file.",
+        [], [], [], [], False,
+    ),
+    (
+        "a skill naming the Write Role Contract is its authorised writer, not a violator",
+        "---\nname: s\nallowed-tools: Read Write\n---\nVault writes are main-context only (the Write Role Contract), so use Write here. Read first.",
+        [], [], [], [], False,
+    ),
+    (
+        "a scoped suffix survives whitespace splitting",
+        "---\nname: s\nallowed-tools: Read Bash(git add:*, git commit:*)\n---\nRead it, then use Bash.",
+        [], [], [], [], False,
+    ),
 ]
 
 
+def _norm(values):
+    return [sorted(v) if isinstance(v, list) else v for v in values]
+
+
 def run_self_test():
+    cases = [(label, text, {}, list(want) + [False]) for label, text, *want in SELF_TEST_CASES]
+    cases += [
+        (label, text, {"key": "allowed-tools", "require_key": True, "check_contract": False}, want)
+        for label, text, *want in SKILL_SELF_TEST_CASES
+    ]
     failures = []
-    for label, text, *want in SELF_TEST_CASES:
-        got = check_agent(text)
-        if [sorted(g) for g in got] != [sorted(w) for w in want]:
+    for label, text, kwargs, want in cases:
+        got = check_agent(text, **kwargs)
+        if _norm(got) != _norm(want):
             failures.append((label, got, tuple(want)))
     if failures:
         print("FAIL: check-agent-tools-usage self-test")
         for label, got, want in failures:
             print(f"  {label}: got {got}, want {want}")
         return 1
-    print(f"OK: all {len(SELF_TEST_CASES)} check-agent-tools-usage self-test cases passed")
+    print(f"OK: all {len(cases)} check-agent-tools-usage self-test cases passed")
     return 0
 
 
@@ -397,40 +549,53 @@ def main():
         return run_self_test()
 
     root = args.root or _git_toplevel() or os.getcwd()
-    agent_files = find_agent_files(root)
-    if not agent_files:
-        print(f"ERROR: no */agents/*.md files found under {root}", file=sys.stderr)
+
+    checked, findings = 0, []
+    for label, finder, key, require_key, check_contract in SCOPES:
+        for path in finder(root):
+            checked += 1
+            with open(path, encoding="utf-8") as fh:
+                undeclared, unused, unknown, contract, missing = check_agent(
+                    fh.read(), key, require_key, check_contract
+                )
+            if undeclared or unused or unknown or contract or missing:
+                findings.append({
+                    "file": os.path.relpath(path, root),
+                    "kind": label,
+                    "key": key,
+                    "undeclared": undeclared,
+                    "unused": unused,
+                    "unknown": unknown,
+                    "contract": contract,
+                    "missing": missing,
+                })
+
+    if not checked:
+        print(
+            f"ERROR: no */agents/*.md or */skills/*/SKILL.md files found under {root}",
+            file=sys.stderr,
+        )
         return 2
 
-    findings = []
-    for path in agent_files:
-        with open(path, encoding="utf-8") as fh:
-            undeclared, unused, unknown, contract = check_agent(fh.read())
-        if undeclared or unused or unknown or contract:
-            findings.append({
-                "file": os.path.relpath(path, root),
-                "undeclared": undeclared,
-                "unused": unused,
-                "unknown": unknown,
-                "contract": contract,
-            })
-
     if args.json:
-        print(json.dumps({"checked": len(agent_files), "findings": findings}, indent=2))
+        print(json.dumps({"checked": checked, "findings": findings}, indent=2))
     elif findings:
-        print("FAIL: agent `tools:` does not match body usage:")
+        print("FAIL: declared tools do not match body usage:")
         for f in findings:
+            key = f["key"]
             print(f"  {f['file']}")
+            if f["missing"]:
+                print(f"    no `{key}:` — inherits every tool in the harness")
             if f["undeclared"]:
-                print(f"    body calls but tools: omits — {', '.join(f['undeclared'])}")
+                print(f"    body calls but {key}: omits — {', '.join(f['undeclared'])}")
             if f["unused"]:
-                print(f"    tools: grants but body never names — {', '.join(f['unused'])}")
+                print(f"    {key}: grants but body never names — {', '.join(f['unused'])}")
             if f["unknown"]:
                 print(f"    unknown tool name — {', '.join(f['unknown'])}")
             if f["contract"]:
                 print(f"    body claims read-only but grants — {', '.join(f['contract'])}")
     else:
-        print(f"OK: all {len(agent_files)} agent(s) declare exactly the tools their body uses")
+        print(f"OK: all {checked} agent(s)/skill(s) declare exactly the tools their body uses")
 
     return 1 if findings else 0
 
