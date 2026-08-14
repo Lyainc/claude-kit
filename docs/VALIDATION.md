@@ -590,6 +590,25 @@ python3 obsidian-vault-manager/scripts/test/test-notes-filename-consistency.py
 python3 obsidian-vault-manager/scripts/test/test-e5-candidate-ranking.py
 # Expected: OK: all cases passed
 
+# E5 orphan connection-candidate PRODUCTION primitive parity gate (#619): before this,
+# the rarity-weighted score above shipped only inside audit-validate.py's reference
+# oracle (test-e5-candidate-ranking.py, still oracle-only), with no primitive backing
+# it in production — CLASSIFY had nothing to call and had to hand-execute the scoring
+# itself. Drives `ovm-primitives.sh e5-candidates` via subprocess and asserts it agrees
+# with the oracle exactly (case-sensitive tags, floor_gated, top-3 tie-break), plus the
+# `_index.md` exclusion guard.
+python3 obsidian-vault-manager/scripts/test/test-e5-candidates-primitive.py
+# Expected: OK: all cases passed
+
+# audit-state `stats`/`status` op + `list-dirty-since` untracked-file regression (#619):
+# before this, no `audit-state` op answered the skill's documented `status` flag
+# (any call errored "unknown audit-state op"), and `list-dirty-since` only walked its
+# own sidecar `paths` dict — a file the sidecar had never recorded could not surface
+# under any reason, so "untracked" was documented but structurally unreachable. Both
+# ops now walk the live vault; `status` is accepted as an alias for `stats`.
+python3 obsidian-vault-manager/scripts/test/test-audit-state-stats-and-untracked.py
+# Expected: OK: all cases passed
+
 # E12 wiki self-audit staleness scoping unit test (#330, #494) — pins detect_stale_wiki's
 # wiki-only + type:wiki scope and the strict-> staleness boundary, and pins that a
 # missing/unparseable `verified:` is skipped by detect_stale_wiki but surfaced instead by

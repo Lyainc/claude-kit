@@ -47,9 +47,13 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```
    Files absent from sidecar (untracked) are treated as dirty. Files with `status: clean` are skipped unless `--force` was passed.
 
-> **`audit-state` exit 3 — applies to EVERY call of this subcommand** (#443), not just the one above: `list-dirty-since`, `is-clean`, `mark-clean`, and the per-file `invalidate` loop that `--reset-state` runs all load the state file before dispatch, so any of them can be the first to hit it. Exit 3 means the state file is unusable; the original was preserved at `<path>.corrupt-<ISO8601>` (identical content reuses one sidecar, so a per-file loop does not litter) and nothing was written back. **STOP the audit at the first exit 3** — do not continue the loop, and never treat it as an empty state. Report in Korean: the sidecar path, and that `audit-state.json.bak` holds the last good state if present, while deleting `audit-state.json` instead discards all audit state and forces a full re-scan.
+> **`audit-state` exit 3 applies to EVERY call** (#443: `list-dirty-since`, `is-clean`,
+> `mark-clean`, `invalidate`, `stats`) — the state file is unusable; the original is preserved at
+> `<path>.corrupt-<ISO8601>`, nothing is written back. **STOP the audit at the first exit 3**,
+> never treat it as empty state. Report in Korean: the sidecar path, and that `.bak` holds the
+> last good state if present (deleting `audit-state.json` instead discards all audit state).
 
-4. Emit a scan-start status line in Korean: indicate that the vault audit is starting, and report the number of files targeted along with an estimated scan time.
+4. Emit a Korean scan-start status line: file count targeted + estimated scan time.
 
 5. Run frontmatter scan (`--path`-scoped):
    ```bash
@@ -71,11 +75,10 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```
    Wikilinks inside code fences or inline code are masked out before extraction (#434) — a backticked `[[Note]]` is a syntax example, not a real link, and over-masking would hide a real inbound link and manufacture a false E5 orphan.
 
-8. Read manifest summary (used for REPORT header). **Never `cat` the manifest directly** — on
-   a real vault it can run past 100 KB, and the harness truncates large Bash output to a 2 KB
-   preview before this reads it, so a raw `cat` silently degrades to whichever few entries
-   survive the cut (#468, same defect class as #460). Use the filter script instead, which
-   reads the full file on disk and returns only the two fields needed:
+8. Read manifest summary (used for REPORT header). **Never `cat` the manifest directly** — it
+   can run past 100 KB and the harness truncates large Bash output to a 2 KB preview, so a raw
+   `cat` silently degrades to whichever entries survive the cut (#468, #460). Use the filter
+   script instead, which reads the full file on disk and returns only the two fields needed:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
@@ -90,6 +93,13 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```
    Always vault-wide, `--path`-unscoped — E9 is a vault-level check. Emits a JSON array of pairs `{sub, a, b, a_files, b_files}` (empty when consistent); pass it straight to CLASSIFY as the E9 findings source.
 
+10. Rank E5 orphan connection candidates (deterministic, no LLM):
+    ```bash
+    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" e5-candidates "$VAULT_ROOT/notes"
+    ```
+    Vault-wide, unscoped; paths are `$VAULT_ROOT`-relative — under `--path`, prefix `rec.path`
+    with the scope before matching.
+
 **Outputs**: An in-memory scan bundle:
 ```
 {
@@ -98,6 +108,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
   inbound_links{}          // target_stem → source_paths[]
   manifest_summary?        // {file_count, generated_at} or null
   vocabulary_pairs[]       // from detect-vocabulary (E9, vault-wide)
+  e5_candidates[]          // from e5-candidates (E5)
 }
 ```
 
@@ -300,7 +311,7 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 | `--path <dir>` | Scope Steps 5–6 to `$VAULT_ROOT/<dir>` (link index/E9 stay vault-wide) |
 | `--reset-state` | Call `audit-state invalidate` on all vault files before scanning |
 | `--deep` | Opt-in LLM path (#336, #167): after CLASSIFY, run Phase 2.5 DEEP to judge candidate `wiki/` page pairs for cross-page semantic contradiction (E12b) and candidate tag pairs for semantic synonym (E9c). Off by default. |
-| `status` | Show current audit-state stats only (no scan) |
+| `status` | Bare positional arg (not `--flag`). Skips SCAN/CLASSIFY/REPORT/OPTIONAL-FIX: run `audit-state stats`, render as one Korean status line, terminate — no mutation. |
 
 ---
 
