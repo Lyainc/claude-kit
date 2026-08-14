@@ -80,4 +80,20 @@ echo "$BLOCK" | grep -q 'name":"retro"' || fail "#528: prior-retro grep not batc
 grep -q 'retro-telemetry.sh" emit "\$START_MS" "\$PROCESSED" "\$DEDUPED" "\$BUDGET_USED"' "$SKILL" \
   || fail "#580: Phase 3 emit call site does not pass \$START_MS first"
 
+# 8. #617: a write-unable events dir must leave stdout/stderr BOTH empty (event-
+# logger.sh's own header invariant, shared here) — `>> "$LOG" 2>/dev/null` alone
+# does not do this, since the redirect is opened before `2>/dev/null` takes
+# effect, so the shell's own "Permission denied" diagnostic escapes to stderr.
+# Uses a FRESH dir (not $CLAUDE_KIT_TELEMETRY_DIR, whose today's-date jsonl
+# already exists from earlier cases above) — appending to an existing,
+# owner-writable file needs no directory write permission at all, so reusing
+# it would pass vacuously without ever exercising the file-create failure.
+D617="$(mktemp -d)/events"; mkdir -p "$D617"; chmod 500 "$D617"
+OUT="$(CLAUDE_KIT_TELEMETRY_DIR="$D617" "$SCRIPT" emit 999999 1 0 1 2>"$TMP/stderr-617")"
+RC=$?
+chmod 700 "$D617"
+[ "$RC" -eq 0 ] || fail "#617: emit exited $RC against a write-unable events dir"
+[ -z "$OUT" ] || fail "#617: emit wrote to stdout against a write-unable events dir: $OUT"
+[ ! -s "$TMP/stderr-617" ] || fail "#617: emit leaked to stderr against a write-unable events dir: $(cat "$TMP/stderr-617")"
+
 echo "OK: all retro-telemetry cases passed"

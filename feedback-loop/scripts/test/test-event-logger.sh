@@ -242,6 +242,61 @@ else
   printf 'FAIL cleanup: missing directory caused a non-zero exit\n' >&2
 fi
 
+# ============================================================================
+# stderr leak (#617) — the whole script, run as a real subprocess against a
+# write-unable target, must leave stdout/stderr BOTH empty and exit 0 (the
+# header's own invariant, :6-9). `printf ... >> "$FILE" 2>/dev/null` alone
+# does not do this: the redirect opens before `2>/dev/null` takes effect, so
+# the shell's own "Permission denied" diagnostic escapes to stderr. Three call
+# sites share this shape (:94 raw-payload dump, :268 session-model cache
+# write, :355 the main jsonl append) — each needs its own fixture to actually
+# reach a `>`/`>>` open failure (a read-only LOG_DIR alone only exercises
+# :355, since :268's own `mkdir -p` short-circuits first).
+# ============================================================================
+
+STDERR_617="$(mktemp 2>/dev/null || printf '/tmp/test-event-logger-617-%s' "$$")"
+trap 'rm -f "$FN_SLICE" "$STDERR_617"; rm -rf "$MODEL_DIR" "$CLEANUP_DIR"' EXIT
+
+assert_silent_clean() {
+  local label="$1" out="$2" rc="$3"
+  if [ "$rc" -eq 0 ] && [ -z "$out" ] && [ ! -s "$STDERR_617" ]; then
+    PASSES=$((PASSES + 1))
+    printf 'ok   %s\n' "$label"
+  else
+    FAILURES=$((FAILURES + 1))
+    printf 'FAIL %s\n     exit=%s stdout=%s stderr=%s\n' \
+      "$label" "$rc" "$out" "$(cat "$STDERR_617" 2>/dev/null)" >&2
+  fi
+}
+
+# :355 — main jsonl append, LOG_DIR itself write-unable. event_type must be one
+# that actually reaches a non-empty $LINE (the issue's own repro type,
+# session_start) — command_run against this bare a payload exits at :348
+# ([-n "$LINE"]) before ever reaching :355, which would pass vacuously.
+D355="$(mktemp -d)/events"; mkdir -p "$D355"; chmod 500 "$D355"
+OUT="$(printf '{"session_id":"s355","model":"x"}' \
+  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D355" \
+    "$LOGGER" session_start 2>"$STDERR_617")"
+assert_silent_clean "event-logger:355 write-unable LOG_DIR" "$OUT" "$?"
+chmod 700 "$D355"
+
+# :268 — session-model cache write, .session-model dir pre-created + write-unable
+# (LOG_DIR itself stays writable so mkdir -p on it does not short-circuit first).
+D268="$(mktemp -d)/events"; mkdir -p "$D268/.session-model"; chmod 500 "$D268/.session-model"
+OUT="$(printf '{"session_id":"s268","model":"x"}' \
+  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D268" \
+    "$LOGGER" session_start 2>"$STDERR_617")"
+assert_silent_clean "event-logger:268 write-unable session-model dir" "$OUT" "$?"
+chmod 700 "$D268/.session-model"
+
+# :94 — raw-payload dump, raw/ dir pre-created + write-unable.
+D94="$(mktemp -d)/events"; mkdir -p "$D94/raw"; chmod 500 "$D94/raw"
+OUT="$(printf '{"session_id":"s94"}' \
+  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D94" \
+    CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1 "$LOGGER" command_run 2>"$STDERR_617")"
+assert_silent_clean "event-logger:94 write-unable raw dir" "$OUT" "$?"
+chmod 700 "$D94/raw"
+
 # --- Summary -----------------------------------------------------------------
 printf '\n%d passed, %d failed\n' "$PASSES" "$FAILURES"
 if [ "$FAILURES" -ne 0 ]; then
