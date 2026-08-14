@@ -36,4 +36,20 @@ out=$(run "$d"); [ -n "$out" ] || { echo "FAIL: corrupt counter should show"; fa
 check "$(cat "$d/.claude-kit/welcome-count")" "1" "corrupt counter reset to 0 then incremented"
 rm -rf "$d"
 
+# --- stderr leak (#629, same class as #617): write-unable state_dir must not
+# leak the shell's own redirection-open diagnostic. `printf ... > "$counter_file"
+# 2>/dev/null` alone doesn't guarantee this — the `>` open failure prints before
+# `2>/dev/null` takes effect (fixed by wrapping in `{ ...; } 2>/dev/null`,
+# session-start-welcome.sh:34). mkdir -p on an already-existing dir succeeds
+# even without write permission, so the write itself is what fails here.
+d=$(mktemp -d); mkdir -p "$d/.claude-kit"; chmod 500 "$d/.claude-kit"
+stderr_629="$(mktemp)"
+out=$(CLAUDE_CONFIG_DIR="$d" bash "$HOOK" 2>"$stderr_629")
+rc=$?
+chmod 700 "$d/.claude-kit"
+[ "$rc" -eq 0 ] || { echo "FAIL: write-unable state_dir caused a non-zero exit"; fail=1; }
+[ -n "$out" ] || { echo "FAIL: write-unable state_dir should still show the hint"; fail=1; }
+[ ! -s "$stderr_629" ] || { echo "FAIL: write-unable state_dir leaked to stderr: $(cat "$stderr_629")"; fail=1; }
+rm -f "$stderr_629"; rm -rf "$d"
+
 if [ "$fail" -eq 0 ]; then echo "OK: all session-start-welcome cases passed"; else exit 1; fi
