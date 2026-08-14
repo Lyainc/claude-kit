@@ -64,4 +64,21 @@ stub 'echo "[{\"number\":3,\"title\":\"third\"}]"'
 OUT="$(PATH="$STUB_DIR:$PATH" "$SCRIPT" get)"
 echo "$OUT" | jq -e '.[0].number==3' >/dev/null || fail "expired cache was served instead of a live refetch"
 
+# 5. stderr leak (#629, same class as #617): a write-unable cache dir must not
+# leak the shell's own redirection-open diagnostic. `printf ... > "$TMP" 2>/dev/null`
+# alone doesn't guarantee this — the `>` open failure prints before `2>/dev/null`
+# takes effect (fixed by wrapping in `{ ...; } 2>/dev/null`, gh-issues-cache.sh:54).
+rm -f "$CACHE"
+mkdir -p "$(dirname "$CACHE")"
+chmod 500 "$(dirname "$CACHE")"
+STDERR_629="$(mktemp)"
+stub 'echo "[{\"number\":4,\"title\":\"fourth\"}]"'
+OUT="$(PATH="$STUB_DIR:$PATH" "$SCRIPT" get 2>"$STDERR_629")"
+RC=$?
+chmod 700 "$(dirname "$CACHE")"
+[ "$RC" -eq 0 ] || fail "write-unable cache dir caused a non-zero exit"
+[ ! -s "$STDERR_629" ] || fail "write-unable cache dir leaked to stderr: $(cat "$STDERR_629")"
+echo "$OUT" | jq -e '.[0].number==4' >/dev/null || fail "write-unable cache dir still lost the live fetch result"
+rm -f "$STDERR_629"
+
 echo "OK: all gh-issues-cache cases passed"
