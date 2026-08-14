@@ -88,6 +88,7 @@ Invoke the `audit` skill (via Skill) to scan vault health. Detects 12 error type
 - `/audit` — full vault scan
 - `/audit --path notes` — scope to notes/ only
 - `/audit --dry-run` — show findings without auto-fix
+- `/audit status` — sidecar-vs-vault counts only, no scan
 
 Use audit proactively when the user asks about vault health, broken links, or orphan notes.
 

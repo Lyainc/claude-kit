@@ -163,6 +163,13 @@ note tagged `note`) doesn't manufacture a "connection" on its own; a tag seen on
 only a couple of files outweighs it. Exact-match intersection only, no semantic
 synonyms. Build a `notes/` tag index once before the orphan loop to avoid O(N²).
 
+**Production primitive** (#619): the pseudocode below ships as `ovm-primitives.sh
+e5-candidates <dir>` — CLASSIFY looks up an orphan's `{candidates, floor_gated}` by
+path from that primitive's output (audit/SKILL.md Phase 1 Step 10) instead of
+hand-computing the score. `audit-validate.py`'s copy of this same algorithm stays
+the mechanical `--dod` reference oracle, unaffected by this primitive's addition
+(same production/oracle split as E9, see `## E9`).
+
 ```
 notes_tag_index = [(rel, frozenset(tags)) for rel in notes/ if rel != _index.md]
 

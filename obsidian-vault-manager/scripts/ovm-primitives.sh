@@ -614,19 +614,156 @@ print(json.dumps(pairs, indent=2, ensure_ascii=False))
 PYEOF
 }
 
+# ── subcommand: e5-candidates ──────────────────────────────────────────────────
+# Usage: e5-candidates <dir>
+# E5 (#495, #619): orphan connection-candidate ranking, production counterpart of
+# audit-validate.py's rarity-weighted scorer (the CLASSIFY-time pseudocode in
+# reference/vault-audit-rules.md's `## E5` section). Deterministic, no LLM — same
+# shape as detect-vocabulary: takes a dir, emits one JSON record per `.md` file.
+#
+# Builds a tag index over every `.md` file directly under <dir> (recursive,
+# `_index.md` excluded per the E5 guard — it is never a candidate or a target),
+# computes df(t) = vault-wide document frequency per tag, then for each file P
+# scores every other file Q by Sum 1/log(1+df(t)) over shared tags and keeps the
+# top 3. Orphan DETERMINATION (zero inbound links) stays the audit runtime's job —
+# this primitive only ranks connection candidates; CLASSIFY looks up an orphan's
+# entry here by path instead of hand-computing the score.
+#
+# Output: JSON array of {"path", "candidates": [{"path","shared_tags"}], "floor_gated"}
+#   candidates == [] and floor_gated == false → no other file shares any tag with P.
+#   candidates == [] and floor_gated == true  → shared tags exist, but even the best
+#     match scores below E5_MIN_CANDIDATE_SCORE (too common to be a real signal).
+
+cmd_e5_candidates() {
+  local dir="${1:-}"
+  [[ -z "$dir" ]] && die "e5-candidates requires <dir>"
+  local abs_dir
+  abs_dir="$(validate_vault_path "$dir")"
+  # A vault with no notes/ yet (sources/-only so far) is not an error — SKILL.md's Step 10
+  # calls this unconditionally on every unscoped /audit, so a missing dir must degrade to
+  # "no candidates" instead of dying (unlike scan-frontmatter/scan-filename, whose --path
+  # argument comes from the user and a missing dir there IS worth failing loudly on).
+  [[ -d "$abs_dir" ]] || { echo '[]'; return 0; }
+
+  python3 - "$abs_dir" "$VAULT_ROOT" <<'PYEOF'
+import sys, os, re, math, json
+
+E5_MIN_CANDIDATE_SCORE = 0.5
+
+def parse_tags(content):
+    """Read only the `tags:` list from the frontmatter block."""
+    lines = content.split('\n')
+    if not lines or lines[0].strip() != '---':
+        return []
+    fm_lines = []
+    for line in lines[1:]:
+        if line.strip() == '---':
+            break
+        fm_lines.append(line)
+    else:
+        return []
+
+    tags = []
+    in_tags = False
+    for line in fm_lines:
+        stripped = line.lstrip()
+        if stripped.startswith('- ') and in_tags:
+            tags.append(stripped[2:].strip().strip('"\''))
+            continue
+        in_tags = False
+        m = re.match(r'^tags\s*:\s*(.*)', line)
+        if not m:
+            continue
+        val = m.group(1).strip()
+        if val == '' or val == '[]':
+            in_tags = True
+        elif val.startswith('[') and val.endswith(']'):
+            inner = val[1:-1]
+            tags = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
+    return [t for t in tags if isinstance(t, str) and t.strip()]
+
+target_dir = sys.argv[1]
+# realpath, matching validate_vault_path's resolution of target_dir — otherwise a
+# symlinked tmpdir (e.g. macOS /tmp -> /private/tmp) makes the two bases disagree and
+# os.path.relpath produces a bogus ../../.. traversal instead of "notes/x.md".
+vault_root = os.path.realpath(os.path.expanduser(sys.argv[2]))
+index = []   # [(relpath, frozenset(lowercase tags))]
+
+for root, dirs, files in os.walk(target_dir):
+    dirs[:] = [d for d in dirs if not d.startswith('.')]
+    for fname in sorted(files):
+        if not fname.endswith('.md') or fname == '_index.md':
+            continue
+        fpath = os.path.join(root, fname)
+        # Relative to VAULT_ROOT, not target_dir (#619): frontmatter_records (from
+        # scan-frontmatter) keys its findings the same way, and CLASSIFY joins E5
+        # orphans against this array by that key. target_dir is always
+        # "$VAULT_ROOT/notes" (SKILL.md Step 10), so this yields "notes/..." paths.
+        relpath = os.path.relpath(fpath, vault_root)
+        try:
+            with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
+                content = f.read()
+        except OSError:
+            continue
+        # NOT lowercased — matches audit-validate.py's rank_e5_candidates/notes_tag_index
+        # exactly (E5 does case-sensitive tag matching, unlike E9's lowercase vocabulary
+        # aggregation; #619 production/oracle parity).
+        tags = frozenset(t for t in parse_tags(content) if t)
+        index.append((relpath, tags))
+
+df = {}
+for _, tags in index:
+    for t in tags:
+        df[t] = df.get(t, 0) + 1
+
+def score(a_tags, b_tags):
+    shared = a_tags & b_tags
+    if not shared:
+        return 0.0, shared
+    return sum(1.0 / math.log(1 + df[t]) for t in shared), shared
+
+results = []
+for p_path, p_tags in index:
+    scored = []
+    for q_path, q_tags in index:
+        if q_path == p_path:
+            continue
+        s, shared = score(p_tags, q_tags)
+        if shared:
+            scored.append((s, q_path, sorted(shared)))
+    scored.sort(key=lambda x: (-x[0], x[1]))
+
+    if not scored:
+        candidates, floor_gated = [], False
+    elif scored[0][0] < E5_MIN_CANDIDATE_SCORE:
+        candidates, floor_gated = [], True
+    else:
+        candidates = [{"path": q, "shared_tags": tags} for _, q, tags in scored[:3]]
+        floor_gated = False
+
+    results.append({"path": p_path, "candidates": candidates, "floor_gated": floor_gated})
+
+print(json.dumps(results, indent=2, ensure_ascii=False))
+PYEOF
+}
+
 # ── subcommand: audit-state ────────────────────────────────────────────────────
-# Usage: audit-state <is-clean|mark-clean|invalidate|list-dirty-since> [args]
+# Usage: audit-state <is-clean|mark-clean|invalidate|list-dirty-since|stats> [args]
 #   is-clean <relpath>               → {"clean": true|false}
 #   mark-clean <relpath> [<mtime>]   → {"ok": true}
 #   invalidate <relpath>             → {"ok": true}
-#   list-dirty-since <ISO8601>       → JSON array of dirty records
+#   list-dirty-since <ISO8601>       → JSON array of dirty records (walks the vault; a file
+#                                       with no sidecar record gets `reason: "untracked"`)
+#   stats (alias: status)            → {"total","clean","dirty","untracked","tracked_missing",
+#                                       "last_full_scan"} — no scan, sidecar vs live vault only.
+#                                       `status` is accepted verbatim (#619 skill flag name).
 # Exit 3 = the state file exists but is unusable (unparseable, or not an object with a
 #   `paths` object). The original is copied to <path>.corrupt-<ISO8601> and left in place;
 #   nothing is written back. Never falls back to an empty state (#443).
 
 cmd_audit_state() {
   local op="${1:-}"
-  [[ -z "$op" ]] && die "audit-state requires an operation: is-clean|mark-clean|invalidate|list-dirty-since"
+  [[ -z "$op" ]] && die "audit-state requires an operation: is-clean|mark-clean|invalidate|list-dirty-since|stats"
 
   python3 - "$op" "${2:-}" "${3:-}" "$AUDIT_STATE_PATH" "$VAULT_ROOT" <<'PYEOF'
 import sys, os, json, time, hashlib, shutil, glob
@@ -726,6 +863,16 @@ def audited_mtime(rec):
     v = rec.get('mtime_at_audit', 0)
     return v if isinstance(v, (int, float)) and not isinstance(v, bool) else 0
 
+def list_md_files(root):
+    """Every `.md` relpath under root, hidden dirs skipped (mirrors scan-frontmatter)."""
+    out = []
+    for dirpath, dirs, files in os.walk(root):
+        dirs[:] = [d for d in dirs if not d.startswith('.')]
+        for fname in files:
+            if fname.endswith('.md'):
+                out.append(os.path.relpath(os.path.join(dirpath, fname), root))
+    return out
+
 def file_mtime(relpath):
     fpath = os.path.join(vault_root, relpath)
     if not os.path.exists(fpath):
@@ -798,21 +945,67 @@ elif op == 'list-dirty-since':
         except ValueError:
             print(f'ERROR: invalid ISO8601 timestamp: {arg1}', file=sys.stderr); sys.exit(1)
 
+    # Walk the live vault so a file with NO sidecar record (#619 "untracked") can be
+    # reported at all — the old code only iterated `paths.items()`, which by definition
+    # cannot see a file the sidecar has never heard of.
+    live_files = list_md_files(vault_root)
     dirty = []
-    for relpath, rec in paths.items():
-        mtime = file_mtime(relpath)
-        if mtime is None:
-            dirty.append({**rec, 'path': relpath, 'reason': 'file_missing'})
+    for relpath in sorted(live_files):
+        rec = paths.get(relpath)
+        if rec is None:
+            dirty.append({'path': relpath, 'reason': 'untracked'})
             continue
+        mtime = file_mtime(relpath)
         if rec.get('status') == 'dirty':
             dirty.append({**rec, 'path': relpath, 'reason': 'explicitly_invalidated', 'mtime': mtime})
             continue
         audit_ts = audited_mtime(rec)
-        if mtime > audit_ts:
+        if mtime is not None and mtime > audit_ts:
             if since_ts is None or mtime > since_ts:
                 dirty.append({**rec, 'path': relpath, 'reason': 'mtime_changed',
                               'mtime': mtime, 'mtime_at_audit': audit_ts})
+
+    # A tracked file whose bytes vanished from disk is not in live_files at all —
+    # still worth reporting (`file_missing`), so check the sidecar records the walk
+    # could not have surfaced.
+    live_set = set(live_files)
+    for relpath, rec in paths.items():
+        if relpath in live_set:
+            continue
+        if file_mtime(relpath) is None:
+            dirty.append({**rec, 'path': relpath, 'reason': 'file_missing'})
+
     print(json.dumps(dirty, indent=2, ensure_ascii=False))
+
+elif op in ('stats', 'status'):
+    # No scan — sidecar-vs-live-vault bookkeeping only (#619). `status` is accepted
+    # verbatim as an alias since that's the name the audit skill's flag surfaces.
+    live_files = list_md_files(vault_root)
+    live_set = set(live_files)
+    clean = dirty_n = untracked = 0
+    for relpath in live_files:
+        rec = paths.get(relpath)
+        if rec is None:
+            untracked += 1
+        elif rec.get('status') == 'dirty':
+            dirty_n += 1
+        else:
+            mtime = file_mtime(relpath)
+            audit_ts = audited_mtime(rec)
+            if mtime is not None and mtime > audit_ts:
+                dirty_n += 1
+            else:
+                clean += 1
+    tracked_missing = sum(
+        1 for relpath in paths if relpath not in live_set and file_mtime(relpath) is None)
+    print(json.dumps({
+        "total": len(live_files),
+        "clean": clean,
+        "dirty": dirty_n,
+        "untracked": untracked,
+        "tracked_missing": tracked_missing,
+        "last_full_scan": state.get('last_full_scan'),
+    }, ensure_ascii=False))
 
 else:
     print(f'ERROR: unknown audit-state op: {op}', file=sys.stderr)
@@ -908,6 +1101,7 @@ case "$SUBCOMMAND" in
   extract-wikilinks)  cmd_extract_wikilinks "$@" ;;
   infer-tags)         cmd_infer_tags "$@" ;;
   detect-vocabulary)  cmd_detect_vocabulary "$@" ;;
+  e5-candidates)      cmd_e5_candidates "$@" ;;
   audit-state)        cmd_audit_state "$@" ;;
   metrics)            cmd_metrics "$@" ;;
   "")
@@ -920,11 +1114,13 @@ case "$SUBCOMMAND" in
     echo "  infer-tags <file> [<file> ...]              Emit E2 auto-fix tag proposals as a JSON array (batched)" >&2
     echo "  infer-tags -                                ... same, reading newline-delimited paths from stdin" >&2
     echo "  detect-vocabulary <dir>                     Emit E9 tag/property vocabulary inconsistency pairs (vault-wide)" >&2
+    echo "  e5-candidates <dir>                          Emit E5 orphan connection-candidate ranking (rarity-weighted)" >&2
     echo "  audit-state <op> [args]                     Manage sidecar audit state" >&2
     echo "    ops: is-clean <relpath>                   Check if file is clean" >&2
     echo "         mark-clean <relpath> [mtime]         Mark file as audited clean" >&2
     echo "         invalidate <relpath>                 Mark file as dirty" >&2
-    echo "         list-dirty-since <ISO8601>           List files changed since timestamp" >&2
+    echo "         list-dirty-since <ISO8601>           List files changed since timestamp (untracked files included)" >&2
+    echo "         stats (alias: status)                Sidecar-vs-vault counts, no scan" >&2
     echo "  metrics <op>                                Emit timing/size metrics as JSON" >&2
     echo "    ops: start [label]  stop  report" >&2
     exit 1
