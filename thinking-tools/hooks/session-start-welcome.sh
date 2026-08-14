@@ -31,7 +31,7 @@ fi
 [ "$count" -ge 3 ] && exit 0
 
 mkdir -p "$state_dir" 2>/dev/null || true
-printf '%d' "$((count + 1))" > "$counter_file" 2>/dev/null || true
+{ printf '%d' "$((count + 1))" > "$counter_file"; } 2>/dev/null || true
 
 # SessionStart has NO user-visible message channel — top-level `systemMessage` is
 # ignored here (verified against code.claude.com/docs/hooks; it only surfaces for
