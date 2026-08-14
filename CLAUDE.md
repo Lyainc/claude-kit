@@ -105,10 +105,11 @@ Within `thinking-tools`:
 ## Adding a New Skill
 
 1. 해당 플러그인의 `skills/{skill-name}/SKILL.md` 생성
-2. `plugin.json`의 `keywords`에 스킬명 추가
-3. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
-4. 에이전트가 해당 스킬을 사용해야 하면: 에이전트 `.md`의 `skills:` frontmatter에 추가
-5. **트리거 안내 컨벤션 (#173)** — 사용자 대면 카탈로그에 진입점을 추가해 발견성을 확보합니다: 루트 `README.md`의 플러그인 스킬 표(이럴 때 → 스킬) **(필수)**, 그리고 `docs/design/4-flow-catalog.md`의 "흐름별 대표 기능" **(4-흐름에 맞을 때만)**. 트리거 문구의 단일 소스는 SKILL.md `description`이고(각 플러그인의 `check-trigger-regression.py`가 드롭을 강제 감지), 카탈로그는 그걸 사용자 언어로 노출하는 뷰입니다.
+2. **`allowed-tools:`를 명시** (#611) — 생략하면 하네스에 연결된 도구 전부를 상속합니다 (에이전트 `tools:`와 같은 #472 위험). 본문이 실제로 호출하는 도구만 나열하세요. `scripts/check-agent-tools-usage.py`가 에이전트와 같은 양방향 검사를 스킬에도 적용합니다: 선언에만 있고 본문이 이름을 안 부르면 UNUSED, 본문이 부르는데 선언에 없으면 UNDECLARED, 키 자체가 없으면 MISSING. 코드펜스 안은 근거로 안 쳐주므로, 셸 커맨드로만 쓰는 `Bash`도 본문 산문에 이름을 적으세요.
+3. `plugin.json`의 `keywords`에 스킬명 추가
+4. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
+5. 에이전트가 해당 스킬을 사용해야 하면: 에이전트 `.md`의 `skills:` frontmatter에 추가
+6. **트리거 안내 컨벤션 (#173)** — 사용자 대면 카탈로그에 진입점을 추가해 발견성을 확보합니다: 루트 `README.md`의 플러그인 스킬 표(이럴 때 → 스킬) **(필수)**, 그리고 `docs/design/4-flow-catalog.md`의 "흐름별 대표 기능" **(4-흐름에 맞을 때만)**. 트리거 문구의 단일 소스는 SKILL.md `description`이고(각 플러그인의 `check-trigger-regression.py`가 드롭을 강제 감지), 카탈로그는 그걸 사용자 언어로 노출하는 뷰입니다.
 
 ## Adding a New Agent
 

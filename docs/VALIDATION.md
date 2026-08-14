@@ -79,11 +79,15 @@ python3 scripts/check-agent-tools-field.py
 # #472 BLOCK guard: an agent with no `tools:` frontmatter inherits every tool in the harness,
 # regardless of what its body says it may do. Checks key existence only, on purpose — whether
 # the listed tools match the body is the sibling guard below. Registered here by #577; before
-# that it lived in scripts/ but ran in neither CI nor this list.
+# that it lived in scripts/ but ran in neither CI nor this list. #611's review found the
+# emptiness half was never enforced: `^tools:\s*(.*)$` let `\s*` cross the newline, so a bare
+# `tools:` followed by any other key captured THAT line as the value and passed — the exact
+# #472 harm, green. Narrowed to `[ \t]*`, with the YAML block-list form checked separately so
+# `tools:\n  - Read` still counts as non-empty.
 python3 scripts/check-agent-tools-usage.py --self-test
-# Expected: OK: all 20 check-agent-tools-usage self-test cases passed
+# Expected: OK: all 32 check-agent-tools-usage self-test cases passed
 python3 scripts/check-agent-tools-usage.py
-# Expected: OK: all N agent(s) declare exactly the tools their body uses
+# Expected: OK: all N agent(s)/skill(s) declare exactly the tools their body uses
 # #577: the declared set and the body must agree, in both directions. UNDECLARED (body says
 # "use AskUserQuestion" but `tools:` omits it) makes that branch dead prose — found live in
 # vault-searcher.md's .vault-link recovery. UNUSED (`tools:` grants Write/Grep that the body
@@ -96,6 +100,17 @@ python3 scripts/check-agent-tools-usage.py
 # the weak UNUSED signal structurally cannot: a body claiming the Write Role Contract while
 # `tools:` grants Write/Edit/NotebookEdit — the sentence stating the prohibition contains the
 # word `Write`, so a bare-mention check always passes it.
+# #611 widened the same guard to `*/skills/*/SKILL.md` and its `allowed-tools:` key, which had
+# no equivalent check at all: adversarial-review and expert-panel were directing a mandatory
+# backlog-prefilter shell step with no Bash grant, and 17 skills across all 4 plugins carried
+# grants their bodies never name. One splitter reads both conventions (agents comma-separated,
+# skills space-separated) by breaking on commas AND whitespace outside parentheses. Two rules
+# differ by scope: MISSING (no usable `allowed-tools:` — absent, or present but empty — so the
+# skill inherits every tool in the harness) is skills-only because check-agent-tools-field.py
+# above already owns the agent side (an agent instead falls through with an empty set, so
+# UNDECLARED still reports what its body reaches for),
+# and CONTRACT is agents-only because the skills that name the Write Role Contract are the
+# main-context writers it authorises — firing there would block exactly the right holders.
 python3 scripts/check-plugin-root-paths.py --self-test
 # Expected: OK: all 14 check-plugin-root-paths self-test cases passed
 python3 scripts/check-plugin-root-paths.py
