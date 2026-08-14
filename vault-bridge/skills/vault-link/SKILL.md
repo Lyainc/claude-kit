@@ -1,7 +1,7 @@
 ---
 name: vault-link
 description: "Create or update a .vault-link pointer file that binds the current code repository to a specific vault project under ~/vault/notes/. Invoke via /vault-link."
-allowed-tools: Read Write Bash Glob AskUserQuestion
+allowed-tools: Read Write Bash AskUserQuestion
 disable-model-invocation: true
 ---
 
@@ -35,7 +35,7 @@ If the user chooses 취소, stop without changes.
 ls -1 ~/vault/notes/ 2>/dev/null
 ```
 
-Collect the list of subdirectory names under `~/vault/notes/`. Present them to the user as a numbered list.
+Collect the subdirectory names from that Bash output and present them to the user as a numbered list.
 
 Use AskUserQuestion:
 
@@ -90,7 +90,7 @@ After writing, output:
 ### Step 5 — Offer to append `.vault-link.local` to `.gitignore`
 
 1. Check whether the CWD is inside a git working tree (`git rev-parse --is-inside-work-tree` returns `true`). If not, skip this step.
-2. Resolve the project root via `git rev-parse --show-toplevel` and inspect `${root}/.gitignore`. If the file already contains a non-comment line equal to `.vault-link.local`, skip this step (already protected).
+2. Resolve the project root via `git rev-parse --show-toplevel`, then Read `${root}/.gitignore`. If the file already contains a non-comment line equal to `.vault-link.local`, skip this step (already protected).
 3. Otherwise, AskUserQuestion:
    ```
    질문: ".vault-link.local 항목을 .gitignore에 추가할까요?"

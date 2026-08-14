@@ -13,7 +13,7 @@ description: |
   Routing: 세션 종료 루틴 전체(PR 정리·이슈 점검 포함)는 그 루틴을 쓰고, 이 스킬은 그중
   "무엇을 다음에 할지 + 어떤 조건으로 닫을지"만 담당한다. 아이디어를 명세로 굳히는 건
   build-spec, 문서 저작은 doc-concretize.
-allowed-tools: Read Bash Grep Glob
+allowed-tools: Read Bash
 effort: medium
 ---
 
@@ -42,7 +42,7 @@ The caller supplies, or this skill collects:
 | Input | Required | How to get it if absent |
 |-------|----------|-------------------------|
 | This session's follow-up candidates | yes | Read back from the conversation |
-| Open backlog | only when Phase 1 step 3 fires | `gh issue list --state open --limit 60` |
+| Open backlog | only when Phase 1 step 3 fires | Bash: `gh issue list --state open --limit 60` |
 | Chain depth (how many sessions this thread has run) | no | Assume 1 when unknown |
 
 If the repo has no GitHub remote, the backlog widening step is unavailable — say so in one

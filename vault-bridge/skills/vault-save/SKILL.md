@@ -1,7 +1,7 @@
 ---
 name: vault-save
 description: "The single entry for putting reference material into the vault (~/vault/) — replaces the retired /capture and /note. Anything worth pulling back out while planning later: web clippings, papers, analyses, brainstorms, early plans, study notes, meeting memos. Saves immediately with no confirmation and prints the path. Destination is mechanical, by authorship: source text taken as-is (URL, pasted original, session dump) → sources/, prose you wrote → notes/. No status field and no promotion gate — the vault is a reference warehouse, so selection happens on retrieval, not at the entrance (v5 §5). KR triggers: '볼트에 저장', '메모해줘', '이거 저장해줘', '자료 저장', '받아적어줘', '클리핑 저장', '노트로 정리', '인박스에 저장'. EN triggers: 'save to vault', 'vault save', 'capture this', 'quick memo', 'save this link', 'jot this down', 'write up a note'. Examples: '/vault-save https://example.com/article', '/vault-save 오늘 회의에서 나온 API 변경점'. Routing: domain knowledge compiled for AI recall is /wiki (obsidian-vault-manager, A layer); a repo-bound design decision goes to a GitHub issue, not the vault (v5 §10)."
-allowed-tools: Read Write Bash Glob
+allowed-tools: Write Bash Glob
 model: haiku  # kept: mechanical write only, no LLM judgment — merges /capture + /note (#448, #480)
 ---
 
@@ -61,7 +61,7 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 
 ## Procedure
 
-1. Resolve `{vault_root}` — priority order `VAULT_BRIDGE_VAULT_ROOT` (env override) >
+1. Resolve `{vault_root}` with Bash — priority order `VAULT_BRIDGE_VAULT_ROOT` (env override) >
    `VAULT_BRIDGE_VAULT_PATH` (userConfig) > `~/vault` (default), same chain as
    `hooks/pre-write-guard.sh`:
    ```bash
@@ -74,8 +74,9 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 3. `mkdir -p` the target directory before writing.
 4. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
    write the content as the body verbatim (keep the user's own wording — do not summarize).
-5. Filename collision (same stem already exists): append `-v2`, `-v3`, … automatically. This is a
-   mechanical uniqueness guarantee, not a content check.
+5. Filename collision — use Glob over the target folder to see whether the same stem already
+   exists, and if it does, append `-v2`, `-v3`, … automatically. This is a mechanical uniqueness
+   guarantee, not a content check.
 6. Write the file. For `--type decision`, structure the body as `## 문제` / `## 선택지` /
    `## 결정` / `## 근거`. `--type discussion` has no fixed structure — write whatever the caller
    already composed (SUMMARY/UNRESOLVED, adversarial-review verdicts, unknown-discovery findings)

@@ -2,7 +2,7 @@
 name: base
 description: "Generate an Obsidian Bases (.base) view file in ~/vault/notes/ from enforced frontmatter — a live, non-destructive view that never modifies existing notes. Built-in templates: sources, notes, recent. Examples: '/base sources', '/base notes', '/base recent', '/base my-clippings --template sources'"
 effort: low
-allowed-tools: Read Write Bash Glob
+allowed-tools: Read Write Bash Glob AskUserQuestion
 ---
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
@@ -16,7 +16,7 @@ A `.base` file is a **pure-YAML view definition** that renders a live table/card
 Parse `$ARGUMENTS`:
 - `{view-name}` — when `{view-name}` is one of the built-in template names (`sources`, `notes`, `recent`), use that template and name the file `{view-name}.base`.
 - `{view-name} --template {template}` — use the named built-in `{template}` but write the file as `{view-name}.base` (custom filename, built-in body).
-- Valid templates: `sources`, `notes`, `recent`. If no template is resolvable from the name and no `--template` flag is given, ask the user which of the three templates to use (do not invent a filter).
+- Valid templates: `sources`, `notes`, `recent`. If no template is resolvable from the name and no `--template` flag is given, use AskUserQuestion to ask which of the three templates to use (do not invent a filter).
 - **Invalid `--template` value**: if `--template` is given with a value that is NOT one of the 3 built-ins, do NOT silently create a broken view. Instead, immediately stop, list the valid names (`sources`, `notes`, `recent`), and re-ask the user which template to apply.
 
 ## Built-in View Templates
@@ -86,9 +86,9 @@ views:
 1. **Resolve view name + template**: Apply Argument Parsing. The view name becomes the filename stem; the template determines the body.
 
 2. **Normalize filename**: `{view-name}` → lowercase kebab-case. Target path: `~/vault/notes/{view-name}.base`.
-   - **Filename collision** (exact same stem `.base` exists): append `-v2`, `-v3`, etc. automatically — no AskUserQuestion. This is a mechanical uniqueness guarantee. Never overwrite an existing `.base`.
+   - **Filename collision**: use Glob over `~/vault/notes/*.base` to see which view files already exist. If the exact same stem `.base` is there, append `-v2`, `-v3`, etc. automatically — no AskUserQuestion. This is a mechanical uniqueness guarantee. Never overwrite an existing `.base`.
 
-3. **Directory validation**: Run `mkdir -p ~/vault/notes/` before any write to guard against a missing directory.
+3. **Directory validation**: use Bash to run `mkdir -p ~/vault/notes/` before any write, to guard against a missing directory.
 
 4. **Show plan**: Present the target filename and the full `.base` YAML body, then wait for user confirmation before writing.
 
@@ -105,4 +105,4 @@ views:
 - Show the plan first; write the file only after user confirmation.
 - `notes/` allows free sub-folder structure; do not auto-create sub-folders unless the user specifies a path.
 - Do not filter on `status:` — the status machine is abolished (v5 §5/§6, #480) and nothing writes that field anymore.
-- For schema details / future Obsidian Bases version changes, consult `../../reference/obsidian-bases-schema.md`.
+- For schema details / future Obsidian Bases version changes, Read `../../reference/obsidian-bases-schema.md` — the only file this skill ever reads.

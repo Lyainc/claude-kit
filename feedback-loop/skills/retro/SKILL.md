@@ -2,7 +2,7 @@
 name: retro
 description: "Session retro for the ⑤ execution loop: route findings (telemetry waste patterns, session insights, validated rule patterns) to 3 opt-in outputs (action→git issue / memory→vault-save suggestion / rule→distill handoff), dedup repeats, and cap work with a retro budget. Trigger: 회고, 회고해줘, 세션 회고, 낭비 탐색, retro, session retrospective, waste sweep. Routing: vault structural defects only = obsidian-vault-manager /audit; this skill is the ⑤ post-loop consumer that ACTS on telemetry output. Example: '/retro' or '회고해줘'."
 model: inherit
-allowed-tools: Read Edit Bash Grep Glob AskUserQuestion
+allowed-tools: Read Bash AskUserQuestion
 ---
 
 **User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) MUST be in Korean. Instructions below are English for LLM parsing.

@@ -1,7 +1,7 @@
 ---
 name: wiki
 description: "Compile domain knowledge learned during work into a ~/vault/wiki/ page (the LLM wiki, A layer for AI recall). Gated, explicit compile — never always-on. Examples: '/wiki Defuddle CLI extracts the first H1 as the title', '이거 위키에 정리해줘', '방금 알아낸 거 wiki로 저장'. KR triggers: 'wiki에 정리', '위키 페이지로', '알아낸 거 저장', '도메인 지식 컴파일'. EN triggers: 'compile to wiki', 'save to wiki', 'add wiki page'."
-allowed-tools: Read Write Bash Glob
+allowed-tools: Read Write Bash AskUserQuestion
 effort: medium
 ---
 
@@ -29,7 +29,7 @@ Do not collapse phases. The U7 route and dedup checks run BEFORE any write.
 
 Turn `$ARGUMENTS` (and the relevant exploration context from the current session) into a self-contained piece of **domain knowledge** — a fact/model/lesson that is true and reusable, written so a future model can act on it without re-deriving. Not a transcript dump, not a question; a compiled answer.
 
-If `$ARGUMENTS` is empty or only a question (no knowledge to compile), ask the user what they learned that's worth saving — do not invent content.
+If `$ARGUMENTS` is empty or only a question (no knowledge to compile), use AskUserQuestion to ask what they learned that's worth saving — do not invent content.
 
 ---
 
@@ -69,7 +69,7 @@ The wiki *compounds* — a topic that already has a page is **updated**, never d
    ```bash
    ls ~/vault/wiki/ 2>/dev/null
    ```
-2. **Existing page on the same topic** → plan an **update/merge**: integrate the new knowledge into the existing page (add/refine sections, keep it coherent) and extend the `provenance:` trail with the new originating query. Do NOT create a `-v2`.
+2. **Existing page on the same topic** → Read that page first, then plan an **update/merge**: integrate the new knowledge into what is already there (add/refine sections, keep it coherent) and extend the `provenance:` trail with the new originating query. Do NOT create a `-v2`.
    - **Lazy anchor check (#305 staleness defense)**: if the existing page has an `anchor:` field, and that anchor is a local path, `stat` it and compare its mtime against the page's `verified:` date. Anchor unchanged since `verified:` → the anchored claim is still current, skip re-deriving it (just fold in the new knowledge and bump `verified:` at write time). Anchor changed → recompile the anchored claim from the current session context, same as any other update. If the anchor is a URL instead of a local path, skip the mtime comparison entirely and always recompile as a normal update — checking a URL for changes means fetching it, and that fetch is exactly the ferry-style re-pull this design avoids (§3 pull-mostly). This is a lazy check on an already-local anchor, never a network round-trip. **Known gap**: `verified:` is date-only (`YYYY-MM-DD`) while mtime is a full timestamp, so an anchor edited later on the *same calendar day* as the last `verified:` stamp can still compare as "unchanged" and skip a re-derive it should have caught — a narrow, same-day race, not a fix.
 3. **No existing page** → plan a **new** page `~/vault/wiki/{slug}.md`. `{slug}` = 2–4 kebab-case words from the topic.
 4. A `-v2`/`-v3` suffix is ONLY for a genuinely *different* topic that collides on slug — never for the same topic (that's an update).

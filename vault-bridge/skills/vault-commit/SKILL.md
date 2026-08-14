@@ -118,7 +118,7 @@ wiki/ 23 · notes/ 2 · sources/ 4 · .obsidian/ 2 · 기타 1
 
 **Option A — "이 메시지로 커밋"** (index 0):
 
-Run:
+Run the commit with Bash:
 ```bash
 git -C "{vault_root}" commit -m "{auto_msg}"
 ```

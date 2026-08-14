@@ -2,7 +2,7 @@
 name: add-policy
 description: "The landfill engine of the ⑤ self-improvement loop: take ONE work-policy / convention / rule — stated by the user in natural language, or handed off as a distill proposal — infer its classification, and place it in one of three native landfill sites (an always-read reminder, a deterministic hook guard, or an invocable skill) behind a single 1-click confirmation. Leaves every change in the working tree; never commits. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: distill (sibling) DISCOVERS what is worth keeping and emits the proposal; add-policy LANDS it — distill never fills the placement, add-policy never re-judges the rule's reuse value (it does judge whether the artifact is needed — the §6 necessity gate). Declarative knowledge (facts/decisions) = vault /vault-save, not a policy. Example: '/add-policy' or '이 규칙 어디다 넣을지 분류해줘'."
 model: inherit
-allowed-tools: Read Edit Write Bash Glob Grep AskUserQuestion
+allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 ---
 
 **User language: Korean for dialogue.** What the engine WRITES is English — the

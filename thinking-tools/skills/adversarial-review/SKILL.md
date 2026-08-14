@@ -9,7 +9,7 @@ description: |
   devil's advocate, adversarial review, claim attack, survival score, steelman and attack.
   Routing: 합의 도출·다관점은 expert-panel, 맹점 인터뷰는 unknown-discovery.
 
-allowed-tools: AskUserQuestion Read Write Agent
+allowed-tools: AskUserQuestion Read Write Agent Bash
 ---
 
 # Adversarial Review
@@ -59,9 +59,9 @@ All combinations compose silently — e.g., "빠르게 자동으로" activates q
 
 Before attacking, build the strongest possible version of the claim.
 
-**Backlog prefilter scan (#524)**: before Steelman construction begins for a claim, run once on the
-claim exactly as submitted — never the Steelman, matching the Attacker domain-angle's shared-input
-rule (#423), so the scan result doesn't vary run-to-run for one claim:
+**Backlog prefilter scan (#524)**: before Steelman construction begins for a claim, use Bash to run
+the prefilter once on the claim exactly as submitted — never the Steelman, matching the Attacker
+domain-angle's shared-input rule (#423), so the scan result doesn't vary run-to-run for one claim:
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{claim text}"
 ```

@@ -11,7 +11,7 @@ description: |
   polish, lint, "이 문서 검사해줘", "README 다듬어줘".
   Routing: 새 콘텐츠를 처음부터 작성하는 건 doc-concretize (doc-polish는 기존 MD 파일 편집 전용).
 effort: medium
-allowed-tools: Read Edit Grep Glob Bash WebFetch
+allowed-tools: Read Edit Bash WebFetch
 ---
 
 # Document Polish
