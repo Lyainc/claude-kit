@@ -23,6 +23,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 
 # A "test command" is one of these shapes. Each maps to a stable id so the same logical
 # test in docs/VALIDATION.md and validate.yml compares equal regardless of redirects/flags/env prefixes.
@@ -105,9 +106,25 @@ def extract_validation_section(validation_md_text):
     return "\n".join(fenced) if fenced else "\n".join(section)
 
 
+def _referenced_paths(ids):
+    """Strip the id prefix (`py:`, `sh:`, ...) down to a bare path, skipping glob
+    patterns (`bash -n hooks/*.sh`) since those have no single file to check."""
+    paths = []
+    for i in ids:
+        _, _, path = i.partition(":")
+        if any(c in path for c in "*?["):
+            continue
+        paths.append(path)
+    return paths
+
+
 def check_coverage(root):
-    """Return (ok, report). ok=True means every docs/VALIDATION.md test is also run in CI."""
-    report = {"root": root, "registered": [], "ci": [], "missing_in_ci": [], "ci_only": []}
+    """Return (ok, report). ok=True means every docs/VALIDATION.md test is also run in
+    CI, AND every registered path still exists on disk (#618: a test deleted without
+    also deleting its docs/VALIDATION.md line is silent drift — the doc claims a
+    regression guard that no longer runs)."""
+    report = {"root": root, "registered": [], "ci": [], "missing_in_ci": [], "ci_only": [],
+              "stale_paths": []}
     validation_path = os.path.join(root, "docs", "VALIDATION.md")
     yml_path = os.path.join(root, ".github", "workflows", "validate.yml")
 
@@ -132,12 +149,14 @@ def check_coverage(root):
     ci = extract_test_ids(yml_text)
     missing = registered - ci
     ci_only = ci - registered
+    stale = sorted(p for p in _referenced_paths(registered) if not os.path.isfile(os.path.join(root, p)))
 
     report["registered"] = sorted(registered)
     report["ci"] = sorted(ci)
     report["missing_in_ci"] = sorted(missing)
     report["ci_only"] = sorted(ci_only)
-    return (len(missing) == 0), report
+    report["stale_paths"] = stale
+    return (len(missing) == 0 and len(stale) == 0), report
 
 
 def run_self_test():
@@ -175,6 +194,30 @@ def run_self_test():
         failures.append("  commented-out line was not skipped")
     if "py:dir/test/outside-section.py" in reg:
         failures.append("  line outside ## Validation section leaked in")
+
+    # #618: a registered path that no longer exists on disk is stale drift, and a glob
+    # pattern (no single file to check) must not be flagged.
+    if _referenced_paths({"py:dir/test/foo.py", "bash-n:hooks/*.sh"}) != ["dir/test/foo.py"]:
+        failures.append("  _referenced_paths: glob pattern should be skipped")
+    with tempfile.TemporaryDirectory() as tmp:
+        os.makedirs(os.path.join(tmp, "docs"))
+        os.makedirs(os.path.join(tmp, ".github", "workflows"))
+        os.makedirs(os.path.join(tmp, "dir", "test"))
+        with open(os.path.join(tmp, "dir", "test", "real.py"), "w") as fh:
+            fh.write("")
+        with open(os.path.join(tmp, "docs", "VALIDATION.md"), "w") as fh:
+            fh.write("# x\n## Validation\n\n```bash\npython3 dir/test/real.py\n"
+                      "python3 dir/test/deleted.py\n```\n")
+        with open(os.path.join(tmp, ".github", "workflows", "validate.yml"), "w") as fh:
+            fh.write("name: v\njobs:\n  validate:\n    steps:\n      - run: |\n"
+                      "          python3 dir/test/real.py\n"
+                      "          python3 dir/test/deleted.py\n")
+        ok, report = check_coverage(tmp)
+        if ok:
+            failures.append("  check_coverage: a stale (deleted) path should fail ok=False")
+        if report["stale_paths"] != ["dir/test/deleted.py"]:
+            failures.append(f"  check_coverage: expected stale_paths=['dir/test/deleted.py'], "
+                             f"got {report['stale_paths']}")
 
     if failures:
         print("FAIL: check-ci-coverage self-test")
@@ -217,6 +260,15 @@ def main(argv=None):
                   "docs/VALIDATION.md's Validation section if intentionally local-only.")
         else:
             print("OK: every registered test is wired into CI.")
+        if report["stale_paths"]:
+            tag = "GAP" if args.strict else "WARN"
+            print(f"{tag}: {len(report['stale_paths'])} docs/VALIDATION.md-registered path(s) "
+                  "do not exist on disk (stale test reference):")
+            for p in report["stale_paths"]:
+                print(f"  - {p}")
+            print("Fix: remove the stale line from docs/VALIDATION.md's Validation section "
+                  "(and validate.yml if still wired), or restore the file if this was an "
+                  "accidental deletion.")
         if report["ci_only"]:
             print(f"Note: {len(report['ci_only'])} CI step(s) not listed in docs/VALIDATION.md "
                   "(informational): " + ", ".join(report["ci_only"]))
