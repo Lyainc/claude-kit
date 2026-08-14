@@ -622,6 +622,16 @@ python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
 python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
 # Expected: OK: all cases passed
 
+# audit/SKILL.md vault-root wiring (#619, following #613/#616) — Phase 1 SCAN used to
+# hardcode ~/vault for scan-frontmatter/scan-filename/find regardless of
+# VAULT_BRIDGE_VAULT_ROOT/VAULT_BRIDGE_VAULT_PATH (the #613 symptom, still reachable
+# end-to-end through the skill even after ovm-primitives.sh itself was fixed), and the
+# documented --path flag was inert. Pins the SKILL.md wiring (Step 1 resolves $VAULT_ROOT,
+# Steps 5-6 use --path-scoped $scan_dir, the link index/E9 check stay vault-wide by design)
+# plus the functional --path-scoping behavior against ovm-primitives.sh directly.
+python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py
+# Expected: OK: all 3 audit-vault-root-wiring cases passed
+
 # audit DoD 측정 (mechanical reference impl)
 rm -rf /tmp/ovm-fixture-audit-recheck
 OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
