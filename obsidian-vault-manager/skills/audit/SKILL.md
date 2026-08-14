@@ -7,7 +7,7 @@ allowed-tools: Read Write Edit Bash Glob Grep AskUserQuestion
 
 **User language: Korean.** All user-facing output (responses, AskUserQuestion prompts, confirmation messages, progress lines) MUST be in Korean.
 
-Scan the entire vault rooted at `~/vault/` for structural defects and produce a triage report grouped by severity.
+Scan the vault at `$VAULT_ROOT` (Phase 1 Step 1) for structural defects and produce a triage report grouped by severity.
 
 ---
 
@@ -25,18 +25,23 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Purpose**: Collect raw scan data from the vault using ovm-primitives. Zero LLM token cost.
 
-**Inputs**: `~/vault/` (or `--path <subdir>` if flag provided).
+**Inputs**: `$VAULT_ROOT` (Step 1); Steps 5–6 scope to `$VAULT_ROOT/<subdir>` under `--path`.
 
 **Tools used**: Bash only.
 
 **Procedure**:
 
-1. Start metrics:
+1. Resolve `$VAULT_ROOT`/`$scan_dir` — same chain as `ovm-primitives.sh`/`pre-write-guard.sh`
+   (`VAULT_BRIDGE_VAULT_ROOT` > `VAULT_BRIDGE_VAULT_PATH` > `~/vault`, tilde-expanded).
+   `scan_dir` = `$VAULT_ROOT` unscoped, or `$VAULT_ROOT/<subdir>` under `--path <subdir>`.
+   `$scan_dir` → Steps 5–6; `$VAULT_ROOT` → everything else.
+
+2. Start metrics:
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" metrics start "audit"
    ```
 
-2. Build the dirty file list using audit-state warm-up (O(dirty files) after first run):
+3. Build the dirty file list using audit-state warm-up (O(dirty files) after first run):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" audit-state list-dirty-since
    ```
@@ -44,27 +49,29 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 > **`audit-state` exit 3 — applies to EVERY call of this subcommand** (#443), not just the one above: `list-dirty-since`, `is-clean`, `mark-clean`, and the per-file `invalidate` loop that `--reset-state` runs all load the state file before dispatch, so any of them can be the first to hit it. Exit 3 means the state file is unusable; the original was preserved at `<path>.corrupt-<ISO8601>` (identical content reuses one sidecar, so a per-file loop does not litter) and nothing was written back. **STOP the audit at the first exit 3** — do not continue the loop, and never treat it as an empty state. Report in Korean: the sidecar path, and that `audit-state.json.bak` holds the last good state if present, while deleting `audit-state.json` instead discards all audit state and forces a full re-scan.
 
-3. Emit a scan-start status line in Korean: indicate that the vault audit is starting, and report the number of files targeted along with an estimated scan time.
+4. Emit a scan-start status line in Korean: indicate that the vault audit is starting, and report the number of files targeted along with an estimated scan time.
 
-4. Run frontmatter scan on the full vault:
+5. Run frontmatter scan (`--path`-scoped):
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter ~/vault
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$scan_dir"
    ```
 
-5. Run filename scan on the full vault:
+6. Run filename scan (`--path`-scoped):
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-filename ~/vault
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-filename "$scan_dir"
    ```
 
-6. Build a global link index: `{target_stem → [source_paths]}` from all extracted wikilinks across the full vault. This is required for orphan detection (which needs the full inbound-link map).
+7. Build a global link index (`{target_stem → [source_paths]}`) from wikilinks vault-wide —
+   **never `--path`-scoped** (same E9 exception as Step 9): a file in-scope can still be
+   linked from outside it.
 
-   To build the full link index, run `extract-wikilinks` on all `.md` files found by:
+   Run `extract-wikilinks` on every `.md` file found by:
    ```bash
-   find ~/vault -name '*.md' -not -path '*/.*'
+   find "$VAULT_ROOT" -name '*.md' -not -path '*/.*'
    ```
    Wikilinks inside code fences or inline code are masked out before extraction (#434) — a backticked `[[Note]]` is a syntax example, not a real link, and over-masking would hide a real inbound link and manufacture a false E5 orphan.
 
-7. Read manifest summary (used for REPORT header). **Never `cat` the manifest directly** — on
+8. Read manifest summary (used for REPORT header). **Never `cat` the manifest directly** — on
    a real vault it can run past 100 KB, and the harness truncates large Bash output to a 2 KB
    preview before this reads it, so a raw `cat` silently degrades to whichever few entries
    survive the cut (#468, same defect class as #460). Use the filter script instead, which
@@ -72,16 +79,16 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
-   Use the resolved `$VAULT_ROOT` from Steps 4–6 (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`), not a hardcoded path.
+   Uses the `$VAULT_ROOT` from Step 1.
    Exit 0 → parse stdout as `{file_count, generated_at}` and use it as `manifest_summary`.
    Exit 3 (manifest absent, unparseable, or missing a required field) → set `manifest_summary`
    to null — never re-attempt with a raw `cat` as a fallback.
 
-8. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
+9. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" detect-vocabulary "$VAULT_ROOT"
    ```
-   Always run on the **full vault** (not the dirty subset) — E9 is a vault-level check. The command emits a JSON array of pairs `{sub, a, b, a_files, b_files}` (empty when consistent); pass it straight to CLASSIFY as the E9 findings source.
+   Always vault-wide, `--path`-unscoped — E9 is a vault-level check. Emits a JSON array of pairs `{sub, a, b, a_files, b_files}` (empty when consistent); pass it straight to CLASSIFY as the E9 findings source.
 
 **Outputs**: An in-memory scan bundle:
 ```
@@ -290,7 +297,7 @@ The proposal is never auto-committed — it is previewed in the confirmation gat
 |------|----------|
 | `--force` | Ignore audit-state; re-audit all vault files |
 | `--dry-run` | Run SCAN→CLASSIFY→REPORT but skip OPTIONAL-FIX and mark-clean |
-| `--path <dir>` | Limit scan to a subdirectory (e.g., `--path notes`) |
+| `--path <dir>` | Scope Steps 5–6 to `$VAULT_ROOT/<dir>` (link index/E9 stay vault-wide) |
 | `--reset-state` | Call `audit-state invalidate` on all vault files before scanning |
 | `--deep` | Opt-in LLM path (#336, #167): after CLASSIFY, run Phase 2.5 DEEP to judge candidate `wiki/` page pairs for cross-page semantic contradiction (E12b) and candidate tag pairs for semantic synonym (E9c). Off by default. |
 | `status` | Show current audit-state stats only (no scan) |
