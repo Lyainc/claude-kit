@@ -152,6 +152,7 @@ jobs:
           python3 vault-bridge/scripts/test/test-vault-path.py
           python3 vault-bridge/scripts/test/test-manifest-type-optin.py
           python3 vault-bridge/scripts/test/test-manifest-candidates.py
+          python3 vault-bridge/scripts/test/test-manifest-meta.py
           python3 vault-bridge/scripts/test/test-vault-commit-message.py
           echo "vault-bridge tests OK"
 
@@ -194,6 +195,9 @@ jobs:
           bash feedback-loop/scripts/test/test-retro-telemetry.sh
           python3 feedback-loop/scripts/test/test-retro-telemetry-stamp-isolation.py
           bash feedback-loop/scripts/test/test-events-dir-resolution.sh
+          # #618 gh-issues-cache.sh fail-open/fail-empty distinction (a failed `gh`
+          # fetch must not read back as "genuinely zero open issues").
+          bash feedback-loop/scripts/test/test-gh-issues-cache.sh
           # #458 sequence.py drops the started/success lifecycle pair before the n-gram window
           # (a single call used to read as an X -> X repeat, i.e. a waste signal to retro).
           python3 feedback-loop/scripts/test/test-sequence.py

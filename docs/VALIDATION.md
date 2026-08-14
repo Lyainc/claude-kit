@@ -276,6 +276,11 @@ python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 python3 vault-bridge/scripts/test/test-manifest-candidates.py
 # Expected: OK: all manifest-candidate checks passed
 
+# vault-bridge manifest global meta fields (references_in/out, recent_commits, type
+# opt-in, in-place schema upgrade) — was never wired into docs/VALIDATION.md (#618 audit).
+python3 vault-bridge/scripts/test/test-manifest-meta.py
+# Expected: OK: all cases passed
+
 # vault-commit message generation (status-transition aware)
 python3 vault-bridge/scripts/test/test-vault-commit-message.py
 # Expected: OK: all cases passed
@@ -352,6 +357,17 @@ python3 feedback-loop/scripts/test/test-retro-telemetry-stamp-isolation.py
 # then wrote telemetry there instead, measured live 2026-08-03.
 bash feedback-loop/scripts/test/test-events-dir-resolution.sh
 # Expected: OK: all events-dir resolution cases passed
+
+# gh-issues-cache.sh regression (#528 cache, #618 fail-open/fail-empty fix) — was
+# never wired into docs/VALIDATION.md, so the #618 bug (a failed `gh` fetch and a
+# genuinely-zero-open-issue backlog both printed bare "[]", which retro's dedup step
+# then read as "no duplicates" and re-filed an already-open issue) shipped without CI
+# catching it. Pins: fresh cache served without touching `gh`, a failed fetch is never
+# cached AND is distinguishable from a genuine "[]" (nonzero exit + FAILED marker), a
+# genuine zero-open-issue backlog still exits 0/caches/prints bare "[]", and an expired
+# cache falls back to a live fetch.
+bash feedback-loop/scripts/test/test-gh-issues-cache.sh
+# Expected: OK: all gh-issues-cache cases passed
 
 # feedback-loop SKILL.md trigger-regression check (#471 — routing-SSOT drift guard extended
 # to a previously-unguarded face). feedback-loop's skills use a third description shape
