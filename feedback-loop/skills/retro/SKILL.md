@@ -126,6 +126,10 @@ Zero mutation. Produce a deduped, priority-sorted item list.
      render** (a specific PR/issue's current state shown to the user) — session-close's
      pre-render lookups must stay live; a cached one already misjudged a PR merged 9 hours
      earlier as still open (2026-07-30).
+     A failed fetch prints `[gh-issues-cache FAILED] ...` (not `[]`) and exits nonzero
+     (#618) — that output is NOT an issue list. On this signal, dedup for THIS action item
+     is unknown, not clean: do not auto-file it as if no duplicate exists. Say so and either
+     ask the user before filing, or skip filing that item and note the check couldn't run.
    - *Prior retro*: use the `grep` output already collected in step 2 above —
      do not re-invoke it here.
 
