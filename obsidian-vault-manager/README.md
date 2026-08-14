@@ -13,7 +13,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | Agent | Model | Description |
 | --- | --- | --- |
 | `vault-knowledge-manager` | Sonnet | 메인 에이전트 — vault 검색·audit + 노트/결정 **초안** 작성. Write Role Contract상 vault에 직접 쓰지 못하고, 초안을 메인 컨텍스트로 돌려주면 사용자가 `/vault-save`(vault-bridge)·`/wiki`로 확정한다 |
-| `vault-file-organizer` | Haiku | 경량 subagent — 파일 이동, 이름 변경, 아카이브 |
+| `vault-file-organizer` | Haiku | 경량 subagent — 파일 이동·이름 변경을 **계획으로** 반환 (Write Role Contract상 볼트 쓰기는 메인 컨텍스트가 실행) |
 
 ## 포함된 스킬
 
