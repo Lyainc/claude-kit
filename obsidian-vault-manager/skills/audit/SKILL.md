@@ -97,8 +97,8 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
     ```bash
     bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" e5-candidates "$VAULT_ROOT/notes"
     ```
-    Vault-wide, unscoped; paths are `$VAULT_ROOT`-relative — under `--path`, prefix `rec.path`
-    with the scope before matching.
+    Vault-wide, unscoped; paths are `$VAULT_ROOT`-relative, matching Steps 5–6 (#631) — join
+    on `rec.path` directly.
 
 **Outputs**: An in-memory scan bundle:
 ```
