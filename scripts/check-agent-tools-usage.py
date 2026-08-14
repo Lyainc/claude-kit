@@ -10,14 +10,20 @@ set. Four findings, four different harms:
     path-resolution recovery said "use AskUserQuestion" while `tools:` listed only
     Read/Bash/Glob/Grep (#577).
 
-    Know what this rule cannot see. #611's headline pair — adversarial-review and expert-panel
-    directing a mandatory backlog-prefilter step with no `Bash` grant — was found by hand, not
-    by this rule, because the `python3 …` call sat inside a fenced block that `strip_noise`
-    drops. Both files became machine-checkable only once their prose was rewritten to name
-    `Bash`; a future skill that adds a fenced shell step and no grant reproduces #611 silently.
-    That is the deliberate cost of never inferring a tool from a shell command, and UNUSED is
-    what recovers it: once the grant is declared, an un-named tool is reported from the other
-    side.
+    One narrow exception to "never infer a tool from a shell command" (#634). #611's headline
+    pair — adversarial-review and expert-panel directing a mandatory backlog-prefilter step with
+    no `Bash` grant — was found by hand, not by this rule, because the `python3 …` call sat
+    inside a fenced block that `strip_noise` drops; both became machine-checkable only once
+    their prose was rewritten to name `Bash`, which left the recurrence path wide open. So a
+    SKILL.md that has a ```bash / ```sh / ```shell tagged fence anywhere and no `Bash` grant is
+    reported as UNDECLARED `Bash` on the fence alone. Only *tagged* fences count — an untagged
+    one is usually YAML or an output template, and honouring those is an FP field. The prose
+    rule is otherwise unchanged: a shell command still never evidences a grant, it only exposes
+    a missing one. Measured at introduction: 11 of 19 skills carry a tagged shell fence, all 11
+    already declared `Bash`, so the rule flags nothing today — a floor against the next skill.
+    Skills only for now; the same scan over agents also flagged nothing (2 of 4 carry a tagged
+    fence, both with `Bash`), so extending it is a one-line change backed by that measurement,
+    deliberately left for whoever needs it.
 
   UNUSED — the declaration grants a tool the body never reaches for. That is the
     over-permission #472 introduced the field to prevent, just re-created one entry at a time.
@@ -38,6 +44,27 @@ set. Four findings, four different harms:
     check. This is the repo's central write-safety invariant, so it gets its own rule.
     **Agents only.** The contract binds subagents, and the skills that name it are the
     main-context writers it authorises — firing there would block exactly the right holders.
+
+  UNCONTRACTED — CONTRACT's inverse, and the harm it misses (#620). CONTRACT only fires on a
+    body that *claims* the contract, so an agent that never heard of it is invisible: it holds
+    a write tool, documents a vault procedure the hook denies at runtime, and every check stays
+    green. That is not hypothetical — vault-file-organizer.md documented `Edit` on frontmatter
+    and `mv` on vault files, both denied by pre-write-guard.sh in its default `enforce` mode,
+    with zero mentions of the contract in the whole file, while its sibling
+    vault-knowledge-manager.md opened with it. So: an agent holding Write/Edit/NotebookEdit
+    whose body names a vault ROOT and never names the contract is reported.
+
+    The vault condition is what keeps this narrow, and it is load-bearing rather than
+    incidental: the Write Role Contract governs vault writes specifically, so a non-vault agent
+    holding `Write` has no contract to name and must not be flagged for silence about one. It
+    matches a root *spelling* (`~/vault`, `$VAULT_ROOT`, `VAULT_BRIDGE_VAULT_…`) and not the
+    bare word `vault`, which fires on an agent that only routes vault work elsewhere ("for
+    vault lookups delegate to vault-searcher") and leaves it no way to go green but to recite a
+    contract it has no duty under. The cost is the other direction: an agent that documents its
+    root some third way is missed. All three live vault agents spell it `~/vault`, so widen the
+    list when a real one does not — do not fall back to the bare word.
+    Agents only, for CONTRACT's reason — a skill is the main-context writer the contract
+    authorises, so its silence carries no obligation.
 
 `check-agent-tools-field.py` is the sibling guard for agents and deliberately stops at "the key
 exists and is non-empty" — its docstring calls this comparison a manual judgment call. This
@@ -128,6 +155,66 @@ READONLY_MARKERS = (
     "cannot write",
     "no access to the write tool",
 )
+# UNCONTRACTED's scope condition: the contract governs vault writes, so an agent that never
+# talks about the vault has no contract to be silent about. The marker is the vault PATH, not
+# the bare word — `vault` alone fires on an agent that merely routes vault work elsewhere
+# ("for vault lookups delegate to vault-searcher"), which then has no way to go green except by
+# reciting a contract it has no duty under. Matched on the raw body, fences included: a vault
+# path in a shell example is still this agent operating on the vault.
+VAULT_MARKERS = ("~/vault", "$vault_root", "vault_bridge_vault_")
+
+# `bash`/`sh`/`shell` only, and the tag is required: an untagged fence in these files is far
+# more often YAML, an output template, or a markdown sample than a command to run.
+FENCE_LINE_RE = re.compile(r"^[ \t]*(`{3,})[ \t]*(\S*)")
+# The info string's leading letters are the language; everything after is decoration. Renderers
+# and doc tools attach it with no separating space (```bash{.copy}, ```bash,ignore,
+# ```bash:no-run, ```sh#run), so splitting on whitespace alone drops that whole family.
+FENCE_LANG_RE = re.compile(r"^[A-Za-z]+")
+SHELL_FENCE_LANGS = ("bash", "sh", "shell")
+
+
+def _is_shell_lang(info):
+    m = FENCE_LANG_RE.match(info)
+    return bool(m) and m.group(0).lower() in SHELL_FENCE_LANGS
+
+
+def has_shell_fence(body):
+    """True when a tagged shell fence stands as a real, reachable block.
+
+    Two things a plain line-by-line regex gets wrong, both verified as false positives before
+    this existed: a fence inside an HTML comment is a commented-out step, and a ```bash inside a
+    longer ````markdown block is sample text, not a command. So comments come out first, then
+    fences are walked in order — CommonMark closes a fence only on a bare run at least as long
+    as the opener, which is what makes the nested shorter fence read as content.
+
+    Walking has its own failure mode, and it is resolved toward detecting more. One unclosed
+    non-shell fence would otherwise swallow every fence after it to EOF, so a file that simply
+    forgot a closing fence would go silent — the exact shape #634 exists to close. When the walk
+    ends inside an open fence the document is malformed, the nesting argument no longer holds,
+    and the flat scan runs instead.
+    """
+    body = re.sub(r"<!--.*?-->", "", body, flags=re.DOTALL)
+    lines = body.split("\n")
+    open_len = 0
+    for line in lines:
+        m = FENCE_LINE_RE.match(line)
+        if not m:
+            continue
+        ticks, info = len(m.group(1)), m.group(2)
+        if open_len:
+            if not info and ticks >= open_len:
+                open_len = 0
+            continue
+        if _is_shell_lang(info):
+            return True
+        open_len = ticks
+    if not open_len:
+        return False
+    return any(
+        _is_shell_lang(m.group(2))
+        for m in (FENCE_LINE_RE.match(line) for line in lines)
+        if m
+    )
 
 _VERBS = r"(?:use|uses|using|call|calls|calling|invoke|invokes|invoking|via|through)"
 # Up to two filler words between verb and tool ("use the `X` tool", "call into X").
@@ -275,11 +362,12 @@ def strip_noise(body):
     return body
 
 
-def check_agent(text, key="tools", require_key=False, check_contract=True):
-    """Return (undeclared, unused, unknown, contract, missing) for one agent/skill .md."""
-    frontmatter, body = split_frontmatter(text)
+def check_agent(text, key="tools", require_key=False, check_contract=True,
+                shell_fence_implies_bash=False):
+    """Return (undeclared, unused, unknown, contract, missing, uncontracted) for one .md."""
+    frontmatter, raw_body = split_frontmatter(text)
     if frontmatter is None:
-        return [], [], [], [], False
+        return [], [], [], [], False, []
     declared = declared_tools(frontmatter, key)
     # `not declared` and not `declared is None`: a key present with an empty value grants
     # nothing and inherits everything, exactly like an absent key. But only the skills side
@@ -288,12 +376,13 @@ def check_agent(text, key="tools", require_key=False, check_contract=True):
     # bare `tools:` pass this guard silently while inheriting every tool in the harness.
     if not declared:
         if require_key:
-            return [], [], [], [], True
+            return [], [], [], [], True, []
         declared = []
     unknown = [t for t in declared if not is_known(t)]
     known_declared = [normalise(t) for t in declared if is_known(t) and not normalise(t).startswith("mcp__")]
     declared_bases = {normalise(t) for t in declared}
-    body = strip_noise(body or "")
+    raw_body = raw_body or ""
+    body = strip_noise(raw_body)
 
     undeclared = []
     for tool in KNOWN_TOOLS:
@@ -304,14 +393,26 @@ def check_agent(text, key="tools", require_key=False, check_contract=True):
                 undeclared.append(tool)
                 break
 
+    # The fence rule reads the RAW body on purpose — strip_noise removes the very fences it
+    # looks for. Guarded on `Bash` not already being reported so a body that both names Bash
+    # imperatively and shows a fence yields one finding, not two.
+    if (shell_fence_implies_bash and "Bash" not in declared_bases
+            and "Bash" not in undeclared and has_shell_fence(raw_body)):
+        undeclared.append("Bash")
+
     unused = [t for t in known_declared if not _mention_re(t).search(body)]
 
     lowered = body.lower()
-    contract = []
-    if check_contract and any(marker in lowered for marker in READONLY_MARKERS):
-        contract = [t for t in WRITE_TOOLS if t in declared_bases]
+    names_contract = any(marker in lowered for marker in READONLY_MARKERS)
+    contract, uncontracted = [], []
+    if check_contract:
+        held_writes = [t for t in WRITE_TOOLS if t in declared_bases]
+        if names_contract:
+            contract = held_writes
+        elif held_writes and any(v in raw_body.lower() for v in VAULT_MARKERS):
+            uncontracted = held_writes
 
-    return undeclared, unused, unknown, contract, False
+    return undeclared, unused, unknown, contract, False, uncontracted
 
 
 def _git_toplevel():
@@ -333,10 +434,11 @@ def find_skill_files(root):
     return sorted(glob.glob(os.path.join(root, "*", "skills", "*", "SKILL.md")))
 
 
-# (label, glob, frontmatter key, key is mandatory, run the CONTRACT rule)
 SCOPES = (
-    ("agent", find_agent_files, "tools", False, True),
-    ("skill", find_skill_files, "allowed-tools", True, False),
+    {"label": "agent", "finder": find_agent_files, "key": "tools",
+     "require_key": False, "check_contract": True, "shell_fence_implies_bash": False},
+    {"label": "skill", "finder": find_skill_files, "key": "allowed-tools",
+     "require_key": True, "check_contract": False, "shell_fence_implies_bash": True},
 )
 
 
@@ -464,6 +566,36 @@ SELF_TEST_CASES = [
         "---\nname: a\ntools:\nmodel: x\n---\nUse Write to emit the report, then use Bash to move it.",
         ["Write", "Bash"], [], [], [],
     ),
+    (
+        "a vault agent holding a write tool must name the contract (#620)",
+        "---\nname: a\ntools: Read, Edit\n---\nMove files under ~/vault/. Read each one, then use Edit on its frontmatter.",
+        [], [], [], [], False, ["Edit"],
+    ),
+    (
+        "routing vault work elsewhere is not a vault duty — the word alone must not fire",
+        "---\nname: a\ntools: Read, Write\n---\nFor vault lookups delegate to vault-searcher. Read the diff, then use Write to emit the report.",
+        [], [], [], [], False, [],
+    ),
+    (
+        "naming the contract answers UNCONTRACTED — CONTRACT then judges the grant",
+        "---\nname: a\ntools: Read, Edit\n---\nThe Write Role Contract denies vault writes here. Read and use Edit on the draft instead.",
+        [], [], [], ["Edit"], False, [],
+    ),
+    (
+        "a non-vault agent holding a write tool has no contract to name",
+        "---\nname: a\ntools: Read, Write\n---\nRead the diff, then use Write to emit the report.",
+        [], [], [], [], False, [],
+    ),
+    (
+        "a vault agent with no write tool is silent about the contract legitimately",
+        "---\nname: a\ntools: Read, Bash\n---\nSearch ~/vault/ read-only. Read the hits, use Bash to list them.",
+        [], [], [], [], False, [],
+    ),
+    (
+        "the shell-fence rule is skills-only — an agent fence does not imply Bash",
+        "---\nname: a\ntools: Read\n---\nRead it, then run:\n```bash\nmv a b\n```\n",
+        [], [], [], [],
+    ),
 ]
 
 # Checked with key="allowed-tools", require_key=True, check_contract=False.
@@ -500,6 +632,73 @@ SKILL_SELF_TEST_CASES = [
         [], [], [], [], False,
     ),
     (
+        "a tagged shell fence with no Bash grant is UNDECLARED on the fence alone (#634)",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it, then run:\n```bash\npython3 scripts/backlog-prefilter.py\n```\n",
+        ["Bash"], [], [], [], False,
+    ),
+    (
+        "an UNTAGGED fence does not imply Bash — it is usually YAML or an output template",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it, then emit:\n```\nname: value\n```\n",
+        [], [], [], [], False,
+    ),
+    (
+        # The asymmetry #634 deliberately keeps: a fence exposes a MISSING grant but never
+        # evidences a declared one, so this still reports UNUSED. Naming Bash in prose is what
+        # clears it, exactly as before.
+        "a fence does not evidence a declared Bash — UNUSED still fires",
+        "---\nname: s\nallowed-tools: Read Bash\n---\nRead it, then run:\n```sh\nls\n```\n",
+        [], ["Bash"], [], [], False,
+    ),
+    (
+        "prose names Bash, so the same fenced skill is clean",
+        "---\nname: s\nallowed-tools: Read Bash\n---\nRead it, then use Bash to run:\n```sh\nls\n```\n",
+        [], [], [], [], False,
+    ),
+    (
+        "a fence inside an HTML comment is a commented-out step, not a call",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it.\n<!--\n```bash\nls\n```\n-->\n",
+        [], [], [], [], False,
+    ),
+    (
+        "a ```bash nested in a longer ````markdown block is sample text",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it, then emit:\n````markdown\n```bash\nls\n```\n````\n",
+        [], [], [], [], False,
+    ),
+    (
+        "a tag suffix does not hide the language",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it:\n```bash title=\"run me\"\nls\n```\n",
+        ["Bash"], [], [], [], False,
+    ),
+    (
+        "an info-string suffix attached with no space does not hide it either",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it:\n```bash{.copy}\nls\n```\n",
+        ["Bash"], [], [], [], False,
+    ),
+    (
+        "a comma-attached suffix is the same case (mdBook)",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it:\n```sh,ignore\nls\n```\n",
+        ["Bash"], [], [], [], False,
+    ),
+    (
+        # CommonMark closes on the FIRST bare run of >= length, so the trailing ``` closes the
+        # yaml block and the ```bash line was its content all along. Nothing to report.
+        "a same-length fence run wraps what follows — that is one block, not two",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it:\n```yaml\na: b\n```bash\nls\n```\n",
+        [], [], [], [], False,
+    ),
+    (
+        # Same shape with the closer missing: the document is malformed, the nesting argument
+        # no longer holds, and the flat scan runs so the shell fence is not lost to EOF.
+        "an unterminated fence falls back to the flat scan instead of going silent",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it:\n```yaml\na: b\n```bash\nls\n",
+        ["Bash"], [], [], [], False,
+    ),
+    (
+        "prose and fence together yield one Bash finding, not two",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it, then use Bash to run:\n```shell\nls\n```\n",
+        ["Bash"], [], [], [], False,
+    ),
+    (
         "a skill naming the Write Role Contract is its authorised writer, not a violator",
         "---\nname: s\nallowed-tools: Read Write\n---\nVault writes are main-context only (the Write Role Contract), so use Write here. Read first.",
         [], [], [], [], False,
@@ -516,10 +715,19 @@ def _norm(values):
     return [sorted(v) if isinstance(v, list) else v for v in values]
 
 
+# (undeclared, unused, unknown, contract, missing, uncontracted). A case states only the
+# leading fields it cares about and the rest fill in from here, so adding a finding at the end
+# never touches an existing case.
+WANT_DEFAULTS = ([], [], [], [], False, [])
+SKILL_KWARGS = {"key": "allowed-tools", "require_key": True, "check_contract": False,
+                "shell_fence_implies_bash": True}
+
+
 def run_self_test():
-    cases = [(label, text, {}, list(want) + [False]) for label, text, *want in SELF_TEST_CASES]
+    cases = [(label, text, {}, list(want) + list(WANT_DEFAULTS[len(want):]))
+             for label, text, *want in SELF_TEST_CASES]
     cases += [
-        (label, text, {"key": "allowed-tools", "require_key": True, "check_contract": False}, want)
+        (label, text, SKILL_KWARGS, list(want) + list(WANT_DEFAULTS[len(want):]))
         for label, text, *want in SKILL_SELF_TEST_CASES
     ]
     failures = []
@@ -551,23 +759,25 @@ def main():
     root = args.root or _git_toplevel() or os.getcwd()
 
     checked, findings = 0, []
-    for label, finder, key, require_key, check_contract in SCOPES:
-        for path in finder(root):
+    for scope in SCOPES:
+        kwargs = {k: v for k, v in scope.items() if k not in ("label", "finder")}
+        for path in scope["finder"](root):
             checked += 1
             with open(path, encoding="utf-8") as fh:
-                undeclared, unused, unknown, contract, missing = check_agent(
-                    fh.read(), key, require_key, check_contract
+                undeclared, unused, unknown, contract, missing, uncontracted = check_agent(
+                    fh.read(), **kwargs
                 )
-            if undeclared or unused or unknown or contract or missing:
+            if undeclared or unused or unknown or contract or missing or uncontracted:
                 findings.append({
                     "file": os.path.relpath(path, root),
-                    "kind": label,
-                    "key": key,
+                    "kind": scope["label"],
+                    "key": scope["key"],
                     "undeclared": undeclared,
                     "unused": unused,
                     "unknown": unknown,
                     "contract": contract,
                     "missing": missing,
+                    "uncontracted": uncontracted,
                 })
 
     if not checked:
@@ -594,6 +804,9 @@ def main():
                 print(f"    unknown tool name — {', '.join(f['unknown'])}")
             if f["contract"]:
                 print(f"    body claims read-only but grants — {', '.join(f['contract'])}")
+            if f["uncontracted"]:
+                print("    vault agent never names the Write Role Contract but grants — "
+                      f"{', '.join(f['uncontracted'])}")
     else:
         print(f"OK: all {checked} agent(s)/skill(s) declare exactly the tools their body uses")
 
