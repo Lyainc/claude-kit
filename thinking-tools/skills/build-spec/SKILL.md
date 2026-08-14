@@ -69,7 +69,7 @@ Quick Mode output format:
      - but "이 login.ts 동작을 명세로" → a single source file, not a repo root → greenfield default
    - If no files found → greenfield default (no question)
    - **Brownfield content intake**: once brownfield is confirmed, `Grep` the repo for the target's own keywords (feature name, module, config key) before asking Context Clarity questions. Existence of a manifest only tells you it is brownfield; X1-X3 (integration surface / affected components / conflicts, `reference.md` §1) can only be scored Y off what the code actually says. Ground the questions in the hits ("`auth/session.ts` already does X — does the new path replace it or sit beside it?"). 0 hits → ask X1-X3 as plain questions.
-   - **Backlog scan (open + closed)**: still in the same brownfield intake, scan the repo's issue backlog. Code and manifests only carry what already shipped; a repo's *decided-but-unbuilt* constraints live in the backlog, so X3 (conflicts) has no source without it.
+   - **Backlog scan (open + closed)**: still in the same brownfield intake, use Bash to scan the repo's issue backlog. Code and manifests only carry what already shipped; a repo's *decided-but-unbuilt* constraints live in the backlog, so X3 (conflicts) has no source without it.
 
      ```bash
      python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{target name + its keywords}"

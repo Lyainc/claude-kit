@@ -2,7 +2,7 @@
 name: distill
 description: "User-confirmed DISCOVERY of REUSABLE PROCEDURAL TECHNIQUES in the current session — the discovery half of the ⑤ self-improvement loop. Judges what is class-level reusable (vs a one-off), whether an existing skill already covers it, or whether nothing is worth capturing, and emits a natural-language proposal (what / why / session-provenance / inviolability judgment); placement and authoring are the sibling add-policy landfill engine's job, not distill's. SIS-derived (claude-self-improving-skills). Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: declarative knowledge (facts/decisions/session records) = vault /vault-save, NOT distill; placing/authoring a confirmed rule = add-policy (sibling); mechanical skill authoring = skill-creator. Example: '/distill' or '이 세션 기법 증류해줘'."
 model: inherit
-allowed-tools: Read Bash Glob Grep AskUserQuestion
+allowed-tools: Read Bash Grep AskUserQuestion
 ---
 
 **User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) MUST be in Korean. Instructions below are English for LLM parsing.
@@ -107,8 +107,8 @@ For each surviving candidate, construct the natural-language proposal object (wh
 why / session-provenance / inviolability judgment). Two discovery judgments are made
 here with **read-only** tools — distill never writes:
 
-- **Inviolability judgment**: if the technique plausibly refines an existing skill, read
-  that skill's frontmatter and judge whether it is user-authored (inviolable). Carry the
+- **Inviolability judgment**: if the technique plausibly refines an existing skill, use `Read`
+  on that skill's frontmatter and judge whether it is user-authored (inviolable). Carry the
   judgment in the proposal; `add-policy` enforces the block. This is advisory — distill
   flags the risk, it does not *select* the placement target (that is `add-policy`'s).
 - **Audience / placement-fit check (discovery seed)**: judge whether the technique's

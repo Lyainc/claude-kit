@@ -11,7 +11,7 @@ description: |
   Routing: called directly for a one-line bug/feature request; build-spec sub-calls it
   automatically right after Seed Emit (no extra user call needed) when the user accepts the
   "이 Seed로 GitHub 이슈를 열까요?" offer. 명세부터 굳혀야 하면 build-spec을 먼저 쓰세요.
-allowed-tools: Read Write Bash Glob AskUserQuestion
+allowed-tools: Read Write Bash AskUserQuestion
 effort: low
 ---
 
@@ -47,6 +47,9 @@ effort: low
    cover, via `AskUserQuestion` (one round, batch the questions).
 
 ### Phase 1: Duplicate Check (mandatory, zero LLM cost)
+
+Use Bash to run the shared prefilter — the same call Phase 2.5's conformance check and Phase 3's
+`gh issue create` also go through:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{title candidate + keywords}"

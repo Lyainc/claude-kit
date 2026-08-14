@@ -11,7 +11,7 @@ description: |
   Trigger when user mentions: 전문가 토론, 찬반 토론, 다관점 분석, 합의 도출, 트레이드오프 정리,
   expert panel, multi-perspective review, "전문가 관점에서 검토해줘", "다양한 관점에서 평가해줘".
   Routing: 1:1 단일 주장 공격은 adversarial-review, 맹점 발견 인터뷰는 unknown-discovery.
-allowed-tools: Read Grep Write AskUserQuestion Agent
+allowed-tools: Read Grep Write AskUserQuestion Agent Bash
 ---
 
 # Expert Panel Discussion
@@ -73,7 +73,7 @@ There is no judgment step here — the single departure is an explicit user over
 | Perspective balance | Carried by the tags themselves — a topic with strategy vocabulary matches `P9`. Never top up the panel because the selection *looks* implementation-heavy: "is this implementation-focused" is an LLM judgment, and one applied inconsistently makes two runs of one topic emit different `adhoc:{n}` (#423) |
 | Rotation | Automatic — the rule re-runs per topic, so a multi-topic session rotates experts by topic text, not by hand |
 
-**When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert — **user confirmation required**, recorded in `adhoc:{n}`. This is the user-override path, not a selection judgment: without the user's explicit yes the rule's output stands unchanged.
+**When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`. This is the user-override path, not a selection judgment: without the user's explicit yes the rule's output stands unchanged.
 
 ## Citation Contract
 
@@ -100,7 +100,7 @@ When an expert states a **numeric or factual claim** (statistics, performance fi
 
 ### Phase 0: Preparation
 1. Analyze the review target → split into topics
-2. **Backlog prefilter scan (#524)**: once, before any expert speaks, on the user's original topic text (before splitting):
+2. **Backlog prefilter scan (#524)**: use Bash to run the prefilter once, before any expert speaks, on the user's original topic text (before splitting):
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{review target text}"
    ```
@@ -200,7 +200,7 @@ statement. An empty field is not a pass (mirrors `build-spec`'s `context.backlog
 - Unresolved issues are substantial enough to warrant a persistent UNRESOLVED.md record
 - Session used isolated execution mode (real turn exchanges justify persistent transcripts)
 
-When full generation is required, write:
+When full generation is required, Write each of these three files:
 
 1. **Raw transcripts**: `docs/discussions/{YYYYMMDD}_{name}/transcripts/{순번}_{topic}.md`
    - All statements recorded chronologically (template: `templates/TRANSCRIPT_TEMPLATE.md`)

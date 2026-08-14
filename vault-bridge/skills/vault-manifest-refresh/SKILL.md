@@ -29,7 +29,7 @@ If the resolved vault root does not exist as a directory, output the following a
 
 ### Step 2 — Run generator
 
-Locate the plugin root via the script directory and run:
+Locate the plugin root via the script directory and use Bash to run:
 
 ```bash
 python3 "${CLAUDE_PLUGIN_ROOT}/scripts/generate-manifest.py" \
