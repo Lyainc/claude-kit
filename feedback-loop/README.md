@@ -8,9 +8,9 @@ into *kept* improvements.
 
 Two pieces ship together:
 
-- **`retro` skill** — a session retrospective. Re-confirms vault promotion
-  candidates (obsidian-vault-manager `audit` E8) behind a **user-confirmed** gate,
-  then routes findings to three opt-in outputs: **action** (a git issue),
+- **`retro` skill** — a session retrospective. Routes findings (telemetry waste
+  patterns, session insights, validated rule patterns) to three opt-in outputs
+  behind a **user-confirmed** gate: **action** (a git issue),
   **memory** (a ready-to-run `/vault-save` slash command), **rule** (a ready-to-run
   `/distill` slash command — a pattern only `retro` observed has been judged
   worth keeping by nobody yet, so it goes to the judge before the landfill
@@ -97,6 +97,8 @@ python3 feedback-loop/scripts/sequence.py --n=2 --top=20      # repeated n-gram 
 |------|---------|---------|
 | `.claude-plugin/plugin.json` | yes | Manifest. Registers the 8 telemetry hooks (Skill/Agent Pre+Post, UserPromptSubmit, Stop, SessionStart, SessionEnd). |
 | `skills/retro/SKILL.md` | yes | The retro skill (measure→review→keep loop closure). |
+| `skills/distill/SKILL.md` | yes | The distill skill (user-confirmed discovery of reusable procedural techniques). |
+| `skills/add-policy/SKILL.md` | yes | The add-policy skill (landfill engine — classifies and places one work-policy rule). |
 | `scripts/event-logger.sh` | yes | Single dispatch handler. Reads hook stdin, appends jsonl. Opt-in, silent, lockless. |
 | `scripts/plugin-map.json` | yes | Bare skill/agent name → plugin lookup. |
 | `scripts/report.py` | yes | Top events, outcome distribution, per-event latency, skill-lifecycle view. |
@@ -188,7 +190,7 @@ macOS by default — don't introduce it without re-checking the size guard.
 ## Boundary (CON-5)
 
 `feedback-loop` is a layer-⑤ harness-class plugin even though it is externally
-distributed (deployment unit ≠ layer). It only **reads leaf OUTPUT** — audit E8
+distributed (deployment unit ≠ layer). It only **reads leaf OUTPUT** — audit
 findings, the vault-bridge manifest, telemetry events — and **invokes** leaf
 capabilities via user-initiated slash commands. It never modifies leaf-plugin
 code, and no leaf depends back on it. The single source of truth for the boundary
