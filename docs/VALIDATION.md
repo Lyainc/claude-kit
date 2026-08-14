@@ -85,7 +85,7 @@ python3 scripts/check-agent-tools-field.py
 # #472 harm, green. Narrowed to `[ \t]*`, with the YAML block-list form checked separately so
 # `tools:\n  - Read` still counts as non-empty.
 python3 scripts/check-agent-tools-usage.py --self-test
-# Expected: OK: all 32 check-agent-tools-usage self-test cases passed
+# Expected: OK: all 50 check-agent-tools-usage self-test cases passed
 python3 scripts/check-agent-tools-usage.py
 # Expected: OK: all N agent(s)/skill(s) declare exactly the tools their body uses
 # #577: the declared set and the body must agree, in both directions. UNDECLARED (body says
@@ -111,6 +111,25 @@ python3 scripts/check-agent-tools-usage.py
 # UNDECLARED still reports what its body reaches for),
 # and CONTRACT is agents-only because the skills that name the Write Role Contract are the
 # main-context writers it authorises — firing there would block exactly the right holders.
+# #634 added the one exception to "never infer a tool from a shell command": a SKILL.md with a
+# ```bash/```sh/```shell TAGGED fence and no Bash grant is UNDECLARED on the fence alone, which
+# closes #611's own recurrence path (its headline pair hid in exactly that blind spot and was
+# found by hand). Untagged fences are excluded — YAML and output templates dominate them. The
+# scan walks fences rather than regex-matching lines, because two shapes are not calls at all:
+# a fence inside an HTML comment (a commented-out step) and a ```bash nested in a longer
+# ````markdown block (sample text). The asymmetry is deliberate and pinned by self-test — a
+# fence exposes a MISSING grant but never evidences a declared one, so a fenced skill that
+# never names Bash in prose still reports UNUSED.
+# Measured at introduction: 11 of 19 skills carry a tagged shell fence and all 11 already
+# declared Bash, so the rule flags nothing; the same scan over agents also flagged nothing
+# (2 of 4 have a tagged fence, both with Bash), which is why extending it later is one line.
+# #620 added UNCONTRACTED, CONTRACT's inverse: CONTRACT only fires on a body that CLAIMS the
+# contract, so an agent that never heard of it stayed invisible while documenting vault writes
+# the hook denies. An agent holding Write/Edit/NotebookEdit whose body names the vault PATH
+# (`~/vault`, not the bare word — that fires on an agent merely routing vault work to
+# vault-searcher, which could then only go green by reciting a contract it has no duty under)
+# and never names the contract is now reported — vault-file-organizer.md was the live find,
+# and fixing it to the draft-handoff shape is what took the rule back to zero.
 python3 scripts/check-plugin-root-paths.py --self-test
 # Expected: OK: all 14 check-plugin-root-paths self-test cases passed
 python3 scripts/check-plugin-root-paths.py
