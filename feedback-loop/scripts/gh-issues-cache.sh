@@ -59,9 +59,13 @@ else:
     fi
     # Write to a temp file then rename (atomic on the same filesystem) so a concurrent
     # reader (next-candidate.py writes the same path independently, #542) never sees a
-    # partially-written file.
-    TMP="${CACHE}.tmp.$$"
-    { printf '%s' "$OUT" > "$TMP" && mv -f "$TMP" "$CACHE"; } 2>/dev/null
+    # partially-written file. Only a non-empty OUT is cache-worthy (#628) — a successful
+    # call (GH_RC=0) with empty stdout would otherwise cache empty content, and a later
+    # read within the TTL returns that raw empty string with no `${:-[]}` fallback.
+    if [ -n "$OUT" ]; then
+      TMP="${CACHE}.tmp.$$"
+      { printf '%s' "$OUT" > "$TMP" && mv -f "$TMP" "$CACHE"; } 2>/dev/null
+    fi
     printf '%s' "${OUT:-[]}"
     ;;
   *)
