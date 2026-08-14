@@ -61,7 +61,7 @@ else:
     # reader (next-candidate.py writes the same path independently, #542) never sees a
     # partially-written file.
     TMP="${CACHE}.tmp.$$"
-    printf '%s' "$OUT" > "$TMP" 2>/dev/null && mv -f "$TMP" "$CACHE" 2>/dev/null
+    { printf '%s' "$OUT" > "$TMP" && mv -f "$TMP" "$CACHE"; } 2>/dev/null
     printf '%s' "${OUT:-[]}"
     ;;
   *)
