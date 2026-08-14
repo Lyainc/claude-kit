@@ -91,7 +91,7 @@ if [ "${CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD:-}" = "1" ]; then
     # like "../../foo" cannot escape the events/raw/ directory.
     EVENT_TYPE_SAFE="$(printf '%s' "$EVENT_TYPE" | tr -cd 'a-z0-9_-')"
     [ -n "$EVENT_TYPE_SAFE" ] || EVENT_TYPE_SAFE=unknown
-    printf '%s\n' "$DUMP_LINE" >> "${RAW_DIR}/${EVENT_TYPE_SAFE}.jsonl" 2>/dev/null || true
+    { printf '%s\n' "$DUMP_LINE" >> "${RAW_DIR}/${EVENT_TYPE_SAFE}.jsonl"; } 2>/dev/null || true
   fi
 fi
 
@@ -265,7 +265,7 @@ case "$EVENT_TYPE" in
       SID_SAFE="$(printf '%s' "$SESSION_ID" | tr -cd 'A-Za-z0-9_-')"
       if [ -n "$SESSION_MODEL" ] && [ -n "$SID_SAFE" ]; then
         mkdir -p "$SESSION_MODEL_DIR" 2>/dev/null \
-          && printf '%s' "$SESSION_MODEL" > "${SESSION_MODEL_DIR}/${SID_SAFE}" 2>/dev/null || true
+          && { printf '%s' "$SESSION_MODEL" > "${SESSION_MODEL_DIR}/${SID_SAFE}"; } 2>/dev/null || true
       fi
     fi
     ;;
@@ -352,6 +352,6 @@ LINE="$(
 # Threshold mirrors validate-schema.py PIPE_BUF_WARN_BYTES (3500). If meta ever
 # balloons a line past this, drop the event silently rather than tear writes.
 [ "${#LINE}" -lt 3500 ] || exit 0
-printf '%s\n' "$LINE" >> "$LOG_FILE" 2>/dev/null
+{ printf '%s\n' "$LINE" >> "$LOG_FILE"; } 2>/dev/null
 
 exit 0

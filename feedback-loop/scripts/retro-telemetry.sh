@@ -71,7 +71,7 @@ case "${1:-}" in
               items_deduped:$deduped, budget_used:$budget, duration_ms:$duration}}' 2>/dev/null)"
     # PIPE_BUF guard mirrors event-logger.sh / validate-schema.py (3500B).
     [ -n "$LINE" ] && [ "${#LINE}" -lt 3500 ] && \
-      printf '%s\n' "$LINE" >> "${EVENTS_DIR}/events-$(date -u +%Y-%m-%d).jsonl" 2>/dev/null
+      { printf '%s\n' "$LINE" >> "${EVENTS_DIR}/events-$(date -u +%Y-%m-%d).jsonl"; } 2>/dev/null
     ;;
 
   *)
