@@ -600,6 +600,18 @@ python3 obsidian-vault-manager/scripts/test/test-e5-candidate-ranking.py
 python3 obsidian-vault-manager/scripts/test/test-e5-candidates-primitive.py
 # Expected: OK: all cases passed
 
+# `--path`-scoped scan-frontmatter/scan-filename path-basis regression (#619 follow-up,
+# #631): before this, `cmd_scan_frontmatter`/`cmd_scan_filename` keyed `path` relative to
+# the `<dir>` argument they were called with, so a `--path notes` scoped call (argument =
+# `$VAULT_ROOT/notes`) emitted bare `x.md` instead of `notes/x.md` — a different basis than
+# `e5-candidates`, which #619 already made unconditionally `$VAULT_ROOT`-relative. CLASSIFY
+# joins an orphan's `frontmatter_records` entry against `e5_candidates` by `path`; the
+# mismatched basis meant that join always missed under `--path` scope, so a real orphan
+# with a real shared-tag candidate reported "연결 후보 없음". Both primitives now key `path`
+# `$VAULT_ROOT`-relative regardless of scope.
+python3 obsidian-vault-manager/scripts/test/test-scan-scoped-path-basis.py
+# Expected: OK: all cases passed
+
 # audit-state `stats`/`status` op + `list-dirty-since` untracked-file regression (#619):
 # before this, no `audit-state` op answered the skill's documented `status` flag
 # (any call errored "unknown audit-state op"), and `list-dirty-since` only walked its
