@@ -233,6 +233,24 @@ python3 scripts/check-plugin-root-paths.py
 # the best two-parameter char model still spans 0.86x-1.14x, wide enough that it passed
 # `add-policy` at a real 5,304 tokens and `audit` at 5,286 while reporting ~4,990/~4,870.
 # `--list` prints every file's count and anchor offsets.
+python3 scripts/check-skill-catalogue-drift.py --self-test
+# Expected: OK: all check-skill-catalogue-drift self-test cases passed
+python3 scripts/check-skill-catalogue-drift.py
+# Expected: OK: skill-catalogue clean — N skill(s) checked, all listed in root README.md +
+#   their own plugin README.md, no `N개 스킬`/`N개 에이전트` count drift
+# #621: the issue's named root cause was "카탈로그가 소스보다 늦게 움직이는데 그걸 보는 가드가
+# 없다" — no guard watched the skill catalogue, so a fixed drift (retired audit codes still
+# advertised, a stale README skill list, a missing LICENSE) would just recur the next time a
+# skill was added. CLAUDE.md's "Adding a New Skill" step 6 (#173) makes the root README.md
+# skill table MANDATORY (docs/design/4-flow-catalog.md stays conditional, not enforced here).
+# Two mechanical checks: every `*/skills/<name>/SKILL.md` name is a whole word somewhere in
+# root README.md AND `<plugin>/README.md` (not required to sit inside a markdown table —
+# prose right below one counts, e.g. vault-bridge's `/vault-manifest-refresh`); and a plugin
+# README's exact `N개 스킬`/`N개 에이전트` phrasing matches the real file count. Narrowly
+# scoped on purpose — a count claim in any other shape (e.g. feedback-loop's "Four pieces
+# ship together", which folds in the non-skill telemetry component) is left unchecked rather
+# than guessed at by a general number parser.
+
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
 # Expected: OK: all 25 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
