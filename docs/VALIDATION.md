@@ -94,6 +94,20 @@ python3 scripts/check-effort-field.py
 # does — #448 established effort-over-model-tier, but 11 skills and all 4 agents shipped
 # with no `effort:` at all. Key existence + non-emptiness only; the value itself is a
 # manual judgment call (see #648's issue body).
+python3 scripts/check-agent-nonresponse-clause.py --self-test
+# Expected: OK: all check-agent-nonresponse-clause self-test cases passed
+python3 scripts/check-agent-nonresponse-clause.py
+# Expected: OK: all N Agent-delegating file(s) state the no-response fallback
+# #647: the skills that spawn a subagent and then WAIT on its report documented only two
+# failure modes — "the call fails" and "policy blocks it". On 2026-08-15 three spawned
+# subagents stayed alive, emitted only idle notifications, and never returned a final
+# report: no error, no timeout, so no documented condition fired and a human had to notice.
+# Each of those files now carries one shared clause ("only idle notifications and no final
+# text after one re-request" → treat as unavailable, take the existing inline fallback), and
+# this guard asserts the clause is still there. Content assertion only — a single observation
+# does not justify detection code or a reproduction harness, so nothing here tries to spot the
+# mode at runtime. The file list inside the script is explicit and hand-maintained on purpose:
+# a new Agent-delegating skill is added by hand, like its fallback paragraph.
 python3 scripts/check-agent-tools-usage.py --self-test
 # Expected: OK: all 50 check-agent-tools-usage self-test cases passed
 python3 scripts/check-agent-tools-usage.py

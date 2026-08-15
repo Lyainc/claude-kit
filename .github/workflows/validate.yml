@@ -119,6 +119,10 @@ jobs:
           # #648 effort: field existence (skills + agents), same shape as #472 above.
           python3 scripts/check-effort-field.py --self-test
           python3 scripts/check-effort-field.py
+          # #647 the Agent-delegating skills must keep stating that a live-but-silent
+          # subagent (idle notifications, no final text) takes the inline fallback.
+          python3 scripts/check-agent-nonresponse-clause.py --self-test
+          python3 scripts/check-agent-nonresponse-clause.py
           # #637 cross-repo skill-reference drift: a hardcoded `<plugin>:<name>` must resolve.
           # Scans external consumers too (EXTERNAL_ROOTS); an absent path is skipped silently,
           # so in CI this runs as an in-repo-only scan and still gates the hook matchers.

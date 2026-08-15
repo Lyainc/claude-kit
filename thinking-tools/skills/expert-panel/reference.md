@@ -203,8 +203,10 @@ position summaries to compute Synthesis → Conclusion.
 
 **Degenerate cases**:
 
-- An expert subagent that fails or returns empty is retried once; on a second failure the exchange
-  proceeds with the remaining experts (recorded in the transcript — never silently dropped).
+- An expert subagent that fails, returns empty, or returns no final text at all is retried once; on
+  a second failure the exchange proceeds with the remaining experts (recorded in the transcript —
+  never silently dropped). A subagent that returns only idle notifications and no final text after
+  one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further.
 - An expert added mid-discussion (see Expert Selection Guide) first runs a catch-up E1 independent
   statement, then joins from the next rebuttal exchange.
 
