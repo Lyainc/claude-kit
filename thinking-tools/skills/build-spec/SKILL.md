@@ -166,9 +166,11 @@ context — rationale in `reference.md` §2.
   — never a single Ambiguity number (why: `reference.md` §2). The gate is then recomputed from the
   returned per-dimension values, and it is that recomputed result — not the inline one — that counts
   toward `consecutive_gate`.
-- **Agent call fails / unavailable** → score inline against the same checklist and set
+- **Agent call fails / unavailable / no response** → score inline against the same checklist and set
   `scoring_isolated: false` in STATE. Before the Gate Check block, add one line:
   `[격리 판정 실패 — 자체 채점, 신뢰도 낮음]` — one line, not a new round (rationale: `reference.md` §2).
+  A subagent that returns only idle notifications and no final text after one re-request counts as
+  unavailable and takes this same fallback (#647) — never wait on it further.
 
 ### Phase 2.5: Blind-spot Pass
 
@@ -192,7 +194,9 @@ in STATE (`"already covered by prior unknown-discovery pass"`), Phase 3.
   the Seed's `blindspots:` list; if the user answers one inline, fold that answer into the matching
   constraint or success criterion instead. No new interview round either way.
 - STATE records `blindspot_pass: {done|skipped|pending}` — `pending` until the gate opens, then `done`,
-  or `skipped` when the `Agent` call fails (skip silently in that case).
+  or `skipped` when the `Agent` call fails (skip silently in that case). A subagent that returns only
+  idle notifications and no final text after one re-request counts as unavailable and takes this same
+  fallback (#647) — never wait on it further.
 
 ### Phase 3: Seed Emit
 
@@ -301,6 +305,10 @@ scoring_rationale:
   comment timeline can still read as unconflicting. Closed candidates are ranked by **title only**
   (bodies are not fetched for the closed half — that is what keeps the corpus out of context), so a
   closed decision whose conflict is stated only in its body is reachable but not pre-surfaced.
+- **A silent subagent is indistinguishable from a slow one** (#647): a spawned subagent can stay alive,
+  emit only idle notifications, and never return a final report — no error, no timeout, so nothing in
+  Phase 2 / Phase 2.5 fires on its own. The documented rule (one re-request, then treat as unavailable)
+  is what converts it into the inline fallback, and applying that rule is a judgment call, not a check.
 - **The prefilter is the recall ceiling**: candidates are scored by term overlap, so a conflicting
   issue that shares no vocabulary with the target scores 0 and never appears. Term overlap is not
   meaning.

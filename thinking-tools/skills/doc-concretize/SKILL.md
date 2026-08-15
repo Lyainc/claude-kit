@@ -117,8 +117,10 @@ never the drafting rationale:
 Prefix each segment in that document with its own marker — `[S1] {segment title}`,
 `[S2] ...` — because without them the subagent guesses segment boundaries from headings, which is
 not the same partition. It returns pass/fail per `S{n}` plus the failing line. One call per
-document, not per segment. **Agent call fails** → verify inline against the same checklist and
-tell the user the final pass was not isolated.
+document, not per segment. **Agent call fails / no response** → verify inline against the same
+checklist and tell the user the final pass was not isolated. A subagent that returns only idle
+notifications and no final text after one re-request counts as unavailable and takes this same
+fallback (#647) — never wait on it further.
 
 **[Reflect]** — fires only on an isolated-Verify failure, never per segment:
 - All `S{n}` passed → document is done

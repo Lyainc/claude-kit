@@ -124,7 +124,7 @@ Quick Mode output format:
 
 - **Gate-imminent round only**: re-score the same checklist in a **separate Agent subagent** — the interviewer scoring its own interview is the same self-verification bias that isolated Judge removes in `adversarial-review`. Pass the subagent `{each entered Core area's Q&A transcript + the §6 checklist + the findings claimed for each area}`; it returns the 6 Y/N marks, the reasons, and the area score, per area. The same call verifies the "발견 1건 이상 도출" item, so a claimed finding is confirmed by a context that never saw it being produced. It is this recomputed result, not the inline one, that actually opens the gate.
 - Every other checkpoint: `scoring_isolated: false` in STATE — inline by design, not a failure.
-- **Agent call fails / unavailable at a gate-imminent round (including a policy denial)** → score inline against the same checklist and keep `scoring_isolated: false` in STATE. Add one line to the checkpoint output before the progress summary:
+- **Agent call fails / unavailable / no response at a gate-imminent round (including a policy denial)** → score inline against the same checklist and keep `scoring_isolated: false` in STATE. A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further. Add one line to the checkpoint output before the progress summary:
   `[격리 채점 실패 — 자체 채점, 신뢰도 낮음]`. One line, not a new round, no `AskUserQuestion` — then
   proceed exactly as isolated mode would (#433: a self-scored Depth and an isolated one differ in
   confidence and must not render identically; rationale for skipping the approval prompt: `reference.md` §6).

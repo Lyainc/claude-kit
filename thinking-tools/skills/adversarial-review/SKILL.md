@@ -103,7 +103,7 @@ After the Steelman is finalized for a claim and **before Phase 1 begins**, attem
 
 **Graceful degrade** (no user notice, no broken experience):
 - **≥ 1 relevant result** → vault-grounded mode: feed the excerpts into the Evidence Attack `{counter_evidence_or_missing_data}` slot (see [reference/patterns.md](reference/patterns.md#attack-templates)) when the Evidence vector comes up.
-- **0 results / vault-bridge not installed / Agent call fails** → transparently fall back to the existing generic Evidence Attack. Do **not** announce the fallback to the user; the session must look identical to the non-vault path.
+- **0 results / vault-bridge not installed / Agent call fails / no response** → transparently fall back to the existing generic Evidence Attack. Do **not** announce the fallback to the user; the session must look identical to the non-vault path. A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further.
 
 **Vault access policy (MECE — single source of truth)**: vault access happens **ONLY** through the `vault-searcher` Agent call described here. This skill MUST NOT directly `Read`, `Grep`, `Glob`, or `Bash`-grep any vault path (`~/vault/`, `.vault-link` targets, `.vault-bridge/manifest.json`, etc.). Direct vault access is forbidden (why: rationale.md § Why vault access is vault-searcher's alone).
 
@@ -137,14 +137,17 @@ Cycle through 4 attack vectors in order. Each round:
 In isolated execution mode, Judge is spawned as a separate Agent subagent; pass `{current round attack + defense text only}` as the subagent prompt.
 In standard mode, visibility is best-effort — prompt contract only (why: rationale.md § Standard-mode visibility is best-effort).
 
-**Agent call fails / unavailable in isolated mode (including a policy denial)** → evaluate the Judge inline instead (same input
-as the standard-mode prompt contract) and set `judge_isolated: false` in STATE. Before that round's
+**Agent call fails / unavailable / no response in isolated mode (including a policy denial)** → evaluate the Judge inline instead (same input
+as the standard-mode prompt contract) and set `judge_isolated: false` in STATE. A subagent that returns
+only idle notifications and no final text after one re-request counts as unavailable and takes this same
+fallback (#647) — never wait on it further. Before that round's
 Judge scoring line, add one line: `[격리 판정 실패 — 자체 판정, 신뢰도 낮음]` — one line, not a new
 round (why: rationale.md § Isolated-Judge fallback rendering (#433)).
 
 **Automated Defense Quality Floor** (자동 방어 mode only):
 Spawn Defender as a separate Agent subagent — not inline generation — regardless of the 격리 실행 toggle (why: rationale.md § Automated Defense subagent isolation).
 Pass `{claim text + full steelman (including Phase 0 Agreement Points + Learned Points) + current round attack only}` as the subagent prompt — the same inputs the Role Visibility Contract already grants Defender, just delivered via a dedicated call.
+**Defender subagent fails / no response** → fall back to step 2's standard user-defense `AskUserQuestion` for that round and say once that automated defense was unavailable; never score a round on an empty defense. A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further.
 Prompt-quality floor: generate the strongest good-faith rebuttal a motivated defender would make — engage the attack's specific point directly, draw on the steelman's Agreement/Learned Points as ammunition, never concede or hedge prematurely (why: rationale.md § Why the auto-defender needs a quality floor).
 **Cost note**: no token ceiling — a fresh Defender subagent per round (why: rationale.md § Automated Defense cost).
 
