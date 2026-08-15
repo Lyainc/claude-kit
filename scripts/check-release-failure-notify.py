@@ -26,6 +26,10 @@ WORKFLOW_REL = os.path.join(".github", "workflows", "auto-release.yml")
 
 _JOB_HEADER_RE = re.compile(r"^  ([A-Za-z0-9_-]+):\s*$", re.MULTILINE)
 
+# The jobs whose failure must reach the notify job. `failure()` only sees needs-graph
+# ancestors, so this list IS the wiring — not a stylistic preference.
+REQUIRED_NEEDS = ("decide", "release")
+
 
 def _git_toplevel():
     try:
@@ -78,6 +82,17 @@ def check_workflow(root):
     if not re.search(r"\bgh\s+issue\s+create\b", block):
         report["violations"].append(f"job `{name}` never calls `gh issue create`")
 
+    # `failure()` at job level evaluates over the needs-graph ancestors, so a notify job that
+    # does not need the release jobs never fires no matter how it is gated — and dropping a
+    # name from `needs:` puts the repo straight back in the #642 state with CI still green.
+    needs = re.search(r"^\s*needs:\s*(.+)$", block, re.MULTILINE)
+    missing = [j for j in REQUIRED_NEEDS if not (needs and re.search(rf"\b{j}\b", needs.group(1)))]
+    if missing:
+        report["violations"].append(
+            f"job `{name}` must `needs:` {', '.join(REQUIRED_NEEDS)} or failure() never fires "
+            f"for {', '.join(missing)}"
+        )
+
     return (len(report["violations"]) == 0), report
 
 
@@ -119,6 +134,22 @@ def run_self_test():
         ok, report = check_workflow(td)
         if ok or "if: failure()" not in report["violations"][0]:
             failures.append(f"  no-gate workflow: expected the missing-gate violation, got {report}")
+
+        # gate present but the needs-graph no longer reaches the release job: failure()
+        # can never be true for it, so the job silently never runs (#642 all over again).
+        narrow_needs = good.replace("    needs: [decide, release]\n", "    needs: decide\n")
+        with open(good_path, "w", encoding="utf-8") as fh:
+            fh.write(narrow_needs)
+        ok, report = check_workflow(td)
+        if ok or not any("needs:" in v for v in report["violations"]):
+            failures.append(f"  narrowed-needs workflow: expected needs violation, got {report}")
+
+        no_needs = good.replace("    needs: [decide, release]\n", "")
+        with open(good_path, "w", encoding="utf-8") as fh:
+            fh.write(no_needs)
+        ok, report = check_workflow(td)
+        if ok or not any("needs:" in v for v in report["violations"]):
+            failures.append(f"  no-needs workflow: expected needs violation, got {report}")
 
         # gate present but missing permission
         no_perm = good.replace("      issues: write\n", "")
@@ -175,8 +206,9 @@ def main(argv=None):
         print(f"FAIL: {WORKFLOW_REL} failure-notify surface is broken:")
         for v in report["violations"]:
             print(f"  - {v}")
-        print("Fix: restore a job gated on `if: failure()` that has `issues: write` "
-              "permission and calls `gh issue create` (see #642).")
+        print("Fix: restore a job gated on `if: failure()` that `needs: "
+              f"[{', '.join(REQUIRED_NEEDS)}]`, has `issues: write` permission, and calls "
+              "`gh issue create` (see #642).")
 
     if report.get("fatal"):
         return 2

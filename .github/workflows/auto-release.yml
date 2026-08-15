@@ -122,8 +122,11 @@ jobs:
           TITLE="Auto Release failed"
           RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
           BODY="Auto Release failed on \`${{ github.sha }}\`: $RUN_URL"
+          # Plain list, not --search: the search API is an index that lags issue creation by
+          # seconds to minutes, so two failures minutes apart would both find nothing and open
+          # two issues. The REST listing is read-after-write consistent.
           EXISTING=$(gh issue list --repo "${{ github.repository }}" --state open \
-            --search "\"$TITLE\" in:title" --json number,title \
+            --limit 100 --json number,title \
             --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty" || true)
           if [ -n "$EXISTING" ]; then
             gh issue comment "$EXISTING" --repo "${{ github.repository }}" --body "$BODY"
