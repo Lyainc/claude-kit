@@ -43,7 +43,7 @@ provenance: "{출처 — URL, 세션 토픽, 대화, 책, 회의}"  # 필수 —
 - [Obsidian format reference](reference/obsidian-format.md): wikilinks, embeds, callouts, comments, and YAML property conventions for generated notes.
 - [Obsidian CLI reference](reference/obsidian-cli.md): optional CLI-first patterns with raw file I/O fallback.
 - [Web Clipper template](reference/web-clipper-template.md): Obsidian web clipper JSON template for `capture` type notes.
-- [Vault audit rules](reference/vault-audit-rules.md): E1–E12 error taxonomy and P0-P2 priority definitions.
+- [Vault audit rules](reference/vault-audit-rules.md): E1–E3·E5–E6·E9–E12 error taxonomy and P0-P2 priority definitions.
 
 ## 스킬 사용 예시
 

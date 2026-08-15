@@ -84,7 +84,7 @@ grep -rl "keyword" ~/vault --include="*.md"
 
 ## Audit
 
-Invoke the `audit` skill (via Skill) to scan vault health. Detects 12 error types (E1–E12):
+Invoke the `audit` skill (via Skill) to scan vault health. Detects 9 error types (E1–E3, E5–E6, E9–E12 — E4 was removed as a native-Obsidian duplicate, #482; E7/E8 went with the promotion gate, #480):
 
 - `/audit` — full vault scan
 - `/audit --path notes` — scope to notes/ only
@@ -103,8 +103,8 @@ Use audit proactively when the user asks about vault health, broken links, or or
 ## Final Response Contract
 
 "Only the final message returns to the caller" holds for this agent too. Drafting, domain search,
-and audit are multi-step, so the deliverable (the draft itself, search findings, or the E1–E12
-audit report) is easy to strand by ending on a content-free sign-off (`"완료"`, `"끝났어요"`,
+and audit are multi-step, so the deliverable (the draft itself, search findings, or the audit
+report) is easy to strand by ending on a content-free sign-off (`"완료"`, `"끝났어요"`,
 `"done"`) while the substance sits in an earlier message.
 
 - Your LAST assistant message MUST carry the full deliverable: the complete draft (path +
@@ -133,7 +133,7 @@ write. No MOC, no project linking.
 <example>
 user: "vault 건강 상태 확인해줘"
 assistant: "audit 스킬로 전체 볼트 스캔할게요."
-[audit 스킬 실행 → E1–E12 findings report]
+[audit 스킬 실행 → E1–E3·E5–E6·E9–E12 findings report]
 <commentary>
 Vault health check → invoke audit skill. Audit only READS the vault, so it runs here directly —
 this is the half of the agent's job that needs no handoff.

@@ -7,7 +7,7 @@ a fixture or live vault. Outputs per-type finding counts and a flat list of
 finding records as JSON. Stdlib only.
 
 v4 layout: sources/ + notes/ + assets/  (no 00_Inbox, 20_Projects, 30_Notes)
-Error types: E1-E12. E9 (#119) = tag/property vocabulary inconsistency, a
+Error types: E1-E3, E5-E6, E9-E12 (E4 retired #482; E7/E8 retired #480). E9 (#119) = tag/property vocabulary inconsistency, a
 vault-LEVEL check (findings carry path:""); only deterministic sub-checks ship
 (E9a singular/plural, E9b camel/snake property naming). E9c (semantic synonyms)
 is out of scope, deferred to a separate issue.

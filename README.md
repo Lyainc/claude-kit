@@ -68,8 +68,9 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `/vault-save` | 참고자료를 vault에 저장 — 원문은 `sources/`, 내가 쓴 건 `notes/` (확인 없이 즉시 저장) |
 | `/vault-link` | 프로젝트를 특정 vault 위치에 바인딩 |
 | `/vault-commit` | vault 변경사항 커밋 |
+| `/vault-manifest-refresh` | vault 매니페스트 캐시를 강제 재생성 — staleness 검사 우회 |
 
-이 외에 `/vault-manifest-refresh`, 그리고 결정형 훅 3종(SessionStart 매니페스트 갱신 + 접근·쓰기 가드, 턴당 LLM 비용 0)이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
+이 외에 결정형 훅 3종(SessionStart 매니페스트 갱신 + 접근·쓰기 가드, 턴당 LLM 비용 0)이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
 
 ```bash
 claude plugin install vault-bridge@Lyainc-claude-kit
@@ -77,7 +78,13 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 ---
 
-> **feedback-loop** (실험적 · layer ⑤ 자기개선): measure→review→keep 루프예요 (실행/이터레이션 엔진 아님). `retro`(세션 회고 + telemetry 낭비 패턴 라우팅) · `distill`(재사용 절차 기법 발견) · `add-policy`(규칙을 CLAUDE.md·훅·스킬 중 한 곳에 매립) 스킬 3종과 opt-in 로컬 telemetry로 이뤄져요. telemetry는 `CLAUDE_KIT_TELEMETRY=1` 아니면 아무것도 안 쓰고(silent), 턴당 LLM 비용 0, 외부 유출 0이에요.
+> **feedback-loop** (실험적 · layer ⑤ 자기개선): measure→review→keep 루프예요 (실행/이터레이션 엔진 아님). 스킬 3종과 opt-in 로컬 telemetry로 이뤄져요. telemetry는 `CLAUDE_KIT_TELEMETRY=1` 아니면 아무것도 안 쓰고(silent), 턴당 LLM 비용 0, 외부 유출 0이에요.
+>
+> | 스킬 | 하는 일 |
+> |---|---|
+> | `retro` | 세션 회고 — telemetry 낭비 패턴·세션 인사이트·검증된 규칙 패턴을 3갈래(이슈 / vault 저장 / 기법 증류 인계) opt-in 출력으로 라우팅 |
+> | `distill` | 세션에서 재사용 가능한 절차 기법을 user-confirmed로 발견 — 자연어 제안만 내고, 배치·저작은 아래 매립 엔진 몫 |
+> | `add-policy` | 규칙 하나를 분류해 매립지 3개(CLAUDE.md · 훅 · 스킬) 중 한 곳에 1클릭 배치 — 커밋은 안 함 |
 > ```bash
 > claude plugin install feedback-loop@Lyainc-claude-kit
 > ```
