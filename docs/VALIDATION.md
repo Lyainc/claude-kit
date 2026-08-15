@@ -139,7 +139,7 @@ python3 scripts/check-agent-tools-usage.py
 # a hook that legitimately cannot be installed must not fail the check. STALE (installed
 # but content drifted) is exit 1.
 python3 scripts/check-hooks-installed.py --self-test
-# Expected: OK: all 6 check-hooks-installed self-test cases passed
+# Expected: OK: all 8 check-hooks-installed self-test cases passed
 python3 scripts/check-hooks-installed.py
 # Expected: ...
 

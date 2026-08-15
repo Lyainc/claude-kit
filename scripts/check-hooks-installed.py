@@ -32,6 +32,7 @@ import sys
 
 SOURCE_REL = "scripts/hooks/pre-commit"
 INDENT = "#   "
+MARKER = "Install it verbatim:"
 
 
 def _git_toplevel():
@@ -58,12 +59,27 @@ def _git_common_dir(root):
 
 
 def extract_shim(source_text):
-    """Pull the indented '#   ' block out of scripts/hooks/pre-commit's header comment."""
-    lines = [
-        line[len(INDENT):]
-        for line in source_text.splitlines()
-        if line.startswith(INDENT)
-    ]
+    """Pull the shim block out of scripts/hooks/pre-commit's header comment.
+
+    Anchored to the "Install it verbatim:" marker and stopped at the first line that is not
+    '#   '-indented — the same rule install-hooks.sh applies, and it must stay the same rule.
+    Taking every indented line in the file instead welds any other indented comment into the
+    installed hook, and since this header is the documented place to edit the shim, that is an
+    ordinary edit: one indented example line above the block displaced the shebang off line 1
+    and the hook ran under the default shell, erroring on every commit.
+    """
+    lines, inblock = [], False
+    for line in source_text.splitlines():
+        if not inblock:
+            if MARKER in line:
+                inblock = True
+            continue
+        if line.startswith(INDENT):
+            lines.append(line[len(INDENT):])
+        elif line.rstrip() == "#":
+            continue
+        else:
+            break
     return "\n".join(lines) + "\n" if lines else ""
 
 
@@ -78,6 +94,11 @@ def check(root):
     expected = extract_shim(source_text)
     if not expected:
         return 2, f"FATAL: no verbatim shim block found in {SOURCE_REL}"
+    if not expected.startswith("#!/bin/sh"):
+        return 2, (
+            f"FATAL: the shim block in {SOURCE_REL} does not start with `#!/bin/sh` — "
+            "the header was edited in a way that would install an unrunnable hook"
+        )
 
     common_dir = _git_common_dir(root)
     if common_dir is None:
@@ -97,6 +118,15 @@ def check(root):
         return 1, (
             f"STALE: {target} does not match the shim tracked at {SOURCE_REL} — "
             "re-run `bash scripts/install-hooks.sh`"
+        )
+
+    # Content alone is not "installed": git skips a hook without the execute bit, printing a
+    # hint and committing anyway. A file whose bytes are right but whose mode is not leaves
+    # the guard off exactly as a missing hook would, which is the state P12 exists to name.
+    if not os.access(target, os.X_OK):
+        return 1, (
+            f"STALE: {target} matches the tracked shim but is not executable — git ignores it "
+            "and commits unguarded; re-run `bash scripts/install-hooks.sh`"
         )
 
     return 0, f"OK: {target} matches the tracked shim"
@@ -154,14 +184,32 @@ def self_test():
             hook_path = os.path.join(git_common, "hooks", "pre-commit")
             with open(hook_path, "w", encoding="utf-8") as f:
                 f.write(expected)
+            os.chmod(hook_path, 0o755)
             code, msg = check(tmp)
             record("matching hook -> exit 0 OK", code == 0 and msg.startswith("OK"))
 
-            # Case 4: hook installed but stale.
+            # Case 4: right bytes, no execute bit. git skips such a hook with a hint and
+            # commits anyway, so this is as unguarded as a missing one and must not read OK.
+            os.chmod(hook_path, 0o644)
+            code, msg = check(tmp)
+            record("non-executable hook -> exit 1 STALE",
+                   code == 1 and msg.startswith("STALE") and "not executable" in msg)
+            os.chmod(hook_path, 0o755)
+
+            # Case 5: hook installed but stale.
             with open(hook_path, "w", encoding="utf-8") as f:
                 f.write(expected.replace("exit 0", "exit 1"))
+            os.chmod(hook_path, 0o755)
             code, msg = check(tmp)
             record("stale hook -> exit 1 STALE", code == 1 and msg.startswith("STALE"))
+
+            # Case 6: an unrelated indented comment ABOVE the marker must not be welded into
+            # the shim — that is what displaced the shebang off line 1 and left the hook
+            # running under the default shell while this checker still reported OK.
+            polluted = source_text.replace(
+                "# some header\n", "# some header\n#   ~/dev/prj/example\n")
+            record("indented line above the marker is not part of the shim",
+                   extract_shim(polluted) == shim_body)
         finally:
             globals()["_git_common_dir"] = real_git_common_dir
 
