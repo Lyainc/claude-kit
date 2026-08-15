@@ -1,0 +1,28 @@
+#!/usr/bin/env bash
+# Tracked pre-commit hook: run the cross-repo skill-reference guard before a rename can land.
+#
+# WHY HERE and not only in CI (#637). The guard's whole point is scanning consumers OUTSIDE
+# this repo, and CI is the one place those consumers do not exist — the checkout has no
+# ~/dev/prj/local-harness, so the documented fail-open triggers and the run degrades to an
+# in-repo-only scan, which is exactly the scan that missed #562. CI stays green either way.
+# This machine is where both repos live, so this is where the external half can actually run.
+#
+# WHY A SHIM IN .git/hooks INSTEAD OF core.hooksPath. local-harness arms its tracked hook with
+# `git config core.hooksPath rules/hooks`, which is reference-based and drift-free. That does
+# not transfer here: graphify owns post-commit and post-checkout copies in .git/hooks, and
+# repointing core.hooksPath would silently switch both off. So .git/hooks/pre-commit is a
+# three-line shim that execs THIS file — the shim never changes, and the logic it calls is
+# tracked, so there is no copy carrying behaviour that can rot (P12).
+#
+# Escape hatch: `git commit --no-verify`.
+set -u
+
+root=$(git rev-parse --show-toplevel) || exit 0
+
+# Only when the commit touches something that declares or names a skill. A docs-only or
+# script-only commit cannot introduce this class of drift, and a hook that runs on every
+# commit is a hook someone disables.
+git diff --cached --name-only |
+  grep -qE '(^|/)(skills/[^/]+/SKILL\.md|agents/[^/]+\.md|hooks/[^/]+\.sh)$' || exit 0
+
+exec python3 "$root/scripts/check-skill-reference-drift.py"
