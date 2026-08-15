@@ -120,7 +120,6 @@
         "dogfooding",
         "event-logger",
         "skill-lifecycle",
-        "promotion",
         "opt-in",
         "local-only"
       ],
