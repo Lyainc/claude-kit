@@ -117,11 +117,21 @@ NAME_KEY_RE = re.compile(r"^name:[ \t]*(\S+)", re.MULTILINE)
 # same way a hook matcher does: rename the skill and the entry simply stops granting anything,
 # with no error and no log line. Structured, so it is parsed rather than pattern-matched off
 # prose, which is why it carries none of the history/prose ambiguity the slash form below does.
-# The entry must start alphanumeric, or the `---` closing the frontmatter parses as a list item
-# whose name is empty.
-AGENT_SKILLS_RE = re.compile(
-    r"^skills:[ \t]*\n((?:[ \t]*-[ \t]+[A-Za-z0-9][A-Za-z0-9_-]*[ \t]*\n)+)", re.MULTILINE
+#
+# Parsed line by line rather than by one block regex. A `(?:…)+` block stops at the first item
+# it cannot match, which does not merely skip that entry — it drops EVERY entry after it while
+# the run still prints `OK: … resolve` with a plausible count. Measured: a quoted entry or a
+# trailing `# comment` on the second item truncated the list silently. A half-scan reported as
+# success is worse than no scan, because the count is the only signal a reader gets.
+SKILLS_KEY_RE = re.compile(r"^skills:[ \t]*(.*)$")
+# One list item: optional quotes, optional trailing comment. `---` cannot match, since a name
+# must start alphanumeric.
+SKILLS_ITEM_RE = re.compile(
+    r"""^[ \t]*-[ \t]+(?:(["'])(?P<q>[A-Za-z0-9][A-Za-z0-9_-]*)\1"""
+    r"""|(?P<b>[A-Za-z0-9][A-Za-z0-9_-]*))[ \t]*(?:\#.*)?$"""
 )
+# The inline flow form, `skills: [a, b]`.
+SKILLS_FLOW_RE = re.compile(r"^\[(.*)\]$")
 
 # A slash-command mention in an external consumer: `` `/next-goal` ``. The whole backtick span
 # must be one path-free segment, so `` `/Users/x` `` and `` `skills/wrap/` `` cannot match.
@@ -182,6 +192,38 @@ def qualified_re(plugins):
     return re.compile(r"\b(?:" + alt + r"):[A-Za-z0-9][A-Za-z0-9_-]*")
 
 
+def scan_agent_skills(text):
+    """Yield (lineno, name) for every entry of an agent's `skills:` frontmatter list.
+
+    Walks the whole list instead of matching it as one block, so an entry this parser cannot
+    read costs only that entry — never the rest of the list — and it never yields a name it
+    did not actually read.
+    """
+    lines = text.splitlines()
+    for i, line in enumerate(lines):
+        key = SKILLS_KEY_RE.match(line)
+        if not key:
+            continue
+        flow = SKILLS_FLOW_RE.match(key.group(1).strip())
+        if flow:
+            for entry in flow.group(1).split(","):
+                entry = entry.strip().strip("\"'")
+                if entry:
+                    yield i + 1, entry
+            return
+        for j in range(i + 1, len(lines)):
+            nxt = lines[j]
+            if not nxt.strip() or nxt.lstrip().startswith("#"):
+                continue  # a blank line or comment inside the list does not end it
+            item = SKILLS_ITEM_RE.match(nxt)
+            if not item:
+                if nxt.lstrip().startswith("-"):
+                    continue  # an item shape this parser cannot read: skip it, keep going
+                return  # the next key, or the frontmatter fence — the list is over
+            yield j + 1, item.group("q") or item.group("b")
+        return
+
+
 def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     """Yield (lineno, ref) for every skill reference in one file's text.
 
@@ -190,11 +232,7 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     agent's `skills:` list count.
     """
     if is_agent:
-        m = AGENT_SKILLS_RE.search(text)
-        if m:
-            base = text[: m.start()].count("\n") + 1
-            for offset, entry in enumerate(m.group(1).splitlines(), 1):
-                yield base + offset, entry.strip().lstrip("-").strip()
+        yield from scan_agent_skills(text)
     for lineno, line in enumerate(text.splitlines(), 1):
         seen = set()
         for m in CALL_RE.finditer(line):
@@ -210,8 +248,13 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
             yield lineno, ref
 
 
-def resolve(ref, catalog, allow_bare):
-    """Return None when the reference resolves, else a reason string."""
+def resolve(ref, catalog, allow_bare, extra_bare=()):
+    """Return None when the reference resolves, else a reason string.
+
+    `extra_bare` is the scanned consumer's own skill names, and it applies only to references
+    read from that consumer — never to in-repo ones, or the answer would depend on whether a
+    sibling checkout happens to exist on the machine.
+    """
     if ":" in ref:
         plugin, _, name = ref.partition(":")
         if plugin not in catalog:
@@ -221,7 +264,7 @@ def resolve(ref, catalog, allow_bare):
         return f"no {plugin}/skills/*/SKILL.md declares `name: {name}`"
     if not allow_bare:
         return None
-    if any(ref in names for names in catalog.values()):
+    if ref in extra_bare or any(ref in names for names in catalog.values()):
         return None
     return f"no skill or agent named `{ref}` in any plugin"
 
@@ -258,8 +301,11 @@ def check_all(root, external_roots=None, allowlist=None):
         else:
             absent.append(raw)  # fail open: nobody else has this checked out
 
-    # A consumer naming its OWN skill is not drift, so its declarations resolve too. Without
-    # this the slash scan would report `/wrap` against a repo that ships wrap itself.
+    # A consumer naming its OWN skill is not drift, so its declarations resolve too. Kept in a
+    # SEPARATE set rather than merged into the catalogue: merging let an in-repo bare name
+    # resolve against a skill this repo does not ship, which made the pre-commit hook laxer
+    # than CI (where the consumer is absent) and the verdict machine-dependent.
+    consumer_names = set()
     for top, wide in surfaces:
         if not wide:
             continue
@@ -267,7 +313,7 @@ def check_all(root, external_roots=None, allowlist=None):
             with open(path, encoding="utf-8", errors="replace") as fh:
                 m = NAME_KEY_RE.search(fh.read())
             if m:
-                catalog.setdefault("", set()).add(m.group(1))
+                consumer_names.add(m.group(1))
 
     findings, fired, files, refs = [], set(), 0, 0
     scanned_paths = []
@@ -282,7 +328,10 @@ def check_all(root, external_roots=None, allowlist=None):
                 text, qual_re, wide, path.endswith(".sh"), is_agent
             ):
                 refs += 1
-                problem = resolve(ref, catalog, allow_bare=True)
+                problem = resolve(
+                    ref, catalog, allow_bare=True,
+                    extra_bare=consumer_names if wide else (),
+                )
                 if problem is None:
                     continue
                 exempt = next(
@@ -305,6 +354,21 @@ def check_all(root, external_roots=None, allowlist=None):
             findings.append({
                 "file": _display(stale[0], root), "line": 0, "ref": ref,
                 "problem": f"stale exemption — nothing to exempt any more. Remove it: {reason}",
+            })
+
+    # The slash ignore list is keyed on a name alone, everywhere and forever, so unlike the
+    # allowlist above it has no natural expiry. The one expiry that IS detectable: every entry
+    # claims the name is not this repo's to declare (a native command, or a skill it retired).
+    # The moment this repo ships that name the claim is false — a retired skill re-introduced,
+    # or a new skill colliding with a native command, which is not hypothetical since an agent
+    # already routes work to the native `/code-review`. Left undetected the entry would go on
+    # silently exempting a name that has become ours to check.
+    for name, reason in sorted(EXTERNAL_SLASH_IGNORE.items()):
+        if any(name in names for names in catalog.values()):
+            findings.append({
+                "file": os.path.relpath(__file__, root), "line": 0, "ref": name,
+                "problem": f"stale EXTERNAL_SLASH_IGNORE entry — this repo now ships `{name}`, "
+                           f"so it is ours to check. Remove it: {reason}",
             })
 
     stats = {"files": files, "refs": refs, "roots": len(surfaces),
@@ -443,6 +507,50 @@ def run_self_test():
         })
         found, _ = check_all(repo, external_roots=[ext], allowlist=[])
         case("slash drift caught", refs_of(found), [("no-such-skill", 4)])
+
+        # 11. every list shape a human writes is walked to the END. A block regex stopped at
+        #     the first unreadable item and silently dropped the rest while still printing OK,
+        #     so each shape is pinned rather than assumed.
+        shapes = {
+            "block": "skills:\n  - live\n  - gone\n",
+            "flow": "skills: [live, gone]\n",
+            "quoted first": 'skills:\n  - "gone"\n',
+            "quoted second": 'skills:\n  - live\n  - "gone"\n',
+            "trailing comment": "skills:\n  - live\n  - gone  # why\n",
+            "blank line": "skills:\n\n  - gone\n",
+        }
+        _materialise(repo, {
+            "docs/guide.md": "clean\n",
+            "tt/agents/f2.md": "---\nname: f2\n---\n",
+            "tt/skills/live/SKILL.md": SKILL_MD.format(name="live"),
+        })
+        _materialise(ext, {"session-close/SKILL.md": "clean\n"})
+        for label, block in shapes.items():
+            _materialise(repo, {"tt/agents/f4.md": f"---\nname: f4\n{block}---\nbody\n"})
+            found, _ = check_all(repo, external_roots=[], allowlist=[])
+            case(f"skills list shape: {label}", [f["ref"] for f in found], ["gone"])
+        _materialise(repo, {"tt/agents/f4.md": "---\nname: f4\n---\nbody\n"})
+
+        # 12. a consumer's own skills resolve for ITS references only. Merging them into the
+        #     catalogue made an in-repo bare name resolve against a skill this repo does not
+        #     ship, so the same tree got different verdicts depending on whether the sibling
+        #     checkout existed — and the pre-commit hook came out laxer than CI.
+        _materialise(repo, {"tt/agents/f5.md": "---\nname: f5\nskills:\n  - wrap\n---\nbody\n"})
+        _materialise(ext, {"wrap/SKILL.md": SKILL_MD.format(name="wrap")})
+        with_ext, _ = check_all(repo, external_roots=[ext], allowlist=[])
+        without, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("consumer name does not leak in-repo", [f["ref"] for f in with_ext], ["wrap"])
+        case("verdict independent of the sibling checkout",
+             [f["ref"] for f in with_ext], [f["ref"] for f in without])
+        _materialise(repo, {"tt/agents/f5.md": "---\nname: f5\n---\nbody\n"})
+
+        # 13. an ignore entry claims the name is not this repo's to declare. Ship it and the
+        #     claim is false, so the entry must be reported rather than go on exempting a name
+        #     that became ours to check.
+        ignored = sorted(EXTERNAL_SLASH_IGNORE)[0]
+        _materialise(repo, {f"tt/skills/{ignored}/SKILL.md": SKILL_MD.format(name=ignored)})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("ignore entry goes stale when shipped", [f["ref"] for f in found], [ignored])
 
     if failures:
         print("FAIL: check-skill-reference-drift self-test")
