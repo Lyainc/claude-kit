@@ -76,17 +76,20 @@ MODEL_PRICING = {
 
 
 def _pricing_for(model: str | None) -> dict | None:
-    """MODEL_PRICING lookup that tolerates a date-suffixed model id extending a
-    registered bare key (#510 item 1) — e.g. a future 'claude-sonnet-5-20260601'
-    against the registered 'claude-sonnet-5'. Exact match wins; otherwise the
-    longest registered key the model id extends with '-<suffix>' wins.
+    """MODEL_PRICING lookup that tolerates a registered bare key being extended
+    with a date suffix (#510 item 1) — e.g. 'claude-sonnet-5-20260601' against
+    the registered 'claude-sonnet-5' — or a bracketed context-window variant
+    (#650) — e.g. 'claude-opus-5[1m]', same pricing, different window. The
+    bracket suffix is stripped before matching so both extension styles funnel
+    through one exact/prefix check.
     """
     if not isinstance(model, str) or not model:
         return None
-    if model in MODEL_PRICING:
-        return MODEL_PRICING[model]
+    base = re.sub(r"\[[^\]]*\]$", "", model)
+    if base in MODEL_PRICING:
+        return MODEL_PRICING[base]
     for key in sorted(MODEL_PRICING, key=len, reverse=True):
-        if model.startswith(key + "-"):
+        if base.startswith(key + "-"):
             return MODEL_PRICING[key]
     return None
 
@@ -704,15 +707,15 @@ def main() -> int:
             else:
                 cost_str = "(생략)"
             print(f"  {kind:<12} tokens={tok:>10} ({tok_pct:5.1f}%)  cost={cost_str}")
+        if token_cost["excluded_events"]:
+            print(
+                f"  {'excluded':<12} events={token_cost['excluded_events']:>10}  "
+                f"model 없음/미등록: {', '.join(token_cost['unpriced_models'])}"
+            )
         if token_cost["cost"] is None:
             print(
                 f"  ! 비용 열 생략: priced 이벤트 0건 (model 없음 또는 미등록: "
                 f"{', '.join(token_cost['unpriced_models']) or '해당 없음'})"
-            )
-        elif token_cost["excluded_events"]:
-            print(
-                f"  ! {token_cost['excluded_events']}개 이벤트는 model 없음/미등록"
-                f"({', '.join(token_cost['unpriced_models'])})으로 비용 계산에서 제외"
             )
         print(f"  ! {_COST_CAVEAT}")
     return 0
