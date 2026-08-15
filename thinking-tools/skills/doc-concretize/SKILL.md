@@ -13,6 +13,7 @@ description: |
   doc-concretize, concretize, "이 개념을 문서로 정리해줘".
   Routing: 기존 MD 파일 개선은 doc-polish, YAML 스펙 생성은 build-spec.
 allowed-tools: Read AskUserQuestion WebFetch Agent
+effort: medium
 ---
 
 # Document Concretization

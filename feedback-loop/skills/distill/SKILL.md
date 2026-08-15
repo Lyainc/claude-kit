@@ -3,6 +3,7 @@ name: distill
 description: "User-confirmed DISCOVERY of REUSABLE PROCEDURAL TECHNIQUES in the current session — the discovery half of the ⑤ self-improvement loop. Judges what is class-level reusable (vs a one-off), whether an existing skill already covers it, or whether nothing is worth capturing, and emits a natural-language proposal (what / why / session-provenance / inviolability judgment); placement and authoring are the sibling add-policy landfill engine's job, not distill's. SIS-derived (claude-self-improving-skills). Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: declarative knowledge (facts/decisions/session records) = vault /vault-save, NOT distill; placing/authoring a confirmed rule = add-policy (sibling); mechanical skill authoring = skill-creator. Example: '/distill' or '이 세션 기법 증류해줘'."
 model: inherit
 allowed-tools: Read Bash Grep AskUserQuestion
+effort: medium
 ---
 
 **User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) MUST be in Korean. Instructions below are English for LLM parsing.

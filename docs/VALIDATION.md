@@ -84,6 +84,16 @@ python3 scripts/check-agent-tools-field.py
 # `tools:` followed by any other key captured THAT line as the value and passed — the exact
 # #472 harm, green. Narrowed to `[ \t]*`, with the YAML block-list form checked separately so
 # `tools:\n  - Read` still counts as non-empty.
+python3 scripts/check-effort-field.py --self-test
+# Expected: OK: all check-effort-field self-test cases passed
+python3 scripts/check-effort-field.py
+# Expected: OK: all N skill(s)/agent(s) declare `effort:`
+# #648 BLOCK guard: same shape as check-agent-tools-field.py above, widened to
+# */skills/*/SKILL.md + */agents/*.md and the `effort:` key. Without it, a skill/agent
+# inherits the whole session's effort dial instead of a value tuned to what it actually
+# does — #448 established effort-over-model-tier, but 11 skills and all 4 agents shipped
+# with no `effort:` at all. Key existence + non-emptiness only; the value itself is a
+# manual judgment call (see #648's issue body).
 python3 scripts/check-agent-tools-usage.py --self-test
 # Expected: OK: all 50 check-agent-tools-usage self-test cases passed
 python3 scripts/check-agent-tools-usage.py

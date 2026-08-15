@@ -12,6 +12,7 @@ description: |
   Routing: 만들 대상이 정해져 있고 명세로 굳혀야 하면 build-spec, 1:1 주장 공격은 adversarial-review,
   다관점 합의는 expert-panel.
 allowed-tools: AskUserQuestion Read Write Agent Grep Glob
+effort: high
 ---
 
 # Unknown Discovery
