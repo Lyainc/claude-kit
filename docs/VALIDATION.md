@@ -131,7 +131,7 @@ python3 scripts/check-agent-tools-usage.py
 # and never names the contract is now reported — vault-file-organizer.md was the live find,
 # and fixing it to the draft-handoff shape is what took the rule back to zero.
 python3 scripts/check-skill-reference-drift.py --self-test
-# Expected: OK: all 13 check-skill-reference-drift self-test cases passed
+# Expected: OK: all 18 check-skill-reference-drift self-test cases passed
 python3 scripts/check-skill-reference-drift.py
 # Expected: OK: all N skill reference(s) resolve — N file(s) across N root(s), N external
 #   root(s) absent, N deliberate fallback(s) exempt
@@ -159,6 +159,16 @@ python3 scripts/check-skill-reference-drift.py
 # included — which is what catches the stale-fallback half of #562, since that sentence had no
 # call syntax at all. Agents share the catalogue (`<plugin>:<name>` is the qualified form for
 # both), and a plugin this repo does not ship is skipped rather than judged.
+# Two more surfaces, both added after a fresh-context review found the guard blind to them.
+# (a) An agent's `skills:` frontmatter list hardcodes 9 names in thinking-facilitator.md alone,
+# and it fails open and silent exactly like a hook matcher: rename the skill and the entry just
+# stops granting it. Structured, so it is parsed, not pattern-matched off prose.
+# (b) The slash form (`` `/next-goal` ``) is how a consumer names a skill in prose, and it is
+# the shape the stale #562 fallback sentence has TODAY — the qualified-token rule would leave
+# it silent through the next rename. It cannot be scanned bare: of the 7 distinct slash names
+# in the live external root, 4 are legitimately unresolvable (native `/goal`, `/code-review`;
+# retired `/handoff`, `/capture` named as history), so EXTERNAL_SLASH_IGNORE carries those with
+# a reason each, and the consumer's own skills resolve against its own declarations.
 # A version-skew bridge that deliberately names both the old and the new skill is exempted by
 # the DELIBERATE_FALLBACKS allowlist, reason inline; an entry that stops firing while its file
 # is still scanned is reported as STALE, so an exemption cannot outlive its reason. The list is
