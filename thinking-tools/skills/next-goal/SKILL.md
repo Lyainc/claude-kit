@@ -164,9 +164,17 @@ something a session would visibly produce.
 - **L3 — a turn cap.** End with `or stop after N turns` so an unattended run cannot spin. Size N
   for the whole unit, not for one slice of it — a multi-PR unit that fans out needs room to
   finish, and a cap tuned to a single linear slice silently shrinks the work back down.
-- **L4 — say the work fans out.** When pieces are independent, the condition names that they run
-  as parallel subagents (or hand off to another session), so the next session does not
-  serialize by default. Independence is the test — anything sharing a file stays sequential.
+- **L4 — say the work fans out, and by which path.** When pieces are independent, the condition
+  names that they run as parallel subagents (or hand off to another session), so the next session
+  does not serialize by default. Independence is the test — anything sharing a file stays
+  sequential. Name the path too, not just the fan-out: the main session's effort is one
+  session-wide dial, so the delegation unit is the only place it can be set per branch. The
+  `Agent` tool takes no effort parameter, which makes "이 갈래는 effort low로 서브에이전트에"
+  unexecutable; what does execute is a Workflow `agent()` call (`opts.effort`), a named agent
+  (its definition's `effort:` follows), a named skill (its `effort:` applies), or an
+  argument-form command like `/code-review high`. Write the assignment as a default the next
+  session may override — candidates are picked without opening the files, so a per-branch
+  difficulty call is one session ahead of the evidence.
 
 And the four elements: a single measurable end-state · the proof method · the invariant
 constraints · the turn or time cap.
@@ -258,7 +266,7 @@ RUNNERS  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 �
 ```
 
 ```
-/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 subagent 셋에 병렬로 돌리고 경로 수정만 순차로 처리한다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 fresh-context 리뷰를 돌려 correctness·요구사항 갭 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
+/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 병렬로 돌리되 한 갈래 안의 경로 수정 여섯 지점은 순차로 처리하고, 기계적인 경로 치환과 manifest 필드 추가는 Workflow agent() 에 effort low 로 넘기고 판정이 걸린 audit E4 규칙 재작성은 메인에서 직접 본다 — 실물을 보고 난이도가 다르면 이 배정은 바꿔도 된다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 fresh-context 리뷰를 돌려 correctness·요구사항 갭 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
 ```
 
 ---
