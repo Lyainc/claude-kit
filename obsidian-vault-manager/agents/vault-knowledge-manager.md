@@ -1,7 +1,7 @@
 ---
 name: vault-knowledge-manager
 description: "Obsidian vault knowledge base manager — vault search, audit coordination, and note/decision DRAFTING. Read-only by the Write Role Contract: it returns a ready-to-write draft to the main context; the user commits it by invoking `/vault-save` or `/wiki` there. Example: 'search for kubernetes notes', 'run vault audit', 'draft a decision record for the API gateway'. For session recording use `/vault-save` (raw ore) or `/wiki` (compiled knowledge) — this agent does not manage session lifecycle."
-model: sonnet
+model: sonnet  # kept (#648): drafting judgment, and effort medium sets the depth
 color: magenta
 memory: project
 effort: medium
