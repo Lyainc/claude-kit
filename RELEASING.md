@@ -95,6 +95,16 @@ hatch — ship something right now without waiting for a label or the backstop.
    - builds the notes (curated per-plugin sections + GitHub's native "What's Changed")
      and publishes the GitHub Release.
 
+**How the workflow is allowed to push to `main` (2026-08-15).** The `main required checks`
+ruleset rejects a direct push from `GITHUB_TOKEN` — on a brand-new commit the required
+checks are always "expected", so no bot push can ever satisfy them (`GH013`, and it is
+what silently broke every auto-release between 2026-08-03 and this fix). The release job
+therefore checks out with `ssh-key: ${{ secrets.RELEASE_SSH_KEY }}` (a write deploy key)
+and the ruleset's only bypass actor is `DeployKey`. Two consequences worth knowing: the
+auto path needs `secrets: inherit` on its `workflow_call` (secrets are not inherited by
+default, and without it the job silently falls back to the rejected token), and rotating
+the deploy key means updating both the key and the secret.
+
 > First lockstep release: the plugins currently carry mixed versions
 > (`2.2.1` / `0.19.0` / `0.5.0`). The first run of this workflow aligns them all to the
 > version you enter — there is no separate "alignment" step to do by hand. `3.0.0` is
