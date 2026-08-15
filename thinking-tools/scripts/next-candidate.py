@@ -104,15 +104,23 @@ def has_github_remote(cwd):
 
 # Shared open-issue backlog cache for comparison-set lookups (#528). retro's dedup
 # step (feedback-loop/skills/retro/SKILL.md) independently implements the same
-# cache-path/TTL convention in bash (scripts/gh-issues-cache.sh) rather than this
-# script calling into it — CON-5 forbids a leaf script from depending on a harness
-# one, so the two stay separate code that happen to agree on where the cache lives.
-# NEVER read this cache for a live-status render (a specific PR/issue's current state
-# shown to the user) — only "does something like this already exist" comparison
-# reads, where a few minutes of staleness is harmless.
-GH_CACHE_TTL = int(os.environ.get("GH_CACHE_TTL_OVERRIDE", 300))  # ponytail: flat 300s ceiling,
-# long enough to span one /wrap run. Override lets a test force an immediate expiry
-# (GH_CACHE_TTL_OVERRIDE=-1) without depending on OS mtime-manipulation timing.
+# cache-path convention in bash (scripts/gh-issues-cache.sh) rather than this script
+# calling into it — CON-5 forbids a leaf script from depending on a harness one, so
+# the two stay separate code that happen to agree on where the cache lives.
+#
+# THIS SCRIPT WRITES THE CACHE BUT NEVER READS IT (#638). It is the LAST step of the
+# session-close chain, and the two steps before it create issues:
+#   1. retro dedup       — gh-issues-cache.sh get     (writes the cache)
+#   2. retro action      — gh issue create xN         (cache now stale)
+#   3. session-close ②   — gh issue create            (cache now stale)
+#   4. next-goal → here  — picks the next goal        (was reading step 1's cache)
+# Any TTL long enough to be a cache is longer than the 2→4 gap, so a time-based read
+# here drops the issues the previous two steps just judged worth keeping — silently,
+# and only when the chain happens to run fast. Invalidating from the creating side
+# was the other candidate; it does not close this, because session-close lives in a
+# different repo (local-harness) and a thinking-tools-only install has no
+# feedback-loop hook to do the invalidating. One live `gh issue list` per next-goal
+# run is the whole cost of not being wrong.
 GH_CACHE_LIMIT = 300  # ponytail: open-issue cap; widen if a repo actually exceeds this.
 
 
@@ -124,17 +132,6 @@ def _repo_root(cwd):
 
 def _gh_cache_path(cwd):
     return os.path.join(_repo_root(cwd), ".claude-kit", "cache", "gh-open-issues.json")
-
-
-def _read_gh_cache(cwd):
-    path = _gh_cache_path(cwd)
-    try:
-        if time.time() - os.path.getmtime(path) > GH_CACHE_TTL:
-            return None
-        with open(path) as f:
-            return json.load(f)
-    except Exception:
-        return None
 
 
 def _write_gh_cache(cwd, issues):
@@ -158,11 +155,10 @@ def open_issues(cwd):
     "No open issues" and "could not look" lead to opposite decisions — the first says the
     backlog is genuinely exhausted, the second says nothing at all — so collapsing them into
     one blank section is how a lookup failure gets read as a clean result.
-    """
-    cached = _read_gh_cache(cwd)
-    if cached is not None:
-        return cached, None
 
+    Always fetches live — see the cache comment above for why this end-of-chain reader
+    must not trust a cache written earlier in the same chain (#638).
+    """
     if not has_github_remote(cwd):
         return [], "no-remote"
     if not _which("gh"):

@@ -2,9 +2,13 @@
 # feedback-loop/scripts/gh-issues-cache.sh — shared open-issue backlog cache for
 # comparison-set lookups (#528). retro's dedup step (skills/retro/SKILL.md) is the
 # caller here; thinking-tools/scripts/next-candidate.py independently implements the
-# same cache-path/TTL convention in Python rather than calling this script — CON-5
+# same cache-path convention in Python rather than calling this script — CON-5
 # forbids a leaf script from depending on a harness one, so the two stay separate
-# code that happen to agree on where the cache lives.
+# code that happen to agree on where the cache lives. That script WRITES this cache
+# but no longer reads it (#638): it runs after the issue-creating steps of the same
+# chain, so any TTL long enough to be a cache is longer than the gap it would have to
+# span. This script's own `get` still caches — its caller (retro dedup) runs BEFORE
+# those creations, so it is on the right side of them.
 #
 # NEVER point a live-status render (a specific PR/issue's current state shown to the
 # user) at this cache — only "does something like this already exist" comparison-set

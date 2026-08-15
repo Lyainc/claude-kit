@@ -124,29 +124,28 @@ for verdict in '임팩트 바닥' '다시 고르세요' '밝히세요' '반드�
   check "payload omits verdict [$verdict]" "$(printf '%s' "$ctx" | grep -c "$verdict")" "0"
 done
 
-# === 6. gh-open-issues cache reuse (#528) ==========================================
+# === 6. gh-open-issues cache is written, never read (#528 cache, #638 fix) =========
 # Test 4's "genuinely empty" call above already populated $tmp/gh's shared cache
-# (.claude-kit/cache/gh-open-issues.json) with a successful empty-backlog fetch.
-# A cache hit returns before has_github_remote/_which("gh") are ever checked, so this
-# assertion is NOT a gh-presence test (it would pass identically with a real `gh` on
-# PATH, #542) — it proves the fresh cache short-circuits to "genuinely empty" instead
-# of falling through to a live fetch/"조회 못 함". $no_gh_dir is used only for
-# consistency with the rest of this block, not because gh's absence matters here.
-# retro's dedup step (feedback-loop/skills/retro/SKILL.md) reads the same cache via
-# feedback-loop/scripts/gh-issues-cache.sh.
-got="$(env PATH="$no_gh_dir" python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '실제로 비어')"
-check "fresh cache short-circuits to genuinely-empty" "$got" "1"
+# (.claude-kit/cache/gh-open-issues.json) with a successful EMPTY-backlog fetch, and it
+# is seconds old — fresh by any TTL. That empty cache is the #638 shape exactly: retro's
+# dedup writes it, retro/session-close then create issues, and this script runs last. So
+# a fresh cache must NOT be served; the live fetch must win, or the issues the previous
+# two steps just judged worth keeping vanish from the pool that picks the next goal.
+# retro's dedup step (feedback-loop/skills/retro/SKILL.md) still reads the same cache via
+# feedback-loop/scripts/gh-issues-cache.sh — this assertion is about the READER here only.
+make_stub 'echo "[{\"number\":999,\"title\":\"just filed\",\"body\":\"\",\"labels\":[],\"updatedAt\":\"2026-08-15T00:00:00Z\"}]"'
+out="$(env PATH="$stub_dir:$PATH" python3 "$script" --cwd "$tmp/gh" 2>/dev/null)"
+check "a fresh cache does not hide a newly created issue" "$(printf '%s' "$out" | grep -c '#999')" "1"
+check "the stale empty cache is not served" "$(printf '%s' "$out" | grep -c '실제로 비어')" "0"
 
-# An expired cache must NOT be served — it falls back to a live fetch (or, with no
-# `gh` on PATH here, the same "조회 못 함" as an uncached miss). GH_CACHE_TTL_OVERRIDE=-1
-# forces immediate expiry deterministically — OS mtime writes vs. reads across two
-# separate process invocations are not guaranteed to order/resolve identically across
-# platforms/filesystems, which is what made this flake on Linux CI while passing locally.
-# $no_gh_dir (not a raw PATH like /usr/bin:/bin) is the hermetic "gh missing" simulation —
-# #535 already found that guessing which system dirs lack gh breaks wherever gh happens to
-# actually live there (this file's own CI run, on GitHub-hosted Ubuntu, is exactly that case).
-got="$(env PATH="$no_gh_dir" GH_CACHE_TTL_OVERRIDE=-1 python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '조회 못 함')"
-check "expired cache falls back to a live lookup" "$got" "1"
+# With no `gh` reachable the run reports "조회 못 함" even though a readable cache file
+# sits right there — a cache read would have silently rescued this and reported the stale
+# list as current. $no_gh_dir (not a raw PATH like /usr/bin:/bin) is the hermetic "gh
+# missing" simulation — #535 already found that guessing which system dirs lack gh breaks
+# wherever gh happens to actually live there (this file's own CI run, on GitHub-hosted
+# Ubuntu, is exactly that case).
+got="$(env PATH="$no_gh_dir" python3 "$script" --cwd "$tmp/gh" 2>/dev/null | grep -c '조회 못 함')"
+check "an unreachable gh is reported as such, never papered over by the cache" "$got" "1"
 
 # === report ========================================================================
 if [ "$fail" -eq 0 ]; then
