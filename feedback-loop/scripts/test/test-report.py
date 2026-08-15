@@ -743,6 +743,37 @@ def case_token_cost_date_suffixed_model_matches_bare_key(errors: list[str]) -> N
             "date-suffixed id counts as priced, not excluded/unpriced", errors)
 
 
+def case_token_cost_bracket_variant_matches_bare_key(errors: list[str]) -> None:
+    """#650: a bracketed context-window variant (e.g. 'claude-opus-5[1m]') prices
+    identically to its registered bare key — the bracket carries no hyphen, so
+    the #510 hyphen-suffix rule alone must not be the only path that works."""
+    print("\ncase: token_cost_bracket_variant_matches_bare_key")
+    events = [_meta_ev(model="claude-opus-5[1m]", input_tokens=1_000_000)]
+    res = report.token_cost_view(events)
+    _assert(res["cost"] is not None, "bracket-variant opus id still prices", errors)
+    _assert(abs(res["cost"]["input"] - 5.00) < 1e-9,
+            f"bracket variant uses the bare opus rate (got: {res['cost']})", errors)
+    _assert(res["priced_events"] == 1 and res["excluded_events"] == 0,
+            "bracket-variant id counts as priced, not excluded/unpriced", errors)
+
+
+def case_token_cost_excluded_line_visible_in_table(errors: list[str]) -> None:
+    """#650: excluded-event count renders as its own breakdown line (not only
+    buried in the cost caveat footnote) whenever some event was excluded."""
+    print("\ncase: token_cost_excluded_line_visible_in_table")
+    events = [
+        {**_ev("skill_invoke", 10, name="a"),
+         "meta": {"duration_ms": 10, "model": "claude-sonnet-5", "input_tokens": 1000}},
+        {**_ev("skill_invoke", 10, name="b"),
+         "meta": {"duration_ms": 10, "model": "claude-made-up-9", "input_tokens": 500}},
+    ]
+    out = _run_main_with(events, ["report.py", "--since=all", "--format=table"])
+    _assert("excluded" in out and "events=" in out,
+            f"table shows an explicit excluded-events line (got: {out!r})", errors)
+    _assert("claude-made-up-9" in out,
+            "excluded line names the unregistered model", errors)
+
+
 def case_token_cost_mixed_priced_and_unpriced(errors: list[str]) -> None:
     """Mixing a priced and an unpriced event: cost reflects only the priced one,
     and the unpriced one is surfaced as excluded rather than silently dropped."""
@@ -876,6 +907,8 @@ def main() -> int:
     case_token_cost_missing_model_excluded(errors)
     case_token_cost_unregistered_model_excluded(errors)
     case_token_cost_date_suffixed_model_matches_bare_key(errors)
+    case_token_cost_bracket_variant_matches_bare_key(errors)
+    case_token_cost_excluded_line_visible_in_table(errors)
     case_token_cost_mixed_priced_and_unpriced(errors)
     case_token_cost_no_token_data(errors)
     case_token_cost_zero_cost_not_mislabeled_omitted(errors)
