@@ -11,8 +11,20 @@
 # `git config core.hooksPath rules/hooks`, which is reference-based and drift-free. That does
 # not transfer here: graphify owns post-commit and post-checkout copies in .git/hooks, and
 # repointing core.hooksPath would silently switch both off. So .git/hooks/pre-commit is a
-# three-line shim that execs THIS file — the shim never changes, and the logic it calls is
-# tracked, so there is no copy carrying behaviour that can rot (P12).
+# shim that execs THIS file — the shim never changes, and the logic it calls is tracked, so
+# there is no copy carrying behaviour that can rot (P12). Install it verbatim:
+#
+#   #!/bin/sh
+#   # Shim only — the logic is tracked at scripts/hooks/pre-commit (#637). Do not edit here.
+#   # No-op where that file does not exist (a branch predating it, a worktree on such a branch,
+#   # a revert): a missing guard must not block every commit in the repo.
+#   [ -x "$(git rev-parse --show-toplevel)/scripts/hooks/pre-commit" ] || exit 0
+#   exec "$(git rev-parse --show-toplevel)/scripts/hooks/pre-commit" "$@"
+#
+# The guard line is load-bearing, not defensive padding. .git/hooks is shared by every linked
+# worktree, so an unconditional exec means that the moment this file exists on ONE branch, every
+# commit on every branch that lacks it dies with "No such file or directory" — measured on three
+# worktrees branched from main while this file still sat unmerged on its own branch.
 #
 # Escape hatch: `git commit --no-verify`.
 set -u
