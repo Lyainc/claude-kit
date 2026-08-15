@@ -130,6 +130,39 @@ python3 scripts/check-agent-tools-usage.py
 # vault-searcher, which could then only go green by reciting a contract it has no duty under)
 # and never names the contract is now reported — vault-file-organizer.md was the live find,
 # and fixing it to the draft-handoff shape is what took the rule back to zero.
+python3 scripts/check-skill-reference-drift.py --self-test
+# Expected: OK: all 13 check-skill-reference-drift self-test cases passed
+python3 scripts/check-skill-reference-drift.py
+# Expected: OK: all N skill reference(s) resolve — N file(s) across N root(s), N external
+#   root(s) absent, N deliberate fallback(s) exempt
+# #637: a hardcoded skill name must resolve to a skill that exists. #562 renamed
+# `completion-condition` -> `next-goal`; every reference inside this repo was updated, and the
+# one that crossed the repo boundary — local-harness's skills/session-close/SKILL.md, which
+# calls the skill by hardcoded qualified name — sat broken for 7 DAYS before being found by
+# hand, with the documented fallback text stale in the same edit (it pointed at the dead name
+# too, so the recovery path was broken as well). Nothing failed at runtime only because installs
+# are pinned at a release predating the rename, where the OLD name still resolves — the break is
+# armed for the next release, not absent.
+# The external consumer is therefore the point, not an extra: every sibling guard scans this
+# checkout only, which is exactly why check-trigger-regression.py missed it. EXTERNAL_ROOTS
+# (default `~/dev/prj/local-harness/skills`) is the configurable list, and a path that does not
+# exist is skipped SILENTLY — no other machine has that checkout, so failing there would make
+# the guard unrunnable for everyone else.
+# Two failure modes: a CALL fails loudly at runtime (`Unknown skill`), while a hook MATCHER
+# (`case "$skill" in thinking-tools:next-goal|next-goal)`) fails OPEN and SILENT — the arm stops
+# matching, the hook still exits 0, and nothing reports that its reason for existing is off.
+# The scan is deliberately wider outside this repo than inside it, on measurement: a repo-wide
+# prose scan flags 6 qualified mentions and all 6 are legitimate past-tense records (a CHANGELOG
+# line for a retired skill, two dated docs/discussions transcripts, a reference doc describing a
+# deleted agent), so in-repo only the call form plus qualified names in *.sh count. A consumer's
+# skill file has no historical archive behind it, so there EVERY qualified token counts, prose
+# included — which is what catches the stale-fallback half of #562, since that sentence had no
+# call syntax at all. Agents share the catalogue (`<plugin>:<name>` is the qualified form for
+# both), and a plugin this repo does not ship is skipped rather than judged.
+# A version-skew bridge that deliberately names both the old and the new skill is exempted by
+# the DELIBERATE_FALLBACKS allowlist, reason inline; an entry that stops firing while its file
+# is still scanned is reported as STALE, so an exemption cannot outlive its reason. The list is
+# empty today — local-harness dropped its bridge once this guard existed to catch the next one.
 python3 scripts/check-plugin-root-paths.py --self-test
 # Expected: OK: all 14 check-plugin-root-paths self-test cases passed
 python3 scripts/check-plugin-root-paths.py
