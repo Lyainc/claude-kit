@@ -6,7 +6,7 @@ engine (it does not run your tasks, drive a loop, or replace OMC `/loop` / ralph
 It *measures* what claude-kit did, helps you *review* it, and turns the signal
 into *kept* improvements.
 
-Two pieces ship together:
+Four pieces ship together:
 
 - **`retro` skill** — a session retrospective. Routes findings (telemetry waste
   patterns, session insights, validated rule patterns) to three opt-in outputs
@@ -15,6 +15,15 @@ Two pieces ship together:
   `/distill` slash command — a pattern only `retro` observed has been judged
   worth keeping by nobody yet, so it goes to the judge before the landfill
   engine, #459). Dedups repeats and caps work with a retro budget.
+- **`distill` skill** — the *discovery* half. User-confirms which reusable
+  procedural technique a session actually produced and emits it as a
+  natural-language proposal (what / why / provenance / inviolability). It never
+  authors or places anything — that is `add-policy`'s job.
+- **`add-policy` skill** — the *landfill* half. Takes one natural-language rule
+  (user-stated, or a `distill` proposal), classifies it, and lands it in one of
+  three native sites — an always-read reminder, a deterministic hook guard, or an
+  invocable skill — behind a single confirmation. Leaves the change in the working
+  tree; never commits.
 - **telemetry** — an opt-in local event logger (`scripts/event-logger.sh`) plus
   analysis scripts (`report.py`, `sequence.py`, `validate-schema.py`). It records
   which skills/agents/commands ran so `retro` (and you) can spot waste and dead

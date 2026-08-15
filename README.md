@@ -77,7 +77,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 
 ---
 
-> **feedback-loop** (실험적 · layer ⑤ 자기개선): measure→review→keep 루프예요 (실행/이터레이션 엔진 아님). `retro` 스킬(세션 회고 + telemetry 낭비 패턴 라우팅)과 opt-in 로컬 telemetry로 이뤄져요. telemetry는 `CLAUDE_KIT_TELEMETRY=1` 아니면 아무것도 안 쓰고(silent), 턴당 LLM 비용 0, 외부 유출 0이에요.
+> **feedback-loop** (실험적 · layer ⑤ 자기개선): measure→review→keep 루프예요 (실행/이터레이션 엔진 아님). `retro`(세션 회고 + telemetry 낭비 패턴 라우팅) · `distill`(재사용 절차 기법 발견) · `add-policy`(규칙을 CLAUDE.md·훅·스킬 중 한 곳에 매립) 스킬 3종과 opt-in 로컬 telemetry로 이뤄져요. telemetry는 `CLAUDE_KIT_TELEMETRY=1` 아니면 아무것도 안 쓰고(silent), 턴당 LLM 비용 0, 외부 유출 0이에요.
 > ```bash
 > claude plugin install feedback-loop@Lyainc-claude-kit
 > ```
