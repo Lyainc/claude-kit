@@ -3,6 +3,7 @@ name: vault-file-organizer
 description: "Lightweight mechanical file-operation planner for the vault. Resolves moves and renames — paths, naming rules, conflicts — without judgment calls, and returns them as an operation plan. It does NOT execute: vault writes carrying a subagent identifier are denied by the Write Role Contract, so the main context runs the returned mv / frontmatter lines. Delegate here for the mechanical resolution, not for the write itself."
 model: haiku
 color: green
+effort: low
 tools: Read, Bash, Glob
 ---
 

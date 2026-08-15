@@ -12,6 +12,7 @@ description: |
   expert panel, multi-perspective review, "전문가 관점에서 검토해줘", "다양한 관점에서 평가해줘".
   Routing: 1:1 단일 주장 공격은 adversarial-review, 맹점 발견 인터뷰는 unknown-discovery.
 allowed-tools: Read Grep Write AskUserQuestion Agent Bash
+effort: high
 ---
 
 # Expert Panel Discussion

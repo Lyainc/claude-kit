@@ -10,6 +10,7 @@ description: |
   Routing: 합의 도출·다관점은 expert-panel, 맹점 인터뷰는 unknown-discovery.
 
 allowed-tools: AskUserQuestion Read Write Agent Bash
+effort: high
 ---
 
 # Adversarial Review
