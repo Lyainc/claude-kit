@@ -22,7 +22,11 @@
 
 set -uo pipefail
 
-TTL=300   # ponytail: flat 300s ceiling, long enough to span one /wrap run; widen if not.
+# ponytail: flat 300s ceiling. NOT "long enough to span one /wrap run" — that framing is what
+# #638 was: spanning the run is the harm, because issues get created inside it. The TTL is safe
+# only for a caller that reads BEFORE this chain's `gh issue create` calls (retro Phase 1 dedup
+# does; Phase 2 creates after). A caller reading AFTER one must not use this cache at all.
+TTL=300
 LIMIT=300 # ponytail: open-issue cap, matches next-candidate.py; widen both together if a repo exceeds this.
 
 PROJ_ROOT="${CLAUDE_PROJECT_DIR:-$(git rev-parse --show-toplevel 2>/dev/null || printf '%s' "$PWD")}"
