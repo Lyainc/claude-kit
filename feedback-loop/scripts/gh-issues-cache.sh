@@ -16,7 +16,8 @@
 # lookups must stay live: a cached one already misjudged a PR merged 9 hours earlier
 # as still open (2026-07-30).
 #
-# Usage: gh-issues-cache.sh get   # prints the open-issue JSON array (cache or live fetch)
+# Usage: gh-issues-cache.sh get          # prints the open-issue JSON array (cache or live fetch)
+#        gh-issues-cache.sh invalidate   # drops the cache; run it after `gh issue create`
 #   On a fetch failure, prints "[gh-issues-cache FAILED] ..." (NOT "[]") and exits 1 —
 #   callers must branch on this before reading the output as an issue list (#618).
 
@@ -75,6 +76,15 @@ else:
       { printf '%s' "$OUT" > "$TMP" && mv -f "$TMP" "$CACHE"; } 2>/dev/null
     fi
     printf '%s' "${OUT:-[]}"
+    ;;
+  invalidate)
+    # The creating side's half of #638: a TTL cannot fix staleness caused by the caller
+    # itself, so whoever runs `gh issue create` drops the cache afterwards. Without this,
+    # a second retro within the TTL dedups against a backlog missing the issue the first
+    # one just filed and files it again — the same "read as no duplicates" harm #618 fixed
+    # for a different cause. Removing is enough: `get` re-fetches when the file is absent.
+    rm -f "$CACHE" 2>/dev/null
+    exit 0
     ;;
   *)
     exit 0
