@@ -126,6 +126,11 @@ jobs:
           python3 scripts/check-skill-reference-drift.py
           python3 scripts/check-plugin-root-paths.py --self-test
           python3 scripts/check-plugin-root-paths.py
+          # #621 skill-catalogue drift: every */skills/<name>/SKILL.md must stay listed in
+          # root README.md + its own plugin README.md, and `N개 스킬`/`N개 에이전트` counts
+          # must match reality.
+          python3 scripts/check-skill-catalogue-drift.py --self-test
+          python3 scripts/check-skill-catalogue-drift.py
           # SKILL.md compaction budget (#454). tiktoken is fetched ephemerally by `uv run
           # --with`, so it is a dependency of this one command and of nothing else — no
           # manifest entry, no plugin runtime cost. Same invocation locally and in CI, on
