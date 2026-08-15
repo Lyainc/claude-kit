@@ -156,7 +156,14 @@ opts in (offer them, do not run silently).
   the evidence: counts, event types, scope). Confirm with the user (filing a
   GitHub issue is outward-facing), then `gh issue create`. Split by scope:
   harness-level waste vs. local-repo waste go to the matching tracker — never
-  conflate them (mirrors #134's 2-branch waste split).
+  conflate them (mirrors #134's 2-branch waste split). After the last
+  `gh issue create` of this run, drop the comparison-set cache so the next
+  dedup does not compare against a backlog that predates what you just filed
+  (#638 — the creating side invalidates):
+
+  ```bash
+  bash "${CLAUDE_PLUGIN_ROOT}/scripts/gh-issues-cache.sh" invalidate
+  ```
 - **Memory**: never write the vault from `retro`. Output the ready-to-run slash
   command so the user keeps the Write Role Contract.
 - **Rule**: surface a ready-to-run `/distill` invocation — never `Edit` a rule file directly.

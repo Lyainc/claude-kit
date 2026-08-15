@@ -81,4 +81,19 @@ chmod 700 "$(dirname "$CACHE")"
 echo "$OUT" | jq -e '.[0].number==4' >/dev/null || fail "write-unable cache dir still lost the live fetch result"
 rm -f "$STDERR_629"
 
+# 6. `invalidate` drops the cache so the next `get` refetches (#638, creating side).
+#    Without it, a second retro inside the TTL dedups against a backlog that predates
+#    the issue the first one just filed and files it again.
+stub 'echo "[{\"number\":5,\"title\":\"fifth\"}]"'
+PATH="$STUB_DIR:$PATH" "$SCRIPT" get >/dev/null
+[ -f "$CACHE" ] || fail "setup fetch for invalidate case was not cached"
+"$SCRIPT" invalidate || fail "invalidate exited nonzero"
+[ ! -f "$CACHE" ] || fail "invalidate left the cache in place"
+stub 'echo "[{\"number\":6,\"title\":\"sixth\"}]"'
+OUT="$(PATH="$STUB_DIR:$PATH" "$SCRIPT" get)"
+echo "$OUT" | jq -e '.[0].number==6' >/dev/null || fail "get after invalidate did not refetch"
+# invalidate on an absent cache is a no-op, not an error (a run that filed nothing).
+rm -f "$CACHE"
+"$SCRIPT" invalidate || fail "invalidate on an absent cache exited nonzero"
+
 echo "OK: all gh-issues-cache cases passed"
