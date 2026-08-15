@@ -56,3 +56,14 @@ claude-kit은 lockstep 릴리즈입니다 — 모든 플러그인이 같은 버�
 `uv run --with tiktoken ...` 형태로 [uv](https://docs.astral.sh/uv/getting-started/installation/)를
 필요로 합니다. CI는 `astral-sh/setup-uv`로 자동 설치하지만, 로컬에서 pre-push 검증을 그대로
 돌리려면 uv를 먼저 설치하세요 — 없으면 `exit 127: uv: command not found`로 실패합니다.
+
+클론 직후 한 번, pre-commit 훅을 설치하세요 (#651):
+
+```bash
+bash scripts/install-hooks.sh
+```
+
+`.git/hooks/`는 추적 대상이 아니라서 이 한 단계 없이는 `scripts/hooks/pre-commit`(#637 크로스 레포
+skill-reference 가드)이 커밋 시 아예 안 돕니다. 설치 여부·내용 일치는
+`python3 scripts/check-hooks-installed.py`로 확인할 수 있습니다 — 훅이 없으면 (CI·클론 직후 등)
+실패가 아니라 설치 안내만 출력하고 exit 0, 설치는 됐는데 내용이 어긋나면 exit 1로 재설치를 요구합니다.
