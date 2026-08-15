@@ -94,7 +94,9 @@ jobs:
       version: ${{ needs.decide.outputs.version }}
     # A workflow_call job inherits no secrets by default, and release.yml needs
     # RELEASE_SSH_KEY to push past the branch ruleset. Without this the auto path
-    # silently falls back to GITHUB_TOKEN and the push is rejected.
-    secrets: inherit
+    # silently falls back to GITHUB_TOKEN and the push is rejected. Passed by name
+    # rather than `inherit` so only the one key it needs crosses over.
+    secrets:
+      RELEASE_SSH_KEY: ${{ secrets.RELEASE_SSH_KEY }}
     permissions:
       contents: write

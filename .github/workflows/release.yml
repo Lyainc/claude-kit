@@ -48,6 +48,11 @@ on:
         required: false
         type: boolean
         default: false
+    secrets:
+      # Declared so the caller passes this one key explicitly instead of `inherit`,
+      # which would hand every repo secret to this workflow.
+      RELEASE_SSH_KEY:
+        required: true
 
 permissions:
   contents: write
