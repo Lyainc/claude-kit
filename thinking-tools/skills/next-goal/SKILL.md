@@ -2,7 +2,8 @@
 name: next-goal
 
 description: |
-  Author the next session's completion condition — pick one cohesive unit of follow-up work,
+  Author the next session's completion condition — pick one session-sized unit of follow-up work
+  (an epic-sized theme sized for a fanned-out session, not the smallest extractable fragment),
   then render it as a single `/goal`-evaluable paragraph. Two stages in one skill: an internal
   ROI ranking whose only visible output is the pick plus its runners-up, and the condition
   paragraph itself, shaped against the surfaced-evidence levers a goal evaluator can actually
@@ -89,13 +90,20 @@ nits from review comments on this session's own PR are almost always below it.
 **Does this fill a session?** Impact and size are separate axes and a candidate must clear both
 — a ten-minute verification can be genuinely high-impact and still make a wasted session.
 
+**Size it against a fanned-out session, not a lone context.** A session runs parallel subagents
+on independent pieces and can hand a self-contained thread to another session entirely, so its
+capacity is several times what one linear context types. The unit that fits is an epic, a
+module's whole migration, a subsystem's related work — **worth several PRs is normal, not a
+warning sign.** If one context would finish the candidate in a straight line without delegating
+anything, it is below this bar: bundle, or go to step 3.
+
 A candidate that passes the floor but not the size test is **not dropped and not taken alone**:
-bundle it with the next-best item so the session lands one real dent instead of one errand.
+bundle it with the next-best items so the session lands one real dent instead of one errand.
 
 **Bundle only what shares the candidate's file, module, theme, or epic.** An unrelated pairing
 buys size at the cost of cohesion and then fails the scope check at the end of Phase 2. When
-nothing related is available, the candidate drops to runners-up — do not widen it into an
-incoherent pair.
+nothing related is in this session's pool, go to step 3 and bundle from the backlog — do not
+widen it into an incoherent pair.
 
 **Judgment-shaped candidates get narrowed here, not in Phase 2.** "Design X", "decide Y",
 "investigate Z" clear both bars but have no observable end-state, so the condition cannot be
@@ -113,7 +121,9 @@ Rank the backlog by:
 1. Issues that combine with what just shipped — context is hot, so doing it now is cheapest
 2. Label and staleness priority
 
-Take the wider unit.
+Take the wider unit. **Several backlog issues sharing one theme are one unit here** — a group of
+four related issues is a better pick than the single highest-ranked one, and closing them
+together is what the fanned-out capacity in step 2 is for.
 
 ### What Phase 1 renders
 
@@ -143,7 +153,7 @@ A `/goal` evaluator judges completion **from evidence surfaced in the conversati
 not run commands or read files on its own. Every claim the condition rests on must therefore be
 something a session would visibly produce.
 
-### Shape it against three levers (internal only — never rendered as labels)
+### Shape it against four levers (internal only — never rendered as labels)
 
 - **L1 — falsifiable in one tool call.** Fold verification into a single wrapper or a single
   exit code. If proving completion takes six commands, the loop slows and failure modes multiply.
@@ -151,7 +161,12 @@ something a session would visibly produce.
   model is the worst judge of its own output, so put a fresh-context review of the final diff
   into the condition itself, scoped to correctness and requirement gaps only — say "ignore style"
   explicitly, or the reviewer invents gaps and drives over-engineering.
-- **L3 — a turn cap.** End with `or stop after N turns` so an unattended run cannot spin.
+- **L3 — a turn cap.** End with `or stop after N turns` so an unattended run cannot spin. Size N
+  for the whole unit, not for one slice of it — a multi-PR unit that fans out needs room to
+  finish, and a cap tuned to a single linear slice silently shrinks the work back down.
+- **L4 — say the work fans out.** When pieces are independent, the condition names that they run
+  as parallel subagents (or hand off to another session), so the next session does not
+  serialize by default. Independence is the test — anything sharing a file stays sequential.
 
 And the four elements: a single measurable end-state · the proof method · the invariant
 constraints · the turn or time cap.
@@ -181,8 +196,9 @@ Do not write "PR을 연다" into it either — opening a PR is a judgment on wha
 then, and mandating it forces a half-unit PR.
 
 If the goal is expected to close the unit, the most it may say is that the accumulated commits
-are then ready to go up as one PR — **and it must say the negative out loud in the same clause**
-(`PR은 다음 세션이 판단하므로 이번엔 열지 않는다`). "Ready to go up as one PR" is not a
+are then ready to go up as one or more PRs (a unit this size usually splits into several) —
+**and it must say the negative out loud in the same clause**
+(`PR은 다음 세션이 판단하므로 이번엔 열지 않는다`). "Ready to go up as a PR" is not a
 self-evident stop state: an evaluator reading it infers the PR is the deliverable and returns
 not-complete on a run that did exactly what was asked. Naming the non-action makes the end state
 falsifiable instead of inferable.
@@ -193,8 +209,12 @@ in prose alone has been observed to fail — the check has to be an actual pass 
 ### Scope check — mandatory, before emitting
 
 Verify the condition is **one cohesive unit of related work, not the smallest fragment
-mechanically extractable**. If the work would naturally split into unrelated PRs, widen the
-condition until it is one coherent slice — do not merely note the risk, actually widen it.
+mechanically extractable**. Cohesion is about theme, not size: several PRs under one epic pass,
+while two unrelated errands bundled for bulk fail. Widen until the condition is one coherent
+theme — do not merely note the risk, actually widen it.
+
+Then check the floor from the other side: **could one context finish this in a straight line?**
+If yes, it is too small — go back and add the related work you left out.
 
 This sits upstream of commit atomicity and review-sized diffs, which still apply downstream
 unchanged. It is the same policy as Phase 1 step 0; that is where the widening should already
@@ -232,13 +252,13 @@ garbage.
 ## Example
 
 ```
-NEXT     · vault 폴더 3분할 실행 — inbox→sources 개명 + 코드 6군데 경로 수정
-POOL     · 이번 스레드 (#B 이슈군)
-RUNNERS  · audit E4 제거 (독립이라 언제 해도 되고, 이번 슬라이스와 안 묶임)
+NEXT     · vault 폴더 재편 에픽 통째 — inbox→sources 개명(#B) + audit E4/E10 규칙 정합(#C) + manifest 스키마 갱신(#D)
+POOL     · 이번 스레드 #B + 백로그에서 같은 테마 #C·#D 합류
+RUNNERS  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 안 묶임)
 ```
 
 ```
-/goal vault의 inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 모두 갱신해서, 재배치 후 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신된 상태로 만든다. 최종 diff에 fresh-context 리뷰를 돌려 correctness·요구사항 갭 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 25턴 후 정지.
+/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 subagent 셋에 병렬로 돌리고 경로 수정만 순차로 처리한다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 fresh-context 리뷰를 돌려 correctness·요구사항 갭 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
 ```
 
 ---
