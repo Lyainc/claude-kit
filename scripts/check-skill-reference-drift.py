@@ -113,6 +113,34 @@ SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__"}
 CALL_RE = re.compile(r"""Skill\(\s*skill:\s*["']([^"']+)["']""")
 NAME_KEY_RE = re.compile(r"^name:[ \t]*(\S+)", re.MULTILINE)
 
+# An agent's `skills:` frontmatter list — the third hardcoded-name surface, and it fails the
+# same way a hook matcher does: rename the skill and the entry simply stops granting anything,
+# with no error and no log line. Structured, so it is parsed rather than pattern-matched off
+# prose, which is why it carries none of the history/prose ambiguity the slash form below does.
+# The entry must start alphanumeric, or the `---` closing the frontmatter parses as a list item
+# whose name is empty.
+AGENT_SKILLS_RE = re.compile(
+    r"^skills:[ \t]*\n((?:[ \t]*-[ \t]+[A-Za-z0-9][A-Za-z0-9_-]*[ \t]*\n)+)", re.MULTILINE
+)
+
+# A slash-command mention in an external consumer: `` `/next-goal` ``. The whole backtick span
+# must be one path-free segment, so `` `/Users/x` `` and `` `skills/wrap/` `` cannot match.
+SLASH_RE = re.compile(r"`/([a-z0-9][a-z0-9_-]*)`")
+
+# Slash names an external consumer may legitimately write that this repo does not ship. Without
+# this the slash scan is unusable: measured on the live external root, 7 distinct slash names
+# appear and 4 of them are of exactly these two kinds. Both kinds are permanent — a native
+# command is never this repo's to declare, and a retired skill's history is allowed to name a
+# dead thing, which is the same rule the in-repo prose exclusion already runs on.
+EXTERNAL_SLASH_IGNORE = {
+    # native Claude Code commands
+    "goal": "native /goal completion conditions",
+    "code-review": "native /code-review",
+    # skills this repo retired; the mentions are past-tense records, not invocations
+    "handoff": "retired; named only as the format session-close replaced",
+    "capture": "retired by #480, superseded by /vault-save",
+}
+
 
 def _git_toplevel():
     try:
@@ -154,12 +182,19 @@ def qualified_re(plugins):
     return re.compile(r"\b(?:" + alt + r"):[A-Za-z0-9][A-Za-z0-9_-]*")
 
 
-def scan_text(text, qual_re, wide, is_shell):
+def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     """Yield (lineno, ref) for every skill reference in one file's text.
 
-    `wide` (external roots) counts every qualified token, prose included. Inside the repo it is
-    off, so only the call form plus — in a shell file — the matcher surface counts.
+    `wide` (external roots) counts every qualified token, prose included, plus the slash form.
+    Inside the repo it is off, so only the call form, a shell file's matcher surface, and an
+    agent's `skills:` list count.
     """
+    if is_agent:
+        m = AGENT_SKILLS_RE.search(text)
+        if m:
+            base = text[: m.start()].count("\n") + 1
+            for offset, entry in enumerate(m.group(1).splitlines(), 1):
+                yield base + offset, entry.strip().lstrip("-").strip()
     for lineno, line in enumerate(text.splitlines(), 1):
         seen = set()
         for m in CALL_RE.finditer(line):
@@ -167,6 +202,10 @@ def scan_text(text, qual_re, wide, is_shell):
         if qual_re is not None and (wide or is_shell):
             for m in qual_re.finditer(line):
                 seen.add(m.group(0))
+        if wide:
+            for m in SLASH_RE.finditer(line):
+                if m.group(1) not in EXTERNAL_SLASH_IGNORE:
+                    seen.add(m.group(1))
         for ref in sorted(seen):
             yield lineno, ref
 
@@ -219,6 +258,17 @@ def check_all(root, external_roots=None, allowlist=None):
         else:
             absent.append(raw)  # fail open: nobody else has this checked out
 
+    # A consumer naming its OWN skill is not drift, so its declarations resolve too. Without
+    # this the slash scan would report `/wrap` against a repo that ships wrap itself.
+    for top, wide in surfaces:
+        if not wide:
+            continue
+        for path in glob.glob(os.path.join(top, "*", "SKILL.md")):
+            with open(path, encoding="utf-8", errors="replace") as fh:
+                m = NAME_KEY_RE.search(fh.read())
+            if m:
+                catalog.setdefault("", set()).add(m.group(1))
+
     findings, fired, files, refs = [], set(), 0, 0
     scanned_paths = []
     for top, wide in surfaces:
@@ -227,9 +277,12 @@ def check_all(root, external_roots=None, allowlist=None):
             scanned_paths.append(path)
             with open(path, encoding="utf-8", errors="replace") as fh:
                 text = fh.read()
-            for lineno, ref in scan_text(text, qual_re, wide, path.endswith(".sh")):
+            is_agent = not wide and f"{os.sep}agents{os.sep}" in path and path.endswith(".md")
+            for lineno, ref in scan_text(
+                text, qual_re, wide, path.endswith(".sh"), is_agent
+            ):
                 refs += 1
-                problem = resolve(ref, catalog, allow_bare=not wide)
+                problem = resolve(ref, catalog, allow_bare=True)
                 if problem is None:
                     continue
                 exempt = next(
@@ -284,8 +337,12 @@ def _fixture_repo(base):
 
 def run_self_test():
     failures = []
+    ran = []
 
     def case(label, got, want):
+        # Counted, not hardcoded: docs/VALIDATION.md pins this script's stdout, so a literal
+        # would keep asserting the old number after a case is added or — worse — deleted.
+        ran.append(label)
         if got != want:
             failures.append(f"  {label}: got {got}, want {want}")
 
@@ -360,11 +417,38 @@ def run_self_test():
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("unknown plugin is skipped", refs_of(found), [])
 
+        # 9. an agent's `skills:` list is the third hardcoded-name surface. It fails open and
+        #    silent — the entry simply stops granting the skill — so a dangling one is a
+        #    finding, and the `---` closing the frontmatter must not parse as a list item.
+        _materialise(repo, {"docs/guide.md": "clean\n"})
+        agent = "---\nname: f2\ntools: Skill\nskills:\n  - next-goal\n  - gone-skill\n---\nbody\n"
+        _materialise(repo, {"tt/agents/f2.md": agent})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("dangling agent skills entry", refs_of(found), [("gone-skill", 6)])
+        _materialise(repo, {"tt/agents/f2.md": agent.replace("  - gone-skill\n", "")})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("resolving agent skills list is quiet", refs_of(found), [])
+
+        # 10. the slash form is how a consumer actually names a skill in prose — the stale
+        #     half of #562 was exactly that shape. Native commands and retired skills named as
+        #     history are permanently exempt; the consumer's own skills resolve against itself.
+        _materialise(ext, {
+            "session-close/SKILL.md":
+                "Run `/next-goal`, then `/goal` evaluates it.\n"
+                "The retired `/handoff` is named as history.\n"
+                "`/wrap` is this consumer's own skill.\n"
+                "But `/no-such-skill` is drift.\n"
+                "A path like `/Users/x` and `skills/wrap/` must not match.\n",
+            "wrap/SKILL.md": SKILL_MD.format(name="wrap"),
+        })
+        found, _ = check_all(repo, external_roots=[ext], allowlist=[])
+        case("slash drift caught", refs_of(found), [("no-such-skill", 4)])
+
     if failures:
         print("FAIL: check-skill-reference-drift self-test")
         print("\n".join(failures))
         return 1
-    print("OK: all 13 check-skill-reference-drift self-test cases passed")
+    print(f"OK: all {len(ran)} check-skill-reference-drift self-test cases passed")
     return 0
 
 
