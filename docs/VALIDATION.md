@@ -131,7 +131,7 @@ python3 scripts/check-agent-tools-usage.py
 # and never names the contract is now reported — vault-file-organizer.md was the live find,
 # and fixing it to the draft-handoff shape is what took the rule back to zero.
 python3 scripts/check-skill-reference-drift.py --self-test
-# Expected: OK: all 27 check-skill-reference-drift self-test cases passed
+# Expected: OK: all 34 check-skill-reference-drift self-test cases passed
 python3 scripts/check-skill-reference-drift.py
 # Expected: OK: all N skill reference(s) resolve — N file(s) across N root(s), N external
 #   root(s) absent, N deliberate fallback(s) exempt

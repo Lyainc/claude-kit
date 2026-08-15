@@ -137,6 +137,22 @@ SKILLS_FLOW_RE = re.compile(r"^\[(.*)\]$")
 # must be one path-free segment, so `` `/Users/x` `` and `` `skills/wrap/` `` cannot match.
 SLASH_RE = re.compile(r"`/([a-z0-9][a-z0-9_-]*)`")
 
+# The backtick requirement above buys precision in prose at the cost of one blind spot (#646):
+# a SKILL.md frontmatter `description:` is prose where nobody writes backticks, so every skill
+# named there was invisible. It is also the routing string the model reads, so a stale name
+# there misroutes for real. Measured live: `skills/wrap/SKILL.md:3` names /wiki and /retro twice
+# each with no backticks, and stayed green only because lines 29/45 happen to repeat them in
+# backtick form — fix those two and the dead name in line 3 survives, which is the #562 shape.
+#
+# Inside the description block the backticks are dropped and the path guard moves into the
+# pattern instead: a `/name` counts only when nothing word-like or slash-like touches either
+# end, so `/usr/bin`, `/Users/foo`, and `skills/wrap/` cannot match while `/wiki,` and
+# `→ /retro` can. Safe here precisely because frontmatter is structured — the block is bounded,
+# so this never widens to the free prose the backtick rule still governs.
+BARE_SLASH_RE = re.compile(r"(?<![\w/])/([a-z0-9][a-z0-9_-]*)(?![\w/])")
+# A top-level frontmatter key — i.e. the thing that ends a `description:` block.
+FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
+
 # Slash names an external consumer may legitimately write that this repo does not ship. Without
 # this the slash scan is unusable: measured on the live external root, 7 distinct slash names
 # appear and 4 of them are of exactly these two kinds. Both kinds are permanent — a native
@@ -224,15 +240,50 @@ def scan_agent_skills(text):
         return
 
 
+def description_lines(text):
+    """Yield (lineno, line) for every line of the frontmatter `description:` block.
+
+    Covers the three shapes this repo's SKILL.md files actually use — a quoted one-liner, a
+    `>-`/`|` block scalar, and a plain unquoted continuation — by treating the block as "the
+    `description:` line plus every line after it until the next top-level key or the closing
+    fence". Nothing yielded outside frontmatter, so the backtick rule still owns the body.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return
+    for i in range(1, len(lines)):
+        if lines[i].strip() in ("---", "..."):
+            return  # frontmatter closed without a description
+        if not lines[i].startswith("description:"):
+            continue
+        yield i + 1, lines[i]
+        for j in range(i + 1, len(lines)):
+            nxt = lines[j]
+            if nxt.strip() in ("---", "...") or FRONTMATTER_KEY_RE.match(nxt):
+                return
+            yield j + 1, nxt
+        return
+
+
 def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     """Yield (lineno, ref) for every skill reference in one file's text.
 
-    `wide` (external roots) counts every qualified token, prose included, plus the slash form.
-    Inside the repo it is off, so only the call form, a shell file's matcher surface, and an
-    agent's `skills:` list count.
+    `wide` (external roots) counts every qualified token, prose included, plus the slash form —
+    backtick-wrapped anywhere, and bare inside a frontmatter `description:` block. Inside the
+    repo it is off, so only the call form, a shell file's matcher surface, and an agent's
+    `skills:` list count.
     """
     if is_agent:
         yield from scan_agent_skills(text)
+    # Merged into the per-line `seen` set below rather than yielded separately, so a name
+    # written BOTH ways on one description line is still one reference, not two.
+    bare = {}
+    if wide:
+        for lineno, line in description_lines(text):
+            bare.setdefault(lineno, set()).update(
+                m.group(1) for m in BARE_SLASH_RE.finditer(line)
+                if m.group(1) not in EXTERNAL_SLASH_IGNORE
+            )
     for lineno, line in enumerate(text.splitlines(), 1):
         seen = set()
         for m in CALL_RE.finditer(line):
@@ -244,6 +295,7 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
             for m in SLASH_RE.finditer(line):
                 if m.group(1) not in EXTERNAL_SLASH_IGNORE:
                     seen.add(m.group(1))
+            seen |= bare.get(lineno, set())
         for ref in sorted(seen):
             yield lineno, ref
 
@@ -507,6 +559,32 @@ def run_self_test():
         })
         found, _ = check_all(repo, external_roots=[ext], allowlist=[])
         case("slash drift caught", refs_of(found), [("no-such-skill", 4)])
+
+        #     Inside a frontmatter `description:` block the backticks come off (#646): that
+        #     block is the routing string the model reads and nobody punctuates it, so every
+        #     name in it was invisible — green only because the body happened to repeat the
+        #     same names in backtick form. Each YAML shape is pinned, since the block boundary
+        #     is what keeps this from widening into free prose.
+        def desc_probe(block, body="body\n"):
+            _materialise(ext, {"session-close/SKILL.md":
+                               "---\nname: session-close\n" + block + "model: inherit\n---\n" + body})
+            hits, _ = check_all(repo, external_roots=[ext], allowlist=[])
+            return [f["ref"] for f in hits]
+
+        case("bare slash in description is caught",
+             desc_probe('description: "Run /gone-a next."\n'), ["gone-a"])
+        case("bare slash outside frontmatter is not (backtick rule unchanged)",
+             desc_probe('description: "clean"\n', "Run /gone-b next.\n"), [])
+        case("ignored name stays ignored inside a description",
+             desc_probe('description: "/goal evaluates the condition."\n'), [])
+        case("a path in a description is not a skill reference",
+             desc_probe('description: "see /Users/foo and /usr/bin"\n'), [])
+        case("block scalar description is read to its last line",
+             desc_probe("description: >-\n  first /next-goal\n  second /gone-c\n"), ["gone-c"])
+        case("plain unquoted continuation is read too",
+             desc_probe("description: plain /next-goal\n  continued /gone-e\n"), ["gone-e"])
+        case("the block ends at the next top-level key",
+             desc_probe("description: |\n  ok\nprovenance: /gone-d\n"), [])
 
         # 11. every list shape a human writes is walked to the END. A block regex stopped at
         #     the first unreadable item and silently dropped the rest while still printing OK,
