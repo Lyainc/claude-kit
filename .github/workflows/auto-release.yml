@@ -100,3 +100,33 @@ jobs:
       RELEASE_SSH_KEY: ${{ secrets.RELEASE_SSH_KEY }}
     permissions:
       contents: write
+
+  # #642: this workflow is push-triggered, so a failure never shows up as a PR check —
+  # every check stayed green while this failed silently on every main push for 12 days.
+  # `if: failure()` only fires when `decide` or `release` above actually failed (a normal
+  # no-release decision is a success, not a failure, so this stays silent on every
+  # ordinary push). Comments on the existing issue instead of opening a new one each time
+  # a release keeps failing for the same underlying reason.
+  notify-failure:
+    needs: [decide, release]
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    env:
+      GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+      - name: Open or comment on the release-failure issue
+        run: |
+          set -euo pipefail
+          TITLE="Auto Release failed"
+          RUN_URL="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"
+          BODY="Auto Release failed on \`${{ github.sha }}\`: $RUN_URL"
+          EXISTING=$(gh issue list --repo "${{ github.repository }}" --state open \
+            --search "\"$TITLE\" in:title" --json number,title \
+            --jq "[.[] | select(.title == \"$TITLE\")][0].number // empty" || true)
+          if [ -n "$EXISTING" ]; then
+            gh issue comment "$EXISTING" --repo "${{ github.repository }}" --body "$BODY"
+          else
+            gh issue create --repo "${{ github.repository }}" --title "$TITLE" --body "$BODY"
+          fi
