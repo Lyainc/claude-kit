@@ -112,6 +112,10 @@ jobs:
           python3 scripts/check-agent-tools-field.py
           python3 scripts/check-agent-tools-usage.py --self-test
           python3 scripts/check-agent-tools-usage.py
+          # #651 pre-commit shim install-path guard: MISSING (CI has no install step) is
+          # exit 0 by design, so this is safe to run unconditionally here.
+          python3 scripts/check-hooks-installed.py --self-test
+          python3 scripts/check-hooks-installed.py
           # #637 cross-repo skill-reference drift: a hardcoded `<plugin>:<name>` must resolve.
           # Scans external consumers too (EXTERNAL_ROOTS); an absent path is skipped silently,
           # so in CI this runs as an in-repo-only scan and still gates the hook matchers.

@@ -130,6 +130,19 @@ python3 scripts/check-agent-tools-usage.py
 # vault-searcher, which could then only go green by reciting a contract it has no duty under)
 # and never names the contract is now reported — vault-file-organizer.md was the live find,
 # and fixing it to the draft-handoff shape is what took the rule back to zero.
+# pre-commit shim install-path guard (#651): scripts/hooks/pre-commit (#637) never runs
+# anywhere until something writes .git/hooks/pre-commit, and .git/hooks is untracked.
+# scripts/install-hooks.sh is the one documented install path (CONTRIBUTING.md
+# Prerequisites); this re-extracts the shim verbatim from scripts/hooks/pre-commit's own
+# header comment and compares it against whatever is actually installed (P12 — existence
+# is not enough). MISSING (fresh clone, CI, not-yet-installed) is exit 0, informational —
+# a hook that legitimately cannot be installed must not fail the check. STALE (installed
+# but content drifted) is exit 1.
+python3 scripts/check-hooks-installed.py --self-test
+# Expected: OK: all 6 check-hooks-installed self-test cases passed
+python3 scripts/check-hooks-installed.py
+# Expected: ...
+
 python3 scripts/check-skill-reference-drift.py --self-test
 # Expected: OK: all 34 check-skill-reference-drift self-test cases passed
 python3 scripts/check-skill-reference-drift.py
