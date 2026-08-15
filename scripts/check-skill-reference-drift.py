@@ -45,6 +45,11 @@ the model is being told to invoke however it is punctuated — which is exactly 
 prose, no call syntax). Measured on the live external root: 3 references, 1 finding, and that one
 is the deliberate bridge below.
 
+One surface is scanned identically on both sides: a frontmatter `description:` block. The reason
+in-repo prose is read narrowly is that history is allowed to name dead things, and a description
+is not history — it is the live routing string the model reads, so a stale name there misroutes
+just as it would in a consumer's file.
+
 A bare (unqualified) name in a call is checked inside this repo only, where a sibling skill is the
 only thing it can mean. Outside, a bare name is more often a machine-level skill this repo knows
 nothing about, so it is skipped.
@@ -145,19 +150,26 @@ SLASH_RE = re.compile(r"`/([a-z0-9][a-z0-9_-]*)`")
 # backtick form — fix those two and the dead name in line 3 survives, which is the #562 shape.
 #
 # Inside the description block the backticks are dropped and the path guard moves into the
-# pattern instead: a `/name` counts only when nothing word-like or slash-like touches either
-# end, so `/usr/bin`, `/Users/foo`, and `skills/wrap/` cannot match while `/wiki,` and
-# `→ /retro` can. Safe here precisely because frontmatter is structured — the block is bounded,
-# so this never widens to the free prose the backtick rule still governs.
-BARE_SLASH_RE = re.compile(r"(?<![\w/])/([a-z0-9][a-z0-9_-]*)(?![\w/])")
+# pattern instead: a `/name` counts only when nothing word-like, slash-like, `~`, or `.` touches
+# either end, so `/usr/bin`, `/Users/foo`, `skills/wrap/`, `~/vault`, `./scripts`, and `../lib`
+# cannot match while `/wiki,` and `→ /retro` can. Safe here precisely because frontmatter is
+# structured — the block is bounded, so this never widens to the free prose the backtick rule
+# still governs.
+#
+# `~` and `.` were missing from the lookbehind at first, which read `~/vault` as the skill
+# `vault` and `./scripts` as `scripts`. Only a trailing slash saved such a token, so one
+# `~/vault` in any scanned description would have blocked every commit touching a SKILL.md.
+BARE_SLASH_RE = re.compile(r"(?<![\w/~.])/([a-z0-9][a-z0-9_-]*)(?![\w/])")
 # A top-level frontmatter key — i.e. the thing that ends a `description:` block.
 FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 
-# Slash names an external consumer may legitimately write that this repo does not ship. Without
-# this the slash scan is unusable: measured on the live external root, 7 distinct slash names
-# appear and 4 of them are of exactly these two kinds. Both kinds are permanent — a native
-# command is never this repo's to declare, and a retired skill's history is allowed to name a
-# dead thing, which is the same rule the in-repo prose exclusion already runs on.
+# Slash names a scanned file may legitimately write that this repo does not ship. Without this
+# the slash scan is unusable: measured on the live external root, 7 distinct slash names appear
+# and 4 of them are of exactly these two kinds. Both kinds are permanent — a native command is
+# never this repo's to declare, and a retired skill's history is allowed to name a dead thing,
+# which is the same rule the in-repo prose exclusion already runs on. Named EXTERNAL_ for the
+# consumer scan it was written for; it applies to in-repo descriptions too, since `/capture` and
+# `/note` are named there by the very skill that replaced them.
 EXTERNAL_SLASH_IGNORE = {
     # native Claude Code commands
     "goal": "native /goal completion conditions",
@@ -165,6 +177,7 @@ EXTERNAL_SLASH_IGNORE = {
     # skills this repo retired; the mentions are past-tense records, not invocations
     "handoff": "retired; named only as the format session-close replaced",
     "capture": "retired by #480, superseded by /vault-save",
+    "note": "retired by #480, superseded by /vault-save",
 }
 
 
@@ -268,22 +281,26 @@ def description_lines(text):
 def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     """Yield (lineno, ref) for every skill reference in one file's text.
 
-    `wide` (external roots) counts every qualified token, prose included, plus the slash form —
-    backtick-wrapped anywhere, and bare inside a frontmatter `description:` block. Inside the
-    repo it is off, so only the call form, a shell file's matcher surface, and an agent's
-    `skills:` list count.
+    `wide` (external roots) counts every qualified token, prose included, plus the backtick-
+    wrapped slash form. Inside the repo those are off, so only the call form, a shell file's
+    matcher surface, and an agent's `skills:` list count.
+
+    The bare slash form inside a frontmatter `description:` block is scanned on BOTH sides. The
+    reason in-repo prose is read narrowly — history is allowed to name dead things — does not
+    reach a `description:`, which is not an archive but the live routing string the model reads.
+    Measured in-repo: three descriptions name a skill of another plugin with no backticks and no
+    second mention anywhere, so a rename would have gone through unseen — the #646 shape exactly.
     """
     if is_agent:
         yield from scan_agent_skills(text)
     # Merged into the per-line `seen` set below rather than yielded separately, so a name
     # written BOTH ways on one description line is still one reference, not two.
     bare = {}
-    if wide:
-        for lineno, line in description_lines(text):
-            bare.setdefault(lineno, set()).update(
-                m.group(1) for m in BARE_SLASH_RE.finditer(line)
-                if m.group(1) not in EXTERNAL_SLASH_IGNORE
-            )
+    for lineno, line in description_lines(text):
+        bare.setdefault(lineno, set()).update(
+            m.group(1) for m in BARE_SLASH_RE.finditer(line)
+            if m.group(1) not in EXTERNAL_SLASH_IGNORE
+        )
     for lineno, line in enumerate(text.splitlines(), 1):
         seen = set()
         for m in CALL_RE.finditer(line):
@@ -295,7 +312,7 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
             for m in SLASH_RE.finditer(line):
                 if m.group(1) not in EXTERNAL_SLASH_IGNORE:
                     seen.add(m.group(1))
-            seen |= bare.get(lineno, set())
+        seen |= bare.get(lineno, set())
         for ref in sorted(seen):
             yield lineno, ref
 
@@ -579,12 +596,28 @@ def run_self_test():
              desc_probe('description: "/goal evaluates the condition."\n'), [])
         case("a path in a description is not a skill reference",
              desc_probe('description: "see /Users/foo and /usr/bin"\n'), [])
+        # A lookbehind of `[\w/]` alone let `~` and `.` through, so the FIRST segment of a
+        # home- or dot-relative path was read as a skill name (`~/vault` -> `vault`). Only a
+        # trailing slash saved one, so a single `~/vault` in any scanned description would have
+        # blocked every commit touching a SKILL.md, with the offending file in another repo.
+        case("a home- or dot-relative path is not a skill reference",
+             desc_probe('description: "writes ~/vault, runs ./scripts and ../lib/x"\n'), [])
         case("block scalar description is read to its last line",
              desc_probe("description: >-\n  first /next-goal\n  second /gone-c\n"), ["gone-c"])
         case("plain unquoted continuation is read too",
              desc_probe("description: plain /next-goal\n  continued /gone-e\n"), ["gone-e"])
         case("the block ends at the next top-level key",
              desc_probe("description: |\n  ok\nprovenance: /gone-d\n"), [])
+
+        #     The same block is scanned IN-REPO, where the description scan was gated on `wide`
+        #     at first and so kept the exact blind spot #646 was filed about. The narrow-prose
+        #     rule does not reach here: three in-repo descriptions name another plugin's skill
+        #     with no backticks and no second mention, so a rename would pass unseen.
+        _materialise(repo, {"tt/skills/probe/SKILL.md":
+                            "---\nname: probe\ndescription: routes to /gone-f\n---\nbody\n"})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("in-repo description is scanned too", refs_of(found), [("gone-f", 3)])
+        _materialise(repo, {"tt/skills/probe/SKILL.md": SKILL_MD.format(name="probe")})
 
         # 11. every list shape a human writes is walked to the END. A block regex stopped at
         #     the first unreadable item and silently dropped the rest while still printing OK,
