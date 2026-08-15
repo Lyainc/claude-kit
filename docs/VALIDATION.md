@@ -109,7 +109,7 @@ python3 scripts/check-agent-nonresponse-clause.py
 # mode at runtime. The file list inside the script is explicit and hand-maintained on purpose:
 # a new Agent-delegating skill is added by hand, like its fallback paragraph.
 python3 scripts/check-agent-tools-usage.py --self-test
-# Expected: OK: all 50 check-agent-tools-usage self-test cases passed
+# Expected: OK: all 54 check-agent-tools-usage self-test cases passed
 python3 scripts/check-agent-tools-usage.py
 # Expected: OK: all N agent(s)/skill(s) declare exactly the tools their body uses
 # #577: the declared set and the body must agree, in both directions. UNDECLARED (body says

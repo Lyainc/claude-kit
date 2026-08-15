@@ -169,13 +169,16 @@ FENCE_LINE_RE = re.compile(r"^[ \t]*(`{3,})[ \t]*(\S*)")
 # The info string's leading letters are the language; everything after is decoration. Renderers
 # and doc tools attach it with no separating space (```bash{.copy}, ```bash,ignore,
 # ```bash:no-run, ```sh#run), so splitting on whitespace alone drops that whole family.
-FENCE_LANG_RE = re.compile(r"^[A-Za-z]+")
+# Pandoc/Quarto put the attribute block FIRST instead (```{.bash}, ```{.sh .numberLines}), so an
+# optional leading `{`/`.` is skipped before the language is read (#636). Anything else in that
+# leading position (```{=html}) still fails to match and stays non-shell.
+FENCE_LANG_RE = re.compile(r"^\{?\.?([A-Za-z]+)")
 SHELL_FENCE_LANGS = ("bash", "sh", "shell")
 
 
 def _is_shell_lang(info):
     m = FENCE_LANG_RE.match(info)
-    return bool(m) and m.group(0).lower() in SHELL_FENCE_LANGS
+    return bool(m) and m.group(1).lower() in SHELL_FENCE_LANGS
 
 
 def has_shell_fence(body):
@@ -592,6 +595,18 @@ SELF_TEST_CASES = [
         [], [], [], [], False, [],
     ),
     (
+        # One case per VAULT_MARKERS entry, so a typo in any single spelling fails here rather
+        # than silently narrowing the scope condition to whichever spelling the live agents use.
+        "the $VAULT_ROOT spelling is a vault root too (#636)",
+        "---\nname: a\ntools: Read, Edit\n---\nMove files under $VAULT_ROOT/notes. Read each one, then use Edit on its frontmatter.",
+        [], [], [], [], False, ["Edit"],
+    ),
+    (
+        "the VAULT_BRIDGE_VAULT_ env prefix is a vault root too (#636)",
+        "---\nname: a\ntools: Read, Edit\n---\nResolve VAULT_BRIDGE_VAULT_ROOT first. Read each note, then use Edit on its frontmatter.",
+        [], [], [], [], False, ["Edit"],
+    ),
+    (
         "the shell-fence rule is skills-only — an agent fence does not imply Bash",
         "---\nname: a\ntools: Read\n---\nRead it, then run:\n```bash\nmv a b\n```\n",
         [], [], [], [],
@@ -673,6 +688,16 @@ SKILL_SELF_TEST_CASES = [
         "an info-string suffix attached with no space does not hide it either",
         "---\nname: s\nallowed-tools: Read\n---\nRead it:\n```bash{.copy}\nls\n```\n",
         ["Bash"], [], [], [], False,
+    ),
+    (
+        "a leading attribute block does not hide the language either (Pandoc/Quarto, #636)",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it:\n```{.bash}\nls\n```\n",
+        ["Bash"], [], [], [], False,
+    ),
+    (
+        "a leading attribute block naming a NON-shell language stays non-shell",
+        "---\nname: s\nallowed-tools: Read\n---\nRead it:\n```{.python}\nprint(1)\n```\n",
+        [], [], [], [], False,
     ),
     (
         "a comma-attached suffix is the same case (mdBook)",
