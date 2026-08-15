@@ -99,6 +99,9 @@ jobs:
           # #385 E1-EN audit-error-type label drift guard.
           python3 scripts/check-error-label-drift.py --self-test
           python3 scripts/check-error-label-drift.py
+          # #642 auto-release.yml failure-notify surface guard.
+          python3 scripts/check-release-failure-notify.py --self-test
+          python3 scripts/check-release-failure-notify.py
           # #601 CLAUDE.md single-plugin script-attribution drift guard (same bug class
           # as #385 above and #380 hook-count miscount).
           python3 scripts/check-claude-md-attribution.py --self-test

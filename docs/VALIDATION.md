@@ -216,6 +216,16 @@ uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
 #   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
 
+python3 scripts/check-release-failure-notify.py --self-test
+# Expected: OK: all check-release-failure-notify self-test cases passed
+python3 scripts/check-release-failure-notify.py
+# Expected: OK: .github/workflows/auto-release.yml has a failure-notify job
+#   (`notify-failure`) gated on failure() with issues:write + gh issue create.
+# #642: auto-release.yml is push-triggered, so a failure never shows up as a PR check —
+# it failed silently on every main push for 12 days (40 runs) before a human noticed main
+# had drifted ahead of the last tag. Guards that the workflow's `notify-failure` job (gated
+# on `if: failure()`, holding `issues: write`, calling `gh issue create`) stays wired.
+
 python3 scripts/check-test-exitcode.py --self-test
 # Expected: OK: all check-test-exitcode self-test cases passed
 # (real mode `python3 scripts/check-test-exitcode.py` RUNS every registered Validation
