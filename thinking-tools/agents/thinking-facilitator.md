@@ -8,9 +8,9 @@ description: |
   Use when 2+ thinking-tools triggers match OR the user request is ambiguous.
   For a single strong-signal trigger (e.g., '구체화', '검사해줘', '반증해줘'),
   invoke the matching skill directly without facilitator routing.
-model: sonnet
+model: sonnet  # kept (#648): routing needs a mid tier; effort now carries the depth
 color: blue
-effort: low
+effort: medium
 tools: Skill, AskUserQuestion
 skills:
   - diverse-sampling
