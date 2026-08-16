@@ -565,10 +565,13 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # either. #429 adds the exit path: every other verdict leaves the entry count flat, so the
 # catalogue grew monotonically; Supersede absorbs the redundant entry and retires it in the
 # SAME write, on the SAME confirmation, and a retired number is never reused.)
+# #609 adds the never-fired exit beside Supersede — both choices (delete / narrow the
+# firing condition) under the recommends-only ceiling, since rules/lint-catalogue.sh caps
+# the framing but deliberately not the row count, leaving absorption as the only way out.
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 36 self-test cases passed
+# Expected: OK: all 51 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
-# Expected: OK: all 7 add-policy-conflict-edit checks passed.
+# Expected: OK: all 10 add-policy-conflict-edit checks passed.
 
 # add-policy necessity-gate regression (#450 — before #450 the engine had an entry path and
 # no "don't land this" verdict: only Contradiction stopped a write, and it stops it for
@@ -578,10 +581,13 @@ python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # 1-click confirmation, adds no second prompt, and never blocks a landing the user asked for
 # explicitly. Also pins the distill boundary — artifact cost is the gate's question, reuse
 # value stays distill's — without which the skill contradicts its own description.)
+# #609 adds the narrowing clause: one occurrence scopes the condition to that occurrence's
+# own situation, with NO occurrence counter — telemetry carries no failure-type label a
+# threshold could be judged against, so a count reads stricter while judging looser.
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py --self-test
-# Expected: OK: all 29 self-test cases passed
+# Expected: OK: all 36 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
-# Expected: OK: all 6 add-policy-necessity-gate checks passed.
+# Expected: OK: all 7 add-policy-necessity-gate checks passed.
 
 # add-policy §6 index+detail split regression (#340 — when the target landfill site
 # already uses a thin index + per-entry detail-file shape, add-policy must match that

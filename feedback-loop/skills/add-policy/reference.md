@@ -112,13 +112,20 @@ the 통과 case — asked after a "기존 항목으로 충분" verdict it offers
 the gate did not recommend, and a generic refusal wording would misreport an absorb verdict as a
 don't-land one. One question per non-통과 outcome:
 
-| 필요성 | Question |
-|--------|----------|
-| 기존 항목으로 충분 | "Pn에 한 줄 붙이는 게 나아 보이는데, 그래도 새 항목으로 갈까요?" |
-| 안 넣는 게 나음 | "이건 안 넣는 게 나아 보이는데, 그래도 넣을까요?" |
+| 축 · 결과 | Question |
+|-----------|----------|
+| 필요성 · 기존 항목으로 충분 | "Pn에 한 줄 붙이는 게 나아 보이는데, 그래도 새 항목으로 갈까요?" |
+| 필요성 · 안 넣는 게 나음 | "이건 안 넣는 게 나아 보이는데, 그래도 넣을까요?" |
+| 은퇴 · Pn 미발동 (#609) | "Pn은 안 쓰인다고 하셨는데, 그대로 둘까요 / 조건을 좁힐까요 / 지울까요?" |
 
 Either way it stays **one** question with the recommendation as its first option — the gate never
 gets a prompt of its own.
+
+The 미발동 row is the second and last deviation from §3's default question, and it exists for a
+different reason from the 필요성 rows (#609). Those two re-word a yes/no; this one cannot be a
+yes/no at all, because the verdict has **three** answers — keep, narrow, delete — and §6-unused
+recommends none of them (only the user knows which). `그대로 두기` is first because keeping is
+what no answer means, so the default option and the no-answer default agree.
 
 
 ## §3-sites — the conflict-check target per site, and why the fallback is non-negotiable
@@ -147,6 +154,36 @@ is **HARD (→ hook) iff its violation is deterministically detectable**, else S
 reminder): "leave deletes recoverable / never `rm`" is detectable → hook; "run Python
 through the project runner" stated as a habit is a reminder. This is the engine's tier
 inference from what/why, never a user-supplied axis.
+
+**Blocking vs recovery form (#609, the same folding one layer down):** once a work-rule is
+HARD, whether its hook blocks or only recovers follows *when* the violation becomes visible —
+never a second question to the user. The detectability test §3 already runs for HARD/SOFT
+decides the form too: visible in the tool call's own arguments, before it runs → **blocking**
+(PreToolUse, `hookSpecificOutput.permissionDecision: "deny"`); only reconstructable from an
+artifact the act leaves behind → **recovery** (PostToolUse, `exit 2` with stderr fed back to
+Claude). PostToolUse carries neither `permissionDecision` nor `updatedInput` (its rewrite field
+is `updatedToolOutput`, which replaces the result after the act) — verified against the live
+hooks docs on 2026-08-16 — so a hook that sees only the aftermath can report it, never undo or
+rewrite it. Do not restate this as "both fields are PreToolUse-only": `permissionDecision` is,
+but `updatedInput` also appears on `PermissionRequest`, and the claim this rests on is the one
+about PostToolUse, not an exclusivity claim about PreToolUse (#609 review). That is why **HARD cannot mean "a guard
+blocks"**: recovery is just as deterministic and just as automatic, and folding the form into
+the site keeps `tier folds into the site` (one classification, one confirmation) intact.
+
+Worked cases, checked against local-harness's own policy docs and this repo's shipped guards:
+
+- **P3** (a subagent must cause no git side effects) — before `scripts/subagent-git-guard.sh`
+  shipped (#209), a commit was visible only by reading `git log` *after* the subagent
+  finished: **recovery**. The guard now pattern-matches `git commit` / `git push` /
+  `gh pr create` in the triggering Bash call's own `command` argument, before it runs →
+  **blocking**.
+- **P10** (a rule lands in one of the three §3 sites, never native memory) — its checkable
+  half (filename stem == `name:` slug == the `[[link]]` target, `MEMORY.md` index-line length)
+  is visible in the `Write`/`Edit` call's own arguments → **blocking**. The judgment half ("is
+  this already recorded elsewhere?") is a per-situation call no hook covers, in either form.
+- **P8** (cross-issue backlink) qualifies for **neither**: its tier is SOFT, since whether a
+  comment *needed* a backlink is a judgment. Form only decides how a HARD rule is enforced; it
+  never promotes a rule that never cleared HARD.
 
 
 ## §4 — user-shell receiver, in full
@@ -288,6 +325,12 @@ one arriving as a distill proposal. A tool does not veto the work it was told to
 the **artifact's cost** (must this be a *new* always-loaded entry?), never the rule's **reuse
 value**, which stays distill's.
 
+**Narrowing clause (question 1, on a pass):** if it happened **once**, narrow the condition to
+the situation that one occurrence actually arose in, not the broader case it resembles — forcing
+the broad rule measurably lowers success. Adds **no occurrence counter**, on purpose: telemetry
+carries no failure-type label to count, so a threshold reads stricter while judging looser
+(#609, measurements in [reference.md](reference.md) §6-narrowing).
+
 
 ## §6-gate — why the necessity gate exists, and why it only recommends (#450)
 
@@ -355,6 +398,65 @@ Rationale lives in §6-supersede, immediately after.
   prompt**. **A retired number is never reused.** If the old entry says the same thing at the
   *same* altitude this is a Duplicate instead (strengthen it, add nothing); Supersede needs the
   old entry to have stopped earning its own line.
+
+
+## §6-narrowing — one occurrence narrows the condition, and why there is no counter (#609)
+
+SKILL.md §6 ships the clause. What it is derived from:
+
+**The measured cost of over-generalizing.** Forcing a rule broader than its evidence dropped
+task success **41.6% → 35.4%**, and in one batch turned **7 successes into 0** (Harness-R1,
+arXiv 2608.02276). The failure is not that the rule was wrong — it is that a rule written for
+one situation keeps firing in every situation that merely resembles it. So question 1's "has
+this actually happened" has a second half: *where* did it happen. One occurrence buys a
+condition scoped to that occurrence, not to the class it looks like a member of.
+
+**Why no occurrence counter, and why saying so in SKILL.md matters.** The obvious-looking
+strengthening — "require N occurrences before landing" — is rejected on two grounds, and both
+are easy to forget later, which is why the disclaimer is in the skill body and not only here:
+
+- **It is not computable.** Telemetry records events, not a *failure-type* label, so nothing
+  can group two incidents as "the same failure" — the count a threshold would read does not
+  exist. A rule that reads stricter but cannot be evaluated is judged looser in practice than
+  today's honest one-question gate, because the engine ends up guessing at the count.
+- **It fights `recommends only`.** A threshold is a refusal condition, and the gate never
+  refuses a landing the user asked for (§6-gate). Narrowing works *with* that ceiling: it
+  changes the rule the user is offered, it does not withhold it.
+
+
+## §6-unused — the never-fired exit, and how it differs from a usage threshold (#609)
+
+SKILL.md §6 ships the verdict. Why the catalogue needs a second exit:
+
+**Nothing caps the row count.** `local-harness/rules/lint-catalogue.sh` caps the *framing*
+(1,500 B) and deliberately not the rows — its own comment says rows "grow with the catalogue and
+are the point". With Supersede (absorption) as the only exit, an entry that was simply never
+needed has no way out, and the catalogue grows monotonically (measured: ~1 policy per 3.3 days
+against 1 removal in 39 days, §6-supersede).
+
+**How this is not the usage-based retirement §6-supersede rejected.** That rejection stands:
+there is no firing telemetry, and "observe for N weeks, then decide" is a pattern this repo
+rejects. This verdict never measures and never waits. It fires on exactly one
+trigger: **the user says outright that the entry never came up**, while §6 has the site open.
+"Nothing it would have produced exists" is NOT a trigger and was deliberately removed (#609
+review) — that is absence of evidence, and with no firing telemetry it cannot separate *never
+needed* from *the situation has not come up yet*, so a young and correct rule would be proposed
+for deletion. It is the rejected usage-based retirement with the time window taken out and the
+inference left in. Without the user's own statement, the engine says nothing.
+
+**Two choices, not one.** Deleting an entry that never fired and *narrowing* it to the case it
+was actually written for are both legitimate, and only the user knows which — so the §3 은퇴
+field offers both and the user picks, through the 미발동 row in §3-gate-question above; no
+answer keeps the entry. **Reminder-site entries only**: this is the one verdict that deletes an
+existing artifact outright with nothing replacing it, and on the skill site that would reach a
+`provenance: user-authored` skill, which §5 holds inviolable (§5 forbids overwriting its body
+and never contemplated deleting the file, so it is not a carve-out this verdict may lean on). Narrowing is the same move as
+§6-narrowing, applied to an entry already in the catalogue rather than to one being landed.
+
+**Shape precedent.** The `/wrap` skill carries a kill criterion in its own body ("if co-use is 0
+over ~2 weeks after landing, delete this skill") — cited here as a *form* (a rule that names the
+condition under which it should be removed), not as a claim about wrap's current status or as
+an endorsement of a time window.
 
 
 ## §6-supersede — why the exit path is a §6 verdict (#429)
@@ -444,6 +546,10 @@ Run the case matching the site just written:
   is content loss, not a cleanup); the old entry is gone from its site — the index row *and* its
   detail file on a split (recoverable delete, §6), the old lines on a prose channel — and no
   inbound link still points at it.
+- **Unused retirement** (#609, only on the user's pick): on *delete*, the same checks as
+  Supersede minus the absorption one — the row and its detail file are gone (recoverable
+  delete), no inbound link still points at it; on *narrow*, the entry is still there and its
+  firing condition is the approved narrower text, not the old one.
 - **memory duplicate removal** (only when §6 found one): the duplicate file is gone and its
   `MEMORY.md` index line with it. If the delete could not run, say so — never claim a removal
   that didn't happen.
