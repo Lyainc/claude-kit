@@ -359,63 +359,71 @@ PYEOF
 }
 
 # ── subcommand: extract-wikilinks-batch ───────────────────────────────────────
-# Usage: extract-wikilinks-batch <file> [<file> ...]  |  extract-wikilinks-batch -
-# BATCH (#614): the audit's link index used to call `extract-wikilinks` once per
-# .md file — 528 Bash round trips / ~110s on the 528-file fixture, one Python
-# interpreter start each. This takes N paths (args, or newline-delimited on stdin
-# for `-`) and runs a SINGLE python3 process regardless of N. Same masking core as
-# the single-file form (see `_wikilink_py_core`), so the two can never drift.
+# Usage: extract-wikilinks-batch <dir>
+# BATCH (#614): the audit's link index used to call `extract-wikilinks` once per .md
+# file — 528 Bash round trips / ~110s on the 528-file fixture, one Python interpreter
+# start each. This walks <dir> in ONE python3 process and returns the FINISHED inbound
+# index, so the model neither drives the loop nor assembles the index by hand:
+#   {"<target_stem>": ["<source relpath>", ...], ...}
+# Vault-wide dir argument, same shape as `detect-vocabulary`/`e5-candidates`.
 #
-# A SEPARATE subcommand name, not an overload: `extract-wikilinks` returns a flat
-# array of link records and test-wikilink-code-masking.py drives that contract via
-# subprocess — this one returns one WRAPPER object per input path instead:
-#   [{"path": "<VAULT_ROOT-relative>", "links": [...]}, ...]
-# order preserved, one element per input path. Per-file read errors degrade into
-# {"path": ..., "error": "<msg>", "links": []} (the batch keeps going — same #152
-# infer-tags policy); exit 1 only when EVERY item failed or there was no input.
+# Keys are the link target's basename, lowercased, with a trailing `.md` stripped, so
+# [[Note]] / [[note.md]] / [[folder/Note|alias]] / [[note#heading]] all land on `note` —
+# the same key `scan-summary.py` looks a file's own stem up by for E5 orphan detection.
+# Sources are $VAULT_ROOT-relative and deduped; a file linking itself still appears (E5
+# excludes self-links at lookup time, where it knows which file it is asking about).
 #
-# The vault-boundary guard runs INSIDE that one process, not through the shell's
-# `validate_vault_path` (which the sibling `resolve_batch_paths` uses): that helper
-# spawns two python3 interpreters PER PATH, which on 528 files cost ~22s — it would
-# have eaten the entire batching win. The in-process check enforces the same rule
-# (realpath must be VAULT_ROOT or under it, which subsumes `..` traversal) and still
-# hard-fails the whole batch with exit 1 and NOTHING on stdout, before any file is read.
+# A SEPARATE subcommand, not an overload: `extract-wikilinks <file>` keeps returning its
+# flat per-file array (test-wikilink-code-masking.py drives that contract by subprocess).
+# Both share ONE copy of the #434 masking logic via `_wikilink_py_core`.
+#
+# An unreadable file is skipped, never silently: each one prints a WARN line to stderr and
+# the count is repeated at the end, so a partial index announces itself. stdout stays pure
+# JSON (same convention as the other dir-shaped subcommands).
 
 cmd_extract_wikilinks_batch() {
-  [[ $# -eq 0 ]] && die "extract-wikilinks-batch requires <file> [<file> ...] or '-' for stdin"
+  local dir="${1:-}"
+  [[ -z "$dir" ]] && die "extract-wikilinks-batch requires <dir>"
+  local abs_dir
+  abs_dir="$(validate_vault_path "$dir")"
+  [[ -d "$abs_dir" ]] || die "Not a directory: $abs_dir"
 
-  # `-c` rather than a script on stdin: stdin has to stay free for the `-` path list.
-  local script
-  script="$(_wikilink_py_core; cat <<'PYEOF'
-vault_root = os.path.realpath(os.path.expanduser(sys.argv[1]))
-requested = sys.argv[2:]
-if requested == ['-']:
-    requested = [line.strip() for line in sys.stdin if line.strip()]
+  { _wikilink_py_core; cat <<'PYEOF'
+target_dir = sys.argv[1]
+vault_root = os.path.realpath(os.path.expanduser(sys.argv[2]))
 
-# Boundary guard first, for EVERY path, before a single file is opened.
-resolved = []
-for p in requested:
-    p = os.path.expanduser(p)
-    # A bare relative path resolves against VAULT_ROOT (NOT cwd), same as infer-tags.
-    real = os.path.realpath(p if os.path.isabs(p) else os.path.join(vault_root, p))
-    if real != vault_root and not real.startswith(vault_root + os.sep):
-        sys.exit(f"ERROR: Path '{real}' is not under VAULT_ROOT '{vault_root}'")
-    resolved.append(real)
+index, unreadable = {}, []
+for root, dirs, files in os.walk(target_dir):
+    dirs[:] = [d for d in dirs if not d.startswith('.')]
+    for fname in sorted(files):
+        if not fname.endswith('.md'):
+            continue
+        fpath = os.path.join(root, fname)
+        rel = os.path.relpath(fpath, vault_root)
+        try:
+            links = extract_links(fpath)
+        except OSError as e:
+            unreadable.append('%s: %s' % (rel, e))
+            continue
+        for link in links:
+            stem = link['target'].rsplit('/', 1)[-1].strip().lower()
+            if stem.endswith('.md'):
+                stem = stem[:-3]
+            if not stem:
+                continue
+            sources = index.setdefault(stem, [])
+            if rel not in sources:
+                sources.append(rel)
 
-results, ok_count = [], 0
-for abs_file in resolved:
-    rel = os.path.relpath(abs_file, vault_root)
-    try:
-        results.append({"path": rel, "links": extract_links(abs_file)})
-        ok_count += 1
-    except OSError as e:
-        results.append({"path": rel, "error": str(e), "links": []})
+for msg in unreadable:
+    print('WARN: unreadable, not in index: %s' % msg, file=sys.stderr)
+if unreadable:
+    print('WARN: %d file(s) skipped — the index below is PARTIAL' % len(unreadable),
+          file=sys.stderr)
 
-print(json.dumps(results, ensure_ascii=False))
-sys.exit(0 if (results and ok_count > 0) else 1)
+print(json.dumps({k: index[k] for k in sorted(index)}, ensure_ascii=False))
 PYEOF
-)"
-  python3 -c "$script" "$VAULT_ROOT" "$@"
+  } | python3 - "$abs_dir" "$VAULT_ROOT"
 }
 
 # ── subcommand: infer-tags ─────────────────────────────────────────────────────

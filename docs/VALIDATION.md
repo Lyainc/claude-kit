@@ -872,6 +872,19 @@ python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
 python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py
 # Expected: OK: all 3 audit-vault-root-wiring cases passed
 
+# audit Phase 1 SCAN preview budget + wikilink batching (#614). SCAN used to pipe the raw
+# frontmatter/filename scans (175 KB + 116 KB on a 528-file vault) straight at the model,
+# where the harness cuts Bash output to a ~2 KB preview — every E1/E2/E3/E5/E6/E10/E11/E12
+# judgment read truncated source data with NO signal it had been cut, so a mostly-invisible
+# vault reads as a nearly-clean one (same failure class as #468/#460's manifest `cat`, at a
+# worse scale). Pins that the scan-summary.py bundle fits the preview whole, that a cap
+# which bites always emits `omitted: N` (a cut is never silent), that Step 7 extracts
+# wikilinks in ONE batch process instead of one per file (528 round trips / ~110s → 0.14s,
+# the #152 infer-tags batching applied to the last per-file loop), and that the surviving
+# defect records still reproduce the fixture's seeded per-type counts.
+python3 obsidian-vault-manager/scripts/test/test-scan-summary-budget.py
+# Expected: OK: all 5 scan-summary budget/batching cases passed
+
 # audit DoD 측정 (mechanical reference impl). Folded into ONE registered command
 # (#660) — check-test-exitcode.py runs each registered command in its own `bash -c`,
 # so shell state (e.g. a per-run `mktemp -d`) does not survive across separate lines.
