@@ -29,9 +29,18 @@ The pinned claims:
 4. That retirement rides on the same single confirmation — never a second prompt.
 5. §3's confirmation template carries the 은퇴 (retirement) field.
 
-KNOWN GAP (measured, not assumed). Three regions of §6 are pinned verbatim across this suite
-and test-add-policy-necessity-gate.py — the preamble, the Supersede verdict, and the gate block
-— covering 2,871 of §6's 7,492 characters. The rest is the Duplicate/Edit/Contradiction/Sibling
+#663 moved the Supersede verdict's CANONICAL text out of the SKILL.md body and into
+`add-policy/reference.md` §6-supersede-contract, because §6 had every ≥300-char paragraph
+pinned verbatim and the token budget (#447) had no escape hatch left that wasn't a trim. The
+pin followed the text rather than being deleted (#609 measured what an unpinned region is
+worth). So the live run reads BOTH files: the verdict against reference.md, §6's preamble, the
+Edit bucket, the §3 template and the Supersede POINTER against SKILL.md. §6's preamble stays
+pinned in the body — it is the section's own opening instruction and cannot be relocated.
+
+KNOWN GAP (measured, not assumed). Three regions are pinned verbatim across this suite
+and test-add-policy-necessity-gate.py — §6's preamble (in SKILL.md), the Supersede verdict and
+the gate block (both in reference.md since #663). The rest of §6 is the
+Duplicate/Edit/Contradiction/Sibling
 bullets and the memory-scan subsection, which test-add-policy-routing.py phrase-pins because it
 changes. A contradicting clause placed there passes every suite. Closing it means pinning all of
 §6, which would put the `awk` snippet under the same paired-commit rule as the contract text and
@@ -56,12 +65,23 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SKILL_PATH = _REPO_ROOT / "feedback-loop" / "skills" / "add-policy" / "SKILL.md"
+_REFERENCE_PATH = _SKILL_PATH.with_name("reference.md")
+# The reference file's own title line, used as the header-drift precondition: a fixture without
+# it keeps the whole-document fallback the bare in-memory fixtures need.
+_REFERENCE_TITLE = "# add-policy — reference"
 
 
 def _load_skill() -> str:
     if not _SKILL_PATH.is_file():
         raise FileNotFoundError(f"SKILL.md not found at {_SKILL_PATH}")
     return _SKILL_PATH.read_text(encoding="utf-8")
+
+
+def _load_reference() -> str:
+    """#663: the Supersede verdict's canonical text lives here now, not in SKILL.md's body."""
+    if not _REFERENCE_PATH.is_file():
+        raise FileNotFoundError(f"reference.md not found at {_REFERENCE_PATH}")
+    return _REFERENCE_PATH.read_text(encoding="utf-8")
 
 
 # ---------------------------------------------------------------------------
@@ -84,6 +104,20 @@ def _verdict_scope(text: str) -> str:
     return match.group(0) if match else text
 
 
+# #663: the Supersede verdict's canonical text moved to reference.md, under its own heading. The
+# scoping rationale carries over unchanged and is if anything more load-bearing here —
+# reference.md §8's self-check checklist has its own `- **Supersede**:` bullet, so an unscoped
+# marker search would silently retarget there the moment the verdict itself went missing.
+_REF_SUPERSEDE_SECTION_RE = re.compile(
+    r"^## §6-supersede-contract\b.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL
+)
+
+
+def _ref_supersede_scope(ref: str) -> str:
+    match = _REF_SUPERSEDE_SECTION_RE.search(ref)
+    return match.group(0) if match else ref
+
+
 def _bullet_slice(text: str, marker: str) -> str | None:
     """Same slice as `_bullet_scope`, on the ORIGINAL text — the verbatim pin needs the case
     and punctuation intact, which the lower-cased scope throws away."""
@@ -97,6 +131,17 @@ def _bullet_slice(text: str, marker: str) -> str | None:
 def _normalise(text: str) -> str:
     """Collapse every run of whitespace, so a reflow reads as no change (#440)."""
     return " ".join(text.split())
+
+
+def _states(text: str, phrase: str) -> bool:
+    """True if `text` states `phrase`, ignoring how the prose happens to wrap.
+
+    Same matcher as test-add-policy-necessity-gate.py, and for the same reason (#440): the
+    files are hard-wrapped, so a reflow moves a line break into the middle of a phrase and a
+    plain substring test reads the claim as deleted while it is still there.
+    """
+    core = r"\s+".join(re.escape(word) for word in phrase.split())
+    return re.search(rf"\b{core}\b", text, re.IGNORECASE) is not None
 
 
 def _bullet_scope(lower: str, marker: str) -> str | None:
@@ -149,8 +194,9 @@ silently downgrades the check to a title comparison:
 _FIRST_BULLET_RE = re.compile(r"^- \*\*", re.MULTILINE)
 
 
-def check_conflict_preamble_verbatim(text: str) -> tuple[bool, str]:
+def check_conflict_preamble_verbatim(skill: str, ref: str = "") -> tuple[bool, str]:
     """§6's opening, up to the first verdict bullet, matches its pinned contract text."""
+    text = skill
     if _SECTION_6_RE.search(text) is None:
         return False, "§6 section boundary not found (header drift?)"
     section = _verdict_scope(text)
@@ -176,8 +222,9 @@ def check_conflict_preamble_verbatim(text: str) -> tuple[bool, str]:
     return True, "§6 preamble matches its pinned contract text verbatim"
 
 
-def check_edit_bucket_named(text: str) -> tuple[bool, str]:
+def check_edit_bucket_named(skill: str, ref: str = "") -> tuple[bool, str]:
     """§6 must name Edit as its own conflict-check outcome, not folded into Duplicate."""
+    text = skill
     bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**edit")
     if bullet_text is None:
         return False, "Edit is not named as its own §6 conflict-check outcome"
@@ -186,8 +233,9 @@ def check_edit_bucket_named(text: str) -> tuple[bool, str]:
     return True, "Edit named as a distinct §6 outcome with a before -> after diff"
 
 
-def check_edit_distinct_from_contradiction(text: str) -> tuple[bool, str]:
+def check_edit_distinct_from_contradiction(skill: str, ref: str = "") -> tuple[bool, str]:
     """Contradiction must be scoped to exclude an explicit edit request."""
+    text = skill
     bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**contradiction")
     if bullet_text is None:
         return False, "Contradiction outcome missing entirely"
@@ -198,8 +246,9 @@ def check_edit_distinct_from_contradiction(text: str) -> tuple[bool, str]:
         )
     return True, "Contradiction explicitly excludes requests that are an edit of that entry"
 
-def check_confirmation_template_lists_edit(text: str) -> tuple[bool, str]:
+def check_confirmation_template_lists_edit(skill: str, ref: str = "") -> tuple[bool, str]:
     """§3's 충돌 confirmation field must enumerate the edit outcome."""
+    text = skill
     field_pos = text.find("충돌:")
     if field_pos == -1:
         return False, "충돌 confirmation field missing from the §3 template"
@@ -238,11 +287,37 @@ _SUPERSEDE_CONTRACT = """\
 """
 
 
-def check_supersede_verdict_named(text: str) -> tuple[bool, str]:
-    """#429: §6 must name Supersede as its own outcome, retiring the entry in the same write."""
-    bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**supersede")
-    if bullet_text is None:
-        return False, "Supersede is not named as its own §6 conflict-check outcome"
+def check_supersede_verdict_named(skill: str, ref: str) -> tuple[bool, str]:
+    """#429: Supersede must be its own outcome, retiring the entry in the same write.
+
+    #663 also pins the SEAM the split created: SKILL.md §6 must still LIST Supersede among its
+    verdicts, NAME reference.md §6-supersede-contract, and tell the engine to apply it. A
+    pointer that decays into a bare citation is how an on-demand step turns optional — the same
+    failure mode test-add-policy-routing.py's `check_scan_command_pointer` guards for the
+    §6-snippet split (#469).
+    """
+    skill_bullet = _bullet_slice(_verdict_scope(skill), "- **Supersede")
+    if skill_bullet is None:
+        return False, "SKILL.md §6 no longer lists Supersede among its conflict-check verdicts"
+    if "§6-supersede-contract" not in skill_bullet:
+        return False, (
+            "SKILL.md's Supersede bullet doesn't name reference.md §6-supersede-contract as "
+            "where the verdict's canonical text lives"
+        )
+    if not (_states(skill_bullet, "apply it as written")
+            or _states(skill_bullet, "read that section")):
+        return False, (
+            "SKILL.md's Supersede pointer decayed into a bare citation — it must tell the "
+            "engine to read and apply §6-supersede-contract, not merely cite it"
+        )
+    # `_bullet_slice`, not `_bullet_scope`: in the reference section the verdict is the LAST
+    # bullet, and `_bullet_scope`'s 600-char fallback window cuts the contract short of its own
+    # "never reused" clause. Slicing to the end of the scope is the same boundary the verbatim
+    # pin uses, so the two checks read exactly the same span.
+    raw = _bullet_slice(_ref_supersede_scope(ref), "- **Supersede")
+    if raw is None:
+        return False, "Supersede is not named as its own conflict-check outcome"
+    bullet_text = raw.lower()
     if "retire" not in bullet_text:
         return False, "Supersede outcome doesn't retire the superseded entry"
     if "same write" not in bullet_text:
@@ -255,27 +330,32 @@ def check_supersede_verdict_named(text: str) -> tuple[bool, str]:
     return True, "Supersede named as a distinct §6 outcome, retiring in the same write"
 
 
-def check_supersede_bullet_verbatim(text: str) -> tuple[bool, str]:
-    """#429: the whole Supersede verdict matches its pinned contract text.
+def check_supersede_bullet_verbatim(skill: str, ref: str) -> tuple[bool, str]:
+    """#429: the whole canonical Supersede verdict matches its pinned contract text.
 
     This is what carries the 1-click invariant — the retirement never gets a prompt of its
     own — against a contradicting clause added *beside* the negation, which is how both
-    pattern-based versions of this check were defeated.
+    pattern-based versions of this check were defeated. #663: the canonical copy is
+    reference.md §6-supersede-contract, so the pin reads there.
     """
-    bullet = _bullet_slice(_verdict_scope(text), "- **Supersede")
+    if _REFERENCE_TITLE in ref and _REF_SUPERSEDE_SECTION_RE.search(ref) is None:
+        return False, "§6-supersede-contract section boundary not found (header drift?)"
+    bullet = _bullet_slice(_ref_supersede_scope(ref), "- **Supersede")
     if bullet is None:
         return False, "Supersede outcome missing entirely"
     if _normalise(bullet) != _normalise(_SUPERSEDE_CONTRACT):
         return False, (
-            "the §6 Supersede verdict no longer matches its pinned contract text — a clause was "
-            "added, removed or reworded. If that is intended, update _SUPERSEDE_CONTRACT in this "
-            "file in the same commit"
+            "reference.md §6-supersede-contract no longer matches its pinned contract text — a "
+            "clause was added, removed or reworded (including below the bullet, inside the same "
+            "section). If that is intended, update _SUPERSEDE_CONTRACT in this file in the same "
+            "commit"
         )
     return True, "Supersede verdict matches its pinned contract text verbatim"
 
 
-def check_confirmation_template_lists_retirement(text: str) -> tuple[bool, str]:
+def check_confirmation_template_lists_retirement(skill: str, ref: str = "") -> tuple[bool, str]:
     """#429: §3's confirmation template must carry the 은퇴 field."""
+    text = skill
     field_pos = text.find("은퇴:")
     if field_pos == -1:
         return False, "은퇴 confirmation field missing from the §3 template"
@@ -299,10 +379,14 @@ _CHECKS = [
 ]
 
 
-def run_checks(text: str) -> tuple[int, int]:
+def run_checks(skill: str, ref: str) -> tuple[int, int]:
+    """`skill` is SKILL.md (§6's preamble, the Edit bucket, the §3 template, the Supersede
+    pointer); `ref` is reference.md, where the Supersede verdict's canonical text lives since
+    #663. Two sources on purpose, not one concatenated blob: a SKILL.md claim must not be
+    satisfiable from the reference, or the split's own seam goes unguarded."""
     passed = failed = 0
     for check in _CHECKS:
-        ok, msg = check(text)
+        ok, msg = check(skill, ref)
         print(f"  [{'OK  ' if ok else 'FAIL'}] {msg}")
         if ok:
             passed += 1
@@ -312,31 +396,43 @@ def run_checks(text: str) -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------------------
-# Self-test (in-memory fixtures)
+# Self-test (in-memory fixtures) — TWO sources since #663, mirroring the split: §6's preamble,
+# the Edit bucket, the §3 template and the Supersede POINTER come from the SKILL.md side; the
+# Supersede verdict's canonical text from the reference.md side.
 # ---------------------------------------------------------------------------
+
+# The pointer bullet as SKILL.md now carries it, kept as a constant so the decay fixtures below
+# cannot silently no-op against a reworded copy.
+_SUPERSEDE_POINTER = """\
+- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant
+  absorbs it and retires it in the **same write**, on the same confirmation — never a separate
+  prompt. **Its canonical, binding text is [reference.md](reference.md) §6-supersede-contract —
+  read that section and apply it as written; this bullet is a locator, not the contract.**
+"""
 
 _PASSING = """\
 - **Duplicate**: if the site already states the same rule, strengthen that entry.
 - **Edit (explicit modification of an existing entry)**: if the request clearly targets
   one existing entry and asks to change it, treat it as an in-place edit, not a new
   append. Show the entry's before → after text in the §3 confirmation.
-- **Supersede (the catalogue's exit path)**: if landing this rule makes an existing entry
-  redundant — the new rule states the same obligation at a more general altitude, or the old
-  entry's only remaining job is now done by a guard/skill that landed since — do not add a
-  second entry. Absorb the old entry's distinguishing content **into the new one** and retire
-  the old **in the same write**, so the catalogue never carries both. Show the retirement in the
-  §3 confirmation as part of the diff (`Pn retired, absorbed into Pm`) — **never as a separate
-  prompt**. **A retired number is never reused.** If the old entry says the same thing at the
-  *same* altitude this is a Duplicate instead (strengthen it, add nothing); Supersede needs the
-  old entry to have stopped earning its own line.
-- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
+%s- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
   that rule as an explicit edit, do NOT write — report and stop.
 - **Sibling**: link them with a one-line note.
 
 ## 분류 결과
 - 충돌: <none | sibling of an existing rule | edits an existing entry (show before→after) | contradicts an existing rule (explain)>
 - 은퇴: <none | Pn이 이 규칙에 흡수돼요 — 같은 쓰기에서 은퇴시킬게요>
-"""
+""" % _SUPERSEDE_POINTER
+
+_PASSING_REF = (
+    "## §6-supersede-contract — the Supersede verdict, CANONICAL text\n"
+    "\n"
+    "This section is the contract, not background.\n"
+    "\n"
+    + _SUPERSEDE_CONTRACT
+    + "\n"
+    "## §6-supersede — why the exit path is a §6 verdict\n"
+)
 
 # Regression of the exact bug #303 reports: only three outcomes, an explicit edit
 # request has no first-class path and risks being refused as a Contradiction.
@@ -350,6 +446,11 @@ _FAILING = """\
 
 ## 분류 결과
 - 충돌: <none | sibling of an existing rule | contradicts an existing rule (explain)>
+"""
+_FAILING_REF = """\
+## §6-memory — why the memory scan is two steps
+
+Nothing here states a Supersede verdict.
 """
 
 # Regression of a narrower bug: the Edit bucket exists, but its own before -> after
@@ -408,7 +509,7 @@ _SUPERSEDE_INVERTED = """\
   that rule as an explicit edit, do NOT write — report and stop.
 """
 
-# The phrase straddles a line break, exactly as it does in the hard-wrapped SKILL.md. A plain
+# The phrase straddles a line break, exactly as it does in the hard-wrapped source. A plain
 # substring check reads this as deleted (#440); it must read as stated.
 _SUPERSEDE_WRAPPED = """\
 - **Supersede**: if landing this rule makes an existing entry redundant, absorb it and retire
@@ -421,8 +522,8 @@ _SUPERSEDE_WRAPPED = """\
 
 # The mutation that defeated the negation pattern: the negation is scoped to the absorption,
 # and the retirement gets its own confirmation anyway. Every keyword and a real negation are
-# present; only the verbatim pin sees it.
-_SUPERSEDE_NEGATION_MISPLACED = _SUPERSEDE_CONTRACT.replace(
+# present; only the verbatim pin sees it. Since #663 it mutates the CANONICAL copy.
+_SUPERSEDE_NEGATION_MISPLACED = _PASSING_REF.replace(
     "— **never as a separate\n  prompt**.",
     """— the absorption itself is
   never a separate prompt. The retirement, being destructive, gets its own confirmation
@@ -431,45 +532,71 @@ _SUPERSEDE_NEGATION_MISPLACED = _SUPERSEDE_CONTRACT.replace(
 
 # The same contract with every line break moved. Whitespace is not the contract (#440), so this
 # must still read as unchanged — the case that keeps the pin from failing on a pure reflow.
-_SUPERSEDE_REFLOWED = " ".join(_SUPERSEDE_CONTRACT.split())
+_SUPERSEDE_REFLOWED = _PASSING_REF.replace(
+    _SUPERSEDE_CONTRACT, " ".join(_SUPERSEDE_CONTRACT.split())
+)
+
+# #663: the section-scoped slice runs to the end of the bullet, and the bullet is the last thing
+# in `## §6-supersede-contract`, so non-bullet prose parked below it lands INSIDE the pin. This
+# is the mutation the split made possible, and the case that proves it is covered.
+_SUPERSEDE_TRAILING_CLAUSE = _PASSING_REF.replace(
+    "\n## §6-supersede — why the exit path is a §6 verdict",
+    "\nA verdict that *removes* an entry is destructive, so it is confirmed on its own second\n"
+    "question, separately from the §3 addition.\n\n"
+    "## §6-supersede — why the exit path is a §6 verdict",
+)
 
 
-# Every fixture above is a bare bullet fragment, so all of them take `_verdict_scope`'s
-# fallback branch and the SCOPED branch — the round-2 fix for §8's own `- **Supersede**:`
-# bullet — was exercised only in real mode, where it always succeeds. These two carry the
-# headers, so the slice itself is tested here rather than by a sibling file's heading check.
-_SECTION_HEADERS = """\
-## 6. Conflict check
+# Every fixture above is a bare bullet fragment, so all of them take the fallback branch of the
+# scope helpers. These two carry the headers, so the reference-side slice itself is tested here:
+# reference.md §8's own `- **Supersede**:` bullet is the decoy the scoping exists for.
+_REF_SECTIONS = """\
+## §6-supersede-contract — the Supersede verdict, CANONICAL text
 
 %s
-- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
-  that rule as an explicit edit, do NOT write — report and stop.
+## §6-supersede — why the exit path is a §6 verdict
 
-## 7. Output contract
-
-## 8. Post-write self-check
+## §8 — the per-site self-check checklist
 
 - **Supersede**: the retired entry is gone from the index and no inbound link points at it.
-
-## 분류 결과
-- 충돌: <none | edits an existing entry (before→after)>
-- 은퇴: <none | Pn이 이 규칙에 흡수돼요>
 """
 
-# §6 holds the real verdict; §8's decoy sits after it. The scoped slice must read §6's.
-_SCOPED_OK = _SECTION_HEADERS % (_SUPERSEDE_CONTRACT + "\n")
+# The contract section holds the real verdict; §8's decoy sits after it. The scoped slice must
+# read the contract section's.
+_SCOPED_OK = _REF_SECTIONS % (_SUPERSEDE_CONTRACT + "\n")
 
-# §6's verdict deleted, §8's decoy left in place. Without scoping the marker search retargets
-# to §8 and the suite reports the wrong defect (or, worse, a near-miss it can rationalise).
-_SCOPED_VERDICT_DELETED = _SECTION_HEADERS % ""
+# The verdict deleted, §8's decoy left in place. Without scoping the marker search retargets to
+# §8 and the suite reports the wrong defect (or, worse, a near-miss it can rationalise).
+_SCOPED_VERDICT_DELETED = _REF_SECTIONS % ""
 
 assert _SCOPED_OK != _SCOPED_VERDICT_DELETED, "scoped fixtures collapsed to the same text"
+
+# Heading drift on a document that IS the real reference file (it carries the title line), so
+# the precondition must name the boundary instead of falling back to a whole-file match — where
+# §8's decoy bullet would be the slice and the failure would be misreported.
+_REF_HEADING_DRIFT = (_REFERENCE_TITLE + "\n\n" + _SCOPED_OK).replace(
+    "## §6-supersede-contract —", "## §6 supersede contract —"
+)
+
+
+# The #663 seam, from the SKILL.md side: the pointer bullet is the only thing left in the body
+# that reaches the contract, so its decay modes get fixtures of their own.
+_POINTER_DROPPED = _PASSING.replace(
+    "**Its canonical, binding text is [reference.md](reference.md) §6-supersede-contract —\n"
+    "  read that section and apply it as written; this bullet is a locator, not the contract.**",
+    "**A retired number is never reused.**",
+)
+_POINTER_BARE_CITATION = _PASSING.replace(
+    "—\n  read that section and apply it as written; this bullet is a locator, not the contract.**",
+    "(background reading).**",
+)
+_POINTER_BULLET_DELETED = _PASSING.replace(_SUPERSEDE_POINTER, "")
 
 
 _PREAMBLE_OK = (
     _PREAMBLE_CONTRACT
     + "\n- **Duplicate**: if the site already states the same rule, strengthen that entry.\n"
-    + _SUPERSEDE_CONTRACT
+    + _SUPERSEDE_POINTER
     + "\n\n## 7. Output contract\n"
 )
 # Review's round-3 mutation, verbatim: a second question granted above the bullets.
@@ -504,11 +631,25 @@ _PREAMBLE_PREPENDED = _PREAMBLE_OK.replace(
     "A verdict that *removes* an entry is confirmed on its own second question.\n\n"
     "**New site**:",
 )
-assert _PREAMBLE_PREPENDED != _PREAMBLE_OK, "_PREAMBLE_PREPENDED no-opped"
-assert _PREAMBLE_DECOY_BULLET != _PREAMBLE_OK, "_PREAMBLE_DECOY_BULLET no-opped"
-assert _PREAMBLE_SPLIT_BULLET != _PREAMBLE_OK, "_PREAMBLE_SPLIT_BULLET no-opped"
-assert _PREAMBLE_CONTRADICTED != _PREAMBLE_OK, "_PREAMBLE_CONTRADICTED no-opped"
-assert _PREAMBLE_REFLOWED != _PREAMBLE_OK, "_PREAMBLE_REFLOWED no-opped"
+
+
+# A fixture built by `.replace()` whose target string has drifted silently becomes a copy of its
+# base, and an expect-FAIL case on a copy of the base would then be testing nothing.
+for _name, _fixture, _base in (
+    ("_SUPERSEDE_NEGATION_MISPLACED", _SUPERSEDE_NEGATION_MISPLACED, _PASSING_REF),
+    ("_SUPERSEDE_REFLOWED", _SUPERSEDE_REFLOWED, _PASSING_REF),
+    ("_SUPERSEDE_TRAILING_CLAUSE", _SUPERSEDE_TRAILING_CLAUSE, _PASSING_REF),
+    ("_POINTER_DROPPED", _POINTER_DROPPED, _PASSING),
+    ("_POINTER_BARE_CITATION", _POINTER_BARE_CITATION, _PASSING),
+    ("_POINTER_BULLET_DELETED", _POINTER_BULLET_DELETED, _PASSING),
+    ("_REF_HEADING_DRIFT", _REF_HEADING_DRIFT, _REFERENCE_TITLE + "\n\n" + _SCOPED_OK),
+    ("_PREAMBLE_PREPENDED", _PREAMBLE_PREPENDED, _PREAMBLE_OK),
+    ("_PREAMBLE_DECOY_BULLET", _PREAMBLE_DECOY_BULLET, _PREAMBLE_OK),
+    ("_PREAMBLE_SPLIT_BULLET", _PREAMBLE_SPLIT_BULLET, _PREAMBLE_OK),
+    ("_PREAMBLE_CONTRADICTED", _PREAMBLE_CONTRADICTED, _PREAMBLE_OK),
+    ("_PREAMBLE_REFLOWED", _PREAMBLE_REFLOWED, _PREAMBLE_OK),
+):
+    assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
 
 
 def _self_test() -> int:
@@ -519,11 +660,11 @@ def _self_test() -> int:
     bullet_checks = [c for c in _CHECKS if c is not check_conflict_preamble_verbatim]
 
     for check in bullet_checks:
-        ok, _ = check(_PASSING)
+        ok, _ = check(_PASSING, _PASSING_REF)
         cases.append((f"passing: {check.__name__}", ok))
 
     for check in bullet_checks:
-        ok, _ = check(_FAILING)
+        ok, _ = check(_FAILING, _FAILING_REF)
         cases.append((f"failing: {check.__name__} (expect FAIL)", not ok))
 
     ok, _ = check_edit_bucket_named(_EDIT_WITHOUT_BEFORE_AFTER)
@@ -532,23 +673,37 @@ def _self_test() -> int:
     ok, _ = check_confirmation_template_lists_edit(_CONFIRMATION_FIELD_SUBSTRING_FALSE_POSITIVE)
     cases.append(("substring-false-positive: check_confirmation_template_lists_edit (expect FAIL)", not ok))
 
-    ok, _ = check_supersede_verdict_named(_SUPERSEDE_SECOND_PROMPT)
+    ok, _ = check_supersede_verdict_named(_PASSING, _SUPERSEDE_SECOND_PROMPT)
     cases.append(("supersede-second-prompt: check_supersede_verdict_named (still OK)", ok))
 
-    ok, _ = check_supersede_verdict_named(_SUPERSEDE_DEFERRED_WRITE)
+    ok, _ = check_supersede_verdict_named(_PASSING, _SUPERSEDE_DEFERRED_WRITE)
     cases.append(("supersede-deferred-write: check_supersede_verdict_named (expect FAIL)", not ok))
 
+    ok, _ = check_supersede_verdict_named(_PASSING, _SUPERSEDE_WRAPPED)
+    cases.append(("supersede-wrapped: check_supersede_verdict_named (still OK)", ok))
+
+    # #663: every one of these corrupts the CANONICAL copy, which is reference.md's.
     for name, fixture in (
         ("inverted", _SUPERSEDE_INVERTED),
         ("second-prompt", _SUPERSEDE_SECOND_PROMPT),
         ("deferred-write", _SUPERSEDE_DEFERRED_WRITE),
         ("negation-on-the-wrong-noun", _SUPERSEDE_NEGATION_MISPLACED),
+        ("clause-parked-below-the-bullet", _SUPERSEDE_TRAILING_CLAUSE),
     ):
-        ok, _ = check_supersede_bullet_verbatim(fixture)
-        cases.append((f"supersede-{name}: check_supersede_bullet_verbatim (expect FAIL)", not ok))
+        ok, _ = check_supersede_bullet_verbatim(_PASSING, fixture)
+        cases.append((f"reference.md supersede-{name}: check_supersede_bullet_verbatim (expect FAIL)", not ok))
 
-    ok, _ = check_supersede_bullet_verbatim(_SUPERSEDE_REFLOWED)
+    ok, _ = check_supersede_bullet_verbatim(_PASSING, _SUPERSEDE_REFLOWED)
     cases.append(("supersede-reflowed: check_supersede_bullet_verbatim (still OK)", ok))
+
+    # The seam #663 created: SKILL.md's §6 must keep a live pointer at the canonical text.
+    for name, skill_fixture in (
+        ("pointer-dropped", _POINTER_DROPPED),
+        ("pointer-bare-citation", _POINTER_BARE_CITATION),
+        ("pointer-bullet-deleted", _POINTER_BULLET_DELETED),
+    ):
+        ok, _ = check_supersede_verdict_named(skill_fixture, _PASSING_REF)
+        cases.append((f"{name}: check_supersede_verdict_named (expect FAIL)", not ok))
 
     ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_OK)
     cases.append(("preamble: check_conflict_preamble_verbatim (still OK)", ok))
@@ -569,11 +724,14 @@ def _self_test() -> int:
     ok, _ = check_conflict_preamble_verbatim(_PASSING)
     cases.append(("preamble: headerless fixture reports the boundary (expect FAIL)", not ok))
 
-    ok, _ = check_supersede_bullet_verbatim(_SCOPED_OK)
-    cases.append(("scoped: check_supersede_bullet_verbatim reads §6's verdict (still OK)", ok))
-    ok, msg = check_supersede_bullet_verbatim(_SCOPED_VERDICT_DELETED)
-    cases.append(("scoped: §6 verdict deleted must not retarget to §8's bullet (expect FAIL)",
+    ok, _ = check_supersede_bullet_verbatim(_PASSING, _SCOPED_OK)
+    cases.append(("scoped: check_supersede_bullet_verbatim reads the contract section's verdict (still OK)", ok))
+    ok, msg = check_supersede_bullet_verbatim(_PASSING, _SCOPED_VERDICT_DELETED)
+    cases.append(("scoped: verdict deleted must not retarget to §8's bullet (expect FAIL)",
                   (not ok) and "missing entirely" in msg))
+    ok, msg = check_supersede_bullet_verbatim(_PASSING, _REF_HEADING_DRIFT)
+    cases.append(("header-drift (§6-supersede-contract renamed): names the boundary (expect FAIL)",
+                  (not ok) and "boundary not found" in msg))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
@@ -594,14 +752,15 @@ def main(argv: list[str]) -> int:
         print("Running self-test (in-memory fixtures)...\n")
         return _self_test()
 
-    print(f"Checking: {_SKILL_PATH}\n")
+    print(f"Checking: {_SKILL_PATH}\n          {_REFERENCE_PATH} (Supersede contract, #663)\n")
     try:
         text = _load_skill()
+        reference = _load_reference()
     except FileNotFoundError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
 
-    passed, failed = run_checks(text)
+    passed, failed = run_checks(text, reference)
     print()
     if failed:
         print(f"RESULT: {failed} check(s) FAILED — see above.")

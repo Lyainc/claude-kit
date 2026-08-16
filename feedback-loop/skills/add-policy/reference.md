@@ -261,6 +261,34 @@ SCAN_ROOT="$HOME/.claude/projects"
 ```
 
 
+## §6-gate-contract — the necessity gate, CANONICAL text (#663)
+
+**This section is the contract, not background.** SKILL.md §6 points here and carries a summary
+line only; what follows is the text the engine applies, and `_GATE_CONTRACT` in
+`feedback-loop/scripts/test/test-add-policy-necessity-gate.py` pins it verbatim — editing it is
+a deliberate contract change, made in the same commit as that constant. Nothing else belongs in
+this section: the slice runs to the next heading, so a clause parked below the block breaks the
+pin (by design). Rationale lives in §6-gate, immediately after.
+
+**Necessity gate — after the conflict check, before the §3 confirmation.** The site's content
+is already read, so it costs no extra lookup. Four questions:
+
+1. Has what this rule prevents **actually happened**, or does it only look likely? Speculative
+   → recommend not landing.
+2. Does an existing or more general entry already imply it → strengthen that entry instead
+   (Duplicate/Edit above), adding none.
+3. Is **something else already asking the same question** — a hook, a CI guard, an existing
+   confirmation checkpoint, the tool itself? A doubled gate is dead weight.
+4. Does one clause on a neighbouring entry do it, with no new entry → that form.
+
+Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
+**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
+second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
+one arriving as a distill proposal. A tool does not veto the work it was told to do. It weighs
+the **artifact's cost** (must this be a *new* always-loaded entry?), never the rule's **reuse
+value**, which stays distill's.
+
+
 ## §6-gate — why the necessity gate exists, and why it only recommends (#450)
 
 SKILL.md §6 ships the four questions and the three outcomes. This is what they were derived from.
@@ -307,6 +335,26 @@ worth an always-loaded line. Only the side that knows the site (catalogue size, 
 neighbouring entries) can answer the second. It is a placement judgment, not a value judgment,
 which is the same line #429 draws — hence the precision in SKILL.md's intro and in the
 `description`: add-policy never re-judges *reuse value*, but it does judge *artifact necessity*.
+
+
+## §6-supersede-contract — the Supersede verdict, CANONICAL text (#663)
+
+**This section is the contract, not background.** SKILL.md §6 lists Supersede among its verdicts
+and points here; the verdict's own text is below, and `_SUPERSEDE_CONTRACT` in
+`feedback-loop/scripts/test/test-add-policy-conflict-edit.py` pins it verbatim — editing it is a
+deliberate contract change, made in the same commit as that constant. The slice is scoped to
+this section and runs to its first bullet's end, so a second verdict must not be parked here.
+Rationale lives in §6-supersede, immediately after.
+
+- **Supersede (the catalogue's exit path)**: if landing this rule makes an existing entry
+  redundant — the new rule states the same obligation at a more general altitude, or the old
+  entry's only remaining job is now done by a guard/skill that landed since — do not add a
+  second entry. Absorb the old entry's distinguishing content **into the new one** and retire
+  the old **in the same write**, so the catalogue never carries both. Show the retirement in the
+  §3 confirmation as part of the diff (`Pn retired, absorbed into Pm`) — **never as a separate
+  prompt**. **A retired number is never reused.** If the old entry says the same thing at the
+  *same* altitude this is a Duplicate instead (strengthen it, add nothing); Supersede needs the
+  old entry to have stopped earning its own line.
 
 
 ## §6-supersede — why the exit path is a §6 verdict (#429)

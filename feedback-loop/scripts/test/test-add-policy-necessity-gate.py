@@ -12,9 +12,18 @@ is simply unnecessary passed straight through. Measured cost: local-harness P14,
 2026-07-24 and retired the next day, where the retirement's own findings say the gate
 was already being asked by `session-close` ① (question 3 is that finding).
 
+#663 moved the gate's CANONICAL text out of the SKILL.md body and into
+`add-policy/reference.md` §6-gate-contract — SKILL.md's §6 had every ≥300-char paragraph
+pinned verbatim, so the token budget (#447) had no escape hatch left that wasn't a trim. The
+pins followed the text rather than being deleted (#609 measured what an unpinned region is
+worth: two shipped artifacts pinned by nothing could be deleted wholesale with the suite still
+green). So the live run reads BOTH files: the gate block against reference.md, the §3
+confirmation and the §6 pointer against SKILL.md.
+
 Pinned claims:
 
-1. The gate exists in §6, and runs before the §3 confirmation.
+1. The gate exists under reference.md §6-gate-contract, runs before the §3 confirmation, and
+   SKILL.md §6 still points at it with an instruction to apply it (the seam #663 created).
 2. All four questions are stated, each by its own distinguishing content — so dropping
    one (question 3, the doubled-gate check that P14 needed) fails here.
 3. All three outcomes are stated (pass / absorb / recommend not landing).
@@ -46,12 +55,20 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SKILL_PATH = _REPO_ROOT / "feedback-loop" / "skills" / "add-policy" / "SKILL.md"
+_REFERENCE_PATH = _SKILL_PATH.with_name("reference.md")
 
 
 def _load_skill() -> str:
     if not _SKILL_PATH.is_file():
         raise FileNotFoundError(f"SKILL.md not found at {_SKILL_PATH}")
     return _SKILL_PATH.read_text(encoding="utf-8")
+
+
+def _load_reference() -> str:
+    """#663: the gate's canonical text lives here now, not in SKILL.md's body."""
+    if not _REFERENCE_PATH.is_file():
+        raise FileNotFoundError(f"reference.md not found at {_REFERENCE_PATH}")
+    return _REFERENCE_PATH.read_text(encoding="utf-8")
 
 
 def _states(text: str, phrase: str) -> bool:
@@ -72,37 +89,41 @@ def _normalise(text: str) -> str:
     return " ".join(text.split())
 
 
-# §6 first, then the block inside it. Both of `_gate_block`'s anchors live in the file being
-# pinned, so on a whole-file search a verbatim copy of the contract pasted into §4 (followed by
-# "For a new rule the engine appends...") became the slice: equality passed against the decoy
-# while §6's real gate was free to be a hard blocker. Whole-block equality is total over the
+# SKILL.md's §6, used only for the POINTER seam below. The canonical gate text moved out of
+# this section in #663.
+_SECTION_6_RE = re.compile(r"^## 6\.\s.*?(?=^## 7\.\s)", re.MULTILINE | re.DOTALL)
+
+# #663: the canonical block lives under reference.md's own `## §6-gate-contract` heading, and
+# the scoping rationale is unchanged — on a whole-file search a verbatim copy of the contract
+# pasted into a neighbouring section became the slice, so equality passed against the decoy
+# while the real gate was free to be a hard blocker. Whole-block equality is total over the
 # slice; it says nothing about whether the slice is the one the engine executes. Same shape as
 # test-add-policy-conflict-edit.py's `_verdict_scope`.
-_SECTION_6_RE = re.compile(r"^## 6\.\s.*?(?=^## 7\.\s)", re.MULTILINE | re.DOTALL)
+_REF_GATE_SECTION_RE = re.compile(
+    r"^## §6-gate-contract\b.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL
+)
 # The BOLD block marker, not the bare phrase: "necessity gate" also appears in the frontmatter
-# description and in the intro, so anchoring on that widened the slice to most of the section.
+# description, in SKILL.md's intro, and in that section's own framing paragraph, so anchoring on
+# the bare phrase widened the slice.
 _GATE_START = "**necessity gate"
-# The gate block ends where the write-form paragraph begins; if that anchor ever moves, the
-# fallback window keeps the slice from silently swallowing the rest of the section.
-_GATE_END = "for a new rule the engine appends"
+# The section's first line identifies the real reference file, for the header-drift precondition.
+_REFERENCE_TITLE = "# add-policy — reference"
 
 
-def _gate_block(text: str) -> str:
-    """Slice out §6's necessity-gate block, or "" if it isn't there.
+def _gate_block(ref: str) -> str:
+    """Slice out reference.md's canonical necessity-gate block, or "" if it isn't there.
 
-    Scoped twice: to §6 (a copy elsewhere in the file is not the gate the engine runs), then
-    to the block (`## Rules` restates the gate in summary form, so a section-wide match would
-    pass on the summary while the executable block was gone). A document with no `## 6.`/
-    `## 7.` header pair falls back to itself, for the bare in-memory fixtures.
+    Scoped twice: to `## §6-gate-contract` (a copy elsewhere in the file is not the gate the
+    engine runs), then to the block itself (the section's framing paragraph is prose about the
+    contract, not the contract). The slice then runs to the END of the section — that is
+    stricter than the old content-addressed end anchor, because a contradicting clause parked
+    below the block is now inside the pin instead of outside it. A document with no
+    `## §6-gate-contract` heading falls back to itself, for the bare in-memory fixtures.
     """
-    match = _SECTION_6_RE.search(text)
-    scope = match.group(0) if match else text
-    lower = scope.lower()
-    start = lower.find(_GATE_START)
-    if start == -1:
-        return ""
-    end = lower.find(_GATE_END, start)
-    return scope[start:end] if end != -1 else scope[start:start + 2000]
+    match = _REF_GATE_SECTION_RE.search(ref)
+    scope = match.group(0) if match else ref
+    start = scope.lower().find(_GATE_START)
+    return scope[start:] if start != -1 else ""
 
 
 # The WHOLE gate block is pinned VERBATIM — equality, not a suffix match. Three review rounds
@@ -140,19 +161,47 @@ value**, which stays distill's.
 """
 
 
-def check_gate_present_and_positioned(text: str) -> tuple[bool, str]:
-    """The gate must exist and run before the §3 confirmation."""
-    block = _gate_block(text)
+def check_gate_present_and_positioned(skill: str, ref: str) -> tuple[bool, str]:
+    """The gate must exist, run before the §3 confirmation, and stay reachable from §6.
+
+    #663 moved the canonical text to reference.md, so this check also carries the SEAM the
+    split created: SKILL.md §6 must NAME `§6-gate-contract` and say to apply it. A pointer that
+    decays into a bare citation is how an on-demand step turns optional — the same failure
+    mode test-add-policy-routing.py's `check_scan_command_pointer` guards for the §6-snippet
+    split (#469). Scoped to §6: a locator parked in another section is not the one the engine
+    reads at the gate.
+    """
+    block = _gate_block(ref)
     if not block:
-        return False, "no necessity gate block found in the SKILL.md body"
+        return False, "no necessity gate block found under reference.md §6-gate-contract"
     if not _states(block, "before the §3 confirmation"):
         return False, "the gate doesn't state that it runs before the §3 confirmation"
-    return True, "necessity gate present, positioned before the §3 confirmation"
+    section_6 = _SECTION_6_RE.search(skill)
+    if not section_6:
+        # No silent whole-document fallback: renaming `## 6.`/`## 7.` would widen the scope to
+        # the entire file, and a locator parked in §5 would then pass this check while the
+        # engine reading §6 at the gate finds nothing — the exact `pointer-outside-§6` case.
+        return False, (
+            "SKILL.md has no `## 6.` section bounded by `## 7.` — the §6 scope this check "
+            "depends on collapsed (heading drift)"
+        )
+    section = section_6.group(0)
+    if "§6-gate-contract" not in section:
+        return False, (
+            "SKILL.md §6 doesn't name reference.md §6-gate-contract as where the gate's "
+            "canonical text lives"
+        )
+    if not (_states(section, "apply it as written") or _states(section, "read that section")):
+        return False, (
+            "SKILL.md §6's pointer decayed into a bare citation — it must tell the engine to "
+            "read and apply §6-gate-contract, not merely cite it"
+        )
+    return True, "necessity gate present in reference.md, positioned before §3, reachable from §6"
 
 
-def check_four_questions(text: str) -> tuple[bool, str]:
+def check_four_questions(skill: str, ref: str) -> tuple[bool, str]:
     """All four questions, each pinned by its own distinguishing content."""
-    block = _gate_block(text)
+    block = _gate_block(ref)
     questions = {
         "1 (has it actually happened?)": ("actually happened",),
         "2 (already implied by an existing entry)": ("already imply", "already implies"),
@@ -171,13 +220,13 @@ def check_four_questions(text: str) -> tuple[bool, str]:
     return True, "all four necessity-gate questions stated"
 
 
-def check_three_outcomes(text: str) -> tuple[bool, str]:
+def check_three_outcomes(skill: str, ref: str) -> tuple[bool, str]:
     """pass / absorbed into an existing entry / recommend not landing.
 
     Kept beside the verbatim pin below for its diagnostic: this one names WHICH outcome
     went missing, where the pin only says the paragraph changed.
     """
-    block = _gate_block(text)
+    block = _gate_block(ref)
     if not _states(block, "recommend not landing"):
         return False, "the 'recommend not landing' outcome is missing"
     if not _states(block, "absorbed into an existing entry"):
@@ -187,38 +236,40 @@ def check_three_outcomes(text: str) -> tuple[bool, str]:
     return True, "all three outcomes stated (pass / absorb / recommend not landing)"
 
 
-def check_gate_block_verbatim(text: str) -> tuple[bool, str]:
-    """The whole gate block matches its pinned contract text.
+def check_gate_block_verbatim(skill: str, ref: str) -> tuple[bool, str]:
+    """The whole canonical gate block matches its pinned contract text.
 
     Equality over the block, not a match on part of it: this is what carries the 1-click
     invariant (no second prompt) and the never-blocks guarantee on both inbound paths
     against a contradicting clause set beside them — above, below or inside.
     """
-    if text.lstrip().startswith("---") and _SECTION_6_RE.search(text) is None:
-        # Frontmatter, not a `## 6.` mention: the precondition has to identify the REAL skill
-        # file, or drift in both headings at once falls back to whole-file and this suite stays
-        # green while a sibling reds. The bare in-memory fixtures carry no frontmatter, so they
+    if _REFERENCE_TITLE in ref and _REF_GATE_SECTION_RE.search(ref) is None:
+        # The title line, not the section itself: the precondition has to identify the REAL
+        # reference file, or a renamed heading falls back to whole-file and this suite stays
+        # green while the contract drifts. The bare in-memory fixtures carry no title, so they
         # keep the fallback they need.
-        return False, "§6 section boundary not found (header drift?)"
-    block = _gate_block(text)
+        return False, "§6-gate-contract section boundary not found (header drift?)"
+    block = _gate_block(ref)
     if not block:
-        return False, "no necessity gate block found in the SKILL.md body"
+        return False, "no necessity gate block found under reference.md §6-gate-contract"
     if _normalise(block) != _normalise(_GATE_CONTRACT):
         return False, (
-            "the §6 necessity-gate block no longer matches its pinned contract text — a clause "
-            "was added, removed or reworded anywhere in it. If that is intended, update "
-            "_GATE_CONTRACT in this file in the same commit"
+            "reference.md §6-gate-contract no longer matches its pinned contract text — a "
+            "clause was added, removed or reworded anywhere in it (including below it, inside "
+            "the same section). If that is intended, update _GATE_CONTRACT in this file in the "
+            "same commit"
         )
     return True, "necessity-gate block matches its pinned contract text verbatim"
 
 
-def check_distill_boundary(text: str) -> tuple[bool, str]:
+def check_distill_boundary(skill: str, ref: str) -> tuple[bool, str]:
     """Artifact cost is the gate's question; reuse value stays distill's.
 
     Without this the skill contradicts its own `description`, which says add-policy
     never re-judges the rule's reuse value.
     """
-    block = _gate_block(text)
+    text = skill
+    block = _gate_block(ref)
     if not _states(block, "reuse value"):
         return False, "the gate doesn't disclaim the reuse-value judgment (distill's)"
     if not (_states(block, "artifact's cost") or _states(block, "artifact cost")):
@@ -229,7 +280,7 @@ def check_distill_boundary(text: str) -> tuple[bool, str]:
     return True, "gate judges artifact cost, never reuse value (distill boundary intact)"
 
 
-def check_confirmation_surfaces_the_recommendation(text: str) -> tuple[bool, str]:
+def check_confirmation_surfaces_the_recommendation(skill: str, ref: str = "") -> tuple[bool, str]:
     """§3 carries the 필요성 field AND a question per non-통과 outcome.
 
     The gate has two non-통과 outcomes, and §3's default question ("여기에 이렇게 넣을게요 —
@@ -238,6 +289,7 @@ def check_confirmation_surfaces_the_recommendation(text: str) -> tuple[bool, str
     recommendation was to fold it into an existing entry, so the user's answer lands a
     brand-new entry the gate argued against.
     """
+    text = skill
     pos = text.find("필요성:")
     if pos == -1:
         return False, "필요성 field missing from the §3 confirmation template"
@@ -270,10 +322,14 @@ _CHECKS = [
 ]
 
 
-def run_checks(text: str) -> tuple[int, int]:
+def run_checks(skill: str, ref: str) -> tuple[int, int]:
+    """`skill` is SKILL.md (the §3 confirmation + the §6 pointer); `ref` is reference.md, where
+    the gate's canonical text lives since #663. Two sources on purpose, not one concatenated
+    blob: a SKILL.md claim must not be satisfiable from the reference, or the split's own seam
+    goes unguarded."""
     passed = failed = 0
     for check in _CHECKS:
-        ok, msg = check(text)
+        ok, msg = check(skill, ref)
         print(f"  [{'OK  ' if ok else 'FAIL'}] {msg}")
         if ok:
             passed += 1
@@ -283,10 +339,12 @@ def run_checks(text: str) -> tuple[int, int]:
 
 
 # ---------------------------------------------------------------------------
-# Self-test (in-memory fixtures)
+# Self-test (in-memory fixtures) — TWO sources since #663, mirroring the split: the §3
+# confirmation and the §6 pointer come from the SKILL.md side, the canonical gate block from
+# the reference.md side.
 # ---------------------------------------------------------------------------
 
-_PASSING = """\
+_PASSING_SKILL = """\
 add-policy never re-judges the rule's reuse value; it judges whether a new artifact is needed.
 
 ## 1. Input contract
@@ -297,66 +355,90 @@ Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?"
 and then the gate's recommendation is the first option: 기존 항목으로 충분 asks about folding it
 into that entry, 안 넣는 게 나음 asks whether to land it at all.
 
-%s
-For a new rule the engine appends in each site's native form.
-""" % _GATE_CONTRACT
+## 6. Conflict check
 
-# Pre-#450 regression: no gate at all, so every claim is absent.
-_FAILING = """\
+**Necessity gate — runs here, after the conflict check.** Canonical binding text:
+[reference.md](reference.md) §6-gate-contract — read that section and apply it as written.
+
+## 7. Output contract
+"""
+
+_PASSING_REF = (
+    "## §6-gate-contract — the necessity gate, CANONICAL text\n"
+    "\n"
+    "This section is the contract, not background.\n"
+    "\n"
+    + _GATE_CONTRACT
+    + "\n"
+    "## §6-gate — why it exists\n"
+)
+
+# Pre-#450 regression: no gate anywhere, so every claim is absent on both sides.
+_FAILING_SKILL = """\
 ## 6. Conflict check
 
 - **Duplicate**: strengthen that entry instead of adding a second.
 - **Contradiction**: do NOT write — report and stop.
 
-For a new rule the engine appends in each site's native form.
+## 7. Output contract
+"""
+_FAILING_REF = """\
+## §6-memory — why the memory scan is two steps
+
+Nothing here states a gate.
 """
 
 # The three mutations that defeated the pattern-based checks, in the order review found them:
 # keywords deleted; keywords kept but every claim inverted; and — the one a negation pattern
-# still passed — the paragraph left intact with a single contradicting clause appended.
-_REFUSING_GATE = _PASSING.replace(
+# still passed — the paragraph left intact with a single contradicting clause appended. Since
+# #663 they mutate the CANONICAL copy, which is reference.md's.
+_REFUSING_GATE = _PASSING_REF.replace(
     "The gate\n**recommends only**:",
     "The gate **blocks the write** when it judges the rule unnecessary, asking a second\n"
     "question before anything is written:",
 )
-_INVERTED_GATE = _PASSING.replace(
+_INVERTED_GATE = _PASSING_REF.replace(
     "**recommends only**:",
     "**recommends only** as a label, but it **blocks the write** and raises its own second\nprompt:",
 )
-_APPENDED_CLAUSE = _PASSING.replace(
+_APPENDED_CLAUSE = _PASSING_REF.replace(
     "which stays distill's.",
     "which stays distill's. It does stop the write when the answer is clearly no.",
 )
+# #663: the section-scoped slice runs to the END of `## §6-gate-contract`, so a contradicting
+# clause parked BELOW the block — outside the old content-addressed end anchor — is now inside
+# the pin. This case is what proves that, and it is the mutation the split made possible.
+_TRAILING_CLAUSE = _PASSING_REF.replace(
+    "\n## §6-gate — why it exists",
+    "\nIf the answer to any of the four is against landing, do NOT write; only a rule that\n"
+    "clears all four reaches §3 at all.\n\n## §6-gate — why it exists",
+)
 # The same contract with every line break moved: whitespace is not the contract (#440), so this
 # must still read as unchanged.
-_REFLOWED_GATE = _PASSING.replace(_GATE_CONTRACT, _normalise(_GATE_CONTRACT))
+_REFLOWED_GATE = _PASSING_REF.replace(_GATE_CONTRACT, _normalise(_GATE_CONTRACT))
 
 # Question 3 dropped — the exact question P14 needed. The other checks stay green, so this
 # fixture is what keeps check_four_questions from degrading into "a gate exists".
-_MISSING_QUESTION_3 = _PASSING.replace(
+_MISSING_QUESTION_3 = _PASSING_REF.replace(
     "3. Is **something else already asking the same question** — a hook, a CI guard, an existing\n"
     "   confirmation checkpoint, the tool itself? A doubled gate is dead weight.\n",
     "",
 )
 
-# The gate is summarised in `## Rules` but the executable block is gone. A whole-document
+# The section exists but holds only a summary; the executable block is gone. A whole-document
 # matcher passes this; the scoped slice must not.
-_SUMMARY_ONLY = """\
-## 6. Conflict check
+_SUMMARY_ONLY_REF = """\
+## §6-gate-contract — the necessity gate, CANONICAL text
 
-- **Duplicate**: strengthen that entry instead of adding a second.
+The necessity gate runs before every landing: four questions, three outcomes
+(pass / absorb / recommend not landing), and it recommends only.
 
-For a new rule the engine appends in each site's native form.
-
-## Rules
-
-- The necessity gate runs before every landing: four questions, three outcomes
-  (pass / absorb / recommend not landing), and it recommends only.
+## §6-gate — why it exists
 """
 
 # §3 offers one hardcoded don't-land wording for both non-통과 outcomes — the defect that
 # misreports an absorb verdict to the user answering it.
-_ONE_GENERIC_REFUSAL = _PASSING.replace(
+_ONE_GENERIC_REFUSAL = _PASSING_SKILL.replace(
     """— unless 필요성 is not 통과,
 and then the gate's recommendation is the first option: 기존 항목으로 충분 asks about folding it
 into that entry, 안 넣는 게 나음 asks whether to land it at all.""",
@@ -364,87 +446,144 @@ into that entry, 안 넣는 게 나음 asks whether to land it at all.""",
 and then ask "이건 안 넣는 게 나아 보이는데, 그래도 넣을까요?" instead.""",
 )
 
+# The #663 seam, from the SKILL.md side: the pointer is the only thing left in the body that
+# reaches the contract, so its two decay modes get fixtures of their own.
+_POINTER_DROPPED = _PASSING_SKILL.replace(
+    """Canonical binding text:
+[reference.md](reference.md) §6-gate-contract — read that section and apply it as written.""",
+    "The engine weighs whether a new entry is needed.",
+)
+_POINTER_BARE_CITATION = _PASSING_SKILL.replace(
+    " — read that section and apply it as written.", " (background reading).",
+)
 
-# A fixture built by `.replace()` whose target string has drifted silently becomes a copy of
-# its base, and an expect-FAIL case on a copy of _PASSING would then be testing nothing.
-for _name, _fixture in (
-    ("_REFUSING_GATE", _REFUSING_GATE),
-    ("_INVERTED_GATE", _INVERTED_GATE),
-    ("_APPENDED_CLAUSE", _APPENDED_CLAUSE),
-    ("_REFLOWED_GATE", _REFLOWED_GATE),
-    ("_MISSING_QUESTION_3", _MISSING_QUESTION_3),
-    ("_ONE_GENERIC_REFUSAL", _ONE_GENERIC_REFUSAL),
-):
-    assert _fixture != _PASSING, f"{_name} is identical to _PASSING — its .replace() no-opped"
+# The pointer moved out of §6: §6 is still there, and the engine reading it at the gate finds
+# nothing. The whole-document fallback would pass this, the §6 scope must not.
+_POINTER_OUTSIDE_SECTION_6 = """\
+add-policy never re-judges the rule's reuse value; it judges whether a new artifact is needed.
 
+## 1. Input contract
 
-# A verbatim copy of the contract parked in §4, with §6's real gate replaced by a hard
-# blocker. On a whole-file search the pin read the copy and passed; scoped to §6 it must not.
-_DECOY_ELSEWHERE = """\
-## 4. User-shell receiver
+- 필요성: <통과 | 기존 항목으로 충분 | 안 넣는 게 나음 — <이유 한 줄>>
 
-%s
-For a new rule the engine appends in each site's native form.
+Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" — unless 필요성 is not 통과,
+and then the gate's recommendation is the first option: 기존 항목으로 충분 asks about folding it
+into that entry, 안 넣는 게 나음 asks whether to land it at all.
 
-## 6. Conflict check (target = the landfill site's current rules)
+## 5. Inviolability
 
-**The necessity check — after the conflict check.** Four questions decide it, and if any of
-them says no the engine does NOT write: it reports the finding and stops, exactly as a
-Contradiction does.
+**Necessity gate** — canonical binding text: [reference.md](reference.md) §6-gate-contract —
+read that section and apply it as written.
 
-For a new rule the engine appends in each site's native form.
+## 6. Conflict check
+
+- **Duplicate**: strengthen that entry instead of adding a second.
 
 ## 7. Output contract
-""" % _GATE_CONTRACT
-assert "## 6." in _DECOY_ELSEWHERE and _GATE_CONTRACT in _DECOY_ELSEWHERE
+"""
+
+
+# A fixture built by `.replace()` whose target string has drifted silently becomes a copy of
+# its base, and an expect-FAIL case on a copy of the base would then be testing nothing.
+# `## 6.` renamed: the §6 scope this check depends on no longer resolves. The locator is still
+# present and correct, so only the missing-scope guard can red this.
+_SECTION_6_HEADING_DRIFT = _PASSING_SKILL.replace("## 6. Conflict check", "## 6b. Conflict check")
+
+for _name, _fixture, _base in (
+    ("_SECTION_6_HEADING_DRIFT", _SECTION_6_HEADING_DRIFT, _PASSING_SKILL),
+    ("_REFUSING_GATE", _REFUSING_GATE, _PASSING_REF),
+    ("_INVERTED_GATE", _INVERTED_GATE, _PASSING_REF),
+    ("_APPENDED_CLAUSE", _APPENDED_CLAUSE, _PASSING_REF),
+    ("_TRAILING_CLAUSE", _TRAILING_CLAUSE, _PASSING_REF),
+    ("_REFLOWED_GATE", _REFLOWED_GATE, _PASSING_REF),
+    ("_MISSING_QUESTION_3", _MISSING_QUESTION_3, _PASSING_REF),
+    ("_ONE_GENERIC_REFUSAL", _ONE_GENERIC_REFUSAL, _PASSING_SKILL),
+    ("_POINTER_DROPPED", _POINTER_DROPPED, _PASSING_SKILL),
+    ("_POINTER_BARE_CITATION", _POINTER_BARE_CITATION, _PASSING_SKILL),
+):
+    assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
+assert _POINTER_OUTSIDE_SECTION_6 != _PASSING_SKILL
+
+
+# A verbatim copy of the contract parked in a neighbouring reference section, with the real
+# §6-gate-contract replaced by a hard blocker. On a whole-file search the pin read the copy and
+# passed; scoped to the section it must not.
+_DECOY_ELSEWHERE = (
+    "## §6-memory — why the memory scan is two steps\n"
+    "\n"
+    + _GATE_CONTRACT
+    + "\n"
+    "## §6-gate-contract — the necessity gate, CANONICAL text\n"
+    "\n"
+    "**Necessity gate — after the conflict check.** Four questions decide it, and if any of\n"
+    "them says no the engine does NOT write: it reports the finding and stops, exactly as a\n"
+    "Contradiction does.\n"
+    "\n"
+    "## §6-gate — why it exists\n"
+)
+assert _GATE_CONTRACT in _DECOY_ELSEWHERE and "## §6-gate-contract" in _DECOY_ELSEWHERE
+
+# Heading drift on a document that IS the real reference file (it carries the title line), so
+# the precondition must name the boundary instead of falling back to a whole-file match.
+_HEADING_DRIFT = (_REFERENCE_TITLE + "\n\n" + _DECOY_ELSEWHERE).replace(
+    "## §6-gate-contract —", "## §6 gate contract —"
+)
+assert _REFERENCE_TITLE in _HEADING_DRIFT and "## §6-gate-contract" not in _HEADING_DRIFT
 
 
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
     for check in _CHECKS:
-        ok, _ = check(_PASSING)
+        ok, _ = check(_PASSING_SKILL, _PASSING_REF)
         cases.append((f"passing: {check.__name__}", ok))
 
     for check in _CHECKS:
-        ok, _ = check(_FAILING)
+        ok, _ = check(_FAILING_SKILL, _FAILING_REF)
         cases.append((f"no-gate: {check.__name__} (expect FAIL)", not ok))
 
+    # #663: every one of these corrupts the CANONICAL copy, which is reference.md's.
     for name, fixture in (
         ("refusing", _REFUSING_GATE),
         ("inverted", _INVERTED_GATE),
         ("appended-contradicting-clause", _APPENDED_CLAUSE),
+        ("clause-parked-below-the-block", _TRAILING_CLAUSE),
     ):
-        ok, _ = check_gate_block_verbatim(fixture)
-        cases.append((f"{name}-gate: check_gate_block_verbatim (expect FAIL)", not ok))
+        ok, _ = check_gate_block_verbatim(_PASSING_SKILL, fixture)
+        cases.append((f"reference.md {name}-gate: check_gate_block_verbatim (expect FAIL)", not ok))
 
-    # Both single- and double-heading drift, on a document with frontmatter (the real file's
-    # shape). The second is the case the `## 6.`-mention precondition delegated to a sibling.
-    _fm = "---\nname: add-policy\n---\n\n" + _DECOY_ELSEWHERE
-    for name, drifted in (
-        ("§7-renamed", _fm.replace("## 7. Output", "## 7 Output")),
-        ("both-headings-renamed", _fm.replace("## 7. Output", "## 7 Output").replace("## 6. ", "## 6 ")),
-    ):
-        ok, msg = check_gate_block_verbatim(drifted)
-        cases.append((f"header-drift ({name}): names the boundary (expect FAIL)",
-                      (not ok) and "boundary not found" in msg))
+    ok, msg = check_gate_block_verbatim(_PASSING_SKILL, _HEADING_DRIFT)
+    cases.append(("header-drift (§6-gate-contract renamed): names the boundary (expect FAIL)",
+                  (not ok) and "boundary not found" in msg))
 
-    ok, _ = check_gate_block_verbatim(_DECOY_ELSEWHERE)
-    cases.append(("decoy-copy-outside-§6: check_gate_block_verbatim (expect FAIL)", not ok))
+    ok, _ = check_gate_block_verbatim(_PASSING_SKILL, _DECOY_ELSEWHERE)
+    cases.append(("decoy-copy-outside-§6-gate-contract: check_gate_block_verbatim (expect FAIL)", not ok))
 
-    ok, _ = check_gate_block_verbatim(_REFLOWED_GATE)
+    ok, _ = check_gate_block_verbatim(_PASSING_SKILL, _REFLOWED_GATE)
     cases.append(("reflowed-gate: check_gate_block_verbatim (still OK)", ok))
 
-    ok, _ = check_four_questions(_MISSING_QUESTION_3)
+    ok, _ = check_four_questions(_PASSING_SKILL, _MISSING_QUESTION_3)
     cases.append(("missing-question-3: check_four_questions (expect FAIL)", not ok))
-    ok, _ = check_three_outcomes(_MISSING_QUESTION_3)
+    ok, _ = check_three_outcomes(_PASSING_SKILL, _MISSING_QUESTION_3)
     cases.append(("missing-question-3: check_three_outcomes (still OK)", ok))
 
     for check in (check_four_questions, check_three_outcomes, check_gate_block_verbatim):
-        ok, _ = check(_SUMMARY_ONLY)
+        ok, _ = check(_PASSING_SKILL, _SUMMARY_ONLY_REF)
         cases.append((f"summary-only: {check.__name__} (expect FAIL)", not ok))
 
-    ok, _ = check_confirmation_surfaces_the_recommendation(_ONE_GENERIC_REFUSAL)
+    # The seam #663 created: SKILL.md's body must keep a live pointer at the canonical text.
+    for name, skill_fixture in (
+        ("pointer-dropped", _POINTER_DROPPED),
+        ("pointer-bare-citation", _POINTER_BARE_CITATION),
+        ("pointer-outside-§6", _POINTER_OUTSIDE_SECTION_6),
+        # Heading drift: with `## 6.` renamed there is no §6 to scope to. The scope must NOT
+        # silently widen to the whole document, or a §5-parked locator would read as reachable.
+        ("§6-heading-drift", _SECTION_6_HEADING_DRIFT),
+    ):
+        ok, _ = check_gate_present_and_positioned(skill_fixture, _PASSING_REF)
+        cases.append((f"{name}: check_gate_present_and_positioned (expect FAIL)", not ok))
+
+    ok, _ = check_confirmation_surfaces_the_recommendation(_ONE_GENERIC_REFUSAL, _PASSING_REF)
     cases.append((
         "one-generic-refusal: check_confirmation_surfaces_the_recommendation (expect FAIL)",
         not ok,
@@ -469,14 +608,15 @@ def main(argv: list[str]) -> int:
         print("Running self-test (in-memory fixtures)...\n")
         return _self_test()
 
-    print(f"Checking: {_SKILL_PATH}\n")
+    print(f"Checking: {_SKILL_PATH}\n          {_REFERENCE_PATH} (gate contract, #663)\n")
     try:
         text = _load_skill()
+        reference = _load_reference()
     except FileNotFoundError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
 
-    passed, failed = run_checks(text)
+    passed, failed = run_checks(text, reference)
     print()
     if failed:
         print(f"RESULT: {failed} check(s) FAILED — see above.")
