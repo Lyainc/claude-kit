@@ -124,27 +124,16 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
       Applies `type == wiki` (always included — #272), `.vault-link` `vault_path`
       directory-scoped prefix, domain-keyword tag/workstream match, or `status == active`.
       Output: `{"candidate_count": N, "candidates": [...]}`.
-   b. **Truncation check**: parse failure, or `len(candidates) != candidate_count`, means
-      truncation — don't trust a partial set. Log "manifest 후보 목록이 잘렸을 수 있어 전체
-      스캔으로 대체합니다." and fall through to the standard scan below. Same fallback when
-      `python3`/the script is unavailable or it exits 3 (manifest absent/unparseable) —
-      distinct from a legitimately empty vault (`candidate_count: 0`, exit 0).
-   c. Sort candidates: `status=active` first, then by the Question-Type Routing tier (§ above —
-      wiki candidates surface before notes/sources for a 정의/사실 질문, and vice versa for a
-      경위/이력 질문, `type: discussion` counts as notes/sources-tier; no reordering for 분류 불가),
-      then by recall-weight signals already in
-      the manifest entry — `recent_commits` descending (count of git commits touching the
-      file in the **last 7 days** = recent activity, not all-time work; it measures *writing*,
-      never reads, and a vault left uncommitted for a week scores 0 everywhere — silent, not
-      meaningful, so never read a 0 as "this page is cold"), then
-      `references_in` descending (cross-note wikilink weight), then `type: wiki` preferred
-      (the A layer is the primary recall target, so a wiki page wins a tie over an
-      equally-scored note — a *tiebreaker only*, never an override that buries a more
-      relevant non-wiki hit) — and finally `mtime` descending as the last tiebreaker.
-      These signals are free: `generate-manifest.py` `_enrich` already populates them.
-   d. Select top ≤ 5 candidates by priority.
-   e. Read only those specific files. Skip the MOC/grep scan entirely.
-   f. **Staleness check**: if manifest `generated_at` is older than 24 hours OR any candidate file's actual `mtime` (via `stat`) is newer than the manifest's `generated_at`, fall through to standard scan below and log a warning: "manifest가 오래되었거나 변경 파일이 있어 전체 스캔으로 대체합니다."
+   b. **Truncation check**: apply § The truncation-check invariant in
+      `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that section is the binding
+      contract (parse failure or `len(candidates) != candidate_count` → fall through to the
+      standard scan below).
+   c. **Sort + select**: apply § Candidate ranking order in
+      `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that section is the binding
+      sort contract (active → Question-Type Routing tier → `recent_commits` →
+      `references_in` → `type: wiki` tiebreak → `mtime`, then top ≤ 5).
+   d. Read only those specific files. Skip the MOC/grep scan entirely.
+   e. **Staleness check**: if manifest `generated_at` is older than 24 hours OR any candidate file's actual `mtime` (via `stat`) is newer than the manifest's `generated_at`, fall through to standard scan below and log a warning: "manifest가 오래되었거나 변경 파일이 있어 전체 스캔으로 대체합니다."
 3. **If manifest absent or staleness detected**: proceed with standard full-scan procedure below (graceful degradation — behavior identical to pre-manifest).
 
 **Procedure** (standard, used when manifest is absent or stale):
@@ -214,17 +203,13 @@ Search the entire vault by keyword and load note contents.
 
 ## Rules
 
-- **Wiki staleness hedge (#305)**: `type: wiki` pages carry `verified:` (last-touched date) and,
-  when checkable, `anchor:` (a source file/URL the dominant claim traces to). When you return a
-  wiki page's content, mention its `verified:` age alongside it — this is the only staleness
-  signal a source-free (no `anchor:`) page has, since nothing else flags it as possibly outdated.
-  Don't silently present an old, anchor-free wiki claim as current fact; a plain "as of {verified}"
-  note is enough to let the caller hedge. Prefer `verified:` over the file's raw modification
-  date for this — the vault is git-committed (`/vault-commit`) and a clone/checkout resets
-  filesystem mtimes to the checkout time, so mtime can understate a page's real age while
-  `verified:` (committed frontmatter) survives that. A legacy `type: wiki` page written before
-  #305 may have no `verified:` field at all — don't invent a date; say the age is unknown
-  instead of silently omitting the hedge.
+- **Wiki staleness hedge (#305)**: when returning a `type: wiki` page's content, always hedge
+  it with the page's `verified:` age — prefer `verified:` over the file's modification date (a
+  git checkout resets mtimes, so mtime understates the real age), and if `verified:` is absent
+  say the age is unknown rather than inventing one. `anchor:` is the source file/URL the page's
+  dominant claim traces to; an anchor-free page has `verified:` as its only staleness signal.
+  Apply § The contract in `${CLAUDE_PLUGIN_ROOT}/reference/wiki-staleness.md` as written — that
+  section is the binding contract, this bullet is a locator.
 - **Never modify existing files**: this agent has no access to the Write tool. Do not overwrite or append to existing files.
 - **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests a session summary, instruct them to invoke `/vault-save` (runs inline in main context, saves `type:capture` to `sources/` immediately — no draft/confirmation step). For compiled, AI-recall domain knowledge distilled from the session, point them to `/wiki` instead.
 - **Vault only**: never access paths outside `{vault_root}`.

@@ -38,11 +38,43 @@ if it proves noisy in practice.
 
 ## The truncation-check invariant
 
+**Canonical text.** `vault-searcher.md` (Mode 2 step 2b, Mode 3 step 1) points here; this
+section is the binding contract, and the agent must apply it as written.
+
 Even with the prefilter running out-of-context, a caller must never trust a candidate
 list it cannot verify is complete: if the printed JSON fails to parse, or
 `len(candidates) != candidate_count`, something still went wrong between the script and
 the caller (a size limit on the Bash tool's own stdout capture, a truncated pipe, an
-unexpected editor injection) — the agent instructions (`vault-searcher.md` Mode 2 step
-2b, Mode 3 step 1) fall through to the standard full-scan path rather than silently
-searching a partial candidate set. This is the actual gate; this doc only explains why
-it exists.
+unexpected editor injection) — don't trust a partial set.
+
+On any of those, log "manifest 후보 목록이 잘렸을 수 있어 전체 스캔으로 대체합니다." and fall
+through to the standard full-scan path rather than silently searching a partial candidate
+set. The same fallback applies when `python3` or the script is unavailable, or the script
+exits 3 (manifest absent/unparseable) — which is distinct from a legitimately empty vault
+(`candidate_count: 0`, exit 0), where there is nothing to fall back for.
+
+## Candidate ranking order (Mode 2 step 2c)
+
+**Canonical text.** `vault-searcher.md` Mode 2 step 2c points here; this section is the
+binding sort contract.
+
+Sort the returned candidates:
+
+1. `status=active` first.
+2. Then by the Question-Type Routing tier (`vault-searcher.md` § Question-Type Routing) —
+   wiki candidates surface before notes/sources for a 정의/사실 질문, and vice versa for a
+   경위/이력 질문; `type: discussion` counts as notes/sources-tier; no reordering for 분류 불가.
+3. Then by the recall-weight signals already in the manifest entry: `recent_commits`
+   descending — the count of git commits touching the file in the **last 7 days**, i.e.
+   recent activity, not all-time work. It measures *writing*, never reads, and a vault left
+   uncommitted for a week scores 0 everywhere — silent, not meaningful, so never read a 0 as
+   "this page is cold".
+4. Then `references_in` descending (cross-note wikilink weight).
+5. Then `type: wiki` preferred — the A layer is the primary recall target, so a wiki page
+   wins a tie over an equally-scored note. A *tiebreaker only*, never an override that
+   buries a more relevant non-wiki hit.
+6. Finally `mtime` descending as the last tiebreaker.
+
+These signals are free: `generate-manifest.py`'s `_enrich` already populates them.
+
+Then select the top ≤ 5 candidates by this priority.
