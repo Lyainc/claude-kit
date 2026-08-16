@@ -885,6 +885,14 @@ python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py
 python3 obsidian-vault-manager/scripts/test/test-scan-summary-budget.py
 # Expected: OK: all 5 scan-summary budget/batching cases passed
 
+# The rules half of the same fix, fixture-free (#614): which predicate fires on what,
+# which fields survive the reduction, that a cut always announces itself, and that a file
+# the scan could not READ becomes its own `unreadable` bucket instead of a Critical E1 for
+# frontmatter nobody examined. Hand-built records, so it pins the RULES rather than
+# whatever gen-fixture.sh happens to seed — the budget test above covers the scale side.
+python3 obsidian-vault-manager/scripts/scan-summary.py --self-test
+# Expected: OK: all N scan-summary self-test cases passed
+
 # audit DoD 측정 (mechanical reference impl). Folded into ONE registered command
 # (#660) — check-test-exitcode.py runs each registered command in its own `bash -c`,
 # so shell state (e.g. a per-run `mktemp -d`) does not survive across separate lines.

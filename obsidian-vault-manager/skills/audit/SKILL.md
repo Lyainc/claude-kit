@@ -47,16 +47,19 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```
    Files absent from sidecar (untracked) are treated as dirty. Files with `status: clean` are skipped unless `--force` was passed.
 
-> **`audit-state` exit 3 applies to EVERY call** (#443) — the state file is unusable, nothing
-> is written back, the original is preserved at `<path>.corrupt-<ISO8601>`. **STOP the audit at
-> the first exit 3**, never treat it as empty state; report the sidecar path in Korean and point
-> at `.bak` (recovery detail: `scripts/README.md` → `audit-state`).
+> **`audit-state` exit 3 applies to EVERY call** (#443) — the state file is unusable and
+> nothing is written back. **STOP the audit at the first exit 3**, never treat it as empty
+> state; report the sidecar path in Korean (what is preserved where, and how to recover:
+> `scripts/README.md` → `audit-state`).
 
 4. Emit a Korean scan-start status line: file count targeted + estimated scan time.
 
 5. Run frontmatter scan (`--path`-scoped) **into a file** — never to stdout. `$scan_tmp` is
    a fresh per-run dir (`mktemp -d`, never a fixed `/tmp` path — concurrent audits would
-   overwrite each other's scans); Steps 5–7 write there and Step 7b reads them back:
+   overwrite each other's scans); Steps 5–7 write there and Step 7b reads them back.
+   **Run Steps 5–7b in ONE Bash call** — shell state does not survive between Bash calls
+   and a `mktemp -d` value cannot be re-derived, so a split run resolves `"$scan_tmp/..."`
+   against an empty variable:
    ```bash
    scan_tmp="$(mktemp -d)"
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$scan_dir" > "$scan_tmp/fm.json"
@@ -71,29 +74,27 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    **never `--path`-scoped** (same E9 exception as Step 9): a file in-scope can still be
    linked from outside it.
 
-   ONE dir-shaped call returns the FINISHED index — the subcommand walks the vault in a
-   single python process and assembles it, so never drive a `find` loop and never call
-   `extract-wikilinks` per file: 528 round trips / ~110s became 0.14s (#614).
+   ONE dir-shaped call returns the FINISHED index — never drive a `find` loop and never
+   call `extract-wikilinks` per file (#614):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks-batch "$VAULT_ROOT" > "$scan_tmp/links.json"
    ```
-   Wikilinks inside code fences or inline code are masked out (#434) — a backticked `[[Note]]` is a syntax example, and over-masking would hide a real inbound link and manufacture a false E5 orphan.
+   Wikilinks inside code fences or inline code are masked out (#434).
 
 7b. Reduce those three files to the bundle — the ONLY form of them CLASSIFY ever sees:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scan-summary.py" \
      --frontmatter "$scan_tmp/fm.json" --filename "$scan_tmp/fn.json" --index "$scan_tmp/links.json"
    ```
-   **Never `cat` a raw scan file** — same rule and reason as Step 8's manifest (#468, #460)
-   at a worse scale: 175 KB + 116 KB on a 528-file vault against a 2 KB preview, so a raw
-   `cat` degrades to whichever few records survive the cut and reads as a nearly-clean
-   vault (#614).
+   **Never `cat` a raw scan file** — same rule as Step 8's manifest (#468, #460) at a
+   worse scale; measurements and the cap rationale: `reference/vault-audit-rules.md` →
+   `## SCAN output budget`.
    Exit 0 → parse stdout as the scan bundle (shape below).
    Exit 3 (a scan file absent or unparseable) → **STOP the audit**, name the unusable input;
    never fall back to a raw `cat`, never treat it as an empty scan.
-   `omitted: N` means that type's list was CUT. For the rest, re-run with a larger
-   `--max-per-type` into `"$scan_tmp/summary.json"` and open it with **Read** (Read
-   paginates; Bash stdout truncates).
+   `omitted: N` means that type's list was CUT — re-run with a larger `--max-per-type`
+   into `"$scan_tmp/summary.json"` and open it with **Read** (Read paginates; Bash
+   stdout truncates).
 
 8. Read manifest summary (used for REPORT header) through the filter script — **never `cat` the
    manifest directly** (#468, #460). Uses the `$VAULT_ROOT` from Step 1:
@@ -136,6 +137,11 @@ and are NEVER read into context — CLASSIFY gets only the reduced form (#614):
 ```
 `count` is the FULL number found; `paths`/`records` may be a capped prefix. Report `count`,
 never the emitted-list length, and say a list was cut whenever `omitted` is present.
+**Bullet-per-file or per-finding work (REPORT's file bullets, Phase 4's E2 batch) needs the
+whole list** — whenever that type carries `omitted`, re-run Step 7b with a larger
+`--max-per-type` into a file and **Read** it before acting.
+An `unreadable` bucket means those files could not be READ at all — report them as their
+own item, never as E1/E5 findings about content nobody examined.
 
 **Termination condition**: All scan data collected. Proceed to CLASSIFY.
 
@@ -147,7 +153,7 @@ never the emitted-list length, and say a list was cut whenever `omitted` is pres
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (9: E1–E3, E5–E6, E9–E11, E12 — E4/E7/E8 are retired, never reused; see the reference for why). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
+**Error types** (9: E1–E3, E5–E6, E9–E11, E12 — E4/E7/E8 are retired, never reused).
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|

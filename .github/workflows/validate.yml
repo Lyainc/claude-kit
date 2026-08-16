@@ -352,6 +352,7 @@ jobs:
           # #614 Phase 1 SCAN preview budget + wikilink batching (builds a 528-file
           # fixture under its own mktemp dir, ~25s).
           python3 obsidian-vault-manager/scripts/test/test-scan-summary-budget.py
+          python3 obsidian-vault-manager/scripts/scan-summary.py --self-test
           # #531 notes/ filename convention parity gate: audit's filename_conforms() vs
           # pre-write-guard.sh's notes/ pattern must agree.
           python3 obsidian-vault-manager/scripts/test/test-notes-filename-consistency.py
