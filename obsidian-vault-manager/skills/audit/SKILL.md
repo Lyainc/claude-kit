@@ -47,33 +47,53 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```
    Files absent from sidecar (untracked) are treated as dirty. Files with `status: clean` are skipped unless `--force` was passed.
 
-> **`audit-state` exit 3 applies to EVERY call** (#443: `list-dirty-since`, `is-clean`,
-> `mark-clean`, `invalidate`, `stats`) — the state file is unusable; the original is preserved at
-> `<path>.corrupt-<ISO8601>`, nothing is written back. **STOP the audit at the first exit 3**,
-> never treat it as empty state. Report in Korean: the sidecar path, and that `.bak` holds the
-> last good state if present (deleting `audit-state.json` instead discards all audit state).
+> **`audit-state` exit 3 applies to EVERY call** (#443) — the state file is unusable, nothing
+> is written back, the original is preserved at `<path>.corrupt-<ISO8601>`. **STOP the audit at
+> the first exit 3**, never treat it as empty state; report the sidecar path in Korean and point
+> at `.bak` (recovery detail: `scripts/README.md` → `audit-state`).
 
 4. Emit a Korean scan-start status line: file count targeted + estimated scan time.
 
-5. Run frontmatter scan (`--path`-scoped):
+5. Run frontmatter scan (`--path`-scoped) **into a file** — never to stdout. `$scan_tmp` is
+   a fresh per-run dir (`mktemp -d`, never a fixed `/tmp` path — concurrent audits would
+   overwrite each other's scans); Steps 5–7 write there and Step 7b reads them back:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$scan_dir"
+   scan_tmp="$(mktemp -d)"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$scan_dir" > "$scan_tmp/fm.json"
    ```
 
-6. Run filename scan (`--path`-scoped):
+6. Run filename scan (`--path`-scoped), same redirect:
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-filename "$scan_dir"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-filename "$scan_dir" > "$scan_tmp/fn.json"
    ```
 
 7. Build a global link index (`{target_stem → [source_paths]}`) from wikilinks vault-wide —
    **never `--path`-scoped** (same E9 exception as Step 9): a file in-scope can still be
    linked from outside it.
 
-   Run `extract-wikilinks` on every `.md` file found by:
+   Pipe the file list into the BATCH subcommand — ONE python process for the whole vault.
+   Never loop `extract-wikilinks` per file: 528 round trips / ~110s became 0.14s (#614).
    ```bash
-   find "$VAULT_ROOT" -name '*.md' -not -path '*/.*'
+   find "$VAULT_ROOT" -name '*.md' -not -path '*/.*' \
+     | bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks-batch - > "$scan_tmp/links.json"
    ```
-   Wikilinks inside code fences or inline code are masked out before extraction (#434) — a backticked `[[Note]]` is a syntax example, not a real link, and over-masking would hide a real inbound link and manufacture a false E5 orphan.
+   Wikilinks inside code fences or inline code are masked out (#434) — a backticked `[[Note]]` is a syntax example, and over-masking would hide a real inbound link and manufacture a false E5 orphan.
+
+7b. Reduce those three files to the bundle — the ONLY form of them CLASSIFY ever sees:
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scan-summary.py" \
+     --frontmatter "$scan_tmp/fm.json" --filename "$scan_tmp/fn.json" --links "$scan_tmp/links.json"
+   ```
+   **Never `cat` a raw scan file** — same rule and reason as Step 8's manifest (#468, #460)
+   at a worse scale: 175 KB + 116 KB on a 528-file vault against a 2 KB preview, so a raw
+   `cat` degrades to whichever few records survive the cut and reads as a nearly-clean
+   vault (#614).
+   Exit 0 → parse stdout as the scan bundle (shape below).
+   Exit 3 (a scan file absent or unparseable) → **STOP the audit**, name the unusable input;
+   never fall back to a raw `cat`, never treat it as an empty scan.
+   `omitted: N` means that type's list was CUT. For the rest, re-run with a larger
+   `--max-per-type` into `"$scan_tmp/summary.json"` and open it with **Read** (Read
+   paginates; Bash stdout truncates).
 
 8. Read manifest summary (used for REPORT header) through the filter script — **never `cat` the
    manifest directly** (#468, #460). Uses the `$VAULT_ROOT` from Step 1:
@@ -94,20 +114,27 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
     ```bash
     bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" e5-candidates "$VAULT_ROOT/notes"
     ```
-    Vault-wide, unscoped; paths are `$VAULT_ROOT`-relative, matching Steps 5–6 (#631) — join
-    on `rec.path` directly.
+    Vault-wide, unscoped; paths are `$VAULT_ROOT`-relative (#631) — join on `rec.path`.
 
-**Outputs**: An in-memory scan bundle:
+**Outputs**: An in-memory scan bundle. The raw per-file scans stay on disk in `$scan_tmp`
+and are NEVER read into context — CLASSIFY gets only the reduced form (#614):
 ```
 {
-  frontmatter_records[],   // from scan-frontmatter
-  filename_records[],      // from scan-filename
-  inbound_links{}          // target_stem → source_paths[]
+  scan_summary {           // Step 7b — replaces raw frontmatter/filename records + link index
+    total_files, max_per_type,
+    errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified — each
+                           // {count, paths[] | records[], omitted?}; ONLY defect-bearing
+                           // entries, clean files never appear. Per-type field set:
+                           // scripts/README.md → scan-summary.py.
+    }
+  }
   manifest_summary?        // {file_count, generated_at} or null
   vocabulary_pairs[]       // from detect-vocabulary (E9, vault-wide)
-  e5_candidates[]          // from e5-candidates (E5)
+  e5_candidates[]          // from e5-candidates (E5) — joined to E5 paths by path
 }
 ```
+`count` is the FULL number found; `paths`/`records` may be a capped prefix. Report `count`,
+never the emitted-list length, and say a list was cut whenever `omitted` is present.
 
 **Termination condition**: All scan data collected. Proceed to CLASSIFY.
 
@@ -119,19 +146,19 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (9 types: E1–E3, E5–E6, E9–E11 v4, E12 v5 — E4 was removed as a native-Obsidian duplicate, #482; E7/E8 were removed with the v4 §3.3 status-machine promotion gate, v5 §6, #480). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
+**Error types** (9: E1–E3, E5–E6, E9–E11, E12 — E4/E7/E8 are retired, never reused; see the reference for why). Detailed pseudocode and false-positive guards live in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` — read that file when implementing or debugging classification logic.
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
-| E1 | `missing_frontmatter` | Critical | P0 | `frontmatter_records` | — |
-| E2 | `missing_required_fields` | Critical | P0 | `frontmatter_records` | ✓ (add fields; `tags:` inferred via type/slug/folder — see Phase 4) |
-| E3 | `filename_convention_violation` | Warning | P0 | `filename_records` | — (suggests `권장 파일명`) |
-| E5 | `orphan_note` | Warning | P2 | `inbound_links` | — (suggests tag-based `연결 후보`) |
-| E6 | `stale_inbox` | Warning | P1 | `frontmatter_records` (`created` + `status`) | — |
-| E9 | `tag_vocabulary_inconsistency` | Warning | P2 | `frontmatter_records` (vault-wide tags + keys) | — (display-only; `path: ""`) |
-| E10 | `misplaced_file` | Warning | P1 | `frontmatter_records` (`type` + folder) | — (display-only) |
-| E11 | `unstructured_path` | Warning | P1 | `frontmatter_records` (path) | — (display-only) |
-| E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified`, #494) | Warning | P1 | `frontmatter_records` (`wiki/` path + `type: wiki` + `verified`) | — (display-only) |
+| E1 | `missing_frontmatter` | Critical | P0 | `scan_summary.errors.E1` | — |
+| E2 | `missing_required_fields` | Critical | P0 | `scan_summary.errors.E2` | ✓ (add fields; `tags:` inferred via type/slug/folder — see Phase 4) |
+| E3 | `filename_convention_violation` | Warning | P0 | `scan_summary.errors.E3` | — (suggests `권장 파일명`) |
+| E5 | `orphan_note` | Warning | P2 | `scan_summary.errors.E5` + `e5_candidates` | — (suggests tag-based `연결 후보`) |
+| E6 | `stale_inbox` | Warning | P1 | `scan_summary.errors.E6` | — |
+| E9 | `tag_vocabulary_inconsistency` | Warning | P2 | `vocabulary_pairs` (vault-wide, Step 9) | — (display-only; `path: ""`) |
+| E10 | `misplaced_file` | Warning | P1 | `scan_summary.errors.E10` | — (display-only) |
+| E11 | `unstructured_path` | Warning | P1 | `scan_summary.errors.E11` | — (display-only) |
+| E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified`, #494) | Warning | P1 | `scan_summary.errors.E12_stale` / `.E12_unverified` | — (display-only) |
 
 > **The table above is a summary; the binding rules are in
 > `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md`** — priority rationale per code
@@ -164,7 +191,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 **Skip condition**: `--deep` not passed → skip this phase entirely and go to REPORT. This is the default.
 
-**When `--deep` IS passed**: this is the only path with real LLM judgment (cross-page contradiction, semantic synonym). Read `${CLAUDE_PLUGIN_ROOT}/reference/audit-deep.md` and follow it. It holds the full procedure for both sub-checks — E12b (cross-page wiki contradiction, #336) and E9c (tag semantic synonym, #167) — each with its own deterministic candidate prefilter and its own per-candidate `AskUserQuestion` confirm gate. Every confirmed pair becomes a finding appended to the CLASSIFY list (E12b → `wiki_contradiction`; E9c → the existing `tag_vocabulary_inconsistency` bucket). A declined candidate is dropped silently.
+**When `--deep` IS passed**: read `${CLAUDE_PLUGIN_ROOT}/reference/audit-deep.md` and follow it — it holds the full procedure for both sub-checks, E12b (cross-page wiki contradiction, #336) and E9c (tag semantic synonym, #167), each with its own deterministic prefilter and per-candidate `AskUserQuestion` confirm gate. Only confirmed pairs become findings (E12b → `wiki_contradiction`; E9c → the existing `tag_vocabulary_inconsistency` bucket); a declined candidate is dropped silently.
 
 **Termination condition**: All candidate pairs judged and either confirmed or declined. Proceed to REPORT.
 
@@ -180,11 +207,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 
 ## REPORT Output Contract
 
-Output is grouped by priority:
-- **P0** (CRITICAL findings): Must-fix items listed first
-- **P1** (WARNING findings): Should-fix items
-- **P2** (INFO findings): Nice-to-fix items
-
+Output is grouped by priority, P0 (must-fix) first, then P1, then P2.
 Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3 within P0; E6→E10→E11→E12 within P1; E5→E9 within P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
 
 Each finding line format: `[E-code/priority/severity] type — N건` header, then one bullet per file with path and one-line description.
@@ -198,7 +221,7 @@ If zero findings: output "이슈 없음 — 볼트가 깨끗합니다."
 A representative sample of this layout (header, per-priority groups, footer) is in
 `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` under **REPORT output example**.
 
-> **사용자 확인 게이트는 OPTIONAL-FIX 단계(E2 자동 수정)에만 적용됩니다** — 그 외 항목은 표시만 합니다. E6/E9/E10/E11/E12는 의미적 판단(처리/archive/이동/정준형 선택/재컴파일)이 필요해 auto-fix 대상이 아닙니다. (정렬 순서는 위 REPORT Output Contract 참조.)
+> **사용자 확인 게이트는 OPTIONAL-FIX(E2 자동 수정)에만 적용됩니다** — 나머지 타입은 의미적 판단이 필요해 표시만 합니다.
 
 **Termination condition**: Report displayed. Proceed to OPTIONAL-FIX if auto-fixable items exist and user has not already opted out. Otherwise exit after marking clean.
 
@@ -220,12 +243,10 @@ A representative sample of this layout (header, per-priority groups, footer) is 
   origin instead of writing a placeholder.
 
 **Tag inference** (#127, deterministic — no LLM; batched #152): when `tags:` is missing, do
-NOT insert an empty `tags: []`. Derive a tag PROPOSAL from three tiers (1 `type:` field, 2
-filename slug, 3 first segment under `notes/`) via a SINGLE batched call
+NOT insert an empty `tags: []`. Derive a tag PROPOSAL via a SINGLE batched
 `ovm-primitives.sh infer-tags <relpath1> <relpath2> ...` — one Python process for all E2
-findings, not one per finding. It emits a JSON array, one element per path, order preserved,
-duplicates dropped, all lowercased. The tier rules and worked examples are in
-`${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` under **E2 tag inference**.
+findings, never one per finding. Tier rules and worked examples:
+`${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **E2 tag inference**.
 The proposal is never auto-committed — it is previewed in the confirmation gate below.
 
 **Auto-fix NOT eligible** (never mutate): E1, E3, E5, E6, E9, E10, E11, E12 — every one of them
@@ -240,16 +261,12 @@ canonical-form choice, recompile). The binding list with each type's reason:
    such relpaths as arguments — see **Tag inference** above):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" infer-tags <relpath1> <relpath2> ...
-   # Large batch (more than ~200 tag-missing E2 findings, to stay well under any
-   # platform's ARG_MAX)? Pipe one relpath per line instead:
-   #   printf '%s\n' <relpath1> <relpath2> ... | bash ".../ovm-primitives.sh" infer-tags -
+   # >~200 paths (ARG_MAX headroom)? Pipe one per line into `infer-tags -` instead.
    ```
-   The command returns a JSON array; match each element's `path` back to its
-   finding. Per-file failures surface as an `error` field on that element with
-   `inferred_tags: []` (the batch still succeeds for the rest — exit code is
-   non-zero only when EVERY path failed). Then ask (single AskUserQuestion). For
-   each file with an inferred `tags:`, show the proposal on its own line as
-   `추론된 태그: [X, Y, Z]`:
+   Match each element's `path` back to its finding. A per-file failure surfaces as
+   `error` + `inferred_tags: []` on that element and the batch still succeeds (exit
+   is non-zero only when EVERY path failed). Then ask (single AskUserQuestion),
+   showing each inferred proposal on its own line as `추론된 태그: [X, Y, Z]`:
    ```
    AskUserQuestion:
      question: "다음 F건의 frontmatter 이슈를 자동으로 수정할까요?"
@@ -305,7 +322,7 @@ canonical-form choice, recompile). The binding list with each type's reason:
 | `--dry-run` | Run SCAN→CLASSIFY→REPORT but skip OPTIONAL-FIX and mark-clean |
 | `--path <dir>` | Scope Steps 5–6 to `$VAULT_ROOT/<dir>` (link index/E9 stay vault-wide) |
 | `--reset-state` | Call `audit-state invalidate` on all vault files before scanning |
-| `--deep` | Opt-in LLM path (#336, #167): after CLASSIFY, run Phase 2.5 DEEP to judge candidate `wiki/` page pairs for cross-page semantic contradiction (E12b) and candidate tag pairs for semantic synonym (E9c). Off by default. |
+| `--deep` | Opt-in LLM path (#336, #167): run Phase 2.5 DEEP after CLASSIFY (E12b + E9c). Off by default. |
 | `status` | Bare positional arg (not `--flag`). Skips SCAN/CLASSIFY/REPORT/OPTIONAL-FIX: run `audit-state stats`, render as one Korean status line, terminate — no mutation. |
 
 ---
@@ -321,4 +338,3 @@ canonical-form choice, recompile). The binding list with each type's reason:
 - The AskUserQuestion in OPTIONAL-FIX is the only allowed user interaction, EXCEPT the Phase 2.5 DEEP confirm gates (`--deep` only, E12b and E9c).
 - Phase 2.5 DEEP never runs without `--deep`. Without it, this skill makes zero LLM judgment calls end to end.
 - Every DEEP candidate MUST pass the AskUserQuestion confirm gate before becoming a finding — no silent auto-report of a semantic judgment.
-- Severity levels: Critical (data integrity risk), Warning (quality/navigation risk), Info (style/convention).
