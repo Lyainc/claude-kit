@@ -779,15 +779,22 @@ python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
 python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py
 # Expected: OK: all 3 audit-vault-root-wiring cases passed
 
-# audit DoD 측정 (mechanical reference impl)
-rm -rf /tmp/ovm-fixture-audit-recheck
-OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
-  bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
-python3 obsidian-vault-manager/scripts/test/audit-validate.py \
-  /tmp/ovm-fixture-audit-recheck --dod > /tmp/dod.json
-# Assert the date-independent DoD invariants (#175 — the CI `audit-dod` job runs this
-# exact gate; `--dod` itself always exits 0, assert-dod.py turns it into a real gate).
-python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
+# audit DoD 측정 (mechanical reference impl). Folded into ONE registered command
+# (#660) — check-test-exitcode.py runs each registered command in its own `bash -c`,
+# so shell state (e.g. a per-run `mktemp -d`) does not survive across separate lines.
+# That used to force a FIXED shared fixture path (/tmp/ovm-fixture-audit-recheck),
+# which meant two worktrees running this gate concurrently would create/delete each
+# other's fixture mid-run — surfacing as "seeded_detected drift: all detectors 0",
+# which reads like a real regression but was just fixture contention. The wrapper
+# owns a private mktemp -d fixture dir (trap-cleaned) and splits failure messages:
+# a broken fixture build reports "FIXTURE ERROR: ..." (exit 2), distinct from an
+# actual DoD invariant failure, which is assert-dod.py's own verdict/exit code.
+# The wrapper ends by asserting the date-independent DoD invariants (#175 — the CI
+# `audit-dod` job runs this exact gate; `--dod` itself always exits 0, assert-dod.py
+# turns it into a real gate). Keep `# Expected:` on the line DIRECTLY after the
+# command — extract_command_expected_pairs only looks at i+1, so a comment wedged
+# between them silently demotes this to an unchecked-stdout command (#578).
+bash obsidian-vault-manager/scripts/test/run-audit-dod.sh
 # Expected: OK: audit DoD invariants hold (...)
 # Expected (G8+) — the values assert-dod.py enforces:
 #   dod.seeded_detected = {E1:5, E2:5, E3:5, E5:6, E6:5, E9:2, E10:5, E11:5, E12:5,
