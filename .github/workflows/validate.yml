@@ -166,6 +166,7 @@ jobs:
           python3 vault-bridge/scripts/test/test-pre-write-guard.py
           python3 vault-bridge/scripts/test/test-vault-path.py
           python3 vault-bridge/scripts/test/test-manifest-type-optin.py
+          python3 vault-bridge/scripts/test/test-manifest-candidates.py --self-test
           python3 vault-bridge/scripts/test/test-manifest-candidates.py
           python3 vault-bridge/scripts/test/test-manifest-meta.py
           python3 vault-bridge/scripts/test/test-vault-commit-message.py
@@ -326,6 +327,7 @@ jobs:
           python3 obsidian-vault-manager/scripts/test/test-scan-scoped-path-basis.py
           python3 obsidian-vault-manager/scripts/test/test-audit-state-stats-and-untracked.py
           python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
+          python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py --self-test
           python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
           python3 obsidian-vault-manager/scripts/test/test-audit-state-corrupt.py
           python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
