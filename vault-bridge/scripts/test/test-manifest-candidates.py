@@ -31,8 +31,104 @@ _HERE = Path(__file__).resolve().parent
 _DOMAIN_SCRIPT = _HERE.parent / "manifest-domain-candidates.py"
 _KEYWORD_SCRIPT = _HERE.parent / "manifest-keyword-candidates.py"
 _AGENT = _HERE.parent.parent / "agents" / "vault-searcher.md"
+_REF = _HERE.parent.parent / "reference" / "manifest-recall.md"
+_STALENESS = _HERE.parent.parent / "reference" / "wiki-staleness.md"
 
 errors = []
+
+
+def _normalise(s: str) -> str:
+    """Whitespace is not the contract — reflowing a paragraph must not read as a rewrite."""
+    return " ".join(s.split())
+
+
+# ---------------------------------------------------------------------------
+# Canonical contract text (#663). vault-searcher.md sat at ~4,990 of the #447 5,000-token
+# budget, so the contract prose moved to reference/manifest-recall.md and the agent body
+# keeps a pointer. The pins FOLLOW the prose: they read the reference doc, which is now
+# canonical, plus the pointer that makes it binding from the agent's side.
+# ---------------------------------------------------------------------------
+
+_TRUNCATION_CONTRACT = _normalise("""
+a caller must never trust a candidate list it cannot verify is complete: if the printed JSON
+fails to parse, or `len(candidates) != candidate_count`, something still went wrong between the
+script and the caller
+""")
+
+_TRUNCATION_FALLBACK = _normalise("""
+fall through to the standard full-scan path rather than silently searching a partial candidate
+set
+""")
+
+_RANKING_CONTRACT = _normalise("""
+Then `type: wiki` preferred — the A layer is the primary recall target, so a wiki page wins a
+tie over an equally-scored note. A *tiebreaker only*, never an override that buries a more
+relevant non-wiki hit.
+""")
+
+_RANKING_SELECT = _normalise("Then select the top ≤ 5 candidates by this priority.")
+
+# The #305 wiki-staleness hedge, moved to reference/wiki-staleness.md by the same #663 split.
+# It was the one block whose pin did not follow it, and an unpinned region is one that can be
+# deleted with the whole suite green (#609 measured exactly that).
+_STALENESS_HEDGE = _normalise("""
+When you return a wiki page's content, mention its `verified:` age alongside it
+""")
+
+_STALENESS_MTIME = _normalise("""
+Prefer `verified:` over the file's raw modification date.
+""")
+
+_STALENESS_UNKNOWN = _normalise("""
+don't invent a date; say the age is unknown instead of silently omitting the hedge
+""")
+
+
+def static_checks(agent_text: str, ref_text: str, staleness_text: str) -> list:
+    """(condition, description) for every static guard over the agent + its canonical contract."""
+    ref = _normalise(ref_text)
+    stale = _normalise(staleness_text)
+    return [
+        ("manifest-domain-candidates.py" in agent_text,
+         "vault-searcher.md Mode 2 invokes manifest-domain-candidates.py"),
+        ("manifest-keyword-candidates.py" in agent_text,
+         "vault-searcher.md Mode 3 invokes manifest-keyword-candidates.py"),
+        ('Read `{vault_root}/.vault-bridge/manifest.json`' not in agent_text,
+         "vault-searcher.md no longer `Read`s the raw manifest directly (#523)"),
+        ("#523" in agent_text,
+         "vault-searcher.md references #523 at the fixed call sites"),
+        # The candidate_count truncation-observability contract — canonical copy (#663).
+        (_TRUNCATION_CONTRACT in ref,
+         "manifest-recall.md carries the candidate_count truncation-observability contract"),
+        (_TRUNCATION_FALLBACK in ref,
+         "manifest-recall.md pins the full-scan fallthrough as the response to truncation"),
+        # The Mode 2 step 2c ranking contract — canonical copy (#663).
+        (_RANKING_CONTRACT in ref,
+         "manifest-recall.md carries the `type: wiki` tiebreaker-only ranking contract"),
+        (_RANKING_SELECT in ref,
+         "manifest-recall.md pins the top-5 candidate selection"),
+        # The #305 wiki-staleness hedge — canonical copy (#663).
+        (_STALENESS_HEDGE in stale,
+         "wiki-staleness.md carries the `verified:` hedge obligation"),
+        (_STALENESS_MTIME in stale,
+         "wiki-staleness.md pins `verified:` over mtime (a checkout resets mtimes)"),
+        (_STALENESS_UNKNOWN in stale,
+         "wiki-staleness.md pins unknown-age over an invented date for legacy pages"),
+        # ...and the pointers that make each canonical copy binding from the agent side.
+        # Pinned by the SECTION name, not the bare path: `reference/manifest-recall.md`
+        # already appeared twice as a #523 rationale citation, so a path-only check stays
+        # true even after both binding pointers are deleted.
+        ("reference/manifest-recall.md" in agent_text,
+         "vault-searcher.md still names the reference/manifest-recall.md path"),
+        ("§ The truncation-check invariant" in agent_text,
+         "vault-searcher.md points at manifest-recall.md § The truncation-check invariant"),
+        ("§ Candidate ranking order" in agent_text,
+         "vault-searcher.md points at manifest-recall.md § Candidate ranking order"),
+        ("reference/wiki-staleness.md" in agent_text,
+         "vault-searcher.md points at reference/wiki-staleness.md for the #305 hedge"),
+        ("candidate_count" in agent_text,
+         "vault-searcher.md still names candidate_count at the call sites"),
+    ]
 
 
 def check(cond: bool, desc: str) -> None:
@@ -256,16 +352,10 @@ def main() -> int:
     # ---- static call-site guards: vault-searcher.md must use the scripts, never a raw Read ----
 
     agent_text = _AGENT.read_text(encoding="utf-8")
-    check("manifest-domain-candidates.py" in agent_text,
-          "vault-searcher.md Mode 2 invokes manifest-domain-candidates.py")
-    check("manifest-keyword-candidates.py" in agent_text,
-          "vault-searcher.md Mode 3 invokes manifest-keyword-candidates.py")
-    check('Read `{vault_root}/.vault-bridge/manifest.json`' not in agent_text,
-          "vault-searcher.md no longer `Read`s the raw manifest directly (#523)")
-    check("candidate_count" in agent_text,
-          "vault-searcher.md documents the candidate_count truncation-observability contract")
-    check("#523" in agent_text,
-          "vault-searcher.md references #523 at the fixed call sites")
+    ref_text = _REF.read_text(encoding="utf-8")
+    staleness_text = _STALENESS.read_text(encoding="utf-8")
+    for cond, desc in static_checks(agent_text, ref_text, staleness_text):
+        check(cond, desc)
 
     if errors:
         print(f"\nFAILED: {len(errors)} check(s) failed")
@@ -274,5 +364,128 @@ def main() -> int:
     return 0
 
 
+# ---------------------------------------------------------------------------
+# Self-test: corrupt the CANONICAL contract text and prove the guards still FAIL (#663)
+# ---------------------------------------------------------------------------
+
+_CLEAN_AGENT = _AGENT.read_text(encoding="utf-8")
+_CLEAN_REF = _REF.read_text(encoding="utf-8")
+_CLEAN_STALENESS = _STALENESS.read_text(encoding="utf-8")
+
+# Truncation observability weakened: the cross-check that catches a shortened-but-valid
+# candidates array is replaced by one that can never fail.
+_REF_WEAK_TRUNCATION = _CLEAN_REF.replace(
+    "`len(candidates) != candidate_count`",
+    "`len(candidates) < 0`",
+)
+# The wiki tiebreaker silently promoted into an override — the exact rewrite the verbatim
+# pin exists to catch.
+_REF_WIKI_OVERRIDE = _CLEAN_REF.replace(
+    "A *tiebreaker only*, never an override that\n   buries a more relevant non-wiki hit.",
+    "This overrides the match tier, so a wiki page always outranks a non-wiki hit.",
+)
+# The full-scan fallthrough deleted: truncation would be detected and then ignored.
+_REF_NO_FALLBACK = _CLEAN_REF.replace(
+    "fall\nthrough to the standard full-scan path rather than silently searching a partial candidate\nset.",
+    "continue with whatever candidates arrived.",
+)
+# Top-5 selection dropped from the canonical sort contract.
+_REF_NO_SELECT = _CLEAN_REF.replace(
+    "Then select the top ≤ 5 candidates by this priority.", "")
+# The agent body stops pointing at the canonical copy — the contract still exists, but
+# nothing binds the agent to it.
+_AGENT_NO_POINTER = _CLEAN_AGENT.replace("reference/manifest-recall.md", "reference/README.md")
+# The two binding pointers decay into the bare #523 rationale citation that was already in the
+# body before #663 — the contract still exists, nothing routes the agent to it at the step that
+# needs it. A path-only pointer check cannot see this; the section-name pins can.
+_AGENT_POINTER_DECAYED = _CLEAN_AGENT.replace(
+    "apply § The truncation-check invariant in", "see (background) the notes in",
+).replace(
+    "apply § Candidate ranking order in", "see (background) the notes in",
+)
+# The #305 hedge obligation deleted from its canonical home.
+_STALENESS_NO_HEDGE = _CLEAN_STALENESS.replace(
+    "When you return a wiki page's content,\nmention its `verified:` age alongside it",
+    "Mention the age if it seems useful",
+)
+# The mtime clause deleted: the exact regression the paragraph exists to forbid.
+_STALENESS_NO_MTIME = _CLEAN_STALENESS.replace(
+    "Prefer `verified:` over the file's raw modification date.",
+    "Use whichever date is available.",
+)
+# Legacy pages: unknown-age hedge weakened into an invented date.
+_STALENESS_INVENTS_DATE = _CLEAN_STALENESS.replace(
+    "don't invent a date; say the age is unknown instead of silently omitting the hedge",
+    "fall back to the file's modification date",
+)
+# The agent body stops pointing at the staleness contract at all.
+_AGENT_NO_STALENESS_POINTER = _CLEAN_AGENT.replace(
+    "reference/wiki-staleness.md", "reference/README.md")
+
+# A fixture built by `.replace()` whose target string has drifted silently becomes a copy of
+# its base, and an expect-FAIL case on an unmodified copy would then be testing nothing.
+for _name, _fixture, _base in (
+    ("_REF_WEAK_TRUNCATION", _REF_WEAK_TRUNCATION, _CLEAN_REF),
+    ("_REF_WIKI_OVERRIDE", _REF_WIKI_OVERRIDE, _CLEAN_REF),
+    ("_REF_NO_FALLBACK", _REF_NO_FALLBACK, _CLEAN_REF),
+    ("_REF_NO_SELECT", _REF_NO_SELECT, _CLEAN_REF),
+    ("_AGENT_NO_POINTER", _AGENT_NO_POINTER, _CLEAN_AGENT),
+    ("_AGENT_POINTER_DECAYED", _AGENT_POINTER_DECAYED, _CLEAN_AGENT),
+    ("_AGENT_NO_STALENESS_POINTER", _AGENT_NO_STALENESS_POINTER, _CLEAN_AGENT),
+    ("_STALENESS_NO_HEDGE", _STALENESS_NO_HEDGE, _CLEAN_STALENESS),
+    ("_STALENESS_NO_MTIME", _STALENESS_NO_MTIME, _CLEAN_STALENESS),
+    ("_STALENESS_INVENTS_DATE", _STALENESS_INVENTS_DATE, _CLEAN_STALENESS),
+):
+    assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
+
+
+def self_test() -> int:
+    cases = [
+        ("clean agent + clean reference docs pass every static guard",
+         _CLEAN_AGENT, _CLEAN_REF, _CLEAN_STALENESS, True),
+        ("canonical truncation cross-check weakened -> FAIL",
+         _CLEAN_AGENT, _REF_WEAK_TRUNCATION, _CLEAN_STALENESS, False),
+        ("canonical wiki tiebreaker rewritten into an override -> FAIL",
+         _CLEAN_AGENT, _REF_WIKI_OVERRIDE, _CLEAN_STALENESS, False),
+        ("canonical full-scan fallthrough deleted -> FAIL",
+         _CLEAN_AGENT, _REF_NO_FALLBACK, _CLEAN_STALENESS, False),
+        ("canonical top-5 selection deleted -> FAIL",
+         _CLEAN_AGENT, _REF_NO_SELECT, _CLEAN_STALENESS, False),
+        ("agent body no longer points at the canonical contract -> FAIL",
+         _AGENT_NO_POINTER, _CLEAN_REF, _CLEAN_STALENESS, False),
+        # The pointers decay to the pre-#663 rationale citation, which a path-only check
+        # cannot distinguish from a binding read-and-apply pointer.
+        ("binding pointers decayed into background citations -> FAIL",
+         _AGENT_POINTER_DECAYED, _CLEAN_REF, _CLEAN_STALENESS, False),
+        ("canonical #305 hedge obligation deleted -> FAIL",
+         _CLEAN_AGENT, _CLEAN_REF, _STALENESS_NO_HEDGE, False),
+        ("canonical `verified:`-over-mtime clause deleted -> FAIL",
+         _CLEAN_AGENT, _CLEAN_REF, _STALENESS_NO_MTIME, False),
+        ("canonical unknown-age rule weakened into an invented date -> FAIL",
+         _CLEAN_AGENT, _CLEAN_REF, _STALENESS_INVENTS_DATE, False),
+        ("agent body no longer points at the staleness contract -> FAIL",
+         _AGENT_NO_STALENESS_POINTER, _CLEAN_REF, _CLEAN_STALENESS, False),
+        # whitespace is not the contract: reflowing the canonical paragraphs still passes
+        ("reflowed reference docs still pass (whitespace is not the contract)",
+         _CLEAN_AGENT, _normalise(_CLEAN_REF), _normalise(_CLEAN_STALENESS), True),
+    ]
+    failed = 0
+    for desc, agent_text, ref_text, staleness_text, expect_pass in cases:
+        got = all(cond for cond, _ in static_checks(agent_text, ref_text, staleness_text))
+        if got == expect_pass:
+            print(f"  ok   {desc}")
+        else:
+            print(f"  FAIL {desc} (expected {'pass' if expect_pass else 'fail'}, got "
+                  f"{'pass' if got else 'fail'})")
+            failed += 1
+    if failed:
+        print(f"\nFAILED: {failed} self-test case(s) failed")
+        return 1
+    print(f"\nOK: all {len(cases)} manifest-candidate self-test cases passed")
+    return 0
+
+
 if __name__ == "__main__":
+    if "--self-test" in sys.argv:
+        raise SystemExit(self_test())
     raise SystemExit(main())
