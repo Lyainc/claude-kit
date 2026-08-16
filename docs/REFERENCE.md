@@ -50,7 +50,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
 │   ├── skills/                          # 4개 스킬 (vault-save, vault-link, vault-manifest-refresh, vault-commit)
 │   ├── hooks/                           # 2개 hook handler (session-start-manifest, pre-write-guard)
-│   ├── reference/                       # manifest-recall.md, vault-searcher-examples.md
+│   ├── reference/                       # manifest-recall.md, vault-searcher-examples.md, wiki-staleness.md
 │   └── scripts/                         # generate-manifest.py + tests/
 ├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
 │   ├── .claude-plugin/plugin.json       # hooks 키: 8 event-type 등록 (opt-in telemetry)

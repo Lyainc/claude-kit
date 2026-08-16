@@ -383,6 +383,11 @@ python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 # manifest-domain-candidates.py and manifest-keyword-candidates.py recover every wiki/ entry by
 # reading the manifest off disk directly, and that a downstream truncation of their own compact
 # output is detectable (parse failure or candidate_count/length mismatch) rather than silent.
+# #663 moved the truncation-observability + Mode 2 ranking contracts out of vault-searcher.md
+# (token-budget saturation) into reference/manifest-recall.md; the pins followed. The self-test
+# corrupts the canonical contract text in the reference doc and asserts the guards still FAIL.
+python3 vault-bridge/scripts/test/test-manifest-candidates.py --self-test
+# Expected: OK: all 12 manifest-candidate self-test cases passed
 python3 vault-bridge/scripts/test/test-manifest-candidates.py
 # Expected: OK: all manifest-candidate checks passed
 
@@ -561,7 +566,7 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # catalogue grew monotonically; Supersede absorbs the redundant entry and retires it in the
 # SAME write, on the SAME confirmation, and a retired number is never reused.)
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 30 self-test cases passed
+# Expected: OK: all 36 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # Expected: OK: all 7 add-policy-conflict-edit checks passed.
 
@@ -574,7 +579,7 @@ python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # explicitly. Also pins the distill boundary — artifact cost is the gate's question, reuse
 # value stays distill's — without which the skill contradicts its own description.)
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py --self-test
-# Expected: OK: all 25 self-test cases passed
+# Expected: OK: all 29 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
 # Expected: OK: all 6 add-policy-necessity-gate checks passed.
 
@@ -746,7 +751,11 @@ python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 # preview before the model ever saw it. Runs both filter scripts against real temp fixtures
 # (missing/unparseable/malformed/valid), asserts the wiki filter's output stays under the 2 KB
 # cut and serializes `scanned` before `wiki_entries`, then statically greps the live SKILL.md
-# call sites to pin that neither ever regresses back to a raw `cat`.
+# call sites to pin that neither ever regresses back to a raw `cat`. #663 moved audit's copy of
+# that rationale into reference/vault-audit-rules.md -> "Reading the manifest"; the pins followed,
+# and the self-test corrupts the canonical text there to prove they still FAIL.
+python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py --self-test
+# Expected: OK: all 18 self-test cases passed
 python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
 # Expected: OK: all manifest-read checks passed
 
