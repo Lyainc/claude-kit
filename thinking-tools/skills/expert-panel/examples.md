@@ -2,7 +2,7 @@
 
 실제 대화 예시. SKILL.md에서 참조됨.
 
-> **Note**: Example 1·2는 기본(inline) 모드 출력입니다 — 한 모델이 모든 페르소나 발언을 한 응답에 시뮬레이션한 결과예요. "격리 실행" 모드에서는 각 expert 발언이 별도 subagent의 exchange별 재spawn으로 생성되고 exchange 간 실제 반박이 일어나요 — Example 3 참조 (메커니즘은 SKILL.md의 [Isolated Execution: Rebuttal Exchanges]).
+> **Note**: Example 1·2는 기본(inline) 모드 출력입니다 — 한 모델이 모든 페르소나 발언을 한 응답에 시뮬레이션한 결과예요. "격리 실행" 모드에서는 각 expert 발언이 별도 subagent의 exchange별 재spawn으로 생성되고 exchange 간 실제 반박이 일어나요 — Example 3 참조 (메커니즘은 [reference.md](reference.md)의 § Isolated execution: exchange-loop contract — SKILL.md의 같은 이름 섹션은 그 계약을 가리키는 포인터예요).
 
 ---
 

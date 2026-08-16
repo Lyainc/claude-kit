@@ -64,15 +64,13 @@ that as `adhoc:{n}` for any named expert absent from the pool.
 
 ### Expert Selection Guide
 
-The Selection Rule produces the panel outright; this guide only explains what it already enforces.
-There is no judgment step here — the single departure is an explicit user override.
-
-| Criteria | What the rule enforces |
-|----------|---------------|
-| Panel size | 3–5 (the Selection Rule's floor and ceiling); above 5 the added expert repeats an existing criterion |
-| Domain overlap | Guaranteed by tag matching — each selected entry carries a distinct evaluation criterion |
-| Perspective balance | Carried by the tags themselves — a topic with strategy vocabulary matches `P9`. Never top up the panel because the selection *looks* implementation-heavy: "is this implementation-focused" is an LLM judgment, and one applied inconsistently makes two runs of one topic emit different `adhoc:{n}` (#423) |
-| Rotation | Automatic — the rule re-runs per topic, so a multi-topic session rotates experts by topic text, not by hand |
+The Selection Rule produces the panel outright; there is no judgment step here — the single
+departure is an explicit user override. **Apply § Expert Selection Guide: what the Selection Rule
+enforces in [reference.md](reference.md) as written — that section is the binding contract** for
+panel size (3–5), domain overlap, perspective balance and rotation, including the standing ban on
+topping up a panel that merely *looks* implementation-heavy (#423). This paragraph is a locator,
+not a summary you may act from alone, and this whole section is pinned VERBATIM by
+`_SKILL_SELECTION_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`.
 
 **When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`. This is the user-override path, not a selection judgment: without the user's explicit yes the rule's output stands unchanged.
 
@@ -161,27 +159,11 @@ When consensus cannot be reached after 3 rounds:
 
 ### Isolated Execution: Rebuttal Exchanges
 
-In default (inline) mode, an entire topic — every persona's turns — is produced in one model response: a *simulated* debate where a single model scripts all voices. It is fast, but it is not a real turn exchange, and personas drift toward a single voice.
+Isolated execution replaces inline mode's *simulated* debate (one model scripting all voices in one response) with real multi-turn **exchanges** inside a single topic round's Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a topic round. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total — independent of the 3 topic-round ceiling and its tie-break trigger.
 
-Isolated execution replaces the simulated pass with real multi-turn **exchanges** inside a single topic round's Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a topic round. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total — independent of the 3 topic-round ceiling and its tie-break trigger.
+**Orchestrator vs. Moderator**: the mechanical work — spawning experts, assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator subagent, which stays visibility-limited (position summaries only) and is spawned only for Synthesis/Conclusion.
 
-**Orchestrator vs. Moderator**: in isolated mode the mechanical work — spawning experts, assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator subagent. The Moderator subagent stays visibility-limited (position summaries only) and is spawned only for Synthesis/Conclusion. This keeps the Moderator Visibility Contract intact: the orchestrator already holds every statement, so it is the one allowed to summarize and relay.
-
-**Exchange loop**:
-1. **E1 — Independent** (anchoring-free): the orchestrator spawns each expert as a separate subagent with the topic + briefing only. No expert sees another's statement. The orchestrator collects all statements.
-2. **E2/E3 — Rebuttal**: the orchestrator re-spawns all experts **in parallel**, each receiving a packet of — (a) its own prior-exchange position (a re-spawned subagent is stateless; without this it cannot "hold/defend"), (b) a *summary* of the other experts' **prior-exchange** statements (never within-exchange statements — parallel re-spawn means no expert sees another's current-exchange turn, preserving anti-anchoring), and (c) the re-applied **Anti-conformity directive** (defined at the top of [Phase 1: Topic Rounds](#phase-1-topic-rounds)). Each expert then (a) holds and defends, (b) rebuts a specific point with new evidence, or (c) revises.
-
-**Stop conditions** (whichever comes first):
-- The exchange loop reaches the 2-rebuttal cap (e3 completed), or
-- **No new argument**: comparing the latest exchange to the immediately prior one, *no expert* introduced a new point or a new rebuttal — a new point requires new evidence (data, counterexample, or precedent) or a new argument structure; a restated prior point does not count. The orchestrator makes this call — it needs the full per-expert statements, which the visibility-limited Moderator subagent cannot see. The test is *new arguments*, not *agreement*: an exchange where experts only echo growing agreement without new reasoning is convergence-by-conformity and also stops the loop. This guards against both runaway cost and false consensus.
-
-After the loop stops, the orchestrator spawns the Moderator subagent with the final exchange's position summaries to compute Synthesis → Conclusion.
-
-**Degenerate cases**:
-- An expert subagent that fails or returns empty is retried once; on a second failure the exchange proceeds with the remaining experts (recorded in the transcript — never silently dropped).
-- An expert added mid-discussion (see Expert Selection Guide) first runs a catch-up E1 independent statement, then joins from the next rebuttal exchange.
-
-**Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) + 1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop fires — plus 1 Moderator subagent for Synthesis. **Recovery cost**: if Phase 2 produces only a compressed final message or a content-free sign-off (e.g. due to context pressure), the user must re-request the full record — add one full-panel context reload to the effective cost. This recovery overhead is avoided by the inline SUMMARY path (lightweight sessions) and by the full 3-file output (multi-topic sessions). Choose isolated mode when independence and genuine turn exchange matter more than speed — inline mode stays the default for quick reviews.
+**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for the E1/E2 packet composition, both stop conditions (the 2-rebuttal cap and the *no new argument* test), the degenerate cases, and the per-topic **Cost** including **Recovery cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone. This whole section is pinned VERBATIM by `_SKILL_ISOLATED_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`: the always-loaded body outranks an on-demand doc at runtime, so it may not drift from the section it points at.
 
 ### Phase 2: Recording
 

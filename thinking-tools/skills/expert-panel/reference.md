@@ -79,6 +79,28 @@
 - 따라서 격리(spawn) 모드는 **독립성·실제 턴 교환이 속도/비용보다 중요할 때만** 선택하는 옵트인으로 남습니다 (SKILL.md [Execution Modes] / [Isolated Execution: Rebuttal Exchanges] 참조). 기본은 inline 모드입니다.
 - 요약: 다양성을 더 원하면 spawn을 늘리지 말고 **역할 프롬프트를 더 날카롭게 차별화**하세요.
 
+### Expert Selection Guide: what the Selection Rule enforces
+
+**Canonical text (#663).** SKILL.md § Expert Selection Guide points here; this section is the
+binding contract for panel composition, not background, and must be applied as written. Its
+whole text — heading to the next heading, so nothing unpinned may be parked at the bottom — is
+pinned VERBATIM by `_SELECTION_GUIDE_SECTION` in
+`thinking-tools/scripts/test/test-mode-compose.py`. Editing anything below is a deliberate
+contract change and updates that constant in the same commit; a reflow is free (the comparison
+is whitespace-normalised).
+
+The Selection Rule
+(`../../reference/personas.md`) produces the panel outright; this guide only explains what it
+already enforces. There is no judgment step here — the single departure is an explicit user
+override.
+
+| Criteria | What the rule enforces |
+|----------|---------------|
+| Panel size | 3–5 (the Selection Rule's floor and ceiling); above 5 the added expert repeats an existing criterion |
+| Domain overlap | Guaranteed by tag matching — each selected entry carries a distinct evaluation criterion |
+| Perspective balance | Carried by the tags themselves — a topic with strategy vocabulary matches `P9`. Never top up the panel because the selection *looks* implementation-heavy: "is this implementation-focused" is an LLM judgment, and one applied inconsistently makes two runs of one topic emit different `adhoc:{n}` (#423) |
+| Rotation | Automatic — the rule re-runs per topic, so a multi-topic session rotates experts by topic text, not by hand |
+
 ### 3. 토픽 분할
 
 - 전체 안건을 독립적 토픽으로 분할
@@ -123,20 +145,77 @@
 - 추가 clarification
 ```
 
-**격리 실행 모드 — 실제 멀티턴 반박 교환 (exchange)**:
+#### Isolated execution: exchange-loop contract
 
-기본(inline) 모드에서는 한 모델이 모든 페르소나 발언을 한 응답에 시뮬레이션합니다. 격리 모드에서는 한 topic round의 Q&A/Rebuttal 단계 *안에서* exchange를 돌려 진짜 턴 교환을 만듭니다. exchange는 topic round가 아니며 (synchronous 전체 fan-out, per-expert 아님), **e1 독립 1회 + e2·e3 rebuttal 최대 2회 = 최대 3 exchanges**로 묶입니다 (3 topic-round 천장과 독립).
+**Canonical text (#663).** SKILL.md § Isolated Execution: Rebuttal Exchanges points here; this
+section is the binding contract, not background, and the orchestrator must apply it as written.
+Load it before running isolated mode. (Until #663 this text lived in the SKILL.md body, with a
+condensed Korean restatement here; the two are now one copy.) Its whole text — heading to the
+next heading, so nothing unpinned may be parked at the bottom — is pinned VERBATIM by
+`_EXCHANGE_LOOP_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`. Editing anything
+below is a deliberate contract change and updates that constant in the same commit; a reflow is
+free (the comparison is whitespace-normalised).
 
-오케스트레이션(spawn·packet 조립·중계·종료 판정)은 **부모 오케스트레이터(facilitating 메인 컨텍스트)**가 수행합니다. Moderator subagent는 visibility 제한(position summary만)을 유지하며 Synthesis용으로만 spawn됩니다 — 모든 발언을 쥔 오케스트레이터만 요약·중계할 수 있기 때문입니다.
+In default (inline) mode, an entire topic — every persona's turns — is produced in one model
+response: a *simulated* debate where a single model scripts all voices. It is fast, but it is not
+a real turn exchange, and personas drift toward a single voice.
 
-1. **E1 (독립)**: 오케스트레이터가 각 expert를 토픽+브리핑만 주고 독립 spawn. 서로의 발언 비공개. 전부 수집.
-2. **E2/E3 (반박)**: 오케스트레이터가 모든 expert를 **병렬** 재spawn. 각 packet = (a) 자기 직전 exchange 입장 (stateless라 없으면 "유지/방어" 불가) (b) 다른 expert의 *직전 exchange* 발언 요약 (within-exchange 비공개 → anti-anchoring 유지) (c) anti-conformity directive 재적용. expert는 유지·반박·수정 중 선택.
+Isolated execution replaces the simulated pass with real multi-turn **exchanges** inside a single
+topic round's Q&A/Rebuttal step (SKILL.md Phase 1 step 3). An "exchange" is one synchronous
+fan-out across all experts (not per-expert) — it is NOT a topic round. The loop runs **1
+independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total —
+independent of the 3 topic-round ceiling and its tie-break trigger.
 
-**조기 종료**: 직전 exchange 대비 *어느 expert도* 새 논점·반박을 안 내면 종료 — 새 논점은 새 증거(데이터·반례·근거)나 새 논증 구조를 포함해야 하며, 재진술은 카운트 안 함. 판정은 오케스트레이터가 — full per-expert 발언이 필요하므로 visibility 제한된 Moderator subagent는 못 합니다. 기준은 *새 논점 유무*이지 *동의 여부*가 아닙니다 (새 근거 없는 동의 쌓임 = conformity 수렴 = 거짓 합의 방지).
+**Orchestrator vs. Moderator**: in isolated mode the mechanical work — spawning experts,
+assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition —
+is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator
+subagent. The Moderator subagent stays visibility-limited (position summaries only) and is spawned
+only for Synthesis/Conclusion. This keeps the Moderator Visibility Contract intact: the
+orchestrator already holds every statement, so it is the one allowed to summarize and relay.
 
-**열화 케이스**: expert subagent 실패/빈 응답 → 1회 재시도, 재실패 시 남은 expert로 진행 (transcript 기록, silent drop 금지). 중간 추가된 expert → catch-up E1 후 다음 rebuttal exchange부터 합류.
+**Exchange loop**:
 
-**비용**: 토픽당 `(exchanges × experts)` expert subagent (exchanges = 1 독립 + 1~2 rebuttal, 즉 최대 `3 × experts`, early-stop 시 더 적음) + Synthesis용 Moderator subagent 1. **복구 비용**: Phase 2가 압축된 최종 메시지나 내용 없는 sign-off로 끝나면 (컨텍스트 압박 등으로) 유저가 전체 기록을 재요청해야 하며 — 패널 전체 컨텍스트 재로딩 1회가 실질 비용에 추가됩니다. 이 복구 오버헤드는 경량 세션의 인라인 SUMMARY 경로와 멀티토픽 세션의 3파일 출력으로 방지합니다. 독립성과 실제 턴 교환이 속도보다 중요할 때 선택하세요.
+1. **E1 — Independent** (anchoring-free): the orchestrator spawns each expert as a separate
+   subagent with the topic + briefing only. No expert sees another's statement. The orchestrator
+   collects all statements.
+2. **E2/E3 — Rebuttal**: the orchestrator re-spawns all experts **in parallel**, each receiving a
+   packet of — (a) its own prior-exchange position (a re-spawned subagent is stateless; without
+   this it cannot "hold/defend"), (b) a *summary* of the other experts' **prior-exchange**
+   statements (never within-exchange statements — parallel re-spawn means no expert sees another's
+   current-exchange turn, preserving anti-anchoring), and (c) the re-applied **Anti-conformity
+   directive** (defined at the top of SKILL.md § Phase 1: Topic Rounds). Each expert then (a)
+   holds and defends, (b) rebuts a specific point with new evidence, or (c) revises.
+
+**Stop conditions** (whichever comes first):
+
+- The exchange loop reaches the 2-rebuttal cap (e3 completed), or
+- **No new argument**: comparing the latest exchange to the immediately prior one, *no expert*
+  introduced a new point or a new rebuttal — a new point requires new evidence (data,
+  counterexample, or precedent) or a new argument structure; a restated prior point does not
+  count. The orchestrator makes this call — it needs the full per-expert statements, which the
+  visibility-limited Moderator subagent cannot see. The test is *new arguments*, not *agreement*:
+  an exchange where experts only echo growing agreement without new reasoning is
+  convergence-by-conformity and also stops the loop. This guards against both runaway cost and
+  false consensus.
+
+After the loop stops, the orchestrator spawns the Moderator subagent with the final exchange's
+position summaries to compute Synthesis → Conclusion.
+
+**Degenerate cases**:
+
+- An expert subagent that fails or returns empty is retried once; on a second failure the exchange
+  proceeds with the remaining experts (recorded in the transcript — never silently dropped).
+- An expert added mid-discussion (see Expert Selection Guide) first runs a catch-up E1 independent
+  statement, then joins from the next rebuttal exchange.
+
+**Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) +
+1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop
+fires — plus 1 Moderator subagent for Synthesis. **Recovery cost**: if Phase 2 produces only a
+compressed final message or a content-free sign-off (e.g. due to context pressure), the user must
+re-request the full record — add one full-panel context reload to the effective cost. This
+recovery overhead is avoided by the inline SUMMARY path (lightweight sessions) and by the full
+3-file output (multi-topic sessions). Choose isolated mode when independence and genuine turn
+exchange matter more than speed — inline mode stays the default for quick reviews.
 
 ### Step 1.3: 변증법적 논의
 
