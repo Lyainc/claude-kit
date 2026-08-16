@@ -576,3 +576,34 @@ Examples: `notes/llm/decision-2026-04-12-context-window.md` (`type: decision`)
 e.g. `session-2026-04-12.md`) gracefully falls back to the type tag only.
 The proposal is never auto-committed — `audit/SKILL.md` Phase 4 previews it in the
 OPTIONAL-FIX confirmation gate.
+
+---
+
+## SCAN output budget and the reduced bundle (#614)
+
+Why Phase 1 writes its scans to files and reads back a summary instead of printing
+them: the harness truncates Bash output to a ~2 KB preview before the model sees
+anything. `scan-frontmatter` + `scan-filename` measured 148,669 B + 50,077 B on a
+real 193-file vault, and 174,973 B + 115,692 B on the 528-file fixture — so roughly
+0.7% of the source data for E1/E2/E3/E5/E6/E10/E11/E12 survived, with nothing marking
+the cut. A vault whose defects fell past the line read as a nearly-clean one. This is
+the same failure #468/#460 fixed for `manifest.json`'s raw `cat`, at a worse scale.
+
+`scan-summary.py` reads the scans off disk untruncated and keeps only defect-bearing
+records with only the fields each judgment consumes; clean files carry no information
+for the REPORT and were the 480-of-528 majority that blew the budget. 290,665 B
+becomes ~1.5 KB.
+
+`--max-per-type` defaults to 2 because nine error types share the one preview:
+1,536 B at a cap of 2, 2,046 B at 3 (two bytes under the limit, which is not a
+margin), 2,935 B at 4. A capped list always carries `omitted: N`, and `count` is
+always the full number found, so the cut is legible twice over. The tail is not
+lost — re-run with a larger cap into a file and open it with `Read`, which paginates
+where Bash stdout truncates.
+
+`extract-wikilinks-batch` exists for the same reason plus speed: the old per-file
+`extract-wikilinks` loop cost 528 Bash round trips and one Python start each,
+measured at ~110 s on the 528-file fixture against 0.14 s for the single dir-shaped
+call. It is #152's `infer-tags` batching applied to the last per-file loop, and it
+returns the finished `{target_stem → [source_paths]}` index rather than per-file
+records so the model never assembles the index by hand.

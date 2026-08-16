@@ -276,15 +276,17 @@ the defect-bearing records, with only the fields each rule in
 ```bash
 python3 scan-summary.py --frontmatter fm.json --filename fn.json [--index index.json] \
                         [--max-per-type N]
-python3 scan-summary.py --self-test    # 16 rule + truncation-signal cases, no fixture
+python3 scan-summary.py --self-test    # rule + truncation-signal cases, no fixture
 # {"total_files":528,"max_per_type":2,"errors":{"E1":{"count":10,"paths":[...],"omitted":8}, ...}}
 ```
 
 `--max-per-type` (default 2) caps each type's list, and a type that hits the cap carries
 `"omitted": N` — a cut is always visible, never silent. `count` is always the full number
-found. Without `--index`, E5 reports `{"computed": false}` rather than zero orphans. Exit 3
-— with nothing on stdout — when an input is absent or unparseable, so "unreadable scan" is
-never mistaken for "clean vault".
+found. Without `--index`, E5 reports `{"computed": false}` rather than zero orphans. A file
+scan-frontmatter could not READ goes to its own `unreadable` bucket carrying the error, and
+is kept out of E1/E5 — "we could not look" is not the same finding as "there is no
+frontmatter". Exit 3 — with nothing on stdout — when an input is absent or unparseable, so
+"unreadable scan" is never mistaken for "clean vault".
 
 ---
 

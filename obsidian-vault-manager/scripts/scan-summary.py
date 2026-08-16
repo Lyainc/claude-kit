@@ -53,11 +53,15 @@ types firing, vs 291 KB of raw scan + 13 KB of index:
        "E11": {"count": N, "paths":   ["<path>", ...]},              # unstructured_path
        "E12_stale":      {"count": N, "records": [{path, verified}]},
        "E12_unverified": {"count": N, "records": [{path, verified}]},
+       "unreadable":     {"count": N, "records": [{path, error}]},   # only when it fires
      }}
 
-Every type additionally carries `"omitted": N` whenever the cap cut its list. E9 (vault-
-wide vocabulary pairs) and the E5 connection candidates are NOT here — they come from
-their own primitives (`detect-vocabulary`, `e5-candidates`), whose output is already small.
+Every type additionally carries `"omitted": N` whenever the cap cut its list. `unreadable`
+appears only when scan-frontmatter could not read a file: those records are kept OUT of E1
+and E5, because "we could not look" is not the same finding as "there is no frontmatter".
+
+E9 (vault-wide vocabulary pairs) and the E5 connection candidates are NOT here — they come
+from their own primitives (`detect-vocabulary`, `e5-candidates`), already small on stdout.
 
 Exit codes:
     0  scans read and summarized
@@ -130,6 +134,20 @@ def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
 
     def emit(code: str, records: list) -> None:
         errors[code] = records
+
+    # A file scan-frontmatter could not READ emits a different record shape —
+    # {path, error, frontmatter:{}} with no `has_frontmatter` key — so every predicate
+    # below would read it as "no frontmatter" and file a Critical E1 for a file whose
+    # frontmatter was never examined, dropping the `error` on the floor. Split those out
+    # first and give them their own bucket: not knowing is not the same finding as
+    # knowing the frontmatter is absent, and this script exists to stop exactly that kind
+    # of unannounced substitution (#614). extract-wikilinks-batch already WARNs on the
+    # same case; this is the summary path's half of that discipline.
+    unreadable = [r for r in fm_records if r.get("error")]
+    fm_records = [r for r in fm_records if not r.get("error")]
+    if unreadable:
+        emit("unreadable",
+             [{"path": r.get("path"), "error": r["error"]} for r in unreadable])
 
     fm_by_path = {r.get("path"): r for r in fm_records}
 
@@ -363,6 +381,25 @@ def self_test() -> int:
          all("wiki/fresh.md" not in json.dumps(v) for v in errors.values())),
         ("no --index means E5 is 'not computed', never zero orphans",
          summarize(fm, fn, None, today)["E5"] is None),
+    ]
+
+    # An UNREADABLE file must not be laundered into a finding about content nobody read.
+    # scan-frontmatter emits {path, error, frontmatter:{}} with no has_frontmatter key, so
+    # the naive predicate files a Critical E1 and drops the error (#614 review finding 1).
+    unread = summarize(
+        fm + [{"path": "notes/locked.md", "error": "[Errno 13] Permission denied",
+               "frontmatter": {}}],
+        fn + [{"path": "notes/locked.md"}], inbound, today)
+    cases += [
+        ("an unreadable file gets its own bucket, carrying the error",
+         unread["unreadable"] == [{"path": "notes/locked.md",
+                                   "error": "[Errno 13] Permission denied"}]),
+        ("an unreadable file is NOT reported as missing frontmatter",
+         "notes/locked.md" not in unread["E1"]),
+        ("an unreadable file is NOT reported as an orphan either",
+         "notes/locked.md" not in unread["E5"]),
+        ("no unreadable input means no unreadable bucket",
+         "unreadable" not in errors),
     ]
 
     capped = cap(errors, 2)
