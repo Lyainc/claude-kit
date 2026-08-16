@@ -493,6 +493,25 @@ The audit REPORT header shows manifest metadata when `.vault-bridge/manifest.jso
 
 Absence is non-fatal: the header shows `매니페스트: 없음 (vault-bridge 미설치)`. No finding is emitted for missing or stale manifest.
 
+### Reading the manifest — never `cat` it (#468, #460)
+
+This is the canonical contract for `audit/SKILL.md` Phase 1 Step 8 (#663 moved it out of the
+skill body; the body keeps the call plus a pointer here).
+
+**Never `cat` the manifest directly.** It can run past 100 KB, and the harness truncates large
+Bash output to a 2 KB preview, so a raw `cat` silently degrades to whichever entries survive the
+cut — indistinguishable from a legitimately small manifest. Use the filter script instead, which
+reads the full file on disk and returns only the two fields the REPORT header needs:
+
+```bash
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
+```
+
+- **Exit 0** → parse stdout as `{file_count, generated_at}` and use it as `manifest_summary`.
+- **Exit 3** (manifest absent, unparseable, or missing a required field) → set `manifest_summary`
+  to null, and **never re-attempt with a raw `cat` as a fallback**. A truncated read is worse than
+  no read: the header would print a confident wrong count instead of `없음`.
+
 ---
 
 ## REPORT output example
