@@ -77,8 +77,11 @@ def case_skill_md_wiring(errors: list) -> None:
     # Step 7 (link index) and Step 9 (E9 vocabulary) stay vault-wide by design — they use
     # $VAULT_ROOT, not the --path-scoped $scan_dir, so a scoped run can't manufacture a
     # false E5 orphan or a false E9 vocabulary split.
-    _assert('find "$VAULT_ROOT"' in phase1,
-            "the wikilink-index find call uses the unscoped $VAULT_ROOT", errors)
+    # #614 replaced the per-file `find | extract-wikilinks` loop with one dir-shaped
+    # `extract-wikilinks-batch` call; the vault-wide invariant this guards is unchanged,
+    # only which call carries it.
+    _assert('extract-wikilinks-batch "$VAULT_ROOT"' in phase1,
+            "the wikilink-index call uses the unscoped $VAULT_ROOT", errors)
     _assert('detect-vocabulary "$VAULT_ROOT"' in phase1,
             "detect-vocabulary is called with the unscoped $VAULT_ROOT", errors)
 

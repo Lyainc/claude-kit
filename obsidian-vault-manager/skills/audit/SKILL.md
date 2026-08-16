@@ -71,18 +71,18 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    **never `--path`-scoped** (same E9 exception as Step 9): a file in-scope can still be
    linked from outside it.
 
-   Pipe the file list into the BATCH subcommand — ONE python process for the whole vault.
-   Never loop `extract-wikilinks` per file: 528 round trips / ~110s became 0.14s (#614).
+   ONE dir-shaped call returns the FINISHED index — the subcommand walks the vault in a
+   single python process and assembles it, so never drive a `find` loop and never call
+   `extract-wikilinks` per file: 528 round trips / ~110s became 0.14s (#614).
    ```bash
-   find "$VAULT_ROOT" -name '*.md' -not -path '*/.*' \
-     | bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks-batch - > "$scan_tmp/links.json"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks-batch "$VAULT_ROOT" > "$scan_tmp/links.json"
    ```
    Wikilinks inside code fences or inline code are masked out (#434) — a backticked `[[Note]]` is a syntax example, and over-masking would hide a real inbound link and manufacture a false E5 orphan.
 
 7b. Reduce those three files to the bundle — the ONLY form of them CLASSIFY ever sees:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scan-summary.py" \
-     --frontmatter "$scan_tmp/fm.json" --filename "$scan_tmp/fn.json" --links "$scan_tmp/links.json"
+     --frontmatter "$scan_tmp/fm.json" --filename "$scan_tmp/fn.json" --index "$scan_tmp/links.json"
    ```
    **Never `cat` a raw scan file** — same rule and reason as Step 8's manifest (#468, #460)
    at a worse scale: 175 KB + 116 KB on a 528-file vault against a 2 KB preview, so a raw
@@ -122,6 +122,7 @@ and are NEVER read into context — CLASSIFY gets only the reduced form (#614):
 {
   scan_summary {           // Step 7b — replaces raw frontmatter/filename records + link index
     total_files, max_per_type,
+    link_index {targets, sources},   // size of the Step 7 index (which never enters context)
     errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified — each
                            // {count, paths[] | records[], omitted?}; ONLY defect-bearing
                            // entries, clean files never appear. Per-type field set:

@@ -25,18 +25,24 @@ type that hits the cap carries `"omitted": N` alongside its records. A cut is al
 visible in the output; nothing is ever dropped silently — that silence is the whole bug.
 
 Usage:
-    scan-summary.py --frontmatter <fm.json> --filename <fn.json> [--links <links.json>]
+    scan-summary.py --frontmatter <fm.json> --filename <fn.json> [--index <index.json>]
                     [--max-per-type N]
+    scan-summary.py --self-test            # rule + truncation-signal check, no fixture
 
     fm.json    <- ovm-primitives.sh scan-frontmatter "$scan_dir"
     fn.json    <- ovm-primitives.sh scan-filename "$scan_dir"
-    links.json <- ovm-primitives.sh extract-wikilinks-batch -   (vault-wide; optional —
-                  without it E5 is reported as not computed, never as zero orphans)
+    index.json <- ovm-primitives.sh extract-wikilinks-batch "$VAULT_ROOT"   (the finished
+                  {target_stem -> [source_paths]} inbound index; vault-wide, and optional —
+                  without it E5 is reported as NOT COMPUTED, never as zero orphans)
+
+E5 is derived here rather than in CLASSIFY for one reason: after this script drops clean
+files, nothing else can enumerate the notes/ files that have no inbound link. The index
+alone cannot — it lists link targets, not the vault's files.
 
 Output (stdout, one compact JSON line) — 1.5 KB on the 528-file fixture with all nine
-types firing, vs 291 KB of raw scan:
+types firing, vs 291 KB of raw scan + 13 KB of index:
 
-    {"total_files": N, "max_per_type": M,
+    {"total_files": N, "max_per_type": M, "link_index": {"targets": N, "sources": M},
      "errors": {
        "E1":  {"count": N, "paths":   ["<path>", ...]},              # missing_frontmatter
        "E2":  {"count": N, "records": [{path, missing_required}]},   # missing_required_fields
@@ -107,10 +113,10 @@ def parse_date(value):
         return None
 
 
-def load(path: Path):
+def load(path: Path, kind=list):
     data = json.loads(path.read_text(encoding="utf-8"))
-    if not isinstance(data, list):
-        raise ValueError(f"expected a JSON array, got {type(data).__name__}")
+    if not isinstance(data, kind):
+        raise ValueError(f"expected a JSON {kind.__name__}, got {type(data).__name__}")
     return data
 
 
@@ -118,7 +124,7 @@ def top_folder(rel: str) -> str:
     return rel.split("/", 1)[0] if "/" in rel else ""
 
 
-def summarize(fm_records: list, fn_records: list, link_records, today: date) -> dict:
+def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
     """Apply each error type's deterministic predicate; keep only what fires."""
     errors: dict = {}
 
@@ -157,16 +163,11 @@ def summarize(fm_records: list, fn_records: list, link_records, today: date) -> 
 
     # E5 — a notes/ file with no inbound wikilink. Path only: the connection candidates
     # REPORT renders come from the separate e5-candidates primitive, joined on this path.
-    if link_records is None:
+    # The index arrives finished from `extract-wikilinks-batch <dir>` and is keyed by
+    # lowercased target stem, which is what a file's own stem is looked up by here.
+    if inbound is None:
         errors["E5"] = None  # explicit "not computed", never a silent zero
     else:
-        inbound: dict = {}
-        for rec in link_records:
-            src = rec.get("path")
-            for link in rec.get("links") or []:
-                target = (link.get("target") or "").rsplit("/", 1)[-1].lower()
-                if target:
-                    inbound.setdefault(target, set()).add(src)
         orphans = []
         for r in fm_records:
             rel = r["path"]
@@ -174,7 +175,7 @@ def summarize(fm_records: list, fn_records: list, link_records, today: date) -> 
             if name == "_index.md" or top_folder(rel) != "notes":
                 continue
             stem = name[:-3].lower() if name.endswith(".md") else name.lower()
-            if inbound.get(stem, set()) - {rel}:  # a self-link is not an inbound link
+            if set(inbound.get(stem) or []) - {rel}:  # a self-link is not an inbound link
                 continue
             orphans.append(rel)
         emit("E5", orphans)
@@ -265,7 +266,7 @@ def cap(errors: dict, max_per_type: int) -> dict:
     out = {}
     for code, found in errors.items():
         if found is None:
-            out[code] = {"computed": False, "reason": "no --links input"}
+            out[code] = {"computed": False, "reason": "no --index input"}
             continue
         key = "paths" if code in PATH_ONLY_TYPES else "records"
         entry = {"count": len(found), key: found[:max_per_type]}
@@ -275,12 +276,123 @@ def cap(errors: dict, max_per_type: int) -> dict:
     return out
 
 
+def build_payload(fm_records: list, fn_records: list, inbound, max_per_type: int,
+                  today: date) -> dict:
+    payload = {
+        "total_files": len(fm_records),
+        "max_per_type": max_per_type,
+        # The inbound index itself never enters context (13 KB on the 528-file fixture —
+        # it would be cut like everything else). These two numbers say it was read and how
+        # big it was, so "E5 found nothing" is distinguishable from "the index was empty".
+        "link_index": ({"targets": len(inbound),
+                        "sources": len({s for v in inbound.values() for s in v})}
+                       if inbound is not None else None),
+        "errors": cap(summarize(fm_records, fn_records, inbound, today), max_per_type),
+    }
+    return payload
+
+
+def self_test() -> int:
+    """Fixture-free check of every predicate + the truncation signal (#614).
+
+    Deliberately hand-built records rather than a generated vault: this pins the RULES
+    (which type fires on what, which fields survive, that a cut is announced), and runs in
+    milliseconds with no fixture to drift. The vault-scale byte budget is the separate
+    test/test-scan-summary-budget.py.
+    """
+    today = date(2026, 8, 16)
+    fm = [
+        {"path": "notes/no-fm.md", "has_frontmatter": False, "missing_required": [],
+         "frontmatter": {}},
+        {"path": "notes/partial.md", "has_frontmatter": True,
+         "missing_required": ["provenance", "tags"], "frontmatter": {"type": "note"}},
+        {"path": "notes/2026-04-old-name.md", "has_frontmatter": True,
+         "missing_required": [], "frontmatter": {"type": "note", "created": "2026-04-01"}},
+        {"path": "notes/linked.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "note"}},
+        {"path": "notes/lonely.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "note"}},
+        {"path": "notes/_index.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "note"}},
+        {"path": "sources/old-capture.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "capture", "created": "2020-01-01", "status": "raw"}},
+        {"path": "sources/fresh-capture.md", "has_frontmatter": True,
+         "missing_required": [],
+         "frontmatter": {"type": "capture", "created": "2026-08-15", "status": "raw"}},
+        {"path": "notes/misplaced.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "session"}},
+        {"path": "20_Projects/stray.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "note"}},
+        {"path": "wiki/stale.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "wiki", "verified": "2020-01-01"}},
+        {"path": "wiki/unverified.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "wiki", "verified": "TBD"}},
+        {"path": "wiki/fresh.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "wiki", "verified": "2026-08-10"}},
+    ]
+    fn = [{"path": r["path"]} for r in fm]
+    inbound = {"linked": ["notes/lonely.md"], "lonely": ["notes/lonely.md"]}
+
+    errors = summarize(fm, fn, inbound, today)
+    cases = [
+        ("E1 fires on missing frontmatter only", errors["E1"] == ["notes/no-fm.md"]),
+        ("E2 carries the missing field list",
+         errors["E2"] == [{"path": "notes/partial.md",
+                           "missing_required": ["provenance", "tags"]}]),
+        ("E3 fires on the date-first name, with type + created",
+         errors["E3"] == [{"path": "notes/2026-04-old-name.md", "type": "note",
+                           "created": "2026-04-01"}]),
+        ("E5 skips a linked note, keeps an unlinked one, ignores _index.md",
+         errors["E5"] == ["notes/no-fm.md", "notes/partial.md",
+                          "notes/2026-04-old-name.md", "notes/lonely.md",
+                          "notes/misplaced.md"]),
+        ("E5 treats a self-link as no inbound link",
+         "notes/lonely.md" in errors["E5"] and "notes/linked.md" not in errors["E5"]),
+        ("E6 fires past 14 days and not before",
+         [r["path"] for r in errors["E6"]] == ["sources/old-capture.md"]
+         and errors["E6"][0]["age_days"] == 2419),
+        ("E10 fires on type:session inside notes/",
+         errors["E10"] == [{"path": "notes/misplaced.md", "type": "session"}]),
+        ("E11 fires outside the canonical folders",
+         errors["E11"] == ["20_Projects/stray.md"]),
+        ("E12_stale reports the verified date it judged on",
+         errors["E12_stale"] == [{"path": "wiki/stale.md", "verified": "2020-01-01"}]),
+        ("E12_unverified keeps the unparseable raw value",
+         errors["E12_unverified"] == [{"path": "wiki/unverified.md", "verified": "TBD"}]),
+        ("a clean file appears in no bucket",
+         all("wiki/fresh.md" not in json.dumps(v) for v in errors.values())),
+        ("no --index means E5 is 'not computed', never zero orphans",
+         summarize(fm, fn, None, today)["E5"] is None),
+    ]
+
+    capped = cap(errors, 2)
+    cases += [
+        ("a cut list announces itself", capped["E5"]["omitted"] == capped["E5"]["count"] - 2),
+        ("an uncut list carries no omitted key", "omitted" not in capped["E1"]),
+        ("count is always the full number found", capped["E5"]["count"] == 5),
+        ("E5 unavailable renders as computed:false, not an empty list",
+         cap(summarize(fm, fn, None, today), 2)["E5"] == {"computed": False,
+                                                          "reason": "no --index input"}),
+    ]
+
+    failed = [name for name, ok in cases if not ok]
+    for name, ok in cases:
+        print(f"  {'ok  ' if ok else 'FAIL'} {name}")
+    if failed:
+        print(f"FAIL: {len(failed)} scan-summary self-test case(s) failed", file=sys.stderr)
+        return 1
+    print(f"OK: all {len(cases)} scan-summary self-test cases passed")
+    return 0
+
+
 def main(argv: list) -> int:
     if argv and argv[0] in ("-h", "--help"):
         print(__doc__)
         return 0
+    if argv and argv[0] == "--self-test":
+        return self_test()
 
-    opts = {"--frontmatter": None, "--filename": None, "--links": None,
+    opts = {"--frontmatter": None, "--filename": None, "--index": None,
             "--max-per-type": str(DEFAULT_MAX_PER_TYPE)}
     i = 0
     while i < len(argv):
@@ -304,18 +416,13 @@ def main(argv: list) -> int:
     try:
         fm_records = load(Path(opts["--frontmatter"]))
         fn_records = load(Path(opts["--filename"]))
-        link_records = load(Path(opts["--links"])) if opts["--links"] else None
+        inbound = load(Path(opts["--index"]), dict) if opts["--index"] else None
     except (OSError, ValueError, TypeError) as e:
         # Exit 3, not 0-with-empty: an unreadable scan must never look like a clean vault.
         print(f"scan input unusable: {e}", file=sys.stderr)
         return 3
 
-    errors = summarize(fm_records, fn_records, link_records, date.today())
-    payload = {
-        "total_files": len(fm_records),
-        "max_per_type": max_per_type,
-        "errors": cap(errors, max_per_type),
-    }
+    payload = build_payload(fm_records, fn_records, inbound, max_per_type, date.today())
     print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
     return 0
 
