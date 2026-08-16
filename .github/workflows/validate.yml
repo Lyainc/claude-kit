@@ -294,6 +294,14 @@ jobs:
           python3 thinking-tools/scripts/test/test-persona-selection.py
           echo "expert-panel mode-compose OK"
 
+      - name: Run adversarial-review judge-rubric anchor pins
+        run: |
+          # #610/#663 — anchors live in reference/patterns.md; guards the scale, the
+          # not-a-measurement caveat, and the body's binding (not citation) pointer.
+          python3 thinking-tools/scripts/test/test-judge-rubric-anchors.py --self-test
+          python3 thinking-tools/scripts/test/test-judge-rubric-anchors.py
+          echo "adversarial-review judge-rubric anchors OK"
+
       - name: Run session-start onboarding hook regression
         run: |
           # #117 — first-run onboarding hint: 3-session grace, kill switch, JSON shape.

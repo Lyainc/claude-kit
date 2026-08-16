@@ -621,11 +621,20 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/mai
 # expert-panel mode-compose regression (#228) — verifies the SKILL.md's "all combinations
 # compose silently" claim: every declared mode toggle (격리/요약 + citation grounding +
 # Phase 2 inline path) is described and non-contradictory. Run after editing expert-panel
-# mode/Phase structure or the Citation Contract.
+# mode/Phase structure or the Citation Contract. #663 moved the isolated-mode exchange-loop
+# contract and the Expert Selection Guide out of the saturated SKILL.md body into
+# reference.md; the pins followed. Those pins are whole-SECTION verbatim equality (heading to
+# next heading), not per-clause anchors — three rounds of clause pins each closed the clauses
+# named and each left the next neighbour green, so the live check count fell 24 -> 16 as
+# eleven partial anchors folded into total ones. That drop was the fix, not a regression. The
+# always-loaded SKILL.md sections are pinned the same way (the loaded body outranks an
+# on-demand doc at runtime, so a corrupted locator defeats a correctly pinned contract), and
+# each pinned section's neighbouring headings are pinned too — otherwise one inserted heading
+# parks contradicting text just outside every pin.
 python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
-# Expected: OK: all 16 self-test cases passed
+# Expected: OK: all 44 self-test cases passed
 python3 thinking-tools/scripts/test/test-mode-compose.py
-# Expected: OK: all 9 mode-compose checks passed.
+# Expected: OK: all 20 mode-compose checks passed.
 # (static check against the live SKILL.md)
 
 # persona-pool selection guard (#418) — executes reference/personas.md's Selection Rule
@@ -639,6 +648,27 @@ python3 thinking-tools/scripts/test/test-persona-selection.py --self-test
 # Expected: OK: all 17 test-persona-selection self-test cases passed
 python3 thinking-tools/scripts/test/test-persona-selection.py
 # Expected: OK: all persona-selection checks passed (10 pool entries, 7 topic fixtures, ...)
+
+# adversarial-review Judge Rubric anchor pins (#610/#663) — the 0-10 anchor TABLE lives in the
+# loaded SKILL.md body, where the Judge scores: a table behind an on-demand pointer is a scale
+# nothing forces the Judge to read, so #610 would read as closed while the scale stayed
+# unanchored. reference/patterns.md holds the framing the table cannot state on its own, and
+# that framing needs its own guard — inverting "the defense" into "the attack" flips the polarity
+# of every anchor row while all five row pins still match verbatim. Also pinned: the "anchors are
+# not a measurement" caveat beside the arbitrary 50% start, and the body's BINDING read-and-apply
+# pointer — by section name, since patterns.md is cited five other times and a path-only check
+# survives the pointer's deletion. Room for the inline table came from relocating rationale to
+# reference/rationale.md. Pins are whole-BLOCK verbatim equality, not per-clause anchors: the
+# Judge Rubric block and § Survival Score in the body, every ## section in rationale.md, plus
+# rationale.md's heading SET and patterns.md's anchors->delta-mapping adjacency, so a newly
+# inserted heading cannot park contradicting text just outside every pin. Two blocks in
+# SKILL.md therefore cannot be reworded without editing the matching constant in the same
+# commit — a red there is the guard working, not a broken test. Run after editing the Judge
+# Rubric, the anchor table, Survival Score, or any reference/rationale.md paragraph.
+python3 thinking-tools/scripts/test/test-judge-rubric-anchors.py --self-test
+# Expected: OK: all 37 judge-rubric-anchor self-test cases passed
+python3 thinking-tools/scripts/test/test-judge-rubric-anchors.py
+# Expected: OK: Judge Rubric anchors, the not-a-measurement caveat, and the binding pointer are all pinned
 
 # session-start onboarding hook regression (#117) — first-run discoverability hint
 # hosted in thinking-tools SessionStart (vault-independent entry plugin; C-2 forbids a
