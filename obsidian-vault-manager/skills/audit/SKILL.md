@@ -75,17 +75,14 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    ```
    Wikilinks inside code fences or inline code are masked out before extraction (#434) — a backticked `[[Note]]` is a syntax example, not a real link, and over-masking would hide a real inbound link and manufacture a false E5 orphan.
 
-8. Read manifest summary (used for REPORT header). **Never `cat` the manifest directly** — it
-   can run past 100 KB and the harness truncates large Bash output to a 2 KB preview, so a raw
-   `cat` silently degrades to whichever entries survive the cut (#468, #460). Use the filter
-   script instead, which reads the full file on disk and returns only the two fields needed:
+8. Read manifest summary (used for REPORT header) through the filter script — **never `cat` the
+   manifest directly** (#468, #460). Uses the `$VAULT_ROOT` from Step 1:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
-   Uses the `$VAULT_ROOT` from Step 1.
-   Exit 0 → parse stdout as `{file_count, generated_at}` and use it as `manifest_summary`.
-   Exit 3 (manifest absent, unparseable, or missing a required field) → set `manifest_summary`
-   to null — never re-attempt with a raw `cat` as a fallback.
+   Exit 0 → `manifest_summary` = parsed `{file_count, generated_at}`; exit 3 → null.
+   The binding contract (why a raw `cat` is forbidden, and the full exit-code branch) is
+   `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **Reading the manifest**.
 
 9. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
    ```bash
@@ -136,12 +133,12 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 | E11 | `unstructured_path` | Warning | P1 | `frontmatter_records` (path) | — (display-only) |
 | E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified`, #494) | Warning | P1 | `frontmatter_records` (`wiki/` path + `type: wiki` + `verified`) | — (display-only) |
 
-> **Priority mapping** (v4 §6.1): E1–E3 = P0 (무결성/integrity). E6, E10–E12 = P1 (정체·구조/stagnation·structure). E5, E9 = P2 (quality signal). (E10/E11 are the structural checks per #128/#129; E12 is the wiki self-audit per #330.)
-> **E9 vocabulary** (#119): vault-level, not per-file — one finding per inconsistent tag/key pair (`path: ""`), FP-guarded at ≥3 files per form. E9a/E9b ship deterministically; E9c (semantic synonym) is the `--deep` opt-in (Phase 2.5). Never auto-fixed. Full rule + FP guard: `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → `## E9`.
-> **E3 / E5 / E10 / E11 detail** (suggested filename, orphan connection candidates,
-> misplaced-file and unstructured-path scoping): all display-only, full criteria in
-> `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md`.
-> **E12 wiki self-audit** (#330, v5 §7 U3): flags a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS` (90); a missing/unparseable `verified:` surfaces as the companion `wiki_unverified` (#494) instead of being skipped. Display-only, ships deterministically in CLASSIFY. E12b (cross-page contradiction) is the `--deep` opt-in (Phase 2.5 DEEP). Full rule: `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → `## E12`.
+> **The table above is a summary; the binding rules are in
+> `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md`** — priority rationale per code
+> (`## Priority Mapping`), E9's vault-level `path: ""` finding shape and its ≥3-files-per-form
+> FP guard (`## E9`), E12's `STALE_WIKI_DAYS` staleness plus the `wiki_unverified` companion
+> (`## E12`), and the display-only criteria for E3/E5/E10/E11. E9c and E12b are the `--deep`
+> opt-ins (Phase 2.5). Read that file before changing any classification behavior.
 
 **Output**: Findings list:
 ```
@@ -231,12 +228,10 @@ duplicates dropped, all lowercased. The tier rules and worked examples are in
 `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` under **E2 tag inference**.
 The proposal is never auto-committed — it is previewed in the confirmation gate below.
 
-**Auto-fix NOT eligible** (never mutate):
-- `missing_frontmatter` (E1): body structure unknown, skip.
-- `orphan_note` (E5): requires human decision on content value (connection candidates are suggestions only).
-- `filename_convention_violation` (E3): renaming affects all inbound links (`권장 파일명` is a suggestion only).
-- `tag_vocabulary_inconsistency` (E9): canonical-form choice + rewriting every affected file is the user's decision — display-only, vault-level.
-- `misplaced_file` (E10) / `unstructured_path` (E11): moving a file affects all inbound links — display-only warning, user decides the destination.
+**Auto-fix NOT eligible** (never mutate): E1, E3, E5, E6, E9, E10, E11, E12 — every one of them
+needs a human decision (body structure, rename/move impact on inbound links, content value,
+canonical-form choice, recompile). The binding list with each type's reason:
+`${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **Auto-fix eligibility**.
 
 **Procedure**:
 
