@@ -148,15 +148,11 @@ silently downgrades the check to a title comparison:
   treat it as an in-place edit, not a new append. Show that entry's **before → after** text in
   the §3 confirmation instead of new prose, so the user approves the exact rewrite. Its own
   outcome, not a variant of Duplicate.
-- **Supersede (the catalogue's exit path)**: if landing this rule makes an existing entry
-  redundant — the new rule states the same obligation at a more general altitude, or the old
-  entry's only remaining job is now done by a guard/skill that landed since — do not add a
-  second entry. Absorb the old entry's distinguishing content **into the new one** and retire
-  the old **in the same write**, so the catalogue never carries both. Show the retirement in the
-  §3 confirmation as part of the diff (`Pn retired, absorbed into Pm`) — **never as a separate
-  prompt**. **A retired number is never reused.** If the old entry says the same thing at the
-  *same* altitude this is a Duplicate instead (strengthen it, add nothing); Supersede needs the
-  old entry to have stopped earning its own line.
+- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant
+  absorbs it and retires it in the **same write**, on the same confirmation — never a separate
+  prompt. **Its canonical, binding text is [reference.md](reference.md) §6-supersede-contract —
+  read that section and apply it as written; this bullet is a locator, not the contract.**
+  Rationale: [reference.md](reference.md) §6-supersede.
 - **Contradiction**: if it conflicts with an existing rule and the request does NOT target that
   rule as an explicit edit (it disagrees; it doesn't ask to change the entry), do NOT write —
   report the contradiction and stop.
@@ -203,23 +199,11 @@ move on.
   delete (`trash-put`); if unavailable, leave the file and report it — **never force-delete,
   never `rm`**.
 
-**Necessity gate — after the conflict check, before the §3 confirmation.** The site's content
-is already read, so it costs no extra lookup. Four questions:
-
-1. Has what this rule prevents **actually happened**, or does it only look likely? Speculative
-   → recommend not landing.
-2. Does an existing or more general entry already imply it → strengthen that entry instead
-   (Duplicate/Edit above), adding none.
-3. Is **something else already asking the same question** — a hook, a CI guard, an existing
-   confirmation checkpoint, the tool itself? A doubled gate is dead weight.
-4. Does one clause on a neighbouring entry do it, with no new entry → that form.
-
-Three outcomes: **pass / absorbed into an existing entry / recommend not landing.** The gate
-**recommends only**: it renders as the **first option of the §3 AskUserQuestion** and adds **no
-second prompt**, and it **never blocks the landing** — not one the user asked for directly, not
-one arriving as a distill proposal. A tool does not veto the work it was told to do. It weighs
-the **artifact's cost** (must this be a *new* always-loaded entry?), never the rule's **reuse
-value**, which stays distill's.
+**Necessity gate — runs here, after the conflict check and before the §3 confirmation.** Four
+questions, three outcomes; it **recommends only** and weighs the artifact's cost, never the
+rule's **reuse value** (distill's). **Its canonical, binding text is
+[reference.md](reference.md) §6-gate-contract — read that section and apply it as written; this
+line is a locator, not the contract.** Why it exists: [reference.md](reference.md) §6-gate.
 
 For a new rule the engine appends in each site's **native form** (CLAUDE.md prose / a hook
 script / a skill SKILL.md); an **Edit** rewrites the targeted entry in place. If the site's
