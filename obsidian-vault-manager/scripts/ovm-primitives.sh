@@ -455,40 +455,36 @@ PYEOF
 # treat that as a hard failure); a mix of ok+failed items still exits 0 so the
 # successful proposals are consumed. An empty input (no paths) also exits 1.
 
-# Resolve a batch subcommand's N paths through the vault-boundary guard up front so a
-# traversal / out-of-vault path fails loudly (security), while per-file *read* errors
-# degrade gracefully inside Python (see the policy above). A bare relative path is
-# resolved against VAULT_ROOT (NOT cwd) so callers can pass vault-relative finding paths
-# from any directory; absolute paths are used as-is. The guard result is captured in a
-# plain variable BEFORE the array append so `set -e` propagates a validate_vault_path
-# `die` — a command substitution failure inside `arr+=(...)` is easy to overlook.
-# Result lands in the global RESOLVED_BATCH_PATHS (a function cannot return an array).
-# Shared by infer-tags (#152) and extract-wikilinks-batch (#614).
-resolve_batch_paths() {
-  RESOLVED_BATCH_PATHS=()
+cmd_infer_tags() {
+  [[ $# -eq 0 ]] && die "infer-tags requires <file> [<file> ...] or '-' for stdin"
+
+  # Resolve each requested path through the vault-boundary guard up front so a
+  # traversal / out-of-vault path fails loudly (security), while per-file *read*
+  # errors degrade gracefully inside Python (see policy above). A bare relative
+  # path is resolved against VAULT_ROOT (NOT cwd) so callers can pass vault-relative
+  # finding paths from any directory; absolute paths are used as-is. The guard
+  # result is captured in a plain variable BEFORE the array append so `set -e`
+  # propagates a validate_vault_path `die` — a command substitution failure inside
+  # `arr+=(...)` is easy to overlook.
+  local -a abs_files=()
   local line file candidate validated
   if [[ "$1" == "-" && $# -eq 1 ]]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
       [[ -z "$line" ]] && continue
       case "$line" in /*) candidate="$line" ;; *) candidate="$VAULT_ROOT/$line" ;; esac
       validated="$(validate_vault_path "$candidate")"
-      RESOLVED_BATCH_PATHS+=("$validated")
+      abs_files+=("$validated")
     done
   else
     for file in "$@"; do
       [[ -z "$file" ]] && continue
       case "$file" in /*) candidate="$file" ;; *) candidate="$VAULT_ROOT/$file" ;; esac
       validated="$(validate_vault_path "$candidate")"
-      RESOLVED_BATCH_PATHS+=("$validated")
+      abs_files+=("$validated")
     done
   fi
-}
 
-cmd_infer_tags() {
-  [[ $# -eq 0 ]] && die "infer-tags requires <file> [<file> ...] or '-' for stdin"
-  resolve_batch_paths "$@"
-
-  python3 - "$VAULT_ROOT" "${RESOLVED_BATCH_PATHS[@]}" <<'PYEOF'
+  python3 - "$VAULT_ROOT" "${abs_files[@]}" <<'PYEOF'
 import sys, os, re, json
 
 vault_root = os.path.realpath(os.path.expanduser(sys.argv[1]))
@@ -1213,8 +1209,7 @@ case "$SUBCOMMAND" in
     echo "  scan-frontmatter <dir>                      Emit JSON array of frontmatter records" >&2
     echo "  scan-filename <dir>                         Emit JSON array of filename parse results" >&2
     echo "  extract-wikilinks <file>                    Emit JSON array of wikilink targets" >&2
-    echo "  extract-wikilinks-batch <file> [<file> ...] Emit [{path, links}] for N files in ONE python process (#614)" >&2
-    echo "  extract-wikilinks-batch -                   ... same, reading newline-delimited paths from stdin" >&2
+    echo "  extract-wikilinks-batch <dir>               Emit the finished {target_stem -> [source_paths]} inbound index (#614)" >&2
     echo "  infer-tags <file> [<file> ...]              Emit E2 auto-fix tag proposals as a JSON array (batched)" >&2
     echo "  infer-tags -                                ... same, reading newline-delimited paths from stdin" >&2
     echo "  detect-vocabulary <dir>                     Emit E9 tag/property vocabulary inconsistency pairs (vault-wide)" >&2

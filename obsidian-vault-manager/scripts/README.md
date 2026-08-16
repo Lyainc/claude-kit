@@ -115,34 +115,38 @@ bash ovm-primitives.sh extract-wikilinks ~/vault/30_Notes/my-note.md
 ]
 ```
 
-### `extract-wikilinks-batch <file> [<file> ...]` / `extract-wikilinks-batch -`
+### `extract-wikilinks-batch <dir>`
 
-Same extraction, N files, **one python3 process** (#614). The audit's link index used to
-call the single-file form per `.md` file — 528 Bash round trips / ~110s on the 528-file
-fixture, against 0.14s here. Paths come as arguments, or newline-delimited on stdin with `-`
-(what `audit/SKILL.md` Step 7 pipes `find` into). Relative paths resolve against
-`$VAULT_ROOT`, not cwd.
+The audit's inbound link index, built in **one python3 process** (#614). Step 7 of
+`audit/SKILL.md` used to call the single-file form per `.md` file — 528 Bash round trips /
+~110s on the 528-file fixture, against 0.148s here — and then have the model assemble the
+index by hand. This walks `<dir>` itself and returns the finished index, same vault-wide dir
+shape as `detect-vocabulary` / `e5-candidates`.
 
 Masking (#434) is shared with the single-file form via one definition — a second copy of
 those regexes is exactly the drift this avoids.
 
 ```bash
-find "$VAULT_ROOT" -name '*.md' -not -path '*/.*' | bash ovm-primitives.sh extract-wikilinks-batch -
+bash ovm-primitives.sh extract-wikilinks-batch "$VAULT_ROOT"
 ```
 
-**Output schema** — one wrapper object per input path, order preserved (a deliberately
-different shape from the single-file form, whose flat array stays as it was):
+**Output schema** — `{target_stem: [source_paths]}`:
 
 ```json
-[
-  {"path": "notes/api-design.md", "links": [ /* the schema above */ ]},
-  {"path": "notes/gone.md", "error": "[Errno 2] ...", "links": []}
-]
+{
+  "api-design": ["notes/index.md", "notes/http.md"],
+  "obsidian":   ["sources/capture-2026-05-01-obsidian-api.md"]
+}
 ```
 
-A per-file read error degrades into that `error` element and the batch continues; exit is 1
-only when EVERY path failed. An out-of-vault or traversal path hard-fails the whole batch
-(exit 1, nothing on stdout) before any file is opened.
+Keys are the link target's basename, lowercased, `.md` stripped, so `[[Note]]`,
+`[[note.md]]`, `[[folder/Note|alias]]` and `[[note#heading]]` all land on `note` — the key
+`scan-summary.py` looks a file's own stem up by for E5. Sources are `$VAULT_ROOT`-relative
+and deduped; a self-link is kept in the index and excluded at lookup time instead.
+
+13 KB on the 528-file fixture, so it belongs in a file, not in a Bash preview — Step 7
+redirects it and `scan-summary.py --index` reads it back. An unreadable file is skipped with
+a `WARN` line on stderr plus a final count, never silently: stdout stays pure JSON.
 
 ### `audit-state <op> [args]`
 
@@ -270,14 +274,15 @@ the defect-bearing records, with only the fields each rule in
 `reference/vault-audit-rules.md` needs (clean files carry no information for the REPORT).
 
 ```bash
-python3 scan-summary.py --frontmatter fm.json --filename fn.json [--links links.json] \
+python3 scan-summary.py --frontmatter fm.json --filename fn.json [--index index.json] \
                         [--max-per-type N]
+python3 scan-summary.py --self-test    # 16 rule + truncation-signal cases, no fixture
 # {"total_files":528,"max_per_type":2,"errors":{"E1":{"count":10,"paths":[...],"omitted":8}, ...}}
 ```
 
 `--max-per-type` (default 2) caps each type's list, and a type that hits the cap carries
 `"omitted": N` — a cut is always visible, never silent. `count` is always the full number
-found. Without `--links`, E5 reports `{"computed": false}` rather than zero orphans. Exit 3
+found. Without `--index`, E5 reports `{"computed": false}` rather than zero orphans. Exit 3
 — with nothing on stdout — when an input is absent or unparseable, so "unreadable scan" is
 never mistaken for "clean vault".
 

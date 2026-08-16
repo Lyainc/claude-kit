@@ -10,15 +10,16 @@ Two defects shipped together in audit/SKILL.md Phase 1, and this pins both fixes
       Fixed by scan-summary.py: read the scans off disk, emit only defect-bearing records,
       and make every cut explicit via `omitted`.
   (B) PER-FILE FANOUT. Step 7 ran extract-wikilinks once per .md file — 528 Bash round
-      trips. Fixed by extract-wikilinks-batch: one python3 process regardless of N.
+      trips, and the model assembled the inbound index by hand. Fixed by
+      `extract-wikilinks-batch <dir>`: one python3 process returning the finished index.
 
 Test matrix:
   1. budget: the default-cap bundle is under the 2048 B preview on a 528-file fixture where
      all nine error types fire.
   2. truncation signal: a cap that bites produces `omitted: N`, and count - len(list) == N —
      nothing is ever dropped without a number saying how much.
-  3. batching: ONE batch invocation over N files returns N records in input order, and
-     SKILL.md Step 7 uses the batch form rather than a per-file loop.
+  3. batching: ONE dir-shaped batch invocation returns the finished inbound index for the
+     whole vault, and SKILL.md Step 7 uses that call rather than a per-file loop.
   4. fidelity: the records that survive the filter still reproduce the fixture's seeded
      detections — per-type `count` matches what gen-fixture.sh seeded.
 
@@ -101,8 +102,10 @@ def scan(vault: Path, workdir: Path) -> tuple:
 
     md_files = sorted(str(p) for p in vault.rglob("*.md")
                       if not any(part.startswith(".") for part in p.relative_to(vault).parts))
-    rc, stdout, err = _run(["bash", prim, "extract-wikilinks-batch", "-"], vault,
-                           stdin_text="\n".join(md_files) + "\n")
+    # ONE dir-shaped call — the subcommand walks the vault itself and returns the finished
+    # inbound index (same shape as detect-vocabulary/e5-candidates). md_files is computed
+    # here only as the independent oracle the index is checked against.
+    rc, stdout, err = _run(["bash", prim, "extract-wikilinks-batch", str(vault)], vault)
     if rc != 0:
         print(f"FAIL: extract-wikilinks-batch exited {rc}: {err}", file=sys.stderr)
         sys.exit(1)
@@ -112,7 +115,7 @@ def scan(vault: Path, workdir: Path) -> tuple:
 
 def summary(fm: Path, fn: Path, links: Path, vault: Path, max_per_type=None) -> tuple:
     args = [sys.executable, str(_SCRIPTS / "scan-summary.py"),
-            "--frontmatter", str(fm), "--filename", str(fn), "--links", str(links)]
+            "--frontmatter", str(fm), "--filename", str(fn), "--index", str(links)]
     if max_per_type is not None:
         args += ["--max-per-type", str(max_per_type)]
     rc, stdout, err = _run(args, vault)
@@ -171,20 +174,32 @@ def case_truncation_signal(fm, fn, links, vault, errors: list) -> None:
 
 def case_batch_wikilinks(vault: Path, md_files: list, batch_stdout: str, errors: list) -> None:
     print("\ncase: batch_wikilinks")
-    records = json.loads(batch_stdout)
-    _assert(len(records) == len(md_files) == 528,
-            f"one invocation over {len(md_files)} files returns {len(records)} records", errors)
-    expected = [str(Path(p).resolve().relative_to(Path(vault).resolve())) for p in md_files]
-    _assert([r["path"] for r in records] == expected,
-            "batch output preserves input order, one element per path", errors)
-    _assert(all("links" in r for r in records),
-            "every element carries a `links` array (uniform schema)", errors)
+    index = json.loads(batch_stdout)
+    _assert(isinstance(index, dict),
+            f"one invocation over {len(md_files)} files returns the finished inbound index "
+            f"({len(index)} target stems), not per-file records", errors)
+    _assert(all(isinstance(v, list) for v in index.values()),
+            "every stem maps to a list of source paths (uniform schema)", errors)
 
-    # SKILL.md Step 7 must pipe find into the batch form. A per-file loop is the #614 bug.
+    # Sources are $VAULT_ROOT-relative and are real files in the fixture — the index is
+    # built from the same walk the per-file loop used to do, so its sources must be a
+    # subset of the vault's .md files.
+    rel_files = {str(Path(p).resolve().relative_to(Path(vault).resolve())) for p in md_files}
+    stray = {s for sources in index.values() for s in sources} - rel_files
+    _assert(not stray, f"every index source is a vault-relative .md path (stray: {sorted(stray)[:3]})",
+            errors)
+    _assert(all(k == k.lower() and not k.endswith(".md") for k in index),
+            "keys are lowercased, .md-stripped target stems (what E5 looks a file up by)", errors)
+
+    # SKILL.md Step 7 must make ONE dir-shaped call. A per-file loop is the #614 bug, and
+    # so is a `find | ... -` pipeline — that shape belongs to the superseded stdin form and
+    # would die on `-` being resolved as a path.
     phase1 = re.search(r"## Phase 1 — SCAN(.*?)## Phase 2",
                        _SKILL_MD.read_text(encoding="utf-8"), re.DOTALL).group(1)
-    _assert("extract-wikilinks-batch -" in phase1,
-            "SKILL.md Step 7 pipes the file list into extract-wikilinks-batch", errors)
+    _assert(re.search(r'extract-wikilinks-batch\s+"\$VAULT_ROOT"', phase1),
+            "SKILL.md Step 7 calls extract-wikilinks-batch with the unscoped $VAULT_ROOT", errors)
+    _assert("extract-wikilinks-batch -" not in phase1,
+            "SKILL.md Step 7 does not use the superseded stdin form", errors)
     _assert(not re.search(r"extract-wikilinks\s+\"?\$\{?f", phase1),
             "SKILL.md Step 7 has no per-file extract-wikilinks loop", errors)
     _assert("scan-summary.py" in phase1,
@@ -212,7 +227,7 @@ def case_seeded_detections(fm, fn, links, vault, errors: list) -> None:
     # E5 orphans are link-derived: the E10 seeds each link to a note, so those targets must
     # NOT be orphans — proof the batch link index actually feeds the orphan derivation.
     e5 = set(types["E5"]["paths"])
-    _assert(e5, "E5 orphans are computed (not the no --links placeholder)", errors)
+    _assert(e5, "E5 orphans are computed (not the no --index placeholder)", errors)
     _assert(not (e5 & {f"notes/audit-e10-misplaced-session-{i:03d}.md" for i in range(1, 6)}),
             "linked-to notes are not reported as orphans", errors)
 
