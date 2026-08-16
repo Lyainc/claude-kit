@@ -21,6 +21,12 @@
 # "FIXTURE ERROR: ..." with exit 2 — visibly distinct from a real DoD invariant
 # failure, which is whatever assert-dod.py itself prints, propagated with its own
 # exit code. Only assert-dod.py's verdict may be read as "the DoD gate failed."
+#
+# The marker is printed AFTER the build log, not before it: check-test-exitcode.py keeps
+# only the last 500 chars of stderr, and gen-fixture.sh emits 1,815 bytes on a SUCCESSFUL
+# run — so a marker printed first is truncated away by a late failure, which is exactly
+# the concurrent-teardown case, and the reader is left with generic build noise again.
+# The log is tailed for the same reason: the distinguishing line has to survive the cut.
 
 set -uo pipefail
 
@@ -33,14 +39,14 @@ FIXTURE_DIR="$D/fixture"
 DOD_JSON="$D/dod.json"
 
 if ! OVM_FIXTURE_DIR="$FIXTURE_DIR" bash "$SCRIPT_DIR/gen-fixture.sh" --with-audit-errors >"$D/gen-fixture.log" 2>&1; then
+  tail -n 20 "$D/gen-fixture.log" >&2
   echo "FIXTURE ERROR: could not build the audit fixture (gen-fixture.sh failed) — this is NOT a DoD verdict" >&2
-  cat "$D/gen-fixture.log" >&2
   exit 2
 fi
 
 if ! python3 "$SCRIPT_DIR/audit-validate.py" "$FIXTURE_DIR" --dod > "$DOD_JSON" 2>"$D/audit-validate.log"; then
+  tail -n 20 "$D/audit-validate.log" >&2
   echo "FIXTURE ERROR: audit-validate.py --dod run failed — this is NOT a DoD verdict" >&2
-  cat "$D/audit-validate.log" >&2
   exit 2
 fi
 
