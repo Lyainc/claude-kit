@@ -65,6 +65,31 @@ vault is forbidden (MECE: searching = vault-searcher, critiquing = adversarial-r
 
 ---
 
+## Judge Rubric Anchors
+
+**This section is a pinned contract, not background.** It is compared WHOLE and verbatim
+(whitespace-normalised) against `_ANCHOR_FRAMING` in
+`thinking-tools/scripts/test/test-judge-rubric-anchors.py`; the slice runs from this heading to the
+next one, so nothing may be parked *inside* it — text placed after the next heading is outside the
+pin, and only the immediate adjacency with § Judge Score Delta Mapping is separately guarded.
+Editing this section is a deliberate contract change, made in the same commit as that constant.
+
+**Canonical framing (#610).** The anchor table itself lives in `SKILL.md` Phase 1 § Judge Rubric —
+in the loaded body, where the Judge actually scores, so no on-demand read stands between the Judge
+and the scale. This section is the binding contract for the two things the table cannot state on
+its own: what the anchors judge, and how to score between two of them. `SKILL.md` points here; the
+Judge reads and applies it at the moment it scores a round.
+
+**What is scored**: each of the three elements (Relevance, Substance, Completeness) is scored by
+judging **the defense** against the attack it answers — never the attack, and never the claim in
+the abstract. Inverting that object flips the meaning of every anchor row.
+
+**Between anchors**: scores between two anchors interpolate (6–7 = more than engagement, short of a
+concrete rebuttal). Anchor to the nearest description rather than inventing a new criterion for the
+gap.
+
+---
+
 ## Judge Score Delta Mapping
 
 Judge scores each element (Relevance, Substance, Completeness, 0–10 each) and maps total to dimension score delta:
