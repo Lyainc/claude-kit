@@ -28,6 +28,19 @@ The pinned claims:
    write, and forbids reusing a retired number.
 4. That retirement rides on the same single confirmation — never a second prompt.
 5. §3's confirmation template carries the 은퇴 (retirement) field.
+6. (#609) §6 names the never-fired retirement as its own outcome, offering BOTH choices
+   (delete / narrow the firing condition) under the recommends-only ceiling and on the same
+   confirmation, triggered by positive evidence only (never silence) and routing its delete
+   through `trash-put`. Supersede only removes what a NEW rule absorbs, and
+   `lint-catalogue.sh` caps the framing but deliberately not the row count, so without this an
+   entry that was simply never needed has no exit at all.
+7. (#609) §3's hook site names BOTH forms with the mechanism each actually has — blocking =
+   PreToolUse + `permissionDecision`, recovery = PostToolUse + `exit 2`. Documenting recovery
+   with PreToolUse fields would send every future recovery rule into a dead end.
+8. (#609) the tier sentence defines HARD as "deterministically enforced", never "a guard
+   blocks", while keeping `tier folds into the site`. Under the old definition recovery has no
+   tier, and the engine must either add a second axis (breaking the 1-click UX) or push
+   recovery rules back to the reminder site — the bug #609 was filed on.
 
 #663 moved the Supersede verdict's CANONICAL text out of the SKILL.md body and into
 `add-policy/reference.md` §6-supersede-contract, because §6 had every ≥300-char paragraph
@@ -39,8 +52,9 @@ pinned in the body — it is the section's own opening instruction and cannot be
 
 KNOWN GAP (measured, not assumed). Three regions are pinned verbatim across this suite
 and test-add-policy-necessity-gate.py — §6's preamble (in SKILL.md), the Supersede verdict and
-the gate block (both in reference.md since #663). The rest of §6 is the
-Duplicate/Edit/Contradiction/Sibling
+the gate block (both in reference.md since #663). Re-measured 2026-08-16 with #609's two new verdicts: the verbatim-pinned regions
+cover 2,871 of §6's 7,642 characters, and the phrase-pinned regions grew with them.
+The rest is the Duplicate/Edit/Contradiction/Sibling
 bullets and the memory-scan subsection, which test-add-policy-routing.py phrase-pins because it
 changes. A contradicting clause placed there passes every suite. Closing it means pinning all of
 §6, which would put the `awk` snippet under the same paired-commit rule as the contract text and
@@ -166,17 +180,17 @@ def _bullet_scope(lower: str, marker: str) -> str | None:
 _PREAMBLE_CONTRACT = """\
 ## 6. Conflict check (target = the landfill site's current rules + native auto-memory)
 
-**New site**: check the target **exists** first (`[ -f "$TARGET" ]`, the principle §5 uses for
-the skill site). Never infer "missing" from a read *error* — that skips the check and
-**overwrites existing content**. Absent → **`Write`**, not append; exists but unreadable → stop
-and report. ([reference.md](reference.md) §6-new-site)
+**New site**: check the target **exists** first (`[ -f "$TARGET" ]`, as §5 does for the skill
+site). Never infer "missing" from a read *error* — that **overwrites existing content**. Absent
+→ **`Write`**, not append; exists but unreadable → stop and report.
+([reference.md](reference.md) §6-new-site)
 
 Otherwise read the **current contents of the chosen site** first (read-only `Bash`/`Grep`):
 that channel's own rules, or the existing hook matchers and guard scripts (so a new guard
 doesn't fire on an event one already covers), or existing skills.
 **If the site is an index+detail split, follow the index's links and read the detail files
-too** — they may sit outside the indexed directory (§3), so scanning that directory alone
-silently downgrades the check to a title comparison:
+too** — they may sit outside the indexed directory (§3), and scanning that directory alone
+downgrades the check to a title comparison:
 """
 
 
@@ -368,6 +382,93 @@ def check_confirmation_template_lists_retirement(skill: str, ref: str = "") -> t
     return True, "은퇴 field present in the §3 confirmation template"
 
 
+def check_unused_retirement_verdict(text: str, _ref: str = "") -> tuple[bool, str]:
+    """#609: the never-fired exit, with BOTH choices and the recommends-only ceiling.
+
+    Supersede only removes an entry that a NEW rule absorbs, and `lint-catalogue.sh` caps
+    the framing but deliberately not the row count — so without this verdict an entry that
+    was simply never needed has no exit and the catalogue grows monotonically. Both halves
+    are pinned: only offering `delete` turns a narrowing candidate into a removal, and
+    dropping the recommends-only ceiling turns a suggestion into an automatic deletion —
+    the one direction this engine must never fail in.
+    """
+    bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**unused retirement")
+    if bullet_text is None:
+        return False, "the never-fired retirement is not named as its own §6 outcome"
+    if "delete" not in bullet_text:
+        return False, "the delete choice is missing from the unused-retirement outcome"
+    if "narrow" not in bullet_text:
+        return False, "the narrow-the-firing-condition choice is missing (delete is not the only exit)"
+    if "recommends only" not in bullet_text:
+        return False, "unused retirement doesn't state the recommends-only ceiling — it could auto-delete"
+    if "no second prompt" not in bullet_text:
+        return False, "unused retirement doesn't ride the one confirmation (a second prompt breaks 1-click)"
+    # The anti-silence guard (#609 review). reference.md §6-supersede already rejected
+    # usage-based retirement because there is no firing telemetry; a trigger that reads
+    # absence of output as non-firing re-opens it with the time window removed and the
+    # inference intact, and cannot tell a never-needed rule from a young correct one.
+    if "never silence" not in bullet_text and "not silence" not in bullet_text:
+        return False, "unused retirement doesn't exclude silence — absence of evidence is not evidence"
+    # The delete is irreversible, so the recovery route is part of the verdict, not a detail.
+    if "trash-put" not in bullet_text:
+        return False, "unused retirement doesn't route its delete through trash-put"
+    return True, "unused retirement named with both choices, recommends-only, one confirmation, silence excluded, trash-put"
+
+
+
+def check_hook_site_two_forms(text: str, _ref: str = "") -> tuple[bool, str]:
+    """#609: §3's hook site names BOTH forms, each with the mechanism that actually exists.
+
+    Before #609 the hook site was bound to blocking only, so a rule whose violation cannot be
+    seen in the tool call's arguments but IS reconstructable from what the act leaves behind
+    had no home and drifted to the reminder site (the intervention point the Harness-R1
+    ablation measured as the second most costly to lose). The mechanisms are asymmetric and
+    the asymmetry is the whole point, so both are pinned: PreToolUse is the only event that
+    can deny, and PostToolUse can only report through exit 2 + stderr. A recovery form
+    documented with PreToolUse fields would send every future recovery rule into a dead end.
+    """
+    # Scope to the hook SITE bullet. `description:` and the `## Rules` summary also say
+    # "blocking or recovery" without any mechanism, so a first-occurrence search would read
+    # the frontmatter and pass on a §3 that lost the split entirely.
+    bullet = _bullet_scope(text.lower(), "- **hook**")
+    if bullet is None:
+        return False, "§3's hook site bullet not found"
+    if "blocking" not in bullet or "recovery" not in bullet:
+        return False, "§3's hook site does not name both the blocking and recovery forms"
+    for form, event, field in (("blocking", "pretooluse", "permissiondecision"),
+                               ("recovery", "posttooluse", "exit 2")):
+        idx = bullet.find(form)
+        window = bullet[idx:idx + 220]
+        if event not in window:
+            return False, f"the {form} form is not paired with {event}"
+        if field not in window:
+            return False, f"the {form} form does not name {field}"
+    return True, "§3's hook site names blocking and recovery, each with its real mechanism"
+
+
+def check_tier_does_not_mean_blocking(text: str, _ref: str = "") -> tuple[bool, str]:
+    """#609: HARD means "deterministically enforced", never "a guard blocks".
+
+    The recovery form auto-fires exactly like blocking and needs no confirmation, so it is an
+    ordinary member of HARD — but only under the rewritten definition. If HARD reverts to
+    meaning that a guard blocks, recovery becomes an exception with no tier, and the engine
+    either invents a second axis (breaking `tier folds into the site`, add-policy's 1-click
+    justification) or routes recovery rules back to the reminder site, which is the #609 bug.
+    """
+    lowered = " ".join(text.lower().split())
+    if "tier folds into the site" not in lowered:
+        return False, "the 1-click justification (`tier folds into the site`) is gone"
+    if "hard ⇒ hook" not in lowered or "soft ⇒ reminder" not in lowered:
+        return False, "the tier→site mapping no longer states HARD ⇒ hook / SOFT ⇒ reminder"
+    if "deterministically enforced" not in lowered:
+        return False, "HARD is not defined as `deterministically enforced` — recovery loses its tier"
+    # The old definition may only survive as the thing being denied, never as the claim.
+    for phrase in ('hard means "a guard blocks"', "hard means 'a guard blocks'"):
+        if phrase in lowered:
+            return False, "HARD is still defined as `a guard blocks` — recovery has no tier"
+    return True, "HARD means deterministically enforced, and tier still folds into the site"
+
+
 _CHECKS = [
     check_conflict_preamble_verbatim,
     check_edit_bucket_named,
@@ -376,6 +477,9 @@ _CHECKS = [
     check_supersede_verdict_named,
     check_supersede_bullet_verbatim,
     check_confirmation_template_lists_retirement,
+    check_unused_retirement_verdict,
+    check_hook_site_two_forms,
+    check_tier_does_not_mean_blocking,
 ]
 
 
@@ -415,13 +519,29 @@ _PASSING = """\
 - **Edit (explicit modification of an existing entry)**: if the request clearly targets
   one existing entry and asks to change it, treat it as an in-place edit, not a new
   append. Show the entry's before → after text in the §3 confirmation.
-%s- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
+%s- **Unused retirement (the other exit, #609)**: positive evidence only — the user says
+  outright the entry never came up, never silence. Reminder-site entries only, never a
+  user-authored skill. Surfaces
+  in the §3 은퇴 field with two choices — delete it, or narrow its firing condition: same
+  confirmation, no second prompt, recommends only, no answer means keep, `trash-put` never
+  `rm`.
+- **Contradiction**: if it conflicts with an existing rule and the request does NOT target
   that rule as an explicit edit, do NOT write — report and stop.
 - **Sibling**: link them with a one-line note.
 
 ## 분류 결과
 - 충돌: <none | sibling of an existing rule | edits an existing entry (show before→after) | contradicts an existing rule (explain)>
 - 은퇴: <none | Pn이 이 규칙에 흡수돼요 — 같은 쓰기에서 은퇴시킬게요>
+
+- **hook** — deterministic auto-enforcement, **HARD**: a guard script + a `hooks` registration
+  entry. **Two forms** (#609), by *when* the violation becomes visible: **blocking** =
+  PreToolUse + `hookSpecificOutput.permissionDecision: "deny"`; **recovery** = PostToolUse +
+  `exit 2`, stderr back to Claude — reports only.
+- **skill** — an invocable procedure.
+
+**Tier folds into the site, so the user never picks an axis** (**HARD ⇒ hook, SOFT ⇒
+reminder**); the hook's *form* folds the same way — **HARD means "deterministically
+enforced", not "a guard blocks"** (#609).
 """ % _SUPERSEDE_POINTER
 
 _PASSING_REF = (
@@ -476,6 +596,82 @@ _CONFIRMATION_FIELD_SUBSTRING_FALSE_POSITIVE = """\
 ## 분류 결과
 - 충돌: <none | sibling of an existing rule | contradicts an existing rule (expedited review)>
 """
+
+
+def _mutate(old: str, new: str) -> str:
+    """_PASSING with `old` swapped for `new` — and it MUST actually swap something.
+
+    A fixture built with a bare `_PASSING.replace(...)` whose target no longer matches is
+    silently a COPY of _PASSING, so the "expect FAIL" case it backs starts passing and the
+    mutation it was written to catch goes unguarded. That happened while landing #609: the
+    bullet's wording changed and two fixtures became no-ops in the same edit. Fail loudly at
+    import time instead.
+    """
+    mutated = _PASSING.replace(old, new)
+    if mutated == _PASSING:
+        raise AssertionError(
+            "fixture mutation is a no-op — _PASSING no longer contains:\n" + old)
+    return mutated
+
+
+# #609: the never-fired exit offers ONLY delete — the mutation that turns a narrowing
+# candidate into a removal, and the reason both choices are pinned rather than "an exit exists".
+_UNUSED_DELETE_ONLY = _mutate(
+    """two choices — delete it, or narrow its firing condition""",
+    """one choice — delete it""",
+)
+
+# #609: the ceiling dropped, so the engine removes the entry itself. `add-policy` recommends;
+# it never deletes on its own judgment.
+_UNUSED_AUTO_DELETES = _mutate(
+    """same
+  confirmation, no second prompt, recommends only, no answer means keep,""",
+    """the engine removes it in the same write.""",
+)
+
+# #609 review: the silence guard replaced by the usage threshold reference.md §6-supersede
+# already rejected. With no firing telemetry this cannot separate "never needed" from "has
+# not come up yet", so a young correct rule gets proposed for deletion.
+_UNUSED_SILENCE_TRIGGER = _mutate(
+    """positive evidence only — the user says
+  outright the entry never came up, never silence.""",
+    """it has not fired in months.""",
+)
+
+# #609 review: the irreversible half left un-routed. A delete that reaches for `rm` is the
+# one failure this verdict cannot walk back (machine-rule P4).
+_UNUSED_RM_DELETE = _mutate(
+    """no answer means keep, `trash-put` never
+  `rm`.""",
+    "no answer means keep. Remove it with `rm`.",
+)
+
+
+# #609: the whole split reverted — one hook site, blocking only. Every rule detectable only
+# after the fact drifts back to the reminder site, which is the bug the issue was filed on.
+_SITE_NO_FORMS = _mutate(
+    """**Two forms** (#609), by *when* the violation becomes visible: **blocking** =
+  PreToolUse + `hookSpecificOutput.permissionDecision: "deny"`; **recovery** = PostToolUse +
+  `exit 2`, stderr back to Claude — reports only.""",
+    """PreToolUse + `hookSpecificOutput.permissionDecision: "deny"`.""",
+)
+
+# Both forms named, but recovery documented with the blocking mechanism — the dead end this
+# check exists for, since PostToolUse carries no permissionDecision at all.
+_SITE_RECOVERY_WRONG_EVENT = _mutate(
+    """**recovery** = PostToolUse +
+  `exit 2`, stderr back to Claude — reports only.""",
+    """**recovery** = PreToolUse +
+  `hookSpecificOutput.permissionDecision: "ask"`.""",
+)
+
+# The pre-#609 tier sentence restored: HARD means a guard blocks, so recovery has no tier and
+# the engine must either invent a second axis or route recovery rules back to the reminder.
+_SITE_TIER_MEANS_BLOCKS = _mutate(
+    """**HARD means "deterministically
+enforced", not "a guard blocks"** (#609).""",
+    """**HARD means "a guard blocks"**.""",
+)
 
 
 # Supersede exists but defers the retirement to its own confirmation — the design #429
@@ -704,6 +900,26 @@ def _self_test() -> int:
     ):
         ok, _ = check_supersede_verdict_named(skill_fixture, _PASSING_REF)
         cases.append((f"{name}: check_supersede_verdict_named (expect FAIL)", not ok))
+
+    ok, _ = check_unused_retirement_verdict(_UNUSED_DELETE_ONLY, _PASSING_REF)
+    cases.append(("unused-delete-only: check_unused_retirement_verdict (expect FAIL)", not ok))
+    ok, _ = check_unused_retirement_verdict(_UNUSED_AUTO_DELETES, _PASSING_REF)
+    cases.append(("unused-auto-deletes: check_unused_retirement_verdict (expect FAIL)", not ok))
+    ok, _ = check_supersede_bullet_verbatim(_UNUSED_AUTO_DELETES, _PASSING_REF)
+    cases.append(("unused-auto-deletes: check_supersede_bullet_verbatim (still OK)", ok))
+    ok, _ = check_unused_retirement_verdict(_UNUSED_SILENCE_TRIGGER, _PASSING_REF)
+    cases.append(("unused-silence-trigger: check_unused_retirement_verdict (expect FAIL)", not ok))
+    ok, _ = check_unused_retirement_verdict(_UNUSED_RM_DELETE, _PASSING_REF)
+    cases.append(("unused-rm-delete: check_unused_retirement_verdict (expect FAIL)", not ok))
+
+    ok, _ = check_hook_site_two_forms(_SITE_NO_FORMS, _PASSING_REF)
+    cases.append(("site-no-forms: check_hook_site_two_forms (expect FAIL)", not ok))
+    ok, _ = check_hook_site_two_forms(_SITE_RECOVERY_WRONG_EVENT, _PASSING_REF)
+    cases.append(("site-recovery-wrong-event: check_hook_site_two_forms (expect FAIL)", not ok))
+    ok, _ = check_tier_does_not_mean_blocking(_SITE_TIER_MEANS_BLOCKS, _PASSING_REF)
+    cases.append(("site-tier-means-blocks: check_tier_does_not_mean_blocking (expect FAIL)", not ok))
+    ok, _ = check_tier_does_not_mean_blocking(_SITE_NO_FORMS, _PASSING_REF)
+    cases.append(("site-no-forms: check_tier_does_not_mean_blocking (still OK — tier wording intact)", ok))
 
     ok, _ = check_conflict_preamble_verbatim(_PREAMBLE_OK)
     cases.append(("preamble: check_conflict_preamble_verbatim (still OK)", ok))

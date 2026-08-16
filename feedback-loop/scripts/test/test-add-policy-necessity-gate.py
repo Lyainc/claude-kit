@@ -37,6 +37,10 @@ Pinned claims:
 6. §3's confirmation template carries the 필요성 field, and §3 gives the recommendation
    its own question when 필요성 is not 통과 (a single hardcoded don't-land wording would
    misreport an "absorb into an existing entry" verdict to the user answering it).
+7. (#609) A narrowing clause closes the gate block: single-occurrence evidence scopes the
+   rule's condition to that occurrence's own situation, and the clause explicitly disclaims
+   an occurrence counter — telemetry carries no failure-type label a threshold could be
+   judged against, so a counter would read stricter while judging looser.
 
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
@@ -158,6 +162,23 @@ second prompt**, and it **never blocks the landing** — not one the user asked 
 one arriving as a distill proposal. A tool does not veto the work it was told to do. It weighs
 the **artifact's cost** (must this be a *new* always-loaded entry?), never the rule's **reuse
 value**, which stays distill's.
+
+**Narrowing clause (question 1, on a pass):** if it happened **once**, narrow the condition to
+the situation that one occurrence actually arose in, not the broader case it resembles — forcing
+the broad rule measurably lowers success. Adds **no occurrence counter**, on purpose: telemetry
+carries no failure-type label to count, so a threshold reads stricter while judging looser
+(#609, measurements in [reference.md](reference.md) §6-narrowing).
+"""
+
+
+# The clause the #609 fixtures delete, spelled once so the mutation cannot drift from
+# the contract text above it.
+_NARROWING_CLAUSE = """
+**Narrowing clause (question 1, on a pass):** if it happened **once**, narrow the condition to
+the situation that one occurrence actually arose in, not the broader case it resembles — forcing
+the broad rule measurably lowers success. Adds **no occurrence counter**, on purpose: telemetry
+carries no failure-type label to count, so a threshold reads stricter while judging looser
+(#609, measurements in [reference.md](reference.md) §6-narrowing).
 """
 
 
@@ -312,6 +333,30 @@ def check_confirmation_surfaces_the_recommendation(skill: str, ref: str = "") ->
     return True, "§3 carries 필요성 and a distinct confirmation question per non-통과 outcome"
 
 
+def check_narrowing_clause(skill: str, ref: str) -> tuple[bool, str]:
+    """#609: one occurrence narrows the condition, and the clause disclaims a counter.
+
+    Without the narrowing half a rule justified by one incident lands as broad as one
+    justified by a pattern — measured at 41.6% -> 35.4% success. Without the no-counter
+    half, the obvious "require N occurrences" strengthening reads stricter while being
+    uncomputable (telemetry has no failure-type label), so the engine guesses at the count
+    and judges looser than the honest one-question gate does today.
+
+    #663 moved the gate's canonical text to reference.md, and the clause moved with it: it is
+    question 1's second half, so it belongs inside the contract the engine applies, not beside
+    the locator. `_gate_block` reads the reference doc, and the section's slice-to-next-heading
+    boundary is what keeps the clause INSIDE the block rather than parked after it.
+    """
+    block = _gate_block(ref)
+    if not _states(block, "narrow the condition"):
+        return False, "the single-occurrence narrowing instruction is missing"
+    if not _states(block, "no occurrence counter"):
+        return False, "the clause doesn't disclaim adding an occurrence counter"
+    if not _states(block, "no failure-type label"):
+        return False, "the clause doesn't say why a counter can't be judged (no failure-type label)"
+    return True, "narrowing clause present: scopes to the single occurrence, adds no counter"
+
+
 _CHECKS = [
     check_gate_present_and_positioned,
     check_four_questions,
@@ -319,6 +364,7 @@ _CHECKS = [
     check_gate_block_verbatim,
     check_distill_boundary,
     check_confirmation_surfaces_the_recommendation,
+    check_narrowing_clause,
 ]
 
 
@@ -425,6 +471,22 @@ _MISSING_QUESTION_3 = _PASSING_REF.replace(
     "",
 )
 
+# #609: the narrowing clause dropped, the rest of the gate intact. Keeps
+# check_narrowing_clause from degrading into "a gate exists" (check_gate_present_and_positioned
+# already covers that), and pins that the clause sits INSIDE the gate block, not after it.
+# Since #663 the clause lives in the CANONICAL copy — reference.md's §6-gate-contract — so the
+# mutation targets _PASSING_REF, and the slice-to-next-heading boundary is what keeps it inside.
+_MISSING_NARROWING_CLAUSE = _PASSING_REF.replace(_NARROWING_CLAUSE, "")
+
+# The counter #609 rejects, added back with the narrowing half still in place — the "fix" a
+# future editor is most likely to attempt. The disclaimer is what fails it.
+_COUNTER_REINTRODUCED = _PASSING_REF.replace(
+    """Adds **no occurrence counter**, on purpose: telemetry
+carries no failure-type label to count, so a threshold reads stricter while judging looser
+(#609, measurements in [reference.md](reference.md) §6-narrowing).""",
+    """Land it only once the same failure has occurred **at least twice** (#609).""",
+)
+
 # The section exists but holds only a summary; the executable block is gone. A whole-document
 # matcher passes this; the scoped slice must not.
 _SUMMARY_ONLY_REF = """\
@@ -497,6 +559,8 @@ for _name, _fixture, _base in (
     ("_TRAILING_CLAUSE", _TRAILING_CLAUSE, _PASSING_REF),
     ("_REFLOWED_GATE", _REFLOWED_GATE, _PASSING_REF),
     ("_MISSING_QUESTION_3", _MISSING_QUESTION_3, _PASSING_REF),
+    ("_MISSING_NARROWING_CLAUSE", _MISSING_NARROWING_CLAUSE, _PASSING_REF),
+    ("_COUNTER_REINTRODUCED", _COUNTER_REINTRODUCED, _PASSING_REF),
     ("_ONE_GENERIC_REFUSAL", _ONE_GENERIC_REFUSAL, _PASSING_SKILL),
     ("_POINTER_DROPPED", _POINTER_DROPPED, _PASSING_SKILL),
     ("_POINTER_BARE_CITATION", _POINTER_BARE_CITATION, _PASSING_SKILL),
@@ -566,6 +630,20 @@ def _self_test() -> int:
     cases.append(("missing-question-3: check_four_questions (expect FAIL)", not ok))
     ok, _ = check_three_outcomes(_PASSING_SKILL, _MISSING_QUESTION_3)
     cases.append(("missing-question-3: check_three_outcomes (still OK)", ok))
+
+    ok, _ = check_narrowing_clause(_PASSING_SKILL, _MISSING_NARROWING_CLAUSE)
+    cases.append(("missing-narrowing-clause: check_narrowing_clause (expect FAIL)", not ok))
+    ok, _ = check_three_outcomes(_PASSING_SKILL, _MISSING_NARROWING_CLAUSE)
+    cases.append(("missing-narrowing-clause: check_three_outcomes (still OK)", ok))
+    ok, _ = check_gate_block_verbatim(_PASSING_SKILL, _MISSING_NARROWING_CLAUSE)
+    cases.append(("missing-narrowing-clause: check_gate_block_verbatim (expect FAIL)", not ok))
+
+    ok, _ = check_narrowing_clause(_PASSING_SKILL, _COUNTER_REINTRODUCED)
+    cases.append(("counter-reintroduced: check_narrowing_clause (expect FAIL)", not ok))
+    # The counter's own damage is invisible to the verbatim pin only if the pin stopped
+    # covering the clause — it must red here too, now that the clause is inside the slice.
+    ok, _ = check_gate_block_verbatim(_PASSING_SKILL, _COUNTER_REINTRODUCED)
+    cases.append(("counter-reintroduced: check_gate_block_verbatim (expect FAIL)", not ok))
 
     for check in (check_four_questions, check_three_outcomes, check_gate_block_verbatim):
         ok, _ = check(_PASSING_SKILL, _SUMMARY_ONLY_REF)
