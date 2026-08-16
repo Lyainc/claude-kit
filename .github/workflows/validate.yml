@@ -385,10 +385,5 @@ jobs:
 
       - name: Audit DoD seeded-detection gate
         run: |
-          rm -rf /tmp/ovm-fixture-audit-recheck
-          OVM_FIXTURE_DIR=/tmp/ovm-fixture-audit-recheck \
-            bash obsidian-vault-manager/scripts/test/gen-fixture.sh --with-audit-errors
-          python3 obsidian-vault-manager/scripts/test/audit-validate.py \
-            /tmp/ovm-fixture-audit-recheck --dod > /tmp/dod.json
-          python3 obsidian-vault-manager/scripts/test/assert-dod.py /tmp/dod.json
+          bash obsidian-vault-manager/scripts/test/run-audit-dod.sh
           echo "Audit DoD gate OK"
