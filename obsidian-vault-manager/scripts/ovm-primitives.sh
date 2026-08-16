@@ -246,19 +246,15 @@ print(json.dumps(records, indent=2, ensure_ascii=False))
 PYEOF
 }
 
-# ── subcommand: extract-wikilinks ─────────────────────────────────────────────
-# Usage: extract-wikilinks <file>
-# Emits JSON array of link target strings from [[...]] / ![[...]] syntax.
+# ── wikilink extraction: shared Python core ───────────────────────────────────
+# ONE definition of the masking + parsing logic, emitted on stdin ahead of whichever
+# driver needs it (#614). `extract-wikilinks` (single file) and
+# `extract-wikilinks-batch` (N files, one process) both read it from here — a second
+# copy of the #434 masking regexes is exactly the drift this avoids.
 
-cmd_extract_wikilinks() {
-  local file="${1:-}"
-  [[ -z "$file" ]] && die "extract-wikilinks requires <file>"
-  local abs_file
-  abs_file="$(validate_vault_path "$file")"
-  [[ -f "$abs_file" ]] || die "Not a file: $abs_file"
-
-  python3 - "$abs_file" <<'PYEOF'
-import sys, re, json
+_wikilink_py_core() {
+  cat <<'PYEOF'
+import sys, os, re, json
 
 WIKILINK_PATTERN = re.compile(r'!?\[\[([^\[\]]+)\]\]')
 
@@ -336,17 +332,90 @@ def parse_wikilink(raw):
         'embed': embed
     }
 
-fpath = sys.argv[1]
-with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
-    content = f.read()
-
-links = []
-for m in WIKILINK_PATTERN.finditer(mask_code(content)):
-    raw = m.group(0)
-    links.append(parse_wikilink(raw))
-
-print(json.dumps(links, indent=2, ensure_ascii=False))
+def extract_links(fpath):
+    """Masked wikilink records for one file. Raises OSError on an unreadable file."""
+    with open(fpath, 'r', encoding='utf-8', errors='replace') as f:
+        content = f.read()
+    return [parse_wikilink(m.group(0))
+            for m in WIKILINK_PATTERN.finditer(mask_code(content))]
 PYEOF
+}
+
+# ── subcommand: extract-wikilinks ─────────────────────────────────────────────
+# Usage: extract-wikilinks <file>
+# Emits JSON array of link target strings from [[...]] / ![[...]] syntax.
+
+cmd_extract_wikilinks() {
+  local file="${1:-}"
+  [[ -z "$file" ]] && die "extract-wikilinks requires <file>"
+  local abs_file
+  abs_file="$(validate_vault_path "$file")"
+  [[ -f "$abs_file" ]] || die "Not a file: $abs_file"
+
+  { _wikilink_py_core; cat <<'PYEOF'
+print(json.dumps(extract_links(sys.argv[1]), indent=2, ensure_ascii=False))
+PYEOF
+  } | python3 - "$abs_file"
+}
+
+# ── subcommand: extract-wikilinks-batch ───────────────────────────────────────
+# Usage: extract-wikilinks-batch <file> [<file> ...]  |  extract-wikilinks-batch -
+# BATCH (#614): the audit's link index used to call `extract-wikilinks` once per
+# .md file — 528 Bash round trips / ~110s on the 528-file fixture, one Python
+# interpreter start each. This takes N paths (args, or newline-delimited on stdin
+# for `-`) and runs a SINGLE python3 process regardless of N. Same masking core as
+# the single-file form (see `_wikilink_py_core`), so the two can never drift.
+#
+# A SEPARATE subcommand name, not an overload: `extract-wikilinks` returns a flat
+# array of link records and test-wikilink-code-masking.py drives that contract via
+# subprocess — this one returns one WRAPPER object per input path instead:
+#   [{"path": "<VAULT_ROOT-relative>", "links": [...]}, ...]
+# order preserved, one element per input path. Per-file read errors degrade into
+# {"path": ..., "error": "<msg>", "links": []} (the batch keeps going — same #152
+# infer-tags policy); exit 1 only when EVERY item failed or there was no input.
+#
+# The vault-boundary guard runs INSIDE that one process, not through the shell's
+# `validate_vault_path` (which the sibling `resolve_batch_paths` uses): that helper
+# spawns two python3 interpreters PER PATH, which on 528 files cost ~22s — it would
+# have eaten the entire batching win. The in-process check enforces the same rule
+# (realpath must be VAULT_ROOT or under it, which subsumes `..` traversal) and still
+# hard-fails the whole batch with exit 1 and NOTHING on stdout, before any file is read.
+
+cmd_extract_wikilinks_batch() {
+  [[ $# -eq 0 ]] && die "extract-wikilinks-batch requires <file> [<file> ...] or '-' for stdin"
+
+  # `-c` rather than a script on stdin: stdin has to stay free for the `-` path list.
+  local script
+  script="$(_wikilink_py_core; cat <<'PYEOF'
+vault_root = os.path.realpath(os.path.expanduser(sys.argv[1]))
+requested = sys.argv[2:]
+if requested == ['-']:
+    requested = [line.strip() for line in sys.stdin if line.strip()]
+
+# Boundary guard first, for EVERY path, before a single file is opened.
+resolved = []
+for p in requested:
+    p = os.path.expanduser(p)
+    # A bare relative path resolves against VAULT_ROOT (NOT cwd), same as infer-tags.
+    real = os.path.realpath(p if os.path.isabs(p) else os.path.join(vault_root, p))
+    if real != vault_root and not real.startswith(vault_root + os.sep):
+        sys.exit(f"ERROR: Path '{real}' is not under VAULT_ROOT '{vault_root}'")
+    resolved.append(real)
+
+results, ok_count = [], 0
+for abs_file in resolved:
+    rel = os.path.relpath(abs_file, vault_root)
+    try:
+        results.append({"path": rel, "links": extract_links(abs_file)})
+        ok_count += 1
+    except OSError as e:
+        results.append({"path": rel, "error": str(e), "links": []})
+
+print(json.dumps(results, ensure_ascii=False))
+sys.exit(0 if (results and ok_count > 0) else 1)
+PYEOF
+)"
+  python3 -c "$script" "$VAULT_ROOT" "$@"
 }
 
 # ── subcommand: infer-tags ─────────────────────────────────────────────────────
@@ -378,36 +447,40 @@ PYEOF
 # treat that as a hard failure); a mix of ok+failed items still exits 0 so the
 # successful proposals are consumed. An empty input (no paths) also exits 1.
 
-cmd_infer_tags() {
-  [[ $# -eq 0 ]] && die "infer-tags requires <file> [<file> ...] or '-' for stdin"
-
-  # Resolve each requested path through the vault-boundary guard up front so a
-  # traversal / out-of-vault path fails loudly (security), while per-file *read*
-  # errors degrade gracefully inside Python (see policy above). A bare relative
-  # path is resolved against VAULT_ROOT (NOT cwd) so callers can pass vault-relative
-  # finding paths from any directory; absolute paths are used as-is. The guard
-  # result is captured in a plain variable BEFORE the array append so `set -e`
-  # propagates a validate_vault_path `die` — a command substitution failure inside
-  # `arr+=(...)` is easy to overlook.
-  local -a abs_files=()
+# Resolve a batch subcommand's N paths through the vault-boundary guard up front so a
+# traversal / out-of-vault path fails loudly (security), while per-file *read* errors
+# degrade gracefully inside Python (see the policy above). A bare relative path is
+# resolved against VAULT_ROOT (NOT cwd) so callers can pass vault-relative finding paths
+# from any directory; absolute paths are used as-is. The guard result is captured in a
+# plain variable BEFORE the array append so `set -e` propagates a validate_vault_path
+# `die` — a command substitution failure inside `arr+=(...)` is easy to overlook.
+# Result lands in the global RESOLVED_BATCH_PATHS (a function cannot return an array).
+# Shared by infer-tags (#152) and extract-wikilinks-batch (#614).
+resolve_batch_paths() {
+  RESOLVED_BATCH_PATHS=()
   local line file candidate validated
   if [[ "$1" == "-" && $# -eq 1 ]]; then
     while IFS= read -r line || [[ -n "$line" ]]; do
       [[ -z "$line" ]] && continue
       case "$line" in /*) candidate="$line" ;; *) candidate="$VAULT_ROOT/$line" ;; esac
       validated="$(validate_vault_path "$candidate")"
-      abs_files+=("$validated")
+      RESOLVED_BATCH_PATHS+=("$validated")
     done
   else
     for file in "$@"; do
       [[ -z "$file" ]] && continue
       case "$file" in /*) candidate="$file" ;; *) candidate="$VAULT_ROOT/$file" ;; esac
       validated="$(validate_vault_path "$candidate")"
-      abs_files+=("$validated")
+      RESOLVED_BATCH_PATHS+=("$validated")
     done
   fi
+}
 
-  python3 - "$VAULT_ROOT" "${abs_files[@]}" <<'PYEOF'
+cmd_infer_tags() {
+  [[ $# -eq 0 ]] && die "infer-tags requires <file> [<file> ...] or '-' for stdin"
+  resolve_batch_paths "$@"
+
+  python3 - "$VAULT_ROOT" "${RESOLVED_BATCH_PATHS[@]}" <<'PYEOF'
 import sys, os, re, json
 
 vault_root = os.path.realpath(os.path.expanduser(sys.argv[1]))
@@ -1030,19 +1103,27 @@ PYEOF
 # Manages timing/size metrics. State stored in /tmp/ovm-metrics-$$.json during a run.
 # For pipeline use: call start before work, stop after, report to emit JSON.
 
-METRICS_FILE="${TMPDIR:-/tmp}/ovm-metrics-$(python3 -c "import hashlib,sys; print(hashlib.md5(sys.argv[1].encode()).hexdigest()[:8])" "${VAULT_ROOT:-$HOME/vault}").json"
+# The metrics path is derived from an md5 of $VAULT_ROOT. That used to be computed at
+# TOP-LEVEL scope, so EVERY subcommand invocation spawned a python3 just for the digest
+# even when it never touched metrics — and the old per-file `extract-wikilinks` loop
+# multiplied it by the vault's file count (#614). It is now derived inside the metrics
+# python process itself, so no subcommand pays for it and `metrics` pays nothing extra.
 
 cmd_metrics() {
   local op="${1:-}"
   [[ -z "$op" ]] && die "metrics requires an operation: start|stop|report"
 
-  python3 - "$op" "$METRICS_FILE" "$VAULT_ROOT" "${2:-}" <<'PYEOF'
-import sys, os, json, time
+  python3 - "$op" "$VAULT_ROOT" "${2:-}" <<'PYEOF'
+import sys, os, json, time, hashlib
 
 op = sys.argv[1]
-mfile = sys.argv[2]
-vault_root = os.path.expanduser(sys.argv[3])
-extra = sys.argv[4] if len(sys.argv) > 4 else ''
+vault_root = os.path.expanduser(sys.argv[2])
+extra = sys.argv[3] if len(sys.argv) > 3 else ''
+# Same path as before: md5(raw $VAULT_ROOT)[:8], so an in-flight metrics file from an
+# older run is still found. Hash the RAW value (pre-expanduser), matching the old shell.
+mfile = os.path.join(
+    os.environ.get('TMPDIR') or '/tmp',
+    'ovm-metrics-%s.json' % hashlib.md5(sys.argv[2].encode()).hexdigest()[:8])
 
 def load_metrics(path):
     if os.path.exists(path):
@@ -1111,6 +1192,7 @@ case "$SUBCOMMAND" in
   scan-frontmatter)   cmd_scan_frontmatter "$@" ;;
   scan-filename)      cmd_scan_filename "$@" ;;
   extract-wikilinks)  cmd_extract_wikilinks "$@" ;;
+  extract-wikilinks-batch) cmd_extract_wikilinks_batch "$@" ;;
   infer-tags)         cmd_infer_tags "$@" ;;
   detect-vocabulary)  cmd_detect_vocabulary "$@" ;;
   e5-candidates)      cmd_e5_candidates "$@" ;;
@@ -1123,6 +1205,8 @@ case "$SUBCOMMAND" in
     echo "  scan-frontmatter <dir>                      Emit JSON array of frontmatter records" >&2
     echo "  scan-filename <dir>                         Emit JSON array of filename parse results" >&2
     echo "  extract-wikilinks <file>                    Emit JSON array of wikilink targets" >&2
+    echo "  extract-wikilinks-batch <file> [<file> ...] Emit [{path, links}] for N files in ONE python process (#614)" >&2
+    echo "  extract-wikilinks-batch -                   ... same, reading newline-delimited paths from stdin" >&2
     echo "  infer-tags <file> [<file> ...]              Emit E2 auto-fix tag proposals as a JSON array (batched)" >&2
     echo "  infer-tags -                                ... same, reading newline-delimited paths from stdin" >&2
     echo "  detect-vocabulary <dir>                     Emit E9 tag/property vocabulary inconsistency pairs (vault-wide)" >&2

@@ -24,7 +24,7 @@ Set `VAULT_BRIDGE_DISABLE=1` to make all scripts exit 0 silently.
 
 ## `ovm-primitives.sh`
 
-Single entry point with five subcommands.
+Single entry point; run it with no arguments for the current subcommand list.
 
 ```
 bash ovm-primitives.sh <subcommand> [args]
@@ -114,6 +114,35 @@ bash ovm-primitives.sh extract-wikilinks ~/vault/30_Notes/my-note.md
   }
 ]
 ```
+
+### `extract-wikilinks-batch <file> [<file> ...]` / `extract-wikilinks-batch -`
+
+Same extraction, N files, **one python3 process** (#614). The audit's link index used to
+call the single-file form per `.md` file — 528 Bash round trips / ~110s on the 528-file
+fixture, against 0.14s here. Paths come as arguments, or newline-delimited on stdin with `-`
+(what `audit/SKILL.md` Step 7 pipes `find` into). Relative paths resolve against
+`$VAULT_ROOT`, not cwd.
+
+Masking (#434) is shared with the single-file form via one definition — a second copy of
+those regexes is exactly the drift this avoids.
+
+```bash
+find "$VAULT_ROOT" -name '*.md' -not -path '*/.*' | bash ovm-primitives.sh extract-wikilinks-batch -
+```
+
+**Output schema** — one wrapper object per input path, order preserved (a deliberately
+different shape from the single-file form, whose flat array stays as it was):
+
+```json
+[
+  {"path": "notes/api-design.md", "links": [ /* the schema above */ ]},
+  {"path": "notes/gone.md", "error": "[Errno 2] ...", "links": []}
+]
+```
+
+A per-file read error degrades into that `error` element and the batch continues; exit is 1
+only when EVERY path failed. An out-of-vault or traversal path hard-fails the whole batch
+(exit 1, nothing on stdout) before any file is opened.
 
 ### `audit-state <op> [args]`
 
@@ -228,6 +257,29 @@ python3 manifest-wiki-match.py [MANIFEST_PATH]   # wiki/SKILL.md Phase 3 DEDUP
 ```
 
 Both default `MANIFEST_PATH` to `<vault root>/.vault-bridge/manifest.json` (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`) and exit 3 — with nothing on stdout — when the manifest is absent, unparseable, or malformed; callers must not fall back to a raw `cat`.
+
+---
+
+## `scan-summary.py`
+
+Same defense one layer earlier, for the audit's own scans (#614). `scan-frontmatter` and
+`scan-filename` print 175 KB / 116 KB on the 528-file fixture (149 KB / 50 KB on the real
+193-file vault), so piping them at the model was the same silent 2 KB cut — for E1/E2/E3/
+E5/E6/E10/E11/E12's entire source data. This reads the raw scans from disk and prints only
+the defect-bearing records, with only the fields each rule in
+`reference/vault-audit-rules.md` needs (clean files carry no information for the REPORT).
+
+```bash
+python3 scan-summary.py --frontmatter fm.json --filename fn.json [--links links.json] \
+                        [--max-per-type N]
+# {"total_files":528,"max_per_type":2,"errors":{"E1":{"count":10,"paths":[...],"omitted":8}, ...}}
+```
+
+`--max-per-type` (default 2) caps each type's list, and a type that hits the cap carries
+`"omitted": N` — a cut is always visible, never silent. `count` is always the full number
+found. Without `--links`, E5 reports `{"computed": false}` rather than zero orphans. Exit 3
+— with nothing on stdout — when an input is absent or unparseable, so "unreadable scan" is
+never mistaken for "clean vault".
 
 ---
 
