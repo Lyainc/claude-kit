@@ -1,6 +1,6 @@
 {
   "name": "vault-bridge",
-  "version": "4.9.0",
+  "version": "4.9.1",
   "description": "Obsidian vault ↔ project bridge for Claude Code: /vault-save — the single reference-material entry, callable from any project (replaces the retired OVM /capture and /note, #480) — plus a manifest cache, a haiku read-only vault-searcher agent (read/write asymmetry — vault reads delegable, writes are main-context only via the Write Role Contract), main-context write-primitive skills (/vault-link, /vault-commit, /vault-manifest-refresh), and deterministic no-LLM SessionStart/PreToolUse hooks, with .vault-link project binding.",
   "author": {
     "name": "Lyainc",

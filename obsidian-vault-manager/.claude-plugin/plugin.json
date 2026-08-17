@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vault-manager",
-  "version": "4.9.0",
+  "version": "4.9.1",
   "description": "Obsidian vault knowledge management plugin (v4/v5): wiki / audit / base skills + 2 agents — the librarian half of the vault (the write entrance moved to vault-bridge /vault-save, #480). wiki compiles learned domain knowledge into the AI-recall-primary vault/wiki/ A layer (gated explicit action, provenance-tracked; v5). audit detects E1–E3, E5–E6, E9–E12 structural defects (incl. E9 tag/property vocabulary). base generates non-destructive Obsidian Bases (.base) views. type-optin; ovm-primitives shell API.",
   "author": {
     "name": "Lyainc",
