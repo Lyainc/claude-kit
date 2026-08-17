@@ -42,6 +42,14 @@ claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`
 > second brain) 연동은 링크only(복사 금지)예요. 근거: #304 (판정 근거였던
 > `vault-role-redefinition-draft.md`는 승격 완료 후 삭제 — 이 문서가 SSOT).
 >
+> **재확인 (2026-08-18, #645) — straddler 판정 현행 유지**: `/wiki`의 배포 단위(어느 플러그인에
+> 실려야 호출 가능한가)를 vault-bridge로 옮기고 straddler 판정(크로싱=③, compile/dedup=④)은 레이어
+> 축만 남기자는 제안을 격리 expert-panel로 재검증했어요(7인 독립 논증, 찬성 4 : 반대 12 가중표, 마진 8) —
+> **OVERTURNED**. #304는 애초 "어느 플러그인이 소유하나" 자체를 판정하는 온점 판례라 레이어·배포
+> 축을 쪼개면 이 판례가 무력화되고, 이관은 leaf 독립설치성(§3)을 반대 방향으로 깨요. "OVM은 프로젝트에
+> 못 깔린다"는 전제도 실측으로 반증됐어요 — PhototicketMaker가 프로젝트에 OVM을 활성화한 채 `/wiki`를
+> 실제로 성공 호출한 이력(2026-07-29·30)이 있어요. straddler 분류는 그대로 유지합니다.
+>
 > **`/vault-link` 판정 (#304 L1)**: **유지한다 (제거하지 않음)**. 애초 가설은 "서브폴더 배치용이라
 > 사서 관심사, 진짜 볼트-선택 라우팅은 미구현이라 A-only엔 불필요"였지만, 코드 확인 결과 틀렸어요 —
 > `.vault-link`는 `vault-searcher`의 recall scoping(세션 복원 + 도메인 컨텍스트 모드의 search_root
