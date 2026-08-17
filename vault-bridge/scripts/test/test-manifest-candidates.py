@@ -282,6 +282,15 @@ _NEIGHBOURS = {
         "stale", _STALE_LEGACY_RE,
         ("## Why `verified:` and not mtime", ""),
     ),
+    "vault-searcher.md § Manifest-First Protocol": (
+        "agent", _AGENT_MANIFEST_FIRST_RE,
+        ("### 2. Domain Context Load",
+         "#### Standard Procedure (manifest absent or stale)"),
+    ),
+    "vault-searcher.md § Rules": (
+        "agent", _AGENT_RULES_RE,
+        ("### 3. Keyword Search", "## Final Response Contract"),
+    ),
 }
 
 
@@ -343,7 +352,7 @@ def static_checks(agent_text: str, ref_text: str, staleness_text: str) -> list:
     ref = _normalise(ref_text)
     stale = _normalise(staleness_text)
     agent = _normalise(agent_text)
-    by_key = {"ref": ref_text, "stale": staleness_text}
+    by_key = {"ref": ref_text, "stale": staleness_text, "agent": agent_text}
     return [
         ("manifest-domain-candidates.py" in agent_text,
          "vault-searcher.md Mode 2 invokes manifest-domain-candidates.py"),
