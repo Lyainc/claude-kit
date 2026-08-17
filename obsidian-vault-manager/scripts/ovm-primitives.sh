@@ -1103,31 +1103,45 @@ PYEOF
 }
 
 # ── subcommand: metrics ────────────────────────────────────────────────────────
-# Usage: metrics <start|stop|report>
-# Manages timing/size metrics. State stored in /tmp/ovm-metrics-$$.json during a run.
-# For pipeline use: call start before work, stop after, report to emit JSON.
-
-# The metrics path is derived from an md5 of $VAULT_ROOT. That used to be computed at
-# TOP-LEVEL scope, so EVERY subcommand invocation spawned a python3 just for the digest
-# even when it never touched metrics — and the old per-file `extract-wikilinks` loop
-# multiplied it by the vault's file count (#614). It is now derived inside the metrics
-# python process itself, so no subcommand pays for it and `metrics` pays nothing extra.
+# Usage: metrics start <label>   -> prints {"token": "...", ...}
+#        metrics stop <token>
+#        metrics report <token>
+# Manages timing/size metrics across three SEPARATE invocations (start, then later
+# stop, then later report) that do not share shell state.
+#
+# #670: the metrics path used to be derived from an md5 of $VAULT_ROOT ALONE, so two
+# concurrent runs against the SAME vault (e.g. two worktrees both running `/audit`)
+# clobbered each other's metrics file mid-run — the exact "fixed shared state path"
+# class of bug #660 fixed for the audit DoD gate's fixture dir. A per-invocation
+# mktemp/PID cannot fix this the way it fixed #660: start/stop/report are three
+# separate `bash ovm-primitives.sh metrics ...` calls (fresh process, fresh $$, no
+# surviving mktemp'd path each time), so whatever names the file has to be
+# reproducible by the CALLER across those three calls, not by the process. #580 hit
+# the identical shape in retro-telemetry.sh and found $PPID/$CLAUDE_SESSION_ID both
+# drift between separate Bash-tool calls in practice — no ambient identifier is
+# stable enough. The fix there, applied here: `start` mints an explicit per-run
+# token and returns it; the CALLER (audit/SKILL.md, baseline-measure.sh) carries
+# that token forward and passes it to `stop`/`report` — the file is unique per run,
+# and finding it again never depends on process/session identity.
 
 cmd_metrics() {
   local op="${1:-}"
   [[ -z "$op" ]] && die "metrics requires an operation: start|stop|report"
 
   python3 - "$op" "$VAULT_ROOT" "${2:-}" <<'PYEOF'
-import sys, os, json, time, hashlib
+import sys, os, json, time, hashlib, secrets
 
 op = sys.argv[1]
 vault_root = os.path.expanduser(sys.argv[2])
 extra = sys.argv[3] if len(sys.argv) > 3 else ''
-# Same path as before: md5(raw $VAULT_ROOT)[:8], so an in-flight metrics file from an
-# older run is still found. Hash the RAW value (pre-expanduser), matching the old shell.
-mfile = os.path.join(
-    os.environ.get('TMPDIR') or '/tmp',
-    'ovm-metrics-%s.json' % hashlib.md5(sys.argv[2].encode()).hexdigest()[:8])
+# Human-debuggability only (which vault a stray file belongs to) — NOT what makes
+# the path unique across concurrent runs; the token does that.
+vault_tag = hashlib.md5(sys.argv[2].encode()).hexdigest()[:8]
+
+def mfile_for(token):
+    return os.path.join(
+        os.environ.get('TMPDIR') or '/tmp',
+        'ovm-metrics-%s-%s.json' % (vault_tag, token))
 
 def load_metrics(path):
     if os.path.exists(path):
@@ -1140,6 +1154,7 @@ def save_metrics(path, data):
         json.dump(data, f, indent=2)
 
 if op == 'start':
+    token = secrets.token_hex(4)
     data = {
         'start_time': time.time(),
         'stop_time': None,
@@ -1163,21 +1178,27 @@ if op == 'start':
                     pass
     data['note_count'] = note_count
     data['vault_size_bytes'] = total_bytes
-    save_metrics(mfile, data)
-    print(json.dumps({"ok": True, "start_time": data['start_time'],
+    save_metrics(mfile_for(token), data)
+    print(json.dumps({"ok": True, "token": token, "start_time": data['start_time'],
                       "note_count": note_count, "vault_size_bytes": total_bytes}))
 
 elif op == 'stop':
-    data = load_metrics(mfile)
+    token = extra
+    if not token:
+        print('ERROR: metrics stop requires the token `start` printed', file=sys.stderr); sys.exit(1)
+    data = load_metrics(mfile_for(token))
     if not data:
-        print('ERROR: no metrics session started', file=sys.stderr); sys.exit(1)
+        print('ERROR: no metrics session found for that token', file=sys.stderr); sys.exit(1)
     data['stop_time'] = time.time()
     data['elapsed_ms'] = int((data['stop_time'] - data['start_time']) * 1000)
-    save_metrics(mfile, data)
+    save_metrics(mfile_for(token), data)
     print(json.dumps({"ok": True, "elapsed_ms": data['elapsed_ms']}))
 
 elif op == 'report':
-    data = load_metrics(mfile)
+    token = extra
+    if not token:
+        print('ERROR: metrics report requires the token `start` printed', file=sys.stderr); sys.exit(1)
+    data = load_metrics(mfile_for(token))
     if not data:
         print(json.dumps({"error": "no metrics data"})); sys.exit(0)
     print(json.dumps(data, indent=2))

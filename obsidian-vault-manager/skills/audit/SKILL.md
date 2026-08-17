@@ -36,7 +36,7 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    `scan_dir` = `$VAULT_ROOT` unscoped, or `$VAULT_ROOT/<subdir>` under `--path <subdir>`.
    `$scan_dir` → Steps 5–6; `$VAULT_ROOT` → everything else.
 
-2. Start metrics:
+2. Start metrics (save `token`):
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" metrics start "audit"
    ```
@@ -307,10 +307,10 @@ canonical-form choice, recompile). The binding list with each type's reason:
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" audit-state mark-clean <relpath>
    ```
 
-5. Stop metrics and output final summary:
+5. Stop metrics (`token`):
    ```bash
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" metrics stop
-   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" metrics report
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" metrics stop <token>
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" metrics report <token>
    ```
    Output:
    ```

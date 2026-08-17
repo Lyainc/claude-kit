@@ -221,12 +221,16 @@ bash ovm-primitives.sh audit-state list-dirty-since 2026-04-18T00:00:00+00:00
 ### `metrics <op>`
 
 Emit timing and vault-size metrics as JSON. Designed for wrapping a pipeline run.
+`start` mints a per-run token and prints it — `stop`/`report` need that SAME token
+back (they are separate process invocations with no shared state to find the metrics
+file by otherwise, #670).
 
 ```bash
-bash ovm-primitives.sh metrics start "inbox-review-run"
+OUT="$(bash ovm-primitives.sh metrics start "inbox-review-run")"
+TOKEN="$(printf '%s' "$OUT" | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")"
 # ... do work ...
-bash ovm-primitives.sh metrics stop
-bash ovm-primitives.sh metrics report
+bash ovm-primitives.sh metrics stop "$TOKEN"
+bash ovm-primitives.sh metrics report "$TOKEN"
 ```
 
 **Report output schema**:
