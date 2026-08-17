@@ -61,7 +61,7 @@ def main():
         # that is genuinely still shared, so this is what actually needs
         # concurrent-safety proof.
         emit_procs = [
-            subprocess.Popen(["bash", SCRIPT, "emit", starts[i], str(i), "0", str(i)], env=env)
+            subprocess.Popen(["bash", SCRIPT, "emit", starts[i], str(i), "0"], env=env)
             for i in range(N)
         ]
         for p in emit_procs:
