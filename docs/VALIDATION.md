@@ -878,9 +878,26 @@ python3 obsidian-vault-manager/scripts/test/test-wikilink-code-masking.py
 # end-to-end through the skill even after ovm-primitives.sh itself was fixed), and the
 # documented --path flag was inert. Pins the SKILL.md wiring (Step 1 resolves $VAULT_ROOT,
 # Steps 5-6 use --path-scoped $scan_dir, the link index/E9 check stay vault-wide by design)
-# plus the functional --path-scoping behavior against ovm-primitives.sh directly.
+# plus the functional --path-scoping behavior against ovm-primitives.sh directly. #673 upgraded
+# Step 1's own pin from a loose substring check to whole-step verbatim + neighbour-identity
+# (same architecture as test-manifest-reads.py's `_SKILL_STEP8`) — self-tested by mutation
+# fixtures (prose collapse, adjacent-heading wedge) in --self-test.
+python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py --self-test
+# Expected: OK: all 4 self-test cases passed
 python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py
 # Expected: OK: all 3 audit-vault-root-wiring cases passed
+
+# audit/SKILL.md Phase 4 Step 1 (AskUserQuestion template) + reference/vault-audit-rules.md's
+# Auto-fix eligibility table (#673, following #663's manifest-read pin architecture) — f8087d1
+# folded #625 nit2's $VAULT_ROOT snippet (pinned above) and #591's provenance example line into
+# audit/SKILL.md, plus a provenance-not-auto-fillable rationale sentence into
+# vault-audit-rules.md, with no self-test pin on either. Both are pinned whole-section verbatim
+# plus neighbour-anchor identity, so a reword of "not auto-fillable" into "infer it like tags"
+# or a sibling heading wedged just outside either pinned slice fails loud instead of silent.
+python3 obsidian-vault-manager/scripts/test/test-audit-provenance-autofix-pin.py --self-test
+# Expected: OK: all 9 self-test cases passed
+python3 obsidian-vault-manager/scripts/test/test-audit-provenance-autofix-pin.py
+# Expected: OK: all provenance-autofix checks passed
 
 # audit Phase 1 SCAN preview budget + wikilink batching (#614). SCAN used to pipe the raw
 # frontmatter/filename scans (175 KB + 116 KB on a 528-file vault) straight at the model,
