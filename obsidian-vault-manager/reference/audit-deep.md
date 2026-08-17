@@ -22,11 +22,18 @@ separate phase. Re-collect fresh, in ONE Bash call (shell state does not survive
 Bash calls, same discipline as SKILL.md Step 5):
 ```bash
 deep_tmp="$(mktemp -d)"
-bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$VAULT_ROOT/wiki" > "$deep_tmp/wiki-fm.json"
+if [ -d "$VAULT_ROOT/wiki" ]; then
+  bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$VAULT_ROOT/wiki" > "$deep_tmp/wiki-fm.json"
+else
+  echo '[]' > "$deep_tmp/wiki-fm.json"  # no wiki/ yet (never compiled) — not an error, same as 0 wiki pages
+fi
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks-batch "$VAULT_ROOT" > "$deep_tmp/links.json"
+echo "$deep_tmp"
 ```
-`wiki-fm.json` is small (`wiki/` is a small folder). `links.json` can exceed the 2 KB preview
-(measured up to ~13 KB vault-wide, #614) — **always open both with Read, never `cat`**.
+Print `$deep_tmp` — the variable itself does not survive into the next (Read) tool call, only
+this printed literal path does. `wiki-fm.json` is small (`wiki/` is a small folder). `links.json`
+can exceed the 2 KB preview (measured up to ~13 KB vault-wide, #614) — **always open both with
+Read against the printed path, never `cat`**.
 
 **Tools used**: Read, AskUserQuestion.
 
@@ -90,9 +97,12 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks-batch "
 ```bash
 deep_tmp="$(mktemp -d)"
 bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$VAULT_ROOT" > "$deep_tmp/fm.json"
+echo "$deep_tmp"
 ```
-Vault-wide, so this can be large (149 KB measured on a real 193-file vault, #614) — open with
-**Read** (paginates across multiple calls if needed; never `cat`). Only the `tags` field per
+Print `$deep_tmp` — it does not survive into the next (Read) tool call otherwise (same as
+E12b above). Vault-wide, so this can be large (149 KB measured on a real 193-file vault, #614)
+— open with **Read** against the printed path (paginates across multiple calls if needed;
+never `cat`). Only the `tags` field per
 record matters here — skim for that field rather than reading every record's full content.
 This is the same vault-wide tag aggregation E9a already builds in `audit-validate.py`,
 re-derived here in-skill; E9c never touches that reference impl or the `--dod` gate.
