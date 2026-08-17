@@ -16,21 +16,31 @@ not optional and not summarisable — a semantic judgment never becomes a findin
 
 **Purpose**: Detect `wiki/` pages that assert conflicting claims about the same subject (#336).
 
-**Inputs**: `frontmatter_records` and `inbound_links` from the scan bundle (already collected, no re-scan).
+**Inputs**: NOT already in context (#614) — Phase 1's SCAN reduction drops every non-defect
+record before CLASSIFY runs, and Phase 1's own temp files do not survive into this later,
+separate phase. Re-collect fresh, in ONE Bash call (shell state does not survive between
+Bash calls, same discipline as SKILL.md Step 5):
+```bash
+deep_tmp="$(mktemp -d)"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$VAULT_ROOT/wiki" > "$deep_tmp/wiki-fm.json"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks-batch "$VAULT_ROOT" > "$deep_tmp/links.json"
+```
+`wiki-fm.json` is small (`wiki/` is a small folder). `links.json` can exceed the 2 KB preview
+(measured up to ~13 KB vault-wide, #614) — **always open both with Read, never `cat`**.
 
 **Tools used**: Read, AskUserQuestion.
 
 **Skip conditions** (exit phase immediately, no findings added):
 - `--deep` flag not passed.
-- Fewer than 2 records with top folder `wiki/` AND `fm.type == "wiki"`.
+- Fewer than 2 records in `wiki-fm.json` with `fm.type == "wiki"`.
 
 **Procedure**:
 
-1. Collect `wiki_pages` = every `frontmatter_records` entry with top folder `wiki/` and `fm.type == "wiki"`.
+1. Collect `wiki_pages` = every `wiki-fm.json` entry with `fm.type == "wiki"` (top folder is already `wiki/` by construction — the scan was `--path`-scoped to it).
 
 2. Build **candidate pairs** deterministically (no LLM, cheap prefilter — bounds the expensive judgment step to topically-related pages instead of every O(n²) pair): two wiki pages `(A, B)` are a candidate when EITHER holds:
    - they share at least one tag (case-insensitive intersection of `fm.tags`), or
-   - one wikilinks to the other (via `inbound_links` — the target-stem → source-paths index E5 also reads; check both directions since it is keyed by target).
+   - one wikilinks to the other (via `links.json` — the same target-stem → source-paths index E5 reads from `$scan_tmp/links.json` in Phase 1, just re-collected fresh here; check both directions since it is keyed by target).
 
    If zero candidate pairs, exit phase (no findings).
 
@@ -76,7 +86,16 @@ not optional and not summarisable — a semantic judgment never becomes a findin
 
 **Purpose**: Detect two vault-wide tags that name the same concept under different spellings (e.g. `llm` ↔ `large-language-model`, `react` ↔ `reactjs`, #167). A fixed synonym dictionary was rejected in #119 as over-firing and costly to maintain, so this judgment is LLM-only, gated and confirmed the same way as E12b above.
 
-**Inputs**: `frontmatter_records` from the scan bundle (already collected, no re-scan) — the same vault-wide tag aggregation E9a already builds in `audit-validate.py`, re-derived here in-skill. E9c never touches that reference impl or the `--dod` gate.
+**Inputs**: NOT already in context (#614 — see E12b's Inputs above for why). Re-collect fresh:
+```bash
+deep_tmp="$(mktemp -d)"
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" scan-frontmatter "$VAULT_ROOT" > "$deep_tmp/fm.json"
+```
+Vault-wide, so this can be large (149 KB measured on a real 193-file vault, #614) — open with
+**Read** (paginates across multiple calls if needed; never `cat`). Only the `tags` field per
+record matters here — skim for that field rather than reading every record's full content.
+This is the same vault-wide tag aggregation E9a already builds in `audit-validate.py`,
+re-derived here in-skill; E9c never touches that reference impl or the `--dod` gate.
 
 **Tools used**: AskUserQuestion (no Read needed — tag strings and file counts are enough context for the judgment; unlike E12b there are no file bodies to read).
 
@@ -86,9 +105,9 @@ not optional and not summarisable — a semantic judgment never becomes a findin
 
 **Procedure**:
 
-1. Build `tag_files` = lowercase tag → set(file paths), from every `frontmatter_records[].fm.tags` (same aggregation as E9a). Drop any tag used in fewer than `E9_MIN_FILES` (3) files — reuses E9a/E9b's existing FP floor so a one-off tag never reaches LLM judgment.
+1. Build `tag_files` = lowercase tag → set(file paths), from every `fm.json[].frontmatter.tags` (same aggregation as E9a). Drop any tag used in fewer than `E9_MIN_FILES` (3) files — reuses E9a/E9b's existing FP floor so a one-off tag never reaches LLM judgment.
 
-2. Build **candidate pairs** deterministically (no LLM, cheap prefilter — mirrors E12b's shared-tag/wikilink prefilter, adapted to compare tags instead of pages; #167's D10 design note names these signals source-overlap + common-neighbor). First precompute a tag → co-occurring-tags map once, in a single pass over `frontmatter_records` (not per pair — that map is what Step 1's `tag_files` pass already walks, so build both together). Then, for every distinct pair `(A, B)` that both survived Step 1, it's a candidate when EITHER holds:
+2. Build **candidate pairs** deterministically (no LLM, cheap prefilter — mirrors E12b's shared-tag/wikilink prefilter, adapted to compare tags instead of pages; #167's D10 design note names these signals source-overlap + common-neighbor). First precompute a tag → co-occurring-tags map once, in a single pass over `fm.json` (not per pair — that map is what Step 1's `tag_files` pass already walks, so build both together). Then, for every distinct pair `(A, B)` that both survived Step 1, it's a candidate when EITHER holds:
    - **source overlap**: at least one file's `tags` list contains BOTH `A` and `B`, or
    - **common neighbor**: `A`'s entry in the precomputed map shares at least one tag with `B`'s entry.
 

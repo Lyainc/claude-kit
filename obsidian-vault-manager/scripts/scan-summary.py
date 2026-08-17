@@ -125,6 +125,16 @@ def load(path: Path, kind=list):
     return data
 
 
+def validate_index(inbound: dict) -> None:
+    """--index must be {target_stem: [source_path, ...]} — extract-wikilinks-batch's own
+    shape. A malformed value (e.g. a bare string) makes `set(value) - {rel}` in E5 iterate
+    CHARACTERS instead of failing, corrupting E5/link_index silently — exactly what #614
+    exists to stop. Reject anything else loudly instead."""
+    for key, value in inbound.items():
+        if not isinstance(value, list) or not all(isinstance(v, str) for v in value):
+            raise ValueError(f"--index entry {key!r} is not a list of strings: {value!r}")
+
+
 def top_folder(rel: str) -> str:
     return rel.split("/", 1)[0] if "/" in rel else ""
 
@@ -314,6 +324,14 @@ def build_payload(fm_records: list, fn_records: list, inbound, max_per_type: int
     return payload
 
 
+def _raises(fn, *args) -> bool:
+    try:
+        fn(*args)
+    except ValueError:
+        return True
+    return False
+
+
 def self_test() -> int:
     """Fixture-free check of every predicate + the truncation signal (#614).
 
@@ -412,6 +430,16 @@ def self_test() -> int:
          "unreadable" not in errors),
     ]
 
+    # A malformed --index must fail loudly, not corrupt E5 silently (#614 review finding 4):
+    # `set("a string") - {rel}` iterates characters instead of raising.
+    cases += [
+        ("a well-formed index passes validation",
+         validate_index({"note": ["notes/a.md", "notes/b.md"]}) is None),
+        ("a bare-string index value is rejected", _raises(validate_index, {"note": "notes/a.md"})),
+        ("a non-string element in an index value is rejected",
+         _raises(validate_index, {"note": [1, 2]})),
+    ]
+
     capped = cap(errors, 2)
     cases += [
         ("a cut list announces itself", capped["E5"]["omitted"] == capped["E5"]["count"] - 2),
@@ -464,6 +492,8 @@ def main(argv: list) -> int:
         fm_records = load(Path(opts["--frontmatter"]))
         fn_records = load(Path(opts["--filename"]))
         inbound = load(Path(opts["--index"]), dict) if opts["--index"] else None
+        if inbound is not None:
+            validate_index(inbound)
     except (OSError, ValueError, TypeError) as e:
         # Exit 3, not 0-with-empty: an unreadable scan must never look like a clean vault.
         print(f"scan input unusable: {e}", file=sys.stderr)
