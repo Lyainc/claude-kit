@@ -54,7 +54,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── scripts/                         # generate-manifest.py + tests/
 ├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
 │   ├── .claude-plugin/plugin.json       # hooks 키: 8 event-type 등록 (opt-in telemetry)
-│   ├── skills/                          # retro (#123 — telemetry 낭비 패턴 3갈래 출력 + dedup + 회고예산)
+│   ├── skills/                          # retro (#639 — telemetry 낭비 패턴 action 단일 출력 + dedup)
 │   ├── scripts/                         # telemetry: event-logger.sh, report.py, sequence.py, validate-schema.py, plugin-map.json + test/
 │   └── README.md                        # measure→review→keep, opt-in·local-only·per-turn LLM 0
 ├── docs/                                # 살아있는 계약만 — 완료된 계획·죽은 설계는 삭제(근거는 GitHub 이슈)
@@ -187,4 +187,7 @@ plugin *was* or used to carry, not what it currently does (that stays in `CLAUDE
   #331에서 retire — 세션지식 경로가 wiki-first로 재정의되어 OVM `/wiki` + native memory로 이관.
   세션 생명주기 자동 훅은 G24에서 cut.
 - **feedback-loop**: #217로 ⑤ 하네스에서 분리된 외부 배포 단위가 됨. `add-policy`는 매립 엔진으로
-  G19/#255에서 도입. `distill`은 SIS(claude-self-improving-skills)에서 이식, #202.
+  G19/#255에서 도입. `distill`은 SIS(claude-self-improving-skills)에서 이식, #202. `retro`의
+  memory/rule 출력 분기와 그걸 위해서만 존재하던 RETRO_BUDGET·우선순위 정렬·prior-retro 텔레메트리
+  grep은 #639에서 기능 없는 pass-through로 판정돼 제거 (226줄→약 110줄), action 분기(deduped 이슈
+  파일링) 단일 출력만 남음.
