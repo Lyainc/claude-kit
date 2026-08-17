@@ -88,9 +88,17 @@ log "Benchmarking audit-state list-dirty-since ..."
 T_LIST_DIRTY=$(measure_cmd "list-dirty-since" bash "$PRIMITIVES" audit-state list-dirty-since "2026-04-01T00:00:00+00:00")
 
 log "Benchmarking metrics start/stop/report ..."
-T_METRICS_START=$(measure_cmd "metrics-start" bash "$PRIMITIVES" metrics start "baseline-test")
-T_METRICS_STOP=$(measure_cmd "metrics-stop" bash "$PRIMITIVES" metrics stop)
-T_METRICS_REPORT=$(measure_cmd "metrics-report" bash "$PRIMITIVES" metrics report)
+# #670: metrics stop/report need the token `start` printed (no shared /tmp path by
+# process/session identity anymore) — measure_cmd discards stdout, so start is timed
+# and captured separately here, then its token is threaded into stop/report.
+METRICS_START_BEGIN=$(python3 -c "import time; print(int(time.time()*1000))")
+METRICS_START_OUT="$(bash "$PRIMITIVES" metrics start "baseline-test")"
+METRICS_START_END=$(python3 -c "import time; print(int(time.time()*1000))")
+T_METRICS_START=$((METRICS_START_END - METRICS_START_BEGIN))
+METRICS_TOKEN="$(printf '%s' "$METRICS_START_OUT" | python3 -c "import json,sys; print(json.load(sys.stdin)['token'])")"
+log "  metrics-start: ${T_METRICS_START}ms"
+T_METRICS_STOP=$(measure_cmd "metrics-stop" bash "$PRIMITIVES" metrics stop "$METRICS_TOKEN")
+T_METRICS_REPORT=$(measure_cmd "metrics-report" bash "$PRIMITIVES" metrics report "$METRICS_TOKEN")
 
 log ""
 log "All benchmarks complete."
