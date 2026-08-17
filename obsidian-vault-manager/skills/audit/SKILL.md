@@ -140,7 +140,8 @@ and are NEVER read into context — CLASSIFY gets only the reduced form (#614):
 ```
 `count`/`omitted`/`unreadable` semantics and the re-run procedure for a capped type are the
 binding contract in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **SCAN output
-budget** — apply as written. Report `count`, never the emitted-list length.
+budget** — apply as written. Report `count`, never the emitted-list length, and say in the
+REPORT that a list was cut whenever `omitted` is present — never let a truncation stay silent.
 
 **Termination condition**: All scan data collected. Proceed to CLASSIFY.
 
