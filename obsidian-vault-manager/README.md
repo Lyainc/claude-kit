@@ -1,6 +1,6 @@
 # obsidian-vault-manager
 
-Claude Code용 **Obsidian vault 지식 관리 플러그인** (v4). 2개 에이전트 + 3개 스킬로 vault를 체계적으로 관리합니다.
+Claude Code용 **Obsidian vault 지식 관리 플러그인** (v4). 2개 에이전트 + 2개 스킬로 vault를 체계적으로 관리합니다.
 
 ## 설치
 
@@ -20,7 +20,6 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | Skill | Description |
 | --- | --- |
 | `audit` | vault 구조 무결성 감사 — E1–E3·E5–E6·E9–E12 오류 감지 (P0-P2 우선순위), stale 노트·orphan 추적 |
-| `wiki` | 작업 중 알게 된 도메인 지식을 `~/vault/wiki/` 페이지로 컴파일 (LLM wiki, AI recall용 A 레이어; 게이트된 명시 액션) |
 | `base` | enforced frontmatter로 비파괴 Obsidian Bases(.base) 뷰 생성 — 기존 노트 불변, 내장 템플릿(sources/notes/recent) |
 
 ## v4 파일 컨벤션
@@ -40,15 +39,14 @@ provenance: "{출처 — URL, 세션 토픽, 대화, 책, 회의}"  # 필수 —
 
 ## Reference docs
 
-- [Obsidian format reference](reference/obsidian-format.md): wikilinks, embeds, callouts, comments, and YAML property conventions for generated notes.
 - [Obsidian CLI reference](reference/obsidian-cli.md): optional CLI-first patterns with raw file I/O fallback.
 - [Web Clipper template](reference/web-clipper-template.md): Obsidian web clipper JSON template for `capture` type notes.
 - [Vault audit rules](reference/vault-audit-rules.md): E1–E3·E5–E6·E9–E12 error taxonomy and P0-P2 priority definitions.
 
 ## 스킬 사용 예시
 
-> 참고자료를 vault에 넣는 입구는 이 플러그인이 아니라 vault-bridge의 `/vault-save`예요 (#480). OVM은
-> 들어온 다음의 일 — 컴파일(`/wiki`)·감사(`/audit`)·뷰(`/base`) — 을 맡는 사서로 남습니다.
+> 참고자료를 vault에 넣는 입구도, 도메인 지식 컴파일(`/wiki`)도 이 플러그인이 아니라 vault-bridge예요
+> (#480, #645). OVM은 들어온 다음의 일 — 감사(`/audit`)·뷰(`/base`) — 을 맡는 사서로 남습니다.
 
 ### `audit` — vault 무결성 감사
 
@@ -63,9 +61,9 @@ E1–E3·E5–E6·E9–E12 오류(frontmatter 누락, stale sources, orphan 노�
 | 영역 | obsidian-vault-manager | vault-bridge |
 | --- | --- | --- |
 | 사용 맥락 | vault 관리 세션 내부 | 외부 프로젝트에서 vault 접근 |
-| 쓰기 범위 | `/wiki` 컴파일(`wiki/`)만 — **쓰는 주체는 스킬**(메인 컨텍스트), 에이전트는 초안만 돌려준다 (Write Role Contract) | 참고자료 입구 `/vault-save`(`sources/`·`notes/`) + git 커밋(`/vault-commit`)·링크(`/vault-link`) |
+| 쓰기 범위 | 없음 — 감사(`/audit`)·뷰(`/base`)는 읽기 전용, 에이전트는 초안만 돌려준다 (Write Role Contract) | 참고자료 입구 `/vault-save`(`sources/`·`notes/`) + `/wiki` 컴파일(`wiki/`) + git 커밋(`/vault-commit`)·링크(`/vault-link`) |
 | 도메인 컨텍스트 로드 | `vault-knowledge-manager` 에이전트 (OVM 내부, mdfind/grep 직접 접근) | `vault-searcher` Mode 2 (읽기 전용, 외부 접근용) |
-| 세션 기록 | `wiki` (컴파일된 세션 지식 → `wiki/`) | `/vault-save` (원석 → `sources/`) |
+| 세션 기록 | — | `/wiki` (컴파일된 세션 지식 → `wiki/`) · `/vault-save` (원석 → `sources/`) |
 
 ## 사전 요구사항
 
