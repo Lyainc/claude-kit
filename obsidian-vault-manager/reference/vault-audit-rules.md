@@ -2,7 +2,7 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Nine error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention).
+Nine error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention). A tenth item, `unreadable`, is not a rule-driven error type — it is `scan-summary.py`'s report of a file it could not read at all (see the Priority Mapping table and `## SCAN output budget` below).
 
 > **v4 history**: Legacy E6–E9 (project-binding checks) were removed in v4 because `20_Projects/` is no longer part of the layout. The codes were later reused — PR 5 (`/audit` Phase 2) introduced a new **E6 `stale_inbox`** and **E7 `stale_draft`** covering v4 §6.1 Step 2 "정체" (stagnation). PR 4 had added P0–P2 priority mapping and display-only manifest summary; PR 5 extended with P1 stagnation. PR 4d added **E8 `promotion_candidate`** (P2/Info), read from the vault-bridge manifest.
 >
@@ -25,6 +25,7 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `sources/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
 | E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; its companion `E12_wiki_unverified` (#494) flags a `wiki/` page whose `verified:` is missing or unparseable — staleness is uncomputable, so it is reported for a different reason instead of being skipped forever; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
+| `unreadable` (#614) | P0 | Not an error type — no rule fired, the file's frontmatter was never examined (permission denied, encoding error, etc). Ranked ahead of E1: "we could not look" is a worse integrity signal than any judgment made ON content that WAS read. Kept OUT of every content-based type (E1/E3/E5/E6/E10/E11/E12) so a file that could not be read is never laundered into a finding about content nobody saw. See `## SCAN output budget` below. |
 
 > **P0 = 무결성 (integrity)**: All three E1–E3 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
 > **P1 = 정체/구조 (stagnation / structure)**: E6 surfaces unprocessed inputs; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / archive / move / recompile).
@@ -607,3 +608,10 @@ measured at ~110 s on the 528-file fixture against 0.14 s for the single dir-sha
 call. It is #152's `infer-tags` batching applied to the last per-file loop, and it
 returns the finished `{target_stem → [source_paths]}` index rather than per-file
 records so the model never assembles the index by hand.
+
+A file `scan-frontmatter` cannot read at all (permission denied, decode error) goes into
+`scan_summary.errors.unreadable` — `{path, error}` — instead of any content-based type.
+CLASSIFY renders it Critical/P0, sorted ahead of E1 (see the Priority Mapping table above):
+"we could not look" outranks any judgment made on content that was actually read. It is
+excluded from E1/E3/E5/E6/E10/E11/E12's own record lists so the same file is never
+double-reported as both `unreadable` and a finding about content nobody examined.

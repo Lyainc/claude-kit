@@ -141,7 +141,7 @@ never the emitted-list length, and say a list was cut whenever `omitted` is pres
 whole list** — whenever that type carries `omitted`, re-run Step 7b with a larger
 `--max-per-type` into a file and **Read** it before acting.
 An `unreadable` bucket means those files could not be READ at all — report them as their
-own item, never as E1/E5 findings about content nobody examined.
+own item, never as E1/E3/E5 findings about content nobody examined.
 
 **Termination condition**: All scan data collected. Proceed to CLASSIFY.
 
@@ -153,10 +153,12 @@ own item, never as E1/E5 findings about content nobody examined.
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (9: E1–E3, E5–E6, E9–E11, E12 — E4/E7/E8 are retired, never reused).
+**Error types** (9: E1–E3, E5–E6, E9–E11, E12 — E4/E7/E8 are retired, never reused), plus one
+non-rule-driven row below (reference doc has the rationale).
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
+| — | `unreadable` | Critical | P0 | `scan_summary.errors.unreadable` | — |
 | E1 | `missing_frontmatter` | Critical | P0 | `scan_summary.errors.E1` | — |
 | E2 | `missing_required_fields` | Critical | P0 | `scan_summary.errors.E2` | ✓ (add fields; `tags:` inferred via type/slug/folder — see Phase 4) |
 | E3 | `filename_convention_violation` | Warning | P0 | `scan_summary.errors.E3` | — (suggests `권장 파일명`) |
@@ -215,7 +217,7 @@ own item, never as E1/E5 findings about content nobody examined.
 ## REPORT Output Contract
 
 Output is grouped by priority, P0 (must-fix) first, then P1, then P2.
-Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (E1→E2→E3 within P0; E6→E10→E11→E12 within P1; E5→E9 within P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
+Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (`unreadable`→E1→E2→E3 within P0; E6→E10→E11→E12 within P1; E5→E9 within P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
 
 Each finding line format: `[E-code/priority/severity] type — N건` header, then one bullet per file with path and one-line description.
 
