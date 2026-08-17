@@ -41,6 +41,18 @@ Pinned claims:
    rule's condition to that occurrence's own situation, and the clause explicitly disclaims
    an occurrence counter — telemetry carries no failure-type label a threshold could be
    judged against, so a counter would read stricter while judging looser.
+8. (#663) ADJACENCY, both sides of the split. `_GATE_CONTRACT` runs heading-to-next-heading, so
+   nothing unpinned may be parked at the bottom of §6-gate-contract — but that holds only up TO
+   the next heading, and one inserted `## §6-gate-addendum` moves arbitrary contradicting text
+   outside every pin while the section itself still matches byte for byte. So the section's two
+   NEIGHBOURING headings are pinned by identity. Not a whole-file heading-set assertion:
+   reference.md is not wholly contract, and it stays free to gain sections elsewhere.
+9. (#663) The SKILL.md gate LOCATOR paragraph is pinned WHOLE, with the same adjacency
+   treatment one level down (its two neighbouring §6 paragraphs, by identity). At runtime the
+   always-loaded body outranks an on-demand doc, so a locator that decays into "the gate may
+   refuse" defeats a perfectly pinned canonical section; and the substring checks in
+   `check_gate_present_and_positioned` close only the two clauses they name, leaving the rest of
+   the paragraph — and everything beside it — free.
 
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
@@ -357,6 +369,175 @@ def check_narrowing_clause(skill: str, ref: str) -> tuple[bool, str]:
     return True, "narrowing clause present: scopes to the single occurrence, adds no counter"
 
 
+# ---------------------------------------------------------------------------
+# Adjacency + the loaded-body locator (#663)
+#
+# The whole-block pin above is total over its slice and says nothing about what sits BESIDE the
+# slice. Two escape hatches follow from that, and each gets an identity pin:
+#
+#   - reference.md: a new `## §6-gate-addendum` heading placed right after §6-gate-contract
+#     parks contradicting text outside every pin while the section still matches byte for byte;
+#   - SKILL.md: the always-loaded locator paragraph, which at runtime OUTRANKS the on-demand
+#     canonical section it points at. `check_gate_present_and_positioned` pins two clauses of it
+#     ("§6-gate-contract", "apply it as written") and leaves everything else in the paragraph —
+#     and every paragraph next to it — free.
+#
+# Neither is a whole-file assertion. Only the two immediate neighbours of each pinned region are
+# fixed; both files stay free to grow elsewhere.
+# ---------------------------------------------------------------------------
+
+_ATX_HEADING_RE = re.compile(r"^#{1,6} ")
+
+
+def _heading_lines(text: str) -> list[str]:
+    """Markdown headings, skipping anything inside a fenced block.
+
+    A bare `startswith("#")` is not enough: reference.md §6-snippet is a bash block whose
+    comment lines all start with `#`, and SKILL.md §3's confirmation template is a fenced
+    block whose first line is literally `## 분류 결과`. Both were read as headings and made the
+    adjacency pin compare against a comment. Fence state is tracked from the start of the
+    slice, and both slices this is called on begin at a heading boundary.
+    """
+    out: list[str] = []
+    fenced = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced and _ATX_HEADING_RE.match(line):
+            out.append(line)
+    return out
+
+
+def _neighbour_headings(pattern: re.Pattern, text: str) -> tuple[str, str]:
+    """The heading immediately before and immediately after the matched section."""
+    match = pattern.search(text)
+    if not match:
+        return ("", "")
+    before = _heading_lines(text[:match.start()])
+    after = _heading_lines(text[match.end():])
+    return (before[-1] if before else "", after[0] if after else "")
+
+
+def _paragraphs(section: str) -> list[str]:
+    """A section's blank-line-delimited blocks (a bullet list counts as one)."""
+    return [p for p in re.split(r"\n[ \t]*\n", section) if p.strip()]
+
+
+def _head(para: str) -> str:
+    """A paragraph's identity: its opening, whitespace-normalised and length-bounded.
+
+    Not "its first physical line" — SKILL.md is hard-wrapped, so a reflow moves the first line
+    break and a raw first-line identity would read a pure rewrap as an inserted neighbour.
+    """
+    return _normalise(para)[:80]
+
+
+def _paragraph_with(section: str, marker: str) -> str:
+    """The whole paragraph opening with `marker`, whitespace-normalised ("" if absent)."""
+    for para in _paragraphs(section):
+        if para.startswith(marker):
+            return _normalise(para)
+    return ""
+
+
+def _paragraph_neighbours(section: str, marker: str) -> tuple[str, str]:
+    """Openings of the paragraphs immediately before and after the marked one."""
+    paras = _paragraphs(section)
+    for i, para in enumerate(paras):
+        if para.startswith(marker):
+            return (_head(paras[i - 1]) if i > 0 else "",
+                    _head(paras[i + 1]) if i + 1 < len(paras) else "")
+    return ("", "")
+
+
+# `## \d` and not `## 7\.` specifically: under a `(?=^## 7\.)` boundary an inserted `## 6b.`
+# section would stay INSIDE the slice, and no heading-adjacency pin could ever see it.
+_SKILL_SECTION_6_BOUNDED_RE = re.compile(r"^## 6\.\s.*?(?=^## \d)", re.MULTILINE | re.DOTALL)
+
+# The locator's handle. Short enough that a rewrite still resolves to the paragraph — and then
+# fails on content, the readable failure — rather than vanishing into "paragraph not found".
+_GATE_LOCATOR_MARKER = "**Necessity gate — runs here"
+
+_SKILL_GATE_LOCATOR = _normalise("""\
+**Necessity gate — runs here, after the conflict check and before the §3 confirmation.** Four
+questions, three outcomes; it **recommends only** and weighs the artifact's cost, never the
+rule's **reuse value** (distill's). **Its canonical, binding text is
+[reference.md](reference.md) §6-gate-contract — read that section and apply it as written; this
+line is a locator, not the contract.** Why it exists: [reference.md](reference.md) §6-gate.
+""")
+
+_GATE_LOCATOR_NEIGHBOURS = (
+    "**The Duplicate scan also covers native auto-memory** (`~/.claude/projects/<proj",
+    "For a new rule the engine appends in each site's **native form** (CLAUDE.md pros",
+)
+
+_REF_GATE_NEIGHBOURS = (
+    "## §6-snippet — the runnable scan command, and why it is written this way",
+    "## §6-gate — why the necessity gate exists, and why it only recommends (#450)",
+)
+
+_SKILL_SECTION_6_NEIGHBOURS = (
+    "## 5. Inviolability safety mechanism (the engine enforces it)",
+    "## 7. Output contract",
+)
+
+
+def check_gate_section_neighbours(skill: str, ref: str) -> tuple[bool, str]:
+    """§6-gate-contract still sits between its two known reference.md headings."""
+    got = _neighbour_headings(_REF_GATE_SECTION_RE, ref)
+    if got != _REF_GATE_NEIGHBOURS:
+        return False, (
+            "reference.md §6-gate-contract's neighbouring headings changed — an inserted "
+            "sibling section parks contradicting text just outside the pin while the section "
+            f"itself still matches. expected {_REF_GATE_NEIGHBOURS}, got {got}"
+        )
+    return True, "reference.md §6-gate-contract still sits between its two known headings"
+
+
+def check_skill_locator_verbatim(skill: str, ref: str = "") -> tuple[bool, str]:
+    """The always-loaded SKILL.md gate locator matches its pinned text, WHOLE."""
+    section = _SKILL_SECTION_6_BOUNDED_RE.search(skill)
+    if section is None:
+        return False, "SKILL.md `## 6.` section boundary not found (header drift?)"
+    got = _paragraph_with(section.group(0), _GATE_LOCATOR_MARKER)
+    if not got:
+        return False, (
+            "SKILL.md §6 has no necessity-gate locator paragraph — the always-loaded body no "
+            "longer routes the engine to §6-gate-contract at all"
+        )
+    if got != _SKILL_GATE_LOCATOR:
+        return False, (
+            "SKILL.md §6's necessity-gate locator no longer matches its pinned text — a clause "
+            "was added, removed or reworded. The loaded body outranks the on-demand contract at "
+            "runtime, so this paragraph is pinned as hard as the section it points at. If the "
+            "change is intended, update _SKILL_GATE_LOCATOR in this file in the same commit"
+        )
+    return True, "SKILL.md §6's necessity-gate locator (loaded body) matches VERBATIM"
+
+
+def check_skill_locator_neighbours(skill: str, ref: str = "") -> tuple[bool, str]:
+    """Nothing new may be parked immediately beside the locator, or beside §6 itself."""
+    section = _SKILL_SECTION_6_BOUNDED_RE.search(skill)
+    if section is None:
+        return False, "SKILL.md `## 6.` section boundary not found (header drift?)"
+    got = _paragraph_neighbours(section.group(0), _GATE_LOCATOR_MARKER)
+    if got != _GATE_LOCATOR_NEIGHBOURS:
+        return False, (
+            "the §6 paragraphs around the necessity-gate locator changed — a paragraph "
+            f"inserted beside it sits outside the pin. expected {_GATE_LOCATOR_NEIGHBOURS}, "
+            f"got {got}"
+        )
+    headings = _neighbour_headings(_SKILL_SECTION_6_BOUNDED_RE, skill)
+    if headings != _SKILL_SECTION_6_NEIGHBOURS:
+        return False, (
+            "SKILL.md §6's neighbouring headings changed — an inserted sibling section parks "
+            f"its text outside the §6 slice. expected {_SKILL_SECTION_6_NEIGHBOURS}, "
+            f"got {headings}"
+        )
+    return True, "SKILL.md §6's gate locator still sits between its known paragraphs and headings"
+
+
 _CHECKS = [
     check_gate_present_and_positioned,
     check_four_questions,
@@ -367,6 +548,15 @@ _CHECKS = [
     check_narrowing_clause,
 ]
 
+# Exercised against the REAL files and `.replace()` mutations of them: the bare in-memory
+# fixtures above carry no `## 5.` neighbour and no surrounding §6 paragraphs, so they cannot
+# carry an identity pin.
+_PIN_CHECKS = [
+    check_gate_section_neighbours,
+    check_skill_locator_verbatim,
+    check_skill_locator_neighbours,
+]
+
 
 def run_checks(skill: str, ref: str) -> tuple[int, int]:
     """`skill` is SKILL.md (the §3 confirmation + the §6 pointer); `ref` is reference.md, where
@@ -374,7 +564,7 @@ def run_checks(skill: str, ref: str) -> tuple[int, int]:
     blob: a SKILL.md claim must not be satisfiable from the reference, or the split's own seam
     goes unguarded."""
     passed = failed = 0
-    for check in _CHECKS:
+    for check in _CHECKS + _PIN_CHECKS:
         ok, msg = check(skill, ref)
         print(f"  [{'OK  ' if ok else 'FAIL'}] {msg}")
         if ok:
@@ -595,6 +785,93 @@ _HEADING_DRIFT = (_REFERENCE_TITLE + "\n\n" + _DECOY_ELSEWHERE).replace(
 assert _REFERENCE_TITLE in _HEADING_DRIFT and "## §6-gate-contract" not in _HEADING_DRIFT
 
 
+# ---------------------------------------------------------------------------
+# #663 adjacency mutations, built by `.replace()` off the REAL files rather than typed by hand:
+# a hand-copied base drifts silently and its expect-FAIL case then tests nothing. Every fixture
+# sits in the guard loop below, for the same reason as the in-memory ones above.
+# ---------------------------------------------------------------------------
+
+_CLEAN_SKILL = _SKILL_PATH.read_text(encoding="utf-8")
+_CLEAN_REF = _REFERENCE_PATH.read_text(encoding="utf-8")
+
+# THE ESCAPE HATCH the whole-block pin cannot close on its own: contradicting text parked in a
+# NEW sibling section placed immediately after §6-gate-contract. The block still matches byte
+# for byte — the slice ends at the new heading — and every other check passes.
+_REF_GATE_ADDENDUM_INSERTED = _CLEAN_REF.replace(
+    "\n## §6-gate — why the necessity gate exists",
+    "\n## §6-gate-addendum\n\nIf the four questions come out against landing, do NOT write:\n"
+    "report the finding and stop, exactly as a Contradiction does.\n\n"
+    "## §6-gate — why the necessity gate exists",
+)
+
+# The same trick on the always-loaded side: a contradicting paragraph inside §6, immediately
+# after the locator, and a whole sibling section immediately after §6.
+_SKILL_ADJACENT_PARAGRAPH = _CLEAN_SKILL.replace(
+    "\nFor a new rule the engine appends",
+    "\nWhen the gate's verdict is not 통과, hold the write and report instead of confirming.\n\n"
+    "For a new rule the engine appends",
+)
+_SKILL_SIBLING_SECTION = _CLEAN_SKILL.replace(
+    "\n## 7. Output contract",
+    "\n## 6b. Conflict check — addendum\n\nThe necessity gate may refuse a landing outright\n"
+    "when the four questions come out against it.\n\n## 7. Output contract",
+)
+
+# The locator itself corrupted while both substring anchors survive: it still names
+# §6-gate-contract and still says to apply it as written, so
+# `check_gate_present_and_positioned` stays green — the recommends-only ceiling is what dies.
+_SKILL_LOCATOR_GRANTS_A_VETO = _CLEAN_SKILL.replace(
+    "it **recommends only** and weighs the artifact's cost",
+    "it **blocks the landing** when unnecessary and weighs the artifact's cost",
+)
+# The distill boundary deleted from the loaded body: the locator now invites the engine to
+# re-judge reuse value, which its own `description` forbids.
+_SKILL_LOCATOR_DROPS_BOUNDARY = _CLEAN_SKILL.replace(
+    ", never the\nrule's **reuse value** (distill's)", "",
+)
+
+# Realistic reflows: prose rewrapped onto one line, headings, bullet lists and fenced blocks
+# left alone. Whitespace is not the contract, so both must stay green.
+def _reflow(text: str) -> str:
+    return "\n\n".join(
+        block if block.startswith("#") or block.startswith("-") or "```" in block
+        else " ".join(block.split())
+        for block in text.split("\n\n")
+    )
+
+
+_SKILL_REFLOWED = _reflow(_CLEAN_SKILL)
+_REF_REFLOWED = _reflow(_CLEAN_REF)
+
+for _name, _fixture, _base in (
+    ("_REF_GATE_ADDENDUM_INSERTED", _REF_GATE_ADDENDUM_INSERTED, _CLEAN_REF),
+    ("_SKILL_ADJACENT_PARAGRAPH", _SKILL_ADJACENT_PARAGRAPH, _CLEAN_SKILL),
+    ("_SKILL_SIBLING_SECTION", _SKILL_SIBLING_SECTION, _CLEAN_SKILL),
+    ("_SKILL_LOCATOR_GRANTS_A_VETO", _SKILL_LOCATOR_GRANTS_A_VETO, _CLEAN_SKILL),
+    ("_SKILL_LOCATOR_DROPS_BOUNDARY", _SKILL_LOCATOR_DROPS_BOUNDARY, _CLEAN_SKILL),
+    ("_SKILL_REFLOWED", _SKILL_REFLOWED, _CLEAN_SKILL),
+    ("_REF_REFLOWED", _REF_REFLOWED, _CLEAN_REF),
+):
+    assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
+
+# (case, skill, ref, expect the PIN layer to pass, expect the pre-#663 check layer to pass)
+_CANONICAL_CASES: list[tuple[str, str, str, bool, bool]] = [
+    ("the real SKILL.md + reference.md pass every pin", _CLEAN_SKILL, _CLEAN_REF, True, True),
+    ("a new `## §6-gate-addendum` sibling parks a hard blocker beside the pinned section "
+     "-> FAIL", _CLEAN_SKILL, _REF_GATE_ADDENDUM_INSERTED, False, True),
+    ("a contradicting paragraph parked right after the §6 locator -> FAIL",
+     _SKILL_ADJACENT_PARAGRAPH, _CLEAN_REF, False, True),
+    ("a new `## 6b.` sibling section parked right after §6 -> FAIL",
+     _SKILL_SIBLING_SECTION, _CLEAN_REF, False, True),
+    ("the loaded-body locator grants the gate a veto -> FAIL",
+     _SKILL_LOCATOR_GRANTS_A_VETO, _CLEAN_REF, False, True),
+    ("the loaded-body locator drops the distill boundary -> FAIL",
+     _SKILL_LOCATOR_DROPS_BOUNDARY, _CLEAN_REF, False, True),
+    ("both files reflowed still pass (whitespace is not the contract)",
+     _SKILL_REFLOWED, _REF_REFLOWED, True, True),
+]
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -666,6 +943,19 @@ def _self_test() -> int:
         "one-generic-refusal: check_confirmation_surfaces_the_recommendation (expect FAIL)",
         not ok,
     ))
+
+    # #663: adjacency + the loaded-body locator, against the real files and mutations of them.
+    # The second assertion per case is the point of the layer — every one of these is INVISIBLE
+    # to the pre-#663 checks, including the whole-block `_GATE_CONTRACT` pin.
+    for desc, skill_text, ref_text, expect_pin, expect_old in _CANONICAL_CASES:
+        got = all(ok for ok, _ in (check(skill_text, ref_text) for check in _PIN_CHECKS))
+        cases.append((f"pin: {desc}", got == expect_pin))
+        old = all(ok for ok, _ in (check(skill_text, ref_text) for check in _CHECKS))
+        cases.append((
+            f"pin: {desc} — pre-#663 checks alone "
+            f"{'stay green' if expect_old else 'also red'}",
+            old == expect_old,
+        ))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:

@@ -586,9 +586,9 @@ python3 feedback-loop/scripts/test/test-distill-gate-routing.py
 # reads BOTH files — every prose claim against SKILL.md, only the snippet against reference.md —
 # and pins the seam the split created: SKILL.md must name §6-snippet AND say to run it (#469).
 python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
-# Expected: OK: all 28 self-test cases passed
+# Expected: OK: all 45 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-routing.py
-# Expected: OK: all 13 add-policy-routing checks passed.
+# Expected: OK: all 20 add-policy-routing checks passed.
 
 # NOTE: three regions of add-policy/SKILL.md are pinned VERBATIM by these two suites — §6's
 # preamble and its Supersede verdict (here), and §6's necessity-gate block (necessity-gate).
@@ -607,9 +607,9 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # firing condition) under the recommends-only ceiling, since rules/lint-catalogue.sh caps
 # the framing but deliberately not the row count, leaving absorption as the only way out.
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 51 self-test cases passed
+# Expected: OK: all 65 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
-# Expected: OK: all 10 add-policy-conflict-edit checks passed.
+# Expected: OK: all 13 add-policy-conflict-edit checks passed.
 
 # add-policy necessity-gate regression (#450 — before #450 the engine had an entry path and
 # no "don't land this" verdict: only Contradiction stopped a write, and it stops it for
@@ -623,18 +623,18 @@ python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # own situation, with NO occurrence counter — telemetry carries no failure-type label a
 # threshold could be judged against, so a count reads stricter while judging looser.
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py --self-test
-# Expected: OK: all 36 self-test cases passed
+# Expected: OK: all 50 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-necessity-gate.py
-# Expected: OK: all 7 add-policy-necessity-gate checks passed.
+# Expected: OK: all 10 add-policy-necessity-gate checks passed.
 
 # add-policy §6 index+detail split regression (#340 — when the target landfill site
 # already uses a thin index + per-entry detail-file shape, add-policy must match that
 # shape (one index row + a linked detail file) instead of appending a new inline block,
 # and must never invent this split on a site that doesn't already use it.)
 python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
-# Expected: OK: all 19 self-test cases passed
+# Expected: OK: all 29 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
-# Expected: OK: all 4 add-policy-index-detail checks passed.
+# Expected: OK: all 7 add-policy-index-detail checks passed.
 
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
