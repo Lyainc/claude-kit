@@ -50,17 +50,31 @@ worth). So the live run reads BOTH files: the verdict against reference.md, §6'
 Edit bucket, the §3 template and the Supersede POINTER against SKILL.md. §6's preamble stays
 pinned in the body — it is the section's own opening instruction and cannot be relocated.
 
-KNOWN GAP (measured, not assumed). Three regions are pinned verbatim across this suite
-and test-add-policy-necessity-gate.py — §6's preamble (in SKILL.md), the Supersede verdict and
-the gate block (both in reference.md since #663). Re-measured 2026-08-16 with #609's two new verdicts: the verbatim-pinned regions
-cover 2,871 of §6's 7,642 characters, and the phrase-pinned regions grew with them.
-The rest is the Duplicate/Edit/Contradiction/Sibling
-bullets and the memory-scan subsection, which test-add-policy-routing.py phrase-pins because it
-changes. A contradicting clause placed there passes every suite. Closing it means pinning all of
-§6, which would put the `awk` snippet under the same paired-commit rule as the contract text and
-collide with routing's phrase pins. Two lines that assert the 1-click invariant outside every
-pin — SKILL.md's memory-removal bullet and its `## Rules` summary — are unguarded for the same
-reason. Recorded so the coverage is a decision, not an assumption.
+9. (#663) ADJACENCY, both sides of the split. `_SUPERSEDE_CONTRACT` runs to the end of its
+   bullet inside `## §6-supersede-contract`, so nothing unpinned may be parked below it — but
+   that holds only up TO the next heading, and one inserted `## §6-supersede-addendum` moves
+   arbitrary contradicting text outside every pin while the section still matches byte for byte.
+   So the section's two NEIGHBOURING headings are pinned by identity. Not a whole-file
+   heading-set assertion: reference.md is not wholly contract and stays free to gain sections.
+10. (#663) The SKILL.md Supersede LOCATOR bullet is pinned WHOLE, with the same treatment one
+   level down — its two neighbouring §6 verdict bullets by identity, and §6 itself between
+   `## 5.` and `## 7.`. At runtime the always-loaded body outranks an on-demand doc, so a
+   locator that decays into "retire it on a follow-up confirmation" defeats a perfectly pinned
+   canonical section; and `check_supersede_verdict_named`'s substring checks close only the two
+   clauses they name, leaving the rest of the bullet — and everything beside it — free.
+
+KNOWN GAP (measured, not assumed). Verbatim-pinned across this suite and its siblings: §6's
+preamble, the Supersede locator bullet and the necessity-gate locator (SKILL.md), the memory
+locator and the index+detail paragraph (SKILL.md, pinned by test-add-policy-routing.py and
+test-add-policy-index-detail.py), and the Supersede verdict, the gate block, §6-memory-contract
+and §6-snippet (reference.md). What remains unpinned in §6 is the Duplicate / Edit / Unused
+retirement / Contradiction / Sibling bullets, which the phrase checks here and in the sibling
+suites cover claim-by-claim but not as regions: a contradicting clause added INSIDE one of those
+bullets still passes. Closing it means pinning all of §6 verbatim, which buys little now that
+every locator around those bullets is pinned and their adjacency with them — the Supersede
+bullet's own neighbours are two of them, so neither can be deleted or reordered unseen. One line
+that asserts the 1-click invariant outside every pin — SKILL.md's `## Rules` summary — is
+unguarded for the same reason. Recorded so the coverage is a decision, not an assumption.
 
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
@@ -469,6 +483,181 @@ def check_tier_does_not_mean_blocking(text: str, _ref: str = "") -> tuple[bool, 
     return True, "HARD means deterministically enforced, and tier still folds into the site"
 
 
+# ---------------------------------------------------------------------------
+# Adjacency + the loaded-body locator (#663)
+#
+# The verbatim pins above are total over their slices and say nothing about what sits BESIDE
+# them. Two escape hatches follow, and each gets an identity pin:
+#
+#   - reference.md: a new `## §6-supersede-addendum` heading right after §6-supersede-contract
+#     parks contradicting text outside every pin while the section still matches byte for byte;
+#   - SKILL.md: the always-loaded Supersede locator bullet, which at runtime OUTRANKS the
+#     on-demand section it points at. `check_supersede_verdict_named` pins two of its clauses
+#     and leaves the rest of the bullet — and both bullets next to it — free.
+#
+# Neither is a whole-file assertion. Only the immediate neighbours of each pinned region are
+# fixed; both files stay free to grow elsewhere.
+# ---------------------------------------------------------------------------
+
+_ATX_HEADING_RE = re.compile(r"^#{1,6} ")
+
+
+def _heading_lines(text: str) -> list[str]:
+    """Markdown headings, skipping anything inside a fenced block.
+
+    A bare `startswith("#")` is not enough: reference.md §6-snippet is a bash block whose
+    comment lines all start with `#`, and SKILL.md §3's confirmation template is a fenced block
+    whose first line is literally `## 분류 결과`. Both would be read as headings and make the
+    adjacency pin compare against a comment.
+    """
+    out: list[str] = []
+    fenced = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced and _ATX_HEADING_RE.match(line):
+            out.append(line)
+    return out
+
+
+def _neighbour_headings(pattern: re.Pattern, text: str) -> tuple[str, str]:
+    """The heading immediately before and immediately after the matched section."""
+    match = pattern.search(text)
+    if not match:
+        return ("", "")
+    before = _heading_lines(text[:match.start()])
+    after = _heading_lines(text[match.end():])
+    return (before[-1] if before else "", after[0] if after else "")
+
+
+def _paragraphs(section: str) -> list[str]:
+    """A section's blank-line-delimited blocks (a bullet list counts as one)."""
+    return [p for p in re.split(r"\n[ \t]*\n", section) if p.strip()]
+
+
+def _head(text: str) -> str:
+    """A block's identity: its opening, whitespace-normalised and length-bounded.
+
+    Not "its first physical line" — SKILL.md is hard-wrapped, so a reflow moves the first line
+    break and a raw first-line identity would read a pure rewrap as an inserted neighbour.
+    """
+    return _normalise(text)[:80]
+
+
+def _verdict_bullets(section: str) -> list[str]:
+    """§6's verdict bullets, sliced out of the one block that holds them.
+
+    Scoped to that block rather than to the whole section: slicing the LAST bullet to the end
+    of §6 would swallow the locator paragraphs that follow it, and then a rewrite of those
+    paragraphs would read as a rewrite of the Sibling verdict.
+    """
+    block = next((p for p in _paragraphs(section) if p.startswith("- **")), "")
+    if not block:
+        return []
+    return [f"- **{part}" if i else part
+            for i, part in enumerate(block.split("\n- **"))]
+
+
+def _bullet_neighbours(section: str, marker: str) -> tuple[str, str]:
+    """Openings of the verdict bullets immediately before and after the marked one."""
+    bullets = _verdict_bullets(section)
+    for i, bullet in enumerate(bullets):
+        if bullet.startswith(marker):
+            return (_head(bullets[i - 1]) if i > 0 else "",
+                    _head(bullets[i + 1]) if i + 1 < len(bullets) else "")
+    return ("", "")
+
+
+# `## \d` and not `## 7\.` specifically: under a `(?=^## 7\.)` boundary an inserted `## 6b.`
+# section would stay INSIDE the slice, and no heading-adjacency pin could ever see it. Kept
+# separate from `_SECTION_6_RE` above, whose fallback-to-whole-text behaviour the headerless
+# bullet fixtures depend on.
+_SKILL_SECTION_6_BOUNDED_RE = re.compile(r"^## 6\.\s.*?(?=^## \d)", re.MULTILINE | re.DOTALL)
+
+_SUPERSEDE_MARKER = "- **Supersede (the catalogue's exit path)**"
+
+_SKILL_SUPERSEDE_LOCATOR = _normalise("""\
+- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant
+  absorbs it and retires it in the **same write**, on the same confirmation — never a separate
+  prompt. **Its canonical, binding text is [reference.md](reference.md) §6-supersede-contract —
+  read that section and apply it as written; this bullet is a locator, not the contract.**
+  Rationale: [reference.md](reference.md) §6-supersede.
+""")
+
+_SUPERSEDE_LOCATOR_NEIGHBOURS = (
+    "- **Edit (explicit modification of an existing entry)**: if the request clearly ",
+    "- **Unused retirement (the other exit, #609)**: absorption above is otherwise th",
+)
+
+_REF_SUPERSEDE_NEIGHBOURS = (
+    "## §6-gate — why the necessity gate exists, and why it only recommends (#450)",
+    "## §6-narrowing — one occurrence narrows the condition, and why there is no counter (#609)",
+)
+
+_SKILL_SECTION_6_NEIGHBOURS = (
+    "## 5. Inviolability safety mechanism (the engine enforces it)",
+    "## 7. Output contract",
+)
+
+
+def check_supersede_section_neighbours(skill: str, ref: str) -> tuple[bool, str]:
+    """§6-supersede-contract still sits between its two known reference.md headings."""
+    got = _neighbour_headings(_REF_SUPERSEDE_SECTION_RE, ref)
+    if got != _REF_SUPERSEDE_NEIGHBOURS:
+        return False, (
+            "reference.md §6-supersede-contract's neighbouring headings changed — an inserted "
+            "sibling section parks contradicting text just outside the pin while the section "
+            f"itself still matches. expected {_REF_SUPERSEDE_NEIGHBOURS}, got {got}"
+        )
+    return True, "reference.md §6-supersede-contract still sits between its two known headings"
+
+
+def check_skill_supersede_locator_verbatim(skill: str, ref: str = "") -> tuple[bool, str]:
+    """The always-loaded SKILL.md Supersede locator bullet matches its pinned text, WHOLE."""
+    section = _SKILL_SECTION_6_BOUNDED_RE.search(skill)
+    if section is None:
+        return False, "SKILL.md `## 6.` section boundary not found (header drift?)"
+    bullet = next(
+        (b for b in _verdict_bullets(section.group(0)) if b.startswith(_SUPERSEDE_MARKER)), ""
+    )
+    if not bullet:
+        return False, (
+            "SKILL.md §6 has no Supersede locator bullet — the always-loaded body no longer "
+            "routes the engine to §6-supersede-contract at all"
+        )
+    if _normalise(bullet) != _SKILL_SUPERSEDE_LOCATOR:
+        return False, (
+            "SKILL.md §6's Supersede locator no longer matches its pinned text — a clause was "
+            "added, removed or reworded. The loaded body outranks the on-demand contract at "
+            "runtime, so this bullet is pinned as hard as the section it points at. If the "
+            "change is intended, update _SKILL_SUPERSEDE_LOCATOR in this file in the same commit"
+        )
+    return True, "SKILL.md §6's Supersede locator (loaded body) matches VERBATIM"
+
+
+def check_skill_supersede_locator_neighbours(skill: str, ref: str = "") -> tuple[bool, str]:
+    """Nothing new may be parked immediately beside the locator bullet, or beside §6 itself."""
+    section = _SKILL_SECTION_6_BOUNDED_RE.search(skill)
+    if section is None:
+        return False, "SKILL.md `## 6.` section boundary not found (header drift?)"
+    got = _bullet_neighbours(section.group(0), _SUPERSEDE_MARKER)
+    if got != _SUPERSEDE_LOCATOR_NEIGHBOURS:
+        return False, (
+            "the §6 verdict bullets around the Supersede locator changed — a bullet inserted "
+            f"beside it sits outside the pin. expected {_SUPERSEDE_LOCATOR_NEIGHBOURS}, "
+            f"got {got}"
+        )
+    headings = _neighbour_headings(_SKILL_SECTION_6_BOUNDED_RE, skill)
+    if headings != _SKILL_SECTION_6_NEIGHBOURS:
+        return False, (
+            "SKILL.md §6's neighbouring headings changed — an inserted sibling section parks "
+            f"its text outside the §6 slice. expected {_SKILL_SECTION_6_NEIGHBOURS}, "
+            f"got {headings}"
+        )
+    return True, "SKILL.md §6's Supersede locator still sits between its known bullets and headings"
+
+
 _CHECKS = [
     check_conflict_preamble_verbatim,
     check_edit_bucket_named,
@@ -482,6 +671,15 @@ _CHECKS = [
     check_tier_does_not_mean_blocking,
 ]
 
+# Exercised against the REAL files and `.replace()` mutations of them: the in-memory fixtures
+# above are bare bullet fragments with no `## 5.`/`## 7.` neighbours, so they cannot carry an
+# identity pin.
+_PIN_CHECKS = [
+    check_supersede_section_neighbours,
+    check_skill_supersede_locator_verbatim,
+    check_skill_supersede_locator_neighbours,
+]
+
 
 def run_checks(skill: str, ref: str) -> tuple[int, int]:
     """`skill` is SKILL.md (§6's preamble, the Edit bucket, the §3 template, the Supersede
@@ -489,7 +687,7 @@ def run_checks(skill: str, ref: str) -> tuple[int, int]:
     #663. Two sources on purpose, not one concatenated blob: a SKILL.md claim must not be
     satisfiable from the reference, or the split's own seam goes unguarded."""
     passed = failed = 0
-    for check in _CHECKS:
+    for check in _CHECKS + _PIN_CHECKS:
         ok, msg = check(skill, ref)
         print(f"  [{'OK  ' if ok else 'FAIL'}] {msg}")
         if ok:
@@ -848,6 +1046,95 @@ for _name, _fixture, _base in (
     assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
 
 
+# ---------------------------------------------------------------------------
+# #663 adjacency mutations, built by `.replace()` off the REAL files rather than typed by hand:
+# a hand-copied base drifts silently and its expect-FAIL case then tests nothing. Same guard
+# loop as everything above.
+# ---------------------------------------------------------------------------
+
+_CLEAN_SKILL = _SKILL_PATH.read_text(encoding="utf-8")
+_CLEAN_REF = _REFERENCE_PATH.read_text(encoding="utf-8")
+
+# THE ESCAPE HATCH the verbatim pin cannot close on its own: contradicting text parked in a NEW
+# sibling section placed immediately after §6-supersede-contract. The bullet still matches byte
+# for byte — the slice ends at the new heading — and every other check passes. This is #429's
+# rejected design, reinstated from just outside the pin.
+_REF_SUPERSEDE_ADDENDUM_INSERTED = _CLEAN_REF.replace(
+    "\n## §6-narrowing — one occurrence narrows the condition",
+    "\n## §6-supersede-addendum\n\nA verdict that *removes* an entry is destructive, so it is\n"
+    "confirmed on its own second question, separately from the §3 addition.\n\n"
+    "## §6-narrowing — one occurrence narrows the condition",
+)
+
+# The same trick on the always-loaded side: a new verdict bullet inserted right after the
+# Supersede locator, and a whole sibling section right after §6.
+_SKILL_ADJACENT_BULLET = _CLEAN_SKILL.replace(
+    "\n- **Unused retirement (the other exit, #609)**",
+    "\n- **Deferred retirement**: when the absorption is large, retire the old entry on a\n"
+    "  follow-up confirmation instead.\n"
+    "- **Unused retirement (the other exit, #609)**",
+)
+_SKILL_SIBLING_SECTION = _CLEAN_SKILL.replace(
+    "\n## 7. Output contract",
+    "\n## 6b. Conflict check — addendum\n\nA retirement is destructive, so confirm it on its\n"
+    "own second question.\n\n## 7. Output contract",
+)
+
+# The locator itself corrupted while both substring anchors survive: it still names
+# §6-supersede-contract and still says to apply it as written, so
+# `check_supersede_verdict_named` stays green — the 1-click invariant is what dies.
+_SKILL_LOCATOR_GRANTS_SECOND_PROMPT = _CLEAN_SKILL.replace(
+    "absorbs it and retires it in the **same write**, on the same confirmation — never a separate\n  prompt.",
+    "absorbs it and retires it in a follow-up write, on its own second confirmation.",
+)
+# The locator's caveat deleted: the bullet reads as a usable summary rather than a locator, so
+# an engine acts from it and never opens the contract.
+_SKILL_LOCATOR_CAVEAT_DELETED = _CLEAN_SKILL.replace(
+    "; this bullet is a locator, not the contract.", ".",
+)
+
+# Realistic reflows: prose rewrapped onto one line, headings, bullet lists and fenced blocks
+# left alone. Whitespace is not the contract, so both must stay green.
+def _reflow(text: str) -> str:
+    return "\n\n".join(
+        block if block.startswith("#") or block.startswith("-") or "```" in block
+        else " ".join(block.split())
+        for block in text.split("\n\n")
+    )
+
+
+_SKILL_REFLOWED = _reflow(_CLEAN_SKILL)
+_REF_REFLOWED = _reflow(_CLEAN_REF)
+
+for _name, _fixture, _base in (
+    ("_REF_SUPERSEDE_ADDENDUM_INSERTED", _REF_SUPERSEDE_ADDENDUM_INSERTED, _CLEAN_REF),
+    ("_SKILL_ADJACENT_BULLET", _SKILL_ADJACENT_BULLET, _CLEAN_SKILL),
+    ("_SKILL_SIBLING_SECTION", _SKILL_SIBLING_SECTION, _CLEAN_SKILL),
+    ("_SKILL_LOCATOR_GRANTS_SECOND_PROMPT", _SKILL_LOCATOR_GRANTS_SECOND_PROMPT, _CLEAN_SKILL),
+    ("_SKILL_LOCATOR_CAVEAT_DELETED", _SKILL_LOCATOR_CAVEAT_DELETED, _CLEAN_SKILL),
+    ("_SKILL_REFLOWED", _SKILL_REFLOWED, _CLEAN_SKILL),
+    ("_REF_REFLOWED", _REF_REFLOWED, _CLEAN_REF),
+):
+    assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
+
+# (case, skill, ref, expect the PIN layer to pass, expect the pre-#663 check layer to pass)
+_CANONICAL_CASES: list[tuple[str, str, str, bool, bool]] = [
+    ("the real SKILL.md + reference.md pass every pin", _CLEAN_SKILL, _CLEAN_REF, True, True),
+    ("a new `## §6-supersede-addendum` sibling grants the retirement its own prompt -> FAIL",
+     _CLEAN_SKILL, _REF_SUPERSEDE_ADDENDUM_INSERTED, False, True),
+    ("a new verdict bullet parked right after the Supersede locator -> FAIL",
+     _SKILL_ADJACENT_BULLET, _CLEAN_REF, False, True),
+    ("a new `## 6b.` sibling section parked right after §6 -> FAIL",
+     _SKILL_SIBLING_SECTION, _CLEAN_REF, False, True),
+    ("the loaded-body locator grants the retirement a second prompt -> FAIL",
+     _SKILL_LOCATOR_GRANTS_SECOND_PROMPT, _CLEAN_REF, False, True),
+    ("the loaded-body locator drops its `this is a locator` caveat -> FAIL",
+     _SKILL_LOCATOR_CAVEAT_DELETED, _CLEAN_REF, False, True),
+    ("both files reflowed still pass (whitespace is not the contract)",
+     _SKILL_REFLOWED, _REF_REFLOWED, True, True),
+]
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -948,6 +1235,19 @@ def _self_test() -> int:
     ok, msg = check_supersede_bullet_verbatim(_PASSING, _REF_HEADING_DRIFT)
     cases.append(("header-drift (§6-supersede-contract renamed): names the boundary (expect FAIL)",
                   (not ok) and "boundary not found" in msg))
+
+    # #663: adjacency + the loaded-body locator, against the real files and mutations of them.
+    # The second assertion per case is the point of the layer — every one of these is INVISIBLE
+    # to the pre-#663 checks, verbatim `_SUPERSEDE_CONTRACT` pin included.
+    for desc, skill_text, ref_text, expect_pin, expect_old in _CANONICAL_CASES:
+        got = all(ok for ok, _ in (check(skill_text, ref_text) for check in _PIN_CHECKS))
+        cases.append((f"pin: {desc}", got == expect_pin))
+        old = all(ok for ok, _ in (check(skill_text, ref_text) for check in _CHECKS))
+        cases.append((
+            f"pin: {desc} — pre-#663 checks alone "
+            f"{'stay green' if expect_old else 'also red'}",
+            old == expect_old,
+        ))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:

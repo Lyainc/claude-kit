@@ -167,40 +167,12 @@ downgrades the check to a title comparison:
 - **Sibling**: if it is one half of an existing rule's pair, link them with a one-line
   "sibling to <that rule>", not duplicated context.
 
-**The Duplicate scan also covers native auto-memory** — `~/.claude/projects/<proj>/memory/*.md`
-stores `feedback` entries, the same kind of thing this engine lands, cross-checked nowhere
-else. Scan **both**.
-
-**Two steps — conflating them is a data-loss bug.** Step 1 only **lists candidate files**; Step
-2 decides a *Duplicate* by **reading each candidate and comparing its content to the rule being
-landed**. Only a content match is a hit — a file that merely has `type: feedback` is not a
-duplicate and is never touched. ([reference.md](reference.md) §6-memory)
-
-**Step 1 — list candidates** (read-only). `SCAN_ROOT` follows the site: a machine-global site
-is duplicated by a memory in **any** project; a **project-scoped** `CLAUDE.md` only by **that
-project's own** — another project's memory is neither a duplicate nor yours to delete.
-
-**Read [reference.md](reference.md) §6-snippet now and run the command it ships, as written.**
-Every choice there is load-bearing, and a reconstructed command fails in the one direction that
-matters: reporting "no duplicates" when the scan never ran.
-
-**Memory is an input, never a destination.** A `feedback` memory is a promotion queue that
-empties into one of the three sites of §3 — **not a fourth site**; a rule is never *written*
-to memory.
-
-**Step 2 — read each candidate and judge.** Most are unrelated; move on.
-
-- **Vanilla machine → silently skip.** No `~/.claude/projects` (or no `memory/` inside it):
-  skip the memory scan and proceed, as §5 treats a missing `~/.claude/skills` — nothing to
-  conflict with, never a scan failure; likewise zero candidates.
-- **A scan that ERRORED is not a scan that found nothing.** A dead `awk` or an unreadable file
-  shows only on **stderr**; anything there leaves the scan **inconclusive** — say so in the §3
-  confirmation ("memory 스캔 실패 — 중복 여부 확인 못 했어요") instead of reporting `none`.
-- **On a content-match hit → surface it in the §3 confirmation** ("memory에도 있어요 — 매립 후
-  memory 항목은 지울게요"), and after the write remove that memory file **and its
-  `MEMORY.md` index line — the line whose markdown link target is that file's basename** (never
-  the title; those repeat). Same confirmation, no second prompt. Use `trash-put`; if
-  unavailable, leave the file and report it — **never force-delete, never `rm`**.
+**The Duplicate scan also covers native auto-memory** (`~/.claude/projects/<proj>/memory/*.md`
+`feedback` entries), in two steps whose conflation is a data-loss bug. **Its canonical, binding
+text is [reference.md](reference.md) §6-memory-contract: Read that section and apply it as
+written, then read §6-snippet and run the command it ships — this paragraph is a locator, not
+the contract.** Memory is an input queue that empties into a §3 site — **never a fourth site**,
+never a write destination. Why two steps: [reference.md](reference.md) §6-memory.
 
 **Necessity gate — runs here, after the conflict check and before the §3 confirmation.** Four
 questions, three outcomes; it **recommends only** and weighs the artifact's cost, never the

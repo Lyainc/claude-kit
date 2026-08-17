@@ -16,6 +16,21 @@ verifies the written split — so those mentions are not leaks. And because
 SKILL.md is hard-wrapped, claims are matched by phrase across whitespace, never
 as contiguous substrings; a reflow must not read as a deletion.
 
+#663 adds the pin layer the phrase checks above cannot carry. A phrase check
+closes only the clause it names and leaves every neighbouring region free, so the
+paragraph that carries this instruction is now compared WHOLE and VERBATIM
+(whitespace-normalised), and its adjacency is pinned twice over:
+
+- the paragraph's neighbouring §6 paragraphs are pinned by the identity of their
+  first lines, so a contradicting paragraph slipped in beside it reds;
+- §6 itself is pinned between `## 5.` and `## 7.`, so a new sibling heading
+  (`## 6b. …`) — which would park arbitrary text just outside the §6 slice while
+  every phrase check stayed green — reds too.
+
+Neither is a whole-file heading-set assertion: SKILL.md is free to gain sections
+elsewhere. Only the two headings around §6, and the two paragraphs around the
+pinned one, are fixed.
+
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
     python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
@@ -41,7 +56,12 @@ def _load_skill() -> str:
     return _SKILL_PATH.read_text(encoding="utf-8")
 
 
-_SECTION_6_RE = re.compile(r"^## 6\.\s.*?(?=^## 7\.\s)", re.MULTILINE | re.DOTALL)
+# The boundary is ANY numbered sibling heading, not `## 7.` specifically (#663). Under the old
+# `(?=^## 7\.)` boundary an inserted `## 6b.` section stayed INSIDE the slice, so a phrase check
+# went on passing while contradicting text sat under a heading of its own. Ending at the next
+# `## <digit>` makes that insertion visible to `check_section_6_neighbours` below, which pins the
+# heading that must follow §6 by identity.
+_SECTION_6_RE = re.compile(r"^## 6\.\s.*?(?=^## \d)", re.MULTILINE | re.DOTALL)
 
 
 def _section_6_span(text: str) -> tuple[int, int] | None:
@@ -139,6 +159,173 @@ def check_scoped_to_section_6(text: str) -> tuple[bool, str]:
     return True, "§6 instruction correctly scoped to §6"
 
 
+# ---------------------------------------------------------------------------
+# Whole-paragraph pin + adjacency (#663)
+#
+# WHY WHOLE-PARAGRAPH EQUALITY, not the phrase set above. Every phrase pin is a blocklist of the
+# last wording someone tried: it closes the clause it names and leaves the next neighbour free.
+# `match that shape` and `never invent this split` can both stay verbatim while the sentence
+# between them is rewritten into "…, but on a catalogue site add a new inline block instead" and
+# the whole suite stays green. So the paragraph's OWN TEXT is the pin and the comparison is
+# TOTAL. Whitespace is normalised — a reflow is not a change, an edit to the words is, and
+# updating this constant is the deliberate act that records the change, in the same commit.
+#
+# The phrase checks above are kept for DIAGNOSIS, not coverage: each names one invariant, so a
+# failure says which half died instead of only "the paragraph changed".
+# ---------------------------------------------------------------------------
+
+def _normalise(text: str) -> str:
+    """Whitespace is not the contract — reflowing a paragraph must not read as a rewrite."""
+    return " ".join(text.split())
+
+
+def _paragraphs(section: str) -> list[str]:
+    """§6's blank-line-delimited blocks. The bullet list is one block (bullets carry no blank
+    line between them), which is exactly the granularity the adjacency pin wants."""
+    return [p for p in re.split(r"\n[ \t]*\n", section) if p.strip()]
+
+
+def _paragraph_with(section: str, marker: str) -> str:
+    """The whole paragraph opening with `marker`, whitespace-normalised ("" if absent)."""
+    for para in _paragraphs(section):
+        if para.startswith(marker):
+            return _normalise(para)
+    return ""
+
+
+def _head(para: str) -> str:
+    """A paragraph's identity: its opening, whitespace-normalised.
+
+    Normalised and length-bounded rather than "its first physical line" — the file is
+    hard-wrapped, so a reflow moves the first line break and a raw first-line identity would
+    read a pure rewrap as an inserted neighbour.
+    """
+    return _normalise(para)[:80]
+
+
+def _paragraph_neighbours(section: str, marker: str) -> tuple[str, str]:
+    """Openings of the paragraphs immediately before and after the marked one.
+
+    The paragraph pin stops at its own blank line, so a contradicting paragraph parked beside it
+    is outside every comparison. Pinning the two neighbours BY IDENTITY closes that: an inserted
+    paragraph on either side changes one of them. Not a whole-section paragraph-list assertion —
+    §6 stays free to change elsewhere; only the two immediate neighbours are fixed.
+    """
+    paras = _paragraphs(section)
+    for i, para in enumerate(paras):
+        if para.startswith(marker):
+            return (_head(paras[i - 1]) if i > 0 else "",
+                    _head(paras[i + 1]) if i + 1 < len(paras) else "")
+    return ("", "")
+
+
+_ATX_HEADING_RE = re.compile(r"^#{1,6} ")
+
+
+def _heading_lines(text: str) -> list[str]:
+    """Markdown headings, skipping anything inside a fenced block.
+
+    A bare `startswith("#")` is not enough: reference.md §6-snippet is a bash block whose
+    comment lines all start with `#`, and SKILL.md §3's confirmation template is a fenced
+    block whose first line is literally `## 분류 결과`. Both were read as headings and made the
+    adjacency pin compare against a comment. Fence state is tracked from the start of the
+    slice, and both slices this is called on begin at a heading boundary.
+    """
+    out: list[str] = []
+    fenced = False
+    for line in text.splitlines():
+        if line.lstrip().startswith("```"):
+            fenced = not fenced
+            continue
+        if not fenced and _ATX_HEADING_RE.match(line):
+            out.append(line)
+    return out
+
+
+def _neighbour_headings(pattern: re.Pattern, text: str) -> tuple[str, str]:
+    """The heading immediately before and immediately after the matched section."""
+    match = pattern.search(text)
+    if not match:
+        return ("", "")
+    before = _heading_lines(text[:match.start()])
+    after = _heading_lines(text[match.end():])
+    return (before[-1] if before else "", after[0] if after else "")
+
+
+# The paragraph's opening words, used as its handle. Short enough that a rewrite of the
+# instruction itself still resolves to the paragraph (and then fails on content, which is the
+# readable failure) rather than vanishing into "paragraph not found".
+_SHAPE_MARKER = "For a new rule the engine appends"
+
+_SHAPE_PARAGRAPH = _normalise("""\
+For a new rule the engine appends in each site's **native form** (CLAUDE.md prose / a hook
+script / a skill SKILL.md); an **Edit** rewrites the targeted entry in place. If the site's
+content is already an index+detail split (one-line index rows linking to per-entry files, e.g.
+`README.md` → `../policies/Pn.md`), match that shape — one terse index row plus its linked
+detail file, not a new inline block — and **put the detail file where the existing ones live,
+resolving the index's own link to find out**. Never invent this split on a site that doesn't
+already use it. An **Edit** there rewrites **both** the index row and its detail file whenever
+the change touches what the index claims.
+""")
+
+# The two paragraphs the shape instruction sits between, by the identity of their first lines.
+_SHAPE_NEIGHBOURS = (
+    "**Necessity gate — runs here, after the conflict check and before the §3 confirm",
+    "",  # it is §6's last paragraph — anything appended below makes this non-empty
+)
+
+# The two headings §6 itself sits between. An inserted `## 6b.` sibling would end the §6 slice
+# early and park its own text outside every pin; this is what sees it.
+_SECTION_6_NEIGHBOURS = (
+    "## 5. Inviolability safety mechanism (the engine enforces it)",
+    "## 7. Output contract",
+)
+
+
+def check_shape_paragraph_verbatim(text: str) -> tuple[bool, str]:
+    """The whole index+detail paragraph matches its pinned text, VERBATIM."""
+    if _section_6_span(text) is None:
+        return False, "§6 section boundary not found (header drift?)"
+    para = _paragraph_with(_section_6(text), _SHAPE_MARKER)
+    if not para:
+        return False, (
+            f"§6 has no paragraph opening with {_SHAPE_MARKER!r} — the index+detail write "
+            "instruction is missing outright"
+        )
+    if para != _SHAPE_PARAGRAPH:
+        return False, (
+            "§6's index+detail paragraph no longer matches its pinned text — a clause was "
+            "added, removed or reworded anywhere in it. If that is intended, update "
+            "_SHAPE_PARAGRAPH in this file in the same commit"
+        )
+    return True, "§6's index+detail paragraph matches its pinned text verbatim"
+
+
+def check_shape_paragraph_neighbours(text: str) -> tuple[bool, str]:
+    """Nothing new may be parked immediately beside the pinned paragraph."""
+    if _section_6_span(text) is None:
+        return False, "§6 section boundary not found (header drift?)"
+    got = _paragraph_neighbours(_section_6(text), _SHAPE_MARKER)
+    if got != _SHAPE_NEIGHBOURS:
+        return False, (
+            "the §6 paragraphs around the index+detail instruction changed — a paragraph "
+            f"inserted beside it sits outside the pin. expected {_SHAPE_NEIGHBOURS}, got {got}"
+        )
+    return True, "§6's index+detail paragraph still sits between its two known paragraphs"
+
+
+def check_section_6_neighbours(text: str) -> tuple[bool, str]:
+    """§6 still sits between `## 5.` and `## 7.` — no sibling heading inserted next to it."""
+    got = _neighbour_headings(_SECTION_6_RE, text)
+    if got != _SECTION_6_NEIGHBOURS:
+        return False, (
+            "§6's neighbouring headings changed — an inserted sibling section would park its "
+            f"text outside the §6 slice every check here reads. expected "
+            f"{_SECTION_6_NEIGHBOURS}, got {got}"
+        )
+    return True, "§6 still sits between `## 5.` and `## 7.` (no sibling heading inserted)"
+
+
 _CHECKS = [
     check_index_detail_shape_named,
     check_match_shape_instruction,
@@ -146,10 +333,18 @@ _CHECKS = [
     check_scoped_to_section_6,
 ]
 
+# Exercised against the REAL SKILL.md and mutations of it (the in-memory fixtures above are
+# bare §6 fragments with no `## 5.` neighbour, so they cannot carry an identity pin).
+_PIN_CHECKS = [
+    check_shape_paragraph_verbatim,
+    check_shape_paragraph_neighbours,
+    check_section_6_neighbours,
+]
+
 
 def run_checks(text: str) -> tuple[int, int]:
     passed = failed = 0
-    for check in _CHECKS:
+    for check in _CHECKS + _PIN_CHECKS:
         ok, msg = check(text)
         print(f"  [{'OK  ' if ok else 'FAIL'}] {msg}")
         if ok:
@@ -308,6 +503,79 @@ directory gained no new `.md`.
 """
 
 
+# ---------------------------------------------------------------------------
+# #663 pin mutations. Built by `.replace()` off the REAL SKILL.md, never typed by hand: a
+# hand-copied base drifts silently and its expect-FAIL case starts testing nothing. The
+# import-time guard below is what makes that loud — a `.replace()` whose target has moved
+# yields a copy of the base, and an expect-FAIL case on an unmodified copy always passes.
+# ---------------------------------------------------------------------------
+
+_CLEAN_SKILL = _SKILL_PATH.read_text(encoding="utf-8")
+
+# THE ESCAPE HATCH the phrase checks could not close: a new sibling section parked immediately
+# after §6, carrying the opposite instruction. The §6 slice now ends at `## 6b.`, so every
+# phrase check reads the untouched §6 and passes; only the heading-adjacency pin sees it.
+_SIBLING_SECTION_INSERTED = _CLEAN_SKILL.replace(
+    "\n## 7. Output contract",
+    "\n## 6b. Conflict check — addendum\n\nOn a catalogue site, append a new inline block\n"
+    "instead, and introduce the index+detail shape wherever it would help.\n\n"
+    "## 7. Output contract",
+)
+
+# The same trick one level down: a contradicting PARAGRAPH parked inside §6, immediately after
+# the pinned one. It is outside the paragraph pin by construction; the paragraph-adjacency pin
+# is what reds.
+_ADJACENT_PARAGRAPH_INSERTED = _CLEAN_SKILL.replace(
+    "\n## 7. Output contract",
+    "\nOn a catalogue site, append a new inline block instead — the split above is a\n"
+    "suggestion, not a requirement.\n\n## 7. Output contract",
+)
+
+# A clause rewritten INSIDE the paragraph, between the two phrase-pinned anchors, so both
+# anchors survive verbatim and say nothing about the sentence that now contradicts them.
+_PARAGRAPH_CLAUSE_REWRITTEN = _CLEAN_SKILL.replace(
+    "match that shape — one terse index row plus its linked\ndetail file, not a new inline block —",
+    "match that shape — or, if the index is already long, a new inline block —",
+)
+
+# The detail-file placement rule deleted: the split is matched, but the detail file lands inside
+# the loaded directory, which is the measured leak reference.md §3 records.
+_PLACEMENT_RULE_DELETED = _CLEAN_SKILL.replace(
+    " and **put the detail file where the existing ones live,\nresolving the index's own link to find out**.",
+    ".",
+)
+
+# A realistic reflow: every prose paragraph rewrapped onto one line, headings, bullet lists and
+# fenced blocks left where they are. Whitespace is not the contract, so this must stay green.
+_PARAGRAPH_REFLOWED = "\n\n".join(
+    block if block.startswith("#") or block.startswith("-") or "```" in block
+    else " ".join(block.split())
+    for block in _CLEAN_SKILL.split("\n\n")
+)
+
+for _name, _fixture, _base in (
+    ("_SIBLING_SECTION_INSERTED", _SIBLING_SECTION_INSERTED, _CLEAN_SKILL),
+    ("_ADJACENT_PARAGRAPH_INSERTED", _ADJACENT_PARAGRAPH_INSERTED, _CLEAN_SKILL),
+    ("_PARAGRAPH_CLAUSE_REWRITTEN", _PARAGRAPH_CLAUSE_REWRITTEN, _CLEAN_SKILL),
+    ("_PLACEMENT_RULE_DELETED", _PLACEMENT_RULE_DELETED, _CLEAN_SKILL),
+    ("_PARAGRAPH_REFLOWED", _PARAGRAPH_REFLOWED, _CLEAN_SKILL),
+):
+    assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
+
+_CANONICAL_CASES: list[tuple[str, str, bool]] = [
+    ("the real SKILL.md passes every pin", _CLEAN_SKILL, True),
+    ("a new `## 6b.` sibling section parks the opposite instruction beside §6 -> FAIL "
+     "(every phrase check still passes)", _SIBLING_SECTION_INSERTED, False),
+    ("a contradicting paragraph parked right after the pinned one -> FAIL",
+     _ADJACENT_PARAGRAPH_INSERTED, False),
+    ("a clause rewritten between the two phrase anchors -> FAIL",
+     _PARAGRAPH_CLAUSE_REWRITTEN, False),
+    ("the detail-file placement rule deleted -> FAIL", _PLACEMENT_RULE_DELETED, False),
+    ("a whole-file reflow still passes (whitespace is not the contract)",
+     _PARAGRAPH_REFLOWED, True),
+]
+
+
 def _self_test() -> int:
     cases: list[tuple[str, bool]] = []
 
@@ -353,6 +621,16 @@ def _self_test() -> int:
     ):
         ok, _ = check(_SUBSTRING_BAIT)
         cases.append((f"substring-bait: {check.__name__} (expect FAIL)", not ok))
+
+    # #663: the whole-paragraph pin + both adjacency pins, against the real SKILL.md and
+    # `.replace()` mutations of it. Every one of these passes the phrase checks above.
+    for desc, skill_text, expect_pass in _CANONICAL_CASES:
+        got = all(ok for ok, _ in (check(skill_text) for check in _PIN_CHECKS))
+        cases.append((f"pin: {desc}", got == expect_pass))
+        if not expect_pass:
+            # The point of the pin layer: the OLD phrase-only suite lets each of these through.
+            phrase_ok = all(ok for ok, _ in (check(skill_text) for check in _CHECKS))
+            cases.append((f"pin: {desc} — phrase checks alone stay green", phrase_ok))
 
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:

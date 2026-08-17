@@ -247,9 +247,55 @@ file exists but reading it still fails for some other reason, stop and report th
 do not guess.
 
 
+## §6-memory-contract — the native-memory duplicate scan, CANONICAL text (#663)
+
+**This section is the contract, not background.** SKILL.md §6 points here and carries a locator
+paragraph only; what follows is the text the engine applies, and `_REF_MEMORY_SECTION` in
+`feedback-loop/scripts/test/test-add-policy-routing.py` pins it verbatim — editing it is a
+deliberate contract change, made in the same commit as that constant. Nothing else belongs in
+this section: the slice runs to the next heading, so a clause parked below the block breaks the
+pin (by design), and the two neighbouring headings are pinned by identity so a new sibling
+cannot park one just outside it either. Rationale lives in §6-memory, immediately after.
+
+**The Duplicate scan also covers native auto-memory** — `~/.claude/projects/<proj>/memory/*.md`
+stores `feedback` entries, the same kind of thing this engine lands, cross-checked nowhere
+else. Scan **both**.
+
+**Two steps — conflating them is a data-loss bug.** Step 1 only **lists candidate files**; Step
+2 decides a *Duplicate* by **reading each candidate and comparing its content to the rule being
+landed**. Only a content match is a hit — a file that merely has `type: feedback` is not a
+duplicate and is never touched.
+
+**Step 1 — list candidates** (read-only). `SCAN_ROOT` follows the site: a machine-global site
+is duplicated by a memory in **any** project; a **project-scoped** `CLAUDE.md` only by **that
+project's own** — another project's memory is neither a duplicate nor yours to delete.
+
+**Read §6-snippet now and run the command it ships, as written.** Every choice there is
+load-bearing, and a reconstructed command fails in the one direction that matters: reporting
+"no duplicates" when the scan never ran.
+
+**Memory is an input, never a destination.** A `feedback` memory is a promotion queue that
+empties into one of the three sites of SKILL.md §3 — **not a fourth site**; a rule is never
+*written* to memory.
+
+**Step 2 — read each candidate and judge.** Most are unrelated; move on.
+
+- **Vanilla machine → silently skip.** No `~/.claude/projects` (or no `memory/` inside it):
+  skip the memory scan and proceed, as §5 treats a missing `~/.claude/skills` — nothing to
+  conflict with, never a scan failure; likewise zero candidates.
+- **A scan that ERRORED is not a scan that found nothing.** A dead `awk` or an unreadable file
+  shows only on **stderr**; anything there leaves the scan **inconclusive** — say so in the §3
+  confirmation ("memory 스캔 실패 — 중복 여부 확인 못 했어요") instead of reporting `none`.
+- **On a content-match hit → surface it in the §3 confirmation** ("memory에도 있어요 — 매립 후
+  memory 항목은 지울게요"), and after the write remove that memory file **and its
+  `MEMORY.md` index line — the line whose markdown link target is that file's basename** (never
+  the title; those repeat). Same confirmation, no second prompt. Use `trash-put`; if
+  unavailable, leave the file and report it — **never force-delete, never `rm`**.
+
+
 ## §6-memory — why the memory scan is two steps
 
-SKILL.md §6 keeps both steps and the content-match rule.
+SKILL.md §6 keeps a locator; §6-memory-contract above holds both steps and the content-match rule.
 
 **The Duplicate scan also covers native auto-memory** — Claude Code's auto-memory
 (`~/.claude/projects/<proj>/memory/*.md`) stores `feedback`-type entries, which are *the same
@@ -267,8 +313,8 @@ its content to the rule being landed**. Only a content match is a hit. A file th
 
 ## §6-snippet — the runnable scan command, and why it is written this way
 
-**This file ships the command; SKILL.md §6 keeps the decision it serves** (scan memory too, a
-hit is a CONTENT match, an errored scan is inconclusive) and points here — #469 moved the
+**This file ships the command; §6-memory-contract keeps the decision it serves** (scan memory
+too, a hit is a CONTENT match, an errored scan is inconclusive) and points here — #469 moved the
 executable text out so the decision fits the 5,000-token compaction window. Run it as written:
 the reasoning below is what each choice buys, including the `n starts at 9` guard, zsh NOMATCH,
 and why `2>/dev/null` is banned.
