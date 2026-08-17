@@ -17,11 +17,20 @@ Three things must hold:
 3. OBSERVABLE: if a caller's downstream tool output ever truncates the script's own JSON
    response, that must surface as a detectable mismatch (parse failure or
    `len(candidates) != candidate_count`), never as a silently-smaller candidate list.
+4. PINNED (#663): the truncation-check invariant and the candidate ranking order, whose
+   canonical text moved to `reference/manifest-recall.md`, and the #305 wiki-staleness hedge,
+   which moved to `reference/wiki-staleness.md`, still read THERE verbatim — pinned by
+   WHOLE-SECTION equality (heading to next heading, whitespace-normalised) plus the identity
+   of each pinned section's two neighbouring headings, so contradicting text can neither be
+   parked at the bottom of a section nor inside a freshly inserted sibling. The always-loaded
+   `agents/vault-searcher.md` locator sections are pinned the same way, by section name and
+   read-and-apply wording rather than by the bare reference path.
 
 Run: python3 vault-bridge/scripts/test/test-manifest-candidates.py
   -> "OK: all N manifest-candidate checks passed" (exit 0) / "FAILED: ..." (exit 1).
 """
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -44,10 +53,239 @@ def _normalise(s: str) -> str:
 
 # ---------------------------------------------------------------------------
 # Canonical contract text (#663). vault-searcher.md sat at ~4,990 of the #447 5,000-token
-# budget, so the contract prose moved to reference/manifest-recall.md and the agent body
-# keeps a pointer. The pins FOLLOW the prose: they read the reference doc, which is now
-# canonical, plus the pointer that makes it binding from the agent's side.
+# budget, so the contract prose moved to reference/manifest-recall.md (truncation-check
+# invariant, candidate ranking order) and reference/wiki-staleness.md (the #305 hedge), and
+# the agent body keeps read-and-apply locators. The pins FOLLOW the prose: they read the
+# reference docs, which are now canonical, plus the locators that make them binding.
+#
+# WHY WHOLE-SECTION EQUALITY, not a set of clause pins. Every partial anchor is a blocklist of
+# the last wording someone tried, and it leaves the whole unpinned remainder of the section
+# free — the ranking section's `status=active` ordering, the "never read a 0 as cold" caveat,
+# and the script-unavailable fallback arm were all deletable with the old substring suite
+# green. So the section's OWN TEXT is the pin and the comparison is TOTAL (same shape as
+# `_EXCHANGE_LOOP_SECTION` in thinking-tools/scripts/test/test-mode-compose.py). Whitespace is
+# normalised: a reflow is not a change, an edit to the words is — and updating these constants
+# is the deliberate act that records a contract change, in the same commit as the edit.
+#
+# Each slice runs from its heading to the NEXT heading of equal-or-shallower depth, so a
+# contradicting clause parked at the bottom of a section is inside the pin, not outside it.
+#
+# The agent body is pinned the same way: at runtime the always-loaded vault-searcher.md
+# outranks an on-demand reference doc, so a locator that says "override" where the canonical
+# section says "tiebreaker only" wins in practice against a perfectly pinned reference.
+#
+# The clause pins that survive are kept for DIAGNOSIS, not coverage — each names a distinct
+# invariant, so the failure message says which one died instead of only "the section changed".
 # ---------------------------------------------------------------------------
+
+
+def _section_re(heading: str, depth: int) -> "re.Pattern[str]":
+    """Heading line -> the whole section, stopping at the next heading of depth <= `depth`."""
+    return re.compile(
+        rf"^{re.escape(heading)}$.*?(?=^#{{1,{depth}}} |\Z)",
+        re.MULTILINE | re.DOTALL,
+    )
+
+
+def _section(pattern: "re.Pattern[str]", text: str) -> str:
+    """The whole named section, heading to next heading, whitespace-normalised ("" if absent)."""
+    match = pattern.search(text)
+    return _normalise(match.group(0)) if match else ""
+
+
+def _neighbour_headings(pattern: "re.Pattern[str]", text: str) -> tuple:
+    """The heading immediately before and immediately after the pinned section."""
+    match = pattern.search(text)
+    if not match:
+        return ("", "")
+    before = [ln for ln in text[:match.start()].splitlines() if ln.startswith("#")]
+    after = [ln for ln in text[match.end():].splitlines() if ln.startswith("#")]
+    return (before[-1] if before else "", after[0] if after else "")
+
+
+_REF_TRUNCATION_RE = _section_re("## The truncation-check invariant", 2)
+_REF_RANKING_RE = _section_re("## Candidate ranking order (Mode 2 step 2c)", 2)
+_STALE_CONTRACT_RE = _section_re("## The contract", 2)
+_STALE_MTIME_RE = _section_re("## Why `verified:` and not mtime", 2)
+_STALE_LEGACY_RE = _section_re("## Legacy pages with no `verified:`", 2)
+_AGENT_MANIFEST_FIRST_RE = _section_re("#### Manifest-First Protocol", 4)
+_AGENT_RULES_RE = _section_re("## Rules", 2)
+
+
+_REF_TRUNCATION_SECTION = _normalise("""\
+## The truncation-check invariant
+
+**Canonical text.** `vault-searcher.md` (Mode 2 step 2b, Mode 3 step 1) points here; this
+section is the binding contract, and the agent must apply it as written. Its whole text —
+heading to the next heading, so nothing unpinned may be parked at the bottom — is pinned
+VERBATIM by `_REF_TRUNCATION_SECTION` in
+`vault-bridge/scripts/test/test-manifest-candidates.py`. Editing anything below is a deliberate
+contract change and updates that constant in the same commit; a reflow is free (the comparison
+is whitespace-normalised).
+
+Even with the prefilter running out-of-context, a caller must never trust a candidate
+list it cannot verify is complete: if the printed JSON fails to parse, or
+`len(candidates) != candidate_count`, something still went wrong between the script and
+the caller (a size limit on the Bash tool's own stdout capture, a truncated pipe, an
+unexpected editor injection) — don't trust a partial set.
+
+On any of those, log "manifest 후보 목록이 잘렸을 수 있어 전체 스캔으로 대체합니다." and fall
+through to the standard full-scan path rather than silently searching a partial candidate
+set. The same fallback applies when `python3` or the script is unavailable, or the script
+exits 3 (manifest absent/unparseable) — which is distinct from a legitimately empty vault
+(`candidate_count: 0`, exit 0), where there is nothing to fall back for.
+""")
+
+_REF_RANKING_SECTION = _normalise("""\
+## Candidate ranking order (Mode 2 step 2c)
+
+**Canonical text.** `vault-searcher.md` Mode 2 step 2c points here; this section is the
+binding sort contract. Its whole text — heading to the next heading (here, end of file), so
+nothing unpinned may be parked at the bottom — is pinned VERBATIM by `_REF_RANKING_SECTION` in
+`vault-bridge/scripts/test/test-manifest-candidates.py`. Editing anything below is a deliberate
+contract change and updates that constant in the same commit; a reflow is free (the comparison
+is whitespace-normalised).
+
+Sort the returned candidates:
+
+1. `status=active` first.
+2. Then by the Question-Type Routing tier (`vault-searcher.md` § Question-Type Routing) —
+   wiki candidates surface before notes/sources for a 정의/사실 질문, and vice versa for a
+   경위/이력 질문; `type: discussion` counts as notes/sources-tier; no reordering for 분류 불가.
+3. Then by the recall-weight signals already in the manifest entry: `recent_commits`
+   descending — the count of git commits touching the file in the **last 7 days**, i.e.
+   recent activity, not all-time work. It measures *writing*, never reads, and a vault left
+   uncommitted for a week scores 0 everywhere — silent, not meaningful, so never read a 0 as
+   "this page is cold".
+4. Then `references_in` descending (cross-note wikilink weight).
+5. Then `type: wiki` preferred — the A layer is the primary recall target, so a wiki page
+   wins a tie over an equally-scored note. A *tiebreaker only*, never an override that
+   buries a more relevant non-wiki hit.
+6. Finally `mtime` descending as the last tiebreaker.
+
+These signals are free: `generate-manifest.py`'s `_enrich` already populates them.
+
+Then select the top ≤ 5 candidates by this priority.
+""")
+
+_STALE_CONTRACT_SECTION = _normalise("""\
+## The contract
+
+`type: wiki` pages carry `verified:` (last-touched date) and, when checkable, `anchor:`
+(a source file/URL the dominant claim traces to). When you return a wiki page's content,
+mention its `verified:` age alongside it — this is the only staleness signal a source-free
+(no `anchor:`) page has, since nothing else flags it as possibly outdated.
+
+Don't silently present an old, anchor-free wiki claim as current fact; a plain
+"as of {verified}" note is enough to let the caller hedge.
+""")
+
+_STALE_MTIME_SECTION = _normalise("""\
+## Why `verified:` and not mtime
+
+Prefer `verified:` over the file's raw modification date. The vault is git-committed
+(`/vault-commit`) and a clone/checkout resets filesystem mtimes to the checkout time, so
+mtime can understate a page's real age while `verified:` (committed frontmatter) survives
+that.
+""")
+
+_STALE_LEGACY_SECTION = _normalise("""\
+## Legacy pages with no `verified:`
+
+A legacy `type: wiki` page written before #305 may have no `verified:` field at all —
+don't invent a date; say the age is unknown instead of silently omitting the hedge.
+""")
+
+# --- the ALWAYS-LOADED agent body, pinned the same way ---------------------------------
+
+_AGENT_MANIFEST_FIRST_SECTION = _normalise("""\
+#### Manifest-First Protocol
+
+Before running the standard MOC search, attempt to use the vault manifest cache for efficient
+targeted loading. This whole section is pinned VERBATIM by `_AGENT_MANIFEST_FIRST_SECTION` in
+`vault-bridge/scripts/test/test-manifest-candidates.py`: the always-loaded body outranks an
+on-demand reference doc, so 2b/2c may not drift from the sections they point at.
+
+1. **Check manifest existence**: `[ -f "{vault_root}/.vault-bridge/manifest.json" ]`
+2. **If manifest exists**:
+   a. Run the candidate prefilter via `manifest-domain-candidates.py` (never `Read` the raw
+      manifest — why, #523: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`). Reads it
+      untruncated, filters out of context:
+      ```bash
+      python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-domain-candidates.py" \\
+        --domain "{domain}" --vault-path "{vault_path}" "{vault_root}/.vault-bridge/manifest.json"
+      ```
+      Applies `type == wiki` (always included — #272), `.vault-link` `vault_path`
+      directory-scoped prefix, domain-keyword tag/workstream match, or `status == active`.
+      Output: `{"candidate_count": N, "candidates": [...]}`.
+   b. **Truncation check**: apply § The truncation-check invariant in
+      `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that section is the binding
+      contract (parse failure or `len(candidates) != candidate_count` → fall through to the
+      standard scan below).
+   c. **Sort + select**: apply § Candidate ranking order in
+      `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that section is the binding
+      sort contract (active → Question-Type Routing tier → `recent_commits` →
+      `references_in` → `type: wiki` tiebreak → `mtime`, then top ≤ 5).
+   d. Read only those specific files. Skip the MOC/grep scan entirely.
+   e. **Staleness check**: if manifest `generated_at` is older than 24 hours OR any candidate file's actual `mtime` (via `stat`) is newer than the manifest's `generated_at`, fall through to standard scan below and log a warning: "manifest가 오래되었거나 변경 파일이 있어 전체 스캔으로 대체합니다."
+3. **If manifest absent or staleness detected**: proceed with standard full-scan procedure below (graceful degradation — behavior identical to pre-manifest).
+""")
+
+_AGENT_RULES_SECTION = _normalise("""\
+## Rules
+
+- **Wiki staleness hedge (#305)**: when returning a `type: wiki` page's content, always hedge
+  it with the page's `verified:` age — prefer `verified:` over the file's modification date (a
+  git checkout resets mtimes, so mtime understates the real age), and if `verified:` is absent
+  say the age is unknown rather than inventing one. `anchor:` is the source file/URL the page's
+  dominant claim traces to; an anchor-free page has `verified:` as its only staleness signal.
+  Apply § The contract in `${CLAUDE_PLUGIN_ROOT}/reference/wiki-staleness.md` as written — that
+  section is the binding contract, this bullet is a locator.
+- **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests a session summary, instruct them to invoke `/vault-save` (runs inline in main context, saves `type:capture` to `sources/` immediately — no draft/confirmation step). For compiled, AI-recall domain knowledge distilled from the session, point them to `/wiki` instead.
+- Exclude `private` / `sensitive` tagged notes unless user explicitly requests them.
+- When results are large, show top items and offer "더 보려면 알려주세요".
+
+This whole section is pinned VERBATIM by `_AGENT_RULES_SECTION` in
+`vault-bridge/scripts/test/test-manifest-candidates.py`.
+""")
+
+
+# --- adjacency: a heading is otherwise the escape hatch ---------------------------------
+#
+# "Nothing unpinned may be parked at the bottom of a section" holds only up to the NEXT
+# heading, so one inserted `## Addendum` moves arbitrary contradicting text outside every pin.
+# manifest-recall.md is not wholly contract (it opens with the #523 defect write-up), so a
+# whole-file heading-set assertion would be wrong; instead each pinned section's two
+# NEIGHBOURING headings are pinned by identity, so an inserted sibling on either side reds.
+# An empty string means "nothing on that side" — for the two sections that end their file,
+# that pins the file-final position too, so an appended `## Addendum` also reds.
+_NEIGHBOURS = {
+    "manifest-recall.md § The truncation-check invariant": (
+        "ref", _REF_TRUNCATION_RE,
+        ("## `status == active` is unconditional, on purpose (for now)",
+         "## Candidate ranking order (Mode 2 step 2c)"),
+    ),
+    "manifest-recall.md § Candidate ranking order": (
+        "ref", _REF_RANKING_RE,
+        ("## The truncation-check invariant", ""),
+    ),
+    "wiki-staleness.md § The contract": (
+        "stale", _STALE_CONTRACT_RE,
+        ("# vault-searcher — wiki staleness hedge (#305)",
+         "## Why `verified:` and not mtime"),
+    ),
+    "wiki-staleness.md § Why `verified:` and not mtime": (
+        "stale", _STALE_MTIME_RE,
+        ("## The contract", "## Legacy pages with no `verified:`"),
+    ),
+    "wiki-staleness.md § Legacy pages with no `verified:`": (
+        "stale", _STALE_LEGACY_RE,
+        ("## Why `verified:` and not mtime", ""),
+    ),
+}
+
+
+# --- clause pins kept for a readable diagnosis of one specific invariant each -----------
 
 _TRUNCATION_CONTRACT = _normalise("""
 a caller must never trust a candidate list it cannot verify is complete: if the printed JSON
@@ -68,9 +306,6 @@ relevant non-wiki hit.
 
 _RANKING_SELECT = _normalise("Then select the top ≤ 5 candidates by this priority.")
 
-# The #305 wiki-staleness hedge, moved to reference/wiki-staleness.md by the same #663 split.
-# It was the one block whose pin did not follow it, and an unpinned region is one that can be
-# deleted with the whole suite green (#609 measured exactly that).
 _STALENESS_HEDGE = _normalise("""
 When you return a wiki page's content, mention its `verified:` age alongside it
 """)
@@ -83,11 +318,32 @@ _STALENESS_UNKNOWN = _normalise("""
 don't invent a date; say the age is unknown instead of silently omitting the hedge
 """)
 
+# The locators are pinned by SECTION NAME + the read-and-apply wording, never by the bare
+# path: `reference/manifest-recall.md` is already cited twice in the body as a #523 rationale
+# ("never `Read` the raw manifest — why, #523: ..."), so a path-only check stays green after
+# every binding pointer has decayed into a citation.
+_LOCATOR_TRUNCATION = _normalise("""
+apply § The truncation-check invariant in `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`
+— that section is the binding contract
+""")
+
+_LOCATOR_RANKING = _normalise("""
+apply § Candidate ranking order in `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that
+section is the binding sort contract
+""")
+
+_LOCATOR_STALENESS = _normalise("""
+Apply § The contract in `${CLAUDE_PLUGIN_ROOT}/reference/wiki-staleness.md` as written — that
+section is the binding contract
+""")
+
 
 def static_checks(agent_text: str, ref_text: str, staleness_text: str) -> list:
     """(condition, description) for every static guard over the agent + its canonical contract."""
     ref = _normalise(ref_text)
     stale = _normalise(staleness_text)
+    agent = _normalise(agent_text)
+    by_key = {"ref": ref_text, "stale": staleness_text}
     return [
         ("manifest-domain-candidates.py" in agent_text,
          "vault-searcher.md Mode 2 invokes manifest-domain-candidates.py"),
@@ -97,35 +353,53 @@ def static_checks(agent_text: str, ref_text: str, staleness_text: str) -> list:
          "vault-searcher.md no longer `Read`s the raw manifest directly (#523)"),
         ("#523" in agent_text,
          "vault-searcher.md references #523 at the fixed call sites"),
-        # The candidate_count truncation-observability contract — canonical copy (#663).
+        # --- total: the whole section, verbatim ---
+        (_section(_REF_TRUNCATION_RE, ref_text) == _REF_TRUNCATION_SECTION,
+         "manifest-recall.md § The truncation-check invariant matches VERBATIM"),
+        (_section(_REF_RANKING_RE, ref_text) == _REF_RANKING_SECTION,
+         "manifest-recall.md § Candidate ranking order matches VERBATIM"),
+        (_section(_STALE_CONTRACT_RE, staleness_text) == _STALE_CONTRACT_SECTION,
+         "wiki-staleness.md § The contract matches VERBATIM"),
+        (_section(_STALE_MTIME_RE, staleness_text) == _STALE_MTIME_SECTION,
+         "wiki-staleness.md § Why `verified:` and not mtime matches VERBATIM"),
+        (_section(_STALE_LEGACY_RE, staleness_text) == _STALE_LEGACY_SECTION,
+         "wiki-staleness.md § Legacy pages with no `verified:` matches VERBATIM"),
+        (_section(_AGENT_MANIFEST_FIRST_RE, agent_text) == _AGENT_MANIFEST_FIRST_SECTION,
+         "vault-searcher.md § Manifest-First Protocol (loaded body) matches VERBATIM"),
+        (_section(_AGENT_RULES_RE, agent_text) == _AGENT_RULES_SECTION,
+         "vault-searcher.md § Rules (loaded body) matches VERBATIM"),
+        # --- adjacency: no heading inserted on either side of a pinned section ---
+    ] + [
+        (_neighbour_headings(pattern, by_key[key]) == expected,
+         f"{label} still sits between its two known headings "
+         f"(an inserted sibling would park text outside the pin)")
+        for label, (key, pattern, expected) in _NEIGHBOURS.items()
+    ] + [
+        # --- diagnostic: one named invariant each, so a failure says which one died ---
         (_TRUNCATION_CONTRACT in ref,
          "manifest-recall.md carries the candidate_count truncation-observability contract"),
         (_TRUNCATION_FALLBACK in ref,
          "manifest-recall.md pins the full-scan fallthrough as the response to truncation"),
-        # The Mode 2 step 2c ranking contract — canonical copy (#663).
         (_RANKING_CONTRACT in ref,
          "manifest-recall.md carries the `type: wiki` tiebreaker-only ranking contract"),
         (_RANKING_SELECT in ref,
          "manifest-recall.md pins the top-5 candidate selection"),
-        # The #305 wiki-staleness hedge — canonical copy (#663).
         (_STALENESS_HEDGE in stale,
          "wiki-staleness.md carries the `verified:` hedge obligation"),
         (_STALENESS_MTIME in stale,
          "wiki-staleness.md pins `verified:` over mtime (a checkout resets mtimes)"),
         (_STALENESS_UNKNOWN in stale,
          "wiki-staleness.md pins unknown-age over an invented date for legacy pages"),
-        # ...and the pointers that make each canonical copy binding from the agent side.
-        # Pinned by the SECTION name, not the bare path: `reference/manifest-recall.md`
-        # already appeared twice as a #523 rationale citation, so a path-only check stays
-        # true even after both binding pointers are deleted.
-        ("reference/manifest-recall.md" in agent_text,
-         "vault-searcher.md still names the reference/manifest-recall.md path"),
-        ("§ The truncation-check invariant" in agent_text,
-         "vault-searcher.md points at manifest-recall.md § The truncation-check invariant"),
-        ("§ Candidate ranking order" in agent_text,
-         "vault-searcher.md points at manifest-recall.md § Candidate ranking order"),
-        ("reference/wiki-staleness.md" in agent_text,
-         "vault-searcher.md points at reference/wiki-staleness.md for the #305 hedge"),
+        # --- the seam: the locators that make each canonical copy binding ---
+        (_LOCATOR_TRUNCATION in agent,
+         "vault-searcher.md binds § The truncation-check invariant by section name "
+         "(read-and-apply, not a cite)"),
+        (_LOCATOR_RANKING in agent,
+         "vault-searcher.md binds § Candidate ranking order by section name "
+         "(read-and-apply, not a cite)"),
+        (_LOCATOR_STALENESS in agent,
+         "vault-searcher.md binds wiki-staleness.md § The contract by section name "
+         "(read-and-apply, not a cite)"),
         ("candidate_count" in agent_text,
          "vault-searcher.md still names candidate_count at the call sites"),
     ]
@@ -377,6 +651,7 @@ _CLEAN_STALENESS = _STALENESS.read_text(encoding="utf-8")
 _REF_WEAK_TRUNCATION = _CLEAN_REF.replace(
     "`len(candidates) != candidate_count`",
     "`len(candidates) < 0`",
+    1,
 )
 # The wiki tiebreaker silently promoted into an override — the exact rewrite the verbatim
 # pin exists to catch.
@@ -422,6 +697,69 @@ _STALENESS_INVENTS_DATE = _CLEAN_STALENESS.replace(
 _AGENT_NO_STALENESS_POINTER = _CLEAN_AGENT.replace(
     "reference/wiki-staleness.md", "reference/README.md")
 
+# --- deletions the OLD substring suite let through: unpinned remainder of a pinned section ---
+# `status=active` demoted from the top of the sort — the one signal that guarantees the
+# in-progress note surfaces at all.
+_REF_ACTIVE_DEMOTED = _CLEAN_REF.replace(
+    "1. `status=active` first.", "1. `status=active` last.")
+# The "a 0 is silent, not cold" caveat deleted, so an uncommitted vault reads as all-cold.
+_REF_NO_ZERO_CAVEAT = _CLEAN_REF.replace(
+    " It measures *writing*, never reads, and a vault left\n   uncommitted for a week scores 0 everywhere — silent, not meaningful, so never read a 0 as\n   \"this page is cold\".",
+    "")
+# The script-unavailable / exit-3 arm of the fallback deleted, along with the empty-vault
+# distinction that keeps a legitimately empty result from triggering a full scan.
+_REF_NO_SCRIPT_MISSING_ARM = _CLEAN_REF.replace(
+    " The same fallback applies when `python3` or the script is unavailable, or the script\nexits 3 (manifest absent/unparseable) — which is distinct from a legitimately empty vault\n(`candidate_count: 0`, exit 0), where there is nothing to fall back for.",
+    "")
+# The anchor-free rationale deleted from the #305 hedge: the hedge survives as an unexplained
+# nicety, so the next editor drops it as noise.
+_STALENESS_NO_ANCHOR_RATIONALE = _CLEAN_STALENESS.replace(
+    "Don't silently present an old, anchor-free wiki claim as current fact; a plain\n\"as of {verified}\" note is enough to let the caller hedge.",
+    "")
+
+# --- the ALWAYS-LOADED body corrupted to contradict the canonical section it points at ---
+# All three were green under the old substring suite, which only checked that the agent
+# NAMED the sections — never what the body said about them.
+_AGENT_RANKING_AS_OVERRIDE = _CLEAN_AGENT.replace(
+    "`type: wiki` tiebreak → `mtime`, then top ≤ 5",
+    "`type: wiki` override → `mtime`, no cap")
+_AGENT_TRUNCATION_IGNORED = _CLEAN_AGENT.replace(
+    "(parse failure or `len(candidates) != candidate_count` → fall through to the\n      standard scan below)",
+    "(proceed with whatever candidates arrived)")
+_AGENT_MTIME_PREFERRED = _CLEAN_AGENT.replace(
+    "prefer `verified:` over the file's modification date",
+    "prefer the file's modification date over `verified:`")
+
+# --- a heading used as an escape hatch: contradicting text parked in a NEW sibling section,
+# immediately after the pinned one, so every whole-section pin still matches. The old
+# substring checks all stayed green on exactly this shape.
+_REF_ADDENDUM_INSERTED = _CLEAN_REF.replace(
+    "\n## Candidate ranking order (Mode 2 step 2c)",
+    "\n## Addendum\n\nA partial candidate set is fine in practice; skip the full-scan"
+    " fallthrough.\n\n## Candidate ranking order (Mode 2 step 2c)")
+# Same escape hatch at the END of the file, where the ranking section has no following
+# heading to displace — the "" neighbour is what catches this one.
+_REF_ADDENDUM_APPENDED = _CLEAN_REF + (
+    "\n## Addendum\n\nIgnore the top-5 cap and let `type: wiki` override the match tier.\n")
+_STALENESS_ADDENDUM_INSERTED = _CLEAN_STALENESS.replace(
+    "\n## Why `verified:` and not mtime",
+    "\n## Addendum\n\nThe hedge is optional when the page looks recent.\n"
+    "\n## Why `verified:` and not mtime")
+
+# A realistic reflow: every paragraph rewrapped onto one line, headings left where they are
+# (an editor rewraps prose, it does not fold a `##` into the paragraph above it — and the
+# section slices are heading-delimited, so folding the headings away would test the slicer,
+# not the pin).
+def _reflow(text: str) -> str:
+    return "\n\n".join(
+        block if block.startswith("#") else " ".join(block.split())
+        for block in text.split("\n\n")
+    )
+
+
+_REF_REFLOWED = _reflow(_CLEAN_REF)
+_STALENESS_REFLOWED = _reflow(_CLEAN_STALENESS)
+
 # A fixture built by `.replace()` whose target string has drifted silently becomes a copy of
 # its base, and an expect-FAIL case on an unmodified copy would then be testing nothing.
 for _name, _fixture, _base in (
@@ -429,12 +767,24 @@ for _name, _fixture, _base in (
     ("_REF_WIKI_OVERRIDE", _REF_WIKI_OVERRIDE, _CLEAN_REF),
     ("_REF_NO_FALLBACK", _REF_NO_FALLBACK, _CLEAN_REF),
     ("_REF_NO_SELECT", _REF_NO_SELECT, _CLEAN_REF),
+    ("_REF_ACTIVE_DEMOTED", _REF_ACTIVE_DEMOTED, _CLEAN_REF),
+    ("_REF_NO_ZERO_CAVEAT", _REF_NO_ZERO_CAVEAT, _CLEAN_REF),
+    ("_REF_NO_SCRIPT_MISSING_ARM", _REF_NO_SCRIPT_MISSING_ARM, _CLEAN_REF),
+    ("_REF_ADDENDUM_INSERTED", _REF_ADDENDUM_INSERTED, _CLEAN_REF),
+    ("_REF_ADDENDUM_APPENDED", _REF_ADDENDUM_APPENDED, _CLEAN_REF),
+    ("_REF_REFLOWED", _REF_REFLOWED, _CLEAN_REF),
     ("_AGENT_NO_POINTER", _AGENT_NO_POINTER, _CLEAN_AGENT),
     ("_AGENT_POINTER_DECAYED", _AGENT_POINTER_DECAYED, _CLEAN_AGENT),
     ("_AGENT_NO_STALENESS_POINTER", _AGENT_NO_STALENESS_POINTER, _CLEAN_AGENT),
+    ("_AGENT_RANKING_AS_OVERRIDE", _AGENT_RANKING_AS_OVERRIDE, _CLEAN_AGENT),
+    ("_AGENT_TRUNCATION_IGNORED", _AGENT_TRUNCATION_IGNORED, _CLEAN_AGENT),
+    ("_AGENT_MTIME_PREFERRED", _AGENT_MTIME_PREFERRED, _CLEAN_AGENT),
     ("_STALENESS_NO_HEDGE", _STALENESS_NO_HEDGE, _CLEAN_STALENESS),
     ("_STALENESS_NO_MTIME", _STALENESS_NO_MTIME, _CLEAN_STALENESS),
     ("_STALENESS_INVENTS_DATE", _STALENESS_INVENTS_DATE, _CLEAN_STALENESS),
+    ("_STALENESS_NO_ANCHOR_RATIONALE", _STALENESS_NO_ANCHOR_RATIONALE, _CLEAN_STALENESS),
+    ("_STALENESS_ADDENDUM_INSERTED", _STALENESS_ADDENDUM_INSERTED, _CLEAN_STALENESS),
+    ("_STALENESS_REFLOWED", _STALENESS_REFLOWED, _CLEAN_STALENESS),
 ):
     assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
 
@@ -451,23 +801,52 @@ def self_test() -> int:
          _CLEAN_AGENT, _REF_NO_FALLBACK, _CLEAN_STALENESS, False),
         ("canonical top-5 selection deleted -> FAIL",
          _CLEAN_AGENT, _REF_NO_SELECT, _CLEAN_STALENESS, False),
+        # The next three were all green under the old substring suite — unpinned remainder
+        # of a section whose named clauses were the only thing anchored.
+        ("canonical sort demotes `status=active` off the top -> FAIL",
+         _CLEAN_AGENT, _REF_ACTIVE_DEMOTED, _CLEAN_STALENESS, False),
+        ("canonical `recent_commits` zero-is-silent caveat deleted -> FAIL",
+         _CLEAN_AGENT, _REF_NO_ZERO_CAVEAT, _CLEAN_STALENESS, False),
+        ("canonical script-unavailable / exit-3 fallback arm deleted -> FAIL",
+         _CLEAN_AGENT, _REF_NO_SCRIPT_MISSING_ARM, _CLEAN_STALENESS, False),
         ("agent body no longer points at the canonical contract -> FAIL",
          _AGENT_NO_POINTER, _CLEAN_REF, _CLEAN_STALENESS, False),
         # The pointers decay to the pre-#663 rationale citation, which a path-only check
         # cannot distinguish from a binding read-and-apply pointer.
         ("binding pointers decayed into background citations -> FAIL",
          _AGENT_POINTER_DECAYED, _CLEAN_REF, _CLEAN_STALENESS, False),
+        # The loaded body contradicting the canonical section it points at — the body wins at
+        # runtime, so a perfectly pinned reference doc does not save it.
+        ("loaded body turns the wiki tiebreak into an override and drops the top-5 cap -> FAIL",
+         _AGENT_RANKING_AS_OVERRIDE, _CLEAN_REF, _CLEAN_STALENESS, False),
+        ("loaded body drops the truncation fallthrough -> FAIL",
+         _AGENT_TRUNCATION_IGNORED, _CLEAN_REF, _CLEAN_STALENESS, False),
+        ("loaded body prefers mtime over `verified:` -> FAIL",
+         _AGENT_MTIME_PREFERRED, _CLEAN_REF, _CLEAN_STALENESS, False),
         ("canonical #305 hedge obligation deleted -> FAIL",
          _CLEAN_AGENT, _CLEAN_REF, _STALENESS_NO_HEDGE, False),
         ("canonical `verified:`-over-mtime clause deleted -> FAIL",
          _CLEAN_AGENT, _CLEAN_REF, _STALENESS_NO_MTIME, False),
         ("canonical unknown-age rule weakened into an invented date -> FAIL",
          _CLEAN_AGENT, _CLEAN_REF, _STALENESS_INVENTS_DATE, False),
+        ("canonical anchor-free hedge rationale deleted -> FAIL",
+         _CLEAN_AGENT, _CLEAN_REF, _STALENESS_NO_ANCHOR_RATIONALE, False),
         ("agent body no longer points at the staleness contract -> FAIL",
          _AGENT_NO_STALENESS_POINTER, _CLEAN_REF, _CLEAN_STALENESS, False),
+        # Adjacent-clause corruption: contradicting text parked in a brand-new sibling
+        # heading, just outside every whole-section pin. The old substring suite passed all
+        # three of these; the neighbour-heading identity pins are what red them now.
+        ("a new `## Addendum` parks contradicting text right after the pinned "
+         "truncation section -> FAIL",
+         _CLEAN_AGENT, _REF_ADDENDUM_INSERTED, _CLEAN_STALENESS, False),
+        ("a `## Addendum` appended after the file-final ranking section -> FAIL",
+         _CLEAN_AGENT, _REF_ADDENDUM_APPENDED, _CLEAN_STALENESS, False),
+        ("a new `## Addendum` parks contradicting text right after wiki-staleness.md "
+         "§ The contract -> FAIL",
+         _CLEAN_AGENT, _CLEAN_REF, _STALENESS_ADDENDUM_INSERTED, False),
         # whitespace is not the contract: reflowing the canonical paragraphs still passes
         ("reflowed reference docs still pass (whitespace is not the contract)",
-         _CLEAN_AGENT, _normalise(_CLEAN_REF), _normalise(_CLEAN_STALENESS), True),
+         _CLEAN_AGENT, _REF_REFLOWED, _STALENESS_REFLOWED, True),
     ]
     failed = 0
     for desc, agent_text, ref_text, staleness_text, expect_pass in cases:

@@ -39,7 +39,12 @@ if it proves noisy in practice.
 ## The truncation-check invariant
 
 **Canonical text.** `vault-searcher.md` (Mode 2 step 2b, Mode 3 step 1) points here; this
-section is the binding contract, and the agent must apply it as written.
+section is the binding contract, and the agent must apply it as written. Its whole text —
+heading to the next heading, so nothing unpinned may be parked at the bottom — is pinned
+VERBATIM by `_REF_TRUNCATION_SECTION` in
+`vault-bridge/scripts/test/test-manifest-candidates.py`. Editing anything below is a deliberate
+contract change and updates that constant in the same commit; a reflow is free (the comparison
+is whitespace-normalised).
 
 Even with the prefilter running out-of-context, a caller must never trust a candidate
 list it cannot verify is complete: if the printed JSON fails to parse, or
@@ -56,7 +61,11 @@ exits 3 (manifest absent/unparseable) — which is distinct from a legitimately 
 ## Candidate ranking order (Mode 2 step 2c)
 
 **Canonical text.** `vault-searcher.md` Mode 2 step 2c points here; this section is the
-binding sort contract.
+binding sort contract. Its whole text — heading to the next heading (here, end of file), so
+nothing unpinned may be parked at the bottom — is pinned VERBATIM by `_REF_RANKING_SECTION` in
+`vault-bridge/scripts/test/test-manifest-candidates.py`. Editing anything below is a deliberate
+contract change and updates that constant in the same commit; a reflow is free (the comparison
+is whitespace-normalised).
 
 Sort the returned candidates:
 

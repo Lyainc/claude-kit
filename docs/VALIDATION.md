@@ -425,7 +425,7 @@ python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 # (token-budget saturation) into reference/manifest-recall.md; the pins followed. The self-test
 # corrupts the canonical contract text in the reference doc and asserts the guards still FAIL.
 python3 vault-bridge/scripts/test/test-manifest-candidates.py --self-test
-# Expected: OK: all 12 manifest-candidate self-test cases passed
+# Expected: OK: all 22 manifest-candidate self-test cases passed
 python3 vault-bridge/scripts/test/test-manifest-candidates.py
 # Expected: OK: all manifest-candidate checks passed
 

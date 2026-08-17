@@ -59,7 +59,7 @@ done
 
 Vault root: `{vault_root}` — dirs: `sources` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — the A layer, **AI-recall primary**; vault second-brain v5), `assets` (attachments)
 
-The `wiki/` layer is the primary recall target — compiled domain knowledge, first-class alongside `notes/`. This is the default weighting when a query doesn't classify under Question-Type Routing below (which checks `notes/`+`sources/` first for history-type questions instead).
+The `wiki/` layer is the primary recall target — compiled domain knowledge, first-class alongside `notes/`. This is the default weighting when a query doesn't classify under Question-Type Routing below.
 
 ## Question-Type Routing (#519)
 
@@ -110,7 +110,10 @@ Load MOC and related notes for a specific domain. This is a lightweight, read-on
 
 #### Manifest-First Protocol
 
-Before running the standard MOC search, attempt to use the vault manifest cache for efficient targeted loading:
+Before running the standard MOC search, attempt to use the vault manifest cache for efficient
+targeted loading. This whole section is pinned VERBATIM by `_AGENT_MANIFEST_FIRST_SECTION` in
+`vault-bridge/scripts/test/test-manifest-candidates.py`: the always-loaded body outranks an
+on-demand reference doc, so 2b/2c may not drift from the sections they point at.
 
 1. **Check manifest existence**: `[ -f "{vault_root}/.vault-bridge/manifest.json" ]`
 2. **If manifest exists**:
@@ -136,7 +139,8 @@ Before running the standard MOC search, attempt to use the vault manifest cache 
    e. **Staleness check**: if manifest `generated_at` is older than 24 hours OR any candidate file's actual `mtime` (via `stat`) is newer than the manifest's `generated_at`, fall through to standard scan below and log a warning: "manifest가 오래되었거나 변경 파일이 있어 전체 스캔으로 대체합니다."
 3. **If manifest absent or staleness detected**: proceed with standard full-scan procedure below (graceful degradation — behavior identical to pre-manifest).
 
-**Procedure** (standard, used when manifest is absent or stale):
+#### Standard Procedure (manifest absent or stale)
+
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always included** — order between the two follows the Question-Type Routing tier: 정의/사실 checks `wiki/` before the scoped path, 경위/이력 or 분류 불가 checks the scoped path first (existing order, unchanged).
      - [#272: the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`]
@@ -177,7 +181,7 @@ Search the entire vault by keyword and load note contents.
    - `candidates` ≥ 1 → skip step 2, use directly. `candidate_count: 0` (exit 0) → fall
      through to step 2.
 2. Search (exclude `.claude/`, `assets/`):
-   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{keyword}" limit=20` and use the returned vault-relative paths as candidates.
+   - Optional Obsidian CLI path: run the same availability gate as Mode 2. When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{keyword}" limit=20` and use the returned vault-relative paths as candidates.
    - If the CLI path is unavailable, fails, times out, or returns no useful candidates, fall back:
      - macOS: `mdfind -onlyin {vault_root} "{keyword}"` (결과 없으면 grep fallback)
      - Other / fallback: `grep -rl "{keyword}" {vault_root} --include="*.md"`
@@ -210,11 +214,12 @@ Search the entire vault by keyword and load note contents.
   dominant claim traces to; an anchor-free page has `verified:` as its only staleness signal.
   Apply § The contract in `${CLAUDE_PLUGIN_ROOT}/reference/wiki-staleness.md` as written — that
   section is the binding contract, this bullet is a locator.
-- **Never modify existing files**: this agent has no access to the Write tool. Do not overwrite or append to existing files.
 - **Read-only (Write Role Contract)**: this agent does not have access to the Write tool, and vault writes are structurally main-context only. If the user requests a session summary, instruct them to invoke `/vault-save` (runs inline in main context, saves `type:capture` to `sources/` immediately — no draft/confirmation step). For compiled, AI-recall domain knowledge distilled from the session, point them to `/wiki` instead.
-- **Vault only**: never access paths outside `{vault_root}`.
 - Exclude `private` / `sensitive` tagged notes unless user explicitly requests them.
 - When results are large, show top items and offer "더 보려면 알려주세요".
+
+This whole section is pinned VERBATIM by `_AGENT_RULES_SECTION` in
+`vault-bridge/scripts/test/test-manifest-candidates.py`.
 
 ## Final Response Contract
 
