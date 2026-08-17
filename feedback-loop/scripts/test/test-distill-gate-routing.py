@@ -38,9 +38,9 @@ shape as test-add-policy-routing.py). Pinned:
   8. "already documented" has a CHECK procedure with a fixed, non-recursive target list, and
      says why it must live here (add-policy's §6 only ever scans the one site it chose).
   9. The recurrence floor is also in distill's `## Rules`, as a DROP condition.
- 10. retro's rule branch (table row + prose) points at /distill, not straight at /add-policy,
-     and its Rules bullet agrees. A retro-observed pattern is nobody's judgment yet.
- 11. retro's description advertises the same destination — the description is what routes.
+
+(retro's own memory/rule output branches were removed entirely as pure pass-throughs, #639 —
+there is no rule branch left in retro to pin a routing destination for.)
 
 Usage:
     python3 feedback-loop/scripts/test/test-distill-gate-routing.py
@@ -335,44 +335,9 @@ def check_floor_in_distill_rules(ap: str, di: str, re_: str) -> tuple[bool, str]
     return True, "recurrence floor present in distill's ## Rules as a DROP condition"
 
 
-# --- retro ------------------------------------------------------------------
-
-def _rule_row(text: str) -> str:
-    for line in text.splitlines():
-        if line.startswith("|") and ("규칙" in line or "**rule**" in line.lower()):
-            return line.lower()
-    return ""
-
-
-def check_retro_rule_branch_routes_to_distill(ap: str, di: str, re_: str) -> tuple[bool, str]:
-    row = _rule_row(re_)
-    if not row:
-        return False, "retro's OUTPUT table has no 규칙 (rule) row"
-    if "/distill" not in row:
-        return False, "retro's rule row does not surface /distill"
-    p = _prose(_section(re_, "- **Rule**:"))
-    if "/distill" not in p:
-        return False, "retro's Rule prose still hands off somewhere other than /distill"
-    if "distill" not in p or "add-policy" not in p:
-        return False, "the retro -> distill -> add-policy chain is not spelled out"
-    return True, "retro's rule branch routes to /distill (chain: retro -> distill -> add-policy)"
-
-
-def check_retro_rules_bullet(ap: str, di: str, re_: str) -> tuple[bool, str]:
-    r = _prose(_rules(re_))
-    if not r:
-        return False, "retro has no ## Rules section"
-    if "rule output is a `/distill` suggestion" not in r:
-        return False, "retro's Rules bullet still names /add-policy as the rule-branch output"
-    return True, "retro's Rules bullet agrees with the rule branch's destination"
-
-
-def check_retro_description(ap: str, di: str, re_: str) -> tuple[bool, str]:
-    desc = re_.split("---", 2)[1] if re_.startswith("---") else ""
-    if "rule→distill" not in desc and "rule->distill" not in desc:
-        return False, "retro's description still advertises the rule branch as an add-policy handoff"
-    return True, "retro's description advertises the rule branch as a distill handoff"
-
+# retro's own memory/rule output branches were removed entirely as pure pass-throughs (#639),
+# along with the checks that used to pin their routing here — there is no rule branch left in
+# retro's SKILL.md to point anywhere.
 
 _CHECKS = [
     check_third_input_case,
@@ -386,14 +351,13 @@ _CHECKS = [
     check_default_behavior_filter,
     check_already_landed_procedure,
     check_floor_in_distill_rules,
-    check_retro_rule_branch_routes_to_distill,
-    check_retro_rules_bullet,
-    check_retro_description,
 ]
 
 # --- self-test fixtures -----------------------------------------------------
 # The PASSING trio is a minimal restatement of every pinned claim; the FAILING trio is the
-# pre-#459 shape (two input cases, four DROP filters, retro pointing straight at add-policy).
+# pre-#459 shape (two input cases, four DROP filters). retro no longer figures into any check
+# (its rule branch is gone, #639), so _PASS_RE/_FAIL_RE below only need to be non-empty strings
+# to satisfy every check function's (ap, di, re_) signature.
 
 _PASS_AP = """---
 name: add-policy
