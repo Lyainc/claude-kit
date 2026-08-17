@@ -3,6 +3,12 @@
 **Canonical text.** `vault-searcher.md` § Rules points here; this file is the binding
 contract for how a `type: wiki` hit is presented, not background reading.
 
+Each `##` section below is pinned VERBATIM — heading to the next heading, so nothing unpinned
+may be parked at the bottom of one — by `_STALE_CONTRACT_SECTION`, `_STALE_MTIME_SECTION` and
+`_STALE_LEGACY_SECTION` in `vault-bridge/scripts/test/test-manifest-candidates.py`. Editing any
+of them is a deliberate contract change and updates the matching constant in the same commit; a
+reflow is free (the comparison is whitespace-normalised).
+
 ## The contract
 
 `type: wiki` pages carry `verified:` (last-touched date) and, when checkable, `anchor:`
