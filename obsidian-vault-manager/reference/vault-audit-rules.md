@@ -483,7 +483,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 
 | Type | Auto-fix action |
 |------|-----------------|
-| `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → first segment under `notes/`; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. |
+| `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → first segment under `notes/`; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. `provenance` (#477 item 4) is required but NOT auto-fillable — unlike `tags`, there is no safe deterministic inference for "where did this come from." When it's among the missing fields, surface it in the confirmation gate per-file and ask the user for the actual origin instead of writing a placeholder. |
 
 Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b contradiction, is a semantic decision — display-only warning).
 
