@@ -498,8 +498,14 @@ Absence is non-fatal: the header shows `매니페스트: 없음 (vault-bridge �
 
 ### Reading the manifest — never `cat` it (#468, #460)
 
-This is the canonical contract for `audit/SKILL.md` Phase 1 Step 8 (#663 moved it out of the
-skill body; the body keeps the call plus a pointer here).
+**Canonical text (#663).** `audit/SKILL.md` Phase 1 Step 8 points here; this section is the
+binding contract, not background, and must be applied as written (the body keeps the call plus a
+locator). Its whole text — heading to the next heading, so nothing unpinned may be parked at the
+bottom — is pinned VERBATIM by `_READING_MANIFEST_SECTION` in
+`obsidian-vault-manager/scripts/test/test-manifest-reads.py`, and the headings on either side are
+pinned by identity so an inserted sibling cannot park contradicting text just outside it. Editing
+anything below is a deliberate contract change and updates that constant in the same commit; a
+reflow is free (the comparison is whitespace-normalised).
 
 **Never `cat` the manifest directly.** It can run past 100 KB, and the harness truncates large
 Bash output to a 2 KB preview, so a raw `cat` silently degrades to whichever entries survive the
