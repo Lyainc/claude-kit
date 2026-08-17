@@ -92,9 +92,9 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    Exit 0 → parse stdout as the scan bundle (shape below).
    Exit 3 (a scan file absent or unparseable) → **STOP the audit**, name the unusable input;
    never fall back to a raw `cat`, never treat it as an empty scan.
-   `omitted: N` means that type's list was CUT — re-run with a larger `--max-per-type`
-   into `"$scan_tmp/summary.json"` and open it with **Read** (Read paginates; Bash
-   stdout truncates).
+   `omitted: N` means that type's list was CUT — `$scan_tmp` is gone by then (Step 5), so
+   re-run Steps 5–7b as ONE new Bash call with a larger `--max-per-type`, into a file, via
+   **Read**.
 
 8. Read manifest summary (used for REPORT header) through the filter script — **never `cat` the
    manifest directly** (#468, #460). Uses the `$VAULT_ROOT` from Step 1:
@@ -140,8 +140,8 @@ never the emitted-list length, and say a list was cut whenever `omitted` is pres
 **Bullet-per-file or per-finding work (REPORT's file bullets, Phase 4's E2 batch) needs the
 whole list** — whenever that type carries `omitted`, re-run Step 7b with a larger
 `--max-per-type` into a file and **Read** it before acting.
-An `unreadable` bucket means those files could not be READ at all — report them as their
-own item, never as E1/E3/E5 findings about content nobody examined.
+An `unreadable` bucket means those files could not be READ at all — its own item, never
+E1/E3/E5 findings about content nobody examined.
 
 **Termination condition**: All scan data collected. Proceed to CLASSIFY.
 
@@ -153,8 +153,7 @@ own item, never as E1/E3/E5 findings about content nobody examined.
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (9: E1–E3, E5–E6, E9–E11, E12 — E4/E7/E8 are retired, never reused), plus one
-non-rule-driven row below (reference doc has the rationale).
+**Error types** (9: E1–E3, E5–E6, E9–E11, E12 — E4/E7/E8 are retired, never reused).
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
@@ -217,7 +216,7 @@ non-rule-driven row below (reference doc has the rationale).
 ## REPORT Output Contract
 
 Output is grouped by priority, P0 (must-fix) first, then P1, then P2.
-Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (`unreadable`→E1→E2→E3 within P0; E6→E10→E11→E12 within P1; E5→E9 within P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
+Within each priority group: sort by severity first (Critical → Warning → Info), then by error code ascending (unreadable→E1→E2→E3 in P0; E6→E10→E11→E12 in P1; E5→E9 in P2). E9 findings are vault-level (`path: ""`) — render them under a vault-wide heading (e.g. `볼트 전역`) instead of a per-file bullet.
 
 Each finding line format: `[E-code/priority/severity] type — N건` header, then one bullet per file with path and one-line description.
 
