@@ -102,8 +102,11 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
    Exit 0 → `manifest_summary` = parsed `{file_count, generated_at}`; exit 3 → null.
-   The binding contract (why a raw `cat` is forbidden, and the full exit-code branch) is
-   `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **Reading the manifest**.
+   **Apply `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → Reading the manifest as
+   written — that section is the binding contract** for why a raw `cat` is forbidden and the full
+   exit-code branch; the line above is a locator, not a summary you may act from alone. This whole
+   step is pinned VERBATIM by `_SKILL_STEP8` in
+   `obsidian-vault-manager/scripts/test/test-manifest-reads.py`.
 
 9. Detect E9 vocabulary inconsistency pairs (vault-wide, deterministic — never aggregate tags/keys in the LLM):
    ```bash
@@ -257,9 +260,8 @@ findings, never one per finding. Tier rules and worked examples:
 `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **E2 tag inference**.
 The proposal is never auto-committed — it is previewed in the confirmation gate below.
 
-**Auto-fix NOT eligible** (never mutate): E1, E3, E5, E6, E9, E10, E11, E12 — every one of them
-needs a human decision (body structure, rename/move impact on inbound links, content value,
-canonical-form choice, recompile). The binding list with each type's reason:
+**Auto-fix NOT eligible** (never mutate): E1, E3, E5, E6, E9, E10, E11, E12. The binding list,
+with each type's reason for needing a human decision:
 `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **Auto-fix eligibility**.
 
 **Procedure**:
