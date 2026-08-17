@@ -9,12 +9,10 @@ into *kept* improvements.
 Four pieces ship together:
 
 - **`retro` skill** — a session retrospective. Routes findings (telemetry waste
-  patterns, session insights, validated rule patterns) to three opt-in outputs
-  behind a **user-confirmed** gate: **action** (a git issue),
-  **memory** (a ready-to-run `/vault-save` slash command), **rule** (a ready-to-run
-  `/distill` slash command — a pattern only `retro` observed has been judged
-  worth keeping by nobody yet, so it goes to the judge before the landfill
-  engine, #459). Dedups repeats and caps work with a retro budget.
+  patterns, session insights) to one output behind a **user-confirmed** gate:
+  **action** (a git issue), deduped against existing open issues (#639 — the
+  `memory`/`rule` branches, which only re-suggested `/vault-save`/`/wiki`/
+  `/distill`, were removed as pass-throughs with zero unique function).
 - **`distill` skill** — the *discovery* half. User-confirms which reusable
   procedural technique a session actually produced and emits it as a
   natural-language proposal (what / why / provenance / inviolability). It never
@@ -39,8 +37,8 @@ machine-global state and no shared store across projects.
 The only coupling the design **permits** to the developer's **machine-level policy
 base** (the *local-harness* MVP at `~/.claude/rules/`) is a **user-confirmed nudge** —
 never an import, fetch, or shared store. What ships today is the project-scoped half:
-`retro` surfaces a rule candidate behind a user-confirmed gate and hands it to
-`distill` → `add-policy`, which owns where it lands. The further step — *promoting* a recurring project rule up to the
+`/distill` is directly user-invoked and hands a confirmed candidate to
+`add-policy`, which owns where it lands. The further step — *promoting* a recurring project rule up to the
 machine-level base — is the **deferred (YAGNI)** form of that same bridge (it lands
 only once there are 2+ projects and a real drift event). Either way it is a
 **suggestion you confirm** (carried by the `rule_fire` data contract), never a runtime
