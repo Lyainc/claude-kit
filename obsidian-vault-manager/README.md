@@ -61,7 +61,7 @@ E1–E3·E5–E6·E9–E12 오류(frontmatter 누락, stale sources, orphan 노�
 | 영역 | obsidian-vault-manager | vault-bridge |
 | --- | --- | --- |
 | 사용 맥락 | vault 관리 세션 내부 | 외부 프로젝트에서 vault 접근 |
-| 쓰기 범위 | 없음 — 감사(`/audit`)·뷰(`/base`)는 읽기 전용, 에이전트는 초안만 돌려준다 (Write Role Contract) | 참고자료 입구 `/vault-save`(`sources/`·`notes/`) + `/wiki` 컴파일(`wiki/`) + git 커밋(`/vault-commit`)·링크(`/vault-link`) |
+| 쓰기 범위 | 참고자료·지식 콘텐츠 저작 없음 — `/audit`가 기존 노트 frontmatter 누락 필드만 보정(Edit), `/base`가 새 `.base` 뷰 파일 생성(`notes/`, 기존 노트 불변). 에이전트는 초안만 돌려준다 (Write Role Contract) | 참고자료 입구 `/vault-save`(`sources/`·`notes/`) + `/wiki` 컴파일(`wiki/`) + git 커밋(`/vault-commit`)·링크(`/vault-link`) |
 | 도메인 컨텍스트 로드 | `vault-knowledge-manager` 에이전트 (OVM 내부, mdfind/grep 직접 접근) | `vault-searcher` Mode 2 (읽기 전용, 외부 접근용) |
 | 세션 기록 | — | `/wiki` (컴파일된 세션 지식 → `wiki/`) · `/vault-save` (원석 → `sources/`) |
 

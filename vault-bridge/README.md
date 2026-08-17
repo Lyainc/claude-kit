@@ -301,7 +301,7 @@ VAULT_BRIDGE_WRITE_CONTRACT=off claude
 | Aspect | vault-bridge | obsidian-vault-manager |
 | --- | --- | --- |
 | Use context | External project access | Internal vault management session |
-| Write scope | `/vault-save` reference material (`sources/`, `notes/`) + `/wiki` compilation (`wiki/`) + `.vault-link` binding + git commits (`/vault-commit`) | none — read-only |
+| Write scope | `/vault-save` reference material (`sources/`, `notes/`) + `/wiki` compilation (`wiki/`) + `.vault-link` binding + git commits (`/vault-commit`) | no content authoring — `/audit` patches missing frontmatter fields on existing notes (Edit), `/base` creates new `.base` view files (`notes/`, existing notes untouched) |
 | Role | Cross-session bridge (read + write + git commit) | Curation (audit, Bases views) |
 
 - vault-bridge **never modifies or deletes existing vault content files outside `wiki/`** — `/vault-save` only creates new ones; `/wiki` is the one skill that updates an existing file, via its compounding-update merge (#645).
