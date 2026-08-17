@@ -4,6 +4,7 @@
   "vault-manifest-refresh": "vault-bridge",
   "vault-commit": "vault-bridge",
   "vault-searcher": "vault-bridge",
+  "wiki": "vault-bridge",
 
   "doc-concretize": "thinking-tools",
   "doc-polish": "thinking-tools",
@@ -14,7 +15,6 @@
   "thinking-facilitator": "thinking-tools",
   "build-spec": "thinking-tools",
 
-  "wiki": "obsidian-vault-manager",
   "audit": "obsidian-vault-manager",
   "base": "obsidian-vault-manager",
   "vault-knowledge-manager": "obsidian-vault-manager",

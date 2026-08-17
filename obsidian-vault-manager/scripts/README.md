@@ -211,23 +211,23 @@ bash ovm-primitives.sh metrics report
 
 ---
 
-## `manifest-summary.py` / `manifest-wiki-match.py`
+## `manifest-summary.py`
 
 Filter `~/vault/.vault-bridge/manifest.json` server-side before it ever reaches the model
 (#468, mirrors feedback-loop's retired `e8-candidates.py` pattern from #460). The harness
 truncates large Bash output to a 2 KB preview — a raw `cat` of a real manifest (100+ KB) would
-silently degrade to whichever few entries survive the cut. Both scripts read the full file on
-disk and print only the fields their caller needs.
+silently degrade to whichever few entries survive the cut. The script reads the full file on
+disk and prints only the fields its caller needs.
 
 ```bash
 python3 manifest-summary.py [MANIFEST_PATH]      # audit/SKILL.md REPORT header
 # {"file_count": N, "generated_at": "..."}
-
-python3 manifest-wiki-match.py [MANIFEST_PATH]   # wiki/SKILL.md Phase 3 DEDUP
-# {"scanned": N, "wiki_entries": [{path, title, tags}, ...]}
 ```
 
-Both default `MANIFEST_PATH` to `<vault root>/.vault-bridge/manifest.json` (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`) and exit 3 — with nothing on stdout — when the manifest is absent, unparseable, or malformed; callers must not fall back to a raw `cat`.
+Defaults `MANIFEST_PATH` to `<vault root>/.vault-bridge/manifest.json` (`VAULT_BRIDGE_VAULT_ROOT` → `VAULT_BRIDGE_VAULT_PATH` → `~/vault`) and exits 3 — with nothing on stdout — when the manifest is absent, unparseable, or malformed; callers must not fall back to a raw `cat`.
+
+(`manifest-wiki-match.py`, the equivalent filter for wiki/SKILL.md's DEDUP phase, moved to
+`vault-bridge/scripts/` in #645 alongside the wiki skill.)
 
 ---
 

@@ -429,6 +429,20 @@ python3 vault-bridge/scripts/test/test-manifest-candidates.py --self-test
 python3 vault-bridge/scripts/test/test-manifest-candidates.py
 # Expected: OK: all manifest-candidate checks passed
 
+# manifest-wiki-match.py regression (#468, mirrors #460's retired e8-candidates.py pattern) —
+# wiki/SKILL.md used to `cat` the raw .vault-bridge/manifest.json (100+ KB on a real vault),
+# silently truncated to a 2 KB harness preview before the model ever saw it. Runs the filter
+# script against real temp fixtures, asserts its output stays under the 2 KB cut and serializes
+# `scanned` before `wiki_entries`, then statically greps the live wiki/SKILL.md call site to pin
+# it never regresses back to a raw `cat`. #645 moved this test here from
+# obsidian-vault-manager/scripts/test/test-manifest-reads.py alongside manifest-wiki-match.py
+# and wiki/SKILL.md; the audit-side half of the original combined test (manifest-summary.py +
+# audit/SKILL.md) stayed in obsidian-vault-manager under the same filename.
+python3 vault-bridge/scripts/test/test-manifest-reads.py --self-test
+# Expected: OK: all 7 self-test cases passed
+python3 vault-bridge/scripts/test/test-manifest-reads.py
+# Expected: OK: all manifest-read checks passed
+
 # vault-bridge manifest global meta fields (references_in/out, recent_commits, type
 # opt-in, in-place schema upgrade) — was never wired into docs/VALIDATION.md (#618 audit).
 python3 vault-bridge/scripts/test/test-manifest-meta.py
@@ -819,17 +833,17 @@ python3 obsidian-vault-manager/scripts/test/test-audit-state-stats-and-untracked
 python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 # Expected: OK: all cases passed
 
-# manifest-summary.py + manifest-wiki-match.py regression (#468, mirrors #460's retired
-# e8-candidates.py pattern) — audit/SKILL.md and wiki/SKILL.md both used to `cat` the raw
-# .vault-bridge/manifest.json (100+ KB on a real vault), silently truncated to a 2 KB harness
-# preview before the model ever saw it. Runs both filter scripts against real temp fixtures
-# (missing/unparseable/malformed/valid), asserts the wiki filter's output stays under the 2 KB
-# cut and serializes `scanned` before `wiki_entries`, then statically greps the live SKILL.md
-# call sites to pin that neither ever regresses back to a raw `cat`. #663 moved audit's copy of
-# that rationale into reference/vault-audit-rules.md -> "Reading the manifest"; the pins followed,
-# and the self-test corrupts the canonical text there to prove they still FAIL.
+# manifest-summary.py regression (#468, mirrors #460's retired e8-candidates.py pattern) —
+# audit/SKILL.md used to `cat` the raw .vault-bridge/manifest.json (100+ KB on a real vault),
+# silently truncated to a 2 KB harness preview before the model ever saw it. Runs the filter
+# script against real temp fixtures (missing/unparseable/malformed/valid), then statically greps
+# the live audit/SKILL.md call site to pin it never regresses back to a raw `cat`. #663 moved
+# audit's copy of that rationale into reference/vault-audit-rules.md -> "Reading the manifest";
+# the pins followed, and the self-test corrupts the canonical text there to prove they still FAIL.
+# #645 split the wiki-side half of this test (manifest-wiki-match.py + wiki/SKILL.md) out to
+# vault-bridge/scripts/test/test-manifest-reads.py, alongside the skill/script it moved with.
 python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py --self-test
-# Expected: OK: all 18 self-test cases passed
+# Expected: OK: all 13 self-test cases passed
 python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
 # Expected: OK: all manifest-read checks passed
 
