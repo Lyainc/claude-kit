@@ -57,8 +57,9 @@ types firing, vs 291 KB of raw scan + 13 KB of index:
      }}
 
 Every type additionally carries `"omitted": N` whenever the cap cut its list. `unreadable`
-appears only when scan-frontmatter could not read a file: those records are kept OUT of E1
-and E5, because "we could not look" is not the same finding as "there is no frontmatter".
+appears only when scan-frontmatter could not read a file: those records are kept OUT of
+every other type (E1/E3/E5/E6/E10/E11/E12), because "we could not look" is not the same
+finding as "there is no frontmatter" or any other content-based judgment.
 
 E9 (vault-wide vocabulary pairs) and the E5 connection candidates are NOT here — they come
 from their own primitives (`detect-vocabulary`, `e5-candidates`), already small on stdout.
@@ -144,6 +145,7 @@ def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
     # of unannounced substitution (#614). extract-wikilinks-batch already WARNs on the
     # same case; this is the summary path's half of that discipline.
     unreadable = [r for r in fm_records if r.get("error")]
+    unreadable_paths = {r.get("path") for r in unreadable}
     fm_records = [r for r in fm_records if not r.get("error")]
     if unreadable:
         emit("unreadable",
@@ -170,6 +172,8 @@ def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
     e3 = []
     for r in fn_records:
         rel = r.get("path", "")
+        if rel in unreadable_paths:  # same discipline as E1/E5/E6/E10/E11/E12 (#614)
+            continue
         name = rel.rsplit("/", 1)[-1]
         if name == "_index.md" or top_folder(rel) != "notes":
             continue
@@ -386,18 +390,24 @@ def self_test() -> int:
     # An UNREADABLE file must not be laundered into a finding about content nobody read.
     # scan-frontmatter emits {path, error, frontmatter:{}} with no has_frontmatter key, so
     # the naive predicate files a Critical E1 and drops the error (#614 review finding 1).
+    # notes/2020-01-locked.md is ALSO a date-prefixed name, so it doubles as the E3
+    # regression case (#614 review finding 2): E3 reads fn_records, which the
+    # fm_records-only unreadable filter never touched, so a naive E3 loop still fires on
+    # content nobody read.
     unread = summarize(
-        fm + [{"path": "notes/locked.md", "error": "[Errno 13] Permission denied",
+        fm + [{"path": "notes/2020-01-locked.md", "error": "[Errno 13] Permission denied",
                "frontmatter": {}}],
-        fn + [{"path": "notes/locked.md"}], inbound, today)
+        fn + [{"path": "notes/2020-01-locked.md"}], inbound, today)
     cases += [
         ("an unreadable file gets its own bucket, carrying the error",
-         unread["unreadable"] == [{"path": "notes/locked.md",
+         unread["unreadable"] == [{"path": "notes/2020-01-locked.md",
                                    "error": "[Errno 13] Permission denied"}]),
         ("an unreadable file is NOT reported as missing frontmatter",
-         "notes/locked.md" not in unread["E1"]),
+         "notes/2020-01-locked.md" not in unread["E1"]),
         ("an unreadable file is NOT reported as an orphan either",
-         "notes/locked.md" not in unread["E5"]),
+         "notes/2020-01-locked.md" not in unread["E5"]),
+        ("an unreadable file is NOT reported as a filename-convention violation either",
+         all(r["path"] != "notes/2020-01-locked.md" for r in unread["E3"])),
         ("no unreadable input means no unreadable bucket",
          "unreadable" not in errors),
     ]
