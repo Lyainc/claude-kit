@@ -341,6 +341,7 @@ jobs:
           python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
           python3 obsidian-vault-manager/scripts/test/test-e5-candidate-ranking.py
           python3 obsidian-vault-manager/scripts/test/test-e5-candidates-primitive.py
+          python3 obsidian-vault-manager/scripts/test/test-metrics-primitive.py
           python3 obsidian-vault-manager/scripts/test/test-scan-scoped-path-basis.py
           python3 obsidian-vault-manager/scripts/test/test-audit-state-stats-and-untracked.py
           python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py

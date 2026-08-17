@@ -789,6 +789,16 @@ python3 obsidian-vault-manager/scripts/test/test-e5-candidate-ranking.py
 python3 obsidian-vault-manager/scripts/test/test-e5-candidates-primitive.py
 # Expected: OK: all cases passed
 
+# `ovm-primitives.sh metrics` concurrency + error-contract regression (#670): before this,
+# the metrics sidecar was keyed only by a hash of the vault path, so two concurrent
+# `/audit` runs against the same vault clobbered each other's start/stop/report data. The
+# fix threads an explicit per-run token through start -> stop -> report. Pins same-vault
+# concurrent starts getting distinct tokens and non-clobbering files, `stop`/`report`
+# without a token as a clear exit-1 error, and an unknown token read as "no session" (not
+# an empty one).
+python3 obsidian-vault-manager/scripts/test/test-metrics-primitive.py
+# Expected: OK: all cases passed
+
 # `--path`-scoped scan-frontmatter/scan-filename path-basis regression (#619 follow-up,
 # #631): before this, `cmd_scan_frontmatter`/`cmd_scan_filename` keyed `path` relative to
 # the `<dir>` argument they were called with, so a `--path notes` scoped call (argument =
