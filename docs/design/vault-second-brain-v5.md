@@ -253,8 +253,9 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 
 ## 9. 구현 위치 (U5) — 신규 플러그인 0, OVM 확장 + vault-bridge I/O 재사용
 
-레이어 모델(claude-kit-boundary.md): ③딜리버리=vault-bridge, ④지식베이스=OVM. wiki(A)는 본질이 ④ 지식
-상주·컴파일·감사라 **OVM의 일**이다.
+레이어 모델(claude-kit-boundary.md): ③딜리버리=vault-bridge, ④지식베이스=OVM. wiki(A)의 **저작·컴파일·
+감사 로직**은 본질이 ④ 지식 상주·컴파일·감사라 **OVM의 일**이다. 단 read 인프라(manifest·vault-searcher)는
+③ vault-bridge가 전 vault 공통으로 이미 소유하므로 그대로 재사용한다(아래 표 read 2행).
 
 | 관심사 | 귀속 |
 |---|---|
@@ -269,6 +270,17 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 - **신규 플러그인 기각**: vault 도메인 3분할은 MECE 흐림 + CON-5 단방향 위험. A는 OVM 내부 capability로 추가
   (leaf 내부 확장 = 경계 무손상).
 - **CON-5 무손상**: harness(⑤)는 여전히 leaf OUTPUT만 읽는다. wiki는 leaf 내부 기능.
+
+> **재확인 (2026-08-18, #645) — 현행 유지**: `/wiki`가 OVM 설치 프로젝트에서만 호출 가능해 프로젝트
+> 세션 접근성이 막힌다는 문제 제기에, 레이어 축(④ 유지)과 배포 축(③ vault-bridge로 이관)을 분리하자는
+> 제안이 올라왔다. 격리 expert-panel 재검증(7인 독립 논증, 찬성 4 : 반대 12 가중표, 마진 8) 결과
+> **OVERTURNED — 이관하지 않는다**. 근거: (1) #304가 "어느 플러그인이 소유하나"를 기준으로 이미 온점
+> 판례라 레이어·배포를 쪼개면 그 판례가 무력화된다, (2) 이관은 §3 leaf 독립설치성을 반대 방향으로
+> 깬다 — OVM 단독 설치(실사용 2곳)가 vault-bridge 의존 상태가 된다, (3) 실측상 "OVM은 볼트에만
+> 깔린다"는 전제 자체가 틀렸다 — PhototicketMaker가 2026-07-29·30 프로젝트에 OVM을 활성화한 채
+> `/wiki`를 정상 호출·성공한 텔레메트리·wiki 산출물이 확인됐고, 지금 안 되는 건 그 프로젝트
+> `settings.local.json`에서 OVM이 빠진 설정 상태일 뿐이다. 접근성 문제는 배포 이관이 아니라 설정
+> 층(프로젝트별 OVM 활성화, 또는 전역 활성화 + vault 부재 시 no-op 가드)에서 해소한다.
 
 ---
 
