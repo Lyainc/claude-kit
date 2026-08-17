@@ -45,12 +45,67 @@ def _assert(cond: bool, desc: str, errors: list) -> bool:
 
 
 # ---------------------------------------------------------------------------
+# #673: whole-section verbatim + neighbour-identity pin for Step 1, same pattern as
+# test-manifest-reads.py's `_SKILL_STEP8`. The loose `"VAULT_BRIDGE_VAULT_ROOT" in phase1`
+# substring check below stays green even if the snippet is reworded to prose or the env-var
+# priority is reversed, as long as both names still appear somewhere in Phase 1 — only a
+# whole-step comparison catches that, and only a neighbour-identity pin catches a sibling
+# heading wedged between Step 1 and Step 2 that parks contradicting text just outside it.
+# ---------------------------------------------------------------------------
+
+_STEP_OR_HEADING_ANCHOR_RE = re.compile(r"^(?:#{1,6} |\d+\. )")
+
+_STEP1_RE = re.compile(
+    r"^1\. Resolve `\$VAULT_ROOT`.*?(?=^\d+\. |^#{1,6} |\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def _normalise(s: str) -> str:
+    """Whitespace is not the contract — reflowing a paragraph must not read as a rewrite."""
+    return " ".join(s.split())
+
+
+def _section(pattern: re.Pattern, text: str) -> str:
+    match = pattern.search(text)
+    return _normalise(match.group(0)) if match else ""
+
+
+def _neighbour_anchors(pattern: re.Pattern, text: str, anchor: re.Pattern) -> tuple:
+    match = pattern.search(text)
+    if not match:
+        return ("", "")
+    before = [ln for ln in text[:match.start()].splitlines() if anchor.match(ln)]
+    after = [ln for ln in text[match.end():].splitlines() if anchor.match(ln)]
+    return (before[-1] if before else "", after[0] if after else "")
+
+
+_STEP1 = _normalise(
+    "1. Resolve `$VAULT_ROOT` — same chain as `ovm-primitives.sh`/`pre-write-guard.sh`:\n"
+    "   ```bash\n"
+    "   VAULT_ROOT=\"${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}\"\n"
+    "   [ -z \"$VAULT_ROOT\" ] && VAULT_ROOT=\"$HOME/vault\"\n"
+    "   VAULT_ROOT=\"${VAULT_ROOT/#\\~/$HOME}\"\n"
+    "   ```\n"
+    "   `scan_dir` = `$VAULT_ROOT` unscoped, or `$VAULT_ROOT/<subdir>` under `--path <subdir>`.\n"
+    "   `$scan_dir` → Steps 5–6; `$VAULT_ROOT` → everything else.\n"
+)
+_STEP1_NEIGHBOURS = ("## Phase 1 — SCAN", "2. Start metrics (save `token`):")
+
+
+# ---------------------------------------------------------------------------
 # Case 1: SKILL.md structural wiring
 # ---------------------------------------------------------------------------
 
 def case_skill_md_wiring(errors: list) -> None:
     print("\ncase: skill_md_wiring")
     text = _SKILL_MD.read_text(encoding="utf-8")
+
+    _assert(_section(_STEP1_RE, text) == _STEP1,
+            "Step 1 ($VAULT_ROOT resolution) matches VERBATIM (#673)", errors)
+    _assert(_neighbour_anchors(_STEP1_RE, text, _STEP_OR_HEADING_ANCHOR_RE) == _STEP1_NEIGHBOURS,
+            "Step 1 still sits between its two known anchors "
+            "(an inserted sibling would park text outside the pin)", errors)
     # Isolate Phase 1 SCAN so a hardcoded ~/vault elsewhere in the file (there is none, but
     # future edits could add one) doesn't get conflated with this phase's own contract.
     m = re.search(r"## Phase 1 — SCAN(.*?)## Phase 2", text, re.DOTALL)
@@ -168,6 +223,59 @@ def case_path_flag_scopes_scan(errors: list) -> None:
 
 
 # ---------------------------------------------------------------------------
+# #673 self-test: mutation fixtures for the Step 1 pin (in-memory, no live-file side effects)
+# ---------------------------------------------------------------------------
+
+_CLEAN_SKILL = _SKILL_MD.read_text(encoding="utf-8")
+
+# The env-var resolution + tilde-expansion collapsed back into a prose summary — the #673
+# regression class (a whole-step rewrite the old substring check couldn't see).
+_SKILL_STEP1_PROSE = _CLEAN_SKILL.replace(
+    "   VAULT_ROOT=\"${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}\"\n"
+    "   [ -z \"$VAULT_ROOT\" ] && VAULT_ROOT=\"$HOME/vault\"\n"
+    "   VAULT_ROOT=\"${VAULT_ROOT/#\\~/$HOME}\"\n",
+    "   Falls back to ~/vault when neither env var is set.\n")
+
+# ADJACENT-CLAUSE CORRUPTION: a heading wedged between Step 1 and Step 2 parks contradicting
+# text where the whole-section comparison stays byte-identical; only adjacency sees it.
+_SKILL_STEP1_HEADING_WEDGED = _CLEAN_SKILL.replace(
+    "\n\n2. Start metrics (save `token`):",
+    "\n\n#### Vault root note\n\nA relative path is also accepted here.\n"
+    "\n2. Start metrics (save `token`):")
+
+for _name, _fixture in (
+    ("_SKILL_STEP1_PROSE", _SKILL_STEP1_PROSE),
+    ("_SKILL_STEP1_HEADING_WEDGED", _SKILL_STEP1_HEADING_WEDGED),
+):
+    assert _fixture != _CLEAN_SKILL, f"{_name} is identical to its base — its .replace() no-opped"
+
+
+def _step1_pin_ok(text: str) -> bool:
+    return (_section(_STEP1_RE, text) == _STEP1
+            and _neighbour_anchors(_STEP1_RE, text, _STEP_OR_HEADING_ANCHOR_RE) == _STEP1_NEIGHBOURS)
+
+
+def _self_test() -> int:
+    cases = [
+        ("clean audit/SKILL.md passes the Step 1 pin", _step1_pin_ok(_CLEAN_SKILL) is True),
+        ("Step 1 collapsed into prose -> FAIL", _step1_pin_ok(_SKILL_STEP1_PROSE) is False),
+        ("heading wedged between Step 1 and Step 2 -> FAIL "
+         "(whole-section comparison stays byte-identical; only adjacency sees it)",
+         _step1_pin_ok(_SKILL_STEP1_HEADING_WEDGED) is False),
+        ("adjacency-only: the heading-wedge mutation leaves the pinned Step 1 text itself unchanged",
+         _section(_STEP1_RE, _SKILL_STEP1_HEADING_WEDGED) == _STEP1),
+    ]
+    failed = [name for name, ok in cases if not ok]
+    for name, ok in cases:
+        print(f"  [{'OK' if ok else 'FAIL'}] {name}")
+    if failed:
+        print(f"\nSELF-TEST FAILED: {len(failed)} case(s)")
+        return 1
+    print(f"\nOK: all {len(cases)} self-test cases passed")
+    return 0
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -188,4 +296,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
+    if len(sys.argv) > 1 and sys.argv[1] == "--self-test":
+        print("Running self-test (in-memory fixtures)...\n")
+        raise SystemExit(_self_test())
     main()
