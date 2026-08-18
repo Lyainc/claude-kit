@@ -218,7 +218,7 @@ def self_test():
         code, msg = check(tmp)
         record("missing source file -> exit 2", code == 2 and "FATAL" in msg)
 
-    # Case 7: install-hooks.sh's awk extraction and this script's extract_shim() must pull
+    # Case 9: install-hooks.sh's awk extraction and this script's extract_shim() must pull
     # byte-identical shim text out of the real scripts/hooks/pre-commit — #659. Nothing else
     # cross-checks the two hardcoded '#   ' extractors, so a drift in either one (e.g. an
     # indent-width edit made in only one place) would go unnoticed until an installed hook
