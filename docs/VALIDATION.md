@@ -473,15 +473,15 @@ python3 feedback-loop/scripts/test/test-report.py
 bash feedback-loop/scripts/test/test-event-logger.sh
 # Expected: OK: all event-logger meta-extractor cases passed
 
-# retro-telemetry helper regression (#294 — retro Phase-1 stamp + Phase-3 emit
+# retro-telemetry helper regression (#294 — retro Phase-1 stamp + Phase-2 emit
 # extracted from the SKILL.md inline bash to scripts/retro-telemetry.sh; this
 # pins the schema-shaped emit line + duration null-fallback against drift).
 # #580 rewrite: `stamp` no longer writes a /tmp file — it prints the start
 # time to stdout and `emit` takes it as an explicit `start_ms` argument
-# (Phase 1 and Phase 3 are separate Bash-tool calls, so no process/session id
+# (Phase 1 and Phase 2 are separate Bash-tool calls, so no process/session id
 # was ever stable enough to key a shared file on; $PPID drifted between the
 # two calls within a single retro run, corrupting duration_ms to null and
-# orphaning stamp files). Also pins the SKILL.md Phase-3 call site actually
+# orphaning stamp files). Also pins the SKILL.md Phase-2 call site actually
 # passing `$START_MS` first (#580) and the #528 batching shape.
 bash feedback-loop/scripts/test/test-retro-telemetry.sh
 # Expected: OK: all retro-telemetry cases passed

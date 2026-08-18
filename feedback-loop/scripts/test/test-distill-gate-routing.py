@@ -8,7 +8,7 @@ like a user one-liner, so it inherited the free pass and landed with no worth-ke
 behind it. Measured over 2,245 telemetry events (2026-06-23 ~ 07-30): `add-policy` ran 8 times,
 `distill` 2 — and 6 of the 8 came through no distill at all.
 
-Three prose skills, so this is a static-content check on the live SKILL.md files (the same
+Two prose skills, so this is a static-content check on the live SKILL.md files (the same
 shape as test-add-policy-routing.py). Pinned:
 
   1. add-policy §1 names the agent-inferred input as its own case, distinct from the two
