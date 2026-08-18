@@ -888,6 +888,39 @@ def case_token_cost_view_end_to_end(errors: list[str]) -> None:
     _assert("비용 열 생략" in utout, "table states cost was omitted, with a reason", errors)
 
 
+def case_plugin_unknown_split(errors: list[str]) -> None:
+    """#664: plugin=unknown splits into attribution_failure vs no_target."""
+    print("\ncase: plugin_unknown_split")
+    with tempfile.TemporaryDirectory() as td:
+        root = Path(td)
+        (root / "pluginA" / "skills" / "skillX").mkdir(parents=True)
+        (root / "pluginA" / "skills" / "skillX" / "SKILL.md").write_text("x")
+        (root / "pluginA" / "agents").mkdir(parents=True)
+        (root / "pluginA" / "agents" / "agentY.md").write_text("y")
+
+        owned = report.claude_kit_owned_names(repo_root=root)
+        _assert(owned == {"skillX", "agentY"},
+                f"owned names = skill + agent bare names (got: {owned})", errors)
+
+        events = [
+            # a. name IS ours (skill) -> attribution_failure
+            {"plugin": "unknown", "event": "skill_invoke", "name": "skillX"},
+            # a. name IS ours (agent) -> attribution_failure
+            {"plugin": "unknown", "event": "agent_spawn", "name": "agentY"},
+            # b. native command -> no_target
+            {"plugin": "unknown", "event": "command_run", "name": "/goal"},
+            # c. built-in agent -> no_target
+            {"plugin": "unknown", "event": "agent_spawn", "name": "general-purpose"},
+            # d. plugin outside claude-kit -> no_target
+            {"plugin": "unknown", "event": "skill_invoke", "name": "ponytail"},
+            # not unknown at all -> excluded entirely
+            {"plugin": "pluginA", "event": "skill_invoke", "name": "skillX"},
+        ]
+        split = report.classify_unknown(events, repo_root=root)
+        _assert(split == {"total_unknown": 5, "attribution_failure": 2, "no_target": 3},
+                f"split counts (got: {split})", errors)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -929,6 +962,7 @@ def main() -> int:
     case_token_cost_no_token_data(errors)
     case_token_cost_zero_cost_not_mislabeled_omitted(errors)
     case_token_cost_view_end_to_end(errors)
+    case_plugin_unknown_split(errors)
 
     print()
     if errors:
