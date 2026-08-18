@@ -218,6 +218,42 @@ def self_test():
         code, msg = check(tmp)
         record("missing source file -> exit 2", code == 2 and "FATAL" in msg)
 
+    # Case 7: install-hooks.sh's awk extraction and this script's extract_shim() must pull
+    # byte-identical shim text out of the real scripts/hooks/pre-commit — #659. Nothing else
+    # cross-checks the two hardcoded '#   ' extractors, so a drift in either one (e.g. an
+    # indent-width edit made in only one place) would go unnoticed until an installed hook
+    # silently diverged from what this checker verifies. The awk program is READ OUT of
+    # install-hooks.sh at test time (not a second hardcoded copy here) — a copy would keep
+    # passing even after install-hooks.sh's own pattern drifts, which is the exact failure
+    # this case exists to catch.
+    real_root = _git_toplevel()
+    if real_root:
+        real_source = os.path.join(real_root, SOURCE_REL)
+        installer_path = os.path.join(real_root, "scripts", "install-hooks.sh")
+        try:
+            with open(real_source, encoding="utf-8") as f:
+                real_text = f.read()
+            with open(installer_path, encoding="utf-8") as f:
+                installer_text = f.read()
+            awk_program_match = re.search(
+                r"awk '(.*?)'\s*scripts/hooks/pre-commit", installer_text, re.DOTALL
+            )
+            py_extracted = extract_shim(real_text)
+            if not awk_program_match:
+                record("install-hooks.sh awk and extract_shim() agree on the real source", False)
+            else:
+                awk_result = subprocess.run(
+                    ["awk", awk_program_match.group(1), real_source],
+                    capture_output=True, text=True, check=True,
+                )
+                sh_extracted = awk_result.stdout
+                if sh_extracted and not sh_extracted.endswith("\n"):
+                    sh_extracted += "\n"
+                record("install-hooks.sh awk and extract_shim() agree on the real source",
+                       py_extracted == sh_extracted and bool(py_extracted))
+        except (OSError, subprocess.CalledProcessError):
+            record("install-hooks.sh awk and extract_shim() agree on the real source", False)
+
     failed = [name for name, ok in cases if not ok]
     if failed:
         print(f"FAIL: {len(failed)}/{len(cases)} self-test cases failed: {failed}")
