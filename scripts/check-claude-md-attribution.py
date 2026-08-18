@@ -148,13 +148,27 @@ def run_self_test():
 
         # violating, via the 이 particle (subject case, consonant-final pair of 가) instead of
         # 는 (topic case) — locks in that 이-particle matching is intentional Korean grammar
-        # coverage, not accidental overmatching (#603). 은/가 are not separately exercised here;
-        # this case plus the pre-existing 는 case above are the two particles #603 was about.
+        # coverage, not accidental overmatching (#603). The 은/가 cases below cover the
+        # remaining two particles in the (?:는|은|가|이) alternation (#608).
         with open(os.path.join(td, CLAUDE_MD_REL), "w", encoding="utf-8") as fh:
             fh.write("guard doc(plugin-a이 `shared.py`를 검사), rest of sentence.\n")
         ok1b, report1b = check_attribution(td)
         if ok1b or [v["script"] for v in report1b["violations"]] != ["shared.py"]:
             failures.append(f"  이-particle case: expected shared.py flagged, got {report1b['violations']}")
+
+        # violating, via the 은 particle (topic case, consonant-final pair of 는).
+        with open(os.path.join(td, CLAUDE_MD_REL), "w", encoding="utf-8") as fh:
+            fh.write("guard doc(plugin-a은 `shared.py`를 검사), rest of sentence.\n")
+        ok1c, report1c = check_attribution(td)
+        if ok1c or [v["script"] for v in report1c["violations"]] != ["shared.py"]:
+            failures.append(f"  은-particle case: expected shared.py flagged, got {report1c['violations']}")
+
+        # violating, via the 가 particle (subject case, vowel-final pair of 이).
+        with open(os.path.join(td, CLAUDE_MD_REL), "w", encoding="utf-8") as fh:
+            fh.write("guard doc(plugin-a가 `shared.py`를 검사), rest of sentence.\n")
+        ok1d, report1d = check_attribution(td)
+        if ok1d or [v["script"] for v in report1d["violations"]] != ["shared.py"]:
+            failures.append(f"  가-particle case: expected shared.py flagged, got {report1d['violations']}")
 
         # clean: correctly attributed to the plugin that exclusively owns it.
         with open(os.path.join(td, CLAUDE_MD_REL), "w", encoding="utf-8") as fh:
