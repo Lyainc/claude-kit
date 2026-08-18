@@ -707,7 +707,7 @@ def main() -> int:
             else:
                 cost_str = "(생략)"
             print(f"  {kind:<12} tokens={tok:>10} ({tok_pct:5.1f}%)  cost={cost_str}")
-        if token_cost["excluded_events"]:
+        if token_cost["excluded_events"] and token_cost["cost"] is not None:
             print(
                 f"  {'excluded':<12} events={token_cost['excluded_events']:>10}  "
                 f"model 없음/미등록: {', '.join(token_cost['unpriced_models'])}"
