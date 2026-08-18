@@ -151,6 +151,35 @@ def run_self_test():
         if ok or not any("needs:" in v for v in report["violations"]):
             failures.append(f"  no-needs workflow: expected needs violation, got {report}")
 
+        # KNOWN LIMITATION (#658): the needs: regex (`^\s*needs:\s*(.+)$`, MULTILINE) only
+        # anchors the FIRST line after `needs:` — `\s*` crosses the newline, so on block-list
+        # style it captures "- decide" (the first list item) as group(1), not nothing. Every
+        # `REQUIRED_NEEDS` name is then checked with `\b{name}\b` against that one captured
+        # line: "decide" matches (it landed on the captured line) but "release" does not (it
+        # is on a later, uncaptured line), so this is a PARTIAL false positive — only "release"
+        # is wrongly reported missing, not both, and only because "decide" happens to be first
+        # in the list. This case pins that exact asymmetric behavior as a known gap, not a
+        # regression — do not "fix" the assertion to expect both flagged, that would document
+        # the wrong bug.
+        block_list_needs = good.replace(
+            "    needs: [decide, release]\n",
+            "    needs:\n      - decide\n      - release\n",
+        )
+        with open(good_path, "w", encoding="utf-8") as fh:
+            fh.write(block_list_needs)
+        ok, report = check_workflow(td)
+        violation_text = " ".join(report["violations"])
+        if (
+            ok
+            or "release" not in violation_text
+            or "never fires for release" not in violation_text
+            or "never fires for decide" in violation_text
+        ):
+            failures.append(
+                f"  block-list-needs workflow (known limitation — only 'release' should be "
+                f"flagged missing, not 'decide'): got {report}"
+            )
+
         # gate present but missing permission
         no_perm = good.replace("      issues: write\n", "")
         with open(good_path, "w", encoding="utf-8") as fh:
