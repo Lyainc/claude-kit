@@ -774,6 +774,21 @@ def case_token_cost_excluded_line_visible_in_table(errors: list[str]) -> None:
             "excluded line names the unregistered model", errors)
 
 
+def case_token_cost_all_unpriced_excluded_line_absent(errors: list[str]) -> None:
+    """#657: when every event is unpriced (cost is None), the excluded-events
+    breakdown row must not also print — only the '비용 열 생략' block should,
+    so the same excluded count isn't restated twice."""
+    print("\ncase: token_cost_all_unpriced_excluded_line_absent")
+    events = [
+        {**_ev("skill_invoke", 10, name="a"),
+         "meta": {"duration_ms": 10, "model": "claude-made-up-9", "input_tokens": 500}},
+    ]
+    out = _run_main_with(events, ["report.py", "--since=all", "--format=table"])
+    _assert("비용 열 생략" in out, "cost-is-None caveat block prints", errors)
+    _assert("events=" not in out,
+            f"excluded-events breakdown row does not also print (got: {out!r})", errors)
+
+
 def case_token_cost_mixed_priced_and_unpriced(errors: list[str]) -> None:
     """Mixing a priced and an unpriced event: cost reflects only the priced one,
     and the unpriced one is surfaced as excluded rather than silently dropped."""
@@ -909,6 +924,7 @@ def main() -> int:
     case_token_cost_date_suffixed_model_matches_bare_key(errors)
     case_token_cost_bracket_variant_matches_bare_key(errors)
     case_token_cost_excluded_line_visible_in_table(errors)
+    case_token_cost_all_unpriced_excluded_line_absent(errors)
     case_token_cost_mixed_priced_and_unpriced(errors)
     case_token_cost_no_token_data(errors)
     case_token_cost_zero_cost_not_mislabeled_omitted(errors)
