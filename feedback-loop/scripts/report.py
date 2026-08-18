@@ -356,6 +356,57 @@ def _scan_cache_layout(cache_root: Path) -> list[str]:
     return sorted(catalog)
 
 
+def claude_kit_owned_names(repo_root: Path | None = None) -> set[str]:
+    """Bare skill+agent names owned by a claude-kit plugin in this repo.
+
+    Union of scan_skill_catalog()'s skill names (stripped of the 'plugin:'
+    prefix) and every */agents/*.md stem. Used to classify a plugin=unknown
+    event as a real attribution failure (name IS ours, map missed it) vs no
+    attribution target existing at all (name isn't ours — native command,
+    machine-level skill, built-in agent, or a plugin outside claude-kit; #664).
+    """
+    root = repo_root if repo_root is not None else REPO_ROOT
+    names = {qn.split(":", 1)[1] for qn in scan_skill_catalog(root)}
+    # Detect the same plugin-cache layout scan_skill_catalog falls back to
+    # (#522), so agents get globbed from the matching root.
+    agents_root = root
+    for skill_md in root.glob("*/skills/*/SKILL.md"):
+        plugin = skill_md.relative_to(root).parts[0]
+        if _VERSION_DIR_RE.match(plugin):
+            agents_root = root.parent
+        break
+    if agents_root is root:
+        for agent_md in root.glob("*/agents/*.md"):
+            parts = agent_md.relative_to(root).parts
+            if len(parts) == 3 and not parts[0].startswith("."):
+                names.add(agent_md.stem)
+    else:
+        for agent_md in agents_root.glob("*/*/agents/*.md"):
+            parts = agent_md.relative_to(agents_root).parts
+            if len(parts) == 4 and not parts[0].startswith("."):
+                names.add(agent_md.stem)
+    return names
+
+
+def classify_unknown(events: list[dict], repo_root: Path | None = None) -> dict:
+    """Split plugin=unknown events into attribution_failure vs no_target (#664).
+
+    attribution_failure: bare name IS a claude-kit-owned skill/agent (plugin-map.json
+    missed it — a real drift bug, see test-plugin-map-drift.py).
+    no_target: bare name isn't ours at all (native command, machine-level skill,
+    built-in agent, or a plugin outside claude-kit) — "unknown" is correct here.
+    """
+    owned = claude_kit_owned_names(repo_root)
+    unknown_events = [e for e in events if e.get("plugin") == "unknown"]
+    attribution_failure = sum(1 for e in unknown_events if e.get("name") in owned)
+    no_target = len(unknown_events) - attribution_failure
+    return {
+        "total_unknown": len(unknown_events),
+        "attribution_failure": attribution_failure,
+        "no_target": no_target,
+    }
+
+
 def skill_lifecycle_view(
     events: list[dict],
     catalog: list[str] | None = None,
@@ -532,6 +583,9 @@ def main() -> int:
     liveness_by_event = Counter(e.get("event", "?") for e in liveness_events)
     plugin_unknown = sum(1 for e in events if e.get("plugin") == "unknown")
     unknown_ratio = plugin_unknown / len(events)
+    unknown_split = classify_unknown(events)
+    attribution_failure_ratio = unknown_split["attribution_failure"] / len(events)
+    no_target_ratio = unknown_split["no_target"] / len(events)
 
     latency = latency_stats(events)
     latency_per_event = latency_by_event(events)
@@ -555,6 +609,13 @@ def main() -> int:
             },
             "top_includes_liveness": args.top_include_liveness,
             "plugin_unknown_ratio": round(unknown_ratio, 4),
+            "plugin_unknown": {
+                "ratio": round(unknown_ratio, 4),
+                "attribution_failure": unknown_split["attribution_failure"],
+                "attribution_failure_ratio": round(attribution_failure_ratio, 4),
+                "no_target": unknown_split["no_target"],
+                "no_target_ratio": round(no_target_ratio, 4),
+            },
             "latency": (
                 {
                     "count": latency["count"],
@@ -626,7 +687,9 @@ def main() -> int:
     if liveness_events:
         print(f"Liveness (enforcement heartbeat, excluded from Outcomes above): "
               f"{len(liveness_events)} {dict(liveness_by_event)}")
-    print(f"plugin=unknown ratio: {unknown_ratio:.1%}")
+    print(f"plugin=unknown ratio: {unknown_ratio:.1%} "
+          f"(attribution failure: {attribution_failure_ratio:.1%}, "
+          f"no attribution target: {no_target_ratio:.1%})")
     print()
     print("Latency p50/p95 (events with duration_ms only):")
     if latency is None:
