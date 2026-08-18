@@ -82,7 +82,7 @@ claude plugin install vault-bridge@Lyainc-claude-kit
 >
 > | 스킬 | 하는 일 |
 > |---|---|
-> | `retro` | 세션 회고 — telemetry 낭비 패턴·세션 인사이트·검증된 규칙 패턴을 3갈래(이슈 / vault 저장 / 기법 증류 인계) opt-in 출력으로 라우팅 |
+> | `retro` | 세션 회고 — telemetry 낭비 패턴·세션 관찰 낭비를 확인된 git 이슈로, 기존 open 이슈와 dedup해서 출력 |
 > | `distill` | 세션에서 재사용 가능한 절차 기법을 user-confirmed로 발견 — 자연어 제안만 내고, 배치·저작은 아래 매립 엔진 몫 |
 > | `add-policy` | 규칙 하나를 분류해 매립지 3개(CLAUDE.md · 훅 · 스킬) 중 한 곳에 1클릭 배치 — 커밋은 안 함 |
 > ```bash
