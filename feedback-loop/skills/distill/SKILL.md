@@ -132,15 +132,14 @@ situation-first one-line `description`. The `name` is only a proposal. `add-poli
 naming authority and MAY rename it at placement time. The single question is the **discovery gate**: "shall we hand this
 proposal to the landfill engine?" The user picks which proposals to forward
 (multi-select) or skips all. **The placement decision (which site / patch vs new) is NOT
-asked here — that is `add-policy`'s 1-click gate.** Distilling is opt-in exactly like
-`retro`'s memory/rule branches; never forward without explicit confirmation.
+asked here — that is `add-policy`'s 1-click gate.** Distilling is opt-in, same as every
+other user-confirmed gate in this loop; never forward without explicit confirmation.
 
 ### Phase 4 — HANDOFF (confirmed only)
 
 For each confirmed proposal, hand the natural-language proposal object to the
 `add-policy` landfill engine (surface it as a ready-to-run `/add-policy` invocation for
-the user, the same propose-only way `retro` surfaces `/vault-save` — never run it inline).
-`add-policy` classifies, conflict-checks, places, and authors; it enforces the
+the user — never run it inline). `add-policy` classifies, conflict-checks, places, and authors; it enforces the
 inviolability block the proposal carries. distill's responsibility ends at the confirmed
 proposal — it leaves no working-tree changes of its own.
 
@@ -148,15 +147,15 @@ proposal — it leaves no working-tree changes of its own.
 > inviolable / never overwrite" — must survive the handoff. distill supplies the
 > judgment; `add-policy` implements the mechanism. Neither side may drop it.
 
-## retro connection (propose-only, NOT a 4th inline branch)
+## retro connection (historical — removed in #639)
 
-`retro`'s **rule branch surfaces `/distill`** (#459) the same way its memory branch
-surfaces `/vault-save` — a ready-to-run slash command for the USER to invoke, never
-inline. It points here rather than at `add-policy` because a pattern only `retro`
-observed has been judged worth keeping by nobody, and `add-policy` deliberately never
-makes that judgment. `distill` is its own user-initiated skill; `retro` does not run
-it and does not embed this procedure. (retro's output stays 3 branches; distill is
-the rule branch's destination, not a fourth always-on branch.)
+Before #639, `retro`'s rule branch surfaced a `/distill` invocation the same way its
+now-removed memory branch surfaced `/vault-save` — a ready-to-run slash command for the
+USER to invoke, never inline. That branch was a pure pass-through: a pattern only `retro`
+observed had been judged worth keeping by nobody, and `distill` is the skill that makes
+that judgment, so removing the branch lost no capability. `distill` is its own
+user-initiated skill and does its own worth-keeping judgment regardless of who noticed
+the pattern; `retro` no longer runs or embeds this procedure at all.
 
 ## Scope rationale (thin-gate)
 
