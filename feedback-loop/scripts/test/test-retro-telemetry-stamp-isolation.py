@@ -5,7 +5,7 @@ History: two concurrent sessions with no CLAUDE_SESSION_ID used to collide on
 the same /tmp/retro-start-*.ms file keyed by $PPID — one session's `emit`
 deleted the stamp the other was still using (measured live 2026-08-03: two
 sid-less emits, one duration_ms null). #580 found $PPID itself is not even
-stable WITHIN one session (Phase 1's `stamp` and Phase 3's `emit` run as
+stable WITHIN one session (Phase 1's `stamp` and Phase 2's `emit` run as
 separate Bash-tool calls, each a fresh shell), so the whole file-keyed-by-pid
 design was unsound in both directions.
 
