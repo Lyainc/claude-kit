@@ -161,7 +161,7 @@ python3 scripts/check-agent-tools-usage.py
 # header comment and compares it against whatever is actually installed (P12 — existence
 # is not enough). MISSING (fresh clone, CI, not-yet-installed) is exit 0, informational —
 # a hook that legitimately cannot be installed must not fail the check. STALE (installed
-# but content drifted) is exit 1. Case 7 (#659) cross-checks install-hooks.sh's awk
+# but content drifted) is exit 1. Case 9 (#659) cross-checks install-hooks.sh's awk
 # extraction against extract_shim() on the live source — the awk program is read out of
 # install-hooks.sh at test time, not a second hardcoded copy, so a drift in either
 # extractor's indent pattern is caught instead of two independently-stale literals agreeing
