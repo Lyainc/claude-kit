@@ -216,6 +216,7 @@ jobs:
           bash -n feedback-loop/scripts/retro-telemetry.sh
           python3 feedback-loop/scripts/validate-schema.py --self-test
           python3 feedback-loop/scripts/test/test-report.py
+          python3 feedback-loop/scripts/test/test-plugin-map-drift.py
           bash feedback-loop/scripts/test/test-event-logger.sh
           bash feedback-loop/scripts/test/test-retro-telemetry.sh
           python3 feedback-loop/scripts/test/test-retro-telemetry-stamp-isolation.py

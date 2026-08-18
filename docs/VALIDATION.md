@@ -477,6 +477,17 @@ python3 feedback-loop/scripts/test/test-report.py
 bash feedback-loop/scripts/test/test-event-logger.sh
 # Expected: OK: all event-logger meta-extractor cases passed
 
+# plugin-map.json drift regression (#664): the map is a hand-maintained bare-name
+# -> plugin lookup used by event-logger.sh's resolve_plugin() (event-logger.sh:108,
+# called at :199/:218/:243 for skill_invoke/agent_spawn/command_run alike — all
+# three share one resolver, contra the issue's original "command_run takes a
+# different path" diagnosis). #664 traced a plugin=unknown mystery to four
+# claude-kit-owned skills (issue-raise, next-goal, add-policy, distill) missing
+# from the map; nothing enforced staying in sync with the skills/agents dirs it
+# describes. Asserts every real skill/agent name has a map entry.
+python3 feedback-loop/scripts/test/test-plugin-map-drift.py
+# Expected: OK: plugin-map.json covers all N skill/agent names
+
 # retro-telemetry helper regression (#294 — retro Phase-1 stamp + Phase-2 emit
 # extracted from the SKILL.md inline bash to scripts/retro-telemetry.sh; this
 # pins the schema-shaped emit line + duration null-fallback against drift).

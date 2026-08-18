@@ -13,6 +13,8 @@
   "diverse-sampling": "thinking-tools",
   "thinking-facilitator": "thinking-tools",
   "build-spec": "thinking-tools",
+  "issue-raise": "thinking-tools",
+  "next-goal": "thinking-tools",
 
   "wiki": "obsidian-vault-manager",
   "audit": "obsidian-vault-manager",
@@ -20,5 +22,7 @@
   "vault-knowledge-manager": "obsidian-vault-manager",
   "vault-file-organizer": "obsidian-vault-manager",
 
-  "retro": "feedback-loop"
+  "retro": "feedback-loop",
+  "add-policy": "feedback-loop",
+  "distill": "feedback-loop"
 }
