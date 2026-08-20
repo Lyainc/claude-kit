@@ -2,13 +2,16 @@
 name: doc-polish
 
 description: |
-  Validate and improve EXISTING Markdown documents: fix formatting, consistency, and flag quality concerns.
+  Validate and improve EXISTING Markdown documents: fix formatting, consistency, and flag quality concerns,
+  and cross-check the document's repo-checkable factual claims (issue numbers and their state, file paths,
+  script/function names, commit SHAs, "미구현"/"없음" status assertions) against the repository — report-only,
+  never auto-fixed, since a wrong fact means the content must change and this skill does not write content.
   Output-layer md-edit adapter (format=md × intent=edit): acts as an Editor (not Writer) —
   requires an existing MD file as input; preserves content while improving structure and readability.
   AI 표현(LLM trope, delve/grandiose nouns 등) 제거는 doc-polish 범위 밖 — Humanize KR 같은 전용 휴머나이저를 쓰세요.
 
-  Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, 교정, 다듬기,
-  polish, lint, "이 문서 검사해줘", "README 다듬어줘".
+  Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, 교정, 다듬기, 문서 사실 확인, 내용이 최신인지,
+  polish, lint, fact check this doc, "이 문서 검사해줘", "README 다듬어줘", "이 설계문서 아직 맞아?".
   Routing: 새 콘텐츠를 처음부터 작성하는 건 doc-concretize (doc-polish는 기존 MD 파일 편집 전용).
 effort: medium
 allowed-tools: Read Edit Bash WebFetch
@@ -35,7 +38,7 @@ Validate and improve existing Markdown documents while preserving original conte
 - Existing Markdown file(s) to analyze
 - (Optional) `--fix` flag for auto-correction
 
-## 3-Layer Verification Structure
+## 4-Layer Verification Structure
 
 ### Layer 1: Mechanical (Auto-fix)
 
@@ -81,6 +84,38 @@ Content quality warnings:
 
 **Note**: Layer 3 auto-suggestions are recommendations — final judgment requires human review.
 
+### Layer 4: Fact Cross-Check (Report-only)
+
+Layer 3 asks whether a claim is *vague*. This layer asks whether it is *false* — the one question
+no other skill answers for a whole document (`adversarial-review` works per claim, `audit` reads
+vault structure and not prose). Design docs fall behind the decisions they describe, so this gap
+widens with time rather than staying constant.
+
+**Gate — runs only when the document actually contains something checkable.** Skip the layer
+entirely, and omit its line from the report, when a scan finds none of the patterns below. This is
+what keeps the added `gh`/`git` cost off every ordinary polish call; there is no flag to remember.
+
+| Claim in the document | Deterministic check | Verdict |
+|-----------------------|---------------------|---------|
+| Issue/PR reference (`#N`) | `gh issue view N --json state` / `gh pr view` | state matches what the prose says about it |
+| File or directory path | file exists at that path | 확인됨 / 어긋남 |
+| Script, function, or flag name | `grep` for the name in the repo | present as described |
+| Commit SHA | `git log -1 <sha>` | resolves, and describes what the prose says |
+| Status assertion ("미구현", "없음", "아직", "지원 안 함") | `grep`/`gh` for the thing asserted absent | still absent |
+
+**Deterministic checks only.** A claim that needs judgment — whether a design is right, whether a
+trade-off holds — is out of scope and belongs to `adversarial-review`. If settling it takes reading
+and weighing rather than one `gh issue view`, `git log`, or `grep`, it is not this layer's business.
+
+**Three verdicts, one of them reported**: 확인됨 / **어긋남** / 저장소로 확인 불가. Report only
+어긋남, with the line number, what the document asserts, and what the check actually returned.
+Silence on the other two is deliberate — a list of everything that checked out is noise.
+
+**Never auto-fixed, and excluded from `--fix` by design.** A false fact means the *content* is
+wrong, and changing content is the one thing "Editor, not Writer" forbids. So this layer reports
+the mismatch and stops; the human decides what the document should say instead. That asymmetry is
+the point of the layer, not a limitation of it.
+
 ## Workflow
 
 ```
@@ -103,6 +138,11 @@ Phase 3: Semantic Review
 ├── Find unexplained terms
 └── Output: Warnings with recommendations
 
+Phase 4: Fact Cross-Check (skipped when no checkable claim is present)
+├── Extract #N refs, paths, script/function names, SHAs, status assertions
+├── Verify each with gh / git / grep / file existence
+└── Output: 어긋남 only — never auto-fixed
+
 Output: Fixed file and/or Quality Report
 ```
 
@@ -112,8 +152,9 @@ Output: Fixed file and/or Quality Report
 |------|------|---------|
 | Read | Load target MD file | Read file content |
 | Bash | Run markdownlint | `markdownlint --fix file.md` |
+| Bash | Layer 4 fact checks | `gh issue view 688 --json state`, `git log -1 <sha>`, `grep -rn <name>` |
 | WebFetch | Validate external links | Check URL accessibility |
-| Edit | Apply auto-fixes | Fix formatting issues |
+| Edit | Apply auto-fixes | Fix formatting issues (Layers 1-2 only — Layer 4 never edits) |
 
 ## Output Modes
 
@@ -126,8 +167,9 @@ File: path/to/document.md
 Layer 1 (Mechanical): 3 issues found, 2 auto-fixed
 Layer 2 (Consistency): Term consistency: 1 issue, Sentence quality: 2 suggestions
 Layer 3 (Semantic): 2 warnings
+Layer 4 (Fact): 1 mismatch — omit this line entirely when the gate did not fire
 
-Run with --fix to apply auto-corrections.
+Run with --fix to apply auto-corrections (Layer 4 mismatches are never among them).
 ```
 
 ### Fix Mode (`--fix`)
@@ -144,6 +186,7 @@ Auto-fixed:
 Remaining issues (require manual review):
 - Line 30: Term inconsistency "사용자/유저" → unify to "사용자"
 - Line 52: Sentence exceeds 50 chars → suggest splitting
+- Line 61: 어긋남 — 문서는 #564를 "열려 있음"으로 서술하지만 `gh issue view 564`는 CLOSED
 ```
 
 > **Removed**: `--report` 플래그(상세 리포트 모드)는 더 이상 지원하지 않아요. AI 표현(LLM trope) 감사가 필요하면 Humanize KR 같은 전용 휴머나이저를 쓰세요.
@@ -169,6 +212,8 @@ Recommended workflow:
 | Expression | ✅ Suggest alternatives | ❌ Rewrite content |
 | Structure | ✅ Report issues | ❌ Reorganize sections |
 | Content | ✅ Flag concerns | ❌ Add/remove content |
+| Facts | ✅ Cross-check against the repo and report mismatches | ❌ Correct a wrong fact (content change) |
+| Judgment claims | | ❌ Weigh whether a design or trade-off is right (→ `adversarial-review`) |
 | Links | ✅ Validate & report | ❌ Update URLs |
 | Style | ✅ Ensure consistency | ❌ Impose new style |
 
@@ -185,5 +230,6 @@ User: "이 README.md 품질 검사해줘"
 → Layer 1: Markdown lint + link check
 → Layer 2: Consistency + readability check
 → Layer 3: Vague claims + outdated info warnings
+→ Layer 4: Cross-check #N refs, paths, names, SHAs against the repo (skipped if none present)
 → Output: Summary with actionable suggestions
 ```
