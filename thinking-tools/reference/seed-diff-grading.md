@@ -1,9 +1,10 @@
-# Seed 대조 채점 지시문 — 네이티브 /code-review용
+# Seed 대조 채점 지시문 — 요구사항 갭 리뷰용
 
 `thinking-tools:code-reviewer` 에이전트(#564)가 #593에서 삭제되며 남긴 자유형 지시문. 격리 단일
-패스 에이전트를 다시 만드는 대신, build-spec Seed(`docs/specs/*.yaml`)가 있는 diff를 네이티브
-`/code-review`로 돌릴 때 프롬프트에 아래 지시를 그대로 덧붙여 Seed 대조 채점을 얹는다 — 네이티브
-자체 기능은 아니고, 호출부가 매번 붙이는 자유형 지시다.
+패스 에이전트를 다시 만드는 대신, build-spec Seed(`docs/specs/*.yaml`)가 있는 diff의 요구사항 갭
+리뷰(next-goal L2 — Seed를 아는 fresh-context 서브에이전트가 맡는 갈래, correctness를 보는
+네이티브 `/code-review`가 아니다)를 돌릴 때 프롬프트에 아래 지시를 그대로 덧붙여 Seed 대조 채점을
+얹는다 — 그 리뷰 자체 기능은 아니고, 호출부가 매번 붙이는 자유형 지시다.
 
 ## 지시문
 
