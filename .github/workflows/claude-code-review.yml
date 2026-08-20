@@ -27,7 +27,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      pull-requests: read
+      # `write`, not `read`: the inline-comment MCP server posts under `github.token`, so a
+      # read-only scope makes every `create_inline_comment` 403. This trigger is
+      # `pull_request` (never `pull_request_target`), so a fork PR still gets a read-only
+      # token and no secrets regardless of what is written here.
+      pull-requests: write
       issues: read
       id-token: write
 
@@ -100,12 +104,29 @@ jobs:
               `chore: deferred review nits PR #${{ github.event.pull_request.number }}`
               listing them, then link it from your PR comment. At most ONE such issue per PR.
 
+            ## Where each finding goes (REQUIRED)
+
+            Two surfaces, and every P0/P1 lands on BOTH:
+            - **Inline**, at the line it is about, via
+              `mcp__github_inline_comment__create_inline_comment` with `confirmed: true`.
+              Pass `confirmed: true` on every final review comment — without it the call is
+              buffered and a post-session classifier decides whether it survives, which is
+              exactly the silent drop the section below forbids. Inline only works on lines
+              inside this PR's diff; for a finding about code the diff does not touch, skip
+              the inline comment and keep it in the summary. Do not retry a rejected line.
+            - **Summary comment**, which must list EVERY P0/P1 finding in full — including
+              the ones already posted inline. It is the complete record: the guard counts it,
+              and the next round reads it (see below). A summary that says "see inline"
+              instead of restating the findings breaks both.
+
             ## Stop conditions (no infinite review rounds)
 
             - **No re-flagging**: do NOT re-raise a point already raised or already addressed
               in a previous round. Read prior review comments first
               (`gh pr view ${{ github.event.pull_request.number }} --comments`) and skip
-              anything covered in a prior round.
+              anything covered in a prior round. That command shows summary comments and
+              review bodies but NOT inline comments, which is why the summary above has to
+              restate every inline finding — it is the only prior-round record you can read.
             - Only unresolved P0/P1 findings justify requesting another review round on this PR.
               P2 nits go to the backlog issue, not another round.
 
@@ -116,9 +137,9 @@ jobs:
             pass that catches what slipped through — NOT the primary quality gate. Do not
             duplicate or re-specify that gate's rules here.
 
-            Use `gh pr comment` with your Bash tool to leave your review as a single comment on
-            the PR. Group findings by severity (P0 / P1 / Deferred nits (P2)) and link the
-            backlog issue under the P2 group.
+            Use `gh pr comment` with your Bash tool to leave the summary comment on the PR.
+            Group findings by severity (P0 / P1 / Deferred nits (P2)) and link the backlog
+            issue under the P2 group. P2 nits go to the backlog issue only — never inline.
 
             ## Silence is not a review (REQUIRED)
 
@@ -126,8 +147,10 @@ jobs:
             `P0/P1 없음 — LGTM` plus what you actually ran. Posting zero comments is
             forbidden: from the Checks tab a silent job is indistinguishable from a review
             that never ran, so a step after this one counts the comments this round posted
-            and FAILS the job at zero. If you are about to end the turn without having run
-            `gh pr comment`, that is the bug — post the summary first.
+            and FAILS the job at zero. Inline comments do NOT satisfy it and are not meant
+            to — they are a navigation layer over the summary, not a replacement for it. If
+            you are about to end the turn without having run `gh pr comment`, that is the
+            bug — post the summary first.
 
           # See https://github.com/anthropics/claude-code-action/blob/main/docs/usage.md
           # or https://code.claude.com/docs/en/cli-reference for available options
@@ -139,15 +162,30 @@ jobs:
           # Allowlisting that one runner instead of ~70 individual commands keeps the list from
           # drifting away from docs/VALIDATION.md, and stays read/verify-only — no write or
           # network command is added here.
-          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(python3 scripts/check-test-exitcode.py:*)"'
+          # mcp__github_inline_comment__create_inline_comment is the action's own purpose-built
+          # server, chosen over opening `Bash(gh api:*)`: it can post a review comment on a line
+          # and nothing else, so the review still cannot approve a PR or reach any other endpoint
+          # (anthropics/claude-code-action src/mcp/github-inline-comment-server.ts). Naming the
+          # tool is also what makes the action start that server at all — it is installed only
+          # for a PR context when an mcp__github_inline_comment__ tool appears in this list.
+          claude_args: '--allowed-tools "Bash(gh issue view:*),Bash(gh search:*),Bash(gh issue list:*),Bash(gh issue create:*),Bash(gh pr comment:*),Bash(gh pr diff:*),Bash(gh pr view:*),Bash(gh pr list:*),Bash(python3 scripts/check-test-exitcode.py:*),mcp__github_inline_comment__create_inline_comment"'
 
       # The prompt above ASKS for a comment; this step is what makes the ask enforceable
       # (#451). Without it the job is green whether the review posted its findings or died
       # before writing anything, and the Checks tab shows the same tick either way.
       # `if: always()` on purpose: a review that failed mid-run is precisely the case that
       # must not be laundered into a pass by an earlier step's red already being visible.
-      # Reading comments needs only the `issues: read` / `pull-requests: read` this job
-      # already holds — the review posts under its own token, not GITHUB_TOKEN.
+      # Reading comments needs only the `issues: read` this job already holds — the summary
+      # comment is posted under the review's own token, not GITHUB_TOKEN. It counts summary
+      # comments only, and must keep doing so: inline review comments live on a different
+      # endpoint that `gh pr view --json comments` does not return, so counting them is not
+      # available here even if it were wanted. That is the intended shape — the summary is
+      # the record, inline is navigation over it.
+      #
+      # Do NOT set the action's `track_progress: true` to get the checkbox UI. It posts a
+      # tracking comment authored by claude BEFORE the review runs, which this filter counts
+      # — so a run that then died without reviewing anything would pass. That is precisely
+      # the #447/#451 hole, reopened by an input that reads like a display option.
       # Pinned by scripts/test/test-review-silence-guard.py, which executes the jq filter
       # below against fixtures (a prior round's comment must NOT satisfy this round).
       # Accepted consequence: a fork PR, which never receives CLAUDE_CODE_OAUTH_TOKEN, now
