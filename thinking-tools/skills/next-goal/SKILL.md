@@ -159,8 +159,15 @@ something a session would visibly produce.
   exit code. If proving completion takes six commands, the loop slows and failure modes multiply.
 - **L2 — an independent review gate inside the condition.** `evaluator_passed ≠ complete`. A
   model is the worst judge of its own output, so put a fresh-context review of the final diff
-  into the condition itself, scoped to correctness and requirement gaps only — say "ignore style"
-  explicitly, or the reviewer invents gaps and drives over-engineering.
+  into the condition itself — split by scope, not one call for both. Correctness routes to
+  `/code-review high` (it already carries finder → per-finding verifier); requirement gaps route
+  to a fresh-context subagent (native review does not know this session's Seed or requirements).
+  Say "ignore style" for both, or the reviewer invents gaps and drives over-engineering. Scope
+  the subagent read-only — no edits, no `git` state changes — free to read the diff and, when
+  attached, the Seed YAML it grades against. Attach
+  `thinking-tools/reference/seed-diff-grading.md` when the unit traces back to a build-spec Seed.
+  Bound its rounds separately from L3's session-wide turn cap: only unresolved blocking/should-fix
+  findings buy another round, nits get collected without spending one.
 - **L3 — a turn cap.** End with `or stop after N turns` so an unattended run cannot spin. Size N
   for the whole unit, not for one slice of it — a multi-PR unit that fans out needs room to
   finish, and a cap tuned to a single linear slice silently shrinks the work back down.
@@ -195,7 +202,7 @@ constraint to respect, a pointer to a separate pass — goes *inside* the senten
 never as an appended line. Appending a cold status block below the paragraph is the exact
 failure of the handoff format this replaced.
 
-### Stop at "commits pushed" — check before emitting
+### Read the emitted sentence back — check before emitting
 
 The condition must **not** end at merged, "머지한다", or "머지하는 것으로 닫는다". Merge is an
 irreversible step decided against information this paragraph does not have.
@@ -211,8 +218,15 @@ self-evident stop state: an evaluator reading it infers the PR is the deliverabl
 not-complete on a run that did exactly what was asked. Naming the non-action makes the end state
 falsifiable instead of inferable.
 
-**Read the emitted sentence back for merge vocabulary before showing it.** Stating this boundary
-in prose alone has been observed to fail — the check has to be an actual pass over the output.
+**Also check depth, not just breadth.** Re-read the condition's completion state: if it stays
+satisfied (a) when every verdict comes back negative, or (b) when every branch ends shallow,
+add one clause naming the depth every branch must clear regardless of outcome. A conditional
+deliverable like "채택된 항목 수만큼 이슈" demands nothing by itself — six REJECTs and zero
+issues still satisfies it.
+
+**Read the emitted sentence back for merge vocabulary and depth before showing it.** Stating
+these boundaries in prose alone has been observed to fail — the check has to be an actual pass
+over the output.
 
 ### Scope check — mandatory, before emitting
 
@@ -266,7 +280,7 @@ RUNNERS  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 �
 ```
 
 ```
-/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 병렬로 돌리되 한 갈래 안의 경로 수정 여섯 지점은 순차로 처리하고, 기계적인 경로 치환과 manifest 필드 추가는 Workflow agent() 에 effort low 로 넘기고 판정이 걸린 audit E4 규칙 재작성은 메인에서 직접 본다 — 실물을 보고 난이도가 다르면 이 배정은 바꿔도 된다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 fresh-context 리뷰를 돌려 correctness·요구사항 갭 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
+/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 병렬로 돌리되 한 갈래 안의 경로 수정 여섯 지점은 순차로 처리하고, 기계적인 경로 치환과 manifest 필드 추가는 Workflow agent() 에 effort low 로 넘기고 판정이 걸린 audit E4 규칙 재작성은 메인에서 직접 본다 — 실물을 보고 난이도가 다르면 이 배정은 바꿔도 된다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 correctness는 /code-review high 로, 요구사항 갭은 읽기 전용 fresh-context 서브에이전트로 나눠 돌려 각각 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
 ```
 
 ---

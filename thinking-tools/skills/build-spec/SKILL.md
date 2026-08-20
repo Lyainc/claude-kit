@@ -212,6 +212,11 @@ When gate opens OR user explicitly exits:
    "<seed-path>")` — one sub-call, no new user-typed command (same pattern as
    diverse-sampling → doc-concretize). Declined → build-spec ends here, exactly as before.
 
+When a later completion condition's requirement-gap review (next-goal's L2, not the
+correctness `/code-review` call) traces its diff back to this Seed, attach
+`thinking-tools/reference/seed-diff-grading.md`'s grading instruction to that review's prompt
+for Seed-aware grading.
+
 **Seed spec schema**: see `templates/SEED_SPEC.yaml`
 
 ## Termination Conditions
