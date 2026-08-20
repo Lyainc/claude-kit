@@ -708,8 +708,12 @@ python3 thinking-tools/scripts/test/test-persona-selection.py
 # SKILL.md therefore cannot be reworded without editing the matching constant in the same
 # commit — a red there is the guard working, not a broken test. Run after editing the Judge
 # Rubric, the anchor table, Survival Score, or any reference/rationale.md paragraph.
+# Also pins a second, independent contract (#691): Phase 0.5's Vault Decision Grounding
+# procedure moved to reference/patterns.md § Vault Decision Grounding Procedure the same way,
+# whole-section verbatim plus the SKILL.md read-and-apply pointer. Run after editing that
+# section or the Phase 0.5 pointer.
 python3 thinking-tools/scripts/test/test-judge-rubric-anchors.py --self-test
-# Expected: OK: all 37 judge-rubric-anchor self-test cases passed
+# Expected: OK: all 42 judge-rubric-anchor self-test cases passed
 python3 thinking-tools/scripts/test/test-judge-rubric-anchors.py
 # Expected: OK: Judge Rubric anchors, the not-a-measurement caveat, and the binding pointer are all pinned
 

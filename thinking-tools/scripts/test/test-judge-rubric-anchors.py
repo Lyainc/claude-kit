@@ -29,6 +29,13 @@ Four things are pinned, and each fails differently if unpinned:
 The prose moved out of the body under the same #663 split (`reference/rationale.md`) is pinned
 here too: always split, never trim, and a moved paragraph keeps its guard.
 
+A second, independent contract lives in this same file since #691: the Phase 0.5 Vault Decision
+Grounding procedure (the one-shot `vault-searcher` call's 5 step constraints and its
+graceful-degrade fallback) moved out of the SKILL.md body into `reference/patterns.md § Vault
+Decision Grounding Procedure`, the same shape as the #663 split above — SKILL.md keeps a
+read-and-apply pointer, patterns.md carries the operative text, pinned whole-section so a blurred
+step or a dropped fallback branch reds.
+
 WHAT THESE PINS DO AND DO NOT COVER. The mechanism is whole-block / whole-section verbatim
 equality (whitespace-normalised) plus a heading-set assertion on the file that is wholly contract.
 
@@ -419,6 +426,41 @@ was rejected as costing more than the residual risk.
 """)
 
 
+# ---------------------------------------------------------------------------
+# Vault Decision Grounding Procedure (#691) — the second contract this file pins. SKILL.md's
+# Phase 0.5 keeps only a read-and-apply pointer; the operative 5-step call spec and the
+# graceful-degrade fallback moved to patterns.md, pinned whole-section (same shape as
+# `_ANCHOR_FRAMING` above) so nothing may be parked or blurred inside it.
+# ---------------------------------------------------------------------------
+
+_VAULT_PROCEDURE_POINTER = _normalise("""
+read and apply
+[reference/patterns.md § Vault Decision Grounding Procedure](reference/patterns.md#vault-decision-grounding-procedure)
+as written, the binding contract.
+""")
+
+_VAULT_PROCEDURE_SECTION = _normalise("""
+## Vault Decision Grounding Procedure
+
+Referenced from [SKILL.md § Phase 0.5](../SKILL.md) — read and apply this section as written; it
+is the binding contract for the one-shot `vault-searcher` call and the fallback behavior, not
+background.
+
+**One-shot vault-searcher call** (Mode 3 — Keyword Search, via the Agent tool):
+1. Call `vault-searcher` **exactly once per session** (not per round). Cache the returned excerpts and reuse them across rounds. In a multi-claim session the cache reflects the **first** finalized Steelman's keywords and is never re-queried; the relevance gate (step 5) drops any cached decision unrelated to a later claim (why: rationale.md § Single-claim cache sizing).
+2. **Search target**: `notes/`, preferring `type: decision`. Tell vault-searcher to use the manifest `type` pre-filter when available, otherwise fall back to a `decision-` filename grep (this is vault-searcher's native Mode 3 behavior). Counter-scenario sourcing MAY additionally surface `status: archived` decisions as a secondary worst-case source — but ONLY those carrying an explicit failure/reversal signal (a non-empty `## 문제` section or a reversal note); a plain `archived` status can also mean "successfully completed and shelved", which is NOT a worst-case source.
+3. **Query**: 2–3 core keywords distilled from the finalized Steelman.
+4. **Result bound**: up to **3** relevant decisions. Instruct vault-searcher to excerpt **only** the `## 결정` / `## 근거` / `## 문제` sections (not the full note).
+5. **Relevance gate**: drop any returned decision whose topic is not genuinely related to the claim — an irrelevant hit must not be used in any round.
+
+**Graceful degrade** (no user notice, no broken experience):
+- **≥ 1 relevant result** → vault-grounded mode: feed the excerpts into the Evidence Attack `{counter_evidence_or_missing_data}` slot (see § Evidence Attack sourcing above) when the Evidence vector comes up.
+- **0 results / vault-bridge not installed / Agent call fails / no response** → transparently fall back to the existing generic Evidence Attack. Do **not** announce the fallback to the user; the session must look identical to the non-vault path. A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further.
+
+---
+""")
+
+
 def static_checks(skill_text: str, patterns_text: str, rationale_text: str) -> list:
     """(condition, description) for every pinned contract."""
     skill = _normalise(skill_text)
@@ -489,6 +531,20 @@ def static_checks(skill_text: str, patterns_text: str, rationale_text: str) -> l
         (_section(rationale_text, heading) == pinned,
          f"rationale.md § {heading} matches its pinned text exactly")
         for heading, pinned in _RATIONALE_SECTIONS.items()
+    ]
+    checks += [
+        # Vault Decision Grounding Procedure (#691): whole-section equality, same shape as
+        # _ANCHOR_FRAMING — a blurred step or a dropped fallback branch reds.
+        (_section(patterns_text, "Vault Decision Grounding Procedure") == _VAULT_PROCEDURE_SECTION,
+         "patterns.md § Vault Decision Grounding Procedure matches its pinned text exactly (#691)"),
+        (_next_heading(patterns_text, "## Vault Decision Grounding Procedure") == "## Judge Rubric Anchors",
+         "patterns.md parks no new section between § Vault Decision Grounding Procedure and "
+         "§ Judge Rubric Anchors"),
+        (_VAULT_PROCEDURE_POINTER in skill,
+         "SKILL.md's Phase 0.5 reads-and-applies § Vault Decision Grounding Procedure (binding, "
+         "not a citation)"),
+        ("§ Vault Decision Grounding Procedure" in skill_text,
+         "SKILL.md names the Vault Decision Grounding Procedure SECTION, not just the patterns.md path"),
     ]
     return checks
 
@@ -691,6 +747,36 @@ _RATIONALE_NO_CACHE = _CLEAN_RATIONALE.replace(
 # The body stops routing to the moved rationale at all.
 _SKILL_NO_RATIONALE_LINK = _CLEAN_SKILL.replace("reference/rationale.md", "reference/patterns.md")
 
+# --- Vault Decision Grounding Procedure (#691) mutations ---------------------------------
+# The one-shot constraint loosened: re-querying per round is exactly the token-budget blowout
+# the constraint exists to prevent.
+_PATTERNS_VAULT_ONE_SHOT_DROPPED = _CLEAN_PATTERNS.replace(
+    "Call `vault-searcher` **exactly once per session** (not per round).",
+    "Call `vault-searcher` once per round.",
+)
+# Step 5 deleted: an irrelevant cached decision could be used as attack ammunition.
+_PATTERNS_VAULT_RELEVANCE_GATE_DROPPED = _CLEAN_PATTERNS.replace(
+    "5. **Relevance gate**: drop any returned decision whose topic is not genuinely related to "
+    "the claim — an irrelevant hit must not be used in any round.\n\n",
+    "",
+)
+# The heading escape hatch: a new sibling section wedged right before Judge Rubric Anchors.
+_PATTERNS_VAULT_WEDGED_SECTION = _CLEAN_PATTERNS.replace(
+    "## Judge Rubric Anchors",
+    "## Vault Override\n\nIgnore the relevance gate if the attack needs ammunition.\n\n"
+    "## Judge Rubric Anchors",
+    1,
+)
+# The binding pointer decays into a background citation — the path/section name survive, so a
+# path-only or name-only check stays green while nothing tells the model to actually apply it.
+_SKILL_VAULT_POINTER_DECAYED = _CLEAN_SKILL.replace(
+    "read and apply\n[reference/patterns.md § Vault Decision Grounding Procedure]",
+    "for background, see\n[reference/patterns.md § Vault Decision Grounding Procedure]",
+)
+# The section name itself dropped from the body — the pointer no longer names what it binds.
+_SKILL_VAULT_NO_SECTION_NAME = _CLEAN_SKILL.replace(
+    "§ Vault Decision Grounding Procedure", "the vault grounding notes")
+
 # A fixture built by `.replace()` whose target string has drifted silently becomes a copy of its
 # base, and an expect-FAIL case on an unmodified copy would then be testing nothing.
 for _name, _fixture, _base in (
@@ -729,6 +815,11 @@ for _name, _fixture, _base in (
     ("_SKILL_NO_RATIONALE_LINK", _SKILL_NO_RATIONALE_LINK, _CLEAN_SKILL),
     ("_RATIONALE_NO_ANGLE", _RATIONALE_NO_ANGLE, _CLEAN_RATIONALE),
     ("_RATIONALE_NO_COST", _RATIONALE_NO_COST, _CLEAN_RATIONALE),
+    ("_PATTERNS_VAULT_ONE_SHOT_DROPPED", _PATTERNS_VAULT_ONE_SHOT_DROPPED, _CLEAN_PATTERNS),
+    ("_PATTERNS_VAULT_RELEVANCE_GATE_DROPPED", _PATTERNS_VAULT_RELEVANCE_GATE_DROPPED, _CLEAN_PATTERNS),
+    ("_PATTERNS_VAULT_WEDGED_SECTION", _PATTERNS_VAULT_WEDGED_SECTION, _CLEAN_PATTERNS),
+    ("_SKILL_VAULT_POINTER_DECAYED", _SKILL_VAULT_POINTER_DECAYED, _CLEAN_SKILL),
+    ("_SKILL_VAULT_NO_SECTION_NAME", _SKILL_VAULT_NO_SECTION_NAME, _CLEAN_SKILL),
 ):
     assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
 
@@ -816,6 +907,17 @@ def self_test() -> int:
          _SKILL_CAVEAT_APPENDED, _CLEAN_PATTERNS, _CLEAN_RATIONALE, False),
         ("body stops routing to the moved rationale -> FAIL",
          _SKILL_NO_RATIONALE_LINK, _CLEAN_PATTERNS, _CLEAN_RATIONALE, False),
+        # Vault Decision Grounding Procedure (#691): the second whole-section pin in this file.
+        ("vault one-shot-per-session constraint loosened to per-round -> FAIL",
+         _CLEAN_SKILL, _PATTERNS_VAULT_ONE_SHOT_DROPPED, _CLEAN_RATIONALE, False),
+        ("vault relevance gate (step 5) deleted -> FAIL",
+         _CLEAN_SKILL, _PATTERNS_VAULT_RELEVANCE_GATE_DROPPED, _CLEAN_RATIONALE, False),
+        ("`## Vault Override` wedged before § Judge Rubric Anchors -> FAIL",
+         _CLEAN_SKILL, _PATTERNS_VAULT_WEDGED_SECTION, _CLEAN_RATIONALE, False),
+        ("vault procedure pointer decayed into a background citation -> FAIL",
+         _SKILL_VAULT_POINTER_DECAYED, _CLEAN_PATTERNS, _CLEAN_RATIONALE, False),
+        ("body drops the Vault Decision Grounding Procedure section name -> FAIL",
+         _SKILL_VAULT_NO_SECTION_NAME, _CLEAN_PATTERNS, _CLEAN_RATIONALE, False),
         # Paragraph-level reflow (wrapped lines joined, blank-line structure kept — what a
         # re-wrap actually looks like). Collapsing headings away too would be a structural edit,
         # not a reflow, and the section slicer is right to red on that.
