@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""manifest-summary.py + manifest-wiki-match.py regression (#468, mirrors #460's
-feedback-loop/scripts/test/test-e8-candidates.py).
+"""manifest-summary.py regression + audit/SKILL.md manifest-read contract pins (#468, mirrors
+#460's feedback-loop/scripts/test/test-e8-candidates.py).
 
-Both scripts exist so audit/SKILL.md and wiki/SKILL.md never `cat` .vault-bridge/manifest.json
-directly — the harness truncates large Bash output to a 2 KB preview before the model sees it,
-so a raw `cat` of a real (100+ KB) manifest silently degrades to whichever ~3 entries survive
-the cut, indistinguishable from a legitimately small/clean manifest.
+manifest-summary.py exists so audit/SKILL.md never `cat`s .vault-bridge/manifest.json directly —
+the harness truncates large Bash output to a 2 KB preview before the model sees it, so a raw `cat`
+of a real (100+ KB) manifest silently degrades to whichever ~3 entries survive the cut,
+indistinguishable from a legitimately small/clean manifest.
 
-Runs each script via subprocess against real temp fixture files (not a mocked import), then
-statically greps the live SKILL.md call sites to pin that neither ever regresses back to a raw
-`cat` of the manifest.
+Runs the script via subprocess against real temp fixture files (not a mocked import), then
+statically greps the live SKILL.md/reference call sites to pin that neither ever regresses back to
+a raw `cat` of the manifest.
 
 #663: audit/SKILL.md sat at the #447 5,000-token budget with no headroom, so the *rationale*
 prose (why a raw `cat` is forbidden — the 2 KB harness preview cut — and the exit-3 branch) moved
@@ -17,6 +17,18 @@ out of the skill body into `reference/vault-audit-rules.md` -> "Reading the mani
 followed the text rather than being deleted (#609: an unpinned region disappears silently). The
 skill body keeps the executable call plus a locator, and both of those are pinned here too, so
 the locator cannot rot away and leave the contract unreachable from the body.
+
+#645 (2026-08-20 재판정): this file used to also cover manifest-wiki-match.py + wiki/SKILL.md
+(7 static pins for audit/rules + 5 for wiki, per the panel's own first-draft count — corrected to
+9/4 once every distinct pin was actually enumerated, see the issue #645 verdict comment §7). Wiki
+deployment moved to vault-bridge (#645), and its half of this file moved with it to
+`vault-bridge/scripts/test/test-manifest-wiki-match.py`. The two halves share only three helpers
+(`check`, `run`, `_note`) and the string "2 KB" — not a combined file, a stapled one — so each copy
+duplicates the ~60 lines of shared helpers rather than importing across the plugin boundary
+(leaf-to-leaf test imports are not a precedent this repo uses; see #645 verdict comment §3).
+
+The 9 pins that stay here are all audit/SKILL.md + reference/vault-audit-rules.md contract checks
+(the OVM/audit half); the 4 wiki/SKILL.md pins live in the vault-bridge copy.
 
 Both are pinned by WHOLE-SECTION VERBATIM EQUALITY (heading to next heading / step to next step,
 whitespace-normalised) plus neighbour-anchor identity, not by scattered substring checks — see
@@ -36,9 +48,7 @@ from pathlib import Path
 
 _HERE = Path(__file__).resolve().parent
 _SUMMARY_SCRIPT = _HERE.parent / "manifest-summary.py"
-_WIKI_SCRIPT = _HERE.parent / "manifest-wiki-match.py"
 _AUDIT_SKILL = _HERE.parent.parent / "skills" / "audit" / "SKILL.md"
-_WIKI_SKILL = _HERE.parent.parent / "skills" / "wiki" / "SKILL.md"
 _AUDIT_RULES = _HERE.parent.parent / "reference" / "vault-audit-rules.md"
 
 errors = []
@@ -199,8 +209,9 @@ _TRUNCATION_RATIONALE = "2 KB preview"
 _EXIT3_BRANCH = "**Exit 3** (manifest absent, unparseable, or missing a required field)"
 
 
-def static_checks(audit_text: str, rules_text: str, wiki_text: str) -> list:
-    """Static pins for the manifest-read contract, as (ok, description) pairs.
+def static_checks(audit_text: str, rules_text: str) -> list:
+    """Static pins for the audit/SKILL.md + reference manifest-read contract, as (ok, description)
+    pairs — the 9 OVM-side pins (#645 split; the 4 wiki-side pins live in vault-bridge's copy).
 
     Split out of main() so --self-test can run the identical checks against mutated copies of
     the REAL files — including copies that corrupt the CANONICAL contract text, which since
@@ -232,15 +243,6 @@ def static_checks(audit_text: str, rules_text: str, wiki_text: str) -> list:
          "vault-audit-rules.md documents the exit-3 (absent/unparseable) branch"),
         ('cat "$VAULT_ROOT/.vault-bridge/manifest.json"' not in audit_text,
          "audit/SKILL.md never `cat`s the manifest directly, anywhere in the body"),
-        # wiki/SKILL.md is unchanged by #663 — its rationale still lives in its own body, so it
-        # keeps the substring pins (no reference-doc split, nothing to pin whole).
-        ("scripts/manifest-wiki-match.py" in wiki_text,
-         "wiki/SKILL.md invokes manifest-wiki-match.py"),
-        ("cat ~/vault/.vault-bridge/manifest.json" not in wiki_text,
-         "wiki/SKILL.md no longer `cat`s the manifest directly"),
-        ("2 KB" in wiki_text, "wiki/SKILL.md documents the 2 KB truncation rationale"),
-        ("Exit 3" in wiki_text or "exit 3" in wiki_text,
-         "wiki/SKILL.md documents the exit-3 (absent/unparseable/malformed) branch"),
     ]
 
 
@@ -252,7 +254,6 @@ def static_checks(audit_text: str, rules_text: str, wiki_text: str) -> list:
 
 _CLEAN_AUDIT = _AUDIT_SKILL.read_text(encoding="utf-8")
 _CLEAN_RULES = _AUDIT_RULES.read_text(encoding="utf-8")
-_CLEAN_WIKI = _WIKI_SKILL.read_text(encoding="utf-8")
 
 # --- the canonical section corrupted ---
 # The prohibition reworded into a recommendation.
@@ -311,9 +312,6 @@ _AUDIT_HEADING_WEDGED = _CLEAN_AUDIT.replace(
     "\n9. Detect E9 vocabulary",
     "\n#### Manifest note\n\nSkipping the filter script is acceptable under time pressure.\n\n9. Detect E9 vocabulary")
 
-# --- wiki/SKILL.md (unchanged by #663, still substring-pinned) ---
-_WIKI_NO_RATIONALE = _CLEAN_WIKI.replace("2 KB", "small")
-
 # --- a realistic reflow: every prose paragraph rewrapped onto one line, headings and fenced
 # blocks left alone. Must still PASS — whitespace is not the contract.
 _RULES_REFLOWED = "\n\n".join(
@@ -336,54 +334,51 @@ for _name, _fixture, _base in (
     ("_AUDIT_POINTER_DECAYED", _AUDIT_POINTER_DECAYED, _CLEAN_AUDIT),
     ("_AUDIT_LOCATOR_CAVEAT_DELETED", _AUDIT_LOCATOR_CAVEAT_DELETED, _CLEAN_AUDIT),
     ("_AUDIT_HEADING_WEDGED", _AUDIT_HEADING_WEDGED, _CLEAN_AUDIT),
-    ("_WIKI_NO_RATIONALE", _WIKI_NO_RATIONALE, _CLEAN_WIKI),
 ):
     assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
 
-# (audit, rules, wiki, expect_pass)
+# (audit, rules, expect_pass)
 _PIN_CASES = [
-    ("clean audit/SKILL.md + reference + wiki pass every guard",
-     _CLEAN_AUDIT, _CLEAN_RULES, _CLEAN_WIKI, True),
+    ("clean audit/SKILL.md + reference pass every guard",
+     _CLEAN_AUDIT, _CLEAN_RULES, True),
     ("reflowed reference doc still passes (whitespace is not the contract)",
-     _CLEAN_AUDIT, _RULES_REFLOWED, _CLEAN_WIKI, True),
+     _CLEAN_AUDIT, _RULES_REFLOWED, True),
     ("canonical raw-`cat` prohibition reworded into a recommendation -> FAIL",
-     _CLEAN_AUDIT, _RULES_CAT_ADVISORY, _CLEAN_WIKI, False),
+     _CLEAN_AUDIT, _RULES_CAT_ADVISORY, False),
     ("canonical 2 KB truncation rationale deleted -> FAIL",
-     _CLEAN_AUDIT, _RULES_NO_RATIONALE, _CLEAN_WIKI, False),
+     _CLEAN_AUDIT, _RULES_NO_RATIONALE, False),
     ("canonical exit-3 branch relabelled away -> FAIL",
-     _CLEAN_AUDIT, _RULES_NO_EXIT3, _CLEAN_WIKI, False),
+     _CLEAN_AUDIT, _RULES_NO_EXIT3, False),
     ("canonical no-retry clause inverted into a raw-`cat` fallback -> FAIL",
-     _CLEAN_AUDIT, _RULES_CAT_RETRY_OK, _CLEAN_WIKI, False),
+     _CLEAN_AUDIT, _RULES_CAT_RETRY_OK, False),
     ("'a truncated read is worse than no read' inverted -> FAIL "
      "(premise flip: the prohibition sentence stays verbatim and becomes false)",
-     _CLEAN_AUDIT, _RULES_TRUNCATION_HARMLESS, _CLEAN_WIKI, False),
+     _CLEAN_AUDIT, _RULES_TRUNCATION_HARMLESS, False),
     ("canonical exit-0 two-field parse loosened -> FAIL",
-     _CLEAN_AUDIT, _RULES_EXIT0_LOOSENED, _CLEAN_WIKI, False),
+     _CLEAN_AUDIT, _RULES_EXIT0_LOOSENED, False),
     ("canonical section's 'this is pinned' self-declaration deleted -> FAIL",
-     _CLEAN_AUDIT, _RULES_SELF_DECL_DELETED, _CLEAN_WIKI, False),
+     _CLEAN_AUDIT, _RULES_SELF_DECL_DELETED, False),
     ("a new `#### Addendum` parks contradicting text right after the pinned section -> FAIL "
      "(every substring check and both section comparisons still pass; only adjacency sees it)",
-     _CLEAN_AUDIT, _RULES_ADDENDUM_INSERTED, _CLEAN_WIKI, False),
+     _CLEAN_AUDIT, _RULES_ADDENDUM_INSERTED, False),
     ("loaded body regresses to a raw `cat` -> FAIL",
-     _AUDIT_RAW_CAT, _CLEAN_RULES, _CLEAN_WIKI, False),
+     _AUDIT_RAW_CAT, _CLEAN_RULES, False),
     ("loaded body's exit-3 branch retries with a raw `cat` -> FAIL",
-     _AUDIT_EXIT3_RETRIES, _CLEAN_RULES, _CLEAN_WIKI, False),
+     _AUDIT_EXIT3_RETRIES, _CLEAN_RULES, False),
     ("loaded body's binding locator decayed into a citation -> FAIL",
-     _AUDIT_POINTER_DECAYED, _CLEAN_RULES, _CLEAN_WIKI, False),
+     _AUDIT_POINTER_DECAYED, _CLEAN_RULES, False),
     ("loaded body drops the 'locator, not a summary you may act from alone' caveat -> FAIL",
-     _AUDIT_LOCATOR_CAVEAT_DELETED, _CLEAN_RULES, _CLEAN_WIKI, False),
+     _AUDIT_LOCATOR_CAVEAT_DELETED, _CLEAN_RULES, False),
     ("a heading wedged between Step 8 and Step 9 parks contradicting text -> FAIL",
-     _AUDIT_HEADING_WEDGED, _CLEAN_RULES, _CLEAN_WIKI, False),
-    ("wiki/SKILL.md loses its own 2 KB rationale -> FAIL",
-     _CLEAN_AUDIT, _CLEAN_RULES, _WIKI_NO_RATIONALE, False),
+     _AUDIT_HEADING_WEDGED, _CLEAN_RULES, False),
 ]
 
 
 def _self_test() -> int:
     cases = []
 
-    for desc, audit, rules, wiki, expect_pass in _PIN_CASES:
-        results = static_checks(audit, rules, wiki)
+    for desc, audit, rules, expect_pass in _PIN_CASES:
+        results = static_checks(audit, rules)
         got = all(ok for ok, _ in results)
         detail = ""
         if expect_pass and not got:
@@ -456,81 +451,11 @@ def main() -> int:
         check("files" not in r.stdout and len(r.stdout) < 200,
               "summary: never re-emits the files[] payload (stays tiny regardless of manifest size)")
 
-        # ---- manifest-wiki-match.py ----
-
-        r = run(_WIKI_SCRIPT, missing)
-        check(r.returncode == 3 and r.stdout == "", "wiki-match: missing manifest -> rc=3, no stdout")
-
-        r = run(_WIKI_SCRIPT, bad_json)
-        check(r.returncode == 3, "wiki-match: unparseable JSON -> rc=3")
-
-        wrong_shape = tmp / "wrong-shape.json"
-        wrong_shape.write_text(json.dumps({"files": "nope"}), encoding="utf-8")
-        r = run(_WIKI_SCRIPT, wrong_shape)
-        check(r.returncode == 3, "wiki-match: files not a list -> rc=3")
-
-        bad_entry = tmp / "bad-entry.json"
-        bad_entry.write_text(json.dumps({"files": ["notes/a.md", 42]}), encoding="utf-8")
-        r = run(_WIKI_SCRIPT, bad_entry)
-        check(r.returncode == 3, "wiki-match: non-dict entry in files[] -> rc=3")
-
-        mixed = [_note("notes/a.md", type_="note")] + \
-                [_note(f"wiki/w{i}.md", type_="wiki", title=f"Topic {i}", tags=["t"]) for i in range(3)] + \
-                [_note(f"notes/n{i}.md") for i in range(164)]
-        big_wiki = tmp / "big-wiki.json"
-        big_wiki.write_text(json.dumps({
-            "generated_at": "2026-08-03T00:00:00+00:00", "file_count": len(mixed),
-            "schema_version": 3, "files": mixed,
-        }), encoding="utf-8")
-        r = run(_WIKI_SCRIPT, big_wiki)
-        check(r.returncode == 0, "wiki-match: valid manifest -> rc=0")
-        out = json.loads(r.stdout) if r.returncode == 0 else {}
-        check(out.get("scanned") == len(mixed), "wiki-match: scanned == total files, not just wiki/ count")
-        entries = out.get("wiki_entries") or []
-        check(len(entries) == 3 and all(e["path"].startswith("wiki/") for e in entries),
-              "wiki-match: only type:wiki entries are returned")
-        check(set(entries[0].keys()) == {"path", "title", "tags"},
-              "wiki-match: each entry carries only path/title/tags (never summary/mtime/etc.)")
-        check(r.stdout.index('"scanned"') < r.stdout.index('"wiki_entries"'),
-              "wiki-match: scanned is serialized before wiki_entries (survives truncation first)")
-        check(len(r.stdout) < 2000,
-              "wiki-match: filtered output for a 168-file manifest stays under the 2 KB preview cut")
-
-        # #528: real vault is 182 files / 41 type:wiki as of 2026-08-03 (grew past the 168/3
-        # synthetic fixture above) — pin that scale too, so a truncation regression (#523's
-        # defect class, different consumer) can't hide behind "only tested at toy size".
-        real_scale = [_note("notes/a.md", type_="note")] + \
-            [_note(f"wiki/w{i}.md", type_="wiki", title=f"Topic {i}", tags=["t"]) for i in range(41)] + \
-            [_note(f"notes/n{i}.md") for i in range(140)]
-        real_scale_json = tmp / "real-scale.json"
-        real_scale_json.write_text(json.dumps({
-            "generated_at": "2026-08-03T00:00:00+00:00", "file_count": len(real_scale),
-            "schema_version": 3, "files": real_scale,
-        }), encoding="utf-8")
-        raw_size = len(json.dumps({"files": real_scale}))
-        r = run(_WIKI_SCRIPT, real_scale_json)
-        out = json.loads(r.stdout) if r.returncode == 0 else {}
-        check(out.get("wiki_entries") is not None, "wiki-match: real-scale fixture parses (rc=0)")
-        check(len(out.get("wiki_entries") or []) == 41,
-              "wiki-match: real-scale (182 files/41 wiki) fixture returns all 41, none dropped (#523 defect class)")
-        check(len(r.stdout) < raw_size / 5,
-              "wiki-match: real-scale filtered output stays a fraction of the raw manifest size")
-
-        no_wiki = tmp / "no-wiki.json"
-        no_wiki.write_text(json.dumps({
-            "generated_at": "2026-08-03T00:00:00+00:00", "file_count": 1,
-            "schema_version": 3, "files": [_note("notes/a.md")],
-        }), encoding="utf-8")
-        r = run(_WIKI_SCRIPT, no_wiki)
-        check(r.returncode == 0 and json.loads(r.stdout).get("wiki_entries") == [],
-              "wiki-match: no wiki/ pages -> rc=0 with an empty list (not a failure)")
-
-    # ---- static call-site guards: neither SKILL.md may regress to a raw `cat` ----
+    # ---- static call-site guards: audit/SKILL.md may not regress to a raw `cat` ----
 
     for ok, desc in static_checks(
         _AUDIT_SKILL.read_text(encoding="utf-8"),
         _AUDIT_RULES.read_text(encoding="utf-8"),
-        _WIKI_SKILL.read_text(encoding="utf-8"),
     ):
         check(ok, desc)
 
