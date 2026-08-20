@@ -276,10 +276,20 @@ python3 scripts/check-skill-catalogue-drift.py
 # unchecked rather than guessed at by a general number parser.
 
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 25 check-skill-token-budget self-test cases passed
+# Expected: OK: all 31 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
-# Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
-#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
+# Expected: DESCRIPTION TOTAL: N skill(s) N char(s) + N agent(s) N char(s) = N char(s)
+#   (disable-model-invocation excluded) OK: skill-token-budget clean — N file(s) checked
+#   (SKILL.md/agents/*.md/CLAUDE.md), every one within 5000 tokens, SKILL.md gates inside the
+#   window [o200k_base] (largest ...)
+# #686: always-loaded description-char total (skills + agents, disable-model-invocation
+# excluded) prints on stdout unconditionally — never behind --list, always before the
+# OK:/FAIL: line, on the FAIL path too. A second FAIL trigger sits beside the existing
+# 5,000-token budget: any single SKILL.md `description:` over 1,536 chars (the harness
+# skill-listing truncation cap) is reported by name; agents/*.md are summed but never
+# flagged, since the cap is documented for the skill listing only. Both violation kinds are
+# reported together (never short-circuit) before returning exit 1. See
+# scripts/check-skill-token-budget.py's DESCRIPTION_CHAR_BUDGET / description_stats().
 
 python3 scripts/check-release-failure-notify.py --self-test
 # Expected: OK: all check-release-failure-notify self-test cases passed
