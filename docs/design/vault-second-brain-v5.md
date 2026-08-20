@@ -1,6 +1,6 @@
 # Vault Second Brain 설계안 v5 — LLM-compiled wiki (A 主) + 참고자료 창고 (B, 승격 게이트 폐기)
 
-> 작성일: 2026-06-23 · 최종 개정: 2026-08-04(#477) · 상태: **구현됨** — A(wiki)·B(참고자료 창고) 모두 코드에 반영, §15 전 항목 완료
+> 작성일: 2026-06-23 · 최종 개정: 2026-08-20(#645, §9 축약 — 배포 단위 단일 출처를 `claude-kit-boundary.md` §2로 이관) · 상태: **구현됨** — A(wiki)·B(참고자료 창고) 모두 코드에 반영, §15 전 항목 완료
 > 대체 대상: `vault-second-brain-v4.md` (인간 저작 second-brain 모델)
 > 방향 출처 — **정전(SSOT) = GitHub #215**(④ 재설계). 근거 트레일: 토론 문서 `docs/discussions/20260612_vault-llm-wiki-redesign/`
 > (SUMMARY+UNRESOLVED+RESOLUTIONS-draft) · `docs/discussions/20260623_vault-debloat-reckoning/DECISION.md`(5레이어) ·
@@ -97,8 +97,8 @@ provenance: {session/query}  # U3 추적용 必 — 어느 탐구가 이 페이�
 ```
 
 - **status machine 밖**: A엔 **status-machine 검토**(raw→draft→evergreen 같은 판단형 승인)가 없다(AI 저작).
-  `wiki` skill PLAN 단계가 쓰기 전 보여주는 확인("one human glance", `obsidian-vault-manager/skills/wiki/SKILL.md`
-  Phase 4)은 이 검토와 다르다 — 승인/반려
+  `wiki` skill PLAN 단계가 쓰기 전 보여주는 확인("one human glance", `vault-bridge/skills/wiki/SKILL.md`
+  Phase 4 — 2026-08-20 OVM에서 이관, #645)은 이 검토와 다르다 — 승인/반려
   판단이 아니라 저장 전 오탈자·오분류를 잡는 저비용 눈길이라, A가 판단형 검토 없이 자율 컴파일한다는 §2의
   성격을 바꾸지 않는다(§U6 정정, 2026-07-11, #215). A는 provenance 추적 AI 페이지지 검토-status 페이지가
   아니다. (raw→draft→evergreen은 원래 B의 일이었으나 그 machine 자체가 폐기됐다 — §5, #480. A쪽 서술엔
@@ -169,7 +169,8 @@ provenance: "{출처 — URL·세션 주제·대화·책·회의}"   # 必
   기계적으로 갈린다: 원문 그대로 가져온 것(URL·붙여넣은 원문·세션 덤프) → `sources/`, 내가 쓴 서술 →
   `notes/`. 정제도로 나누지 않으므로 "capture와 note 중 뭘 쓰지"라는 판단이 입구에서 사라진다.
 - **입구가 vault-bridge인 이유**: B는 프로젝트에서 일하다 자료를 넣는 층이라 ③ delivery I/O 기판에 붙는
-  게 맞다. OVM은 **사서**로 남는다 — 컴파일(`/wiki`)·감사(`/audit`)·뷰(`/base`), 즉 들어온 다음의 일.
+  게 맞다. OVM은 **사서**로 남는다 — 감사(`/audit`)·뷰(`/base`), 즉 들어온 다음의 일 (컴파일 `/wiki`는
+  2026-08-20 vault-bridge로 이관, #645).
   신설이라 #102 ADR 폐기가 아니고(입구 스킬이 새로 생긴 것), OVM 정체성도 안 바뀌며, 프로젝트 어디서든
   호출 가능해진다 — 셋이 동시에 성립한다.
 - **`--type decision`은 KEEP으로 확정 (#477 미결 2, 2026-08-04 판정)**: 볼트 재고를 실측한 결과
@@ -251,36 +252,11 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 
 ---
 
-## 9. 구현 위치 (U5) — 신규 플러그인 0, OVM 확장 + vault-bridge I/O 재사용
+## 9. 구현 위치 (U5)
 
-레이어 모델(claude-kit-boundary.md): ③딜리버리=vault-bridge, ④지식베이스=OVM. wiki(A)의 **저작·컴파일·
-감사 로직**은 본질이 ④ 지식 상주·컴파일·감사라 **OVM의 일**이다. 단 read 인프라(manifest·vault-searcher)는
-③ vault-bridge가 전 vault 공통으로 이미 소유하므로 그대로 재사용한다(아래 표 read 2행).
-
-| 관심사 | 귀속 |
-|---|---|
-| wiki(A) 컴파일·링크·일관성·self-audit | **OVM 확장**(audit가 E1~E11 보유) |
-| ~~B 내부 promotion 게이트~~ | **폐기**(§6, #480) — 귀속처 자체가 없어졌다 |
-| B 입구(참고자료 저장) | **vault-bridge `/vault-save`**(§5, #480) — 프로젝트에서 호출 |
-| B 사서 일(감사·뷰) | **OVM** `/audit`·`/base` — 들어온 다음의 일. `/base recent`는 폴더 무관이라 A도 섞여 나옴(§3) |
-| wiki read(AI recall) 인덱스 | **vault-bridge manifest 재용도** |
-| wiki read 위임 | **vault-bridge vault-searcher**(haiku, recall 정렬 完) |
-| A `--save` 진입점(`/wiki`) | **OVM skill**(호출형), hook 아님 |
-
-- **신규 플러그인 기각**: vault 도메인 3분할은 MECE 흐림 + CON-5 단방향 위험. A는 OVM 내부 capability로 추가
-  (leaf 내부 확장 = 경계 무손상).
-- **CON-5 무손상**: harness(⑤)는 여전히 leaf OUTPUT만 읽는다. wiki는 leaf 내부 기능.
-
-> **재확인 (2026-08-18, #645) — 현행 유지**: `/wiki`가 OVM 설치 프로젝트에서만 호출 가능해 프로젝트
-> 세션 접근성이 막힌다는 문제 제기에, 레이어 축(④ 유지)과 배포 축(③ vault-bridge로 이관)을 분리하자는
-> 제안이 올라왔다. 격리 expert-panel 재검증(7인 독립 논증, 찬성 4 : 반대 12 가중표, 마진 8) 결과
-> **OVERTURNED — 이관하지 않는다**. 근거: (1) #304가 "어느 플러그인이 소유하나"를 기준으로 이미 온점
-> 판례라 레이어·배포를 쪼개면 그 판례가 무력화된다, (2) 이관은 §3 leaf 독립설치성을 반대 방향으로
-> 깬다 — OVM 단독 설치(실사용 2곳)가 vault-bridge 의존 상태가 된다, (3) 실측상 "OVM은 볼트에만
-> 깔린다"는 전제 자체가 틀렸다 — PhototicketMaker가 2026-07-29·30 프로젝트에 OVM을 활성화한 채
-> `/wiki`를 정상 호출·성공한 텔레메트리·wiki 산출물이 확인됐고, 지금 안 되는 건 그 프로젝트
-> `settings.local.json`에서 OVM이 빠진 설정 상태일 뿐이다. 접근성 문제는 배포 이관이 아니라 설정
-> 층(프로젝트별 OVM 활성화, 또는 전역 활성화 + vault 부재 시 no-op 가드)에서 해소한다.
+배포 단위(어느 플러그인이 무엇을 소유하는가)의 단일 출처는 `claude-kit-boundary.md` §2(+ §5 선례
+편철)다 — 이 문서에서 두 번째로 정의하지 않는다(2026-08-20, #645; "state each rule once"를 스스로
+어긴 자기 자신을 고친 정정).
 
 ---
 
@@ -372,7 +348,8 @@ archive/A-only 확정)으로 재판할 계획이었다. **owner가 이 클럭을
   언젠가 실제로 지어진다면(§15, 미구현) 그 설계도 이 링크only 원칙을 지켜야 한다는 뜻으로 유지한다.
   역방향(B→A로 인간 노트를 그대로 흡수)도
   금지 — A는 AI가 탐구 과정에서 합성한 지식만 먹는다(§4.2).
-- **MECE**: wiki는 OVM(④) capability. vault-bridge(③)는 I/O 기판. 경계 무손상.
+- **MECE**: wiki는 vault-bridge(③) capability(2026-08-20 이관, #645). audit E12(wiki self-audit)는
+  OVM(④) 잔류. 경계 무손상 — 배치 근거는 `claude-kit-boundary.md` §2.
 - **비가역 회피**: 기존 더미는 hard delete 아닌 cold archive. 삭제는 trash 경유(`rm` 금지).
 
 ---
