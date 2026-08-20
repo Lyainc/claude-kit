@@ -72,7 +72,17 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
    ```
 2. Parse `$ARGUMENTS`: strip a leading `--type decision` or `--type discussion` flag if present;
    the rest is the content or URL.
-3. `mkdir -p` the target directory before writing.
+3. **Vault existence check (#697) — before any `mkdir`.** Same contract as `hooks/pre-write-guard.sh:52-54`:
+   a missing `{vault_root}` is a no-op, never something to create.
+   ```bash
+   [ -d "{vault_root}" ] && echo exists || echo missing
+   ```
+   **Missing** → STOP. Do not write, do not `mkdir` anything. Tell the user in Korean that no vault
+   was found at that path and point them at the plugin's Vault Path setting (or
+   `VAULT_BRIDGE_VAULT_ROOT`) — a vault created by this write would never receive a manifest either
+   (`session-start-manifest.sh` no-ops on the same missing-root check), degrading every future
+   recall/dedup on it silently. **Present** → `mkdir -p` the target subdirectory (`sources/`/`notes/`)
+   before writing; that only creates a folder inside a real vault, not the vault root.
 4. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
    write the content as the body verbatim (keep the user's own wording — do not summarize).
 5. Filename collision — use Glob over the target folder to see whether the same stem already

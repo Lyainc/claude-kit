@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Emit vault-searcher Mode 2 (Domain Context) manifest candidates without a raw `Read` of
-.vault-bridge/manifest.json (#523, mirrors #468's obsidian-vault-manager/scripts/manifest-wiki-match.py).
+.vault-bridge/manifest.json (#523, mirrors #468's manifest-wiki-match.py, this same directory since #645).
 
 vault-searcher.md used to `Read` the whole manifest file. On a real vault (180+ entries / 129 KB /
 3,338 lines pretty-printed) that overflows the Read tool's 2,000-line default cap, and because

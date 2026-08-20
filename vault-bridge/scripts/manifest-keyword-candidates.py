@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Emit vault-searcher Mode 3 (Keyword Search) manifest pre-filter candidates without a raw
 `Read` of .vault-bridge/manifest.json (#523, sibling of manifest-domain-candidates.py, mirrors
-#468's obsidian-vault-manager/scripts/manifest-wiki-match.py).
+#468's manifest-wiki-match.py, this same directory since #645).
 
 Same defect class: an unbounded `Read` of the full manifest overflows the Read tool's 2,000-line
 cap on a real vault, and because generate-manifest.py sorts `wiki/` alphabetically last, 100% of
