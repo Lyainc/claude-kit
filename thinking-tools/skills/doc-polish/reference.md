@@ -1,12 +1,13 @@
 # Document Polish - Reference
 
-Detailed procedures and guidelines for the 3-layer verification system.
+Detailed procedures and guidelines for the 4-layer verification system.
 
 ## Table of Contents
 
 - [Layer 1: Mechanical Details](#layer-1-mechanical-details)
 - [Layer 2: Consistency & Readability Details](#layer-2-consistency--readability-details)
 - [Layer 3: Semantic Details](#layer-3-semantic-details)
+- [Layer 4: Fact Cross-Check Details](#layer-4-fact-cross-check-details)
 - [Fix Mode Behavior](#fix-mode-behavior)
 - [Edge Cases](#edge-cases)
 
@@ -211,6 +212,58 @@ Line 12: Unexplained term
 
 ---
 
+## Layer 4: Fact Cross-Check Details
+
+### Gate
+
+Scan the document once before doing any lookup. Run the layer only when at least one of these is
+present; otherwise skip it and omit its line from the report entirely.
+
+| Pattern | Example |
+|---------|---------|
+| Issue/PR reference | `#688`, `PR #693` |
+| Repo-relative path | `scripts/check-test-exitcode.py`, `thinking-tools/skills/` |
+| Script, function, or flag name | `check-version-sync.py`, `--fix`, `create_inline_comment` |
+| Commit SHA (7-40 hex) | `3b82292` |
+| Status assertion | "미구현", "없음", "아직", "지원 안 함", "not implemented" |
+
+The gate is what keeps `gh`/`git` off an ordinary polish call. A README with no issue numbers and
+no paths costs exactly what it did before this layer existed.
+
+### Checks
+
+| Claim | Command | Mismatch looks like |
+|-------|---------|---------------------|
+| `#N` and what the prose says about it | `gh issue view N --json state,title` | prose says "열려 있다", state is `CLOSED` |
+| path exists | test the path | referenced file was moved or deleted |
+| name exists as described | `grep -rn "<name>"` | renamed, or never existed |
+| SHA resolves | `git log -1 --format=%s <sha>` | rebased away, or wrong subject |
+| asserted absence still holds | `grep`/`gh` for the thing | "아직 없다" but it landed since |
+
+**Deterministic only.** If settling the claim needs weighing rather than one lookup, it is out of
+scope — that is `adversarial-review`'s question, not this one.
+
+### Reporting
+
+Three verdicts, one reported:
+
+| Verdict | Reported |
+|---------|----------|
+| 확인됨 | no |
+| **어긋남** | **yes** — line number, what the doc asserts, what the check returned |
+| 저장소로 확인 불가 | no |
+
+Reporting the two silent verdicts would bury the one that matters under a list of things that were
+fine. When the whole layer finds nothing, its report line is omitted rather than printed as zero.
+
+### Why this layer never writes
+
+A wrong fact means the document's *content* must change, and "Editor, not Writer" forbids exactly
+that. So Layer 4 is excluded from `--fix` by design, not by omission: it hands the mismatch to a
+human and stops. Auto-correcting here would quietly make this skill a writer.
+
+---
+
 ## Fix Mode Behavior
 
 ### Auto-fix Scope
@@ -220,6 +273,7 @@ Line 12: Unexplained term
 | Layer 1 | Formatting, whitespace, blank lines | Broken links, missing lang tags |
 | Layer 2 | Nothing (suggestions only) | Consistency issues, readability suggestions |
 | Layer 3 | Nothing (warnings only) | Vague claims, outdated info |
+| Layer 4 | Nothing, ever (see below) | 어긋남 only — 확인됨/확인 불가 stay silent |
 
 ### Fix Process
 
