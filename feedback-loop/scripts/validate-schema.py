@@ -72,6 +72,11 @@ VALID_EVENTS = {
     # meta is free-form per the envelope rule; conventional keys: rule_id (str),
     # severity ('hard'|'soft'), file (str), count (int). All optional.
     "rule_fire",
+    # pre_compact — #694: PreCompact hook passthrough (rules/precompact-telemetry.sh in
+    # local-harness). Conventional meta key: compact_trigger ('manual'|'auto', lifted
+    # from the hook payload's own .trigger field by extract_pre_compact_meta — named
+    # compact_trigger, not trigger, to avoid colliding with the envelope's own field).
+    "pre_compact",
 }
 
 # Under --strict, a PostToolUse end event (skill_invoke/agent_spawn with a
@@ -238,12 +243,26 @@ def run_self_test() -> int:
         "tool_use_id": "",
         "meta": {"rule_id": "no-pyyaml", "severity": "hard", "file": "foo.py"},
     })
+    # A pre_compact event (#694) must validate cleanly, including its lifted
+    # meta.compact_trigger ("manual"|"auto") and its outcome="success"
+    # (unconstrained, not an end event). Named compact_trigger, not trigger, to
+    # avoid colliding with the envelope's own top-level trigger field (below,
+    # a different axis: hardcoded "auto" for this whole hook-driven group).
+    good_pre_compact = json.dumps({
+        "ts": "2026-05-15T00:00:00Z",
+        "session_id": "x", "cwd": "/", "plugin": "claude-kit",
+        "event": "pre_compact", "name": "", "qualified_name": "",
+        "trigger": "auto", "outcome": "success",
+        "tool_use_id": "",
+        "meta": {"compact_trigger": "manual"},
+    })
     bad = '{"ts":"x","event":"not-an-event"}'
 
     sp = Path("self-test.jsonl")
     good_errs, _ = validate_line(good, 1, sp)
     good_meta_errs, _ = validate_line(good_meta, 1, sp)
     good_rule_fire_errs, good_rule_fire_warns = validate_line(good_rule_fire, 1, sp, strict=True)
+    good_pre_compact_errs, good_pre_compact_warns = validate_line(good_pre_compact, 1, sp, strict=True)
     good_meta_null_errs, _ = validate_line(good_meta_null, 1, sp)
     empty_lax_errs, empty_lax_warns = validate_line(empty_meta_end, 1, sp, strict=False)
     _, empty_strict_warns = validate_line(empty_meta_end, 1, sp, strict=True)
@@ -265,6 +284,13 @@ def run_self_test() -> int:
     if good_rule_fire_warns:
         print(f"FAIL: rule_fire wrongly warned under --strict (not an end event): "
               f"{good_rule_fire_warns}", file=sys.stderr)
+        return 1
+    if good_pre_compact_errs:
+        print(f"FAIL: good pre_compact line flagged: {good_pre_compact_errs}", file=sys.stderr)
+        return 1
+    if good_pre_compact_warns:
+        print(f"FAIL: pre_compact wrongly warned under --strict (not an end event): "
+              f"{good_pre_compact_warns}", file=sys.stderr)
         return 1
     if good_meta_null_errs:
         print(f"FAIL: good null-duration meta line flagged: {good_meta_null_errs}",

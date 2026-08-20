@@ -146,6 +146,7 @@ next `session_start` (#514), so `.session-model/` stays bounded to recent sessio
 | `session_start` / `session_end` | SessionStart / SessionEnd | session_id only |
 | `stop` | Stop | response-boundary counter |
 | `rule_fire` | `event-logger.sh rule_fire` (emitted by any work-rule guard) | rule_id / severity / file (all optional) |
+| `pre_compact` | PreCompact (local-harness `rules/precompact-telemetry.sh` wrapper) | `meta.compact_trigger` ("manual"\|"auto", why compaction fired — distinct from the envelope's own `trigger`, which stays "auto" for this whole hook-driven group) |
 
 `outcome` values: `started` (PreToolUse), `success` / `error` / `blocked`
 (PostToolUse), `fired` (rule_fire). All inner `meta` keys are optional — only the

@@ -33,6 +33,7 @@
 #   agent_spawn_start   agent_spawn_end
 #   command_run         stop
 #   session_start       session_end
+#   pre_compact
 
 set -uo pipefail
 
@@ -167,6 +168,25 @@ extract_stop_meta() {
   printf '{}'
 }
 
+# Build the meta object for the PreCompact event (#694).
+#
+# CONFIRMED: a real PreCompact hook payload was captured via
+# CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1 against a live `/compact`. Its keys are
+# session_id, transcript_path, cwd, prompt_id, hook_event_name, trigger,
+# custom_instructions — the payload's trigger is "manual" (typed /compact) or
+# "auto" (context-window threshold), lifted here as meta.compact_trigger the
+# same way rule_fire lifts meta.rule_id. Named compact_trigger, not trigger,
+# so it can't be confused with the envelope's own top-level `trigger` field
+# (hardcoded "auto" for this whole hook-driven event group — a different axis:
+# explicit-vs-auto telemetry classification, not why compaction fired).
+# Dropped when absent/null so the envelope stays clean; jq errors fall back to {}.
+extract_pre_compact_meta() {
+  local payload="$1"
+  printf '%s' "$payload" | jq -c '
+    {} + (if (.trigger != null) then {compact_trigger: .trigger} else {} end)
+  ' 2>/dev/null || printf '{}'
+}
+
 # Sweep .session-model/<session_id> cache files older than SESSION_MODEL_STALE_DAYS
 # (#514). Piggybacked on session_start rather than session_end: session_end never
 # fires for a killed/crashed session, but every fresh session always fires
@@ -250,7 +270,7 @@ case "$EVENT_TYPE" in
     esac
     ;;
 
-  session_start|session_end|stop)
+  session_start|session_end|stop|pre_compact)
     PLUGIN="claude-kit"
     TRIGGER="auto"
     OUTCOME="success"
@@ -267,6 +287,8 @@ case "$EVENT_TYPE" in
         mkdir -p "$SESSION_MODEL_DIR" 2>/dev/null \
           && { printf '%s' "$SESSION_MODEL" > "${SESSION_MODEL_DIR}/${SID_SAFE}"; } 2>/dev/null || true
       fi
+    elif [ "$EVENT_TYPE" = "pre_compact" ]; then
+      META="$(extract_pre_compact_meta "$PAYLOAD")"
     fi
     ;;
 
