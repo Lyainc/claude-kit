@@ -2,8 +2,9 @@
 # feedback-loop/scripts/test/test-event-logger.sh
 #
 # Unit test for event-logger.sh's meta extractors (extract_end_meta /
-# extract_stop_meta) and the .session-model cache sweep (cleanup_stale_session_models,
-# #514) against SYNTHETIC hook payloads / fixture files.
+# extract_stop_meta / extract_pre_compact_meta) and the .session-model cache
+# sweep (cleanup_stale_session_models, #514) against SYNTHETIC hook payloads /
+# fixture files.
 #
 # Coverage:
 #   - happy path (full tool_response.usage block)
@@ -61,6 +62,7 @@ trap 'rm -f "$FN_SLICE"; rm -rf "$MODEL_DIR" "$CLEANUP_DIR"' EXIT
 awk '
   /^extract_end_meta\(\)/  { grab=1 }
   /^extract_stop_meta\(\)/ { grab=1 }
+  /^extract_pre_compact_meta\(\)/ { grab=1 }
   /^cleanup_stale_session_models\(\)/ { grab=1 }
   grab { print }
   grab && /^}/ { grab=0 }
@@ -75,6 +77,10 @@ if ! declare -F extract_end_meta >/dev/null 2>&1; then
 fi
 if ! declare -F extract_stop_meta >/dev/null 2>&1; then
   printf 'FAIL: extract_stop_meta not defined after sourcing slice\n' >&2
+  exit 1
+fi
+if ! declare -F extract_pre_compact_meta >/dev/null 2>&1; then
+  printf 'FAIL: extract_pre_compact_meta not defined after sourcing slice\n' >&2
   exit 1
 fi
 if ! declare -F cleanup_stale_session_models >/dev/null 2>&1; then
@@ -201,6 +207,37 @@ assert_json_eq "stop:jq-invalid -> {} fallback" \
   '{}'
 
 # ============================================================================
+# extract_pre_compact_meta — PreCompact-event meta (#694)
+# ============================================================================
+
+# A real PreCompact payload shape (session_id/transcript_path/cwd/prompt_id/
+# hook_event_name/trigger/custom_instructions, captured via
+# CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1 against a live `/compact`) -> payload's
+# .trigger lifted as meta.compact_trigger (not meta.trigger — see extractor
+# comment on why the key is renamed to avoid the envelope-field collision).
+pre_compact_real_shape='{"session_id":"x","transcript_path":"/x.jsonl","cwd":"/","prompt_id":"p","hook_event_name":"PreCompact","trigger":"manual","custom_instructions":null}'
+assert_json_eq "pre_compact:real manual-trigger payload -> {compact_trigger:manual}" \
+  "$(extract_pre_compact_meta "$pre_compact_real_shape")" \
+  '{"compact_trigger":"manual"}'
+
+pre_compact_auto='{"trigger":"auto"}'
+assert_json_eq "pre_compact:auto trigger -> {compact_trigger:auto}" \
+  "$(extract_pre_compact_meta "$pre_compact_auto")" \
+  '{"compact_trigger":"auto"}'
+
+# Missing .trigger -> {} (dropped, not a null/empty key).
+pre_compact_no_trigger='{"session_id":"x"}'
+assert_json_eq "pre_compact:missing trigger -> {}" \
+  "$(extract_pre_compact_meta "$pre_compact_no_trigger")" \
+  '{}'
+
+# jq-invalid payload -> still {} (no crash).
+pre_compact_invalid='}{ broken'
+assert_json_eq "pre_compact:jq-invalid -> {} fallback" \
+  "$(extract_pre_compact_meta "$pre_compact_invalid")" \
+  '{}'
+
+# ============================================================================
 # cleanup_stale_session_models — .session-model cache sweep (#514)
 # ============================================================================
 
@@ -248,10 +285,10 @@ fi
 # header's own invariant, :6-9). `printf ... >> "$FILE" 2>/dev/null` alone
 # does not do this: the redirect opens before `2>/dev/null` takes effect, so
 # the shell's own "Permission denied" diagnostic escapes to stderr. Three call
-# sites share this shape (:94 raw-payload dump, :268 session-model cache
-# write, :355 the main jsonl append) — each needs its own fixture to actually
+# sites share this shape (:95 raw-payload dump, :288 session-model cache
+# write, :377 the main jsonl append) — each needs its own fixture to actually
 # reach a `>`/`>>` open failure (a read-only LOG_DIR alone only exercises
-# :355, since :268's own `mkdir -p` short-circuits first).
+# :377, since :288's own `mkdir -p` short-circuits first).
 # ============================================================================
 
 STDERR_617="$(mktemp 2>/dev/null || printf '/tmp/test-event-logger-617-%s' "$$")"
@@ -269,33 +306,33 @@ assert_silent_clean() {
   fi
 }
 
-# :355 — main jsonl append, LOG_DIR itself write-unable. event_type must be one
+# :377 — main jsonl append, LOG_DIR itself write-unable. event_type must be one
 # that actually reaches a non-empty $LINE (the issue's own repro type,
-# session_start) — command_run against this bare a payload exits at :348
-# ([-n "$LINE"]) before ever reaching :355, which would pass vacuously.
-D355="$(mktemp -d)/events"; mkdir -p "$D355"; chmod 500 "$D355"
-OUT="$(printf '{"session_id":"s355","model":"x"}' \
-  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D355" \
+# session_start) — command_run against this bare a payload exits at :370
+# ([-n "$LINE"]) before ever reaching :377, which would pass vacuously.
+D377="$(mktemp -d)/events"; mkdir -p "$D377"; chmod 500 "$D377"
+OUT="$(printf '{"session_id":"s377","model":"x"}' \
+  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D377" \
     "$LOGGER" session_start 2>"$STDERR_617")"
-assert_silent_clean "event-logger:355 write-unable LOG_DIR" "$OUT" "$?"
-chmod 700 "$D355"
+assert_silent_clean "event-logger:377 write-unable LOG_DIR" "$OUT" "$?"
+chmod 700 "$D377"
 
-# :268 — session-model cache write, .session-model dir pre-created + write-unable
+# :288 — session-model cache write, .session-model dir pre-created + write-unable
 # (LOG_DIR itself stays writable so mkdir -p on it does not short-circuit first).
-D268="$(mktemp -d)/events"; mkdir -p "$D268/.session-model"; chmod 500 "$D268/.session-model"
-OUT="$(printf '{"session_id":"s268","model":"x"}' \
-  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D268" \
+D288="$(mktemp -d)/events"; mkdir -p "$D288/.session-model"; chmod 500 "$D288/.session-model"
+OUT="$(printf '{"session_id":"s288","model":"x"}' \
+  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D288" \
     "$LOGGER" session_start 2>"$STDERR_617")"
-assert_silent_clean "event-logger:268 write-unable session-model dir" "$OUT" "$?"
-chmod 700 "$D268/.session-model"
+assert_silent_clean "event-logger:288 write-unable session-model dir" "$OUT" "$?"
+chmod 700 "$D288/.session-model"
 
-# :94 — raw-payload dump, raw/ dir pre-created + write-unable.
-D94="$(mktemp -d)/events"; mkdir -p "$D94/raw"; chmod 500 "$D94/raw"
-OUT="$(printf '{"session_id":"s94"}' \
-  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D94" \
+# :95 — raw-payload dump, raw/ dir pre-created + write-unable.
+D95="$(mktemp -d)/events"; mkdir -p "$D95/raw"; chmod 500 "$D95/raw"
+OUT="$(printf '{"session_id":"s95"}' \
+  | env -u CLAUDE_PROJECT_DIR CLAUDE_KIT_TELEMETRY=1 CLAUDE_KIT_TELEMETRY_DIR="$D95" \
     CLAUDE_KIT_TELEMETRY_DUMP_PAYLOAD=1 "$LOGGER" command_run 2>"$STDERR_617")"
-assert_silent_clean "event-logger:94 write-unable raw dir" "$OUT" "$?"
-chmod 700 "$D94/raw"
+assert_silent_clean "event-logger:95 write-unable raw dir" "$OUT" "$?"
+chmod 700 "$D95/raw"
 
 # --- Summary -----------------------------------------------------------------
 printf '\n%d passed, %d failed\n' "$PASSES" "$FAILURES"
