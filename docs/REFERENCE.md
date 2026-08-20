@@ -41,17 +41,17 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                          # 3개 스킬 (wiki, audit, base)
+│   ├── skills/                          # 2개 스킬 (audit, base — wiki는 #645로 vault-bridge 이관)
 │   ├── agents/                          # 2개 에이전트
-│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, obsidian-bases-schema.md
+│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-bases-schema.md
 │   └── scripts/                         # ovm-primitives.sh + test/ (audit-validate.py, gen-fixture.sh, ...)
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
-│   ├── skills/                          # 4개 스킬 (vault-save, vault-link, vault-manifest-refresh, vault-commit)
+│   ├── skills/                          # 5개 스킬 (vault-save, wiki, vault-link, vault-manifest-refresh, vault-commit)
 │   ├── hooks/                           # 2개 hook handler (session-start-manifest, pre-write-guard)
-│   ├── reference/                       # manifest-recall.md, vault-searcher-examples.md, wiki-staleness.md
-│   └── scripts/                         # generate-manifest.py + tests/
+│   ├── reference/                       # manifest-recall.md, vault-searcher-examples.md, wiki-staleness.md, obsidian-format.md
+│   └── scripts/                         # generate-manifest.py, manifest-wiki-match.py + tests/
 ├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
 │   ├── .claude-plugin/plugin.json       # hooks 키: 8 event-type 등록 (opt-in telemetry)
 │   ├── skills/                          # retro (#639 — telemetry 낭비 패턴 action 단일 출력 + dedup)
@@ -69,7 +69,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 
 ## vault-bridge Hooks & Skills
 
-vault-bridge registers 2 hook handlers + 4 skills. All hooks are **deterministic shell scripts**
+vault-bridge registers 2 hook handlers + 5 skills. All hooks are **deterministic shell scripts**
 unless explicitly noted otherwise — no per-turn LLM cost.
 
 **Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for
@@ -81,8 +81,9 @@ vault-bridge once carried are now retired: the `session` adapter (`docs/design/o
 path was redefined wiki-first (session knowledge → OVM `/wiki` + native memory), and the
 `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired in G26 (decision
 G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside
-claude-kit. vault-bridge's remaining write skill is `/vault-commit` (git commit); vault *content*
-authoring (`/vault-save`) belongs to vault-bridge, compilation (`/wiki`) to obsidian-vault-manager. vault-bridge is still
+claude-kit. vault-bridge's remaining write skills are `/vault-commit` (git commit), `/vault-save`
+(vault *content* authoring), and `/wiki` (compilation — moved here from obsidian-vault-manager
+2026-08-20, #645). vault-bridge is still
 claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the
 output layer is **distributed in-place**, so these delivery adapters live here rather than in a
 separate plugin.
@@ -122,6 +123,10 @@ separate plugin.
 - **`/vault-save`**: the single reference-material entry (#480) — source text as-is → `sources/`,
   prose you wrote → `notes/`. Saves immediately with no confirmation, always writes `provenance:`,
   never writes `status:`. Replaced OVM's retired `/capture` and `/note`.
+- **`/wiki`**: compiles domain knowledge learned during work into `~/vault/wiki/` (v5 A layer,
+  AI-recall primary, gated explicit action, always writes `provenance:`/`verified:`). Moved here
+  from obsidian-vault-manager 2026-08-20 (#645, isolated expert-panel re-verdict e1 6:1 → e2 7:0) —
+  audit E1–E3/E5–E6/E9–E12 (incl. E12 wiki self-audit) stays in obsidian-vault-manager.
 - **`/vault-link`**: creates a `.vault-link` pointer file binding the current project to a vault
   location.
 - **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).

@@ -51,8 +51,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 | 스킬 | 하는 일 |
 |---|---|
-| `audit` | vault 구조 무결성 감사 (E1–E3·E5–E6·E9–E12 오류 추적) |
-| `wiki` | 도메인 지식을 LLM wiki 페이지로 컴파일 (AI recall, 게이트된 명시 액션) |
+| `audit` | vault 구조 무결성 감사 (E1–E3·E5–E6·E9–E12 오류 추적, wiki self-audit 포함) |
 | `base` | 비파괴 Obsidian Bases(.base) 뷰 생성 |
 
 ```bash
@@ -61,11 +60,12 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 ### vault-bridge — 프로젝트 ↔ vault 브릿지
 
-외부 코드 프로젝트에서 vault에 참고자료를 넣고, 검색하고, 변경사항을 git에 커밋해요. haiku 기반 읽기 전용 검색 에이전트 + 저장/링크/커밋 슬래시 커맨드 + 결정형 훅(턴당 LLM 비용 0). 도메인 지식 컴파일(`/wiki`)과 vault 큐레이션은 obsidian-vault-manager가 담당해요.
+외부 코드 프로젝트에서 vault에 참고자료를 넣고, 도메인 지식을 wiki로 컴파일하고, 검색하고, 변경사항을 git에 커밋해요. haiku 기반 읽기 전용 검색 에이전트 + 저장/컴파일/링크/커밋 슬래시 커맨드 + 결정형 훅(턴당 LLM 비용 0). vault 큐레이션(감사·뷰)은 obsidian-vault-manager가 담당해요.
 
 | 커맨드 | 하는 일 |
 |---|---|
 | `/vault-save` | 참고자료를 vault에 저장 — 원문은 `sources/`, 내가 쓴 건 `notes/` (확인 없이 즉시 저장) |
+| `/wiki` | 도메인 지식을 LLM wiki 페이지로 컴파일 (AI recall, 게이트된 명시 액션) — 2026-08-20 obsidian-vault-manager에서 이관(#645) |
 | `/vault-link` | 프로젝트를 특정 vault 위치에 바인딩 |
 | `/vault-commit` | vault 변경사항 커밋 |
 | `/vault-manifest-refresh` | vault 매니페스트 캐시를 강제 재생성 — staleness 검사 우회 |
@@ -190,10 +190,20 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 |---|---|
 | 로컬 세션 컨텍스트 | native memory (자동) |
 | 가공 없는 원석 캡처 | `/vault-save` (vault-bridge) → `~/vault/sources/` |
-| 컴파일된 도메인 지식 (AI recall) | `/wiki` (obsidian-vault-manager) → `~/vault/wiki/` |
+| 컴파일된 도메인 지식 (AI recall) | `/wiki` (vault-bridge) → `~/vault/wiki/` |
 | 다음 세션 인수인계 | 머신 레벨 `session-close` 스킬 (claude-kit 미포함) |
 
 과거 `session-wrapup` 태그·`type: session` 노트는 그대로 유지(migration script 없음). 단계별 상세 이력은 [CHANGELOG.md](CHANGELOG.md).
+
+### `/wiki` 배포 단위 이관 → vault-bridge (2026-08-20, #645)
+
+**Breaking change**: `/wiki` 스킬(+ `scripts/manifest-wiki-match.py`, `reference/obsidian-format.md`)이 obsidian-vault-manager에서 vault-bridge로 이관됐습니다. obsidian-vault-manager와 vault-bridge를 함께 설치해온 사용자는 영향이 없습니다. **obsidian-vault-manager만 단독 설치**해 `/wiki`를 쓰던 경우, 이 버전부터 vault-bridge를 추가 설치해야 `/wiki`가 다시 보입니다:
+
+```bash
+claude plugin install vault-bridge@Lyainc-claude-kit
+```
+
+audit E1–E3·E5–E6·E9–E12(wiki self-audit E12 포함)·`base`·두 에이전트는 obsidian-vault-manager에 그대로 남습니다. 판정 근거: [이슈 #645](https://github.com/Lyainc/claude-kit/issues/645) (격리 expert-panel 재검증, e1 6:1 → e2 7:0).
 
 ## 문제 해결
 

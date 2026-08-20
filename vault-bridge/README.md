@@ -1,6 +1,6 @@
 # vault-bridge
 
-**Obsidian vault ↔ external project bridge** plugin for Claude Code. Access vault knowledge from external projects, save reference material into it with `/vault-save`, and commit it with `/vault-commit`. Knowledge *compilation* (`/wiki`) and vault curation stay with obsidian-vault-manager.
+**Obsidian vault ↔ external project bridge** plugin for Claude Code. Access vault knowledge from external projects, save reference material into it with `/vault-save`, compile domain knowledge into the AI-recall wiki with `/wiki` (moved here from obsidian-vault-manager 2026-08-20, #645), and commit it with `/vault-commit`. Vault curation (audit, Bases views) stays with obsidian-vault-manager.
 
 > **Renamed from `vault-reader` (≤ v0.3.0) at v1.0.0.** The plugin's scope expanded beyond read-only search (session-note creation, vault I/O hooks), so the name now reflects the two-way bridge role. See [Migration](#migration-from-vault-reader) below.
 
@@ -55,9 +55,9 @@ vault-searcher is read-only. Vault *content* writes are user-initiated slash com
 | Command | Plugin | Destination |
 |---------|--------|-------------|
 | `/vault-save` | **vault-bridge** | source text as-is → `~/vault/sources/`, prose you wrote → `~/vault/notes/` |
-| `/wiki` | obsidian-vault-manager | compiled AI-recall domain knowledge → `~/vault/wiki/` |
+| `/wiki` | **vault-bridge** (moved from obsidian-vault-manager 2026-08-20, #645) | compiled AI-recall domain knowledge → `~/vault/wiki/` |
 
-`/vault-save` is the single reference-material entry — it replaced OVM's `/capture` and `/note` in #480, when B stopped being a promotion pipeline and became a reference warehouse (v5 §5). It writes no `status:` field and always writes `provenance:`. A past-tense session summary is just a `/vault-save`; distilled session knowledge for later AI recall compiles to `/wiki` (`/save-session` was retired 2026-07-10, #331).
+`/vault-save` is the single reference-material entry — it replaced OVM's `/capture` and `/note` in #480, when B stopped being a promotion pipeline and became a reference warehouse (v5 §5). It writes no `status:` field and always writes `provenance:`. A past-tense session summary is just a `/vault-save`; distilled session knowledge for later AI recall compiles to `/wiki` (`/save-session` was retired 2026-07-10, #331). Both `/wiki` and `/vault-save` follow the same vault-existence contract: a missing vault root stops the write and tells the user, instead of `mkdir`-ing a ghost vault into existence (#645 B1 / #697).
 
 For committing vault changes to git, use vault-bridge's `/vault-commit`. Next-session handoff is no longer a vault-bridge command — see [Session Handoff](#session-handoff).
 
@@ -300,11 +300,11 @@ VAULT_BRIDGE_WRITE_CONTRACT=off claude
 | Aspect | vault-bridge | obsidian-vault-manager |
 | --- | --- | --- |
 | Use context | External project access | Internal vault management session |
-| Write scope | `/vault-save` reference material (`sources/`, `notes/`) + `.vault-link` binding + git commits (`/vault-commit`) | `/wiki` compilation + audit/views |
-| Role | Cross-session bridge (read + git commit) | Full knowledge management |
+| Write scope | `/vault-save` reference material (`sources/`, `notes/`) + `/wiki` compilation (`wiki/`, #645) + `.vault-link` binding + git commits (`/vault-commit`) | `audit` E2 OPTIONAL-FIX (frontmatter-only, user-confirmed) |
+| Role | Cross-session bridge (read + git commit) + wiki compile | Vault curation (audit, Bases views) |
 
-- vault-bridge **never modifies or deletes existing vault content files** — `/vault-save` only creates new ones, and knowledge compilation (`/wiki`) belongs to obsidian-vault-manager.
-- For vault curation (audit, Bases views, wiki compilation), use `obsidian-vault-manager`.
+- vault-bridge **never modifies or deletes existing vault content files** — `/vault-save` only creates new ones; `/wiki` updates an existing page's content in place only for the same topic (compounding, never a silent overwrite of an unrelated page).
+- For vault curation (audit, Bases views), use `obsidian-vault-manager`.
 
 ### Kill switch
 
@@ -367,6 +367,7 @@ Migrated from `commands/*.md` to `skills/*/SKILL.md` in #94 — invocation (`/va
 | Skill | Description |
 |---------|-------------|
 | `/vault-save` | Save reference material into the vault — source text as-is → `sources/`, prose you wrote → `notes/`. Saves immediately, no confirmation, `provenance:` always written, no `status:` (#480) |
+| `/wiki` | Compile domain knowledge learned during work into `~/vault/wiki/` — v5 A layer, AI-recall primary, gated explicit action, always writes `provenance:`/`verified:`. Moved here from obsidian-vault-manager 2026-08-20 (#645) |
 | `/vault-link` | Create or update `.vault-link` in CWD — bind the repository to a vault project |
 | `/vault-manifest-refresh` | Force-regenerate `~/vault/.vault-bridge/manifest.json` — bypasses staleness check |
 | `/vault-commit` | Commit uncommitted vault changes to git — shows diff summary, generates commit message, requires user approval |

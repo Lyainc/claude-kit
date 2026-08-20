@@ -834,19 +834,43 @@ python3 obsidian-vault-manager/scripts/test/test-audit-state-stats-and-untracked
 python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 # Expected: OK: all cases passed
 
-# manifest-summary.py + manifest-wiki-match.py regression (#468, mirrors #460's retired
-# e8-candidates.py pattern) — audit/SKILL.md and wiki/SKILL.md both used to `cat` the raw
-# .vault-bridge/manifest.json (100+ KB on a real vault), silently truncated to a 2 KB harness
-# preview before the model ever saw it. Runs both filter scripts against real temp fixtures
-# (missing/unparseable/malformed/valid), asserts the wiki filter's output stays under the 2 KB
-# cut and serializes `scanned` before `wiki_entries`, then statically greps the live SKILL.md
-# call sites to pin that neither ever regresses back to a raw `cat`. #663 moved audit's copy of
-# that rationale into reference/vault-audit-rules.md -> "Reading the manifest"; the pins followed,
-# and the self-test corrupts the canonical text there to prove they still FAIL.
+# manifest-summary.py regression (#468, mirrors #460's retired e8-candidates.py pattern) —
+# audit/SKILL.md used to `cat` the raw .vault-bridge/manifest.json (100+ KB on a real vault),
+# silently truncated to a 2 KB harness preview before the model ever saw it. Runs the filter
+# script against real temp fixtures (missing/unparseable/malformed/valid), then statically greps
+# the live SKILL.md call site to pin it never regresses back to a raw `cat`. #663 moved audit's
+# copy of that rationale into reference/vault-audit-rules.md -> "Reading the manifest"; the pins
+# followed, and the self-test corrupts the canonical text there to prove they still FAIL.
+# #645 (2026-08-20): this file used to also cover manifest-wiki-match.py + wiki/SKILL.md (9 pins
+# stayed here, the other 4 moved to vault-bridge's test-manifest-wiki-match.py below, with
+# `/wiki`'s own deployment-unit move).
 python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py --self-test
-# Expected: OK: all 18 self-test cases passed
+# Expected: OK: all 17 self-test cases passed
 python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
 # Expected: OK: all manifest-read checks passed
+
+# manifest-wiki-match.py + wiki/SKILL.md manifest-read contract regression (#468, split from
+# obsidian-vault-manager's test-manifest-reads.py by the #645 `/wiki` deployment-unit move,
+# 2026-08-20) — wiki/SKILL.md used to `cat` the raw .vault-bridge/manifest.json, same 2 KB
+# harness-preview truncation risk as audit's copy above. Runs the filter script against real temp
+# fixtures (missing/unparseable/malformed/valid/real-scale), asserts its output stays under the
+# 2 KB cut and serializes `scanned` before `wiki_entries`, then statically greps the live
+# wiki/SKILL.md call site to pin it never regresses back to a raw `cat`.
+python3 vault-bridge/scripts/test/test-manifest-wiki-match.py --self-test
+# Expected: OK: all 2 self-test cases passed
+python3 vault-bridge/scripts/test/test-manifest-wiki-match.py
+# Expected: OK: all manifest-read checks passed
+
+# verified:/provenance: writer↔reader field-name contract pin, cross-plugin (#645 B3) — wiki/
+# SKILL.md (vault-bridge, writer) and audit's E12 wiki self-audit (obsidian-vault-manager,
+# reader) used to share a plugin, so a field rename on either side broke the other's own test
+# suite. #645 split them into two plugins with no shared test run; this pin closes that gap by
+# checking both sides' literal field-name text in one place. Self-test mutates each side's field
+# name independently and asserts the guard fails.
+python3 vault-bridge/scripts/test/test-wiki-frontmatter-contract.py --self-test
+# Expected: OK: all 5 self-test cases passed
+python3 vault-bridge/scripts/test/test-wiki-frontmatter-contract.py
+# Expected: OK: all 4 checks passed
 
 # obsidian-vault-manager trigger-regression check (#471 — routing-SSOT drift guard extended
 # to a previously-unguarded face: obsidian-vault-manager/skills/*/SKILL.md +

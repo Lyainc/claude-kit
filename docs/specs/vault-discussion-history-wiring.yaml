@@ -162,8 +162,8 @@ success_criteria:
 
 context:
   existing_stack:
-    - "vault-bridge (vault-searcher haiku agent, pre-write-guard hook, /vault-save, generate-manifest.py)"
-    - "obsidian-vault-manager (audit E1-E3/E5-E6/E9-E12, /wiki, ovm-primitives.sh)"
+    - "vault-bridge (vault-searcher haiku agent, pre-write-guard hook, /vault-save, /wiki, generate-manifest.py — /wiki moved here from obsidian-vault-manager 2026-08-20, #645)"
+    - "obsidian-vault-manager (audit E1-E3/E5-E6/E9-E12 incl. E12 wiki self-audit, ovm-primitives.sh)"
     - "thinking-tools (expert-panel, adversarial-review, unknown-discovery)"
     - "local-harness (skills/wrap — machine-level session-end sequencer)"
     - "~/vault (Obsidian vault, git repo — wiki 45 / notes 105 / sources 31)"

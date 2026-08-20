@@ -1,6 +1,8 @@
 # obsidian-vault-manager
 
-Claude Code용 **Obsidian vault 지식 관리 플러그인** (v4). 2개 에이전트 + 3개 스킬로 vault를 체계적으로 관리합니다.
+> **`/wiki`를 찾고 있나요?** 2026-08-20 `vault-bridge` 플러그인으로 이관됐어요 (#645) — `claude plugin install vault-bridge@Lyainc-claude-kit` 후 그쪽의 `/wiki`를 쓰세요. 이 플러그인은 별도 forwarding shim을 두지 않아요(둘 다 활성화된 설치에서 라우팅이 비결정적이 되는 걸 막기 위해서) — 안 보이면 vault-bridge 설치 여부부터 확인하세요.
+
+Claude Code용 **Obsidian vault 지식 관리 플러그인** (v4). 2개 에이전트 + 2개 스킬로 vault를 체계적으로 관리합니다.
 
 ## 설치
 
@@ -12,16 +14,17 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 | Agent | Model | Description |
 | --- | --- | --- |
-| `vault-knowledge-manager` | Sonnet | 메인 에이전트 — vault 검색·audit + 노트/결정 **초안** 작성. Write Role Contract상 vault에 직접 쓰지 못하고, 초안을 메인 컨텍스트로 돌려주면 사용자가 `/vault-save`(vault-bridge)·`/wiki`로 확정한다 |
+| `vault-knowledge-manager` | Sonnet | 메인 에이전트 — vault 검색·audit + 노트/결정 **초안** 작성. Write Role Contract상 vault에 직접 쓰지 못하고, 초안을 메인 컨텍스트로 돌려주면 사용자가 `/vault-save`·`/wiki`(둘 다 vault-bridge)로 확정한다 |
 | `vault-file-organizer` | Haiku | 경량 subagent — 파일 이동·이름 변경을 **계획으로** 반환 (Write Role Contract상 볼트 쓰기는 메인 컨텍스트가 실행) |
 
 ## 포함된 스킬
 
 | Skill | Description |
 | --- | --- |
-| `audit` | vault 구조 무결성 감사 — E1–E3·E5–E6·E9–E12 오류 감지 (P0-P2 우선순위), stale 노트·orphan 추적 |
-| `wiki` | 작업 중 알게 된 도메인 지식을 `~/vault/wiki/` 페이지로 컴파일 (LLM wiki, AI recall용 A 레이어; 게이트된 명시 액션) |
+| `audit` | vault 구조 무결성 감사 — E1–E3·E5–E6·E9–E12(wiki self-audit 포함) 오류 감지 (P0-P2 우선순위), stale 노트·orphan 추적 |
 | `base` | enforced frontmatter로 비파괴 Obsidian Bases(.base) 뷰 생성 — 기존 노트 불변, 내장 템플릿(sources/notes/recent) |
+
+> `wiki` 스킬은 2026-08-20 vault-bridge로 이관됐어요 (#645). 도메인 지식 컴파일은 이제 vault-bridge의 `/wiki`를 쓰세요.
 
 ## v4 파일 컨벤션
 
@@ -40,15 +43,15 @@ provenance: "{출처 — URL, 세션 토픽, 대화, 책, 회의}"  # 필수 —
 
 ## Reference docs
 
-- [Obsidian format reference](reference/obsidian-format.md): wikilinks, embeds, callouts, comments, and YAML property conventions for generated notes.
 - [Obsidian CLI reference](reference/obsidian-cli.md): optional CLI-first patterns with raw file I/O fallback.
 - [Web Clipper template](reference/web-clipper-template.md): Obsidian web clipper JSON template for `capture` type notes.
 - [Vault audit rules](reference/vault-audit-rules.md): E1–E3·E5–E6·E9–E12 error taxonomy and P0-P2 priority definitions.
 
 ## 스킬 사용 예시
 
-> 참고자료를 vault에 넣는 입구는 이 플러그인이 아니라 vault-bridge의 `/vault-save`예요 (#480). OVM은
-> 들어온 다음의 일 — 컴파일(`/wiki`)·감사(`/audit`)·뷰(`/base`) — 을 맡는 사서로 남습니다.
+> 참고자료를 vault에 넣는 입구(`/vault-save`)와 도메인 지식 컴파일(`/wiki`)은 이 플러그인이 아니라
+> vault-bridge예요 (#480, #645). OVM은 들어온 다음의 일 — 감사(`/audit`)·뷰(`/base`) — 을 맡는 사서로
+> 남습니다.
 
 ### `audit` — vault 무결성 감사
 
@@ -63,9 +66,9 @@ E1–E3·E5–E6·E9–E12 오류(frontmatter 누락, stale sources, orphan 노�
 | 영역 | obsidian-vault-manager | vault-bridge |
 | --- | --- | --- |
 | 사용 맥락 | vault 관리 세션 내부 | 외부 프로젝트에서 vault 접근 |
-| 쓰기 범위 | `/wiki` 컴파일(`wiki/`)만 — **쓰는 주체는 스킬**(메인 컨텍스트), 에이전트는 초안만 돌려준다 (Write Role Contract) | 참고자료 입구 `/vault-save`(`sources/`·`notes/`) + git 커밋(`/vault-commit`)·링크(`/vault-link`) |
+| 쓰기 범위 | `audit` E2 OPTIONAL-FIX의 frontmatter-only 자동수정(사용자 확인 필요)뿐 — 나머지는 `vault-file-organizer`가 반환한 계획을 **메인 컨텍스트가** 실행 (Write Role Contract) | 참고자료 입구 `/vault-save`(`sources/`·`notes/`) + wiki 컴파일 `/wiki`(`wiki/`, 2026-08-20 OVM에서 이관 #645) + git 커밋(`/vault-commit`)·링크(`/vault-link`) |
 | 도메인 컨텍스트 로드 | `vault-knowledge-manager` 에이전트 (OVM 내부, mdfind/grep 직접 접근) | `vault-searcher` Mode 2 (읽기 전용, 외부 접근용) |
-| 세션 기록 | `wiki` (컴파일된 세션 지식 → `wiki/`) | `/vault-save` (원석 → `sources/`) |
+| 세션 기록 | N/A (2026-08-20 #645로 `wiki` 스킬이 vault-bridge로 이관) | `wiki` (컴파일된 세션 지식 → `wiki/`), `/vault-save` (원석 → `sources/`) |
 
 ## 사전 요구사항
 
