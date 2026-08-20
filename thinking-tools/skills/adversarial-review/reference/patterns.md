@@ -36,13 +36,13 @@ scenario. The vectors and role labels are unchanged — only the angle varies by
 
 ### Evidence Attack — `{counter_evidence_or_missing_data}` sourcing
 
-The Evidence Attack's `{counter_evidence_or_missing_data}` slot has two fill modes,
-selected by the outcome of Phase 0.5 Vault Decision Grounding (see [SKILL.md](../SKILL.md)).
-Vault access is **exclusively** via the `vault-searcher` Agent call — direct Grep/Read of the
-vault is forbidden (MECE: searching = vault-searcher, critiquing = adversarial-review).
+The Evidence Attack's `{counter_evidence_or_missing_data}` slot has two fill modes, selected by the
+Graceful-degrade branch in [§ Vault Decision Grounding Procedure](#vault-decision-grounding-procedure)
+below — that section is the single source of truth for the trigger condition of each mode. Vault
+access is **exclusively** via the `vault-searcher` Agent call — direct Grep/Read of the vault is
+forbidden (MECE: searching = vault-searcher, critiquing = adversarial-review).
 
-- **Vault-grounded mode** (≥ 1 relevant past decision was cached in Phase 0.5):
-  fill the slot with the user's own prior decision excerpt, framing the conflict explicitly.
+- **Vault-grounded mode**: fill the slot with the user's own prior decision excerpt, framing the conflict explicitly.
 
   ```
   [Evidence Attack — vault-grounded]
@@ -59,9 +59,27 @@ vault is forbidden (MECE: searching = vault-searcher, critiquing = adversarial-r
   non-empty `## 문제` section or a reversal note). A plain `archived` (successfully completed
   and shelved) is NOT a worst-case source.
 
-- **Generic mode** (0 results, vault-bridge absent, or vault-searcher call failed):
-  use the base `[Evidence Attack]` template above unchanged. This is a **transparent fallback** —
-  do not mention the vault, the search, or the fallback to the user.
+- **Generic mode**: use the base `[Evidence Attack]` template above unchanged. This is a
+  **transparent fallback** — do not mention the vault, the search, or the fallback to the user.
+
+---
+
+## Vault Decision Grounding Procedure
+
+Referenced from [SKILL.md § Phase 0.5](../SKILL.md) — read and apply this section as written; it
+is the binding contract for the one-shot `vault-searcher` call and the fallback behavior, not
+background.
+
+**One-shot vault-searcher call** (Mode 3 — Keyword Search, via the Agent tool):
+1. Call `vault-searcher` **exactly once per session** (not per round). Cache the returned excerpts and reuse them across rounds. In a multi-claim session the cache reflects the **first** finalized Steelman's keywords and is never re-queried; the relevance gate (step 5) drops any cached decision unrelated to a later claim (why: rationale.md § Single-claim cache sizing).
+2. **Search target**: `notes/`, preferring `type: decision`. Tell vault-searcher to use the manifest `type` pre-filter when available, otherwise fall back to a `decision-` filename grep (this is vault-searcher's native Mode 3 behavior). Counter-scenario sourcing MAY additionally surface `status: archived` decisions as a secondary worst-case source — but ONLY those carrying an explicit failure/reversal signal (a non-empty `## 문제` section or a reversal note); a plain `archived` status can also mean "successfully completed and shelved", which is NOT a worst-case source.
+3. **Query**: 2–3 core keywords distilled from the finalized Steelman.
+4. **Result bound**: up to **3** relevant decisions. Instruct vault-searcher to excerpt **only** the `## 결정` / `## 근거` / `## 문제` sections (not the full note).
+5. **Relevance gate**: drop any returned decision whose topic is not genuinely related to the claim — an irrelevant hit must not be used in any round.
+
+**Graceful degrade** (no user notice, no broken experience):
+- **≥ 1 relevant result** → vault-grounded mode: feed the excerpts into the Evidence Attack `{counter_evidence_or_missing_data}` slot (see § Evidence Attack sourcing above) when the Evidence vector comes up.
+- **0 results / vault-bridge not installed / Agent call fails / no response** → transparently fall back to the existing generic Evidence Attack. Do **not** announce the fallback to the user; the session must look identical to the non-vault path. A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further.
 
 ---
 
