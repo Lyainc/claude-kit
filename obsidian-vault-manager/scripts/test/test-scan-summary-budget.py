@@ -14,7 +14,7 @@ Two defects shipped together in audit/SKILL.md Phase 1, and this pins both fixes
       `extract-wikilinks-batch <dir>`: one python3 process returning the finished index.
 
 Test matrix:
-  1. budget: the default-cap bundle is under the 2048 B preview on a 528-file fixture where
+  1. budget: the default-cap bundle is under the 2048 B preview on a 530-file fixture where
      all nine error types fire.
   2. truncation signal: a cap that bites produces `omitted: N`, and count - len(list) == N —
      nothing is ever dropped without a number saying how much.
@@ -54,6 +54,7 @@ SEEDED = {
     "E11": 5,             # 2 root-direct + 3 in 20_Projects/
     "E12_stale": 5,
     "E12_unverified": 2,
+    "E12_near_dup": 1,
 }
 
 
@@ -76,7 +77,7 @@ def _run(args: list, vault: Path, stdin_text=None) -> tuple:
 
 
 def build_fixture(workdir: Path) -> Path:
-    """528-file fixture with every audit error type seeded. Fresh dir, never a fixed path."""
+    """530-file fixture with every audit error type seeded. Fresh dir, never a fixed path."""
     fixture = workdir / "fixture"
     env = os.environ.copy()
     env["OVM_FIXTURE_DIR"] = str(fixture)
@@ -134,8 +135,8 @@ def case_budget(fm, fn, links, vault, errors: list) -> dict:
     _assert(size < PREVIEW_LIMIT,
             f"default bundle is {size} B, under the {PREVIEW_LIMIT} B preview limit", errors)
     data = json.loads(out)
-    _assert(data["total_files"] == 528,
-            f"bundle reports all 528 scanned files (got {data['total_files']})", errors)
+    _assert(data["total_files"] == 530,
+            f"bundle reports all 530 scanned files (got {data['total_files']})", errors)
     raw = fm.stat().st_size + fn.stat().st_size
     _assert(raw > 100 * PREVIEW_LIMIT,
             f"the raw scans it replaces are {raw} B — far past the preview (the bug)", errors)
