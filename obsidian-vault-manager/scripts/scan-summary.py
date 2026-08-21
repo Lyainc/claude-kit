@@ -53,6 +53,7 @@ types firing, vs 291 KB of raw scan + 13 KB of index:
        "E11": {"count": N, "paths":   ["<path>", ...]},              # unstructured_path
        "E12_stale":      {"count": N, "records": [{path, verified}]},
        "E12_unverified": {"count": N, "records": [{path, verified}]},
+       "E12_near_dup":   {"count": N, "records": [{path, other_path, shared_tags, shared_title_tokens}]},
        "unreadable":     {"count": N, "records": [{path, error}]},   # only when it fires
      }}
 
@@ -137,6 +138,23 @@ def validate_index(inbound: dict) -> None:
 
 def top_folder(rel: str) -> str:
     return rel.split("/", 1)[0] if "/" in rel else ""
+
+
+def _title_tokens(rel: str) -> frozenset:
+    """E12 near-dup (#698, #645 F1): filename-slug tokens for title-overlap matching —
+    hyphen/underscore split, lowercased, numeric-only segments dropped (a bare "001"
+    fixture-style suffix carries no title signal)."""
+    stem = rel.rsplit("/", 1)[-1]
+    if stem.endswith(".md"):
+        stem = stem[:-3]
+    return frozenset(t for t in re.split(r"[-_]+", stem.lower()) if t and not t.isdigit())
+
+
+def _tag_set(fm: dict) -> frozenset:
+    tags = fm.get("tags")
+    if not isinstance(tags, list):
+        return frozenset()
+    return frozenset(t.strip().lower() for t in tags if isinstance(t, str) and t.strip())
 
 
 def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
@@ -269,12 +287,13 @@ def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
     # it is the date the detail quotes (the age follows from it and the fixed 90-day
     # threshold), and for unverified it is what separates "field absent" from "field
     # unparseable" — two different Korean details (#494).
-    stale, unverified = [], []
+    stale, unverified, wiki_pages = [], [], []
     for r in fm_records:
         rel = r["path"]
         fm = r.get("frontmatter") or {}
         if top_folder(rel) != "wiki" or fm.get("type") != "wiki":
             continue
+        wiki_pages.append((rel, fm))
         verified = parse_date(fm.get("verified"))
         if verified is None:
             unverified.append({"path": rel, "verified": fm.get("verified")})
@@ -284,6 +303,31 @@ def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
             stale.append({"path": rel, "verified": fm.get("verified")})
     emit("E12_stale", stale)
     emit("E12_unverified", unverified)
+
+    # E12 near-dup (#698, #645 F1 follow-up): two wiki pages with the EXACT same
+    # `tags` set and overlapping title tokens are a candidate duplicate — e.g.
+    # defuddle.md vs defuddle-cli.md under the same domain tag (wiki/SKILL.md's own
+    # DEDUP multi-slug example). Exact tag match, not "any shared tag": every wiki
+    # page's tags always include the literal `wiki` type tag (v5 §4.1
+    # `tags: [{type}, {domain}]`), so "any overlap" would trivially match every
+    # wiki page against every other one.
+    near_dup = []
+    for i, (rel_a, fm_a) in enumerate(wiki_pages):
+        tags_a = _tag_set(fm_a)
+        tokens_a = _title_tokens(rel_a)
+        if not tags_a or not tokens_a:
+            continue
+        for rel_b, fm_b in wiki_pages[i + 1:]:
+            if _tag_set(fm_b) != tags_a:
+                continue
+            shared = tokens_a & _title_tokens(rel_b)
+            if not shared:
+                continue
+            a, b = sorted((rel_a, rel_b))
+            near_dup.append({"path": a, "other_path": b,
+                              "shared_tags": sorted(tags_a),
+                              "shared_title_tokens": sorted(shared)})
+    emit("E12_near_dup", near_dup)
 
     return errors
 
@@ -369,6 +413,15 @@ def self_test() -> int:
          "frontmatter": {"type": "wiki", "verified": "TBD"}},
         {"path": "wiki/fresh.md", "has_frontmatter": True, "missing_required": [],
          "frontmatter": {"type": "wiki", "verified": "2026-08-10"}},
+        {"path": "wiki/defuddle.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "wiki", "verified": "2026-08-10",
+                          "tags": ["wiki", "defuddle"]}},
+        {"path": "wiki/defuddle-cli.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "wiki", "verified": "2026-08-10",
+                          "tags": ["wiki", "defuddle"]}},
+        {"path": "wiki/other-tool.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"type": "wiki", "verified": "2026-08-10",
+                          "tags": ["wiki", "other"]}},
     ]
     fn = [{"path": r["path"]} for r in fm]
     inbound = {"linked": ["notes/lonely.md"], "lonely": ["notes/lonely.md"]}
@@ -399,6 +452,12 @@ def self_test() -> int:
          errors["E12_stale"] == [{"path": "wiki/stale.md", "verified": "2020-01-01"}]),
         ("E12_unverified keeps the unparseable raw value",
          errors["E12_unverified"] == [{"path": "wiki/unverified.md", "verified": "TBD"}]),
+        ("E12_near_dup fires on same tags + overlapping title tokens",
+         errors["E12_near_dup"] == [{"path": "wiki/defuddle-cli.md", "other_path": "wiki/defuddle.md",
+                                     "shared_tags": ["defuddle", "wiki"],
+                                     "shared_title_tokens": ["defuddle"]}]),
+        ("E12_near_dup does not fire across different tag sets",
+         all("other-tool" not in json.dumps(r) for r in errors["E12_near_dup"])),
         ("a clean file appears in no bucket",
          all("wiki/fresh.md" not in json.dumps(v) for v in errors.values())),
         ("no --index means E5 is 'not computed', never zero orphans",

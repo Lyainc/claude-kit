@@ -24,6 +24,9 @@ audit's LLM-0 (deterministic-only) boundary — the SAME split E9 makes:
     reference impl, deferred to a `--deep` LLM opt-in exactly like E9c. Building a
     fake-deterministic contradiction heuristic would only manufacture false
     positives; staleness is the honest deterministic slice.
+  - E12c near-duplicate wiki pages (#698, #645 F1 follow-up): two wiki pages with
+    the EXACT same `tags` set and overlapping title tokens (filename slug). DETERMINISTIC
+    (set/string ops only) → SHIPS here as E12_wiki_near_dup, same LLM-0 tier as E12a.
 
 Usage:
   python3 audit-validate.py <vault_root>          # JSON summary on stdout
@@ -75,6 +78,7 @@ PRIORITY_BY_TYPE = {
     "E11_unstructured_path": "P1",
     "E12_wiki_stale": "P1",
     "E12_wiki_unverified": "P1",
+    "E12_wiki_near_dup": "P1",
 }
 # E9 (#119) frequency threshold: report a vocabulary pair only when BOTH forms
 # appear in this many files or more (per-form file count). Suppresses one-off
@@ -414,6 +418,57 @@ def detect_unverifiable_wiki(fm_records: list) -> list:
     return findings
 
 
+def _title_tokens(rel: str) -> frozenset:
+    """E12c near-dup (#698, #645 F1) filename-stem tokens: hyphen/underscore split,
+    lowercased, numeric-only segments dropped (a bare "001" fixture suffix carries
+    no title signal)."""
+    stem = Path(rel).stem
+    return frozenset(t for t in re.split(r"[-_]+", stem.lower()) if t and not t.isdigit())
+
+
+def _tag_set(fm: dict) -> frozenset:
+    tags = fm.get("tags")
+    if not isinstance(tags, list):
+        return frozenset()
+    return frozenset(t.strip().lower() for t in tags if isinstance(t, str) and t.strip())
+
+
+def detect_wiki_near_dup(fm_records: list) -> list:
+    """E12c (#698, #645 F1 follow-up): deterministic near-duplicate wiki pages — the
+    EXACT same `tags` set plus overlapping title tokens (filename slug), e.g.
+    defuddle.md vs defuddle-cli.md under the same domain tag (the exact multi-slug
+    miss wiki/SKILL.md's DEDUP step cites). Exact tag match, not "any shared tag":
+    every wiki page's tags always include the literal `wiki` type tag (v5 §4.1
+    `tags: [{type}, {domain}]`), so "any overlap" would trivially match every wiki
+    page against every other one.
+
+    Returns (rel_a, rel_b, detail) with rel_a < rel_b so a pair is never reported
+    twice in swapped order. Same wiki/+type:wiki scope guard as E12a/companion via
+    `_wiki_pages`. No `--deep`/LLM step — this stays in the deterministic-only
+    slice E12a already ships (v5 §7 U3), unlike E12b's semantic judgment.
+    """
+    pages = list(_wiki_pages(fm_records))
+    findings: list = []
+    for i, (rel_a, fm_a) in enumerate(pages):
+        tags_a = _tag_set(fm_a)
+        tokens_a = _title_tokens(rel_a)
+        if not tags_a or not tokens_a:
+            continue
+        for rel_b, fm_b in pages[i + 1:]:
+            if _tag_set(fm_b) != tags_a:
+                continue
+            shared = tokens_a & _title_tokens(rel_b)
+            if not shared:
+                continue
+            a, b = sorted((rel_a, rel_b))
+            findings.append((
+                a, b,
+                f"동일 tags {sorted(tags_a)}, 제목 토큰 겹침: {sorted(shared)} "
+                f"— 병합 검토 또는 재작성",
+            ))
+    return findings
+
+
 def _camel_to_snake(key: str) -> str:
     """Infer the snake_case equivalent of a camelCase key (E9b, #119).
 
@@ -673,6 +728,11 @@ def classify(bundle: dict) -> dict:
     for rel, detail in detect_unverifiable_wiki(bundle["fm_records"]):
         add("E12_wiki_unverified", rel, detail)
 
+    # E12c near-dup (#698, #645 F1 follow-up) — deterministic slice, same
+    # wiki/+type:wiki scope guard as E12a/companion via _wiki_pages.
+    for rel_a, rel_b, detail in detect_wiki_near_dup(bundle["fm_records"]):
+        add("E12_wiki_near_dup", rel_a, detail, other_path=rel_b)
+
     # E10 + E11 prep: set of files already flagged for E1/E2 (integrity defects).
     # Misplaced/unstructured checks skip these — fix integrity first.
     integrity_flagged = {
@@ -771,6 +831,15 @@ SEED_PREFIXES = {
 # and fp_on_clean.E9 stays 0 because clean-fixture notes never form a pair.
 E9_TYPE = "E9_tag_vocabulary_inconsistency"
 
+# E12c (#698) is also PAIR-level like E9, but unlike E9 it DOES carry a real path
+# (the lexicographically-first of the pair, `other_path` the second) — so instead
+# of E9's path-less special case, this checks BOTH paths in the pair against a
+# dedicated seed prefix distinct from E12a's `audit-e12-` (which would otherwise
+# also match, since E12a/companion/near-dup seed files all share the `audit-e12-`
+# fixture-naming convention).
+E12_DUP_TYPE = "E12_wiki_near_dup"
+SEED_DUP_PREFIX = "audit-e12-dup-"
+
 
 def dod_report(findings: list) -> dict:
     detected: dict = {k: 0 for k in SEED_PREFIXES}
@@ -778,6 +847,8 @@ def dod_report(findings: list) -> dict:
     # E9 is path-less → counted by pair, separate from the prefix mechanism.
     detected[E9_TYPE] = 0
     fp_clean[E9_TYPE] = 0
+    detected[E12_DUP_TYPE] = 0
+    fp_clean[E12_DUP_TYPE] = 0
     priority_counts: dict = {"P0": 0, "P1": 0, "P2": 0}
     findings_missing_priority: int = 0
     priority_mismatches: list = []
@@ -824,6 +895,14 @@ def dod_report(findings: list) -> dict:
         # stays 0 (clean-fixture notes don't form vocabulary pairs).
         if etype == E9_TYPE:
             detected[E9_TYPE] += 1
+            continue
+
+        if etype == E12_DUP_TYPE:
+            pa, pb = f.get("path") or "", f.get("other_path") or ""
+            if SEED_DUP_PREFIX in pa or SEED_DUP_PREFIX in pb:
+                detected[E12_DUP_TYPE] += 1
+            elif "audit-clean-" in pa and "audit-clean-" in pb:
+                fp_clean[E12_DUP_TYPE] += 1
             continue
 
         marker = SEED_PREFIXES.get(etype)
