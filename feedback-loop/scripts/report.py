@@ -171,7 +171,10 @@ _STALE_DAYS = 14
 _BOTTOM_N = 5
 
 # Interpretation guide — hardcoded per DoD.
-_LIFECYCLE_CAVEAT = "측정범위: claude-kit 레포 내 세션 기준 (telemetry Option A)"
+_LIFECYCLE_CAVEAT = (
+    "측정범위: claude-kit 레포 내 세션 기준 (telemetry Option A). "
+    "집계 단위: 호출 1회(skill_invoke outcome=started) — 이벤트 수가 아님(#696)"
+)
 # NOTE: vault-bridge is deliberately NOT named here — it ships agents/commands/
 # hooks but no skills/, so it can never appear in this skills-catalog view
 # (isolated-critique LOW finding, 2026-06-10). OVM is the representative class.
@@ -427,8 +430,16 @@ def skill_lifecycle_view(
       guide          - interpretation guide string
 
     Matching: event['qualified_name'] == '{plugin}:{skill}' (catalog format).
-    Only skill_invoke events (event == 'skill_invoke') with a non-empty
-    qualified_name are counted — other event types don't carry skill identity.
+    Counts CALLS, not events: only skill_invoke events with outcome == 'started'
+    count (#696). The harness emits exactly one started per invocation regardless
+    of the skill; counting every skill_invoke event instead conflated call count
+    with event count, since some skills (retro) log an extra non-started
+    skill_invoke line (Phase-3 emit, retro-telemetry.sh) that inflated their
+    count relative to skills without one. A non-empty qualified_name is required.
+    Staleness (last_seen) still tracks any skill_invoke event regardless of
+    outcome, so a call whose started/completion lines land in different
+    --since day-file windows stays visible as recently-used even on a window
+    where it can't register a full count.
     """
     if catalog is None:
         catalog = scan_skill_catalog()
@@ -438,6 +449,12 @@ def skill_lifecycle_view(
     stale_cutoff = now - timedelta(days=stale_days)
 
     # Collect last-seen timestamp and counts per qualified_name from skill_invoke events.
+    # last_seen tracks ANY skill_invoke event (not just started): a call whose
+    # 'started' line falls outside this --since window's day-file cutoff while
+    # its 'success'/'error' line doesn't (a call straddling the UTC day
+    # boundary — real for a long-running skill like retro) must still register
+    # as recently used for staleness purposes, even though it can't count as a
+    # complete call without its started line (#696 fresh-review finding).
     last_seen: dict[str, datetime] = {}
     counts: Counter[str] = Counter()
     for e in events:
@@ -446,7 +463,8 @@ def skill_lifecycle_view(
         qn = e.get("qualified_name", "")
         if not qn or qn not in catalog_set:
             continue
-        counts[qn] += 1
+        if e.get("outcome") == "started":
+            counts[qn] += 1
         ts_raw = e.get("ts", "")
         try:
             ts = datetime.fromisoformat(ts_raw.replace("Z", "+00:00"))
