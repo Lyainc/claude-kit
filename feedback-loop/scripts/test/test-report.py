@@ -24,6 +24,7 @@ import io
 import json
 import sys
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 # report.py lives in the parent dir; put it on sys.path and import directly.
@@ -41,7 +42,7 @@ def _assert(cond: bool, desc: str, errors: list[str]) -> bool:
     return False
 
 
-def _ev(event: str, duration_ms=..., plugin: str = "p", name: str = "n") -> dict:
+def _ev(event: str, duration_ms=..., plugin: str = "p", name: str = "n", outcome: str = "ok") -> dict:
     """Build a telemetry event.
 
     duration_ms sentinel handling:
@@ -50,7 +51,7 @@ def _ev(event: str, duration_ms=..., plugin: str = "p", name: str = "n") -> dict
       - "__none__"     → meta = None
       - any other val  → meta = {"duration_ms": val}  (incl. None inside dict)
     """
-    e: dict = {"plugin": plugin, "event": event, "name": name, "outcome": "ok"}
+    e: dict = {"plugin": plugin, "event": event, "name": name, "outcome": outcome}
     if duration_ms is ...:
         return e
     if duration_ms == "__empty__":
@@ -283,8 +284,8 @@ def case_lifecycle_never_fired(errors: list[str]) -> None:
     # Catalog: two fake skills; events only fire one of them.
     catalog = ["fake-plugin:active-skill", "fake-plugin:zero-count-skill"]
     events = [
-        _ev("skill_invoke", plugin="fake-plugin", name="active-skill"),
-        _ev("skill_invoke", plugin="fake-plugin", name="active-skill"),
+        _ev("skill_invoke", plugin="fake-plugin", name="active-skill", outcome="started"),
+        _ev("skill_invoke", plugin="fake-plugin", name="active-skill", outcome="started"),
     ]
     # Patch qualified_name onto these events (report uses qualified_name for matching).
     for e in events:
@@ -417,7 +418,7 @@ def case_lifecycle_caveat_in_json(errors: list[str]) -> None:
     _assert("lifecycle" in payload, "json has 'lifecycle' key", errors)
     lc = payload.get("lifecycle", {})
     _assert(
-        lc.get("caveat") == "측정범위: claude-kit 레포 내 세션 기준 (telemetry Option A)",
+        lc.get("caveat") == report._LIFECYCLE_CAVEAT,
         f"json lifecycle.caveat correct (got: {lc.get('caveat')!r})",
         errors,
     )
@@ -433,13 +434,13 @@ def case_lifecycle_fired_bottom_e2e(errors: list[str]) -> None:
     print("\ncase: lifecycle_fired_bottom_e2e")
     catalog = ["fx:hot", "fx:cold", "fx:dead"]
     events = [
-        {**_ev("skill_invoke", name="hot"), "qualified_name": "fx:hot",
+        {**_ev("skill_invoke", name="hot", outcome="started"), "qualified_name": "fx:hot",
          "ts": "2099-01-01T00:00:00Z"},
-        {**_ev("skill_invoke", name="hot"), "qualified_name": "fx:hot",
+        {**_ev("skill_invoke", name="hot", outcome="started"), "qualified_name": "fx:hot",
          "ts": "2099-01-01T00:00:00Z"},
-        {**_ev("skill_invoke", name="hot"), "qualified_name": "fx:hot",
+        {**_ev("skill_invoke", name="hot", outcome="started"), "qualified_name": "fx:hot",
          "ts": "2099-01-01T00:00:00Z"},
-        {**_ev("skill_invoke", name="cold"), "qualified_name": "fx:cold",
+        {**_ev("skill_invoke", name="cold", outcome="started"), "qualified_name": "fx:cold",
          "ts": "2099-01-01T00:00:00Z"},
     ]
     out = _run_main_with(events, ["report.py", "--since=all", "--format=json"], catalog=catalog)
@@ -458,6 +459,76 @@ def case_lifecycle_fired_bottom_e2e(errors: list[str]) -> None:
     wlc = json.loads(wout)["lifecycle"]
     _assert(wlc.get("never_fired_label") == "no events in 7d window",
             f"windowed never_fired_label not overstated (got: {wlc.get('never_fired_label')})", errors)
+
+
+def case_lifecycle_counts_calls_not_events(errors: list[str]) -> None:
+    """#696: one call must count as 1 regardless of how many skill_invoke lines
+    it logs. Reproduces the real retro pattern — harness started+success PLUS a
+    Phase-3 emit (retro-telemetry.sh: a THIRD skill_invoke line, outcome=success,
+    tool_use_id="") — against a plain skill that only ever logs started+success.
+    Before the fix both were counted by raw skill_invoke event count (retro=3,
+    plain=2), making the two incomparable; after the fix only outcome=started
+    counts, so both are 1.
+    """
+    print("\ncase: lifecycle_counts_calls_not_events")
+    catalog = ["feedback-loop:retro", "thinking-tools:expert-panel"]
+    events = [
+        # retro: harness started+success + one extra Phase-3 emit (success, no tool_use_id)
+        {**_ev("skill_invoke", name="retro", outcome="started"),
+         "qualified_name": "feedback-loop:retro", "tool_use_id": "t1"},
+        {**_ev("skill_invoke", name="retro", outcome="success"),
+         "qualified_name": "feedback-loop:retro", "tool_use_id": "t1"},
+        {**_ev("skill_invoke", name="retro", outcome="success"),
+         "qualified_name": "feedback-loop:retro", "tool_use_id": ""},
+        # expert-panel: harness started+success only, one real call.
+        {**_ev("skill_invoke", name="expert-panel", outcome="started"),
+         "qualified_name": "thinking-tools:expert-panel", "tool_use_id": "t2"},
+        {**_ev("skill_invoke", name="expert-panel", outcome="success"),
+         "qualified_name": "thinking-tools:expert-panel", "tool_use_id": "t2"},
+    ]
+    result = report.skill_lifecycle_view(events, catalog=catalog)
+    bottom = {s: c for s, c in result["bottom"]}
+    _assert(bottom.get("feedback-loop:retro") == 1,
+            f"retro's Phase-3 emit does not inflate its call count (got: {bottom})", errors)
+    _assert(bottom.get("thinking-tools:expert-panel") == 1,
+            f"expert-panel counts its one real call (got: {bottom})", errors)
+    _assert(bottom.get("feedback-loop:retro") == bottom.get("thinking-tools:expert-panel"),
+            "1 call each is comparable across skills regardless of extra emits", errors)
+
+
+def case_lifecycle_stale_tracks_any_outcome(errors: list[str]) -> None:
+    """Fresh-context review finding on #696: gating last_seen on outcome=='started'
+    (same as the count filter) would make a call whose 'started' line falls
+    outside this window while its 'success'/'error' line doesn't (a call
+    straddling the UTC day-file boundary --since slices on — real for a
+    long-running skill like retro, which the issue's own data shows running
+    10+ minutes) read as staler than it really is. last_seen must track ANY
+    skill_invoke event, not just started ones, so a recent completion-only
+    line still refreshes recency even on a window where it can't register a
+    full call count.
+
+    Fixture: one OLD started event (>14d ago) establishes counts>0, plus one
+    RECENT success-only event (no started sibling in this event list, as if
+    its started line landed outside the window). If last_seen only tracked
+    started events, last_seen would stay pinned to the old timestamp and the
+    skill would wrongly show as stale.
+    """
+    print("\ncase: lifecycle_stale_tracks_any_outcome")
+    catalog = ["feedback-loop:retro"]
+    now = datetime.now(timezone.utc)
+    old_ts = (now - timedelta(days=20)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    recent_ts = (now - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    events = [
+        {**_ev("skill_invoke", name="retro", outcome="started"),
+         "qualified_name": "feedback-loop:retro", "ts": old_ts},
+        {**_ev("skill_invoke", name="retro", outcome="success"),
+         "qualified_name": "feedback-loop:retro", "ts": recent_ts},
+    ]
+    result = report.skill_lifecycle_view(events, catalog=catalog)
+    _assert("feedback-loop:retro" not in result["stale"],
+            "a recent success-only event refreshes last_seen and keeps the "
+            "skill out of stale, even though only the old started event counts",
+            errors)
 
 
 # ---------------------------------------------------------------------------
@@ -944,6 +1015,8 @@ def main() -> int:
     case_lifecycle_caveat_in_output(errors)
     case_lifecycle_caveat_in_json(errors)
     case_lifecycle_fired_bottom_e2e(errors)
+    case_lifecycle_counts_calls_not_events(errors)
+    case_lifecycle_stale_tracks_any_outcome(errors)
     case_rule_fire_per_rule_id(errors)
     case_rule_fire_view_end_to_end(errors)
     case_liveness_excluded_from_outcomes(errors)
