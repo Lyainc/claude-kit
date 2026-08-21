@@ -486,7 +486,7 @@ bash feedback-loop/scripts/test/test-event-logger.sh
 # from the map; nothing enforced staying in sync with the skills/agents dirs it
 # describes. Asserts every real skill/agent name has a map entry.
 python3 feedback-loop/scripts/test/test-plugin-map-drift.py
-# Expected: OK: plugin-map.json covers all N skill/agent names
+# Expected: OK: plugin-map.json covers all 23 skill/agent names
 
 # retro-telemetry helper regression (#294 — retro Phase-1 stamp + Phase-2 emit
 # extracted from the SKILL.md inline bash to scripts/retro-telemetry.sh; this
