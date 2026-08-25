@@ -300,23 +300,8 @@ scoring_rationale:
 
 ## Known Limitations
 
-- **Isolated verdict is gate-only**: per-round scoring stays inline; only the round that would open the
-  gate is re-judged in a subagent (Phase 2). A mid-interview score can still drift — it just cannot open
-  the gate on its own. Users can override scores by providing explicit corrections during the interview.
-- **Blind-spot pass is one shot**: three findings, one call, no follow-up round (constraint: the
-  interview length must not grow). It is a last sweep, not a second interview — a spec needing real
-  blind-spot work should go through `unknown-discovery` directly.
-- **Backlog scan reads titles and bodies, not comments**: an issue whose current state lives in its
-  comment timeline can still read as unconflicting. Closed candidates are ranked by **title only**
-  (bodies are not fetched for the closed half — that is what keeps the corpus out of context), so a
-  closed decision whose conflict is stated only in its body is reachable but not pre-surfaced.
-- **A silent subagent is indistinguishable from a slow one** (#647): a spawned subagent can stay alive,
-  emit only idle notifications, and never return a final report — no error, no timeout, so nothing in
-  Phase 2 / Phase 2.5 fires on its own. The documented rule (one re-request, then treat as unavailable)
-  is what converts it into the inline fallback, and applying that rule is a judgment call, not a check.
-- **The prefilter is the recall ceiling**: candidates are scored by term overlap, so a conflicting
-  issue that shares no vocabulary with the target scores 0 and never appears. Term overlap is not
-  meaning.
+See [reference.md](reference.md) §7 (Known Limitations) — isolated-verdict scope, blind-spot pass
+being one-shot, backlog scan coverage, and the prefilter's recall ceiling.
 
 ## References
 
@@ -328,21 +313,7 @@ scoring_rationale:
 
 ## Quick Start
 
-```
-User: "task CLI를 만들고 싶어. 뭐가 필요한지 모르겠어."
-
-→ Phase 0: domain=Tech, greenfield (no project files), weight set
-→ Phase 1 Round 1 [Goal]: "어떤 문제를 해결하려고 하나요?" → clarity 0.40
-→ Phase 1 Round 2 [Goal]: "주요 사용자는 누구인가요?" → clarity 0.65
-→ Phase 1 Round 3 [Constraint]: "기술 스택이나 환경 제약이 있나요?" → clarity 0.50
-→ Phase 1 Round 4 [Success]: "어떤 상태가 되면 성공이라고 할 수 있나요?" → clarity 0.60
-→ Phase 1 Round 5 [Goal]: "가장 핵심 기능 하나만 고른다면?" → clarity 0.80 ✓
-→ Phase 1 Round 6 [Constraint]: → clarity 0.70 ✓ | [Success]: → 0.75 ✓ | Ambiguity: 0.18 ✓ (gate: 2회)
-→ Phase 2: Gate open
-→ Phase 3: Seed 생성 → docs/specs/task-cli-tool.yaml
-
-Ambiguity 0.65 → 0.18 · Round 6
-```
+Worked example (compressed trace): [examples.md](examples.md#quick-start-trace).
 
 ## Korean I/O Directive
 

@@ -133,3 +133,25 @@ re-deriving findings the UD report already states with more rigor.
 
 **Detection.** The report's frontmatter carries `skill: unknown-discovery` (common-schema.md);
 absent that (a bare prose feedback string), the user naming it explicitly is enough.
+
+---
+
+## 7. Known Limitations
+
+- **Isolated verdict is gate-only**: per-round scoring stays inline; only the round that would open the
+  gate is re-judged in a subagent (Phase 2). A mid-interview score can still drift — it just cannot open
+  the gate on its own. Users can override scores by providing explicit corrections during the interview.
+- **Blind-spot pass is one shot**: three findings, one call, no follow-up round (constraint: the
+  interview length must not grow). It is a last sweep, not a second interview — a spec needing real
+  blind-spot work should go through `unknown-discovery` directly.
+- **Backlog scan reads titles and bodies, not comments**: an issue whose current state lives in its
+  comment timeline can still read as unconflicting. Closed candidates are ranked by **title only**
+  (bodies are not fetched for the closed half — that is what keeps the corpus out of context), so a
+  closed decision whose conflict is stated only in its body is reachable but not pre-surfaced.
+- **A silent subagent is indistinguishable from a slow one** (#647): a spawned subagent can stay alive,
+  emit only idle notifications, and never return a final report — no error, no timeout, so nothing in
+  Phase 2 / Phase 2.5 fires on its own. The documented rule (one re-request, then treat as unavailable)
+  is what converts it into the inline fallback, and applying that rule is a judgment call, not a check.
+- **The prefilter is the recall ceiling**: candidates are scored by term overlap, so a conflicting
+  issue that shares no vocabulary with the target scores 0 and never appears. Term overlap is not
+  meaning.

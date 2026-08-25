@@ -176,3 +176,25 @@ Context clarity: 0.60 ✓ (integration point 파악)
 ```
 → unknown-discovery: 알림 전달 실패 처리, 알림 과부하 방지(rate limiting) 누락 발견
 ```
+
+---
+
+## Quick Start Trace
+
+Same scenario as Example 1, shown as a compressed round-by-round log instead of full Q&A detail.
+
+```
+User: "task CLI를 만들고 싶어. 뭐가 필요한지 모르겠어."
+
+→ Phase 0: domain=Tech, greenfield (no project files), weight set
+→ Phase 1 Round 1 [Goal]: "어떤 문제를 해결하려고 하나요?" → clarity 0.40
+→ Phase 1 Round 2 [Goal]: "주요 사용자는 누구인가요?" → clarity 0.65
+→ Phase 1 Round 3 [Constraint]: "기술 스택이나 환경 제약이 있나요?" → clarity 0.50
+→ Phase 1 Round 4 [Success]: "어떤 상태가 되면 성공이라고 할 수 있나요?" → clarity 0.60
+→ Phase 1 Round 5 [Goal]: "가장 핵심 기능 하나만 고른다면?" → clarity 0.80 ✓
+→ Phase 1 Round 6 [Constraint]: → clarity 0.70 ✓ | [Success]: → 0.75 ✓ | Ambiguity: 0.18 ✓ (gate: 2회)
+→ Phase 2: Gate open
+→ Phase 3: Seed 생성 → docs/specs/task-cli-tool.yaml
+
+Ambiguity 0.65 → 0.18 · Round 6
+```
