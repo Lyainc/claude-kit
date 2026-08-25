@@ -623,3 +623,24 @@ CLASSIFY renders it Critical/P0, sorted ahead of E1 (see the Priority Mapping ta
 "we could not look" outranks any judgment made on content that was actually read. It is
 excluded from E1/E3/E5/E6/E10/E11/E12's own record lists so the same file is never
 double-reported as both `unreadable` and a finding about content nobody examined.
+
+### Scan bundle shape
+
+`audit/SKILL.md` Phase 1's Outputs points here. The full in-memory scan bundle CLASSIFY
+receives (produced by Step 7b), for reference — the CLASSIFY table's `Source` column
+already gives the field path each error type reads:
+```
+{
+  scan_summary {           // Step 7b — reduces raw frontmatter/filename records + link index
+    total_files, max_per_type,
+    link_index {targets, sources},   // size only — the Step 7 index itself never enters context
+    errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified, defect-bearing
+                           // only; {count, paths[] | records[], omitted?}. Field set:
+                           // scripts/README.md → scan-summary.py.
+    }
+  }
+  manifest_summary?        // {file_count, generated_at} or null
+  vocabulary_pairs[]       // from detect-vocabulary (E9, vault-wide)
+  e5_candidates[]          // from e5-candidates (E5) — joined to E5 paths by path
+}
+```

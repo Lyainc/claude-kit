@@ -122,22 +122,12 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
     Vault-wide, unscoped; paths are `$VAULT_ROOT`-relative — join on `rec.path`.
 
 **Outputs**: An in-memory scan bundle. The raw per-file scans stay on disk in `$scan_tmp`
-and are NEVER read into context — CLASSIFY gets only the reduced form (#614):
-```
-{
-  scan_summary {           // Step 7b — reduces raw frontmatter/filename records + link index
-    total_files, max_per_type,
-    link_index {targets, sources},   // size only — the Step 7 index itself never enters context
-    errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified, defect-bearing
-                           // only; {count, paths[] | records[], omitted?}. Field set:
-                           // scripts/README.md → scan-summary.py.
-    }
-  }
-  manifest_summary?        // {file_count, generated_at} or null
-  vocabulary_pairs[]       // from detect-vocabulary (E9, vault-wide)
-  e5_candidates[]          // from e5-candidates (E5) — joined to E5 paths by path
-}
-```
+and are NEVER read into context — CLASSIFY gets only the reduced form (#614). The full
+bundle shape (`scan_summary`, `manifest_summary`, `vocabulary_pairs`, `e5_candidates` and
+their nested fields) is in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **SCAN
+output budget and the reduced bundle** → **Scan bundle shape** — the CLASSIFY table above
+already gives the field path each error type reads (`scan_summary.errors.<code>`,
+`vocabulary_pairs`, `e5_candidates`).
 `count`/`omitted`/`unreadable` semantics and the re-run procedure for a capped type are the
 binding contract in `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **SCAN output
 budget** — apply as written. Report `count`, never the emitted-list length, and say in the
