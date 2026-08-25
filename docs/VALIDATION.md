@@ -276,10 +276,12 @@ python3 scripts/check-skill-catalogue-drift.py
 # unchecked rather than guessed at by a general number parser.
 
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 25 check-skill-token-budget self-test cases passed
+# Expected: OK: all 35 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
-# Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
-#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
+# Expected: description budget: N skill(s) N chars + N agent(s) N chars = N chars
+#   (disable-model-invocation:true excluded) OK: skill-token-budget clean — N file(s) checked
+#   (SKILL.md/agents/*.md/CLAUDE.md), every one within 5000 tokens, SKILL.md gates inside the
+#   window [o200k_base] (largest ...)
 
 python3 scripts/check-release-failure-notify.py --self-test
 # Expected: OK: all check-release-failure-notify self-test cases passed
