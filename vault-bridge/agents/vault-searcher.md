@@ -44,16 +44,10 @@ done
 - Read `.vault-link` as YAML. Required field: `vault_path` (relative path from vault root, e.g. `notes/claude-kit`). Optional field: `version` (default 1 if absent).
 - If `.vault-link.local` exists at the same level or below: read `vault_root` field (overrides `{vault_root}` above). Otherwise keep the resolved `{vault_root}`.
 
-**Recovery (path resolution failure)**:
-- Construct full path: `{vault_root}/{vault_path}`.
-- Check if that directory exists via Bash: `[ -d "{full_path}" ]`.
-- If directory does NOT exist:
-  1. Scan `{vault_root}/notes/` for subdirectory names.
-  2. Compute edit distance between `vault_path`'s leaf segment and each candidate.
-  3. Collect candidates with edit distance ≤ 2.
-  4. If 1+ candidates found: use AskUserQuestion to present them and ask user to confirm correct path or proceed with full-vault scope.
-  5. If no candidates: log a warning in Korean ("`.vault-link`의 경로를 찾을 수 없어 vault 전체를 검색합니다.") and fall back to full-vault scope.
-- **Graceful fallback**: pointer resolution failure must never halt operation. Always fall back to pre-pointer behavior.
+**Recovery (path resolution failure)**: apply the fallback in
+`${CLAUDE_PLUGIN_ROOT}/reference/vault-link-recovery.md` — check existence via Bash,
+fuzzy-match candidates in `notes/`, confirm via AskUserQuestion, or fall back to full-vault
+scope; resolution failure must never halt operation.
 
 ## Vault Layout
 
