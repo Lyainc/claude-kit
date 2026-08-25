@@ -992,6 +992,31 @@ def case_plugin_unknown_split(errors: list[str]) -> None:
                 f"split counts (got: {split})", errors)
 
 
+def case_claude_kit_owned_names_cache_layout(errors: list[str]) -> None:
+    """#664 fresh-review finding: agents from an orphaned cache version must not
+    count as owned, same as scan_skill_catalog already guarantees for skills
+    (case_scan_skill_catalog_cache_layout) — an agent retired by the live
+    version but still on disk under an old `.orphaned_at`-marked version dir
+    must not misclassify a plugin=unknown event as attribution_failure."""
+    print("\ncase: claude_kit_owned_names_cache_layout")
+    with tempfile.TemporaryDirectory() as td:
+        cache_root = Path(td) / "cache" / "some-marketplace"
+        for version in ("4.0.1", "4.5.0"):
+            agents_dir = cache_root / "feedback-loop" / version / "agents"
+            agents_dir.mkdir(parents=True)
+            (agents_dir / "live-agent.md").write_text("x")
+        # An agent that only ever existed in the orphaned 4.0.1 version.
+        (cache_root / "feedback-loop" / "4.0.1" / "agents" / "retired-agent.md").write_text("x")
+        (cache_root / "feedback-loop" / "4.0.1" / ".orphaned_at").write_text("2026-01-01")
+        (cache_root / "feedback-loop" / "4.5.0" / "skills" / "retro").mkdir(parents=True)
+        (cache_root / "feedback-loop" / "4.5.0" / "skills" / "retro" / "SKILL.md").write_text("x")
+
+        owned = report.claude_kit_owned_names(repo_root=cache_root / "feedback-loop")
+        _assert("live-agent" in owned, f"live-version agent counts as owned (got: {owned})", errors)
+        _assert("retired-agent" not in owned,
+                f"orphaned-version-only agent does NOT count as owned (got: {owned})", errors)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -1036,6 +1061,7 @@ def main() -> int:
     case_token_cost_zero_cost_not_mislabeled_omitted(errors)
     case_token_cost_view_end_to_end(errors)
     case_plugin_unknown_split(errors)
+    case_claude_kit_owned_names_cache_layout(errors)
 
     print()
     if errors:

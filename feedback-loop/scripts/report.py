@@ -386,8 +386,12 @@ def claude_kit_owned_names(repo_root: Path | None = None) -> set[str]:
     else:
         for agent_md in agents_root.glob("*/*/agents/*.md"):
             parts = agent_md.relative_to(agents_root).parts
-            if len(parts) == 4 and not parts[0].startswith("."):
-                names.add(agent_md.stem)
+            if len(parts) != 4 or parts[0].startswith("."):
+                continue
+            plugin, version, _, _ = parts
+            if (agents_root / plugin / version / ".orphaned_at").exists():
+                continue
+            names.add(agent_md.stem)
     return names
 
 
