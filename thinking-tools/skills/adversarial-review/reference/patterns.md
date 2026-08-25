@@ -244,3 +244,14 @@ Resilience: {탄탄|보통|취약} | Weighted Score: {weighted_avg}% | Attacks: 
 Verdict-so-far: [claim1:survived|collapsed|pending] ...
 <!-- /STATE -->
 ```
+
+---
+
+## Vault Decision Grounding Procedure
+
+The one-shot vault-searcher call for Phase 0.5 (Mode 3 — Keyword Search, via the Agent tool):
+1. Call `vault-searcher` **exactly once per session** (not per round). Cache the returned excerpts and reuse them across rounds. In a multi-claim session the cache reflects the **first** finalized Steelman's keywords and is never re-queried; the relevance gate (step 5) drops any cached decision unrelated to a later claim (why: rationale.md § Single-claim cache sizing).
+2. **Search target**: `notes/`, preferring `type: decision`. Tell vault-searcher to use the manifest `type` pre-filter when available, otherwise fall back to a `decision-` filename grep (this is vault-searcher's native Mode 3 behavior). Counter-scenario sourcing MAY additionally surface `status: archived` decisions as a secondary worst-case source — but ONLY those carrying an explicit failure/reversal signal (a non-empty `## 문제` section or a reversal note); a plain `archived` status can also mean "successfully completed and shelved", which is NOT a worst-case source.
+3. **Query**: 2–3 core keywords distilled from the finalized Steelman.
+4. **Result bound**: up to **3** relevant decisions. Instruct vault-searcher to excerpt **only** the `## 결정` / `## 근거` / `## 문제` sections (not the full note).
+5. **Relevance gate**: drop any returned decision whose topic is not genuinely related to the claim — an irrelevant hit must not be used in any round.
