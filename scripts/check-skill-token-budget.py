@@ -92,6 +92,11 @@ from pathlib import Path
 # Claude Code re-attaches the first 5,000 tokens of each invoked skill after compaction.
 TOKEN_BUDGET = 5000
 
+# #686: the harness's skill-listing cap (changelog: "raised the listing cap from 250 to
+# 1,536 characters"). SKILL.md only — the changelog claim is about the skill listing
+# specifically, with no equivalent claim about agents/*.md.
+DESCRIPTION_CHAR_BUDGET = 1536
+
 # Rule-of-thumb tokenizer: English/code ~4.4 chars per token, CJK ~1.2 tokens per char.
 # The 1.2 matters: at 1.0 the estimate ran 9% under on Hangul-dense skills, which is the
 # direction that lets a genuinely over-budget file pass.
@@ -149,6 +154,95 @@ def _estimate_tokens(text: str) -> float:
 
 
 FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
+
+
+def description_raw_text(text: str):
+    """Raw YAML text of the frontmatter `description:` block, `strip()`'d; None if absent.
+
+    Same walk as check-skill-reference-drift.py's `description_lines()` (#686): the value
+    runs from right after the `description:` key through the line before the next
+    top-level key or the closing fence, so a quoted one-liner and a `|`/`>-` block scalar
+    both fall out unchanged. Deliberately counts quotes, block-scalar markers, and
+    continuation indentation/newlines — raw is always >= the harness's rendered value, so
+    a gate built on it never passes a description the harness would truncate.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    for i in range(1, len(lines)):
+        if lines[i].strip() in ("---", "..."):
+            return None  # frontmatter closed without a description
+        if not lines[i].startswith("description:"):
+            continue
+        block = [lines[i][len("description:"):]]
+        for j in range(i + 1, len(lines)):
+            nxt = lines[j]
+            if nxt.strip() in ("---", "...") or FRONTMATTER_KEY_RE.match(nxt):
+                break
+            block.append(nxt)
+        return "\n".join(block).strip()
+    return None
+
+
+def disables_model_invocation(text: str) -> bool:
+    """True if frontmatter carries `disable-model-invocation: true`.
+
+    Such a skill/agent never appears in the model's always-loaded skill list, so its
+    description counts toward neither the #686 sum nor the 1,536-char listing gate.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return False
+    for line in lines[1:]:
+        if line.strip() in ("---", "..."):
+            return False
+        if line.startswith("disable-model-invocation:"):
+            return line.split(":", 1)[1].strip() == "true"
+    return False
+
+
+def check_description(text: str):
+    """Return violation strings for a SKILL.md's frontmatter `description:` length (#686).
+
+    SKILL.md only — see DESCRIPTION_CHAR_BUDGET's comment. Shares the same return-1 path
+    as the token budget: if a file trips both, both violations are reported together.
+    """
+    if disables_model_invocation(text):
+        return []
+    desc = description_raw_text(text)
+    if desc is None:
+        return []
+    length = len(desc)
+    if length > DESCRIPTION_CHAR_BUDGET:
+        return [
+            f"description exceeds the {DESCRIPTION_CHAR_BUDGET}-char skill-listing cap: "
+            f"~{length} chars ({length / DESCRIPTION_CHAR_BUDGET:.2f}x) — the harness truncates "
+            f"trigger phrases past this point in the model's skill list"
+        ]
+    return []
+
+
+def description_totals(root: Path, results):
+    """(n_skills, skill_chars, n_agents, agent_chars, total_chars) for the summary line (#686).
+
+    Walks the same results check() already produced. `disable-model-invocation: true`
+    files are skipped entirely — not in the model's always-loaded list, so not in the sum.
+    CLAUDE.md has no frontmatter and so contributes 0 without a term of its own.
+    """
+    n_skills = skill_chars = n_agents = agent_chars = 0
+    for rel, _, _ in results:
+        text = (root / rel).read_text(encoding="utf-8")
+        if disables_model_invocation(text):
+            continue
+        length = len(description_raw_text(text) or "")
+        if rel.name == "SKILL.md":
+            n_skills += 1
+            skill_chars += length
+        elif rel.parent.name == "agents":
+            n_agents += 1
+            agent_chars += length
+    return n_skills, skill_chars, n_agents, agent_chars, skill_chars + agent_chars
 
 
 def find_anchors(text: str):
@@ -215,6 +309,7 @@ def check(root: Path):
         for skill in sorted(plugin.glob("skills/*/SKILL.md")):
             text = skill.read_text(encoding="utf-8")
             total, violations = check_text(text)
+            violations = violations + check_description(text)
             results.append((skill.relative_to(root), total, violations))
         for agent in sorted(plugin.glob("agents/*.md")):
             text = agent.read_text(encoding="utf-8")
@@ -227,17 +322,23 @@ _CLEAN = "# Skill\n\nShort body.\n\n## Rules\n\n- Stay small.\n"
 _BIG_ASCII = "word " * 30000  # ~34k tokens of filler, well past the budget
 
 
-def _write_fixture_plugin(root: Path, body: str) -> None:
-    """A minimal source plugin, so the wiring cases never read the live tree."""
+def _write_fixture_plugin(root: Path, body: str, *, description=None) -> None:
+    """A minimal source plugin, so the wiring cases never read the live tree.
+
+    `description`, when given, wraps `body` in a frontmatter block carrying that
+    `description:` value for both the SKILL.md and agents/x.md fixtures (#686) — CLAUDE.md
+    keeps the bare body, matching the real repo's CLAUDE.md, which never has frontmatter.
+    """
     plugin = root / "fixture-plugin"
     (plugin / ".claude-plugin").mkdir(parents=True)
     (plugin / ".claude-plugin" / "plugin.json").write_text('{"name": "fixture-plugin"}')
+    described = f"---\ndescription: {description}\n---\n\n{body}" if description is not None else body
     skill = plugin / "skills" / "x"
     skill.mkdir(parents=True)
-    (skill / "SKILL.md").write_text(body)
+    (skill / "SKILL.md").write_text(described)
     agents = plugin / "agents"
     agents.mkdir(parents=True)
-    (agents / "x.md").write_text(body)
+    (agents / "x.md").write_text(described)
     (root / "CLAUDE.md").write_text(body)
 
 
@@ -370,6 +471,57 @@ def run_self_test() -> int:
     finally:
         globals()["BACKEND"], globals()["_ENCODING"] = saved_backend, saved_encoding
 
+    # DESCRIPTION BUDGET SUM (#686): the total line must appear on BOTH the clean and the
+    # over-budget path — a FAIL that dropped it would be #447's failure class applied here.
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_fixture_plugin(Path(tmp), _CLEAN, description="x" * 10)
+        rc, out = run_main(["--root", tmp])
+        check(rc == 0, f"description sum: a clean fixture must still exit 0, got {rc}")
+        check(
+            "description budget: 1 skill(s) 10 chars + 1 agent(s) 10 chars = 20 chars" in out,
+            f"description sum: expected the 20-char total line on the OK path, got: {out!r}",
+        )
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_fixture_plugin(Path(tmp), _BIG_ASCII, description="x" * 10)
+        rc, out = run_main(["--root", tmp])
+        check(rc == 1, f"description sum: an over-budget fixture must still exit 1, got {rc}")
+        check(
+            "description budget: 1 skill(s) 10 chars + 1 agent(s) 10 chars = 20 chars" in out,
+            f"description sum: FAIL path dropped the total line, got: {out!r}",
+        )
+
+    # 1,536-CHAR SKILL-LISTING GATE (#686), SKILL.md only: right at the line passes...
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_fixture_plugin(Path(tmp), _CLEAN, description="d" * DESCRIPTION_CHAR_BUDGET)
+        rc, out = run_main(["--root", tmp])
+        check(rc == 0, f"description length: exactly {DESCRIPTION_CHAR_BUDGET} raw chars must pass, got {rc}")
+
+    # ...one char over fails, sharing the token budget's return-1 path, and agents/*.md is
+    # never gated by it even carrying the identical over-length description.
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_fixture_plugin(Path(tmp), _CLEAN, description="d" * (DESCRIPTION_CHAR_BUDGET + 1))
+        rc, out = run_main(["--root", tmp])
+        check(rc == 1, f"description length: {DESCRIPTION_CHAR_BUDGET + 1} raw chars must fail, got {rc}")
+        check(
+            "fixture-plugin/skills/x/SKILL.md" in out and "description exceeds" in out,
+            f"description length: expected a SKILL.md description-exceeds violation, got: {out!r}",
+        )
+        check(
+            "fixture-plugin/agents/x.md: description exceeds" not in out,
+            f"description length: agents/*.md must never be gated by the 1,536-char cap, got: {out!r}",
+        )
+
+    # COMBINED VIOLATION (#686): a file over BOTH budgets must report both, not just the first.
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_fixture_plugin(Path(tmp), _BIG_ASCII, description="d" * (DESCRIPTION_CHAR_BUDGET + 1))
+        rc, out = run_main(["--root", tmp])
+        check(rc == 1, f"combined violation: must still exit 1, got {rc}")
+        check(
+            "over budget" in out and "description exceeds" in out,
+            f"combined violation: both violations must be reported for the same file, "
+            f"not just the first, got: {out!r}",
+        )
+
     if failures:
         print(f"FAIL: {len(failures)} check-skill-token-budget self-test case(s) failed", file=sys.stderr)
         for line in failures:
@@ -421,12 +573,21 @@ def main(argv=None):
             last = max((o for _, o in anchors), default=0)
             print(f"{str(rel):56} ~{total:5.0f} tok  anchors={len(anchors):2} last@~{last:.0f}")
 
+    # #686: printed unconditionally, before either verdict — a FAIL that swallowed this line
+    # would be the #447 failure class (a safeguard going silent) applied to the sum itself.
+    n_skills, skill_chars, n_agents, agent_chars, total_chars = description_totals(root, results)
+    print(
+        f"description budget: {n_skills} skill(s) {skill_chars} chars + {n_agents} agent(s) "
+        f"{agent_chars} chars = {total_chars} chars (disable-model-invocation:true excluded)"
+    )
+
     offenders = [(rel, total, v) for rel, total, v in results if v]
     if offenders:
         print(
-            f"FAIL: {len(offenders)} file(s) exceed the {TOKEN_BUDGET}-token budget — for "
-            f"SKILL.md this is the compaction re-attach window, content past it is dropped "
-            f"silently (#447); for CLAUDE.md/agents/*.md it is dilution (#473):",
+            f"FAIL: {len(offenders)} file(s) violate a budget — the {TOKEN_BUDGET}-token limit "
+            f"(SKILL.md: compaction re-attach window, #447; CLAUDE.md/agents/*.md: dilution, "
+            f"#473) or the {DESCRIPTION_CHAR_BUDGET}-char SKILL.md description-listing cap "
+            f"(#686); a file can trip both, and both are reported below:",
             file=sys.stderr,
         )
         for rel, _, violations in offenders:
