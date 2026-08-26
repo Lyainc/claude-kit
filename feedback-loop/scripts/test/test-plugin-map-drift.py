@@ -4,8 +4,8 @@ Regression test — feedback-loop/scripts/plugin-map.json vs each plugin's real
 skills/agents dirs (#664 root cause).
 
 The bug this pins: plugin-map.json is a hand-maintained bare-name -> plugin
-lookup used by event-logger.sh's resolve_plugin() (event-logger.sh:108, called
-at :199 skill_invoke, :218 agent_spawn, :243 command_run). #664 traced a
+lookup used by event-logger.sh's resolve_plugin() (event-logger.sh:109, called
+at :219 skill_invoke, :238 agent_spawn, :263 command_run). #664 traced a
 plugin=unknown telemetry mystery to four claude-kit-owned skills
 (issue-raise, next-goal, add-policy, distill) missing from this map — nothing
 enforced the map staying in sync with the skills/agents dirs it describes, so
@@ -60,7 +60,8 @@ def main() -> int:
             print(f"  - {m}", file=sys.stderr)
         return 1
 
-    print(f"OK: plugin-map.json covers all {len(catalog)} skill/agent names")
+    print(f"OK: plugin-map.json covers every skill/agent name "
+          f"({len(catalog)} checked)")
     return 0
 
 
