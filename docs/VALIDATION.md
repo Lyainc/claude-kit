@@ -467,6 +467,21 @@ python3 vault-bridge/scripts/test/test-vault-absent-guard.py --self-test
 python3 vault-bridge/scripts/test/test-vault-absent-guard.py
 # Expected: OK: all vault-absent-guard checks passed
 
+# wiki frontmatter cross-plugin contract (#645 B3) — the /wiki move split the WRITER of
+# `verified:`/`provenance:` (vault-bridge skills/wiki/SKILL.md) from its READER (OVM audit E12 +
+# E2) across two deployment units. Nothing pinned that contract before, and its failure mode is
+# silent: if the writer stops emitting `verified:` in the shape the auditor parses, the audit does
+# NOT error — it just quietly stops flagging staleness, so the vault degrades while every scan
+# reports success. Pins both sides (writer schema/always-write rules; reader field set, 90-day
+# threshold, strict YYYY-MM-DD grammar, wiki/+type:wiki scope) and drives a real round trip over a
+# temp vault through BOTH the production scan-summary.py path and the audit-validate.py oracle:
+# a schema-conformant page yields no finding, while missing/unparseable/stale `verified:` and
+# missing `provenance:` each get flagged.
+python3 vault-bridge/scripts/test/test-wiki-frontmatter-contract.py --self-test
+# Expected: OK: all 11 self-test cases passed
+python3 vault-bridge/scripts/test/test-wiki-frontmatter-contract.py
+# Expected: OK: all wiki frontmatter contract checks passed
+
 # vault-commit message generation (status-transition aware)
 python3 vault-bridge/scripts/test/test-vault-commit-message.py
 # Expected: OK: all cases passed
