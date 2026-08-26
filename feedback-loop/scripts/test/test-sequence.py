@@ -185,11 +185,31 @@ def main(argv: list[str]) -> int:
         ("skill_invoke:general-purpose", 9): 1,
     }, "a length-2 run and a length-9 run of the same label stay in separate buckets")
 
+    # 9. retro's Phase-3 emit (#696 sibling consumer): retro-telemetry.sh appends a
+    #    THIRD skill_invoke row per call — outcome="success", tool_use_id="" — which
+    #    the empty-id dedup exemption cannot collapse. Left unguarded, ONE retro call
+    #    reads as a self-transition run of 2, and retro/SKILL.md treats a run of 2 as
+    #    "review-round churn worth an item", so retro manufactures a phantom waste item
+    #    about itself on every run. report.py fixed its half of this by counting only
+    #    outcome=='started'; this function cannot (see _command below).
+    phase3 = _ev("retro", outcome="success", tool_use_id="")
+    one_retro_call = _call("retro") + [phase3]
+    check(_runs(one_retro_call) == {},
+          "retro's Phase-3 emit does not turn ONE call into a self-transition run")
+    check(sequence.session_sequences(one_retro_call)["s1"] == ["skill_invoke:retro"],
+          "one retro call yields exactly one sequence row, Phase-3 emit dropped")
+    #    The guard must not catch the id-less rows it was scoped around: a command_run
+    #    is a single id-less `started` row and stays, keeping neighbours apart.
+    around = _call("a") + _command("goal") + _call("a")
+    check(sequence.session_sequences(around)["s1"] ==
+          ["skill_invoke:a", "command_run:goal", "skill_invoke:a"],
+          "the id-less guard spares command_run (started), so no phantom a -> a")
+
     print()
     if errors:
         print(f"RESULT: {len(errors)} check(s) FAILED — see above.")
         return 1
-    print("OK: all 16 sequence lifecycle-pair + run-collapse checks passed.")
+    print("OK: all 19 sequence lifecycle-pair + run-collapse checks passed.")
     return 0
 
 
