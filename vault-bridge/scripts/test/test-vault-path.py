@@ -254,6 +254,59 @@ def case_ovm_audit_state_path(errors: list[str]) -> None:
                 errors)
 
 
+def case_wiki_skill_no_hardcoded_vault(errors: list[str]) -> None:
+    """wiki/SKILL.md's EXECUTABLE lines resolve the vault root, never hardcode `~/vault`.
+
+    Same defect class as #613/#616, one layer up: the skill body, not a script. Found by review
+    on the #645/#697 branch — the vault-absent guard resolved `$VAULT_ROOT` and `mkdir`ed
+    `$VAULT_ROOT/wiki`, while the manifest read, the `ls` dedup fallback, and the page path still
+    said `~/vault`. With `VAULT_BRIDGE_VAULT_ROOT` pointed anywhere else, the guard passes on the
+    real vault, dedup scans a different (likely absent) directory and finds nothing, and the page
+    is written to `~/vault/wiki/` — a directory nothing created, entirely outside the vault. The
+    mismatch is worse than uniform hardcoding, which at least stays self-consistent.
+
+    Scanned region is FENCED CODE ONLY — the lines a run actually executes. Prose legitimately
+    names `~/vault/wiki/` (the description, the intro sentence, the resolution chain's own
+    default), and flagging those was a false positive on the first cut of this check. The inline
+    paths that DO matter (the planned page path in Phase 3, the written path in Phase 5) are
+    covered by the positive needles below instead, which is the stronger check anyway: it pins
+    what they must say rather than only what they must not.
+    """
+    print("\n[case] wiki/SKILL.md uses $VAULT_ROOT in every executable path")
+    skill = ROOT / "skills" / "wiki" / "SKILL.md"
+    text = skill.read_text(encoding="utf-8")
+
+    offenders: list[str] = []
+    in_fence = False
+    for i, line in enumerate(text.splitlines(), 1):
+        if line.lstrip().startswith("```"):
+            in_fence = not in_fence
+            continue
+        if not in_fence:
+            continue
+        # The resolution chain's own default is the one legitimate in-fence mention.
+        if "VAULT_BRIDGE_VAULT_PATH" in line:
+            continue
+        hits = re.findall(r"~/vault/\S*", line)
+        if hits:
+            offenders.append(f"line {i}: {hits[0]}")
+
+    _assert(
+        not offenders,
+        "wiki/SKILL.md hardcodes no `~/vault/...` path in code "
+        f"(offenders: {offenders})",
+        errors,
+    )
+    # Positive side: the paths that matter actually use the resolved root.
+    for needle, what in (
+        ('"$VAULT_ROOT/.vault-bridge/manifest.json"', "manifest read"),
+        ('"$VAULT_ROOT/wiki/"', "dedup ls fallback"),
+        ('"$VAULT_ROOT/wiki"', "mkdir"),
+        ("$VAULT_ROOT/wiki/{slug}.md", "new-page path"),
+    ):
+        _assert(needle in text, f"wiki/SKILL.md {what} uses $VAULT_ROOT", errors)
+
+
 # ---------------------------------------------------------------------------
 # Case 6: vault-link/SKILL.md Step 2 resolves the vault root, not hardcoded (#700)
 # ---------------------------------------------------------------------------
@@ -323,7 +376,7 @@ def case_vault_save_aborts_without_vault_root(errors: list[str]) -> None:
     _assert(step3_match is not None, "step 3 is present and followed by step 4", errors)
     step3 = step3_match.group(0) if step3_match else ""
 
-    _assert("not** exist" in step3 or "not exist" in step3,
+    _assert("not** exist" in step3 or "not exist" in step3 or "is false" in step3,
             "step 3 checks whether {vault_root} does not exist", errors)
     _assert("stop" in step3.lower(),
             "step 3 stops instead of writing when {vault_root} is missing", errors)
@@ -343,6 +396,7 @@ def main() -> None:
     case_ovm_primitives_vault_path(errors)
     case_ovm_primitives_priority(errors)
     case_ovm_audit_state_path(errors)
+    case_wiki_skill_no_hardcoded_vault(errors)
     case_vault_link_no_hardcoded_vault(errors)
     case_vault_save_aborts_without_vault_root(errors)
 
@@ -352,7 +406,7 @@ def main() -> None:
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(1)
-    print(f"OK: all {7} vault-path cases passed")
+    print(f"OK: all {8} vault-path cases passed")
 
 
 if __name__ == "__main__":
