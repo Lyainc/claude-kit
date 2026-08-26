@@ -23,6 +23,7 @@ Self-test (in-memory fixtures, no vault, no live files):
   python3 vault-bridge/scripts/test/test-manifest-wiki-match.py --self-test
 """
 import json
+import re
 import subprocess
 import sys
 import tempfile
@@ -60,8 +61,11 @@ def static_checks(wiki_text: str) -> list:
     return [
         ("scripts/manifest-wiki-match.py" in wiki_text,
          "wiki/SKILL.md invokes manifest-wiki-match.py"),
-        ("cat ~/vault/.vault-bridge/manifest.json" not in wiki_text,
-         "wiki/SKILL.md no longer `cat`s the manifest directly"),
+        # Path-agnostic on purpose: the manifest path became `$VAULT_ROOT`-relative when /wiki
+        # stopped hardcoding `~/vault`, and a pin naming one spelling of the path goes green the
+        # moment the path is rewritten — which is exactly when a regression is most likely.
+        (not re.search(r"\bcat\b[^\n]*\.vault-bridge/manifest\.json", wiki_text),
+         "wiki/SKILL.md never `cat`s the manifest directly, whatever the path spelling"),
         ("2 KB" in wiki_text, "wiki/SKILL.md documents the 2 KB truncation rationale"),
         ("Exit 3" in wiki_text or "exit 3" in wiki_text,
          "wiki/SKILL.md documents the exit-3 (absent/unparseable/malformed) branch"),
@@ -72,8 +76,8 @@ def static_checks(wiki_text: str) -> list:
 _CLEAN_WIKI = _WIKI_SKILL.read_text(encoding="utf-8")
 _WIKI_NO_RATIONALE = _CLEAN_WIKI.replace("2 KB", "small")
 _WIKI_RAW_CAT = _CLEAN_WIKI.replace(
-    'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-wiki-match.py" ~/vault/.vault-bridge/manifest.json',
-    "cat ~/vault/.vault-bridge/manifest.json")
+    'python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-wiki-match.py" "$VAULT_ROOT/.vault-bridge/manifest.json"',
+    'cat "$VAULT_ROOT/.vault-bridge/manifest.json"')
 
 for _name, _fixture in (("_WIKI_NO_RATIONALE", _WIKI_NO_RATIONALE),
                         ("_WIKI_RAW_CAT", _WIKI_RAW_CAT)):
