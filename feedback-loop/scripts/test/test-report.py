@@ -531,6 +531,40 @@ def case_lifecycle_stale_tracks_any_outcome(errors: list[str]) -> None:
             errors)
 
 
+def case_lifecycle_never_fired_excludes_uncountable_calls(errors: list[str]) -> None:
+    """The sibling of the stale case above, for never-fired. #696 gates counts on
+    outcome=='started', so a window holding ONLY a completion line (its started
+    sibling fell outside the --since day-file cutoff) leaves counts==0. Keying
+    never-fired on counts would then report a skill that plainly fired as never
+    having fired — newly mislabeling a live skill as dead, the exact class of
+    untrustworthy count #696 exists to remove. never_fired must key on last_seen.
+
+    Fixture: one RECENT success-only event, no started sibling anywhere. The
+    skill belongs in no section — it fired (not never-fired), fired recently
+    (not stale), and has no complete call to rank (not in bottom-N).
+    """
+    print("\ncase: lifecycle_never_fired_excludes_uncountable_calls")
+    catalog = ["feedback-loop:retro"]
+    recent_ts = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    events = [
+        {**_ev("skill_invoke", name="retro", outcome="success"),
+         "qualified_name": "feedback-loop:retro", "ts": recent_ts},
+    ]
+    result = report.skill_lifecycle_view(events, catalog=catalog)
+    _assert("feedback-loop:retro" not in result["never_fired"],
+            "a completion-only window does NOT report the skill as never-fired "
+            f"(got never_fired: {result['never_fired']})", errors)
+    _assert("feedback-loop:retro" not in result["stale"],
+            f"nor as stale — it fired recently (got stale: {result['stale']})", errors)
+    _assert(all(s != "feedback-loop:retro" for s, _ in result["bottom"]),
+            f"nor in bottom-N — no complete call to rank (got bottom: {result['bottom']})",
+            errors)
+    # A skill with genuinely zero events in the window IS never-fired.
+    empty = report.skill_lifecycle_view([], catalog=catalog)
+    _assert(empty["never_fired"] == ["feedback-loop:retro"],
+            f"zero events → still never-fired (got: {empty['never_fired']})", errors)
+
+
 # ---------------------------------------------------------------------------
 # Rule-fire liveness cases (G20 #258)
 # ---------------------------------------------------------------------------
@@ -1042,6 +1076,7 @@ def main() -> int:
     case_lifecycle_fired_bottom_e2e(errors)
     case_lifecycle_counts_calls_not_events(errors)
     case_lifecycle_stale_tracks_any_outcome(errors)
+    case_lifecycle_never_fired_excludes_uncountable_calls(errors)
     case_rule_fire_per_rule_id(errors)
     case_rule_fire_view_end_to_end(errors)
     case_liveness_excluded_from_outcomes(errors)
