@@ -477,13 +477,24 @@ def skill_lifecycle_view(
         if qn not in last_seen or ts > last_seen[qn]:
             last_seen[qn] = ts
 
-    # 1. never-fired: in catalog but count == 0
-    never_fired = sorted(s for s in catalog if counts[s] == 0)
+    # 1. never-fired: in catalog and NO skill_invoke event at all in the window.
+    # Keyed on last_seen, not counts: counts only rises on outcome=='started'
+    # (#696), so a call whose started line fell outside this window while its
+    # success line didn't has counts==0 despite plainly having fired. Reporting
+    # that as never-fired would newly mislabel a live skill as dead — the exact
+    # class of untrustworthy count #696 exists to remove. Such a skill lands in
+    # no section: it did fire (not never-fired) and recently (not stale), but
+    # carries no complete call to rank in bottom-N. That silence is the honest
+    # answer; a fabricated count would not be.
+    never_fired = sorted(s for s in catalog if counts[s] == 0 and s not in last_seen)
 
-    # 2. stale: has events but last seen > stale_days ago
+    # 2. stale: has events but last seen > stale_days ago. Also keyed on
+    # last_seen rather than counts, for the same reason — staleness asks "when
+    # did this last fire", which every skill_invoke event answers regardless of
+    # whether its outcome made it countable as a call.
     stale = sorted(
         s for s in catalog
-        if counts[s] > 0 and s in last_seen and last_seen[s] < stale_cutoff
+        if s in last_seen and last_seen[s] < stale_cutoff
     )
 
     # A bounded --since window <= the stale threshold filters out every event old
