@@ -1,6 +1,6 @@
 ---
 name: vault-knowledge-manager
-description: "Obsidian vault knowledge base manager — vault search, audit coordination, and note/decision DRAFTING. Read-only by the Write Role Contract: it returns a ready-to-write draft to the main context; the user commits it by invoking `/vault-save` or `/wiki` there. Example: 'search for kubernetes notes', 'run vault audit', 'draft a decision record for the API gateway'. For session recording use `/vault-save` (raw ore) or `/wiki` (compiled knowledge) — this agent does not manage session lifecycle."
+description: "Obsidian vault knowledge base manager — vault search, audit coordination, and note/decision DRAFTING. Read-only by the Write Role Contract: it returns a ready-to-write draft to the main context; the user commits it by invoking `/vault-save` or `/wiki` (both vault-bridge skills) there. Example: 'search for kubernetes notes', 'run vault audit', 'draft a decision record for the API gateway'. For session recording use `/vault-save` (raw ore) or `/wiki` (compiled knowledge) — this agent does not manage session lifecycle."
 model: sonnet  # kept (#648): drafting judgment, and effort medium sets the depth
 color: magenta
 memory: project
@@ -54,6 +54,11 @@ draft. The user then runs the matching slash command in the main context, where 
 | a decision record | `notes/decision-YYYY-MM-DD-{slug}.md` + 4-section body (문제/선택지/결정/근거) | `/vault-save --type decision {topic}` |
 | quick raw input | `sources/capture-YYYY-MM-DD-{topic}.md` + body | `/vault-save {text or URL}` |
 | compiled domain knowledge | a `wiki/{topic}.md` page | `/wiki {topic}` |
+
+Every command in the right-hand column ships with **vault-bridge**, not with this plugin
+(`/wiki`'s deployment unit moved there in #645 — same command, same `wiki/` output, different
+plugin). Name the command, not the plugin, when you hand the draft back; the user invokes it in
+the main context either way.
 
 State the exact path and frontmatter in your final message so the command is a formality, not a
 second round of work. Never claim a file was created — you did not create it.

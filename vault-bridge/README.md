@@ -1,6 +1,6 @@
 # vault-bridge
 
-**Obsidian vault ↔ external project bridge** plugin for Claude Code. Access vault knowledge from external projects, save reference material into it with `/vault-save`, and commit it with `/vault-commit`. Knowledge *compilation* (`/wiki`) and vault curation stay with obsidian-vault-manager.
+**Obsidian vault ↔ external project bridge** plugin for Claude Code. Access vault knowledge from external projects, save reference material into it with `/vault-save`, compile domain knowledge into it with `/wiki`, and commit it with `/vault-commit`. Vault curation (audit, Bases views) stays with obsidian-vault-manager.
 
 > **Renamed from `vault-reader` (≤ v0.3.0) at v1.0.0.** The plugin's scope expanded beyond read-only search (session-note creation, vault I/O hooks), so the name now reflects the two-way bridge role. See [Migration](#migration-from-vault-reader) below.
 
@@ -55,7 +55,7 @@ vault-searcher is read-only. Vault *content* writes are user-initiated slash com
 | Command | Plugin | Destination |
 |---------|--------|-------------|
 | `/vault-save` | **vault-bridge** | source text as-is → `~/vault/sources/`, prose you wrote → `~/vault/notes/` |
-| `/wiki` | obsidian-vault-manager | compiled AI-recall domain knowledge → `~/vault/wiki/` |
+| `/wiki` | **vault-bridge** (deployment unit moved here in #645) | compiled AI-recall domain knowledge → `~/vault/wiki/` |
 
 `/vault-save` is the single reference-material entry — it replaced OVM's `/capture` and `/note` in #480, when B stopped being a promotion pipeline and became a reference warehouse (v5 §5). It writes no `status:` field and always writes `provenance:`. A past-tense session summary is just a `/vault-save`; distilled session knowledge for later AI recall compiles to `/wiki` (`/save-session` was retired 2026-07-10, #331).
 
@@ -300,11 +300,12 @@ VAULT_BRIDGE_WRITE_CONTRACT=off claude
 | Aspect | vault-bridge | obsidian-vault-manager |
 | --- | --- | --- |
 | Use context | External project access | Internal vault management session |
-| Write scope | `/vault-save` reference material (`sources/`, `notes/`) + `.vault-link` binding + git commits (`/vault-commit`) | `/wiki` compilation + audit/views |
-| Role | Cross-session bridge (read + git commit) | Full knowledge management |
+| Write scope | `/vault-save` reference material (`sources/`, `notes/`) + `/wiki` compilation (`wiki/`) + `.vault-link` binding + git commits (`/vault-commit`) | No content authoring since `/wiki` moved out — `/base` creates a new `.base` view file only (never touches `.md`), `/audit` edits frontmatter only after explicit confirmation; both agents return drafts/plans, never writes |
+| Role | Cross-session bridge (read + vault write + git commit) | Vault curation — integrity audit and non-destructive views |
 
-- vault-bridge **never modifies or deletes existing vault content files** — `/vault-save` only creates new ones, and knowledge compilation (`/wiki`) belongs to obsidian-vault-manager.
-- For vault curation (audit, Bases views, wiki compilation), use `obsidian-vault-manager`.
+- vault-bridge **never deletes vault content files**. `/vault-save` only creates new ones; `/wiki` is the single exception to create-only, and it updates a `wiki/` page in place by compounding onto it (never a blind overwrite) — see the `/wiki` skill for the gate that precedes every such write.
+- For vault curation (integrity audit, Bases views), use `obsidian-vault-manager`.
+- `/wiki`'s **deployment unit** moved OVM → vault-bridge in #645. That is a packaging change, not a layer reclassification: `/wiki` is still conceptually ④ knowledge-base work and #304's straddler verdict stands — only which plugin ships it changed (배포단위≠레이어).
 
 ### Kill switch
 
