@@ -644,6 +644,11 @@ def main() -> int:
             "plugin_unknown_ratio": round(unknown_ratio, 4),
             "plugin_unknown": {
                 "ratio": round(unknown_ratio, 4),
+                # Both ratios below are of TOTAL events (so they sum to `ratio`),
+                # not of the unknown subset. `total_unknown` is carried so a
+                # consumer can recover the other denominator instead of having to
+                # back it out of a rounded ratio.
+                "total_unknown": unknown_split["total_unknown"],
                 "attribution_failure": unknown_split["attribution_failure"],
                 "attribution_failure_ratio": round(attribution_failure_ratio, 4),
                 "no_target": unknown_split["no_target"],
