@@ -33,6 +33,12 @@ sys.path.insert(0, str(SCRIPT_DIR))
 from report import load_events, parse_since  # noqa: E402
 
 
+# Event types whose calls emit a started row and a terminal row sharing one
+# tool_use_id. `command_run` is deliberately absent: it emits a SINGLE id-less
+# started row, which is why the id-less guard below is scoped to this set.
+_PAIRED_LIFECYCLE = {"skill_invoke", "agent_spawn"}
+
+
 def session_sequences(events: list[dict]) -> dict[str, list[str]]:
     """Bucket events by session_id, in order, as `event:name` labels.
 
@@ -62,6 +68,21 @@ def session_sequences(events: list[dict]) -> dict[str, list[str]]:
                 continue
             seen.add(key)
         ev = e.get("event") or ""
+        # A paired type carries an id on BOTH its rows, so an id-less TERMINAL row is
+        # not a lifecycle row at all — it is a supplementary emit riding the same event
+        # type (retro's Phase-3 counter line, retro-telemetry.sh:71, hardcoded
+        # outcome="success" tool_use_id=""). The dedup above never dedups an empty id,
+        # so without this guard that line lands as a second `skill_invoke:retro` and ONE
+        # retro call reads as a self-transition run of 2 — which retro/SKILL.md calls
+        # "review-round churn worth an item", making every retro run manufacture a
+        # phantom waste item about itself. Same root cause as #696 (the emit reusing
+        # skill_invoke); report.py fixed its half by counting only outcome=='started',
+        # which this function cannot do — command_run emits a single id-less 'started'
+        # row, so an outcome filter would erase that type outright. Keyed on
+        # terminal-outcome AND empty id instead: command_run ('started') and every real
+        # lifecycle row (has an id) both escape it.
+        if ev in _PAIRED_LIFECYCLE and not tid and (e.get("outcome") or "") != "started":
+            continue
         nm = e.get("name") or ""
         if ev in {"skill_invoke", "agent_spawn", "command_run"} and nm:
             sessions[e.get("session_id") or ""].append(f"{ev}:{nm}")
