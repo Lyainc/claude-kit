@@ -487,6 +487,13 @@ def classify_unknown(events: list[dict], repo_root: Path | None = None) -> dict:
 # Keyed old -> current, append-only. An entry is only ever added, never edited: the old name is a
 # fact about events already on disk, so rewriting one silently re-orphans that history.
 #
+# SCOPE — deliberately the lifecycle view only. The `top` view keys on (plugin, event, name) and
+# is left alone: it answers "where did events come from", so a move genuinely does produce two
+# rows, and collapsing them would erase the record of when the skill lived where. The lifecycle
+# view answers "is this skill alive", which is the question a split identity gets wrong. Reading
+# both, one skill's counts can appear once here and split across two plugin rows there — that is
+# the two views measuring different things, not a disagreement.
+#
 # WHY NOT key the whole view on the bare `name` instead (the one-line alternative weighed in
 # #645): nothing today collides — all 19 skills across the four plugins have distinct names — but
 # bare-name keying merges any FUTURE collision into one bucket with no error, and this view's only

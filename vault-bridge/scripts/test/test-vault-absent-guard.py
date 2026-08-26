@@ -59,6 +59,22 @@ _STOP_WORDS_RE = re.compile(
     r"stop without writing|stop, without writing|abort|멈췄어요|중단", re.IGNORECASE)
 _NEVER_MKDIR_RE = re.compile(r"[Nn]ever `?mkdir`? the vault root")
 
+# The guard's own numbered step, marker to the next step/heading. The stop-word check runs
+# against THIS slice, not the whole body, because a stop word anywhere else is not evidence
+# about this branch — and one such word sits two steps below in wiki/SKILL.md, inside the
+# sentence "this warns, it does not abort" describing the exit-3 branch (#645 B2). Searching
+# the whole body let that sentence, which asserts the OPPOSITE, report the check as satisfied.
+_GUARD_BLOCK_RE = re.compile(
+    r"^\d+\. \*\*Vault-absent guard\b.*?(?=^\d+\. |^#{1,6} |\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def _guard_block(text: str) -> str:
+    """The vault-absent guard step's own text ("" when the guard is gone entirely)."""
+    m = _GUARD_BLOCK_RE.search(text)
+    return m.group(0) if m else ""
+
 # --- direction 2: no unconditional vault-root create ------------------------------------
 #
 # The literal defect this pins is `mkdir` against a HARDCODED vault path — `mkdir -p ~/vault/wiki/`
@@ -82,14 +98,17 @@ def guard_checks(bodies: dict) -> list:
     """
     out = []
     for name, text in sorted(bodies.items()):
+        guard = _guard_block(text)
         out += [
-            (bool(_DASH_D_RE.search(text)),
-             f"{name}: body tests the vault directory with `[ -d ... ]` before writing"),
-            (bool(_STOP_WORDS_RE.search(text)),
+            (bool(guard),
+             f"{name}: the vault-absent guard step is present at all"),
+            (bool(_DASH_D_RE.search(guard)),
+             f"{name}: the guard tests the vault directory with `[ -d ... ]` before writing"),
+            (bool(_STOP_WORDS_RE.search(guard)),
              f"{name}: the vault-absent branch STOPS (aborts) instead of creating"),
-            (bool(_NEVER_MKDIR_RE.search(text)),
-             f"{name}: body states the vault root is never `mkdir`ed"),
-            (bool(_ISSUE_RE.search(text)),
+            (bool(_NEVER_MKDIR_RE.search(guard)),
+             f"{name}: the guard states the vault root is never `mkdir`ed"),
+            (bool(_ISSUE_RE.search(guard)),
              f"{name}: the guard cites its deciding issue (#697 / #645)"),
             (not _ROOT_MKDIR_RE.search(text),
              f"{name}: body carries NO unconditional `mkdir` of the vault root "
