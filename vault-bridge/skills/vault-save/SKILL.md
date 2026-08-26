@@ -72,14 +72,21 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
    ```
 2. Parse `$ARGUMENTS`: strip a leading `--type decision` or `--type discussion` flag if present;
    the rest is the content or URL.
-3. Check whether `{vault_root}` (resolved in step 1) exists as a directory.
-   - If it does **not** exist: stop immediately without writing anything, and output one line
-     telling the user that `{vault_root}` does not exist and that they should either set
-     `VAULT_BRIDGE_VAULT_PATH` or `VAULT_BRIDGE_VAULT_ROOT` to their actual vault location, or
-     create `{vault_root}` themselves first. Never `mkdir -p` `{vault_root}` itself.
-   - If it **does** exist: proceed as before — `mkdir -p` the target sub-directory
-     (`{vault_root}/sources`, `{vault_root}/notes`, or `{vault_root}/wiki`, per the Destination
-     table above) before writing.
+3. **Vault-absent guard (#697) — check `{vault_root}` exists BEFORE creating anything.** If
+   `[ -d "{vault_root}" ]` is false, **stop without writing** and tell the user in Korean that no
+   vault was found at that path and where to configure one (`VAULT_BRIDGE_VAULT_ROOT`, or the
+   `VAULT_BRIDGE_VAULT_PATH` plugin setting) — e.g. "`{vault_root}`에 볼트가 없어서 저장을
+   멈췄어요. 볼트 경로를 `VAULT_BRIDGE_VAULT_ROOT`(환경변수)나 플러그인 설정
+   `VAULT_BRIDGE_VAULT_PATH`로 지정해 주세요." Never `mkdir` the vault root itself.
+
+   This is the same contract the rest of vault-bridge already keeps — `hooks/pre-write-guard.sh`
+   and `hooks/session-start-manifest.sh` both treat a missing vault directory as "do nothing".
+   Creating it here would produce a vault nobody knows about, and because
+   `session-start-manifest.sh` already exited for this session, that vault never receives a
+   manifest — every later manifest-dependent path (recall, dedup) then degrades silently.
+
+   Only once the vault root exists, `mkdir -p` the target sub-directory (`sources/`, `notes/`,
+   `wiki/`) before writing.
 4. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
    write the content as the body verbatim (keep the user's own wording — do not summarize).
 5. Filename collision — use Glob over the target folder to see whether the same stem already

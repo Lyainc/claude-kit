@@ -178,6 +178,10 @@ jobs:
           python3 vault-bridge/scripts/test/test-manifest-candidates.py --self-test
           python3 vault-bridge/scripts/test/test-manifest-candidates.py
           python3 vault-bridge/scripts/test/test-manifest-meta.py
+          python3 vault-bridge/scripts/test/test-manifest-wiki-match.py --self-test
+          python3 vault-bridge/scripts/test/test-manifest-wiki-match.py
+          python3 vault-bridge/scripts/test/test-vault-absent-guard.py --self-test
+          python3 vault-bridge/scripts/test/test-vault-absent-guard.py
           python3 vault-bridge/scripts/test/test-vault-commit-message.py
           echo "vault-bridge tests OK"
 
