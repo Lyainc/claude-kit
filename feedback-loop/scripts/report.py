@@ -478,6 +478,32 @@ def classify_unknown(events: list[dict], repo_root: Path | None = None) -> dict:
     }
 
 
+# Skills whose `{plugin}:{skill}` identity changed because their DEPLOYMENT UNIT moved between
+# plugins. The catalog is scanned from the current tree, so it only ever holds the new name; every
+# event logged before the move still carries the old one and would silently fail the catalog
+# match — dropping the skill's entire history and reporting it as never-fired. That is the exact
+# signal a migration most needs to keep: it is how you tell afterwards whether the move helped.
+#
+# Keyed old -> current, append-only. An entry is only ever added, never edited: the old name is a
+# fact about events already on disk, so rewriting one silently re-orphans that history.
+#
+# WHY NOT key the whole view on the bare `name` instead (the one-line alternative weighed in
+# #645): nothing today collides — all 19 skills across the four plugins have distinct names — but
+# bare-name keying merges any FUTURE collision into one bucket with no error, and this view's only
+# job is to be trustworthy about counts. A silent merge in a measurement instrument is worse than
+# a table that grows by one line per migration (migrations are rare; this is the first).
+_SKILL_RENAMES = {
+    # #645, 2026-08-20: /wiki's deployment unit moved OVM -> vault-bridge. Layer verdict
+    # unchanged (#304 straddler stands) — only which plugin ships it.
+    "obsidian-vault-manager:wiki": "vault-bridge:wiki",
+}
+
+
+def canonical_skill_id(qualified_name: str) -> str:
+    """Map a historical `{plugin}:{skill}` identity onto its current one (identity if unmoved)."""
+    return _SKILL_RENAMES.get(qualified_name, qualified_name)
+
+
 def skill_lifecycle_view(
     events: list[dict],
     catalog: list[str] | None = None,
@@ -497,7 +523,11 @@ def skill_lifecycle_view(
       caveat         - measurement-scope caveat string
       guide          - interpretation guide string
 
-    Matching: event['qualified_name'] == '{plugin}:{skill}' (catalog format).
+    Matching: event['qualified_name'] == '{plugin}:{skill}' (catalog format),
+    after `canonical_skill_id()` maps any pre-migration identity onto the current
+    one (`_SKILL_RENAMES`) so a skill that changed plugins keeps its history
+    instead of reading as never-fired.
+
     Counts CALLS, not events: only skill_invoke events with outcome == 'started'
     count (#696). The harness emits exactly one started per invocation regardless
     of the skill; counting every skill_invoke event instead conflated call count
@@ -528,7 +558,7 @@ def skill_lifecycle_view(
     for e in events:
         if e.get("event") != "skill_invoke":
             continue
-        qn = e.get("qualified_name", "")
+        qn = canonical_skill_id(e.get("qualified_name", ""))
         if not qn or qn not in catalog_set:
             continue
         if e.get("outcome") == "started":

@@ -301,6 +301,52 @@ def case_lifecycle_never_fired(errors: list[str]) -> None:
             f"exactly one never-fired skill (got: {result['never_fired']})", errors)
 
 
+def case_lifecycle_deployment_unit_rename(errors: list[str]) -> None:
+    """A skill that changed plugins keeps its pre-move history (#645).
+
+    The catalog is scanned from the CURRENT tree, so it only ever holds the new
+    `{plugin}:{skill}`. Events logged before the move still carry the old one. Without
+    `_SKILL_RENAMES` they fail the catalog match and are dropped silently — the skill
+    reports as never-fired and its whole history disappears, which is precisely the
+    signal a migration needs in order to be evaluable afterwards.
+
+    Fixture carries outcome="started" and a ts on every event: #696 counts CALLS,
+    so only started events register a count, and last_seen needs a parseable ts.
+    The claim under test is unchanged -- three calls under two identities collapse
+    into one bucket -- only its unit is now "call" rather than "event".
+    """
+    print("\ncase: lifecycle_deployment_unit_rename")
+    catalog = ["vault-bridge:wiki", "vault-bridge:vault-save"]
+    recent_ts = (datetime.now(timezone.utc) - timedelta(days=1)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    events = [
+        # Pre-move identity (what is actually on disk in old event files).
+        {**_ev("skill_invoke", plugin="obsidian-vault-manager", name="wiki", outcome="started"),
+         "qualified_name": "obsidian-vault-manager:wiki", "ts": recent_ts},
+        {**_ev("skill_invoke", plugin="obsidian-vault-manager", name="wiki", outcome="started"),
+         "qualified_name": "obsidian-vault-manager:wiki", "ts": recent_ts},
+        # Post-move identity.
+        {**_ev("skill_invoke", plugin="vault-bridge", name="wiki", outcome="started"),
+         "qualified_name": "vault-bridge:wiki", "ts": recent_ts},
+    ]
+
+    result = report.skill_lifecycle_view(events, catalog=catalog)
+
+    _assert("vault-bridge:wiki" not in result["never_fired"],
+            "a renamed skill is NOT reported never-fired on the strength of its old events",
+            errors)
+    counts = dict(result["bottom"])
+    _assert(counts.get("vault-bridge:wiki") == 3,
+            f"pre-move and post-move events land in ONE bucket (got: {counts})", errors)
+    _assert("obsidian-vault-manager:wiki" not in counts,
+            "the retired identity never appears as its own bucket", errors)
+
+    # Identity mapping: a skill that never moved is returned untouched.
+    _assert(report.canonical_skill_id("vault-bridge:vault-save") == "vault-bridge:vault-save",
+            "canonical_skill_id is identity for an unmoved skill", errors)
+    _assert(report.canonical_skill_id("obsidian-vault-manager:wiki") == "vault-bridge:wiki",
+            "canonical_skill_id maps the moved skill onto its current identity", errors)
+
+
 def case_scan_skill_catalog_repo_layout(errors: list[str]) -> None:
     """Repo checkout shape: <root>/{plugin}/skills/{skill}/SKILL.md, unaffected by #522."""
     print("\ncase: scan_skill_catalog_repo_layout")
@@ -1104,6 +1150,7 @@ def main() -> int:
     case_table_output_end_to_end(errors)
     case_event_filter_end_to_end(errors)
     case_lifecycle_never_fired(errors)
+    case_lifecycle_deployment_unit_rename(errors)
     case_scan_skill_catalog_repo_layout(errors)
     case_scan_skill_catalog_cache_layout(errors)
     case_lifecycle_stale_note(errors)
