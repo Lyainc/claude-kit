@@ -89,7 +89,7 @@ The wiki *compounds* — a topic that already has a page is **updated**, never d
 
 1. Find existing pages on the same topic. **Primary: the manifest** — when it exists and is reasonably fresh, match `type:wiki` entries on title + tags (catches same-topic pages on a different slug, e.g. `defuddle.md` vs `defuddle-cli.md`, which slug-only matching misses). **Never `cat` the manifest directly** — on a real vault it can run past 100 KB, and the harness truncates large Bash output to a 2 KB preview before this reads it, so a raw `cat` silently degrades to whichever few entries survive the cut (#468, same defect class as #460). Use the filter script instead, which reads the full file on disk and returns only `type:wiki` entries (`path`/`title`/`tags`):
    ```bash
-   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-wiki-match.py" ~/vault/.vault-bridge/manifest.json
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-wiki-match.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
    Exit 0 → parse stdout as `{scanned, wiki_entries[]}` and match `wiki_entries` on title + tags.
    Exit 3 (manifest absent, unparseable, or malformed) → same as a hard-absent manifest, fall
@@ -106,11 +106,11 @@ The wiki *compounds* — a topic that already has a page is **updated**, never d
 
    **Fallback (manifest absent or exit 3 above):** list pages and match by slug / filename:
    ```bash
-   ls ~/vault/wiki/ 2>/dev/null
+   ls "$VAULT_ROOT/wiki/" 2>/dev/null
    ```
 2. **Existing page on the same topic** → Read that page first, then plan an **update/merge**: integrate the new knowledge into what is already there (add/refine sections, keep it coherent) and extend the `provenance:` trail with the new originating query. Do NOT create a `-v2`.
    - **Lazy anchor check (#305 staleness defense)**: if the existing page has an `anchor:` field, and that anchor is a local path, `stat` it and compare its mtime against the page's `verified:` date. Anchor unchanged since `verified:` → the anchored claim is still current, skip re-deriving it (just fold in the new knowledge and bump `verified:` at write time). Anchor changed → recompile the anchored claim from the current session context, same as any other update. If the anchor is a URL instead of a local path, skip the mtime comparison entirely and always recompile as a normal update — checking a URL for changes means fetching it, and that fetch is exactly the ferry-style re-pull this design avoids (§3 pull-mostly). This is a lazy check on an already-local anchor, never a network round-trip. **Known gap**: `verified:` is date-only (`YYYY-MM-DD`) while mtime is a full timestamp, so an anchor edited later on the *same calendar day* as the last `verified:` stamp can still compare as "unchanged" and skip a re-derive it should have caught — a narrow, same-day race, not a fix.
-3. **No existing page** → plan a **new** page `~/vault/wiki/{slug}.md`. `{slug}` = 2–4 kebab-case words from the topic.
+3. **No existing page** → plan a **new** page `$VAULT_ROOT/wiki/{slug}.md`. `{slug}` = 2–4 kebab-case words from the topic.
 4. A `-v2`/`-v3` suffix is ONLY for a genuinely *different* topic that collides on slug — never for the same topic (that's an update).
 
 ---
@@ -147,7 +147,7 @@ provenance: <one line: the query / exploration that produced this page; multiple
 1. `mkdir -p "$VAULT_ROOT/wiki"` — the `wiki/` sub-directory only, and only because Phase 3 step 0
    already proved `$VAULT_ROOT` itself exists. **Never `mkdir` the vault root** (#645 B1): if
    Phase 3 step 0 was skipped or reported `VAULT_ABSENT`, this skill has already stopped.
-2. **New page**: write `~/vault/wiki/{slug}.md` with the frontmatter above and the compiled body. Stamp `verified:` to today.
+2. **New page**: write `$VAULT_ROOT/wiki/{slug}.md` with the frontmatter above and the compiled body. Stamp `verified:` to today.
 3. **Update**: rewrite the existing page with merged content and the extended `provenance:`. Preserve the original `created:` date; do not reset it. Stamp `verified:` to today regardless of whether the anchor check (Phase 3) found the anchor changed or unchanged — the page was touched, so the freshness signal moves forward either way.
 4. Output only the created/updated file path and whether it was new or merged. No follow-up questions.
 
@@ -162,5 +162,5 @@ provenance: <one line: the query / exploration that produced this page; multiple
 - **Always stamp `verified:` to today on write.** No exceptions, no schedule, no "re-verify" step — it is a last-touched signal, not a verification action (#305).
 - **No `status:` on wiki pages.** A is outside the status machine.
 - **Filename**: `{slug}.md`, lowercase kebab — matches the `wiki/` naming convention enforced by `pre-write-guard.sh`.
-- **Vault writes only inside `~/vault/wiki/`.** This skill never touches repo files (AGENTS.md redirect is guidance, not a write).
+- **Vault writes only inside `$VAULT_ROOT/wiki/`** — the root Phase 3 step 0 resolved, never a hardcoded `~/vault`. Every executable line here (manifest read, `ls` fallback, page path, `mkdir`) uses `$VAULT_ROOT`; hardcoding `~/vault` in any of them makes the guard check one directory while the write lands in another, so with `VAULT_BRIDGE_VAULT_ROOT` set the page is written outside the vault entirely (#613/#616 defect class). This skill never touches repo files (AGENTS.md redirect is guidance, not a write).
 - AI recall is primary, human reading is secondary (v5 §3 — browse via OVM `/base`, not this skill): write for a future model to act on, plain markdown, no embedding/DB (constitution — file-over-app).

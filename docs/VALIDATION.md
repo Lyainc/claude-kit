@@ -403,7 +403,7 @@ python3 vault-bridge/scripts/test/test-pre-write-guard.py
 # $HOME/vault, ignoring both env vars — breaking /audit for non-default vaults and writing
 # audit state to the wrong one).
 python3 vault-bridge/scripts/test/test-vault-path.py
-# Expected: OK: all 7 vault-path cases passed
+# Expected: OK: all 8 vault-path cases passed
 
 # vault-bridge manifest atomic-write self-test (#582) — manifest.json is written via
 # temp-file + os.replace so a hard kill mid-write can never leave a torn manifest on
