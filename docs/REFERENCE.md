@@ -41,17 +41,17 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager
 │   ├── .claude-plugin/plugin.json
-│   ├── skills/                          # 3개 스킬 (wiki, audit, base)
+│   ├── skills/                          # 2개 스킬 (audit, base)
 │   ├── agents/                          # 2개 에이전트
-│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-format.md, obsidian-bases-schema.md
+│   ├── reference/                       # vault-audit-rules.md, obsidian-cli.md, obsidian-bases-schema.md, audit-deep.md
 │   └── scripts/                         # ovm-primitives.sh + test/ (audit-validate.py, gen-fixture.sh, ...)
 ├── vault-bridge/                        # plugin: vault-bridge
 │   ├── .claude-plugin/plugin.json
 │   ├── agents/                          # vault-searcher (haiku, 3 modes, read-only)
-│   ├── skills/                          # 4개 스킬 (vault-save, vault-link, vault-manifest-refresh, vault-commit)
+│   ├── skills/                          # 5개 스킬 (vault-save, vault-link, vault-manifest-refresh, vault-commit, wiki)
 │   ├── hooks/                           # 2개 hook handler (session-start-manifest, pre-write-guard)
-│   ├── reference/                       # manifest-recall.md, vault-searcher-examples.md, wiki-staleness.md
-│   └── scripts/                         # generate-manifest.py + tests/
+│   ├── reference/                       # manifest-recall.md, vault-searcher-examples.md, wiki-staleness.md, obsidian-format.md
+│   └── scripts/                         # generate-manifest.py, manifest-wiki-match.py + test/
 ├── feedback-loop/                       # plugin: feedback-loop (⑤ 자기개선, 외부 배포 — #217)
 │   ├── .claude-plugin/plugin.json       # hooks 키: 8 event-type 등록 (opt-in telemetry)
 │   ├── skills/                          # retro (#639 — telemetry 낭비 패턴 action 단일 출력 + dedup)
@@ -69,7 +69,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 
 ## vault-bridge Hooks & Skills
 
-vault-bridge registers 2 hook handlers + 4 skills. All hooks are **deterministic shell scripts**
+vault-bridge registers 2 hook handlers + 5 skills. All hooks are **deterministic shell scripts**
 unless explicitly noted otherwise — no per-turn LLM cost.
 
 **Read/write asymmetry (Write Role Contract)**: vault-bridge is a "haiku delivery" layer for
@@ -78,11 +78,14 @@ cannot be delegated — `pre-write-guard.sh` (default `enforce`) blocks subagent
 writes are main-context user-initiated skills. Both vault-content ③ delivery adapters that
 vault-bridge once carried are now retired: the `session` adapter (`docs/design/output-adapter-contract.md`
 §2 row #5 — formerly `/save-session`) was **retired 2026-07-10 (#331)** when the session-knowledge
-path was redefined wiki-first (session knowledge → OVM `/wiki` + native memory), and the
+path was redefined wiki-first (session knowledge → `/wiki` + native memory), and the
 `handoff` adapter (row #4 — formerly `/handoff`, vault-bypassing) was **retired in G26 (decision
 G25 D4)**; the handoff function now lives in the machine-level `session-close` skill, outside
-claude-kit. vault-bridge's remaining write skill is `/vault-commit` (git commit); vault *content*
-authoring (`/vault-save`) belongs to vault-bridge, compilation (`/wiki`) to obsidian-vault-manager. vault-bridge is still
+claude-kit. vault-bridge's other write skills are `/vault-commit` (git commit), `/vault-save`
+(vault *content* authoring), and — since #645 — `/wiki` (compilation into `wiki/`). The #645 move
+was a **deployment-unit** change only: `/wiki` is still conceptually ④ knowledge-base work and
+#304's straddler classification stands; only which plugin ships it changed (the same
+배포단위≠레이어 distinction feedback-loop already uses). vault-bridge is still
 claude-kit's **③ delivery layer** (`claude-kit-boundary.md` line 26). Per the G3 #102 ADR the
 output layer is **distributed in-place**, so these delivery adapters live here rather than in a
 separate plugin.
@@ -126,6 +129,10 @@ separate plugin.
   location.
 - **`/vault-manifest-refresh`**: forces a full manifest rebuild (skips staleness check).
 - **`/vault-commit`**: commits uncommitted vault changes with user-approved message.
+- **`/wiki`**: compiles domain knowledge learned during work into a `~/vault/wiki/` page (the v5
+  A layer, for AI recall) — gated, explicit, never always-on. Its deployment unit moved here from
+  obsidian-vault-manager in #645; the layer verdict is unchanged (still ④ knowledge-base work,
+  #304 straddler).
 
 (`/handoff` was retired in G26 — the next-session continuation function moved to the
 machine-level `session-close` skill, outside claude-kit.)

@@ -11,7 +11,6 @@ obsidian-vault-manager/
 │   └── vault-file-organizer.md       # 경량 파일 정리 subagent (Haiku)
 ├── skills/
 │   ├── audit/SKILL.md                # /audit — vault 구조 무결성 감사
-│   ├── wiki/SKILL.md                 # /wiki — 도메인 지식 컴파일 (A 레이어)
 │   └── base/SKILL.md                 # /base — Obsidian Bases 뷰 생성
 └── ARCHITECTURE.md
 ```
@@ -25,7 +24,6 @@ obsidian-vault-manager/
 │   └── vault-file-organizer.md
 ├── skills/
 │   ├── audit/SKILL.md
-│   ├── wiki/SKILL.md
 │   └── base/SKILL.md
 └── agent-memory/
     └── vault-knowledge-manager/
