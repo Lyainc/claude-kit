@@ -57,6 +57,36 @@ State the routing decision briefly before continuing, so the user can correct it
 
 The wiki *compounds* — a topic that already has a page is **updated**, never duplicated.
 
+0. **Vault-absent guard (#645 B1) — runs BEFORE the manifest read, and the order matters.**
+   Resolve the vault root the same way `hooks/pre-write-guard.sh` does — `VAULT_BRIDGE_VAULT_ROOT`
+   (env override) > `VAULT_BRIDGE_VAULT_PATH` (userConfig) > `~/vault` — then test it:
+   ```bash
+   _vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
+   [ -z "$_vr" ] && _vr="$HOME/vault"
+   VAULT_ROOT="${_vr/#\~/$HOME}"
+   if [ -d "$VAULT_ROOT" ]; then echo "$VAULT_ROOT"; else echo "VAULT_ABSENT"; fi
+   ```
+   **Each Bash tool call is its own shell — `$VAULT_ROOT` does not survive to the next one.** The
+   printed line is the resolved vault root (or the literal string `VAULT_ABSENT`); read it and
+   substitute that value for every `$VAULT_ROOT` in the bash fences below, in this same run (the
+   `manifest-wiki-match.py` call, the `ls` fallback, and Phase 5's `mkdir`/page path) — same
+   substitution contract `vault-link/SKILL.md` Step 2 uses for the same reason.
+
+   `VAULT_ABSENT` → **stop without writing anything.** Tell the user in Korean that no vault was
+   found and where to configure one — e.g. "볼트가 없어서 wiki 컴파일을 멈췄어요. 볼트 경로를
+   `VAULT_BRIDGE_VAULT_ROOT`(환경변수)나 플러그인 설정 `VAULT_BRIDGE_VAULT_PATH`로 지정해 주세요."
+   **Never `mkdir` the vault root**, here or in Phase 5.
+
+   This keeps the contract the rest of vault-bridge already holds — `pre-write-guard.sh:52-54` and
+   `session-start-manifest.sh` both do nothing when the vault directory is missing. Creating it
+   would leave a vault nobody knows about, and since `session-start-manifest.sh` already exited for
+   this session, that vault never receives a manifest: step 1 below would then take the exit-3
+   branch on **every** later run, making DEDUP permanently blind.
+
+   **Why before the manifest read**: a missing vault guarantees a missing manifest, so running
+   step 1 first would report "manifest unusable" for what is really "no vault at all" and send the
+   user to fix the wrong thing. One cause, one message, in cause order.
+
 1. Find existing pages on the same topic. **Primary: the manifest** — when it exists and is reasonably fresh, match `type:wiki` entries on title + tags (catches same-topic pages on a different slug, e.g. `defuddle.md` vs `defuddle-cli.md`, which slug-only matching misses). **Never `cat` the manifest directly** — on a real vault it can run past 100 KB, and the harness truncates large Bash output to a 2 KB preview before this reads it, so a raw `cat` silently degrades to whichever few entries survive the cut (#468, same defect class as #460). Use the filter script instead, which reads the full file on disk and returns only `type:wiki` entries (`path`/`title`/`tags`):
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-wiki-match.py" ~/vault/.vault-bridge/manifest.json
@@ -64,6 +94,15 @@ The wiki *compounds* — a topic that already has a page is **updated**, never d
    Exit 0 → parse stdout as `{scanned, wiki_entries[]}` and match `wiki_entries` on title + tags.
    Exit 3 (manifest absent, unparseable, or malformed) → same as a hard-absent manifest, fall
    through to the slug/filename fallback below — never re-attempt with a raw `cat`.
+
+   **Exit 3 also emits one warning line to the user (#645 B2)** — in Korean, before continuing:
+   e.g. "manifest를 못 읽어서(`$VAULT_ROOT/.vault-bridge/manifest.json`) 슬러그 이름 매칭으로만
+   중복을 확인해요. 같은 주제가 다른 슬러그로 있으면 못 잡을 수 있어요. `/vault-manifest-refresh`로
+   다시 만들 수 있어요." Then proceed with the fallback — this warns, it does not abort.
+
+   The warning is the whole point of the branch being visible: on the fallback path DEDUP silently
+   loses same-topic-different-slug matching, so `/wiki` keeps *succeeding* while quietly writing
+   duplicates. Without the line, the only way to notice is an `/audit` E12 run days later.
 
    **Fallback (manifest absent or exit 3 above):** list pages and match by slug / filename:
    ```bash
@@ -105,7 +144,9 @@ provenance: <one line: the query / exploration that produced this page; multiple
 
 ## Phase 5 — WRITE
 
-1. `mkdir -p ~/vault/wiki/` (directory guard).
+1. `mkdir -p "$VAULT_ROOT/wiki"` — the `wiki/` sub-directory only, and only because Phase 3 step 0
+   already proved `$VAULT_ROOT` itself exists. **Never `mkdir` the vault root** (#645 B1): if
+   Phase 3 step 0 was skipped or reported `VAULT_ABSENT`, this skill has already stopped.
 2. **New page**: write `~/vault/wiki/{slug}.md` with the frontmatter above and the compiled body. Stamp `verified:` to today.
 3. **Update**: rewrite the existing page with merged content and the extended `provenance:`. Preserve the original `created:` date; do not reset it. Stamp `verified:` to today regardless of whether the anchor check (Phase 3) found the anchor changed or unchanged — the page was touched, so the freshness signal moves forward either way.
 4. Output only the created/updated file path and whether it was new or merged. No follow-up questions.

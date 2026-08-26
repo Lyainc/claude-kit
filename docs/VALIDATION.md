@@ -438,6 +438,35 @@ python3 vault-bridge/scripts/test/test-manifest-candidates.py
 python3 vault-bridge/scripts/test/test-manifest-meta.py
 # Expected: OK: all cases passed
 
+# manifest-wiki-match.py regression (#645, split out of OVM's test-manifest-reads.py when
+# /wiki's deployment unit moved OVM -> vault-bridge; a test follows the script it exercises).
+# wiki/SKILL.md Phase 3 DEDUP used to `cat` the raw .vault-bridge/manifest.json (100+ KB on a
+# real vault), silently truncated to a 2 KB harness preview before the model ever saw it. Runs
+# the filter script against real temp fixtures (missing/unparseable/malformed/valid, plus the
+# #528 real-scale 182-file/41-wiki shape), asserts its output stays under the 2 KB cut and
+# serializes `scanned` before `wiki_entries`, then statically greps the live wiki/SKILL.md call
+# site to pin that it never regresses back to a raw `cat`. Named differently from its OVM
+# sibling on purpose: the two pin different contracts and must stay greppable apart.
+python3 vault-bridge/scripts/test/test-manifest-wiki-match.py --self-test
+# Expected: OK: all 3 self-test cases passed
+python3 vault-bridge/scripts/test/test-manifest-wiki-match.py
+# Expected: OK: all wiki-match checks passed
+
+# vault-absent guard contract (#697 + #645 B1) — vault-bridge's standing contract is "vault
+# directory missing = do nothing" (pre-write-guard.sh:52-54, session-start-manifest.sh both
+# exit 0 on `[ ! -d ]`), but /vault-save and /wiki used to `mkdir -p` unconditionally, so the
+# first call on a vault-less machine materialised a GHOST VAULT: the user sees a printed path
+# and reads it as success, while session-start-manifest.sh has already exited for that session,
+# so the vault never receives a manifest and every later manifest-dependent path (recall, DEDUP)
+# degrades silently. Pins both directions per writing skill — the guard EXISTS and aborts, and
+# no hardcoded vault-root `mkdir` survives anywhere in the body — since either alone is passable
+# with the other broken. Self-test mutates the real skill bodies (guard deleted, abort softened
+# into create-and-continue) and asserts the checks still FAIL.
+python3 vault-bridge/scripts/test/test-vault-absent-guard.py --self-test
+# Expected: OK: all 5 self-test cases passed
+python3 vault-bridge/scripts/test/test-vault-absent-guard.py
+# Expected: OK: all vault-absent-guard checks passed
+
 # vault-commit message generation (status-transition aware)
 python3 vault-bridge/scripts/test/test-vault-commit-message.py
 # Expected: OK: all cases passed
@@ -845,17 +874,17 @@ python3 obsidian-vault-manager/scripts/test/test-audit-state-stats-and-untracked
 python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 # Expected: OK: all cases passed
 
-# manifest-summary.py + manifest-wiki-match.py regression (#468, mirrors #460's retired
-# e8-candidates.py pattern) — audit/SKILL.md and wiki/SKILL.md both used to `cat` the raw
-# .vault-bridge/manifest.json (100+ KB on a real vault), silently truncated to a 2 KB harness
-# preview before the model ever saw it. Runs both filter scripts against real temp fixtures
-# (missing/unparseable/malformed/valid), asserts the wiki filter's output stays under the 2 KB
-# cut and serializes `scanned` before `wiki_entries`, then statically greps the live SKILL.md
-# call sites to pin that neither ever regresses back to a raw `cat`. #663 moved audit's copy of
-# that rationale into reference/vault-audit-rules.md -> "Reading the manifest"; the pins followed,
-# and the self-test corrupts the canonical text there to prove they still FAIL.
+# manifest-summary.py regression (#468, mirrors #460's retired e8-candidates.py pattern) —
+# audit/SKILL.md used to `cat` the raw .vault-bridge/manifest.json (100+ KB on a real vault),
+# silently truncated to a 2 KB harness preview before the model ever saw it. Runs the filter
+# script against real temp fixtures (missing/unparseable/missing-field/valid), then statically
+# greps the live audit/SKILL.md call site to pin that it never regresses back to a raw `cat`.
+# #663 moved audit's copy of that rationale into reference/vault-audit-rules.md -> "Reading the
+# manifest"; the pins followed, and the self-test corrupts the canonical text there to prove they
+# still FAIL. #645 split the wiki half out to vault-bridge/scripts/test/test-manifest-wiki-match.py
+# when /wiki's deployment unit moved — the two halves shared only helpers, never a contract.
 python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py --self-test
-# Expected: OK: all 18 self-test cases passed
+# Expected: OK: all 17 self-test cases passed
 python3 obsidian-vault-manager/scripts/test/test-manifest-reads.py
 # Expected: OK: all manifest-read checks passed
 
