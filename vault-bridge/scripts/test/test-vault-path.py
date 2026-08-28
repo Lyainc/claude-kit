@@ -295,6 +295,34 @@ def case_vault_link_no_hardcoded_vault(errors: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Case 7: vault-save/SKILL.md step 3 aborts instead of mkdir when vault_root is
+# missing (#697)
+# ---------------------------------------------------------------------------
+
+def case_vault_save_aborts_without_vault_root(errors: list[str]) -> None:
+    """vault-save/SKILL.md must stop, not mkdir -p, when {vault_root} does not exist."""
+    print("\ncase: vault_save_aborts_without_vault_root")
+    text = (ROOT / "skills" / "vault-save" / "SKILL.md").read_text()
+
+    _assert(
+        "mkdir -p` the target directory before writing" not in text,
+        "old unconditional 'mkdir -p the target directory' step is gone",
+        errors,
+    )
+
+    step3_match = re.search(r"\n3\.\s.*?(?=\n4\.\s)", text, re.DOTALL)
+    _assert(step3_match is not None, "step 3 is present and followed by step 4", errors)
+    step3 = step3_match.group(0) if step3_match else ""
+
+    _assert("not** exist" in step3 or "not exist" in step3,
+            "step 3 checks whether {vault_root} does not exist", errors)
+    _assert("stop" in step3.lower(),
+            "step 3 stops instead of writing when {vault_root} is missing", errors)
+    _assert("never" in step3.lower() and "mkdir -p" in step3.lower(),
+            "step 3 explicitly forbids mkdir -p on {vault_root} itself", errors)
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -307,6 +335,7 @@ def main() -> None:
     case_ovm_primitives_priority(errors)
     case_ovm_audit_state_path(errors)
     case_vault_link_no_hardcoded_vault(errors)
+    case_vault_save_aborts_without_vault_root(errors)
 
     print()
     if errors:
@@ -314,7 +343,7 @@ def main() -> None:
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(1)
-    print(f"OK: all {6} vault-path cases passed")
+    print(f"OK: all {7} vault-path cases passed")
 
 
 if __name__ == "__main__":

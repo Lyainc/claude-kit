@@ -72,7 +72,14 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
    ```
 2. Parse `$ARGUMENTS`: strip a leading `--type decision` or `--type discussion` flag if present;
    the rest is the content or URL.
-3. `mkdir -p` the target directory before writing.
+3. Check whether `{vault_root}` (resolved in step 1) exists as a directory.
+   - If it does **not** exist: stop immediately without writing anything, and output one line
+     telling the user that `{vault_root}` does not exist and that they should either set
+     `VAULT_BRIDGE_VAULT_PATH` or `VAULT_BRIDGE_VAULT_ROOT` to their actual vault location, or
+     create `{vault_root}` themselves first. Never `mkdir -p` `{vault_root}` itself.
+   - If it **does** exist: proceed as before — `mkdir -p` the target sub-directory
+     (`{vault_root}/sources`, `{vault_root}/notes`, or `{vault_root}/wiki`, per the Destination
+     table above) before writing.
 4. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
    write the content as the body verbatim (keep the user's own wording — do not summarize).
 5. Filename collision — use Glob over the target folder to see whether the same stem already
