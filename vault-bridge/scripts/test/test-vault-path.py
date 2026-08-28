@@ -27,6 +27,7 @@ Exit 0 on pass, 1 on fail.
 import datetime
 import json
 import os
+import re
 import subprocess
 import sys
 import tempfile
@@ -254,6 +255,46 @@ def case_ovm_audit_state_path(errors: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Case 6: vault-link/SKILL.md Step 2 resolves the vault root, not hardcoded (#700)
+# ---------------------------------------------------------------------------
+
+def case_vault_link_no_hardcoded_vault(errors: list[str]) -> None:
+    """vault-link/SKILL.md must resolve {vault_root} before scanning, never hardcode ~/vault."""
+    print("\ncase: vault_link_no_hardcoded_vault")
+    text = (ROOT / "skills" / "vault-link" / "SKILL.md").read_text()
+
+    fences = re.findall(r"```bash\n(.*?)```", text, re.DOTALL)
+    _assert(len(fences) >= 1, "vault-link SKILL.md has at least one bash fence", errors)
+    hardcoded = [f for f in fences if "~/vault" in f]
+    _assert(not hardcoded, f"no bash fence hardcodes ~/vault (found: {hardcoded!r})", errors)
+
+    scan_fence = next((f for f in fences if "notes/" in f), "")
+    _assert(
+        "VAULT_BRIDGE_VAULT_ROOT" in scan_fence and "VAULT_BRIDGE_VAULT_PATH" in scan_fence,
+        "Step 2 scan fence resolves via the VAULT_BRIDGE_VAULT_ROOT/VAULT_BRIDGE_VAULT_PATH chain",
+        errors,
+    )
+    _assert(
+        '"$VAULT_ROOT/notes/"' in scan_fence,
+        "Step 2 ls command scans $VAULT_ROOT, not a hardcoded path",
+        errors,
+    )
+    # Prose shown to the user during Step 2 must reference the resolved path too, or a
+    # custom-vault user gets scanned correctly but told the wrong location (#700 follow-on).
+    # (The frontmatter `description` and intro sentence describe the default location in
+    # general terms and are exempt — only actionable Step 2 / Rules prose matters here.)
+    stale_prose = [
+        "`~/vault/notes/` 하위 프로젝트 목록입니다",
+        "mkdir -p ~/vault/notes/{name}/",
+        "`~/vault/notes/` 디렉토리가 없거나 비어 있습니다",
+        "mkdir -p ~/vault/notes/{project-name}",
+        "vault root가 `~/vault/`가 아닌 경우",
+    ]
+    found_stale = [s for s in stale_prose if s in text]
+    _assert(not found_stale, f"no stale ~/vault/notes/ prose left in Step 2 / Rules (found: {found_stale!r})", errors)
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -265,6 +306,7 @@ def main() -> None:
     case_ovm_primitives_vault_path(errors)
     case_ovm_primitives_priority(errors)
     case_ovm_audit_state_path(errors)
+    case_vault_link_no_hardcoded_vault(errors)
 
     print()
     if errors:
@@ -272,7 +314,7 @@ def main() -> None:
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(1)
-    print(f"OK: all {5} vault-path cases passed")
+    print(f"OK: all {6} vault-path cases passed")
 
 
 if __name__ == "__main__":
