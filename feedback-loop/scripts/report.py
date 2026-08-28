@@ -422,6 +422,13 @@ def classify_unknown(events: list[dict], repo_root: Path | None = None) -> dict:
     Unlike attribution_failure, nothing scans an external catalog to keep this
     set in sync — it is added by hand, one collision-free name at a time.
 
+    Caveat: once a name is in plugin-map.json, event-logger.sh resolves it to
+    its real plugin at LOG time too, so it never becomes plugin=unknown again —
+    third_party only ever counts pre-existing events logged before the map
+    entry existed. Its count/ratio naturally decays toward 0 as those events
+    age out of a --since window; a falling third_party_ratio means the backfill
+    is aging out, not that third-party attribution regressed.
+
     no_target (#701 design decision, not a backfill gap): everything else —
     native commands, machine-level skills (~/.claude/skills/*, e.g. "wrap"),
     built-in agents ("general-purpose", "Explore"), AND any third-party plugin

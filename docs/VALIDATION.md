@@ -478,8 +478,8 @@ bash feedback-loop/scripts/test/test-event-logger.sh
 # Expected: OK: all event-logger meta-extractor cases passed
 
 # plugin-map.json drift regression (#664): the map is a hand-maintained bare-name
-# -> plugin lookup used by event-logger.sh's resolve_plugin() (event-logger.sh:109,
-# called at :219/:238/:263 for skill_invoke/agent_spawn/command_run alike — all
+# -> plugin lookup used by event-logger.sh's resolve_plugin() (event-logger.sh:128,
+# called at :238/:257/:282 for skill_invoke/agent_spawn/command_run alike — all
 # three share one resolver, contra the issue's original "command_run takes a
 # different path" diagnosis). #664 traced a plugin=unknown mystery to four
 # claude-kit-owned skills (issue-raise, next-goal, add-policy, distill) missing
