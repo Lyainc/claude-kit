@@ -24,5 +24,12 @@
 
   "retro": "feedback-loop",
   "add-policy": "feedback-loop",
-  "distill": "feedback-loop"
+  "distill": "feedback-loop",
+
+  "ponytail": "ponytail",
+  "ponytail-audit": "ponytail",
+  "ponytail-debt": "ponytail",
+  "ponytail-gain": "ponytail",
+  "ponytail-help": "ponytail",
+  "ponytail-review": "ponytail"
 }
