@@ -106,6 +106,25 @@ TOOL_USE_ID="$(printf '%s' "$PAYLOAD" | jq -r '.tool_use_id // empty' 2>/dev/nul
 # --- 5. Plugin resolver ----------------------------------------------------
 # qualified name "plugin:skill" → plugin; bare name → plugin-map.json lookup;
 # otherwise "unknown".
+#
+# #701 design decision: bare-name lookup only ever reads plugin-map.json, never
+# machine state (~/.claude/plugins/cache/*/*/skills/*, or the global,
+# cross-project ~/.claude/plugins/installed_plugins.json). This function runs
+# once per skill_invoke/agent_spawn/command_run hook — every turn that touches
+# a skill or agent — and the file's own Invariants (top of file) require it to
+# stay lockless and cheap; a filesystem walk over every installed marketplace
+# on every event breaks that. That machine state is also global across every
+# project on the box (installed_plugins.json entries carry a projectPath per
+# install, not just this repo's), so resolving from it would make the SAME
+# event attribute differently depending on what happens to be installed on the
+# machine that ran it — not reproducible from the committed repo alone.
+# plugin-map.json stays the only source: a hand-maintained bare-name → plugin
+# table, same mechanism for claude-kit's own skills/agents (auto-verified
+# against this repo by test-plugin-map-drift.py) and for a small set of
+# third-party plugins added by hand once their bare name is confirmed
+# collision-free (e.g. "ponytail" — see plugin-map.json and report.py's
+# classify_unknown() for the third_party bucket this feeds, and why a
+# colliding name like "code-review" is deliberately left unmapped).
 resolve_plugin() {
   local qname="$1"
   local bare="$2"
