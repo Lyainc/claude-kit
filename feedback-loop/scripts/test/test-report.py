@@ -1016,14 +1016,27 @@ def case_plugin_unknown_split(errors: list[str]) -> None:
             {"plugin": "unknown", "event": "command_run", "name": "/goal"},
             # c. built-in agent -> no_target
             {"plugin": "unknown", "event": "agent_spawn", "name": "general-purpose"},
-            # d. plugin outside claude-kit -> no_target
+            # d. plugin outside claude-kit, hand-mapped in plugin-map.json
+            # (#701) -> third_party. Uses the real "ponytail" entry rather
+            # than a synthetic name, so this doubles as a regression pin for
+            # the actual production plugin-map.json entry it depends on.
             {"plugin": "unknown", "event": "skill_invoke", "name": "ponytail"},
+            # e. plugin outside claude-kit, NOT in plugin-map.json at all
+            # (no collision-free entry has been hand-curated for it) -> still
+            # no_target, per #701's decision to not resolve the general case.
+            {"plugin": "unknown", "event": "command_run", "name": "some-other-plugins-skill"},
             # not unknown at all -> excluded entirely
             {"plugin": "pluginA", "event": "skill_invoke", "name": "skillX"},
         ]
         split = report.classify_unknown(events, repo_root=root)
-        _assert(split == {"total_unknown": 5, "attribution_failure": 2, "no_target": 3},
-                f"split counts (got: {split})", errors)
+        _assert(
+            split == {
+                "total_unknown": 6,
+                "attribution_failure": 2,
+                "third_party": 1,
+                "no_target": 3,
+            },
+            f"split counts (got: {split})", errors)
 
 
 def case_claude_kit_owned_names_cache_layout(errors: list[str]) -> None:

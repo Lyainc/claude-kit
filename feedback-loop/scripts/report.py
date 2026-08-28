@@ -25,6 +25,17 @@ from pathlib import Path
 SCRIPT_DIR = Path(__file__).resolve().parent
 PLUGIN_DIR = SCRIPT_DIR.parent          # feedback-loop/
 REPO_ROOT = PLUGIN_DIR.parent           # repo root (holds */skills/*/SKILL.md)
+PLUGIN_MAP = SCRIPT_DIR / "plugin-map.json"  # same file event-logger.sh reads
+
+
+def load_plugin_map() -> dict[str, str]:
+    """bare name -> plugin, from the same hand-maintained table event-logger.sh's
+    resolve_plugin() reads. `{}` on any read/parse error (report.py must never
+    crash on a missing/corrupt map — just falls back to no third-party split)."""
+    try:
+        return json.loads(PLUGIN_MAP.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
 
 
 def resolve_events_dir() -> Path:
@@ -396,20 +407,57 @@ def claude_kit_owned_names(repo_root: Path | None = None) -> set[str]:
 
 
 def classify_unknown(events: list[dict], repo_root: Path | None = None) -> dict:
-    """Split plugin=unknown events into attribution_failure vs no_target (#664).
+    """Split plugin=unknown events into attribution_failure / third_party / no_target
+    (#664, #701).
 
     attribution_failure: bare name IS a claude-kit-owned skill/agent (plugin-map.json
-    missed it — a real drift bug, see test-plugin-map-drift.py).
-    no_target: bare name isn't ours at all (native command, machine-level skill,
-    built-in agent, or a plugin outside claude-kit) — "unknown" is correct here.
+    missed it — a real drift bug, auto-verified against this repo's skills/agents
+    dirs by test-plugin-map-drift.py).
+
+    third_party: bare name resolves via plugin-map.json to a plugin OUTSIDE
+    claude-kit (a hand-curated addition, e.g. "ponytail" -> "ponytail" — same file,
+    same lookup event-logger.sh's resolve_plugin() already does; report.py just
+    also applies it retroactively to events logged before the map entry existed,
+    since the map is read at analysis time here, not baked into the log line).
+    Unlike attribution_failure, nothing scans an external catalog to keep this
+    set in sync — it is added by hand, one collision-free name at a time.
+
+    no_target (#701 design decision, not a backfill gap): everything else —
+    native commands, machine-level skills (~/.claude/skills/*, e.g. "wrap"),
+    built-in agents ("general-purpose", "Explore"), AND any third-party plugin
+    name that collides with a native/built-in skill of the same bare name (e.g.
+    "code-review" is both a claude-plugins-official skill AND this harness's
+    native code-review command — mapping the bare name would silently
+    misattribute every native-command invocation whenever the plugin one wasn't
+    actually meant, which is worse than staying "unknown"). Resolving those
+    collisions, or the general case, would require reading machine state
+    (~/.claude/plugins/cache/*/*/skills/*, or the global, cross-project
+    ~/.claude/plugins/installed_plugins.json) at report time. Rejected: that
+    directory is genuinely machine state, not repo state — it spans every
+    project on the machine (verified: installed_plugins.json's ponytail entries
+    carry projectPath rows for four unrelated repos), churns independently of
+    claude-kit's git history (installs/uninstalls happen outside any commit),
+    and would make `--since=all` retroactively misattribute historical events
+    to whatever happens to be installed *now*, not what was installed when the
+    event was logged. It would also have to run in event-logger.sh's hot path
+    to attribute at log time (every skill_invoke/agent_spawn/command_run hook),
+    which the header's Invariants section requires to stay lockless/cheap — a
+    filesystem walk over every installed marketplace on every event breaks
+    that. So: no machine-state read, anywhere. Third-party attribution stays
+    opt-in and hand-curated in plugin-map.json, scoped to names with no
+    collision risk.
     """
     owned = claude_kit_owned_names(repo_root)
+    plugin_map = load_plugin_map()
+    third_party_names = set(plugin_map) - owned
     unknown_events = [e for e in events if e.get("plugin") == "unknown"]
     attribution_failure = sum(1 for e in unknown_events if e.get("name") in owned)
-    no_target = len(unknown_events) - attribution_failure
+    third_party = sum(1 for e in unknown_events if e.get("name") in third_party_names)
+    no_target = len(unknown_events) - attribution_failure - third_party
     return {
         "total_unknown": len(unknown_events),
         "attribution_failure": attribution_failure,
+        "third_party": third_party,
         "no_target": no_target,
     }
 
@@ -618,6 +666,7 @@ def main() -> int:
     unknown_ratio = plugin_unknown / len(events)
     unknown_split = classify_unknown(events)
     attribution_failure_ratio = unknown_split["attribution_failure"] / len(events)
+    third_party_ratio = unknown_split["third_party"] / len(events)
     no_target_ratio = unknown_split["no_target"] / len(events)
 
     latency = latency_stats(events)
@@ -644,13 +693,15 @@ def main() -> int:
             "plugin_unknown_ratio": round(unknown_ratio, 4),
             "plugin_unknown": {
                 "ratio": round(unknown_ratio, 4),
-                # Both ratios below are of TOTAL events (so they sum to `ratio`),
-                # not of the unknown subset. `total_unknown` is carried so a
-                # consumer can recover the other denominator instead of having to
-                # back it out of a rounded ratio.
+                # All three ratios below are of TOTAL events (so they sum to
+                # `ratio`), not of the unknown subset. `total_unknown` is carried
+                # so a consumer can recover the other denominator instead of
+                # having to back it out of a rounded ratio.
                 "total_unknown": unknown_split["total_unknown"],
                 "attribution_failure": unknown_split["attribution_failure"],
                 "attribution_failure_ratio": round(attribution_failure_ratio, 4),
+                "third_party": unknown_split["third_party"],
+                "third_party_ratio": round(third_party_ratio, 4),
                 "no_target": unknown_split["no_target"],
                 "no_target_ratio": round(no_target_ratio, 4),
             },
@@ -727,6 +778,7 @@ def main() -> int:
               f"{len(liveness_events)} {dict(liveness_by_event)}")
     print(f"plugin=unknown ratio: {unknown_ratio:.1%} "
           f"(attribution failure: {attribution_failure_ratio:.1%}, "
+          f"third party: {third_party_ratio:.1%}, "
           f"no attribution target: {no_target_ratio:.1%})")
     print()
     print("Latency p50/p95 (events with duration_ms only):")
