@@ -114,8 +114,16 @@ DELIBERATE_FALLBACKS = []
 SCAN_EXTENSIONS = (".md", ".sh")
 SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__"}
 
-# Matches `Skill(skill: "x")` and `Skill(skill: 'x', args: ...)` alike.
-CALL_RE = re.compile(r"""Skill\(\s*skill:\s*["']([^"']+)["']""")
+# Matches `Skill(skill: "x")` and `Skill(skill: 'x', args: ...)` alike, plus the agent form
+# `subagent_type: "<plugin>:<name>"`. Both are CALL surfaces for the same reason: the harness
+# resolves the hardcoded name at spawn time and refuses an unknown one outright (measured
+# 2026-08-31 — `Agent type '...' not found`, no spawn, no fallthrough), so a renamed or deleted
+# agent breaks the caller loudly but only after a release carries the change. #706 wired the
+# first two `subagent_type:` references in this repo, and they were the only qualified names
+# here sitting outside every guard.
+CALL_RE = re.compile(
+    r"""(?:Skill\(\s*skill:|subagent_type:)\s*["']([^"']+)["']"""
+)
 NAME_KEY_RE = re.compile(r"^name:[ \t]*(\S+)", re.MULTILINE)
 
 # An agent's `skills:` frontmatter list — the third hardcoded-name surface, and it fails the
@@ -496,8 +504,18 @@ def run_self_test():
 
         # 2. a dangling reference is reported with its line
         _materialise(repo, {"docs/guide.md": 'x\nSkill(skill: "tt:completion-condition")\n'})
+
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("dangling call", refs_of(found), [("tt:completion-condition", 2)])
+
+        # 2b. the agent CALL surface: `subagent_type:` resolves against the same catalogue,
+        # so a shipped agent passes and one deleted the way #593 deleted code-reviewer is caught
+        _materialise(repo, {"docs/guide.md": 'subagent_type: "tt:facilitator"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("subagent_type resolves", refs_of(found), [])
+        _materialise(repo, {"docs/guide.md": 'subagent_type: "tt:code-reviewer"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("dangling subagent_type", refs_of(found), [("tt:code-reviewer", 1)])
 
         # 3. a hook matcher label is scanned; the same token in repo PROSE is not (history)
         _materialise(repo, {
