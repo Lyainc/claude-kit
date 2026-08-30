@@ -431,8 +431,9 @@ def case_lifecycle_caveat_in_json(errors: list[str]) -> None:
 def case_lifecycle_guide_text_pinned(errors: list[str]) -> None:
     """_LIFECYCLE_GUIDE must never leak the _LIFECYCLE_CAVEAT identifier into the
     user-facing string, and its wording is pinned so a change here is deliberate
-    (#712 — a sibling in-flight PR's edit leaked the literal identifier text into
-    this guide; this pins the text so a repeat, on any branch, fails loudly)."""
+    (#712 — an intermediate edit on #707's fix once leaked the literal identifier
+    text into this guide before merge; this pins the text so a repeat fails loudly,
+    and the exact wording tracks #707's single-class rewrite)."""
     print("\ncase: lifecycle_guide_text_pinned")
     _assert(
         "_LIFECYCLE_CAVEAT" not in report._LIFECYCLE_GUIDE,
@@ -441,9 +442,9 @@ def case_lifecycle_guide_text_pinned(errors: list[str]) -> None:
     )
     _assert(
         report._LIFECYCLE_GUIDE == (
-            "해석 가이드: thinking-tools류(in-repo 사용 본질)의 never-fired는 죽은 표면 신호로 "
-            "우선 해석하세요. OVM류(타 프로젝트 사용 주류)의 never-fired는 "
-            "측정범위 밖 사용 가능성을 먼저 의심하세요."
+            "해석 가이드: 이 표는 claude-kit 레포 내 세션만 본다(위 캐비어트와 같은 범위). "
+            "그 한계는 어떤 스킬에도 예외 없이 적용되므로, never-fired는 먼저 측정범위 밖 "
+            "사용 가능성을 의심하고, 그걸로 설명이 안 될 때만 죽은 표면으로 판단하세요."
         ),
         f"guide text matches pinned wording (got: {report._LIFECYCLE_GUIDE!r})",
         errors,
