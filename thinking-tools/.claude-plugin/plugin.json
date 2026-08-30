@@ -1,6 +1,6 @@
 {
   "name": "thinking-tools",
-  "version": "4.10.0",
+  "version": "4.11.0",
   "description": "Claude Code thinking-tools plugin: 9 skills for structured reasoning, debate, document polish, blind-spot detection, idea crystallization, issue authoring, and next-session completion conditions, plus a thinking-facilitator agent.",
   "author": {
     "name": "Lyainc",
