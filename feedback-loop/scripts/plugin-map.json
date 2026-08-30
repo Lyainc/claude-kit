@@ -4,7 +4,6 @@
   "vault-manifest-refresh": "vault-bridge",
   "vault-commit": "vault-bridge",
   "vault-searcher": "vault-bridge",
-
   "doc-concretize": "thinking-tools",
   "doc-polish": "thinking-tools",
   "unknown-discovery": "thinking-tools",
@@ -15,21 +14,19 @@
   "build-spec": "thinking-tools",
   "issue-raise": "thinking-tools",
   "next-goal": "thinking-tools",
-
   "wiki": "obsidian-vault-manager",
   "audit": "obsidian-vault-manager",
   "base": "obsidian-vault-manager",
   "vault-knowledge-manager": "obsidian-vault-manager",
   "vault-file-organizer": "obsidian-vault-manager",
-
   "retro": "feedback-loop",
   "add-policy": "feedback-loop",
   "distill": "feedback-loop",
-
   "ponytail": "ponytail",
   "ponytail-audit": "ponytail",
   "ponytail-debt": "ponytail",
   "ponytail-gain": "ponytail",
   "ponytail-help": "ponytail",
-  "ponytail-review": "ponytail"
+  "ponytail-review": "ponytail",
+  "requirement-gap-reviewer": "thinking-tools"
 }
