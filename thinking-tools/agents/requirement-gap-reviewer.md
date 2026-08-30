@@ -26,21 +26,18 @@ not know this session's issue, instruction, or Seed.
 **Read-only.** Never edit a file, never change git state (no commit, stash, checkout, branch,
 reset). Report what you find; the main context acts on it.
 
-## 0. Resolve the base ref, then get the diff
+## 0. The caller gives you the scope
 
-Everything below compares against a base. The caller's named base ref or diff range always
-wins. When it named none, resolve one — never hardcode `origin/main`, which does not exist in
-a `master` repo, a fork tracking `upstream`, or a checkout with no fetched remote:
+Everything below compares against a base. **The caller names it — you never pick it.** Read
+the change with the range it gave you (`git diff <base>...HEAD`, or whatever range it named)
+and reuse that same `<base>` in §1 and §4.
 
-```
-BASE=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD) \
-  || BASE=$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) \
-  || BASE=$(git rev-parse --verify --quiet origin/main && echo origin/main)
-```
-
-If nothing resolves, say so and grade only what the prompt itself supplied — a wrong base
-silently reclassifies pre-existing defects as new ones (§4). With `$BASE` in hand, read the
-change: `git diff "$BASE"...HEAD`.
+If the caller named no base and no range, **say that and stop.** Do not resolve one yourself:
+a reviewer that chooses its own scope grades something different on every run of the same
+request, and a base guessed wrong silently reclassifies pre-existing defects as new ones (§4).
+`origin/main` in particular is not a safe guess — it does not exist in a `master` repo, a fork
+tracking `upstream`, or a checkout with no fetched remote. Scoping belongs to the main
+context, and that holds for a read-only delegation too.
 
 ## 1. Establish the requirement source before reading the diff
 
@@ -49,7 +46,7 @@ name it in your report:
 
 1. **The prompt you were handed** — an explicit requirement list or completion condition.
 2. **The issue the work traces to** — `gh issue view <N>` for its 기대 동작 / 스코프 sections.
-3. **The branch's commit messages** — `git log "$BASE"..HEAD` (subjects and bodies).
+3. **The branch's commit messages** — `git log <base>..HEAD` (subjects and bodies).
 4. **A build-spec Seed** (`docs/specs/*.yaml`) when the prompt names one. Grade
    `constraints[]` entries with `hard: true` and every `success_criteria[]` item against the
    diff as well; `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` carries that
@@ -96,7 +93,7 @@ said to ignore style, report style-only findings as **nit** or not at all.
 ## 4. Separate pre-existing defects from this change
 
 Ask of each finding: does it already exist on the base? Check by reading the pre-change file
-(`git show "$BASE":<path>`). A defect the diff did not introduce is not a gap in
+(`git show <base>:<path>`). A defect the diff did not introduce is not a gap in
 this change — put it in a separate 기존 결함 section with no severity, so it neither inflates
 the blocking count nor stalls the caller's loop.
 

@@ -169,7 +169,9 @@ something a session would visibly produce.
   through to `general-purpose`, which carries none of it and fails silently: a vanilla reviewer
   reports "no findings" too. Say "ignore style" for both calls, or the reviewer invents gaps and
   drives over-engineering. The agent is read-only by its own contract — no edits, no `git` state
-  changes. Additionally attach `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` when the unit
+  changes — and it does not pick its own scope either, so the condition must say that the
+  delegation hands it the base ref or diff range (P3: the parent provides scope; a reviewer that
+  resolves its own base grades something different on every run). Told no range, it stops. Additionally attach `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` when the unit
   traces back to a build-spec Seed: that document specializes the same three states onto the
   Seed's `constraints[]` and `success_criteria[]`. Bound its rounds separately from L3's
   session-wide turn cap: only unresolved blocking/should-fix findings buy another round, nits
