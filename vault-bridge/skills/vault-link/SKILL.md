@@ -38,10 +38,11 @@ Resolve the vault root first, matching the `vault-save/SKILL.md` convention:
 _vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
 [ -z "$_vr" ] && _vr="$HOME/vault"
 VAULT_ROOT="${_vr/#\~/$HOME}"
+echo "$VAULT_ROOT"
 ls -1 "$VAULT_ROOT/notes/" 2>/dev/null
 ```
 
-Collect the subdirectory names from that Bash output and present them to the user as a numbered list.
+The first line of that Bash output is the resolved vault root — substitute it for every `${VAULT_ROOT}` below. Collect the subdirectory names from the remaining lines and present them to the user as a numbered list.
 
 Use AskUserQuestion:
 
@@ -112,7 +113,7 @@ After writing, output:
 
 ## Rules
 
-- Write `.vault-link` to CWD only. Never write to parent directories or inside `~/vault/`.
+- Write `.vault-link` to CWD only. Never write to parent directories or inside `${VAULT_ROOT}`.
 - `.gitignore` is modified only after explicit user confirmation in Step 5; never write without the AskUserQuestion answer.
 - Never auto-call OVM skills or create vault project directories.
 - If `${VAULT_ROOT}/notes/` does not exist or is empty, inform the user and stop:
