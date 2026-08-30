@@ -338,7 +338,10 @@ def resolve(ref, catalog, allow_bare, extra_bare=()):
             return None  # another marketplace's plugin — not this repo's to judge
         if name in catalog[plugin]:
             return None
-        return f"no {plugin}/skills/*/SKILL.md declares `name: {name}`"
+        # The catalogue holds skills AND agents, so name both — a `subagent_type:`
+        # reference sent the reader to skills/ only, which is the wrong directory.
+        return (f"no {plugin}/skills/*/SKILL.md or {plugin}/agents/*.md "
+                f"declares `name: {name}`")
     if not allow_bare:
         return None
     if ref in extra_bare or any(ref in names for names in catalog.values()):
