@@ -188,11 +188,20 @@ _LIFECYCLE_CAVEAT = (
 )
 # NOTE: vault-bridge is deliberately NOT named here — it ships agents/commands/
 # hooks but no skills/, so it can never appear in this skills-catalog view
-# (isolated-critique LOW finding, 2026-06-10). OVM is the representative class.
+# (isolated-critique LOW finding, 2026-06-10).
+#
+# #707: a prior version of this guide carved out thinking-tools as an
+# "in-repo 사용 본질" exception to _LIFECYCLE_CAVEAT's own scope limit, on the
+# strength of OVM being "the representative class" — but thinking-tools is
+# designed to be repo-independent (root README: usable for planning/writing/
+# research regardless of the codebase), so its never-fired is exactly the case
+# the caveat already covers, not an exception to it. No skill in this catalog
+# is currently confirmed to be claude-kit-repo-bound, so the guide applies the
+# caveat uniformly instead of guessing a class.
 _LIFECYCLE_GUIDE = (
-    "해석 가이드: thinking-tools류(in-repo 사용 본질)의 never-fired는 죽은 표면 신호로 "
-    "우선 해석하세요. OVM류(타 프로젝트 사용 주류)의 never-fired는 "
-    "측정범위 밖 사용 가능성을 먼저 의심하세요."
+    "해석 가이드: 이 표는 claude-kit 레포 내 세션만 본다(_LIFECYCLE_CAVEAT). "
+    "그 한계는 어떤 스킬에도 예외 없이 적용되므로, never-fired는 먼저 측정범위 밖 "
+    "사용 가능성을 의심하고, 그걸로 설명이 안 될 때만 죽은 표면으로 판단하세요."
 )
 
 
