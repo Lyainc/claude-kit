@@ -428,6 +428,28 @@ def case_lifecycle_caveat_in_json(errors: list[str]) -> None:
     _assert("guide" in lc, "json lifecycle has 'guide' string", errors)
 
 
+def case_lifecycle_guide_text_pinned(errors: list[str]) -> None:
+    """_LIFECYCLE_GUIDE must never leak the _LIFECYCLE_CAVEAT identifier into the
+    user-facing string, and its wording is pinned so a change here is deliberate
+    (#712 — a sibling in-flight PR's edit leaked the literal identifier text into
+    this guide; this pins the text so a repeat, on any branch, fails loudly)."""
+    print("\ncase: lifecycle_guide_text_pinned")
+    _assert(
+        "_LIFECYCLE_CAVEAT" not in report._LIFECYCLE_GUIDE,
+        "guide text never leaks the _LIFECYCLE_CAVEAT identifier",
+        errors,
+    )
+    _assert(
+        report._LIFECYCLE_GUIDE == (
+            "해석 가이드: thinking-tools류(in-repo 사용 본질)의 never-fired는 죽은 표면 신호로 "
+            "우선 해석하세요. OVM류(타 프로젝트 사용 주류)의 never-fired는 "
+            "측정범위 밖 사용 가능성을 먼저 의심하세요."
+        ),
+        f"guide text matches pinned wording (got: {report._LIFECYCLE_GUIDE!r})",
+        errors,
+    )
+
+
 def case_lifecycle_fired_bottom_e2e(errors: list[str]) -> None:
     """#210 N2/N3: hermetic e2e lifecycle over a STUBBED catalog — exercises the
     fired/bottom paths (not just all-never-fired) without depending on the live repo."""
@@ -1086,6 +1108,7 @@ def main() -> int:
     case_lifecycle_stale_note(errors)
     case_lifecycle_caveat_in_output(errors)
     case_lifecycle_caveat_in_json(errors)
+    case_lifecycle_guide_text_pinned(errors)
     case_lifecycle_fired_bottom_e2e(errors)
     case_lifecycle_counts_calls_not_events(errors)
     case_lifecycle_stale_tracks_any_outcome(errors)
