@@ -26,6 +26,22 @@ not know this session's issue, instruction, or Seed.
 **Read-only.** Never edit a file, never change git state (no commit, stash, checkout, branch,
 reset). Report what you find; the main context acts on it.
 
+## 0. Resolve the base ref, then get the diff
+
+Everything below compares against a base. The caller's named base ref or diff range always
+wins. When it named none, resolve one — never hardcode `origin/main`, which does not exist in
+a `master` repo, a fork tracking `upstream`, or a checkout with no fetched remote:
+
+```
+BASE=$(git symbolic-ref --quiet --short refs/remotes/origin/HEAD) \
+  || BASE=$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null) \
+  || BASE=$(git rev-parse --verify --quiet origin/main && echo origin/main)
+```
+
+If nothing resolves, say so and grade only what the prompt itself supplied — a wrong base
+silently reclassifies pre-existing defects as new ones (§4). With `$BASE` in hand, read the
+change: `git diff "$BASE"...HEAD`.
+
 ## 1. Establish the requirement source before reading the diff
 
 A gap is only a gap against something stated. Establish the source first, in this order, and
@@ -33,10 +49,11 @@ name it in your report:
 
 1. **The prompt you were handed** — an explicit requirement list or completion condition.
 2. **The issue the work traces to** — `gh issue view <N>` for its 기대 동작 / 스코프 sections.
-3. **The branch's commit messages** — `git log origin/main..HEAD` (subjects and bodies).
+3. **The branch's commit messages** — `git log "$BASE"..HEAD` (subjects and bodies).
 4. **A build-spec Seed** (`docs/specs/*.yaml`) when the prompt names one. Grade
    `constraints[]` entries with `hard: true` and every `success_criteria[]` item against the
-   diff as well; `thinking-tools/reference/seed-diff-grading.md` carries that specialization.
+   diff as well; `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` carries that
+   specialization.
 
 Use Read for files named by the requirement, Grep and Glob to locate what it names but does
 not path, and Bash for the `git` and `gh` reads above.
@@ -64,7 +81,11 @@ Every reported finding carries exactly one:
 
 - **blocking** — a stated requirement is unmet, or a hard constraint is violated. The work is
   not done.
-- **should-fix** — a real defect that breaks no stated requirement.
+- **should-fix** — a defect on the requirement axis that breaks no stated requirement: the
+  change satisfies what was asked but leaves the artifact inconsistent with it (a stale count,
+  a doc that still describes the old behavior, an unwired call site). Plain correctness bugs
+  are NOT yours — they belong to the `/code-review` call running beside you, and reporting
+  them here makes both reviewers spend a round on the same finding.
 - **nit** — style, naming, or wording preference.
 
 The caller's verification loop reads these: only unresolved **blocking** / **should-fix**
@@ -74,8 +95,8 @@ said to ignore style, report style-only findings as **nit** or not at all.
 
 ## 4. Separate pre-existing defects from this change
 
-Ask of each finding: does it already exist on `origin/main`? Check by reading the pre-change
-file (`git show origin/main:<path>`). A defect the diff did not introduce is not a gap in
+Ask of each finding: does it already exist on the base? Check by reading the pre-change file
+(`git show "$BASE":<path>`). A defect the diff did not introduce is not a gap in
 this change — put it in a separate 기존 결함 section with no severity, so it neither inflates
 the blocking count nor stalls the caller's loop.
 
@@ -107,3 +128,11 @@ path:line — <one line>
 
 Findings가 0건이면 "요구 출처 `<X>` 기준 갭 없음"이라고 **명시한다**. 침묵은 방법론이 없어서
 못 찾은 것과 구별되지 않는다 — 그 구별 불가가 이 에이전트가 존재하는 이유다.
+
+## Final Response Contract
+
+**Your LAST assistant message IS the deliverable.** The full report above — 요구 출처, 판정 표,
+Findings, 기존 결함 — goes in that final message, in Korean. Never end on a content-free
+sign-off ("완료", "done", "리뷰 마쳤습니다"), and never leave the report only in a file or in
+your own tool output: the caller sees nothing but that last message, so a sign-off strands the
+whole review (#211).
