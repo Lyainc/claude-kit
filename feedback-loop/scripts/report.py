@@ -199,7 +199,7 @@ _LIFECYCLE_CAVEAT = (
 # is currently confirmed to be claude-kit-repo-bound, so the guide applies the
 # caveat uniformly instead of guessing a class.
 _LIFECYCLE_GUIDE = (
-    "해석 가이드: 이 표는 claude-kit 레포 내 세션만 본다(_LIFECYCLE_CAVEAT). "
+    "해석 가이드: 이 표는 claude-kit 레포 내 세션만 본다(위 캐비어트와 같은 범위). "
     "그 한계는 어떤 스킬에도 예외 없이 적용되므로, never-fired는 먼저 측정범위 밖 "
     "사용 가능성을 의심하고, 그걸로 설명이 안 될 때만 죽은 표면으로 판단하세요."
 )
