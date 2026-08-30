@@ -279,6 +279,14 @@ def case_vault_link_no_hardcoded_vault(errors: list[str]) -> None:
         "Step 2 ls command scans $VAULT_ROOT, not a hardcoded path",
         errors,
     )
+    # Resolving $VAULT_ROOT into a shell variable is useless to the calling agent unless the
+    # fence also echoes it — Bash tool calls don't preserve shell state across turns, so the
+    # resolved value must appear in this call's stdout for later steps to fill in `${VAULT_ROOT}`.
+    _assert(
+        'echo "$VAULT_ROOT"' in scan_fence,
+        "Step 2 fence echoes the resolved $VAULT_ROOT for the caller to read back",
+        errors,
+    )
     # Prose shown to the user during Step 2 must reference the resolved path too, or a
     # custom-vault user gets scanned correctly but told the wrong location (#700 follow-on).
     # (The frontmatter `description` and intro sentence describe the default location in
@@ -289,6 +297,7 @@ def case_vault_link_no_hardcoded_vault(errors: list[str]) -> None:
         "`~/vault/notes/` 디렉토리가 없거나 비어 있습니다",
         "mkdir -p ~/vault/notes/{project-name}",
         "vault root가 `~/vault/`가 아닌 경우",
+        "inside `~/vault/`",
     ]
     found_stale = [s for s in stale_prose if s in text]
     _assert(not found_stale, f"no stale ~/vault/notes/ prose left in Step 2 / Rules (found: {found_stale!r})", errors)
