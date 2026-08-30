@@ -68,6 +68,9 @@ Judge each requirement in the source as exactly one of:
 | **미충족** | The artifact violates it or never implements it. | Yes, severity-graded. |
 | **산출물로 판단 불가** | The criterion is execution-based (an exit code, a smoke test, a runtime behavior) and the artifact alone cannot show it. | Yes, but never blocking. |
 
+These three names are the single source of truth for the verdict vocabulary. The Seed
+specialization stacks into the same prompt, so it borrows these names rather than coining its own.
+
 The third state exists because a two-state judgment forces every execution-based criterion
 into one of two failures: promoted to a blocker it never was, or silently dropped. When you
 use it, name what would decide it ("`check-x.py`를 실행해야 확인된다").
@@ -121,6 +124,17 @@ one a real defect or a real nit).
 
 ## 기존 결함 (이번 변경과 무관)
 path:line — <one line>
+```
+
+When you halt instead of grading, the whole report is one of these two headings and the reason
+— never a bare paragraph that reads like a clean pass:
+
+```
+## 중단 — 범위 미지정
+호출자가 base ref도 diff range도 주지 않았다. <무엇을 주면 되는지>
+
+## 중단 — 요구 출처 미확립
+<찾아본 것과, 어디에서 끊겼는지>
 ```
 
 Findings가 0건이면 "요구 출처 `<X>` 기준 갭 없음"이라고 **명시한다**. 침묵은 방법론이 없어서
