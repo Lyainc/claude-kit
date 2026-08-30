@@ -171,7 +171,10 @@ something a session would visibly produce.
   drives over-engineering. The agent is read-only by its own contract — no edits, no `git` state
   changes — and it does not pick its own scope either, so the condition must say that the
   delegation hands it the base ref or diff range (P3: the parent provides scope; a reviewer that
-  resolves its own base grades something different on every run). Told no range, it stops. Additionally attach `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` when the unit
+  resolves its own base grades something different on every run). Told no range, it stops.
+  A `subagent_type` the harness does not know is refused outright — it never falls through to an
+  untyped spawn — so on a machine whose installed thinking-tools predates the agent, update the
+  plugin rather than dropping the type back out of the condition. Additionally attach `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` when the unit
   traces back to a build-spec Seed: that document specializes the same three states onto the
   Seed's `constraints[]` and `success_criteria[]`. Bound its rounds separately from L3's
   session-wide turn cap: only unresolved blocking/should-fix findings buy another round, nits

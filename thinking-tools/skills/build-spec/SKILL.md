@@ -212,8 +212,9 @@ When gate opens OR user explicitly exits:
    "<seed-path>")` — one sub-call, no new user-typed command (same pattern as
    diverse-sampling → doc-concretize). Declined → build-spec ends here, exactly as before.
 
-When a later completion condition's requirement-gap review (next-goal's L2, not the
-correctness `/code-review` call) traces its diff back to this Seed, run that review as
+build-spec does not run that review itself; this is a note for whoever later does. When a
+completion condition's requirement-gap review (next-goal's L2, not the correctness
+`/code-review` call) traces its diff back to this Seed, it runs as
 `subagent_type: "thinking-tools:requirement-gap-reviewer"` — that agent carries the grading
 methodology in its own body, Seed or no Seed, but not its own scope, so hand it the base ref or
 diff range as well — and additionally attach
