@@ -162,12 +162,18 @@ something a session would visibly produce.
   into the condition itself — split by scope, not one call for both. Correctness routes to
   `/code-review high` (it already carries finder → per-finding verifier); requirement gaps route
   to a fresh-context subagent (native review does not know this session's Seed or requirements).
-  Say "ignore style" for both, or the reviewer invents gaps and drives over-engineering. Scope
-  the subagent read-only — no edits, no `git` state changes — free to read the diff and, when
-  attached, the Seed YAML it grades against. Attach
-  `thinking-tools/reference/seed-diff-grading.md` when the unit traces back to a build-spec Seed.
-  Bound its rounds separately from L3's session-wide turn cap: only unresolved blocking/should-fix
-  findings buy another round, nits get collected without spending one.
+  Name that subagent's type: `subagent_type: "thinking-tools:requirement-gap-reviewer"`. The
+  methodology lives in that agent's body — requirement sourcing, three-state verdicts
+  (충족 / 미충족 / 산출물로 판단 불가), blocking/should-fix/nit severity, pre-existing defects held
+  separate — so it arrives with the type, Seed or no Seed. Omit the type and the call falls
+  through to `general-purpose`, which carries none of it and fails silently: a vanilla reviewer
+  reports "no findings" too. Say "ignore style" for both calls, or the reviewer invents gaps and
+  drives over-engineering. The agent is read-only by its own contract — no edits, no `git` state
+  changes. Additionally attach `thinking-tools/reference/seed-diff-grading.md` when the unit
+  traces back to a build-spec Seed: that document specializes the same three states onto the
+  Seed's `constraints[]` and `success_criteria[]`. Bound its rounds separately from L3's
+  session-wide turn cap: only unresolved blocking/should-fix findings buy another round, nits
+  get collected without spending one.
 - **L3 — a turn cap.** End with `or stop after N turns` so an unattended run cannot spin. Size N
   for the whole unit, not for one slice of it — a multi-PR unit that fans out needs room to
   finish, and a cap tuned to a single linear slice silently shrinks the work back down.
