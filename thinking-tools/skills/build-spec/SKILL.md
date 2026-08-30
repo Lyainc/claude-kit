@@ -216,7 +216,7 @@ When a later completion condition's requirement-gap review (next-goal's L2, not 
 correctness `/code-review` call) traces its diff back to this Seed, run that review as
 `subagent_type: "thinking-tools:requirement-gap-reviewer"` — that agent carries the grading
 methodology in its own body, Seed or no Seed — and additionally attach
-`thinking-tools/reference/seed-diff-grading.md`'s instruction to its prompt for the Seed-aware
+`${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md`'s instruction to its prompt for the Seed-aware
 specialization.
 
 **Seed spec schema**: see `templates/SEED_SPEC.yaml`

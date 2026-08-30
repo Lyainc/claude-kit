@@ -36,7 +36,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 ├── thinking-tools/                      # plugin: thinking-tools
 │   ├── .claude-plugin/plugin.json       # 플러그인 매니페스트
 │   ├── skills/                          # 스킬 디렉토리 (SKILL.md 기반 자동 검색)
-│   ├── agents/                          # 에이전트 디렉토리 (thinking-facilitator)
+│   ├── agents/                          # 2개 에이전트 (thinking-facilitator, requirement-gap-reviewer)
 │   ├── reference/
 │   └── docs/
 ├── obsidian-vault-manager/              # plugin: obsidian-vault-manager

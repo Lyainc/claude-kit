@@ -18,9 +18,9 @@ diff를 Seed `<Seed 경로>`와 대조해 채점해줘:
 2. Seed의 success_criteria[] 각 항목을 3상태로 판정한다:
    - 충족 — diff가 명시적으로 만족시킨다. finding으로 리포트하지 않는다.
    - 미충족 — diff가 위반하거나 구현하지 않았다. blocking 후보다.
-   - diff로 판단 불가 — 스크립트 종료 코드·스모크 테스트 등 실행 기반 기준이라 diff만으로는
+   - 산출물로 판단 불가 — 스크립트 종료 코드·스모크 테스트 등 실행 기반 기준이라 diff만으로는
      확인할 수 없다. 리포트는 하되 blocking으로 승격하지 않는다.
-3. hard 제약 위반 또는 success_criteria 미충족만 blocking으로 취급한다. diff로 판단 불가와
+3. hard 제약 위반 또는 success_criteria 미충족만 blocking으로 취급한다. 산출물로 판단 불가와
    그 외 발견은 참고용으로만 리포트한다.
 ```
 
