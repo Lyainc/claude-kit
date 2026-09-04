@@ -275,8 +275,12 @@ python3 scripts/check-skill-catalogue-drift.py
 # "Four pieces ship together", which folds in the non-skill telemetry component) is left
 # unchecked rather than guessed at by a general number parser.
 
+# + description-char total line (#686, always printed, both OK/FAIL paths) + a 1,536-char
+# harness listing-cap FAIL on SKILL.md description: (agents/*.md counted in the total but
+# exempt from the cap — #686 scope (2)). No new .github/workflows/validate.yml entry: both
+# commands below were already registered/run there, so the new output rides the same CI line.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 25 check-skill-token-budget self-test cases passed
+# Expected: OK: all 37 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
 #   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
