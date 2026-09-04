@@ -282,7 +282,11 @@ python3 scripts/check-skill-catalogue-drift.py
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
 # Expected: OK: all 37 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
-# Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
+# Expected: description total: N chars across N file(s) (SKILL.md + agents/*.md description:,
+#   disable-model-invocation excluded) ! description chars is the always-loaded axis only —
+#   per-file body size is this script's own token count (--list), actual invocation count is
+#   in feedback-loop/scripts/report.py (skill_lifecycle_view / agent_spawn_distribution_view)
+#   OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
 #   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
 
 python3 scripts/check-release-failure-notify.py --self-test
