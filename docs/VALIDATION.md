@@ -475,6 +475,10 @@ python3 feedback-loop/scripts/validate-schema.py --self-test
 # dir the naive repo-shape glob reads as the plugin name (`4.0.1:retro`), so every
 # real qualified_name match fails and the lifecycle view reports 100% never_fired —
 # #477's "'/capture'·'/note' 호출 0회" citation traces back to exactly this view.
+# + agent_spawn.name 위임 분포 뷰 (#706 후속 — 전문 에이전트별 건수 / general-purpose 비율 /
+#   미지정(name 빈 문자열) 비율; agent_spawn(outcome=started) 전량 기준, 판정 위임 여부는 로그에 없음).
+#   No new .github/workflows/validate.yml entry: this command was already registered/run
+#   there, so the new self-test cases ride the same CI line — no separate wiring needed.
 python3 feedback-loop/scripts/test/test-report.py
 # Expected: OK: all cases passed
 # event-logger meta-extractor unit test (extract_end_meta / extract_stop_meta)
