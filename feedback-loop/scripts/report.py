@@ -637,6 +637,57 @@ def rule_fire_view(events: list[dict]) -> dict[str, int]:
     return dict(counts)
 
 
+# Agent delegation distribution (#706 후속 — 위임 분포 계측, 그 이슈가 명시적으로 남겨둔 scope 항목).
+# HONESTY BOUNDS:
+#  - counts CALLS via outcome=='started' only (mirrors skill_lifecycle_view's #696 convention) —
+#    an agent_spawn_end row must never double-count a spawn.
+#  - this view cannot tell WHICH spawns were judgment/review delegations vs mechanical
+#    collection/search (#706 실증 (e): the spawn record carries no task-content field) — it is a
+#    raw distribution over ALL agent_spawn calls, not a "how many delegations lacked methodology"
+#    count. general-purpose is fine for mechanical work; it is only suspicious when used FOR a
+#    judgment/review task, which this view cannot itself distinguish.
+_DELEGATION_CAVEAT = (
+    "agent_spawn(outcome=started) 전량 기준 — 이 중 몇 건이 판정/리뷰 위임이었는지는 로그에 없다"
+    "(#706 실증 (e), meta에 작업 내용 없음). general-purpose는 기계적 수집·탐색이면 정상이고, "
+    "name이 빈 문자열이면 subagent_type을 안 준 호출이다. 측정범위: claude-kit 레포 내 세션 "
+    "(telemetry Option A)."
+)
+
+
+def agent_spawn_distribution_view(events: list[dict]) -> dict | None:
+    """Per-agent-type agent_spawn call distribution.
+
+    Buckets by `name` (event-logger.sh lifts .tool_input.subagent_type into name):
+      - "general-purpose" -> general_purpose bucket
+      - ""                 -> unspecified bucket (no subagent_type given at all)
+      - anything else      -> a named specialized-agent bucket
+
+    Returns None when there are zero agent_spawn(started) calls in the window (mirrors
+    token_cost_view's None-on-empty contract) rather than a zeroed/fabricated dict.
+    """
+    started = [e for e in events if e.get("event") == "agent_spawn" and e.get("outcome") == "started"]
+    total = len(started)
+    if total == 0:
+        return None
+    specialized: Counter[str] = Counter()
+    general_purpose = 0
+    unspecified = 0
+    for e in started:
+        name = e.get("name", "")
+        if name == "general-purpose":
+            general_purpose += 1
+        elif name == "":
+            unspecified += 1
+        else:
+            specialized[name] += 1
+    return {
+        "total": total,
+        "specialized": dict(specialized),
+        "general_purpose": {"count": general_purpose, "ratio": general_purpose / total},
+        "unspecified": {"count": unspecified, "ratio": unspecified / total},
+    }
+
+
 def main() -> int:
     p = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     p.add_argument("--since", default="7d", help="time window (e.g. '7d', 'all')")
@@ -691,6 +742,7 @@ def main() -> int:
     lifecycle = skill_lifecycle_view(events, since_days=since_days)
     rule_fire_counts = rule_fire_view(events)
     token_cost = token_cost_view(events)
+    delegation = agent_spawn_distribution_view(events)
 
     if args.format == "json":
         payload = {
@@ -781,6 +833,22 @@ def main() -> int:
                 "unpriced_models": token_cost["unpriced_models"],
             } if sum(token_cost["tokens"].values()) else None,
             "token_cost_caveat": _COST_CAVEAT if sum(token_cost["tokens"].values()) else None,
+            "delegation": (
+                {
+                    "total": delegation["total"],
+                    "specialized": delegation["specialized"],
+                    "general_purpose": {
+                        "count": delegation["general_purpose"]["count"],
+                        "ratio": round(delegation["general_purpose"]["ratio"], 4),
+                    },
+                    "unspecified": {
+                        "count": delegation["unspecified"]["count"],
+                        "ratio": round(delegation["unspecified"]["ratio"], 4),
+                    },
+                }
+                if delegation is not None else None
+            ),
+            "delegation_caveat": _DELEGATION_CAVEAT if delegation is not None else None,
         }
         print(json.dumps(payload, indent=2))
         return 0
@@ -857,6 +925,19 @@ def main() -> int:
         for rid, c in sorted(rule_fire_counts.items(), key=lambda x: (-x[1], x[0])):
             print(f"  {c:>5}  {rid}")
         print(f"  ! {_RULE_FIRE_CAVEAT}")
+    if delegation is not None:
+        print()
+        print("Agent delegation distribution (agent_spawn, #706 후속):")
+        print(f"  total={delegation['total']}")
+        gp = delegation["general_purpose"]
+        up = delegation["unspecified"]
+        print(f"  general-purpose : {gp['count']:>5}  ({gp['ratio']:.1%})")
+        print(f"  unspecified     : {up['count']:>5}  ({up['ratio']:.1%})")
+        if delegation["specialized"]:
+            print("  specialized agents:")
+            for name, c in sorted(delegation["specialized"].items(), key=lambda x: (-x[1], x[0])):
+                print(f"    {c:>5}  {name}")
+        print(f"  ! {_DELEGATION_CAVEAT}")
     # Token/cost view — only render when some event carries token data. Token counts
     # and cost render SIDE BY SIDE (never one without the other) so the reader sees
     # both rankings on the same rows — showing only tokens is exactly the misreading

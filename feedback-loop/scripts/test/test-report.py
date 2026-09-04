@@ -1088,6 +1088,68 @@ def case_claude_kit_owned_names_cache_layout(errors: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Agent delegation distribution
+# ---------------------------------------------------------------------------
+
+def case_agent_spawn_distribution_buckets(errors: list[str]) -> None:
+    """specialized/general-purpose/unspecified buckets, started-only counting (no double count)."""
+    print("\ncase: agent_spawn_distribution_buckets")
+    events = [
+        _ev("agent_spawn", name="requirement-gap-reviewer", outcome="started"),
+        _ev("agent_spawn", name="requirement-gap-reviewer", outcome="success"),  # end row, must not double-count
+        _ev("agent_spawn", name="general-purpose", outcome="started"),
+        _ev("agent_spawn", name="general-purpose", outcome="started"),
+        _ev("agent_spawn", name="", outcome="started"),
+        _ev("skill_invoke", name="note", outcome="started"),  # non-agent_spawn ignored
+    ]
+    res = report.agent_spawn_distribution_view(events)
+    _assert(res["total"] == 4, f"total counts only started agent_spawn (got: {res['total']})", errors)
+    _assert(res["specialized"] == {"requirement-gap-reviewer": 1},
+            f"specialized bucket (got: {res['specialized']})", errors)
+    _assert(res["general_purpose"]["count"] == 2 and abs(res["general_purpose"]["ratio"] - 0.5) < 1e-9,
+            f"general_purpose count/ratio (got: {res['general_purpose']})", errors)
+    _assert(res["unspecified"]["count"] == 1 and abs(res["unspecified"]["ratio"] - 0.25) < 1e-9,
+            f"unspecified count/ratio (got: {res['unspecified']})", errors)
+
+
+def case_agent_spawn_distribution_empty(errors: list[str]) -> None:
+    """Zero agent_spawn(started) events -> None, not a zeroed dict."""
+    print("\ncase: agent_spawn_distribution_empty")
+    _assert(report.agent_spawn_distribution_view([_ev("skill_invoke", name="note")]) is None,
+            "no agent_spawn events -> None", errors)
+
+
+def case_agent_spawn_distribution_end_to_end(errors: list[str]) -> None:
+    """main(): json carries delegation + caveat; table renders the section."""
+    print("\ncase: agent_spawn_distribution_end_to_end")
+    fixture = [
+        _ev("agent_spawn", name="requirement-gap-reviewer", outcome="started"),
+        _ev("agent_spawn", name="general-purpose", outcome="started"),
+        _ev("agent_spawn", name="", outcome="started"),
+    ]
+    out = _run_main_with(fixture, ["report.py", "--since=all", "--format=json"])
+    payload = json.loads(out)
+    _assert(payload.get("delegation", {}).get("total") == 3,
+            f"json delegation.total (got: {payload.get('delegation')})", errors)
+    _assert(bool(payload.get("delegation_caveat")), "json carries delegation_caveat", errors)
+    tout = _run_main_with(fixture, ["report.py", "--since=all", "--format=table"])
+    _assert("Agent delegation distribution" in tout, "table renders delegation section", errors)
+    _assert("requirement-gap-reviewer" in tout, "table lists the specialized agent name", errors)
+
+
+def case_agent_spawn_distribution_absent_when_no_spawns(errors: list[str]) -> None:
+    """No agent_spawn events -> json.delegation is null, table has no delegation section."""
+    print("\ncase: agent_spawn_distribution_absent_when_no_spawns")
+    fixture = [_ev("skill_invoke", 10, name="note")]
+    out = _run_main_with(fixture, ["report.py", "--since=all", "--format=json"])
+    payload = json.loads(out)
+    _assert(payload.get("delegation") is None, "json delegation is null when no agent_spawn", errors)
+    _assert(payload.get("delegation_caveat") is None, "json delegation_caveat is null too", errors)
+    tout = _run_main_with(fixture, ["report.py", "--since=all", "--format=table"])
+    _assert("Agent delegation distribution" not in tout, "table has no delegation section", errors)
+
+
+# ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
 
@@ -1116,6 +1178,10 @@ def main() -> int:
     case_lifecycle_never_fired_excludes_uncountable_calls(errors)
     case_rule_fire_per_rule_id(errors)
     case_rule_fire_view_end_to_end(errors)
+    case_agent_spawn_distribution_buckets(errors)
+    case_agent_spawn_distribution_empty(errors)
+    case_agent_spawn_distribution_end_to_end(errors)
+    case_agent_spawn_distribution_absent_when_no_spawns(errors)
     case_liveness_excluded_from_outcomes(errors)
     case_liveness_no_fires_no_line(errors)
     case_liveness_excluded_from_top_by_default(errors)
