@@ -222,10 +222,10 @@ present; otherwise skip it and omit its line from the report entirely.
 | Pattern | Example |
 |---------|---------|
 | Issue/PR reference | `#688`, `PR #693` |
-| Repo-relative path | `scripts/check-test-exitcode.py`, `thinking-tools/skills/` |
+| Repo-relative path — has a file extension or sits under a known top-level dir (`scripts/`, `thinking-tools/`, ...); a bare word with a slash ("read/write 권한") doesn't count | `scripts/check-test-exitcode.py`, `thinking-tools/skills/` |
 | Script, function, or flag name | `check-version-sync.py`, `--fix`, `create_inline_comment` |
-| Commit SHA (7-40 hex) | `3b82292` |
-| Status assertion | "미구현", "없음", "아직", "지원 안 함", "not implemented" |
+| Commit SHA — hex string (7-40 chars) with at least one a-f letter; an all-digit number (a line count, a timestamp) isn't a SHA | `3b82292` |
+| Status assertion ("미구현", "없음", "아직", "지원 안 함", "not implemented") — only when it names a concrete target: sits next to `#N`, a path, or a function/script name | "`create_inline_comment`는 아직 미구현" |
 
 The gate is what keeps `gh`/`git` off an ordinary polish call. A README with no issue numbers and
 no paths costs exactly what it did before this layer existed.
@@ -242,6 +242,11 @@ no paths costs exactly what it did before this layer existed.
 
 **Deterministic only.** If settling the claim needs weighing rather than one lookup, it is out of
 scope — that is `adversarial-review`'s question, not this one.
+
+**Command error is not a mismatch.** If the check command itself fails to run — `git log` exits
+with `fatal: bad revision`, `gh` errors out, the path test can't even resolve — that is 저장소로
+확인 불가, not 어긋남. Only a command that ran and returned a value contradicting the claim counts
+as 어긋남.
 
 ### Reporting
 
