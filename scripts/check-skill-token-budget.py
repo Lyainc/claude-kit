@@ -150,6 +150,86 @@ def _estimate_tokens(text: str) -> float:
 
 FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
 
+_FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
+
+DESCRIPTION_CHAR_CAP = 1536  # harness listing-cap: changelog.md "raised the listing cap from 250 to 1,536 characters"
+
+
+def _is_top_level_fence(line: str) -> bool:
+    """True for a REAL frontmatter/block-scalar-closing fence: an UNINDENTED --- or ... .
+
+    A block scalar's own content can legitimately contain an indented '---' or '...' line
+    (a markdown rule, an embedded YAML example inside a description: | block) — only an
+    unindented occurrence ends frontmatter or a block scalar, matching real YAML's
+    indentation-based scoping. Checking `line.strip() in (...)` without this guard treats
+    indented literal content as a fence and truncates the scan early (fresh-context review
+    finding, reproduced live).
+    """
+    return line[:1] not in (" ", "\t") and line.strip() in ("---", "...")
+
+
+def _description_span(text: str):
+    """Raw description: VALUE text (key prefix stripped, quotes/block-scalar markers kept), or None.
+
+    Mirrors scripts/check-skill-reference-drift.py's description_lines(): the block runs from the
+    description: line to the next top-level frontmatter key or the closing ---/... fence. The
+    "description:" key prefix on the first line is stripped (only the value after the colon is
+    counted) — a DELIBERATE conservative raw-text approximation (#686): quotes/block markers stay
+    in the count, so the measured total is always >= the harness's rendered listing length, never
+    under it.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
+        return None
+    for i in range(1, len(lines)):
+        if _is_top_level_fence(lines[i]):
+            return None
+        if not lines[i].startswith("description:"):
+            continue
+        collected = [lines[i][len("description:"):]]
+        for j in range(i + 1, len(lines)):
+            nxt = lines[j]
+            if _is_top_level_fence(nxt) or _FRONTMATTER_KEY_RE.match(nxt):
+                break
+            collected.append(nxt)
+        return "\n".join(collected).strip()
+    return None
+
+
+def _is_disabled(text: str) -> bool:
+    """True when frontmatter sets disable-model-invocation: true (never listed, never truncated)."""
+    fm = FRONTMATTER_RE.match(text)
+    if not fm:
+        return False
+    return bool(re.search(r"^disable-model-invocation:\s*true\s*$", fm.group(0), re.MULTILINE))
+
+
+def measure_descriptions(root: Path):
+    """Return (rel_path, char_count, is_skill) for every considered file's description:.
+
+    Scope (#686): */skills/*/SKILL.md (is_skill=True) + */agents/*.md (is_skill=False) inside
+    SOURCE plugins (dirs holding .claude-plugin/plugin.json) — same glob check() already uses.
+    CLAUDE.md is excluded (no frontmatter, contributes nothing, and #686's own file-count table
+    never includes it). disable-model-invocation: true files are excluded entirely. A file with
+    no description: key contributes 0 chars but still appears (agents rarely carry one).
+    """
+    out = []
+    for manifest in sorted(root.glob("*/.claude-plugin/plugin.json")):
+        plugin = manifest.parent.parent
+        for skill in sorted(plugin.glob("skills/*/SKILL.md")):
+            text = skill.read_text(encoding="utf-8")
+            if _is_disabled(text):
+                continue
+            span = _description_span(text)
+            out.append((skill.relative_to(root), len(span) if span else 0, True))
+        for agent in sorted(plugin.glob("agents/*.md")):
+            text = agent.read_text(encoding="utf-8")
+            if _is_disabled(text):
+                continue
+            span = _description_span(text)
+            out.append((agent.relative_to(root), len(span) if span else 0, False))
+    return out
+
 
 def find_anchors(text: str):
     """Yield (label, offset_in_tokens) for every compaction-critical anchor.
@@ -239,6 +319,22 @@ def _write_fixture_plugin(root: Path, body: str) -> None:
     agents.mkdir(parents=True)
     (agents / "x.md").write_text(body)
     (root / "CLAUDE.md").write_text(body)
+
+
+def _write_desc_fixture(root: Path, description: str, is_agent: bool = False) -> None:
+    """A minimal source plugin with ONE file carrying the given raw description: value."""
+    plugin = root / "fixture-plugin"
+    (plugin / ".claude-plugin").mkdir(parents=True, exist_ok=True)
+    (plugin / ".claude-plugin" / "plugin.json").write_text('{"name": "fixture-plugin"}')
+    fm = f"---\nname: x\ndescription: {description}\n---\n\nBody.\n"
+    if is_agent:
+        d = plugin / "agents"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "x.md").write_text(fm)
+    else:
+        d = plugin / "skills" / "x"
+        d.mkdir(parents=True, exist_ok=True)
+        (d / "SKILL.md").write_text(fm)
 
 
 def run_self_test() -> int:
@@ -370,6 +466,71 @@ def run_self_test() -> int:
     finally:
         globals()["BACKEND"], globals()["_ENCODING"] = saved_backend, saved_encoding
 
+    # #686: description char-total measurement + per-skill 1,536-char cap.
+
+    # Parser unit cases.
+    check(_description_span('---\nname: x\ndescription: "abc"\n---\n') == '"abc"',
+          "description span: quoted one-liner must keep quotes, drop key prefix")
+    block = "---\nname: x\ndescription: |\n  line one\n  line two\nallowed-tools: Read\n---\n"
+    check(_description_span(block) == "|\n  line one\n  line two",
+          "description span: block scalar must stop before the next frontmatter key")
+    check(_is_disabled("---\ndisable-model-invocation: true\n---\n") is True,
+          "is_disabled: true must be detected")
+    check(_is_disabled("---\nname: x\n---\n") is False,
+          "is_disabled: absent key must be False")
+
+    # Fence bug regression (fresh-context review, reproduced live): an INDENTED ---/...
+    # inside a block scalar's own content must not be read as the fence that ends it —
+    # only an UNINDENTED occurrence really ends a block scalar or frontmatter.
+    indented_fence_in_description = (
+        "---\ndescription: |\n  line one\n  ---\n  line three\nallowed-tools: Read\n---\n"
+    )
+    check(_description_span(indented_fence_in_description) == "|\n  line one\n  ---\n  line three",
+          "description span: an indented --- inside a block scalar is content, not a fence")
+    indented_fence_in_earlier_key = (
+        '---\nallowed-tools: |\n  Read\n  ---\ndescription: "real trigger text"\n---\n'
+    )
+    check(_description_span(indented_fence_in_earlier_key) == '"real trigger text"',
+          "description span: an indented --- inside an EARLIER key's block scalar must not "
+          "be read as closing frontmatter before description: is reached")
+
+    # Sum case (#686 "합산 1건").
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_desc_fixture(Path(tmp), '"short"')
+        measured = measure_descriptions(Path(tmp))
+        expected_len = len('"short"')
+        check(len(measured) == 1 and measured[0][1] == expected_len,
+              f"description sum: expected 1 entry of {expected_len} chars, got {measured}")
+
+    # is_agent path (#686 scope: description totals include agents/*.md, but the 1,536-char
+    # cap applies to SKILL.md only) — was never exercised (fresh-context review finding).
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_desc_fixture(Path(tmp), '"agent desc"', is_agent=True)
+        measured = measure_descriptions(Path(tmp))
+        check(len(measured) == 1 and measured[0][2] is False,
+              f"description sum: agent file measured with is_skill=False (got: {measured})")
+    with tempfile.TemporaryDirectory() as tmp:
+        over_cap_agent_desc = '"' + "x" * (DESCRIPTION_CHAR_CAP - 1) + '"'
+        _write_desc_fixture(Path(tmp), over_cap_agent_desc, is_agent=True)
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 0,
+              f"description boundary: an agent description over {DESCRIPTION_CHAR_CAP} chars "
+              f"must NOT fail (cap is SKILL.md-only, #686 scope (2)), got rc={rc}: {out}")
+
+    # 1,536-char boundary, 2 cases (#686 "1,536 경계 2건").
+    with tempfile.TemporaryDirectory() as tmp:
+        desc = '"' + "x" * (DESCRIPTION_CHAR_CAP - 2) + '"'
+        _write_desc_fixture(Path(tmp), desc)
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 0, f"description boundary: exactly {DESCRIPTION_CHAR_CAP} chars must pass, got rc={rc}: {out}")
+    with tempfile.TemporaryDirectory() as tmp:
+        desc = '"' + "x" * (DESCRIPTION_CHAR_CAP - 1) + '"'
+        _write_desc_fixture(Path(tmp), desc)
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 1, f"description boundary: {DESCRIPTION_CHAR_CAP + 1} chars must fail, got rc={rc}: {out}")
+        check(str(DESCRIPTION_CHAR_CAP) in out,
+              f"description boundary: FAIL output must name {DESCRIPTION_CHAR_CAP}: {out}")
+
     if failures:
         print(f"FAIL: {len(failures)} check-skill-token-budget self-test case(s) failed", file=sys.stderr)
         for line in failures:
@@ -414,6 +575,25 @@ def main(argv=None):
         )
         return 2
 
+    desc_results = measure_descriptions(root)
+    total_desc_chars = sum(c for _, c, _ in desc_results)
+    print(
+        f"description total: {total_desc_chars} chars across {len(desc_results)} file(s) "
+        f"(SKILL.md + agents/*.md description:, disable-model-invocation excluded)"
+    )
+    # This is the always-loaded axis only — the smallest of three real cost axes (a session's
+    # own judgment, not #686's original scope): per-file BODY size is the token count this
+    # script already prints per file (see --list, or "largest ... at ~N" below), and ACTUAL
+    # invocation count lives in feedback-loop/scripts/report.py's skill_lifecycle_view (skills)
+    # / agent_spawn_distribution_view (agents). Reading only the number above reads the
+    # smallest surface — the other two answer "does this size actually matter in practice".
+    print(
+        "  ! description chars is the always-loaded axis only — per-file body size is this "
+        "script's own token count (--list), actual invocation count is in "
+        "feedback-loop/scripts/report.py (skill_lifecycle_view / agent_spawn_distribution_view)"
+    )
+    desc_offenders = [(rel, c) for rel, c, is_skill in desc_results if is_skill and c > DESCRIPTION_CHAR_CAP]
+
     if args.list:
         for rel, total, _ in results:
             text = (root / rel).read_text(encoding="utf-8")
@@ -422,23 +602,34 @@ def main(argv=None):
             print(f"{str(rel):56} ~{total:5.0f} tok  anchors={len(anchors):2} last@~{last:.0f}")
 
     offenders = [(rel, total, v) for rel, total, v in results if v]
-    if offenders:
-        print(
-            f"FAIL: {len(offenders)} file(s) exceed the {TOKEN_BUDGET}-token budget — for "
-            f"SKILL.md this is the compaction re-attach window, content past it is dropped "
-            f"silently (#447); for CLAUDE.md/agents/*.md it is dilution (#473):",
-            file=sys.stderr,
-        )
-        for rel, _, violations in offenders:
-            for line in violations:
-                print(f"  {rel}: {line}", file=sys.stderr)
-        print(
-            "\nFix: move the rationale/narrative out to a doc the file points to on demand "
-            "(a reference.md for a skill, docs/REFERENCE.md for CLAUDE.md, the owning plugin's "
-            "own reference doc for agents/*.md); keep gates and invariants in place. Always "
-            "split, never trim.",
-            file=sys.stderr,
-        )
+    if offenders or desc_offenders:
+        if offenders:
+            print(
+                f"FAIL: {len(offenders)} file(s) exceed the {TOKEN_BUDGET}-token budget — for "
+                f"SKILL.md this is the compaction re-attach window, content past it is dropped "
+                f"silently (#447); for CLAUDE.md/agents/*.md it is dilution (#473):",
+                file=sys.stderr,
+            )
+            for rel, _, violations in offenders:
+                for line in violations:
+                    print(f"  {rel}: {line}", file=sys.stderr)
+            print(
+                "\nFix: move the rationale/narrative out to a doc the file points to on demand "
+                "(a reference.md for a skill, docs/REFERENCE.md for CLAUDE.md, the owning plugin's "
+                "own reference doc for agents/*.md); keep gates and invariants in place. Always "
+                "split, never trim.",
+                file=sys.stderr,
+            )
+        if desc_offenders:
+            print(
+                f"FAIL: {len(desc_offenders)} SKILL.md description(s) exceed the "
+                f"{DESCRIPTION_CHAR_CAP}-char harness listing cap — trigger text past it is "
+                f"silently truncated from the model's skill listing (#686):",
+                file=sys.stderr,
+            )
+            for rel, c in desc_offenders:
+                print(f"  {rel}: description is {c} chars (> {DESCRIPTION_CHAR_CAP})", file=sys.stderr)
+            print("\nFix: shorten the description — text past the cap never reaches the model.", file=sys.stderr)
         return 1
 
     worst = max(results, key=lambda r: r[1], default=None)
