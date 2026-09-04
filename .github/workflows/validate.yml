@@ -304,6 +304,14 @@ jobs:
           python3 thinking-tools/scripts/test/test-persona-selection.py
           echo "expert-panel mode-compose OK"
 
+      - name: Run doc-polish Layer 4 gate false-positive regression
+        run: |
+          # #705 — pins the narrowed path/SHA/status-assertion gate rules in
+          # doc-polish/reference.md against real false positives and real true positives.
+          python3 thinking-tools/scripts/test/test-doc-polish-gate.py --self-test
+          python3 thinking-tools/scripts/test/test-doc-polish-gate.py
+          echo "doc-polish gate OK"
+
       - name: Run adversarial-review judge-rubric anchor pins
         run: |
           # #610/#663 — anchors live in reference/patterns.md; guards the scale, the

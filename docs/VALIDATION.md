@@ -691,6 +691,18 @@ python3 thinking-tools/scripts/test/test-mode-compose.py
 # Expected: OK: all 20 mode-compose checks passed.
 # (static check against the live SKILL.md)
 
+# doc-polish Layer 4 gate false-positive regression (#705) — reference.md's Gate table is
+# prose an LLM follows, not code, so this executes the three narrowed rules (path needs a
+# file extension or a known top-level dir prefix, SHA needs a non-decimal hex letter, a
+# status assertion needs a companion #N/path/backticked name in the same sentence) against
+# #705's real false positives ("read/write 권한", a bare 7-digit number, "알려진 버그는
+# 없음") and its real true positives, and pins the wording that encodes each rule plus the
+# "command error maps to 저장소로 확인 불가, not 어긋남" verdict rule added beside it.
+python3 thinking-tools/scripts/test/test-doc-polish-gate.py --self-test
+# Expected: OK: all 17 test-doc-polish-gate self-test cases passed
+python3 thinking-tools/scripts/test/test-doc-polish-gate.py
+# Expected: OK: all 17 doc-polish-gate checks passed against the live reference.md
+
 # persona-pool selection guard (#418) — executes reference/personas.md's Selection Rule
 # against the live tag table: Latin tags must be word-start-safe (raw substring matching
 # had `ui` hitting "build", `db` hitting "feedback", `doc` hitting "docker"), no
