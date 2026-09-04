@@ -196,12 +196,26 @@ def _description_span(text: str):
     return None
 
 
+_DISABLE_INVOCATION_RE = re.compile(r"^disable-model-invocation:\s*true\s*$")
+
+
 def _is_disabled(text: str) -> bool:
-    """True when frontmatter sets disable-model-invocation: true (never listed, never truncated)."""
-    fm = FRONTMATTER_RE.match(text)
-    if not fm:
+    """True when frontmatter sets disable-model-invocation: true (never listed, never truncated).
+
+    Walks line-by-line with _is_top_level_fence (not the plain FRONTMATTER_RE regex used
+    elsewhere in this file) so an indented ---/... inside an earlier key's block-scalar value
+    isn't mistaken for the frontmatter close — the same fence class _description_span guards
+    against, applied here to keep this new check from inheriting that bug on day one.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
         return False
-    return bool(re.search(r"^disable-model-invocation:\s*true\s*$", fm.group(0), re.MULTILINE))
+    for line in lines[1:]:
+        if _is_top_level_fence(line):
+            return False
+        if _DISABLE_INVOCATION_RE.match(line):
+            return True
+    return False
 
 
 def measure_descriptions(root: Path):
@@ -478,6 +492,11 @@ def run_self_test() -> int:
           "is_disabled: true must be detected")
     check(_is_disabled("---\nname: x\n---\n") is False,
           "is_disabled: absent key must be False")
+    check(_is_disabled(
+        "---\nallowed-tools: |\n  Read\n  ---\ndisable-model-invocation: true\n---\n"
+    ) is True,
+          "is_disabled: an indented --- inside an EARLIER key's block scalar must not be "
+          "read as closing frontmatter before disable-model-invocation: is reached")
 
     # Fence bug regression (fresh-context review, reproduced live): an INDENTED ---/...
     # inside a block scalar's own content must not be read as the fence that ends it —

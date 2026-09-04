@@ -280,7 +280,7 @@ python3 scripts/check-skill-catalogue-drift.py
 # exempt from the cap — #686 scope (2)). No new .github/workflows/validate.yml entry: both
 # commands below were already registered/run there, so the new output rides the same CI line.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 37 check-skill-token-budget self-test cases passed
+# Expected: OK: all 38 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: description total: N chars across N file(s) (SKILL.md + agents/*.md description:,
 #   disable-model-invocation excluded) ! description chars is the always-loaded axis only —
