@@ -300,6 +300,22 @@ def scan_agent_skills(text):
         return
 
 
+def _is_top_level_fence(line):
+    """True for a real frontmatter/block-scalar-closing fence: an UNINDENTED --- or ... .
+
+    A `description: |`/`>-` block scalar's own content can legitimately contain an indented
+    `---` or `...` line (a markdown rule, an embedded YAML example) — only an unindented
+    occurrence really ends frontmatter or a block scalar, matching YAML's own indentation-based
+    scoping. Checking `line.strip() in (...)` without this guard reads indented content as the
+    fence and cuts the description scan short before it reaches what comes after (#720). #686
+    hit the identical bug in check-skill-token-budget.py's own description parser and fixed it
+    with a same-named, same-shaped helper — that fix is not on this branch yet (its landing PR
+    #717 was orphaned by a chained-PR branch-deletion accident and is still being recovered), so
+    this is a same-shaped port done ahead of it, not a copy of code present in this tree today.
+    """
+    return line[:1] not in (" ", "\t") and line.strip() in ("---", "...")
+
+
 def description_lines(text):
     """Yield (lineno, line) for every line of the frontmatter `description:` block.
 
@@ -312,14 +328,14 @@ def description_lines(text):
     if not lines or lines[0].strip() != "---":
         return
     for i in range(1, len(lines)):
-        if lines[i].strip() in ("---", "..."):
+        if _is_top_level_fence(lines[i]):
             return  # frontmatter closed without a description
         if not lines[i].startswith("description:"):
             continue
         yield i + 1, lines[i]
         for j in range(i + 1, len(lines)):
             nxt = lines[j]
-            if nxt.strip() in ("---", "...") or FRONTMATTER_KEY_RE.match(nxt):
+            if _is_top_level_fence(nxt) or FRONTMATTER_KEY_RE.match(nxt):
                 return
             yield j + 1, nxt
         return
@@ -706,6 +722,17 @@ def run_self_test():
              desc_probe("description: plain /next-goal\n  continued /gone-e\n"), ["gone-e"])
         case("the block ends at the next top-level key",
              desc_probe("description: |\n  ok\nprovenance: /gone-d\n"), [])
+
+        # An indented `---`/`...` inside a block scalar's own content is not a real fence —
+        # only an unindented one really closes frontmatter or a block scalar (#720). Two sites
+        # shared the same bug: the block-scalar continuation loop (a) and the outer scan that
+        # looks for `description:` in the first place, which an EARLIER key's own block scalar
+        # can trip before `description:` is ever reached (b).
+        case("an indented --- inside the description's own block scalar is content, not a fence",
+             desc_probe("description: |\n  line one\n  ---\n  second /gone-g\n"), ["gone-g"])
+        case("an indented --- inside an EARLIER key's block scalar must not end frontmatter "
+             "before description: is reached",
+             desc_probe('allowed-tools: |\n  Read\n  ---\ndescription: "real /gone-h"\n'), ["gone-h"])
 
         #     The same block is scanned IN-REPO, where the description scan was gated on `wide`
         #     at first and so kept the exact blind spot #646 was filed about. The narrow-prose
