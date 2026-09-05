@@ -182,9 +182,10 @@ SLASH_RE = re.compile(r"`/([a-z0-9][a-z0-9_-]*)`")
 # `vault` and `./scripts` as `scripts`. Only a trailing slash saved such a token, so one
 # `~/vault` in any scanned description would have blocked every commit touching a SKILL.md.
 BARE_SLASH_RE = re.compile(r"(?<![\w/~.])/([a-z0-9][a-z0-9_-]*)(?![\w/])")
-# A top-level frontmatter key — i.e. the thing that ends a `description:` block. Named with the
-# leading underscore check-skill-token-budget.py's own copy uses (#686), so the two can collapse
-# into one shared definition without a rename once that script's fence handling reaches main.
+# A top-level frontmatter key — i.e. the thing that ends a `description:` block. #686 added an
+# identical regex under this same leading-underscore name to check-skill-token-budget.py, but
+# only on an unmerged branch (not main, not this branch, as of this writing) — named to match
+# now so that whichever PR lands second only has to delete its own copy, not rename anything.
 _FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 
 # Slash names a scanned file may legitimately write that this repo does not ship. Without this
