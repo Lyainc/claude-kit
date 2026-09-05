@@ -527,6 +527,12 @@ def check_all(root, external_roots=None, allowlist=None):
                            f"now ships — a subagent_type: reference to it is no longer safe to "
                            f"skip. Remove the entry, or rename the plugin's skill/agent.",
             })
+    # ponytail: this loop only sees the CURRENT catalogue. If a collision is created and then
+    # resolved by renaming the plugin's skill/agent away again, any bare subagent_type: reference
+    # written while the collision existed goes back to reading as the harness builtin — silently,
+    # since there is no history to tell it apart from one that always meant the builtin. Closing
+    # that gap needs tracking a name's past catalogue membership, which this script does not do;
+    # accepted as the ceiling of a hand-maintained, state-only snapshot (found in review, #719).
 
     stats = {"files": files, "refs": refs, "roots": len(surfaces),
              "absent_roots": absent, "exempt": len(fired), "catalog": len(catalog)}
