@@ -347,7 +347,13 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
         seen, agent_seen = set(), set()
         for m in CALL_RE.finditer(line):
             ref = m.group(1)
-            if m.group(0).startswith("subagent_type"):
+            # A QUALIFIED subagent_type ref resolves exactly like a qualified Skill() ref (the
+            # `":" in ref` branch in resolve() never looks at agent_call), so it stays in `seen`
+            # — critically, the SAME set qual_re also feeds on this line, so the two surfaces
+            # matching the identical qualified token dedupe against each other as one reference,
+            # not two. Only a BARE subagent_type is agent_call-only territory (#719): qual_re can
+            # never match a bare token, so agent_seen never needs to dedupe against anything.
+            if m.group(0).startswith("subagent_type") and ":" not in ref:
                 agent_seen.add(ref)
             else:
                 seen.add(ref)
@@ -372,10 +378,14 @@ def resolve(ref, catalog, allow_bare, extra_bare=(), agent_call=False):
     read from that consumer — never to in-repo ones, or the answer would depend on whether a
     sibling checkout happens to exist on the machine.
 
-    `agent_call` marks a bare `subagent_type:` reference (#719): its bare-name space is the
-    harness's own built-in agents, never this repo's catalogue — a plugin agent is only ever
-    addressed in qualified `<plugin>:<name>` form, so a bare name colliding with some plugin's
-    skill (e.g. `subagent_type: "next-goal"`) must still dangle, not resolve by coincidence.
+    `agent_call` marks a bare `subagent_type:` reference (#719): inside this repo its bare-name
+    space is the harness's own built-in agents, never this repo's plugin catalogue — a plugin
+    agent is only ever addressed in qualified `<plugin>:<name>` form, so a bare name colliding
+    with some plugin's skill (e.g. `subagent_type: "next-goal"`) must still dangle in-repo, not
+    resolve by coincidence. `extra_bare` is still honored here too: a scanned external consumer
+    may have its own project-local agent this scanner cannot see, and denying that the same
+    leniency a bare Skill() reference already gets there would be a new false positive on a
+    surface #719 never asked to tighten.
     """
     if ":" in ref:
         plugin, _, name = ref.partition(":")
@@ -390,7 +400,7 @@ def resolve(ref, catalog, allow_bare, extra_bare=(), agent_call=False):
     if not allow_bare:
         return None
     if agent_call:
-        if ref in HARNESS_BUILTIN_AGENTS:
+        if ref in HARNESS_BUILTIN_AGENTS or ref in extra_bare:
             return None
         return f"`{ref}` is not a harness built-in agent — subagent_type needs `<plugin>:<name>`"
     if ref in extra_bare or any(ref in names for names in catalog.values()):
@@ -746,6 +756,28 @@ def run_self_test():
         case("verdict independent of the sibling checkout",
              [f["ref"] for f in with_ext], [f["ref"] for f in without])
         _materialise(repo, {"tt/agents/f5.md": "---\nname: f5\n---\nbody\n"})
+
+        # 12b. a BARE subagent_type in an external consumer's own file may still legitimately
+        #      name a project-local agent this scanner cannot see (#719 fix review) — the same
+        #      extra_bare leniency a bare Skill() reference already gets there, so tightening
+        #      subagent_type's bare path to HARNESS_BUILTIN_AGENTS only must not also revoke it.
+        _materialise(ext, {"session-close/SKILL.md": 'subagent_type: "wrap"\n'})
+        found, _ = check_all(repo, external_roots=[ext], allowlist=[])
+        case("bare subagent_type resolves via the consumer's own extra_bare", refs_of(found), [])
+        _materialise(ext, {"session-close/SKILL.md": 'subagent_type: "no-such-agent"\n'})
+        found, _ = check_all(repo, external_roots=[ext], allowlist=[])
+        case("bare subagent_type outside extra_bare and built-ins still dangles",
+             refs_of(found), [("no-such-agent", 1)])
+        _materialise(ext, {"session-close/SKILL.md": "clean\n"})
+
+        # 12c. a QUALIFIED subagent_type ref is also a qualified token qual_re matches on a .sh/
+        #      wide surface — splitting bare subagent_type into its own set (#719) must not also
+        #      make the qualified form double-count against the SAME line's qual_re match.
+        _materialise(repo, {"tt/hooks/ctx2.sh": 'subagent_type: "tt:code-reviewer"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("qualified subagent_type in a .sh file is not double-counted",
+             refs_of(found), [("tt:code-reviewer", 1)])
+        _materialise(repo, {"tt/hooks/ctx2.sh": "clean\n"})
 
         # 13. an ignore entry claims the name is not this repo's to declare. Ship it and the
         #     claim is false, so the entry must be reported rather than go on exempting a name
