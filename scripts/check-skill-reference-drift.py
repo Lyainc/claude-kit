@@ -50,9 +50,13 @@ in-repo prose is read narrowly is that history is allowed to name dead things, a
 is not history — it is the live routing string the model reads, so a stale name there misroutes
 just as it would in a consumer's file.
 
-A bare (unqualified) name in a call is checked inside this repo only, where a sibling skill is the
-only thing it can mean. Outside, a bare name is more often a machine-level skill this repo knows
-nothing about, so it is skipped.
+A bare (unqualified) name in a `Skill()` call is checked inside this repo only, where a sibling
+skill is the only thing it can mean. Outside, a bare name is more often a machine-level skill this
+repo knows nothing about, so it is skipped. A bare `subagent_type:` is different again (#719): the
+harness's own built-in agents (`general-purpose`, `Explore`, `Plan`, `claude-code-guide`,
+`statusline-setup`, `claude`) are the only things a bare agent name can mean, so those resolve and
+nothing else does — this repo's catalogue only ever grants a `subagent_type:` in qualified
+`<plugin>:<name>` form.
 
 Agents are in the catalogue alongside skills: `<plugin>:<name>` is the qualified form for both,
 so an agent reference must resolve rather than read as a dangling skill.
@@ -125,6 +129,16 @@ CALL_RE = re.compile(
     r"""(?:Skill\(\s*skill:|subagent_type:)\s*["']([^"']+)["']"""
 )
 NAME_KEY_RE = re.compile(r"^name:[ \t]*(\S+)", re.MULTILINE)
+
+# The harness's own reserved bare agent names (#719). A plugin agent is only ever addressed in
+# qualified `<plugin>:<name>` form — see every agent in this session's own catalogue — so a bare
+# `subagent_type:` can mean one of these built-ins and nothing else. Checked against this fixed
+# set instead of the plugin catalogue: a bare name that happens to collide with some plugin's
+# skill (e.g. `subagent_type: "next-goal"`) is still wrong, since `Agent()` would resolve it as a
+# built-in or fail, never as a bare lookup into this repo's skills.
+HARNESS_BUILTIN_AGENTS = {
+    "general-purpose", "Explore", "Plan", "claude-code-guide", "statusline-setup", "claude",
+}
 
 # An agent's `skills:` frontmatter list — the third hardcoded-name surface, and it fails the
 # same way a hook matcher does: rename the skill and the entry simply stops granting anything,
@@ -287,11 +301,15 @@ def description_lines(text):
 
 
 def scan_text(text, qual_re, wide, is_shell, is_agent=False):
-    """Yield (lineno, ref) for every skill reference in one file's text.
+    """Yield (lineno, ref, is_agent_call) for every skill/agent reference in one file's text.
 
     `wide` (external roots) counts every qualified token, prose included, plus the backtick-
     wrapped slash form. Inside the repo those are off, so only the call form, a shell file's
     matcher surface, and an agent's `skills:` list count.
+
+    `is_agent_call` is True only for a `subagent_type:` match (#719): it is the one surface
+    whose bare-name space is the harness's own built-in agents, never this repo's catalogue,
+    so `resolve()` needs to know which rule applies to a given bare ref.
 
     The bare slash form inside a frontmatter `description:` block is scanned on BOTH sides. The
     reason in-repo prose is read narrowly — history is allowed to name dead things — does not
@@ -300,7 +318,8 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     second mention anywhere, so a rename would have gone through unseen — the #646 shape exactly.
     """
     if is_agent:
-        yield from scan_agent_skills(text)
+        for lineno, name in scan_agent_skills(text):
+            yield lineno, name, False
     # Merged into the per-line `seen` set below rather than yielded separately, so a name
     # written BOTH ways on one description line is still one reference, not two.
     bare = {}
@@ -310,9 +329,13 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
             if m.group(1) not in EXTERNAL_SLASH_IGNORE
         )
     for lineno, line in enumerate(text.splitlines(), 1):
-        seen = set()
+        seen, agent_seen = set(), set()
         for m in CALL_RE.finditer(line):
-            seen.add(m.group(1))
+            ref = m.group(1)
+            if m.group(0).startswith("subagent_type"):
+                agent_seen.add(ref)
+            else:
+                seen.add(ref)
         if qual_re is not None and (wide or is_shell):
             for m in qual_re.finditer(line):
                 seen.add(m.group(0))
@@ -322,15 +345,22 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
                     seen.add(m.group(1))
         seen |= bare.get(lineno, set())
         for ref in sorted(seen):
-            yield lineno, ref
+            yield lineno, ref, False
+        for ref in sorted(agent_seen):
+            yield lineno, ref, True
 
 
-def resolve(ref, catalog, allow_bare, extra_bare=()):
+def resolve(ref, catalog, allow_bare, extra_bare=(), agent_call=False):
     """Return None when the reference resolves, else a reason string.
 
     `extra_bare` is the scanned consumer's own skill names, and it applies only to references
     read from that consumer — never to in-repo ones, or the answer would depend on whether a
     sibling checkout happens to exist on the machine.
+
+    `agent_call` marks a bare `subagent_type:` reference (#719): its bare-name space is the
+    harness's own built-in agents, never this repo's catalogue — a plugin agent is only ever
+    addressed in qualified `<plugin>:<name>` form, so a bare name colliding with some plugin's
+    skill (e.g. `subagent_type: "next-goal"`) must still dangle, not resolve by coincidence.
     """
     if ":" in ref:
         plugin, _, name = ref.partition(":")
@@ -344,6 +374,10 @@ def resolve(ref, catalog, allow_bare, extra_bare=()):
                 f"declares `name: {name}`")
     if not allow_bare:
         return None
+    if agent_call:
+        if ref in HARNESS_BUILTIN_AGENTS:
+            return None
+        return f"`{ref}` is not a harness built-in agent — subagent_type needs `<plugin>:<name>`"
     if ref in extra_bare or any(ref in names for names in catalog.values()):
         return None
     return f"no skill or agent named `{ref}` in any plugin"
@@ -404,13 +438,14 @@ def check_all(root, external_roots=None, allowlist=None):
             with open(path, encoding="utf-8", errors="replace") as fh:
                 text = fh.read()
             is_agent = not wide and f"{os.sep}agents{os.sep}" in path and path.endswith(".md")
-            for lineno, ref in scan_text(
+            for lineno, ref, is_agent_call in scan_text(
                 text, qual_re, wide, path.endswith(".sh"), is_agent
             ):
                 refs += 1
                 problem = resolve(
                     ref, catalog, allow_bare=True,
                     extra_bare=consumer_names if wide else (),
+                    agent_call=is_agent_call,
                 )
                 if problem is None:
                     continue
@@ -519,6 +554,21 @@ def run_self_test():
         _materialise(repo, {"docs/guide.md": 'subagent_type: "tt:code-reviewer"\n'})
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("dangling subagent_type", refs_of(found), [("tt:code-reviewer", 1)])
+
+        # 2c. a BARE `subagent_type:` is a harness built-in or nothing (#719) — it must not be
+        #     checked against this repo's skill catalogue the way a bare Skill() name is.
+        _materialise(repo, {"docs/guide.md": 'subagent_type: "general-purpose"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("bare subagent_type harness built-in resolves", refs_of(found), [])
+        _materialise(repo, {"docs/guide.md": 'subagent_type: "no-such-agent"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("bare subagent_type non-built-in dangles", refs_of(found), [("no-such-agent", 1)])
+        # A bare name that happens to match a real skill must still dangle — subagent_type never
+        # resolves a bare name against this repo's catalogue, only against the built-in list.
+        _materialise(repo, {"docs/guide.md": 'subagent_type: "next-goal"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("bare subagent_type matching a skill name still dangles", refs_of(found),
+             [("next-goal", 1)])
 
         # 3. a hook matcher label is scanned; the same token in repo PROSE is not (history)
         _materialise(repo, {
