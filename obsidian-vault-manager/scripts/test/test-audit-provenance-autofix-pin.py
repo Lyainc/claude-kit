@@ -83,11 +83,12 @@ _AUTOFIX_SECTION = _normalise(
     "only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form "
     "choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a "
     "file affects inbound links — display-only warning, user decides the destination), E12 "
-    "(recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b "
-    "contradiction, is a semantic decision — display-only warning).\n"
+    "(recompiling/re-verifying a stale wiki page, reconciling a confirmed E12b "
+    "contradiction, or merging a confirmed E12c near-duplicate pair, is a semantic decision "
+    "— display-only warning).\n"
 )
 _AUTOFIX_NEIGHBOURS = (
-    "### E12b — cross-page contradiction (`--deep`, skill-only, #336)",
+    "### E12c — near-duplicate wiki pages (#698, #645 F1 follow-up)",
     "## Manifest Summary (display-only)",
 )
 

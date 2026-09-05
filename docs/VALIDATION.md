@@ -845,6 +845,18 @@ python3 obsidian-vault-manager/scripts/test/test-audit-state-stats-and-untracked
 python3 obsidian-vault-manager/scripts/test/test-wiki-self-audit.py
 # Expected: OK: all cases passed
 
+# E12c wiki near-duplicate scoping/matching unit test (#698, #645 F1 follow-up) —
+# pins detect_wiki_near_dup's exact-tags-match + title-token-overlap rule (same
+# tags, e.g. defuddle.md vs defuddle-cli.md), numeric-only filename segments
+# carrying no title signal, case-insensitive comparison, the wiki/+type:wiki
+# scope guard shared with E12a/companion, and that a pair is reported exactly
+# once (sorted, never both orders). Deliberately manifest-free — reuses only
+# `fm_records` (path + frontmatter), never calls vault-bridge's
+# manifest-wiki-match.py, so E12 stays self-contained inside OVM. Complements
+# the DoD end-to-end (1 seeded pair, fp_on_clean == 0).
+python3 obsidian-vault-manager/scripts/test/test-wiki-near-dup.py
+# Expected: OK: all cases passed
+
 # manifest-summary.py + manifest-wiki-match.py regression (#468, mirrors #460's retired
 # e8-candidates.py pattern) — audit/SKILL.md and wiki/SKILL.md both used to `cat` the raw
 # .vault-bridge/manifest.json (100+ KB on a real vault), silently truncated to a 2 KB harness
@@ -955,7 +967,7 @@ bash obsidian-vault-manager/scripts/test/run-audit-dod.sh
 # Expected: OK: audit DoD invariants hold (...)
 # Expected (G8+) — the values assert-dod.py enforces:
 #   dod.seeded_detected = {E1:5, E2:5, E3:5, E5:6, E6:5, E9:2, E10:5, E11:5, E12:5,
-#     E12_wiki_unverified:2}
+#     E12_wiki_unverified:2, E12_wiki_near_dup:1}
 #     (E2 has 5: base only — the 5 status-missing seeds went away with the status
 #      machine (#480), since a note with no `status:` now conforms; E5 has 6: 5 orphans
 #      sharing only the vault-wide `note` tag (candidates:[] under the #495 rarity-weighted
@@ -972,10 +984,14 @@ bash obsidian-vault-manager/scripts/test/run-audit-dod.sh
 #      contradiction (E12b) is the deferred --deep LLM path, not seeded;
 #      E12_wiki_unverified has 2 (#494): wiki/ pages whose `verified:` is missing
 #      or unparseable — a case detect_stale_wiki cannot compute staleness for and
-#      used to skip forever; now surfaced as its own finding instead)
-#   dod.fp_on_clean per type = 0   (incl. E9/E10/E11/E12/E12_wiki_unverified; root
-#     _index.md exercises E11 exempt guard; 2 fresh wiki pages stamped with the run
-#     date exercise E12 fp=0)
+#      used to skip forever; now surfaced as its own finding instead;
+#      E12_wiki_near_dup has 1 (#698, #645 F1): a pair of wiki/ pages sharing the
+#      exact same tags + an overlapping title token — deterministic, manifest-free,
+#      never calls vault-bridge's manifest-wiki-match.py)
+#   dod.fp_on_clean per type = 0   (incl. E9/E10/E11/E12/E12_wiki_unverified/
+#     E12_wiki_near_dup; root _index.md exercises E11 exempt guard; 2 fresh wiki
+#     pages stamped with the run date, each under a distinct tag, exercise E12
+#     fp=0 for staleness AND near-dup)
 #   dod.findings_missing_priority = 0
 #   dod.priority_mismatches = []
 #   dod.e3_with_suggestion >= 5    (E3 권장 파일명 present); dod.e5_with_candidates == 0

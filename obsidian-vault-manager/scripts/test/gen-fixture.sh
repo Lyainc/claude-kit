@@ -450,12 +450,16 @@ EOF
   # filename is slug form (no E3), and E5 orphan is notes/-scoped (no E5).
   # Semantic cross-page CONTRADICTION (E12b) is the deferred --deep LLM path — not
   # seeded here (a deterministic fixture cannot exercise a non-deterministic check).
+  # Tag suffixed per-i (`domain-stale-${i}`, #698): every file in this loop shares
+  # the "audit-e12-" filename prefix, so an UNsuffixed shared tag would make each
+  # pair of these 5 files exact-tag-match AND title-token-overlap under E12c near-
+  # dup too — a fixture-naming artifact, not a real duplicate signal.
   mkdir -p "$FIXTURE_DIR/wiki"
   for i in $(seq 1 5); do
     write_file "$FIXTURE_DIR/wiki/audit-e12-stale-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2020-01-01
-tags: [wiki, domain]
+tags: [wiki, domain-stale-${i}]
 type: wiki
 verified: 2020-01-01
 provenance: fixture-seed-e12-stale-${i}
@@ -471,13 +475,15 @@ EOF
   # Uses `audit-clean-` prefix so it lands in fp_on_clean.E12 measurement, and a
   # run-date-relative `verified:` so fp stays 0 no matter when the fixture is built
   # (a hardcoded recent date would silently go stale once the run date drifts past
-  # the 90-day window — the exact date-dependence the DoD forbids).
+  # the 90-day window — the exact date-dependence the DoD forbids). Tag suffixed
+  # per-i (#698, same reason as the stale loop above) so the two clean pages don't
+  # exact-tag-match each other for E12_wiki_near_dup fp_on_clean.
   _E12_TODAY="$(date +%Y-%m-%d)"
   for i in 1 2; do
     write_file "$FIXTURE_DIR/wiki/audit-clean-wiki-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2020-01-01
-tags: [wiki, domain]
+tags: [wiki, domain-clean-${i}]
 type: wiki
 verified: ${_E12_TODAY}
 provenance: fixture-seed-e12-clean-${i}
@@ -494,10 +500,11 @@ EOF
   # `verified:` at all; a hand-edited one can carry a malformed value. Both are
   # uncomputable for staleness, so detect_stale_wiki skips them — but that skip
   # must not be a permanent black hole, so they trip E12_wiki_unverified instead.
+  # Tag suffixed per-file (#698, same reason as the stale loop above).
   write_file "$FIXTURE_DIR/wiki/audit-e12-unverified-001.md" <<EOF
 ---
 created: 2020-01-01
-tags: [wiki, domain]
+tags: [wiki, domain-unverified-1]
 type: wiki
 provenance: fixture-seed-e12-unverified-1
 ---
@@ -509,7 +516,7 @@ EOF
   write_file "$FIXTURE_DIR/wiki/audit-e12-unverified-002.md" <<EOF
 ---
 created: 2020-01-01
-tags: [wiki, domain]
+tags: [wiki, domain-unverified-2]
 type: wiki
 verified: TBD
 provenance: fixture-seed-e12-unverified-2
@@ -518,6 +525,41 @@ provenance: fixture-seed-e12-unverified-2
 # Audit E12 Unverified Wiki 2
 
 Wiki page with an unparseable \`verified: TBD\` — E12_wiki_unverified.
+EOF
+
+  # ── E12c: wiki_near_dup — same tags + overlapping title tokens (#698, #645 F1) ─
+  # Deterministic near-dup slice: defuddle.md vs defuddle-cli.md, the exact
+  # multi-slug case wiki/SKILL.md's DEDUP step cites (a manifest exit-3 degrades
+  # DEDUP to slug-only matching, which misses this). `dup-fixture` is a tag not
+  # used by any other wiki seed group above, so this pair never cross-matches
+  # them. `verified: today` keeps this pair from ALSO tripping E12_wiki_stale —
+  # trips ONLY E12_wiki_near_dup, same discipline as the staleness block above.
+  write_file "$FIXTURE_DIR/wiki/audit-e12-dup-defuddle.md" <<EOF
+---
+created: 2020-01-01
+tags: [wiki, dup-fixture]
+type: wiki
+verified: ${_E12_TODAY}
+provenance: fixture-seed-e12-dup-1
+---
+
+# Defuddle
+
+Wiki page about Defuddle.
+EOF
+  write_file "$FIXTURE_DIR/wiki/audit-e12-dup-defuddle-cli.md" <<EOF
+---
+created: 2020-01-01
+tags: [wiki, dup-fixture]
+type: wiki
+verified: ${_E12_TODAY}
+provenance: fixture-seed-e12-dup-2
+---
+
+# Defuddle CLI
+
+Wiki page about the Defuddle CLI — same topic as audit-e12-dup-defuddle.md under a
+different slug → E12_wiki_near_dup (shared tags + shared title token "defuddle").
 EOF
 
   # ── E9: tag_vocabulary_inconsistency (2 pairs, vault-wide) ────────────────────
@@ -640,7 +682,8 @@ EOF
   log "    E11 unstructured_path               : 5 files (2 root-direct + 3 in 20_Projects/)"
   log "    E12 wiki_stale                      : 5 files (wiki/ verified:2020 > STALE_WIKI_DAYS; contradiction=--deep, deferred)"
   log "    E12 wiki_unverified                 : 2 files (verified missing / unparseable, #494)"
-  log "    Total seeded errors                 : 48 files + 12 E9 files (2 pairs)"
+  log "    E12 wiki_near_dup                   : 1 pair / 2 files (same tags + overlapping title tokens, #698)"
+  log "    Total seeded errors                 : 50 files + 12 E9 files (2 pairs)"
   log "    Extra clean notes (FP base)         : 200 + root _index.md (E11 exempt guard) + 2 fresh wiki (E12 fp guard)"
   log ""
 fi
