@@ -293,6 +293,8 @@ def scan_agent_skills(text):
                 continue  # a blank line or comment inside the list does not end it
             item = SKILLS_ITEM_RE.match(nxt)
             if not item:
+                if _is_top_level_fence(nxt):
+                    return  # the frontmatter fence really ends the list, not a "-" item (#721)
                 if nxt.lstrip().startswith("-"):
                     continue  # an item shape this parser cannot read: skip it, keep going
                 return  # the next key, or the frontmatter fence — the list is over
@@ -675,6 +677,16 @@ def run_self_test():
         _materialise(repo, {"tt/agents/f2.md": agent.replace("  - gone-skill\n", "")})
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("resolving agent skills list is quiet", refs_of(found), [])
+
+        # The closing `---` is an unindented fence, not an item shape this parser cannot read —
+        # treating it as the latter skips past it and lets the scan bleed into the body, reading
+        # a markdown bullet right after the fence as one more skills entry (#721).
+        _materialise(repo, {"tt/agents/f2.md":
+                            "---\nname: f2\nskills:\n  - next-goal\n---\n- gone-skill\nbody\n"})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("closing fence right after the list is not read as one more entry",
+             refs_of(found), [])
+        _materialise(repo, {"tt/agents/f2.md": agent.replace("  - gone-skill\n", "")})
 
         # 10. the slash form is how a consumer actually names a skill in prose — the stale
         #     half of #562 was exactly that shape. Native commands and retired skills named as
