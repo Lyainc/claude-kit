@@ -172,7 +172,7 @@ python3 scripts/check-hooks-installed.py
 # Expected: ...
 
 python3 scripts/check-skill-reference-drift.py --self-test
-# Expected: OK: all 41 check-skill-reference-drift self-test cases passed
+# Expected: OK: all 42 check-skill-reference-drift self-test cases passed
 python3 scripts/check-skill-reference-drift.py
 # Expected: OK: all N skill reference(s) resolve — N file(s) across N root(s), N external
 #   root(s) absent, N deliberate fallback(s) exempt

@@ -182,8 +182,10 @@ SLASH_RE = re.compile(r"`/([a-z0-9][a-z0-9_-]*)`")
 # `vault` and `./scripts` as `scripts`. Only a trailing slash saved such a token, so one
 # `~/vault` in any scanned description would have blocked every commit touching a SKILL.md.
 BARE_SLASH_RE = re.compile(r"(?<![\w/~.])/([a-z0-9][a-z0-9_-]*)(?![\w/])")
-# A top-level frontmatter key — i.e. the thing that ends a `description:` block.
-FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
+# A top-level frontmatter key — i.e. the thing that ends a `description:` block. Named with the
+# leading underscore check-skill-token-budget.py's own copy uses (#686), so the two can collapse
+# into one shared definition without a rename once that script's fence handling reaches main.
+_FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 
 # Slash names a scanned file may legitimately write that this repo does not ship. Without this
 # the slash scan is unusable: measured on the live external root, 7 distinct slash names appear
@@ -275,6 +277,19 @@ def scan_agent_skills(text):
         return
 
 
+def _is_top_level_fence(line):
+    """True for a REAL frontmatter/block-scalar-closing fence: an UNINDENTED --- or ... (#720).
+
+    A `description: |`/`>-` block scalar's own content can legitimately contain an indented
+    '---' or '...' line (a markdown rule, an embedded YAML example) — only an unindented
+    occurrence ends frontmatter, matching real YAML's indentation-based scoping. Checking
+    `line.strip() in (...)` without this guard treats indented literal content as a fence and
+    truncates the scan early (found reviewing #686, which hit and fixed the same bug in
+    check-skill-token-budget.py's own frontmatter scan).
+    """
+    return line[:1] not in (" ", "\t") and line.strip() in ("---", "...")
+
+
 def description_lines(text):
     """Yield (lineno, line) for every line of the frontmatter `description:` block.
 
@@ -287,14 +302,14 @@ def description_lines(text):
     if not lines or lines[0].strip() != "---":
         return
     for i in range(1, len(lines)):
-        if lines[i].strip() in ("---", "..."):
+        if _is_top_level_fence(lines[i]):
             return  # frontmatter closed without a description
         if not lines[i].startswith("description:"):
             continue
         yield i + 1, lines[i]
         for j in range(i + 1, len(lines)):
             nxt = lines[j]
-            if nxt.strip() in ("---", "...") or FRONTMATTER_KEY_RE.match(nxt):
+            if _is_top_level_fence(nxt) or _FRONTMATTER_KEY_RE.match(nxt):
                 return
             yield j + 1, nxt
         return
@@ -679,6 +694,12 @@ def run_self_test():
              desc_probe("description: plain /next-goal\n  continued /gone-e\n"), ["gone-e"])
         case("the block ends at the next top-level key",
              desc_probe("description: |\n  ok\nprovenance: /gone-d\n"), [])
+        # An INDENTED '---'/'...' inside the block scalar's own value is literal content (a
+        # markdown rule, an embedded YAML example), not the frontmatter fence (#720) — the scan
+        # must read past it rather than stop early and lose every reference after it.
+        case("an indented fence inside a block scalar is not the frontmatter close",
+             desc_probe("description: |\n  first /next-goal\n  ---\n  second /gone-g\n"),
+             ["gone-g"])
 
         #     The same block is scanned IN-REPO, where the description scan was gated on `wide`
         #     at first and so kept the exact blind spot #646 was filed about. The narrow-prose
