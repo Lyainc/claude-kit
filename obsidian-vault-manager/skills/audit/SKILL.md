@@ -1,6 +1,6 @@
 ---
 name: audit
-description: "Scan the vault for structural defects and surface a triage report. Detects 9 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, rename suggestion), orphan notes (E5, tag-based connection candidates), stale sources (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; `--deep` adds E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale or unverifiable wiki pages (E12a, stale/missing/unparseable `verified:`; `--deep` adds E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
+description: "Scan the vault for structural defects and surface a triage report. Detects 9 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, rename suggestion), orphan notes (E5, tag-based connection candidates), stale sources (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; `--deep` adds E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale/unverifiable/near-duplicate wiki pages (E12a stale/missing/unparseable `verified:`; E12c deterministic near-dup — same tags + overlapping title tokens; `--deep` adds E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
 effort: low
 allowed-tools: Read Edit Bash AskUserQuestion
 ---
@@ -128,7 +128,7 @@ and are NEVER read into context — CLASSIFY gets only the reduced form (#614):
   scan_summary {           // Step 7b — reduces raw frontmatter/filename records + link index
     total_files, max_per_type,
     link_index {targets, sources},   // size only — the Step 7 index itself never enters context
-    errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified, defect-bearing
+    errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified E12_near_dup, defect-bearing
                            // only; {count, paths[] | records[], omitted?}. Field set:
                            // scripts/README.md → scan-summary.py.
     }
@@ -166,7 +166,7 @@ REPORT that a list was cut whenever `omitted` is present — never let a truncat
 | E9 | `tag_vocabulary_inconsistency` | Warning | P2 | `vocabulary_pairs` (vault-wide) | — (display-only; `path: ""`) |
 | E10 | `misplaced_file` | Warning | P1 | `scan_summary.errors.E10` | — (display-only) |
 | E11 | `unstructured_path` | Warning | P1 | `scan_summary.errors.E11` | — (display-only) |
-| E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified`) | Warning | P1 | `scan_summary.errors.E12_stale` / `.E12_unverified` | — (display-only) |
+| E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified` + `wiki_near_dup`) | Warning | P1 | `scan_summary.errors.E12_stale` / `.E12_unverified` / `.E12_near_dup` | — (display-only) |
 
 > **The table above is a summary; the binding rules — priority rationale per code, E9/E12
 > FP guards and staleness constants, display-only criteria per type — are in
@@ -186,6 +186,9 @@ REPORT that a list was cut whenever `omitted` is present — never let a truncat
   }
 ]
 ```
+`wiki_near_dup` (E12c) findings additionally carry `"other_path": "relpath"` — copy it straight
+from `scan_summary.errors.E12_near_dup[].other_path`, never drop it (REPORT needs both paths of
+the pair; see `reference/vault-audit-rules.md` → **Finding shape**).
 
 **Termination condition**: All dirty files classified — Phase 2.5 if `--deep` was passed, else REPORT directly.
 
@@ -215,7 +218,7 @@ REPORT that a list was cut whenever `omitted` is present — never let a truncat
 
 Grouped by priority (P0 must-fix → P1 → P2); within each group, sort by severity (Critical→Warning→Info), then error code ascending (unreadable→E1→E2→E3 in P0; E6→E10→E11→E12 in P1; E5→E9 in P2). E9 is vault-level (`path: ""`) — render under a vault-wide heading (e.g. `볼트 전역`), not per-file.
 
-Each finding line: `[E-code/priority/severity] type — N건` header, then one bullet per file (path + one-line description).
+Each finding line: `[E-code/priority/severity] type — N건` header, then one bullet per file (path + one-line description). A finding carrying `other_path` (`wiki_near_dup`/E12c) renders both paths in that one bullet (e.g. `path ↔ other_path`) — no separate bullet for the pair's second file.
 
 Report header: vault state (note count, clean/dirty/untracked), manifest info, recent git activity (omit if none or not a repo).
 

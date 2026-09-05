@@ -26,14 +26,14 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E9   | P2       | Tag/property vocabulary inconsistency → a vault-wide style signal (kepano "consistent style"), never an integrity defect. Canonical-form choice is always the user's call → no auto-fix. E9a/E9b are deterministic; E9c semantic synonym ships as the skill-only `--deep` LLM opt-in (#167, see the `## E9` section below). |
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `sources/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
-| E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; its companion `E12_wiki_unverified` (#494) flags a `wiki/` page whose `verified:` is missing or unparseable — staleness is uncomputable, so it is reported for a different reason instead of being skipped forever; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below). |
+| E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; its companion `E12_wiki_unverified` (#494) flags a `wiki/` page whose `verified:` is missing or unparseable — staleness is uncomputable, so it is reported for a different reason instead of being skipped forever; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below); E12c (#698, #645 F1) flags a deterministic near-duplicate — two wiki pages sharing the exact same `tags` set plus an overlapping title token. |
 | `unreadable` (#614) | P0 | Not an error type — no rule fired, the file's frontmatter was never examined (permission denied, encoding error, etc). Ranked ahead of E1: "we could not look" is a worse integrity signal than any judgment made ON content that WAS read. Kept OUT of every content-based type (E1/E3/E5/E6/E10/E11/E12) so a file that could not be read is never laundered into a finding about content nobody saw. See `## SCAN output budget` below. |
 
 > **P0 = 무결성 (integrity)**: All three E1–E3 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
 > **P1 = 정체/구조 (stagnation / structure)**: E6 surfaces unprocessed inputs; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / archive / move / recompile).
 > **P2 = quality**: E5 orphan notes and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
-> **Code numbering**: E9 (#119, #167) is the tag/property vocabulary check below. Its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship in `audit-validate.py`; E9c (semantic synonyms) ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336) is the wiki self-audit: E12a staleness ships deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` — the same deterministic/semantic split E9 draws around E9c, and both now ship behind the same `--deep` flag.
+> **Code numbering**: E9 (#119, #167) is the tag/property vocabulary check below. Its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship in `audit-validate.py`; E9c (semantic synonyms) ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336, #698) is the wiki self-audit: E12a staleness and E12c near-dup both ship deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` — the same deterministic/semantic split E9 draws around E9c, and both now ship behind the same `--deep` flag.
 
 The priority mapping is canonical in `scripts/test/audit-validate.py` (constant `PRIORITY_BY_TYPE`). Keep this table and that constant in sync. `audit-validate.py` is a **mechanical reference oracle** for DoD measurement — not the production classifier (production path = `ovm-primitives.sh` + SKILL.md). Drift between the two is detected by `--dod`'s `priority_mismatches` field.
 
@@ -410,15 +410,16 @@ for each record in frontmatter_records:
 
 ## E12 — `wiki_self_audit` [Warning]
 
-**Rule**: The `wiki/` A-layer (LLM-compiled domain knowledge, v5 §7 U3) needs its own freshness/consistency defense — Karpathy's LLM-wiki research names *staleness* as the primary cause of wiki abandonment, so without a mechanical lint the "review delegated to AI" delegation has nothing guarding it. The rule has **two halves, split on the audit's deterministic (LLM-0) boundary** — the exact split E9 already makes between its shipping sub-checks and the deferred E9c:
+**Rule**: The `wiki/` A-layer (LLM-compiled domain knowledge, v5 §7 U3) needs its own freshness/consistency defense — Karpathy's LLM-wiki research names *staleness* as the primary cause of wiki abandonment, so without a mechanical lint the "review delegated to AI" delegation has nothing guarding it. The rule splits into a **deterministic half** (E12a staleness + companion + E12c near-dup, all shipping in `audit-validate.py`) and a **non-deterministic half** (E12b contradiction, deferred `--deep`) — the exact split E9 already makes between its shipping sub-checks and the deferred E9c:
 
 | Sub-check | What it catches | Determinism | Status |
 |-----------|-----------------|-------------|--------|
 | **E12a** wiki staleness | a wiki page whose `verified:` age exceeds `STALE_WIKI_DAYS` (90) | deterministic — date arithmetic only | **SHIPS** (`E12_wiki_stale`, `audit-validate.py`) |
 | **E12a companion** wiki unverified (#494) | a wiki page whose `verified:` is missing or unparseable — staleness is uncomputable, not confirmed fresh | deterministic — presence/parse check only | **SHIPS** (`E12_wiki_unverified`, `audit-validate.py`) |
 | **E12b** cross-page contradiction | two wiki pages asserting conflicting claims | **non-deterministic** — needs semantic LLM judgment | **SHIPS** (#336) as a skill-only `--deep` LLM opt-in (`wiki_contradiction`, mirrors E9c) |
+| **E12c** near-duplicate (#698, #645 F1) | two wiki pages with the exact same `tags` set and an overlapping title token — e.g. `defuddle.md` vs `defuddle-cli.md` | deterministic — set/string ops only | **SHIPS** (`E12_wiki_near_dup`, `audit-validate.py`) |
 
-**Why the split, not one rule**: the audit is a deterministic reference impl (`audit-validate.py` runs with LLM cost 0). Cross-page *semantic* contradiction cannot be decided by a mechanical rule — a keyword/regex proxy would only manufacture false positives against the audit's `fp_on_clean == 0` contract. Rather than fake determinism, E12b follows the E9c precedent: it never touches `audit-validate.py` or the `--dod` gate (both stay deterministic-only, unmodified by #336). Instead the LLM judgment lives entirely in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md`, gated behind explicit `--deep` opt-in and a mandatory `AskUserQuestion` confirm step for false-positive mitigation. E12a — staleness — remains the honest deterministic slice `audit-validate.py` ships and is DoD-measured. This resolves the G23-S1 design fork ("deterministic audit vs. semantic contradiction detection") the same way #167 intends to resolve it for E9 (E9c itself remains unimplemented/open).
+**Why the split, not one rule**: the audit is a deterministic reference impl (`audit-validate.py` runs with LLM cost 0). Cross-page *semantic* contradiction cannot be decided by a mechanical rule — a keyword/regex proxy would only manufacture false positives against the audit's `fp_on_clean == 0` contract. Rather than fake determinism, E12b follows the E9c precedent: it never touches `audit-validate.py` or the `--dod` gate (both stay deterministic-only, unmodified by #336). Instead the LLM judgment lives entirely in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md`, gated behind explicit `--deep` opt-in and a mandatory `AskUserQuestion` confirm step for false-positive mitigation. E12a — staleness — remains the honest deterministic slice `audit-validate.py` ships and is DoD-measured. This resolves the G23-S1 design fork ("deterministic audit vs. semantic contradiction detection") the same way #167 intends to resolve it for E9 (E9c itself remains unimplemented/open). E12c near-dup (below) is a LATER addition to the same deterministic half — unlike E12b, matching on `tags`/filename needs no LLM judgment at all, so it never had a reason to defer to `--deep`.
 
 ### E12b — cross-page contradiction (`--deep`, skill-only, #336)
 
@@ -477,6 +478,40 @@ for each record in frontmatter_records:
 
 **Rationale**: A stale wiki page is a **display-only** P1 warning (staleness = 정체, same tier as E6) — the next action (recompile / re-verify) is a semantic decision, never auto-fixed. `E12_wiki_unverified` carries the same P1/display-only treatment, for a different reason: the page's freshness is simply unknown. Regression-covered by the DoD fixture (5 seeded `wiki/` pages with `verified: 2020-01-01` → `seeded_detected.E12_wiki_stale == 5`; 2 seeded `wiki/` pages with missing/unparseable `verified:` → `seeded_detected.E12_wiki_unverified == 2`; 2 fresh pages stamped with the run date → `fp_on_clean == 0` for both types, date-independent) plus a scoping unit test (`test-wiki-self-audit.py`).
 
+### E12c — near-duplicate wiki pages (#698, #645 F1 follow-up)
+
+**Rule**: two `wiki/` pages with the exact same `tags` set and overlapping title tokens (filename slug, split on `-`/`_`, numeric-only segments dropped) are flagged as a candidate near-duplicate — e.g. `defuddle.md` vs `defuddle-cli.md` under the same domain tag, the exact multi-slug miss `wiki/SKILL.md`'s DEDUP step cites (a manifest exit-3 — absent/unparseable/malformed — degrades DEDUP to slug-only matching, which cannot catch a different-slug duplicate). Deterministic — SHIPS in `audit-validate.py` (`detect_wiki_near_dup`, `E12_wiki_near_dup`) and `scan-summary.py` (`E12_near_dup`), same LLM-0 tier as E12a. **No `--deep` component** — there is no non-deterministic half to defer, unlike E12b's semantic contradiction judgment.
+
+**Manifest-free by design (#645 §4 F1)**: this check reads only `frontmatter_records` (`ovm-primitives.sh scan-frontmatter`'s direct corpus scan — path + full frontmatter per file), the same source E12a already uses. It does **not** call `manifest-wiki-match.py` (vault-bridge, moved there by #645) — doing so would create a new OVM→vault-bridge script dependency, which E12 has never had and does not need one to add now. E12 stays self-contained inside OVM, same as every other audit rule.
+
+**Why exact tag match, not "any shared tag"**: every wiki page's `tags` always include the literal `wiki` type tag (v5 §4.1 `tags: [{type}, {domain}]`), so "any overlap" would trivially match every wiki page against every other one. Exact tag-set equality also gives the check most of its precision for free — two pages on genuinely different domains rarely carry identical tag sets, whereas two pages about the SAME domain compiled under different slugs usually do.
+
+**Source**: `frontmatter_records` (uses path + `type` + `tags` only), same `_wiki_pages` wiki/+type:wiki scope guard as E12a/companion.
+
+**Detection pseudocode**:
+
+```
+wiki_pages = [(rel, fm) for rel, fm in _wiki_pages(frontmatter_records)]
+for (A, B) in unordered_pairs(wiki_pages):
+  tags_a, tags_b = tag_set(A.fm), tag_set(B.fm)          # lowercased, deduped
+  if not tags_a or tags_a != tags_b: skip
+  shared_tokens = title_tokens(A.rel) & title_tokens(B.rel)   # numeric-only dropped
+  if not shared_tokens: skip
+  → wiki_near_dup(min(A.rel, B.rel), max(A.rel, B.rel), shared_tags=tags_a, shared_tokens=shared_tokens)
+```
+
+**Finding shape**: pair-level, like E9/E12b, but — unlike E9's path-less `""` — carries a real `path` (the lexicographically-first of the pair) plus `other_path` for the second, so REPORT's generic per-file bullet rendering needs no special case:
+
+```
+{"error_type": "wiki_near_dup", "severity": "Warning", "priority": "P1",
+ "path": "wiki/defuddle-cli.md", "other_path": "wiki/defuddle.md",
+ "detail": "<shared tags + tokens>", "auto_fix_eligible": false}
+```
+
+**Never auto-fixed**: merging two near-duplicate pages is a semantic decision (which one is canonical, what to keep from each) — display-only, same as every other E12 finding.
+
+**Rationale**: wiki duplicates accumulate when `/wiki` DEDUP degrades to slug-only matching on a manifest exit-3 — #645 §4 F1 follow-up, independent of the `/wiki` deployment-unit migration itself (that migration *lowers* the exit-3 rate by co-locating `/wiki` with the manifest-generating hook, but does not eliminate the existing debt; F1 is deliberately NOT bundled with the migration PR so a one-line rollback of the migration stays possible — #645 §4). Regression-covered by the DoD fixture (1 seeded near-dup pair under a `dup-fixture` tag distinct from every other wiki seed group above, so it never exact-tag-matches them → `seeded_detected.E12_wiki_near_dup == 1`; `fp_on_clean.E12_wiki_near_dup == 0`, guarded by giving every other wiki seed group its own per-file tag suffix so this fixture's shared `audit-e12-*` filename convention never manufactures an accidental cross-group match) plus a scoping/matching unit test (`test-wiki-near-dup.py`).
+
 ## Auto-fix eligibility
 
 Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
@@ -485,7 +520,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → first segment under `notes/`; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. `provenance` (#477 item 4) is required but NOT auto-fillable — unlike `tags`, there is no safe deterministic inference for "where did this come from." When it's among the missing fields, surface it in the confirmation gate per-file and ask the user for the actual origin instead of writing a placeholder. |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, or reconciling a confirmed E12b contradiction, is a semantic decision — display-only warning).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, reconciling a confirmed E12b contradiction, or merging a confirmed E12c near-duplicate pair, is a semantic decision — display-only warning).
 
 ## Manifest Summary (display-only)
 
