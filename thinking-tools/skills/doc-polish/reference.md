@@ -221,11 +221,11 @@ present; otherwise skip it and omit its line from the report entirely.
 
 | Pattern | Example |
 |---------|---------|
-| Issue/PR reference | `#688`, `PR #693` |
-| Repo-relative path | `scripts/check-test-exitcode.py`, `thinking-tools/skills/` |
+| Issue/PR reference | `#123`, `PR #693` |
+| Repo-relative path | `scripts/check-test-exitcode.py`, `thinking-tools/skills/` — only counts with a file extension (e.g. `.py`, `.md`) or when the first segment names an existing top-level directory in this repo (e.g. `scripts/`, `skills/`, `docs/`, `thinking-tools/`); an ordinary slash-separated phrase ("read/write 권한") does not qualify |
 | Script, function, or flag name | `check-version-sync.py`, `--fix`, `create_inline_comment` |
 | Commit SHA (7-40 hex) | `3b82292` |
-| Status assertion | "미구현", "없음", "아직", "지원 안 함", "not implemented" |
+| Status assertion | "미구현", "없음", "아직", "지원 안 함", "not implemented" — only when the same sentence/line also carries an `#N`, a path, or a name; "알려진 버그는 없음" alone does not qualify |
 
 The gate is what keeps `gh`/`git` off an ordinary polish call. A README with no issue numbers and
 no paths costs exactly what it did before this layer existed.
@@ -239,6 +239,10 @@ no paths costs exactly what it did before this layer existed.
 | name exists as described | `grep -rn "<name>"` | renamed, or never existed |
 | SHA resolves | `git log -1 --format=%s <sha>` | rebased away, or wrong subject |
 | asserted absence still holds | `grep`/`gh` for the thing | "아직 없다" but it landed since |
+
+**A command that errors is not a mismatch.** `git log`'s `fatal: bad revision`, a `gh` auth/network
+failure, or any other case where the check itself couldn't run is 저장소로 확인 불가 — 어긋남 is
+reserved for a command that ran fine and returned something that contradicts the prose.
 
 **Deterministic only.** If settling the claim needs weighing rather than one lookup, it is out of
 scope — that is `adversarial-review`'s question, not this one.
