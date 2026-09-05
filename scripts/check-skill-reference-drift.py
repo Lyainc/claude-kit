@@ -54,6 +54,16 @@ A bare (unqualified) name in a call is checked inside this repo only, where a si
 only thing it can mean. Outside, a bare name is more often a machine-level skill this repo knows
 nothing about, so it is skipped.
 
+One bare name is never a sibling skill: `subagent_type:` can also name a harness-native agent
+type (`general-purpose`, `Explore`, `Plan`, `claude-code-guide`, `statusline-setup`, `claude`),
+which no plugin here declares. `Skill(skill: ...)` cannot take a bare name meaning any of those —
+only `subagent_type:` can. A first draft folded both surfaces into one capture group and exempted
+the name in `resolve()`, which also cleared `Skill(skill: "general-purpose")` — a bare SKILL call
+that is not a real skill either — defeating the very drift this file exists to catch (caught in
+review). CALL_RE now captures each surface into its own named group, so BUILTIN_AGENT_TYPES is
+filtered at the `subagent_type:` collection site in `scan_text()` and never reaches `resolve()`
+at all — a bare name from any other surface still needs a real declaration (#719).
+
 Agents are in the catalogue alongside skills: `<plugin>:<name>` is the qualified form for both,
 so an agent reference must resolve rather than read as a dangling skill.
 
@@ -121,10 +131,29 @@ SKIP_DIRS = {".git", "node_modules", ".venv", "__pycache__"}
 # agent breaks the caller loudly but only after a release carries the change. #706 wired the
 # first two `subagent_type:` references in this repo, and they were the only qualified names
 # here sitting outside every guard.
+# Two named alternatives, not one shared capture group: the exemption below must apply only to
+# a name reaching this repo via `subagent_type:`, never via `Skill(skill: ...)` — the two surfaces
+# were folded into one `m.group(1)` at first (#719 draft), which let `Skill(skill: "general-
+# purpose")` — a bare SKILL call, not an agent spawn, and not a real skill either — resolve
+# clean too, defeating the very drift this file exists to catch for those six words.
 CALL_RE = re.compile(
-    r"""(?:Skill\(\s*skill:|subagent_type:)\s*["']([^"']+)["']"""
+    r"""Skill\(\s*skill:\s*["'](?P<skill_ref>[^"']+)["']"""
+    r"""|subagent_type:\s*["'](?P<agent_ref>[^"']+)["']"""
 )
 NAME_KEY_RE = re.compile(r"^name:[ \t]*(\S+)", re.MULTILINE)
+
+# `subagent_type:` values the harness ships regardless of any plugin.json — the Agent tool's
+# built-in agent types. A bare match here is filtered out in scan_text() before it ever reaches
+# resolve(), so it never masks a qualified `plugin:agent` form (anything with a colon) or a bare
+# name read from any OTHER surface (a `Skill(skill: ...)` call, an agent's `skills:` list, a
+# description's bare `/name`) — those still need a real declaration (#719 — these six were being
+# reported as dangling the moment anyone hardcoded one bare `subagent_type:`).
+# ponytail: a fixed snapshot, not a live query — nothing in this repo can enumerate the
+# harness's actual current built-in roster. If the harness ever ships a 7th, a bare reference
+# to it false-positives here until this set is extended by hand.
+BUILTIN_AGENT_TYPES = {
+    "general-purpose", "Explore", "Plan", "claude-code-guide", "statusline-setup", "claude",
+}
 
 # An agent's `skills:` frontmatter list — the third hardcoded-name surface, and it fails the
 # same way a hook matcher does: rename the skill and the entry simply stops granting anything,
@@ -215,6 +244,16 @@ def build_catalog(root):
             if m:
                 catalog.setdefault(plugin, set()).add(m.group(1))
     return catalog
+
+
+def _in_catalog(name, catalog):
+    """True when some plugin's declared names include this exact name.
+
+    One helper for a check three call sites need — `resolve()`'s bare-name path and both
+    stale-exemption loops in check_all() — so a future change to what "in the catalogue" means
+    (a new source, case-insensitive names) is one edit, not three kept in sync by hand.
+    """
+    return any(name in names for names in catalog.values())
 
 
 def qualified_re(plugins):
@@ -312,7 +351,12 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     for lineno, line in enumerate(text.splitlines(), 1):
         seen = set()
         for m in CALL_RE.finditer(line):
-            seen.add(m.group(1))
+            agent_ref = m.group("agent_ref")
+            if agent_ref is not None:
+                if agent_ref not in BUILTIN_AGENT_TYPES:
+                    seen.add(agent_ref)
+                continue
+            seen.add(m.group("skill_ref"))
         if qual_re is not None and (wide or is_shell):
             for m in qual_re.finditer(line):
                 seen.add(m.group(0))
@@ -344,7 +388,7 @@ def resolve(ref, catalog, allow_bare, extra_bare=()):
                 f"declares `name: {name}`")
     if not allow_bare:
         return None
-    if ref in extra_bare or any(ref in names for names in catalog.values()):
+    if ref in extra_bare or _in_catalog(ref, catalog):
         return None
     return f"no skill or agent named `{ref}` in any plugin"
 
@@ -444,11 +488,26 @@ def check_all(root, external_roots=None, allowlist=None):
     # already routes work to the native `/code-review`. Left undetected the entry would go on
     # silently exempting a name that has become ours to check.
     for name, reason in sorted(EXTERNAL_SLASH_IGNORE.items()):
-        if any(name in names for names in catalog.values()):
+        if _in_catalog(name, catalog):
             findings.append({
                 "file": os.path.relpath(__file__, root), "line": 0, "ref": name,
                 "problem": f"stale EXTERNAL_SLASH_IGNORE entry — this repo now ships `{name}`, "
                            f"so it is ours to check. Remove it: {reason}",
+            })
+
+    # BUILTIN_AGENT_TYPES claims the same thing EXTERNAL_SLASH_IGNORE does: this repo's own
+    # catalogue never declares this name. If a plugin ever ships a skill or agent literally
+    # named `plan`/`claude`/etc, that claim is false — a `subagent_type:` reference to it would
+    # be filtered out in scan_text() before reaching resolve() at all, silently hiding a future
+    # rename or deletion of that real entry the same way a stale EXTERNAL_SLASH_IGNORE entry
+    # would (#719 follow-up, caught in review before it could happen).
+    for name in sorted(BUILTIN_AGENT_TYPES):
+        if _in_catalog(name, catalog):
+            findings.append({
+                "file": os.path.relpath(__file__, root), "line": 0, "ref": name,
+                "problem": f"BUILTIN_AGENT_TYPES entry `{name}` collides with a name this repo "
+                           f"now ships — a subagent_type: reference to it is no longer safe to "
+                           f"skip. Remove the entry, or rename the plugin's skill/agent.",
             })
 
     stats = {"files": files, "refs": refs, "roots": len(surfaces),
@@ -519,6 +578,24 @@ def run_self_test():
         _materialise(repo, {"docs/guide.md": 'subagent_type: "tt:code-reviewer"\n'})
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("dangling subagent_type", refs_of(found), [("tt:code-reviewer", 1)])
+
+        # 2c. a bare `subagent_type:` naming a harness-native agent type is not this repo's to
+        #     declare — #719. A bare name outside that fixed list is still real drift.
+        _materialise(repo, {"docs/guide.md": 'subagent_type: "general-purpose"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("builtin bare subagent_type resolves", refs_of(found), [])
+        _materialise(repo, {"docs/guide.md": 'subagent_type: "not-a-real-agent"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("non-builtin bare subagent_type still dangling",
+             refs_of(found), [("not-a-real-agent", 1)])
+        # The exemption is keyed to the `subagent_type:` surface, not the bare name alone — a
+        # first draft exempted the name everywhere `resolve()` sees a bare ref, which also
+        # cleared THIS: a bare `Skill(skill: ...)` call is never an agent spawn, so none of the
+        # six words means anything there, and it stays real drift (caught in review).
+        _materialise(repo, {"docs/guide.md": 'Skill(skill: "general-purpose")\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("builtin agent name via Skill() call is still dangling",
+             refs_of(found), [("general-purpose", 1)])
 
         # 3. a hook matcher label is scanned; the same token in repo PROSE is not (history)
         _materialise(repo, {
@@ -683,6 +760,19 @@ def run_self_test():
         _materialise(repo, {f"tt/skills/{ignored}/SKILL.md": SKILL_MD.format(name=ignored)})
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("ignore entry goes stale when shipped", [f["ref"] for f in found], [ignored])
+        _materialise(repo, {f"tt/skills/{ignored}/SKILL.md": "REMOVE"})
+
+        # 14. BUILTIN_AGENT_TYPES claims the same thing: no plugin here declares these names.
+        #     Ship one and the claim is false — a subagent_type: reference to it would be
+        #     filtered out before ever reaching the catalogue, so the collision must be reported
+        #     rather than go on masking a future rename or deletion of that real entry (#719).
+        builtin_name = sorted(BUILTIN_AGENT_TYPES)[0]
+        _materialise(repo, {
+            f"tt/skills/{builtin_name}/SKILL.md": SKILL_MD.format(name=builtin_name),
+        })
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("BUILTIN_AGENT_TYPES entry goes stale when shipped",
+             [f["ref"] for f in found], [builtin_name])
 
     if failures:
         print("FAIL: check-skill-reference-drift self-test")
