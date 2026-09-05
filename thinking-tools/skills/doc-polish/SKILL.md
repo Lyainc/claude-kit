@@ -98,7 +98,7 @@ what keeps the added `gh`/`git` cost off every ordinary polish call; there is no
 | Claim in the document | Deterministic check | Verdict |
 |-----------------------|---------------------|---------|
 | Issue/PR reference (`#N`) | `gh issue view N --json state` / `gh pr view` | state matches what the prose says about it |
-| File or directory path | file exists at that path | 확인됨 / 어긋남 |
+| File or directory path | file exists at that path | exists as described |
 | Script, function, or flag name | `grep` for the name in the repo | present as described |
 | Commit SHA | `git log -1 <sha>` | resolves, and describes what the prose says |
 | Status assertion ("미구현", "없음", "아직", "지원 안 함") | `grep`/`gh` for the thing asserted absent | still absent |
@@ -152,7 +152,7 @@ Output: Fixed file and/or Quality Report
 |------|------|---------|
 | Read | Load target MD file | Read file content |
 | Bash | Run markdownlint | `markdownlint --fix file.md` |
-| Bash | Layer 4 fact checks | `gh issue view 688 --json state`, `git log -1 <sha>`, `grep -rn <name>` |
+| Bash | Layer 4 fact checks | `gh issue view 123 --json state`, `git log -1 <sha>`, `grep -rn <name>` |
 | WebFetch | Validate external links | Check URL accessibility |
 | Edit | Apply auto-fixes | Fix formatting issues (Layers 1-2 only — Layer 4 never edits) |
 
@@ -213,7 +213,7 @@ Recommended workflow:
 | Structure | ✅ Report issues | ❌ Reorganize sections |
 | Content | ✅ Flag concerns | ❌ Add/remove content |
 | Facts | ✅ Cross-check against the repo and report mismatches | ❌ Correct a wrong fact (content change) |
-| Judgment claims | | ❌ Weigh whether a design or trade-off is right (→ `adversarial-review`) |
+| Judgment claims | ✅ Point to `adversarial-review` | ❌ Weigh whether a design or trade-off is right (→ `adversarial-review`) |
 | Links | ✅ Validate & report | ❌ Update URLs |
 | Style | ✅ Ensure consistency | ❌ Impose new style |
 
