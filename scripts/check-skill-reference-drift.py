@@ -327,7 +327,7 @@ def description_lines(text):
     fence". Nothing yielded outside frontmatter, so the backtick rule still owns the body.
     """
     lines = text.splitlines()
-    if not lines or lines[0].strip() != "---":
+    if not lines or lines[0][:1] in (" ", "\t") or lines[0].strip() != "---":
         return
     for i in range(1, len(lines)):
         if _is_top_level_fence(lines[i]):
@@ -745,6 +745,15 @@ def run_self_test():
         case("an indented --- inside an EARLIER key's block scalar must not end frontmatter "
              "before description: is reached",
              desc_probe('allowed-tools: |\n  Read\n  ---\ndescription: "real /gone-h"\n'), ["gone-h"])
+
+        # The OPENING check had the same unguarded `.strip()` the closing fences were just fixed
+        # for: an indented first line (a nested rule/blockquote separator in plain prose) still
+        # read as `.strip() == "---"` and was accepted as a real frontmatter opener, so a later
+        # plain-prose `description:`-prefixed line got scanned as if inside real frontmatter.
+        _materialise(repo, {"docs/guide.md": " ---\ndescription: see /gone-in-prose for details\n"})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("an indented first line is not a real frontmatter opener", refs_of(found), [])
+        _materialise(repo, {"docs/guide.md": "clean\n"})
 
         #     The same block is scanned IN-REPO, where the description scan was gated on `wide`
         #     at first and so kept the exact blind spot #646 was filed about. The narrow-prose
