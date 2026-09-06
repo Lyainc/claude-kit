@@ -104,7 +104,12 @@ def extract_frontmatter_keys(text):
                 in_fence = False
                 fence_marker = None
             continue
-        if stripped == "---" or stripped == "...":
+        # Only an UNINDENTED ---/... ends frontmatter. A block scalar's own content can hold an
+        # indented one (a markdown rule, an embedded YAML example inside `description: |`), and
+        # breaking on it drops every key after that line — a note loses its created+tags signal,
+        # reads as an ordinary doc, and its missing `type:` goes unreported. Same rule as
+        # check-skill-reference-drift.py / check-skill-token-budget.py's _is_top_level_fence.
+        if line[:1] not in (" ", "\t") and stripped in ("---", "..."):
             break  # end of frontmatter block
         m = _KEY_RE.match(line)
         if m:
@@ -177,6 +182,13 @@ def run_self_test():
          _fm(fenced_fake=True), False, False),
         ("ignored: indented (nested) created/tags are not top-level",
          "---\nmeta:\n  created: 2026-06-13\n  tags: [a]\n---\n# x\n", False, False),
+        # An indented --- inside a block scalar is that scalar's content, not the closing
+        # fence. Breaking on it ended the key scan early, so the created+tags signal below it
+        # vanished and a missing `type:` went unreported — a silent false negative, which is
+        # the exact failure this guard exists to catch.
+        ("violation: an indented --- inside a block scalar must not end the key scan",
+         "---\ndescription: |\n  intro\n  ---\n  more\ncreated: 2026-06-13\ntags: [a]\n---\n# x\n",
+         True, True),
     ]
     for label, text, want_signal, want_violation in cases:
         keys = extract_frontmatter_keys(text)

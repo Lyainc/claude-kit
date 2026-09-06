@@ -164,6 +164,12 @@ def _is_top_level_fence(line: str) -> bool:
     indentation-based scoping. Checking `line.strip() in (...)` without this guard treats
     indented literal content as a fence and truncates the scan early (fresh-context review
     finding, reproduced live).
+
+    Two other scripts read a frontmatter block on this same rule and each owns its own copy,
+    because every check-*.py runs as a standalone CI line with no shared module between them:
+    check-skill-reference-drift.py's identically-named helper, and check-type-optin.py's
+    extract_frontmatter_keys. The bug was found live in all three, one at a time — fixing one
+    copy is not fixing the rule, so change them together or not at all.
     """
     return line[:1] not in (" ", "\t") and line.strip() in ("---", "...")
 
@@ -473,17 +479,17 @@ def run_self_test() -> int:
     # green, which is the silent-guard-off class (#447) this file exists to catch. The same
     # case pins #686's other half: the description total must print on the FAIL path too, not
     # only ahead of `OK:`.
+    # --allow-estimate, not a bare run: without it this case needs tiktoken importable, and on
+    # a machine without it main() returns 2 at the backend gate, so all three checks below fail
+    # with messages blaming the budget instead of the missing package. It is a no-op when
+    # tiktoken IS present (backend_verdict passes o200k_base through), and _BIG_ASCII clears the
+    # budget by orders of magnitude under either backend.
     with tempfile.TemporaryDirectory() as tmp:
         _write_fixture_plugin(Path(tmp), _BIG_ASCII)
         rc, out = run_main(["--root", tmp, "--allow-estimate"])
         check(rc == 1, f"wiring: main() must exit 1 on a token-budget offender, got {rc}: {out}")
         check(f"exceed the {TOKEN_BUDGET}-token budget" in out,
               f"wiring: the token-budget FAIL must name the budget: {out}")
-    # --allow-estimate, not a bare run: without it this case needs tiktoken importable, and on
-    # a machine without it main() returns 2 at the backend gate, so all three checks below fail
-    # with messages blaming the budget instead of the missing package. It is a no-op when
-    # tiktoken IS present (backend_verdict passes o200k_base through), and _BIG_ASCII clears the
-    # budget by orders of magnitude under either backend.
         check("description total:" in out,
               f"#686: the description total must print on the FAIL path too: {out}")
 

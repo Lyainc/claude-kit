@@ -181,8 +181,11 @@ def _is_top_level_fence(line):
     Checking `line.strip() in (...)` without this guard truncates the scan early, so a
     `/skill` reference living past the indented line ships unscanned.
 
-    Kept in step with scripts/check-skill-token-budget.py's identically-named helper: the two
-    read the same `description:` block and the bug was once fixed in only one of them.
+    Three scripts read a frontmatter block on this rule and each owns its own copy, because
+    every check-*.py runs as a standalone CI line with no shared module between them:
+    check-skill-token-budget.py's identically-named helper, and check-type-optin.py's
+    extract_frontmatter_keys. The bug was found live in all three, one at a time — fixing one
+    copy is not fixing the rule, so change them together or not at all.
     """
     return line[:1] not in (" ", "\t") and line.strip() in ("---", "...")
 
