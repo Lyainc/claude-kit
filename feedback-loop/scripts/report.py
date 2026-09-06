@@ -651,7 +651,8 @@ _DELEGATION_CAVEAT = (
     "(#706 실증 (e), meta에 작업 내용 없음). general-purpose는 기계적 수집·탐색이면 정상이다. "
     "subagent_type을 안 준 호출(name 빈 문자열)도 하네스가 general-purpose로 돌리므로 "
     "general-purpose 비율에 포함돼 있고, unspecified는 그 안에서 타입을 아예 안 준 건수를 "
-    "따로 보여주는 부분집합이다(둘을 더하면 이중계산). 측정범위: claude-kit 레포 내 세션 "
+    "따로 보여주는 부분집합이다(둘을 더하면 이중계산). 두 ratio 모두 분모는 total이다. "
+    "측정범위: claude-kit 레포 내 세션 "
     "(telemetry Option A)."
 )
 
@@ -939,7 +940,7 @@ def main() -> int:
         gp = delegation["general_purpose"]
         up = delegation["unspecified"]
         print(f"  general-purpose : {gp['count']:>5}  ({gp['ratio']:.1%})")
-        print(f"    of which no subagent_type given: {up['count']:>5}  ({up['ratio']:.1%})")
+        print(f"    of which no subagent_type given: {up['count']:>5}  ({up['ratio']:.1%} of total)")
         if delegation["specialized"]:
             print("  specialized agents:")
             for name, c in sorted(delegation["specialized"].items(), key=lambda x: (-x[1], x[0])):
