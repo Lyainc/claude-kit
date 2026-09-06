@@ -155,6 +155,11 @@ _FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 DESCRIPTION_CHAR_CAP = 1536  # harness listing-cap: changelog.md "raised the listing cap from 250 to 1,536 characters"
 
 
+class _UnterminatedFrontmatter(Exception):
+    """Raised by _description_span when a description: block scalar reads to EOF with no
+    closing ---/... fence in sight — the frontmatter itself never closes."""
+
+
 def _is_top_level_fence(line: str) -> bool:
     """True for a REAL frontmatter/block-scalar-closing fence: an UNINDENTED --- or ... .
 
@@ -198,6 +203,13 @@ def _description_span(text: str):
             if _is_top_level_fence(nxt) or _FRONTMATTER_KEY_RE.match(nxt):
                 break
             collected.append(nxt)
+        else:
+            # EOF reached with no closing fence and no next key: frontmatter never closes, so
+            # `collected` is bogus (the whole rest of the file, body included) rather than a
+            # real description value. Without this guard the caller measured that whole-file
+            # blob as the description's char count and reported "description is N chars",
+            # which misdiagnoses a malformed file as an oversized one (#725-cluster).
+            raise _UnterminatedFrontmatter("description: block never finds a closing fence")
         return "\n".join(collected).strip()
     return None
 
@@ -211,7 +223,10 @@ def _is_disabled(text: str) -> bool:
 
 
 def measure_descriptions(root: Path):
-    """Return (rel_path, char_count, is_skill) for every considered file's description:.
+    """Return (results, malformed): results is (rel_path, char_count, is_skill) for every
+    considered file whose frontmatter actually closes; malformed is the rel_path of every
+    file whose frontmatter never closes (its description: value is unmeasurable garbage —
+    the whole rest of the file — so it is reported as malformed instead of a bogus char count).
 
     Scope (#686): */skills/*/SKILL.md (is_skill=True) + */agents/*.md (is_skill=False) inside
     SOURCE plugins (dirs holding .claude-plugin/plugin.json) — same glob check() already uses.
@@ -220,21 +235,30 @@ def measure_descriptions(root: Path):
     no description: key contributes 0 chars but still appears (agents rarely carry one).
     """
     out = []
+    malformed = []
     for manifest in sorted(root.glob("*/.claude-plugin/plugin.json")):
         plugin = manifest.parent.parent
         for skill in sorted(plugin.glob("skills/*/SKILL.md")):
             text = skill.read_text(encoding="utf-8")
             if _is_disabled(text):
                 continue
-            span = _description_span(text)
+            try:
+                span = _description_span(text)
+            except _UnterminatedFrontmatter:
+                malformed.append(skill.relative_to(root))
+                continue
             out.append((skill.relative_to(root), len(span) if span else 0, True))
         for agent in sorted(plugin.glob("agents/*.md")):
             text = agent.read_text(encoding="utf-8")
             if _is_disabled(text):
                 continue
-            span = _description_span(text)
+            try:
+                span = _description_span(text)
+            except _UnterminatedFrontmatter:
+                malformed.append(agent.relative_to(root))
+                continue
             out.append((agent.relative_to(root), len(span) if span else 0, False))
-    return out
+    return out, malformed
 
 
 def find_anchors(text: str):
@@ -521,19 +545,45 @@ def run_self_test() -> int:
           "description span: an indented --- inside an EARLIER key's block scalar must not "
           "be read as closing frontmatter before description: is reached")
 
+    # EOF guard: a description: block scalar that never finds a closing fence must not read to
+    # EOF and hand back the whole rest of the file as if it were the description value — that
+    # silently mis-measures a malformed file as an oversized one. _description_span() must
+    # flag the malformed frontmatter itself instead.
+    never_closes = "---\nname: x\ndescription: |\n  line one\n\n## Rules\n\n- Stay small.\n"
+    try:
+        _description_span(never_closes)
+        check(False, "description span: unterminated frontmatter must raise, not return a value")
+    except _UnterminatedFrontmatter:
+        check(True, "description span: unterminated frontmatter raises")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_desc_fixture(Path(tmp), '"short"')
+        broken = Path(tmp, "fixture-plugin", "skills", "x", "SKILL.md")
+        broken.write_text(never_closes)
+        measured, malformed = measure_descriptions(Path(tmp))
+        check((measured, [str(p) for p in malformed]) == ([], ["fixture-plugin/skills/x/SKILL.md"]),
+              f"description sum: an unterminated file is reported malformed, not measured — "
+              f"got measured={measured} malformed={malformed}")
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 1, f"wiring: an unterminated frontmatter must FAIL, got rc={rc}: {out}")
+        check("frontmatter never closes" in out,
+              f"wiring: the FAIL must name the real problem, not a char count: {out}")
+        check("description is" not in out,
+              f"wiring: an unterminated file must not print a bogus 'description is N chars': {out}")
+
     # Sum case (#686 "합산 1건").
     with tempfile.TemporaryDirectory() as tmp:
         _write_desc_fixture(Path(tmp), '"short"')
-        measured = measure_descriptions(Path(tmp))
+        measured, malformed = measure_descriptions(Path(tmp))
         expected_len = len('"short"')
-        check(len(measured) == 1 and measured[0][1] == expected_len,
+        check(len(measured) == 1 and measured[0][1] == expected_len and not malformed,
               f"description sum: expected 1 entry of {expected_len} chars, got {measured}")
 
     # is_agent path (#686 scope: description totals include agents/*.md, but the 1,536-char
     # cap applies to SKILL.md only) — was never exercised (fresh-context review finding).
     with tempfile.TemporaryDirectory() as tmp:
         _write_desc_fixture(Path(tmp), '"agent desc"', is_agent=True)
-        measured = measure_descriptions(Path(tmp))
+        measured, _ = measure_descriptions(Path(tmp))
         check(len(measured) == 1 and measured[0][2] is False,
               f"description sum: agent file measured with is_skill=False (got: {measured})")
     with tempfile.TemporaryDirectory() as tmp:
@@ -602,7 +652,7 @@ def main(argv=None):
         )
         return 2
 
-    desc_results = measure_descriptions(root)
+    desc_results, desc_malformed = measure_descriptions(root)
     total_desc_chars = sum(c for _, c, _ in desc_results)
     print(
         f"description total: {total_desc_chars} chars across {len(desc_results)} file(s) "
@@ -629,7 +679,16 @@ def main(argv=None):
             print(f"{str(rel):56} ~{total:5.0f} tok  anchors={len(anchors):2} last@~{last:.0f}")
 
     offenders = [(rel, total, v) for rel, total, v in results if v]
-    if offenders or desc_offenders:
+    if offenders or desc_offenders or desc_malformed:
+        if desc_malformed:
+            print(
+                f"FAIL: {len(desc_malformed)} file(s) have frontmatter that never closes — no "
+                f"unindented ---/... fence found before EOF, so description: cannot be measured:",
+                file=sys.stderr,
+            )
+            for rel in desc_malformed:
+                print(f"  {rel}: frontmatter never closes", file=sys.stderr)
+            print("\nFix: close the frontmatter with an unindented --- or ....", file=sys.stderr)
         if offenders:
             print(
                 f"FAIL: {len(offenders)} file(s) exceed the {TOKEN_BUDGET}-token budget — for "
