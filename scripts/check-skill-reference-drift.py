@@ -349,11 +349,15 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     for lineno, line in enumerate(text.splitlines(), 1):
         seen = set()
         subagent_bare = set()
+        skill_bare = set()
         for m in CALL_RE.finditer(line):
             ref = m.group(1)
             seen.add(ref)
-            if m.group(0).startswith("subagent_type:") and ":" not in ref:
-                subagent_bare.add(ref)
+            if ":" not in ref:
+                if m.group(0).startswith("subagent_type:"):
+                    subagent_bare.add(ref)
+                else:
+                    skill_bare.add(ref)
         if qual_re is not None and (wide or is_shell):
             for m in qual_re.finditer(line):
                 seen.add(m.group(0))
@@ -363,7 +367,13 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
                     seen.add(m.group(1))
         seen |= bare.get(lineno, set())
         for ref in sorted(seen):
-            yield lineno, ref, ref in subagent_bare
+            # A bare Skill() call sharing this line with a bare subagent_type: of the SAME
+            # name must not inherit the exemption meant only for subagent_type (#719 follow-up,
+            # /code-review high): `seen` collapses identical ref strings into one entry
+            # regardless of which surface produced them, so without the `skill_bare` exclusion
+            # here a line like `Skill(skill: "general-purpose") or subagent_type: "general-
+            # purpose"` would forgive the Skill() call too.
+            yield lineno, ref, ref in subagent_bare and ref not in skill_bare
 
 
 def resolve(ref, catalog, allow_bare, extra_bare=(), harness_ok=False):
@@ -584,6 +594,18 @@ def run_self_test():
         _materialise(repo, {"docs/guide.md": 'Skill(skill: "general-purpose")\n'})
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("the same bare word via Skill() still dangles",
+             refs_of(found), [("general-purpose", 1)])
+        _materialise(repo, {"docs/guide.md": "clean\n"})
+
+        # 2d. a bare Skill() call must not inherit the harness-builtin exemption just because
+        # a bare subagent_type: of the SAME name sits on the same line (/code-review high
+        # follow-up): scan_text()'s per-line `seen` set collapses identical ref strings
+        # regardless of which surface produced them, so this must be excluded explicitly.
+        _materialise(repo, {
+            "docs/guide.md": 'Skill(skill: "general-purpose") or subagent_type: "general-purpose"\n',
+        })
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("a same-line bare Skill() does not inherit the subagent_type exemption",
              refs_of(found), [("general-purpose", 1)])
         _materialise(repo, {"docs/guide.md": "clean\n"})
 
