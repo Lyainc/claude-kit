@@ -270,11 +270,16 @@ def scan_agent_skills(text):
             nxt = lines[j]
             if not nxt.strip() or nxt.lstrip().startswith("#"):
                 continue  # a blank line or comment inside the list does not end it
+            if _is_top_level_fence(nxt):
+                return  # the frontmatter fence — the list is over, checked BEFORE the
+                # "unreadable item, skip it" branch below, because `---` also starts with
+                # `-` and would otherwise fall into that branch and let the scan leak into
+                # the body (#721)
             item = SKILLS_ITEM_RE.match(nxt)
             if not item:
                 if nxt.lstrip().startswith("-"):
                     continue  # an item shape this parser cannot read: skip it, keep going
-                return  # the next key, or the frontmatter fence — the list is over
+                return  # the next key — the list is over
             yield j + 1, item.group("q") or item.group("b")
         return
 
@@ -600,6 +605,17 @@ def run_self_test():
         _materialise(repo, {"tt/agents/f2.md": agent.replace("  - gone-skill\n", "")})
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("resolving agent skills list is quiet", refs_of(found), [])
+
+        # 9b. a body markdown bullet right after the closing --- must not leak into the list
+        # scan as if it were another skills: entry (#721): `---` also starts with `-`, so the
+        # old code read it as "an item shape this parser cannot read, skip and keep going"
+        # instead of ending the list, and the scan continued straight into the next body line.
+        leaking_body = "---\nname: f6\nskills:\n  - next-goal\n---\n- gone-skill\nbody\n"
+        _materialise(repo, {"tt/agents/f6.md": leaking_body})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("a body bullet right after the closing fence is not a skills: entry",
+             refs_of(found), [])
+        _materialise(repo, {"tt/agents/f6.md": "---\nname: f6\n---\nbody\n"})
 
         # 10. the slash form is how a consumer actually names a skill in prose — the stale
         #     half of #562 was exactly that shape. Native commands and retired skills named as
