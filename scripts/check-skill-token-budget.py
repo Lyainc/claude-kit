@@ -211,7 +211,14 @@ def _description_span(text: str):
             # which misdiagnoses a malformed file as an oversized one (#725-cluster).
             raise _UnterminatedFrontmatter("description: block never finds a closing fence")
         return "\n".join(collected).strip()
-    return None
+    # Reaching here means every line was checked and NONE was a closing fence (that path
+    # returns None above) and NONE started a description: key — i.e. frontmatter never closes
+    # at all. Returning None here silently reported this as "no description, 0 chars" instead
+    # of malformed, which missed exactly the agents/*.md class this guard exists to catch
+    # (per this module's own note: "agents rarely carry" a description: key at all, so a
+    # malformed agent frontmatter is MORE likely to hit this path than the inner-loop one) —
+    # /code-review high follow-up.
+    raise _UnterminatedFrontmatter("frontmatter never closes and no description: key is found")
 
 
 def _is_disabled(text: str) -> bool:
@@ -570,6 +577,28 @@ def run_self_test() -> int:
               f"wiring: the FAIL must name the real problem, not a char count: {out}")
         check("description is" not in out,
               f"wiring: an unterminated file must not print a bogus 'description is N chars': {out}")
+
+    # The SAME EOF guard, but for a file with no description: key at all (/code-review high
+    # follow-up): the outer loop's fallthrough `return None` was untouched by the fix above,
+    # so a file whose frontmatter never closes AND never reaches a description: line still
+    # read as "no description, 0 chars" — silently clean instead of malformed. This is not a
+    # rare shape: this module's own docstring notes agents/*.md rarely carry description: at
+    # all, so a malformed agent frontmatter is MORE likely to hit this path than the other one.
+    never_closes_no_desc = "---\nname: x\nallowed-tools: Read\n\n## Rules\n\n- Stay small.\n"
+    try:
+        _description_span(never_closes_no_desc)
+        check(False, "description span: unterminated frontmatter with no description: must raise")
+    except _UnterminatedFrontmatter:
+        check(True, "description span: unterminated frontmatter with no description: raises too")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_desc_fixture(Path(tmp), '"agent desc"', is_agent=True)
+        broken = Path(tmp, "fixture-plugin", "agents", "x.md")
+        broken.write_text(never_closes_no_desc)
+        measured, malformed = measure_descriptions(Path(tmp))
+        check((measured, [str(p) for p in malformed]) == ([], ["fixture-plugin/agents/x.md"]),
+              f"description sum: an unterminated agent file with no description: key is "
+              f"malformed, not silently 0 chars — got measured={measured} malformed={malformed}")
 
     # Sum case (#686 "합산 1건").
     with tempfile.TemporaryDirectory() as tmp:
