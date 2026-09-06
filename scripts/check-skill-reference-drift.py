@@ -515,6 +515,24 @@ def check_all(root, external_roots=None, allowlist=None):
                            f"so it is ours to check. Remove it: {reason}",
             })
 
+    # HARNESS_BUILTIN_AGENTS has no equivalent staleness check above (/code-review high finding,
+    # reproduced live): resolve() forgives any bare subagent_type: match against this list before
+    # ever consulting the catalogue, so once a local agent/skill happens to share a name with a
+    # harness builtin, every bare reference to that name is forgiven unconditionally — even after
+    # the local file is later deleted or renamed and the reference has gone genuinely dangling.
+    # The collision permanently masks real drift instead of catching it. Flag the collision
+    # itself so a human notices; disambiguating which meaning a given reference intends is not
+    # this script's job.
+    for name in sorted(HARNESS_BUILTIN_AGENTS):
+        if any(name in names for names in catalog.values()):
+            findings.append({
+                "file": os.path.relpath(__file__, root), "line": 0, "ref": name,
+                "problem": f"HARNESS_BUILTIN_AGENTS collision — this repo also ships an "
+                           f"agent/skill named `{name}`, so a bare subagent_type: \"{name}\" "
+                           f"reference is forgiven unconditionally and can mask real drift if "
+                           f"the local `{name}` is later deleted or renamed.",
+            })
+
     stats = {"files": files, "refs": refs, "roots": len(surfaces),
              "absent_roots": absent, "exempt": len(fired), "catalog": len(catalog)}
     return findings, stats
@@ -806,6 +824,18 @@ def run_self_test():
         _materialise(repo, {f"tt/skills/{ignored}/SKILL.md": SKILL_MD.format(name=ignored)})
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("ignore entry goes stale when shipped", [f["ref"] for f in found], [ignored])
+        os.remove(os.path.join(repo, "tt", "skills", ignored, "SKILL.md"))
+
+        # 14. a name in HARNESS_BUILTIN_AGENTS has no stale check the way EXTERNAL_SLASH_IGNORE
+        #     does (/code-review high finding, reproduced live): resolve() forgives a bare
+        #     subagent_type: match against this list before ever consulting the catalogue, so if
+        #     this repo ships a skill/agent sharing that name, a later dangling reference to it
+        #     is masked forever instead of caught. Flag the collision itself.
+        builtin = sorted(HARNESS_BUILTIN_AGENTS)[0]
+        _materialise(repo, {f"tt/skills/{builtin}/SKILL.md": SKILL_MD.format(name=builtin)})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("HARNESS_BUILTIN_AGENTS collision reported when shipped",
+             [f["ref"] for f in found], [builtin])
 
     if failures:
         print("FAIL: check-skill-reference-drift self-test")
