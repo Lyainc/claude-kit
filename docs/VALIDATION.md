@@ -476,7 +476,9 @@ python3 feedback-loop/scripts/validate-schema.py --self-test
 # real qualified_name match fails and the lifecycle view reports 100% never_fired —
 # #477's "'/capture'·'/note' 호출 0회" citation traces back to exactly this view.
 # + agent_spawn.name 위임 분포 뷰 (#706 후속 — 전문 에이전트별 건수 / general-purpose 비율 /
-#   미지정(name 빈 문자열) 비율; agent_spawn(outcome=started) 전량 기준, 판정 위임 여부는 로그에 없음).
+#   그중 subagent_type을 안 준 건수; agent_spawn(outcome=started) 전량 기준, 판정 위임 여부는
+#   로그에 없음). subagent_type 미지정 호출은 하네스가 general-purpose로 돌리므로 general-purpose
+#   비율에 포함되고, 미지정 수치는 그 부분집합이다 — 둘을 더하면 이중계산.
 #   No new .github/workflows/validate.yml entry: this command was already registered/run
 #   there, so the new self-test cases ride the same CI line — no separate wiring needed.
 python3 feedback-loop/scripts/test/test-report.py

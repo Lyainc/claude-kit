@@ -1106,10 +1106,19 @@ def case_agent_spawn_distribution_buckets(errors: list[str]) -> None:
     _assert(res["total"] == 4, f"total counts only started agent_spawn (got: {res['total']})", errors)
     _assert(res["specialized"] == {"requirement-gap-reviewer": 1},
             f"specialized bucket (got: {res['specialized']})", errors)
-    _assert(res["general_purpose"]["count"] == 2 and abs(res["general_purpose"]["ratio"] - 0.5) < 1e-9,
-            f"general_purpose count/ratio (got: {res['general_purpose']})", errors)
+    # An omitted subagent_type IS a general-purpose run at the harness, so the "" spawn counts
+    # toward general-purpose (2 explicit + 1 omitted = 3 of 4). Splitting it out as a sibling
+    # reported 50% where the truth is 75% — a systematic undercount of this view's headline.
+    _assert(res["general_purpose"]["count"] == 3 and abs(res["general_purpose"]["ratio"] - 0.75) < 1e-9,
+            f"general_purpose count/ratio includes omitted subagent_type (got: {res['general_purpose']})", errors)
     _assert(res["unspecified"]["count"] == 1 and abs(res["unspecified"]["ratio"] - 0.25) < 1e-9,
             f"unspecified count/ratio (got: {res['unspecified']})", errors)
+    _assert(res["unspecified"]["count"] <= res["general_purpose"]["count"],
+            f"unspecified is a SUBSET of general_purpose, never a sibling to add "
+            f"(got: gp={res['general_purpose']}, unspec={res['unspecified']})", errors)
+    _assert(res["general_purpose"]["count"] + sum(res["specialized"].values()) == res["total"],
+            f"general_purpose + specialized must exhaust total, with no third bucket left over "
+            f"(got: {res})", errors)
 
 
 def case_agent_spawn_distribution_empty(errors: list[str]) -> None:

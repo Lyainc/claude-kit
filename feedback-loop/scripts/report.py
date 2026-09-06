@@ -648,8 +648,10 @@ def rule_fire_view(events: list[dict]) -> dict[str, int]:
 #    judgment/review task, which this view cannot itself distinguish.
 _DELEGATION_CAVEAT = (
     "agent_spawn(outcome=started) 전량 기준 — 이 중 몇 건이 판정/리뷰 위임이었는지는 로그에 없다"
-    "(#706 실증 (e), meta에 작업 내용 없음). general-purpose는 기계적 수집·탐색이면 정상이고, "
-    "name이 빈 문자열이면 subagent_type을 안 준 호출이다. 측정범위: claude-kit 레포 내 세션 "
+    "(#706 실증 (e), meta에 작업 내용 없음). general-purpose는 기계적 수집·탐색이면 정상이다. "
+    "subagent_type을 안 준 호출(name 빈 문자열)도 하네스가 general-purpose로 돌리므로 "
+    "general-purpose 비율에 포함돼 있고, unspecified는 그 안에서 타입을 아예 안 준 건수를 "
+    "따로 보여주는 부분집합이다(둘을 더하면 이중계산). 측정범위: claude-kit 레포 내 세션 "
     "(telemetry Option A)."
 )
 
@@ -658,8 +660,12 @@ def agent_spawn_distribution_view(events: list[dict]) -> dict | None:
     """Per-agent-type agent_spawn call distribution.
 
     Buckets by `name` (event-logger.sh lifts .tool_input.subagent_type into name):
-      - "general-purpose" -> general_purpose bucket
-      - ""                 -> unspecified bucket (no subagent_type given at all)
+      - "general-purpose", and "" -> general_purpose bucket. An OMITTED subagent_type runs
+        as general-purpose at the harness ("or omitting it — starts a fresh agent
+        (general-purpose by default)"), so counting "" as a sibling bucket made this view's
+        headline ratio a systematic undercount of the very thing it exists to report.
+      - ""                 -> ALSO counted in `unspecified`, a SUBSET of general_purpose
+        recording how many of those runs never named a type at all. Never add the two.
       - anything else      -> a named specialized-agent bucket
 
     Returns None when there are zero agent_spawn(started) calls in the window (mirrors
@@ -670,16 +676,17 @@ def agent_spawn_distribution_view(events: list[dict]) -> dict | None:
     if total == 0:
         return None
     specialized: Counter[str] = Counter()
-    general_purpose = 0
+    explicit_general_purpose = 0
     unspecified = 0
     for e in started:
         name = e.get("name", "")
         if name == "general-purpose":
-            general_purpose += 1
+            explicit_general_purpose += 1
         elif name == "":
             unspecified += 1
         else:
             specialized[name] += 1
+    general_purpose = explicit_general_purpose + unspecified
     return {
         "total": total,
         "specialized": dict(specialized),
@@ -932,7 +939,7 @@ def main() -> int:
         gp = delegation["general_purpose"]
         up = delegation["unspecified"]
         print(f"  general-purpose : {gp['count']:>5}  ({gp['ratio']:.1%})")
-        print(f"  unspecified     : {up['count']:>5}  ({up['ratio']:.1%})")
+        print(f"    of which no subagent_type given: {up['count']:>5}  ({up['ratio']:.1%})")
         if delegation["specialized"]:
             print("  specialized agents:")
             for name, c in sorted(delegation["specialized"].items(), key=lambda x: (-x[1], x[0])):
