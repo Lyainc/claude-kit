@@ -466,6 +466,22 @@ def run_self_test() -> int:
     finally:
         globals()["BACKEND"], globals()["_ENCODING"] = saved_backend, saved_encoding
 
+    # WIRING, token-budget FAIL path: every other run_main case above feeds main() a clean or
+    # description-only fixture, so nothing pinned that an over-budget file still reaches
+    # `return 1`. That return sits under `if offenders or desc_offenders:` — one stray indent
+    # into the desc_offenders branch and an over-budget SKILL.md exits 0 with this whole suite
+    # green, which is the silent-guard-off class (#447) this file exists to catch. The same
+    # case pins #686's other half: the description total must print on the FAIL path too, not
+    # only ahead of `OK:`.
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_fixture_plugin(Path(tmp), _BIG_ASCII)
+        rc, out = run_main(["--root", tmp])
+        check(rc == 1, f"wiring: main() must exit 1 on a token-budget offender, got {rc}: {out}")
+        check(f"exceed the {TOKEN_BUDGET}-token budget" in out,
+              f"wiring: the token-budget FAIL must name the budget: {out}")
+        check("description total:" in out,
+              f"#686: the description total must print on the FAIL path too: {out}")
+
     # #686: description char-total measurement + per-skill 1,536-char cap.
 
     # Parser unit cases.
