@@ -148,7 +148,7 @@ def _estimate_tokens(text: str) -> float:
     )
 
 
-FRONTMATTER_RE = re.compile(r"\A---\n.*?\n---\n", re.DOTALL)
+FRONTMATTER_RE = re.compile(r"\A---\n.*?\n(?:---|\.\.\.)\n", re.DOTALL)
 
 _FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 
@@ -536,6 +536,8 @@ def run_self_test() -> int:
           "is_disabled: true must be detected")
     check(_is_disabled("---\nname: x\n---\n") is False,
           "is_disabled: absent key must be False")
+    check(_is_disabled("---\ndisable-model-invocation: true\n...\n") is True,
+          "is_disabled: true must be detected under a ...-closed frontmatter too (#727)")
 
     # Fence bug regression (fresh-context review, reproduced live): an INDENTED ---/...
     # inside a block scalar's own content must not be read as the fence that ends it —
