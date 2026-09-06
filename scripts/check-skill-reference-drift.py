@@ -432,15 +432,21 @@ def check_all(root, external_roots=None, allowlist=None):
     # SEPARATE set rather than merged into the catalogue: merging let an in-repo bare name
     # resolve against a skill this repo does not ship, which made the pre-commit hook laxer
     # than CI (where the consumer is absent) and the verdict machine-dependent.
+    # `agents/*.md` alongside `*/SKILL.md` (#726) — a consumer can own a bare-referenced agent
+    # with no SKILL.md at all, and without this glob its own `subagent_type:` reference to that
+    # agent read as dangling, same shape as the skill case above. Unlike a skill (one extra
+    # `<skill-name>/` level under the external root), an agent sits directly at
+    # `<external-root>/agents/<name>.md` — the external root IS the plugin-equivalent here.
     consumer_names = set()
     for top, wide in surfaces:
         if not wide:
             continue
-        for path in glob.glob(os.path.join(top, "*", "SKILL.md")):
-            with open(path, encoding="utf-8", errors="replace") as fh:
-                m = NAME_KEY_RE.search(fh.read())
-            if m:
-                consumer_names.add(m.group(1))
+        for pattern in ("*/SKILL.md", "agents/*.md"):
+            for path in glob.glob(os.path.join(top, pattern)):
+                with open(path, encoding="utf-8", errors="replace") as fh:
+                    m = NAME_KEY_RE.search(fh.read())
+                if m:
+                    consumer_names.add(m.group(1))
 
     findings, fired, files, refs = [], set(), 0, 0
     scanned_paths = []
@@ -756,6 +762,20 @@ def run_self_test():
         case("verdict independent of the sibling checkout",
              [f["ref"] for f in with_ext], [f["ref"] for f in without])
         _materialise(repo, {"tt/agents/f5.md": "---\nname: f5\n---\nbody\n"})
+
+        # 12b. a consumer's own AGENT (no SKILL.md at all) also counts as its own declared
+        # name (#726): consumer_names only globbed `*/SKILL.md`, so a bare `subagent_type:`
+        # naming a consumer's local agent read as dangling even though it is that consumer's
+        # own and none of HARNESS_BUILTIN_AGENTS.
+        _materialise(ext, {
+            "agents/localagent.md": "---\nname: localagent\ntools: Read\n---\nbody\n",
+            "probe.md": 'subagent_type: "localagent"\n',
+        })
+        found, _ = check_all(repo, external_roots=[ext], allowlist=[])
+        case("consumer's own agents/*.md name resolves for its bare subagent_type",
+             refs_of(found), [])
+        os.remove(os.path.join(ext, "probe.md"))
+        os.remove(os.path.join(ext, "agents", "localagent.md"))
 
         # 13. an ignore entry claims the name is not this repo's to declare. Ship it and the
         #     claim is false, so the entry must be reported rather than go on exempting a name
