@@ -126,6 +126,15 @@ CALL_RE = re.compile(
 )
 NAME_KEY_RE = re.compile(r"^name:[ \t]*(\S+)", re.MULTILINE)
 
+# A bare `subagent_type:` may name one of the harness's own built-in agent types instead of a
+# skill/agent this repo ships — these have no `name:` frontmatter anywhere to catalogue, so
+# without this list every one of them reads as dangling (#719). `Skill()`'s bare form does NOT
+# get this exemption: unlike subagent_type, a bare Skill() name can only ever mean a sibling
+# skill in THIS repo's own catalogue, so it stays held to that catalogue.
+HARNESS_BUILTIN_AGENTS = {
+    "general-purpose", "Explore", "Plan", "claude-code-guide", "statusline-setup", "claude",
+}
+
 # An agent's `skills:` frontmatter list — the third hardcoded-name surface, and it fails the
 # same way a hook matcher does: rename the skill and the entry simply stops granting anything,
 # with no error and no log line. Structured, so it is parsed rather than pattern-matched off
@@ -248,11 +257,12 @@ def qualified_re(plugins):
 
 
 def scan_agent_skills(text):
-    """Yield (lineno, name) for every entry of an agent's `skills:` frontmatter list.
+    """Yield (lineno, name, False) for every entry of an agent's `skills:` frontmatter list.
 
     Walks the whole list instead of matching it as one block, so an entry this parser cannot
     read costs only that entry — never the rest of the list — and it never yields a name it
-    did not actually read.
+    did not actually read. The trailing False matches scan_text()'s 3-tuple shape (#719):
+    a `skills:` entry is never a harness-builtin-exempt subagent_type reference.
     """
     lines = text.splitlines()
     for i, line in enumerate(lines):
@@ -264,7 +274,7 @@ def scan_agent_skills(text):
             for entry in flow.group(1).split(","):
                 entry = entry.strip().strip("\"'")
                 if entry:
-                    yield i + 1, entry
+                    yield i + 1, entry, False
             return
         for j in range(i + 1, len(lines)):
             nxt = lines[j]
@@ -280,7 +290,7 @@ def scan_agent_skills(text):
                 if nxt.lstrip().startswith("-"):
                     continue  # an item shape this parser cannot read: skip it, keep going
                 return  # the next key — the list is over
-            yield j + 1, item.group("q") or item.group("b")
+            yield j + 1, item.group("q") or item.group("b"), False
         return
 
 
@@ -310,7 +320,7 @@ def description_lines(text):
 
 
 def scan_text(text, qual_re, wide, is_shell, is_agent=False):
-    """Yield (lineno, ref) for every skill reference in one file's text.
+    """Yield (lineno, ref, is_subagent_bare) for every skill reference in one file's text.
 
     `wide` (external roots) counts every qualified token, prose included, plus the backtick-
     wrapped slash form. Inside the repo those are off, so only the call form, a shell file's
@@ -321,6 +331,10 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
     reach a `description:`, which is not an archive but the live routing string the model reads.
     Measured in-repo: three descriptions name a skill of another plugin with no backticks and no
     second mention anywhere, so a rename would have gone through unseen — the #646 shape exactly.
+
+    `is_subagent_bare` is True only for a ref that came from an unqualified `subagent_type:`
+    call on that line — the one bare shape resolve() may forgive against HARNESS_BUILTIN_AGENTS
+    (#719), never for a bare `Skill()` call or any other surface.
     """
     if is_agent:
         yield from scan_agent_skills(text)
@@ -334,8 +348,12 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
         )
     for lineno, line in enumerate(text.splitlines(), 1):
         seen = set()
+        subagent_bare = set()
         for m in CALL_RE.finditer(line):
-            seen.add(m.group(1))
+            ref = m.group(1)
+            seen.add(ref)
+            if m.group(0).startswith("subagent_type:") and ":" not in ref:
+                subagent_bare.add(ref)
         if qual_re is not None and (wide or is_shell):
             for m in qual_re.finditer(line):
                 seen.add(m.group(0))
@@ -345,15 +363,19 @@ def scan_text(text, qual_re, wide, is_shell, is_agent=False):
                     seen.add(m.group(1))
         seen |= bare.get(lineno, set())
         for ref in sorted(seen):
-            yield lineno, ref
+            yield lineno, ref, ref in subagent_bare
 
 
-def resolve(ref, catalog, allow_bare, extra_bare=()):
+def resolve(ref, catalog, allow_bare, extra_bare=(), harness_ok=False):
     """Return None when the reference resolves, else a reason string.
 
     `extra_bare` is the scanned consumer's own skill names, and it applies only to references
     read from that consumer — never to in-repo ones, or the answer would depend on whether a
     sibling checkout happens to exist on the machine.
+
+    `harness_ok` is set only for a bare name read from a `subagent_type:` call (#719) — never
+    for a bare `Skill()` call, whose bare form can only ever mean a sibling skill in THIS
+    repo's own catalogue.
     """
     if ":" in ref:
         plugin, _, name = ref.partition(":")
@@ -366,6 +388,8 @@ def resolve(ref, catalog, allow_bare, extra_bare=()):
         return (f"no {plugin}/skills/*/SKILL.md or {plugin}/agents/*.md "
                 f"declares `name: {name}`")
     if not allow_bare:
+        return None
+    if harness_ok and ref in HARNESS_BUILTIN_AGENTS:
         return None
     if ref in extra_bare or any(ref in names for names in catalog.values()):
         return None
@@ -427,13 +451,14 @@ def check_all(root, external_roots=None, allowlist=None):
             with open(path, encoding="utf-8", errors="replace") as fh:
                 text = fh.read()
             is_agent = not wide and f"{os.sep}agents{os.sep}" in path and path.endswith(".md")
-            for lineno, ref in scan_text(
+            for lineno, ref, is_subagent_bare in scan_text(
                 text, qual_re, wide, path.endswith(".sh"), is_agent
             ):
                 refs += 1
                 problem = resolve(
                     ref, catalog, allow_bare=True,
                     extra_bare=consumer_names if wide else (),
+                    harness_ok=is_subagent_bare,
                 )
                 if problem is None:
                     continue
@@ -542,6 +567,19 @@ def run_self_test():
         _materialise(repo, {"docs/guide.md": 'subagent_type: "tt:code-reviewer"\n'})
         found, _ = check_all(repo, external_roots=[], allowlist=[])
         case("dangling subagent_type", refs_of(found), [("tt:code-reviewer", 1)])
+
+        # 2c. a BARE subagent_type naming a harness built-in agent is not this repo's to
+        # declare — none of the six carries a `name:` frontmatter key anywhere (#719). A bare
+        # Skill() call does NOT get the same forgiveness: its bare form can only ever mean a
+        # sibling skill in this repo's own catalogue, so the same bare word there still dangles.
+        _materialise(repo, {"docs/guide.md": 'subagent_type: "general-purpose"\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("bare subagent_type naming a harness built-in resolves", refs_of(found), [])
+        _materialise(repo, {"docs/guide.md": 'Skill(skill: "general-purpose")\n'})
+        found, _ = check_all(repo, external_roots=[], allowlist=[])
+        case("the same bare word via Skill() still dangles",
+             refs_of(found), [("general-purpose", 1)])
+        _materialise(repo, {"docs/guide.md": "clean\n"})
 
         # 3. a hook matcher label is scanned; the same token in repo PROSE is not (history)
         _materialise(repo, {
