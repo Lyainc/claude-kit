@@ -475,10 +475,15 @@ def run_self_test() -> int:
     # only ahead of `OK:`.
     with tempfile.TemporaryDirectory() as tmp:
         _write_fixture_plugin(Path(tmp), _BIG_ASCII)
-        rc, out = run_main(["--root", tmp])
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
         check(rc == 1, f"wiring: main() must exit 1 on a token-budget offender, got {rc}: {out}")
         check(f"exceed the {TOKEN_BUDGET}-token budget" in out,
               f"wiring: the token-budget FAIL must name the budget: {out}")
+    # --allow-estimate, not a bare run: without it this case needs tiktoken importable, and on
+    # a machine without it main() returns 2 at the backend gate, so all three checks below fail
+    # with messages blaming the budget instead of the missing package. It is a no-op when
+    # tiktoken IS present (backend_verdict passes o200k_base through), and _BIG_ASCII clears the
+    # budget by orders of magnitude under either backend.
         check("description total:" in out,
               f"#686: the description total must print on the FAIL path too: {out}")
 
