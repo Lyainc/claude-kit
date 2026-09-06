@@ -222,11 +222,24 @@ def _description_span(text: str):
 
 
 def _is_disabled(text: str) -> bool:
-    """True when frontmatter sets disable-model-invocation: true (never listed, never truncated)."""
-    fm = FRONTMATTER_RE.match(text)
-    if not fm:
+    """True when frontmatter sets disable-model-invocation: true (never listed, never truncated).
+
+    Scans line-by-line instead of requiring FRONTMATTER_RE to fully match, so a file whose
+    frontmatter never closes still gets its exemption recognized (fresh-context review finding,
+    reproduced live): FRONTMATTER_RE needs a closing fence to match at all, so a malformed but
+    genuinely disabled file used to fall through to _description_span(), which raises
+    _UnterminatedFrontmatter and reports the file as malformed — contradicting "never listed,
+    never truncated" by hard-failing the very file this exemption exists to leave alone.
+    """
+    lines = text.splitlines()
+    if not lines or lines[0].strip() != "---":
         return False
-    return bool(re.search(r"^disable-model-invocation:\s*true\s*$", fm.group(0), re.MULTILINE))
+    for line in lines[1:]:
+        if _is_top_level_fence(line):
+            return False
+        if re.match(r"^disable-model-invocation:\s*true\s*$", line):
+            return True
+    return False
 
 
 def measure_descriptions(root: Path):
@@ -538,6 +551,9 @@ def run_self_test() -> int:
           "is_disabled: absent key must be False")
     check(_is_disabled("---\ndisable-model-invocation: true\n...\n") is True,
           "is_disabled: true must be detected under a ...-closed frontmatter too (#727)")
+    check(_is_disabled("---\ndisable-model-invocation: true\ndescription: |\n  never closes\n") is True,
+          "is_disabled: true must be detected even when frontmatter never closes "
+          "(/code-review high finding, reproduced live)")
 
     # Fence bug regression (fresh-context review, reproduced live): an INDENTED ---/...
     # inside a block scalar's own content must not be read as the fence that ends it —
@@ -579,6 +595,26 @@ def run_self_test() -> int:
               f"wiring: the FAIL must name the real problem, not a char count: {out}")
         check("description is" not in out,
               f"wiring: an unterminated file must not print a bogus 'description is N chars': {out}")
+
+    # /code-review high finding, reproduced live: a DISABLED file whose frontmatter never closes
+    # must stay exempt, not get caught by the EOF guard above — _is_disabled() must run its own
+    # line scan rather than depend on FRONTMATTER_RE ever matching a real closing fence.
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_desc_fixture(Path(tmp), '"short"')
+        disabled_never_closes = (
+            "---\ndisable-model-invocation: true\ndescription: |\n  line one\n\n## Rules\n"
+        )
+        broken = Path(tmp, "fixture-plugin", "skills", "x", "SKILL.md")
+        broken.write_text(disabled_never_closes)
+        measured, malformed = measure_descriptions(Path(tmp))
+        check((measured, malformed) == ([], []),
+              f"description sum: a disabled file must be skipped entirely, never reported "
+              f"malformed even when its own frontmatter never closes — "
+              f"got measured={measured} malformed={malformed}")
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 0,
+              f"wiring: a disabled file with malformed frontmatter must not fail the build, "
+              f"got rc={rc}: {out}")
 
     # The SAME EOF guard, but for a file with no description: key at all (/code-review high
     # follow-up): the outer loop's fallthrough `return None` was untouched by the fix above,
