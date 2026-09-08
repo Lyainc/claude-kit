@@ -2,19 +2,26 @@
 """check-skill-catalogue-drift.py — every skill stays listed where CLAUDE.md requires (#621).
 
 RULE: CLAUDE.md's "Adding a New Skill" step 6 (#173) makes ONE catalogue entry point
-MANDATORY for every skill: a row in the root README.md's skill TABLE, plus (by the same
-discoverability logic) a mention in the skill's own plugin README.md and in CLAUDE.md's
-"Project Overview" plugin bullet, which is what step 6's sibling steps keep current. The
-docs/design/4-flow-catalog.md entry is explicitly conditional ("4-흐름에 맞을 때만") and
-is NOT enforced here. #621 shipped three drifts of exactly this shape (retired audit
-codes still advertised, a stale README skill list, a missing LICENSE) with the same root
-cause named in the issue: "카탈로그가 소스보다 늦게 움직이는데 그걸 보는 가드가 없다" — no
+MANDATORY for every skill: a row in the root README.md's skill TABLE. This guard also
+checks — loosely, and not because step 6 mandates it — a mention in the skill's own
+plugin README.md (leg b below). The docs/design/4-flow-catalog.md entry is explicitly
+conditional ("4-흐름에 맞을 때만") and is NOT enforced here. #621 shipped three drifts of
+exactly this shape (retired audit codes still advertised, a stale README skill list, a
+missing LICENSE) with the same root cause named in the issue: "카탈로그가 소스보다 늦게
+움직이는데 그걸 보는 가드가 없다" — no
 guard watches the catalogue, so it silently falls out of sync the next time a skill is
 added, renamed, or removed. This guard is that watch.
 
+A prior revision also required a mention in CLAUDE.md's own "Project Overview" plugin
+bullet, "by the same discoverability logic" as the mandatory root table — but step 6
+never actually says that, and #729 found the inferred leg blocking a legitimate CLAUDE.md
+thinning refactor (moving the bullet's skill enumeration out to a dedicated skill) with
+14 false-positive `missing_in_claude_md` violations while the two rule-backed legs stayed
+clean. Removed; see #729.
+
 Two checks, both mechanical:
   1. CATALOGUE: every `*/skills/<name>/SKILL.md` file's skill name (the directory name)
-     must appear as a whole word in THREE places, each with its own strictness:
+     must appear as a whole word in TWO places, each with its own strictness:
        a. root README.md — inside a markdown TABLE ROW (a line whose first non-blank,
           non-`>` character is `|`) of ITS OWN PLUGIN's section, not merely somewhere in
           the file. Step 6 calls the table entry mandatory, and "anywhere in the file" is
@@ -29,10 +36,6 @@ Two checks, both mechanical:
           file-layout table rather than a discoverability skill table, and step 6 makes
           only the ROOT table mandatory. Tightening this half would flag a legitimate
           layout, which is the false positive #621 asked this guard not to manufacture.
-       c. CLAUDE.md — inside its own plugin's `- **<plugin>**` Project Overview bullet.
-          Scoping to the plugin's own bullet is what makes the check bite: a name deleted
-          from thinking-tools' enumeration is not covered by an unrelated mention
-          elsewhere in the file.
      Word boundary treats `-`/`_` as part of the word, so `wiki` doesn't false-positive
      inside `wikilink` but DOES match inside a backticked `/vault-manifest-refresh`-style
      mention (a plain substring check would either miss the latter or match "database" for
@@ -168,11 +171,9 @@ def _read(path):
         return None
 
 
-def check_catalogue_presence(root, skills, root_readme_text, plugin_readme_cache,
-                             claude_bullets=None):
+def check_catalogue_presence(root, skills, root_readme_text, plugin_readme_cache):
     """Return a list of {kind, plugin, skill, detail} violations for missing entries."""
     violations = []
-    claude_bullets = {} if claude_bullets is None else claude_bullets
     plugins = sorted({s["plugin"] for s in skills})
     sections = root_plugin_sections(root_readme_text, plugins) if root_readme_text else {}
     for s in skills:
@@ -187,18 +188,6 @@ def check_catalogue_presence(root, skills, root_readme_text, plugin_readme_cache
                 "kind": "missing_in_root_readme", "plugin": plugin, "skill": name,
                 "detail": (f"`{name}` not found (as a whole word) in a table row of root "
                            f"README.md's `{plugin}` section"),
-            })
-
-        bullet = claude_bullets.get(plugin)
-        if bullet is None:
-            violations.append({
-                "kind": "missing_in_claude_md", "plugin": plugin, "skill": name,
-                "detail": f"{CLAUDE_MD} has no `- **{plugin}**` Project Overview bullet",
-            })
-        elif not _word_re(name).search(bullet):
-            violations.append({
-                "kind": "missing_in_claude_md", "plugin": plugin, "skill": name,
-                "detail": f"`{name}` not found (as a whole word) in {CLAUDE_MD}'s `{plugin}` bullet",
             })
 
         plugin_readme_path = os.path.join(plugin, "README.md")
@@ -256,7 +245,7 @@ def check_all(root):
     plugin_readme_cache = {}
     violations = []
     violations += check_catalogue_presence(root, skills, root_readme_text,
-                                           plugin_readme_cache, claude_bullets)
+                                           plugin_readme_cache)
     violations += check_counts(root, skills, plugin_readme_cache, claude_bullets)
     return skills, root_readme_text, violations
 
@@ -363,22 +352,27 @@ def run_self_test():
             failures.append(f"count-drift case: expected a count_drift violation, got {violations}")
         write("demo-plugin/README.md", "2개 스킬과 1개 에이전트: `wiki` `audit`\n")
 
-        # Case 4b: CLAUDE.md's REVERSED `스킬 N개` shape drifts (the #621 mutation:
-        # revert the count AND drop a name from the enumeration).
+        # Case 4b: CLAUDE.md's REVERSED `스킬 N개` shape drifts, AND a name is dropped
+        # from the enumeration (the #729 shape: a CLAUDE.md thinning refactor drops a
+        # skill name from the bullet). Dropping the name is not a CATALOGUE violation —
+        # step 6 never made the CLAUDE.md bullet a mandatory catalogue entry point (#729)
+        # — but the stale count is still count_drift, which #729 left untouched.
         write("CLAUDE.md", claude_md(1, "wiki"))
         _, _, violations = check_all(td)
         kinds = {(v["kind"], v.get("skill")) for v in violations}
         details = " ".join(v["detail"] for v in violations)
-        if ("missing_in_claude_md", "audit") not in kinds:
-            failures.append(f"claude-md-enumeration case: expected missing_in_claude_md/audit, got {violations}")
+        if ("missing_in_claude_md", "audit") in kinds:
+            failures.append(f"claude-md-enumeration case: a dropped CLAUDE.md bullet name must NOT be a catalogue violation (#729), got {violations}")
         if "1개 스킬" not in details:
             failures.append(f"claude-md-count case: expected a reversed `스킬 1개` count_drift, got {violations}")
 
-        # Case 4c: CLAUDE.md missing the plugin bullet entirely.
+        # Case 4c: CLAUDE.md missing the plugin bullet entirely — the full #729 thinning
+        # shape. No violation at all: the bullet was never a mandatory catalogue entry
+        # point, and with no bullet there is no count claim to drift either.
         write("CLAUDE.md", "## Project Overview\n\nnothing here\n")
         _, _, violations = check_all(td)
-        if not any(v["kind"] == "missing_in_claude_md" for v in violations):
-            failures.append(f"missing-claude-bullet case: expected a violation, got {violations}")
+        if violations:
+            failures.append(f"missing-claude-bullet case: a thinned-out CLAUDE.md bullet must produce no violations (#729), got {violations}")
         write("CLAUDE.md", claude_md(2, "wiki", "audit"))
 
         # Case 5: missing plugin README entirely.
@@ -424,7 +418,7 @@ def main():
             print(f"  - [{v['kind']}] {v['detail']}")
     else:
         print(f"OK: skill-catalogue clean — {len(skills)} skill(s) checked, all listed in a root "
-              f"README.md table row + their own plugin README.md + their {CLAUDE_MD} bullet, "
+              f"README.md table row + their own plugin README.md, "
               f"no `N개 스킬`/`스킬 N개` count drift")
 
     return 1 if violations else 0
