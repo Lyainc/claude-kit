@@ -255,25 +255,28 @@ python3 scripts/check-skill-catalogue-drift.py --self-test
 # Expected: OK: all check-skill-catalogue-drift self-test cases passed
 python3 scripts/check-skill-catalogue-drift.py
 # Expected: OK: skill-catalogue clean — N skill(s) checked, all listed in a root README.md
-#   table row + their own plugin README.md + their CLAUDE.md bullet, no `N개 스킬`/`스킬 N개`
-#   count drift
+#   table row + their own plugin README.md, no `N개 스킬`/`스킬 N개` count drift
 # #621: the issue's named root cause was "카탈로그가 소스보다 늦게 움직이는데 그걸 보는 가드가
 # 없다" — no guard watched the skill catalogue, so a fixed drift (retired audit codes still
 # advertised, a stale README skill list, a missing LICENSE) would just recur the next time a
 # skill was added. CLAUDE.md's "Adding a New Skill" step 6 (#173) makes the root README.md
 # skill table MANDATORY (docs/design/4-flow-catalog.md stays conditional, not enforced here).
 # Two mechanical checks: every `*/skills/<name>/SKILL.md` name is a whole word in a TABLE ROW
-# of its own plugin's root-README section, AND anywhere in `<plugin>/README.md`, AND inside
-# CLAUDE.md's `- **<plugin>**` Project Overview bullet; and the exact `N개 스킬`/`스킬 N개`
-# phrasing (both orders — CLAUDE.md writes the reversed one) matches the real file count in
-# the plugin README and in that CLAUDE.md bullet. The root-README half is table-scoped
-# because a deleted row usually leaves a prose mention behind, and section-scoped because 10
-# of the 19 skills are named in a second table that would otherwise cover for the deleted
-# row. The plugin-README half stays loose on purpose: feedback-loop documents its three
-# skills in prose + a file-layout table, and only the ROOT table is mandatory per step 6.
-# Count checking is narrowly scoped too — a claim in any other shape (e.g. feedback-loop's
-# "Four pieces ship together", which folds in the non-skill telemetry component) is left
-# unchecked rather than guessed at by a general number parser.
+# of its own plugin's root-README section, AND anywhere in `<plugin>/README.md`; and the exact
+# `N개 스킬`/`스킬 N개` phrasing (both orders — CLAUDE.md writes the reversed one) matches the
+# real file count in the plugin README and, when present, in CLAUDE.md's own `- **<plugin>**`
+# Project Overview bullet. The root-README half is table-scoped because a deleted row usually
+# leaves a prose mention behind, and section-scoped because 10 of the 19 skills are named in a
+# second table that would otherwise cover for the deleted row. The plugin-README half stays
+# loose on purpose: feedback-loop documents its three skills in prose + a file-layout table,
+# and only the ROOT table is mandatory per step 6. Count checking is narrowly scoped too — a
+# claim in any other shape (e.g. feedback-loop's "Four pieces ship together", which folds in
+# the non-skill telemetry component) is left unchecked rather than guessed at by a general
+# number parser. #729: an earlier revision also required the skill's name inside CLAUDE.md's
+# own plugin bullet, inferred as the "same discoverability logic" as the mandatory root
+# table — but step 6 never said that, and the inferred leg blocked a legitimate CLAUDE.md
+# thinning refactor with 14 false positives while the two rule-backed legs stayed clean.
+# Removed; the count check inside a present CLAUDE.md bullet is untouched (different axis).
 
 # + description-char total line (#686, always printed, both OK/FAIL paths) + a 1,536-char
 # harness listing-cap FAIL on SKILL.md description: (agents/*.md counted in the total but
