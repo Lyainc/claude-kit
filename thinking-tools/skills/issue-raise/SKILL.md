@@ -2,9 +2,10 @@
 name: issue-raise
 description: |
   Author and file one GitHub issue from a single natural-language line, or from a build-spec
-  Seed handoff — no Socratic interview, no Ambiguity gate. Reads the matching
-  .github/ISSUE_TEMPLATE/ file for its headings at call time (never hardcoded), runs the
-  backlog-prefilter duplicate check, and gates on user approval before `gh issue create`.
+  Seed handoff — no Socratic interview, no Ambiguity gate. Discovers whatever issue template
+  the repo actually ships (Markdown template, `.yml` issue form, or none) and reads its
+  sections at call time — never a hardcoded filename — runs the backlog-prefilter duplicate
+  check, and gates on user approval before `gh issue create`.
 
   Trigger when user mentions: 이슈 만들어줘, 이슈 저작, 버그 리포트 열어줘, 기능 제안 이슈 올려줘,
   file an issue, open a github issue, write this up as an issue.
@@ -28,23 +29,56 @@ effort: low
   (`docs/specs/{slug}.yaml`)
 - `gh` CLI authenticated against the repo (fallback in Phase 3 if absent)
 
+**Nothing about the repo's issue conventions is assumed.** Template filenames, section
+headings, the optional-section marker, label names, and the title shape all come from what
+the repo ships, read at call time — a repo with GitHub's own `bug_report.md` scaffold, one
+with `.yml` issue forms, and one with no template at all are all first-class here. Never
+hardcode a template path or heading into this skill.
+
 ## Core Workflow
 
 ### Phase 0: Entry + Template Selection
 
-1. **Entry mode**:
+1. **Entry mode** — decides the *kind*, never the filename:
    - **Seed handoff** — input names a Seed YAML path, or the caller is build-spec. `Read` the
      Seed; its `goal`/`constraints`/`success_criteria`/`context` fields are the source data.
-     Template = `feature.md` (a Seed crystallizes something to build, never a defect).
+     Kind = **proposal** (a Seed crystallizes something to build, never a defect).
    - **Freeform** — a natural-language line. Classify **defect** (something observed vs.
      expected mismatches) vs **proposal** (a capability that doesn't exist yet). Ambiguous →
      one `AskUserQuestion`.
-   - Template = `.github/ISSUE_TEMPLATE/bug.md` for a defect, `feature.md` for a proposal.
-2. **Read the chosen template file.** Its `## ` headings (frontmatter stripped) are the
-   **only** section list this skill uses to assemble the body — never hardcode headings here;
-   if the template file changes, this skill's output changes with it, with zero code edit.
-3. **Gather missing content** for each non-`(선택)` heading the source data doesn't already
-   cover, via `AskUserQuestion` (one round, batch the questions).
+2. **Discover what the repo actually ships:**
+
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/issue-template.py" --list
+   ```
+
+   It resolves the three directories GitHub itself resolves, reads Markdown templates and
+   `.yml` issue forms alike, and reports each one's kind, section count, optional-section
+   count, title prefix, and labels. Pick the entry whose `kind` matches step 1; several of the
+   same kind, or only `other` → one `AskUserQuestion` over the listed paths. Never guess a
+   filename — `bug.md` here, `bug_report.md` on a repo scaffolded by GitHub, `bug_report.yml`
+   on one using issue forms.
+3. **Read the chosen template's sections:**
+
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/issue-template.py" --headings {path} > {tmp}/tpl.md
+   ```
+
+   That output is the **only** section list this skill assembles against, and it is also
+   Phase 2.5's `--template` input, so a `.yml` form passes the same guard as a `.md`
+   template with no second code path. If the template changes shape, this skill's output
+   changes with it, with zero code edit.
+4. **No template at all** (`--list` prints `[issue-template NONE]`, exit 1): the repo chose
+   not to impose a structure, so do not invent one. Write a title plus plain prose covering
+   what the source data actually says, skip Phase 2.5 (there is nothing to conform to), and
+   say so in the Output Format's 템플릿 field. Inventing headings here would ship a body
+   shaped like this repo's conventions into someone else's tracker.
+5. **Gather missing content** for each *required* section the source data doesn't already
+   cover, via `AskUserQuestion` (one round, batch the questions). Which sections are optional
+   comes from `--list` (`--json` gives the per-section `optional` flag), not from a marker
+   spelled out here: a `.yml` form states it formally as `validations.required: false`, and a
+   Markdown template states it as a trailing parenthetical — `(선택)` on this repo,
+   `(optional)` on an English one.
 
 ### Phase 1: Duplicate Check (mandatory, zero LLM cost)
 
@@ -68,22 +102,27 @@ if the template carries that heading).
 
 ### Phase 2: Body Assembly
 
-Map source fields onto each heading read in Phase 0, one paragraph per heading, in the
-template's own order. Skip a heading only when it is marked `(선택)` **and** no source
-content exists for it — never invent content for an empty optional heading, never invent a
-heading the template doesn't have. Field-mapping detail: [reference.md](reference.md) §1.
+Map source fields onto each section read in Phase 0, one paragraph per section, in the
+template's own order. Skip a section only when Phase 0 reported it **optional** *and* no
+source content exists for it — never invent content for an empty optional section, never
+invent a section the template doesn't have. Field-mapping detail: [reference.md](reference.md) §1.
 
 ### Phase 2.5: Heading Conformance Check (mandatory, zero LLM cost)
 
 Write the assembled body to a temp file, then:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check-heading-match.py" --template {template path from Phase 0} --draft {temp file path}
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check-heading-match.py" --template {tmp}/tpl.md --draft {temp file path}
 ```
+
+`--template` is Phase 0's normalized section list, not the raw template path — that is what
+makes a `.yml` issue form checkable at all (a form carries no `## ` headings, so pointing
+this at the raw file would compare against zero sections and pass anything).
 
 Never skip this — Phase 2 only *instructs* headings be copied verbatim; nothing before this
 step mechanically confirms they were (#563; observed live in #562, where the template's
 `## 제안 (선택)` was assembled as `## 제안`, the `(선택)` marker silently dropped).
+**Skipped only when Phase 0 found no template**; say so rather than passing an empty file.
 
 - **Exit 0** → proceed to Phase 3 unchanged.
 - **Exit 1** (heading mismatch) → the printed table names the exact heading and position.
@@ -98,25 +137,39 @@ step mechanically confirms they were (#563; observed live in #562, where the tem
 
 ### Phase 3: Title + Create
 
-Follow the repo's live convention, not a fixed pattern — `gh issue list --state all --limit 10
---json title` and match the observed `type(scope): ...` shape (rationale: [reference.md](reference.md)
-§2). No separate title-format guard hook: a prior prototype's guard reproduced a quote-mention
+**Title.** Two sources, in this order:
+1. The template's own `title:` prefix, when Phase 0 reported one (`fix: ` here, `[Bug]: ` on a
+   form-based repo). It is the convention the repo *declared*, and `gh issue create` does not
+   apply it the way the web UI does — so prepend it explicitly or issues filed by this skill
+   drift from every issue filed through the browser.
+2. Otherwise the repo's live convention: `gh issue list --state all --limit 10 --json title`,
+   and match the observed shape (rationale: [reference.md](reference.md) §2).
+
+No separate title-format guard hook: a prior prototype's guard reproduced a quote-mention
 false positive and was scrapped for it — this skill only *follows* the convention at generation
 time.
 
+**Labels.** Pass the template's `labels:` from Phase 0 as `--label` — `gh issue create` does
+not inherit them from template frontmatter, so on a repo that triages by label (rather than by
+title prefix, as this one does) an issue filed here would otherwise land untriaged. A label the
+repo doesn't define makes `gh` fail the whole create; on that error retry once without
+`--label` and say which labels were dropped.
+
 Show the assembled title + body. `AskUserQuestion` for approval before creating anything.
 - Approved → write the body to a temp file, `gh issue create --title "{title}" --body-file
-  <path>`. Report the returned URL.
-- `gh` absent or no GitHub remote → write the body to `docs/specs/{slug}-issue.md` (freeform:
-  a scratch slug) and say so. Never create an issue without the approval step.
+  <path> [--label ...]`. Report the returned URL.
+- `gh` absent or no GitHub remote → write the body to `{slug}-issue.md` under `docs/specs/`
+  if that directory already exists, else the repo root, and report the path. Never create a
+  directory for the fallback, and never create an issue without the approval step.
 
 ## Output Format
 
 ```
 ## 이슈 저작 완료
 
-**템플릿**: `.github/ISSUE_TEMPLATE/{bug|feature}.md`
+**템플릿**: {Phase 0이 고른 실제 경로, 또는 `없음 — 평문 본문`}
 **중복 검사**: {backlog-prefilter 요약 한 줄}
+**라벨**: {붙인 라벨, 없으면 생략; 드롭됐으면 무엇이 왜}
 **URL**: {gh issue create 반환 URL, 또는 폴백 파일 경로}
 
 ───
@@ -125,13 +178,23 @@ Show the assembled title + body. `AskUserQuestion` for approval before creating 
 
 ## Known Limitations
 
-- **Template drift is structural, not a bug**: if `.github/ISSUE_TEMPLATE/*.md` changes shape,
-  this skill's output changes with it automatically — but a template with zero `## ` headings
-  produces an empty body. That is a template authoring error, not something this skill
-  recovers from.
+- **Template drift is structural, not a bug**: if the repo's template changes shape, this
+  skill's output changes with it automatically. A template that genuinely carries zero
+  sections is reported by `issue-template.py --headings` as an error (exit 1), not silently
+  assembled into an empty body — treat it as "no template" and take Phase 0 step 4's plain-prose
+  path.
+- **`.yml` issue forms are read for their section labels, not their input semantics**: a
+  form's `dropdown` options, `checkboxes` items, and per-field `description` text are not
+  carried into the body — the assembled issue answers each field's label in prose. A repo whose
+  triage automation parses form answers by exact option string gets a body it can read but not
+  machine-parse. Filing through the web UI is the answer there, not this skill.
+- **Form parsing is an indentation scanner, not a YAML parser** (no PyYAML in this toolchain):
+  a form using YAML anchors, folded multi-line labels, or flow mappings reads as fewer sections
+  than it has. `--list`'s section count is the check — if it disagrees with the form, stop.
 - **Duplicate check inherits the prefilter's ceiling**: term-overlap scoring, closed candidates
   ranked by title only — see `backlog-prefilter.py`'s own docstring.
-- **Seed→feature.md mapping is one fixed shape** (reference.md §1); a Seed whose content is
+- **The Seed→proposal-template mapping is one fixed shape** (reference.md §1 shows it against
+  this repo's template; the shape, not the heading names, is what carries over); a Seed whose content is
   actually a defect report is out of scope — build-spec crystallizes things to build, not bugs.
 - **Heading conformance check (Phase 2.5) is a plain regex diff, not a markdown parser** — a
   `## ` inside a fenced code block in the draft (e.g. pasted code with a comment that starts
@@ -141,6 +204,7 @@ Show the assembled title + body. `AskUserQuestion` for approval before creating 
 ## References
 
 - **Field mapping + title convention rationale**: [reference.md](reference.md)
+- **Template discovery + section extraction**: `../../scripts/issue-template.py`
 - **Backlog scan script**: `../../scripts/backlog-prefilter.py` (shared with build-spec, #489)
 - **Heading conformance script**: `../../scripts/check-heading-match.py` (#563)
 - **Common output schema**: [../../reference/common-schema.md](../../reference/common-schema.md)

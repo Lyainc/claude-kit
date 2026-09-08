@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
 """check-heading-match.py — issue-raise template-heading conformance guard (#563).
 
-RULE: an issue body assembled from a `.github/ISSUE_TEMPLATE/*.md` template must carry the
-exact same `## ` headings as the template — same text, same order, same count, including a
-`(선택)` marker — because issue-raise's Phase 2 only INSTRUCTS an LLM to copy them verbatim;
-nothing mechanically confirms it did. #562 is the observed failure: the template's
-`## 제안 (선택)` heading was assembled as `## 제안`, silently dropping the marker, with no
-guard between body assembly and the approval prompt to catch it.
+RULE: an issue body assembled from a repo's issue template must carry the exact same `## `
+headings as the template — same text, same order, same count, including an optional marker
+such as `(선택)` / `(optional)` — because issue-raise's Phase 2 only INSTRUCTS an LLM to copy
+them verbatim; nothing mechanically confirms it did. #562 is the observed failure: the
+template's `## 제안 (선택)` heading was assembled as `## 제안`, silently dropping the marker,
+with no guard between body assembly and the approval prompt to catch it.
+
+`--template` takes a **section list in `## ` form**, which is what `issue-template.py
+--headings` emits for every template shape the repo might ship. Point it at a raw Markdown
+template and it still works (that file already is `## ` lines); point it at a raw `.yml` issue
+form and it would find zero headings and pass anything — hence the normalization step, which
+keeps form support out of this guard entirely.
 
 Zero LLM cost, same philosophy as backlog-prefilter.py: extract `## ` headings from the
 template (frontmatter stripped) and from the assembled draft, and diff them 1:1 by position.
