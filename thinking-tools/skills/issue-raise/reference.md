@@ -2,27 +2,35 @@
 
 ## 1. Field Mapping
 
-The template file read in Phase 0 is the single source of headings. These tables record the
-*content* mapping this skill applies once a template's headings are known — not a second
-heading list to keep in sync. If a template file's headings change, re-derive the mapping from
-its new `## ` list rather than trusting this table.
+The template discovered in Phase 0 is the single source of sections. These tables record the
+*content* mapping this skill applies once a template's sections are known — not a second
+heading list to keep in sync.
 
-### Seed handoff → `feature.md`
+**They are this repo's templates, shown as a worked example of the mapping's shape — not a
+spec.** On any other repo the section names differ (`## Describe the bug`, `## What happened?`,
+`## Steps to reproduce`), and there the job is the same one these tables demonstrate: match each
+source field to the section whose *question* it answers, in the template's own order, and leave
+a section out only when it is optional and nothing answers it. Re-derive from Phase 0's section
+list; never map onto a heading named here that the live template doesn't have.
 
-| Seed field | `feature.md` heading |
+### Seed handoff → a proposal template (this repo: `feature.md`)
+
+| Seed field | heading in this repo's `feature.md` |
 |---|---|
 | `goal.statement` | `## 무엇을 / 왜` |
 | `constraints[]` (description, `hard` first) + `success_criteria[]` (as a checklist) | `## 제안 (선택)` |
 | `context.integration_points` | `## 영향 범위 (선택)` |
 | `context.backlog_scan` (Seed's own) + this skill's own Phase 1 result + `context.dependencies` | `## 관련 이슈·문서 (선택)` |
 
-`feature.md` has no dedicated Acceptance/success-criteria heading — this is the honest
-consequence of reading the template as the single source rather than inventing one. Success
-criteria fold into `## 제안` as a checklist under the proposal instead.
+This repo's `feature.md` has no dedicated Acceptance/success-criteria heading — this is the
+honest consequence of reading the template as the single source rather than inventing one.
+Success criteria fold into `## 제안` as a checklist under the proposal instead. That folding
+generalizes: a Seed field with no matching section goes into the closest section that can
+carry it, never into a heading this skill adds.
 
-### Freeform defect → `bug.md`
+### Freeform defect → a defect template (this repo: `bug.md`)
 
-| Source | `bug.md` heading |
+| Source | heading in this repo's `bug.md` |
 |---|---|
 | user's report | `## 증상` |
 | reproduction steps (ask if not given) | `## 재현 절차` |
@@ -32,6 +40,12 @@ criteria fold into `## 제안` as a checklist under the proposal instead.
 | Claude Code version, OS, etc. | `## 환경 (선택)` |
 
 ## 2. Title Convention
+
+**A template's own `title:` prefix outranks the survey below.** It is the convention the repo
+declared rather than one inferred from a sample, and the web UI already applies it to every
+issue filed through the browser — `gh issue create` does not, so an issue filed by this skill
+without it is the odd one out in the list. The survey below is the fallback for a repo whose
+template declares no prefix, or that has no template.
 
 `gh issue create --title "{slug}"` (a bare slug) reads wrong on this repo: titles here carry
 type and scope (`fix(vault-bridge): 매니페스트가 archived 노트를 올린다`) instead of relying on

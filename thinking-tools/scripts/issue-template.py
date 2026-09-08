@@ -1,0 +1,388 @@
+#!/usr/bin/env python3
+"""issue-template.py — issue-raise template discovery + heading extraction.
+
+WHY: issue-raise used to name `.github/ISSUE_TEMPLATE/bug.md` and `feature.md` directly.
+Those are *this* repo's filenames. GitHub's own scaffolding writes `bug_report.md` /
+`feature_request.md`, modern repos ship `.yml` issue *forms* (no `## ` headings at all),
+and the majority of repos ship no template. Each of those made the skill either pick a
+nonexistent file or assemble an empty body. Discovery belongs in one place that reads what
+is actually on disk, so SKILL.md can stop hardcoding names — the same call-time-read
+principle Phase 0 already applies to headings.
+
+Zero LLM cost, stdlib only (same philosophy as backlog-prefilter.py / check-heading-match.py).
+
+Usage:
+    issue-template.py --list [--root DIR] [--json]
+    issue-template.py --headings <template path>
+    issue-template.py --self-test
+
+`--headings` prints the template's section list as `## ` lines, which is exactly the shape
+check-heading-match.py's `--template` consumes — so a `.yml` form conforms through the same
+guard as a `.md` template, with no second code path in the guard.
+
+Exit codes:
+    0 = ok (templates found, headings printed, or --self-test passed)
+    1 = no template found (--list), or the template has no sections (--headings)
+    2 = usage error / unreadable path
+"""
+import argparse
+import json
+import re
+import sys
+from pathlib import Path
+
+# GitHub resolves issue templates from these three roots, in this order.
+TEMPLATE_DIRS = (".github/ISSUE_TEMPLATE", "ISSUE_TEMPLATE", "docs/ISSUE_TEMPLATE")
+# Legacy single-template locations, used only when no template directory exists.
+LEGACY_FILES = (
+    ".github/ISSUE_TEMPLATE.md",
+    ".github/issue_template.md",
+    "ISSUE_TEMPLATE.md",
+    "docs/ISSUE_TEMPLATE.md",
+)
+# `config.yml` configures the chooser (blank_issues_enabled, contact links). Never a template.
+NOT_A_TEMPLATE = {"config.yml", "config.yaml"}
+
+FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n?", re.DOTALL)
+HEADING_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
+# A trailing parenthetical carrying one of these marks the section optional. Language-open
+# on purpose: this repo writes `(선택)`, GitHub's English scaffolds write `(optional)`.
+OPTIONAL_WORDS = ("선택", "optional", "if applicable", "nice to have", "任意", "可选")
+PAREN_TAIL_RE = re.compile(r"[(（]([^()（）]*)[)）]\s*$")
+
+DEFECT_WORDS = ("bug", "defect", "crash", "error", "regression", "fix", "버그", "결함", "오류")
+PROPOSAL_WORDS = (
+    "feature", "enhancement", "proposal", "request", "idea", "improvement",
+    "기능", "제안", "개선",
+)
+
+
+def _kind(*hints):
+    """defect | proposal | other — from filename and frontmatter name/about text."""
+    blob = " ".join(h for h in hints if h).lower()
+    if any(w in blob for w in DEFECT_WORDS):
+        return "defect"
+    if any(w in blob for w in PROPOSAL_WORDS):
+        return "proposal"
+    return "other"
+
+
+def is_optional(heading):
+    tail = PAREN_TAIL_RE.search(heading)
+    if not tail:
+        return False
+    return any(w in tail.group(1).lower() for w in OPTIONAL_WORDS)
+
+
+def _scalar(raw):
+    """Strip one layer of quotes from a YAML scalar. Not a YAML parser — see module ceiling."""
+    v = raw.strip()
+    if len(v) >= 2 and v[0] == v[-1] and v[0] in "\"'":
+        v = v[1:-1]
+    return v
+
+
+def _labels(raw):
+    """`labels: bug` / `labels: [bug, triage]` / `labels: ["bug"]` → ['bug', 'triage']."""
+    v = raw.strip()
+    if v.startswith("[") and v.endswith("]"):
+        v = v[1:-1]
+    return [_scalar(p) for p in v.split(",") if _scalar(p)]
+
+
+def parse_md(text):
+    """Markdown template → (meta, sections). Sections are ordered {name, optional}."""
+    meta = {"title_prefix": "", "labels": [], "name": "", "about": ""}
+    fm = FRONTMATTER_RE.match(text)
+    if fm:
+        block_key = None
+        for line in fm.group(1).splitlines():
+            if re.match(r"^\s*-\s", line) and block_key == "labels":
+                meta["labels"].append(_scalar(line.split("-", 1)[1]))
+                continue
+            m = re.match(r"^([A-Za-z_-]+):(.*)$", line)
+            if not m:
+                continue
+            key, raw = m.group(1).lower(), m.group(2)
+            block_key = key if not raw.strip() else None
+            if key == "title":
+                meta["title_prefix"] = _scalar(raw)
+            elif key == "labels" and raw.strip():
+                meta["labels"] = _labels(raw)
+            elif key in ("name", "about"):
+                meta[key] = _scalar(raw)
+    body = FRONTMATTER_RE.sub("", text, count=1)
+    sections = [{"name": h, "optional": is_optional(h)} for h in HEADING_RE.findall(body)]
+    return meta, sections
+
+
+def parse_form(text):
+    """GitHub issue *form* (.yml) → (meta, sections).
+
+    ponytail: indentation scanner over the fixed issue-form schema, not a YAML parser —
+    no PyYAML in this toolchain and the schema is a closed shape (top-level scalars plus a
+    `body:` list of `type`/`attributes.label`/`validations.required`). A form using YAML
+    anchors, multi-line folded labels, or flow mappings reads as fewer sections than it has;
+    upgrade to a real parser only if such a form actually shows up.
+    """
+    meta = {"title_prefix": "", "labels": [], "name": "", "about": ""}
+    sections = []
+    in_body = False
+    cur = None
+    ctx = None  # 'attributes' | 'validations' — which sub-block the scanner is inside
+
+    def flush():
+        if cur and cur.get("label") and cur.get("type") != "markdown":
+            sections.append({"name": cur["label"], "optional": not cur.get("required", False)})
+
+    for line in text.splitlines():
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        top = re.match(r"^([A-Za-z_-]+):(.*)$", line)
+        if top:
+            key, raw = top.group(1).lower(), top.group(2)
+            if key == "body":
+                in_body = True
+                continue
+            in_body = False
+            flush()
+            cur = None
+            if key == "title":
+                meta["title_prefix"] = _scalar(raw)
+            elif key == "labels" and raw.strip():
+                meta["labels"] = _labels(raw)
+            elif key == "name":
+                meta["name"] = _scalar(raw)
+            elif key == "description":
+                meta["about"] = _scalar(raw)
+            continue
+        if not in_body:
+            continue
+        item = re.match(r"^\s*-\s+(.*)$", line)
+        if item:
+            flush()
+            cur = {}
+            ctx = None
+            line = "  " + item.group(1)  # a `- type: x` opener carries the first key inline
+        if cur is None:
+            continue
+        kv = re.match(r"^\s*([A-Za-z_-]+):(.*)$", line)
+        if not kv:
+            continue
+        key, raw = kv.group(1).lower(), kv.group(2)
+        if key in ("attributes", "validations"):
+            ctx = key
+        elif key == "type":
+            cur["type"] = _scalar(raw)
+        elif key == "label" and ctx == "attributes":
+            cur["label"] = _scalar(raw)
+        elif key == "required" and ctx == "validations":
+            cur["required"] = _scalar(raw).lower() == "true"
+    flush()
+    return meta, sections
+
+
+def parse(path):
+    text = Path(path).read_text(encoding="utf-8")
+    if Path(path).suffix.lower() in (".yml", ".yaml"):
+        return parse_form(text)
+    return parse_md(text)
+
+
+def repo_root(start="."):
+    """Templates live at the repo root, but a session's cwd is often a subdirectory —
+    resolving from cwd would report 'no template' on a repo that has one."""
+    import subprocess
+
+    try:
+        out = subprocess.run(
+            ["git", "-C", start, "rev-parse", "--show-toplevel"],
+            capture_output=True, text=True, timeout=5,
+        )
+        if out.returncode == 0 and out.stdout.strip():
+            return out.stdout.strip()
+    except Exception:
+        pass
+    return start
+
+
+def find_templates(root="."):
+    root = Path(root)
+    found = []
+    for d in TEMPLATE_DIRS:
+        for p in sorted((root / d).glob("*")):
+            if p.suffix.lower() not in (".md", ".yml", ".yaml"):
+                continue
+            if p.name.lower() in NOT_A_TEMPLATE:
+                continue
+            found.append(p)
+        if found:
+            break
+    if not found:
+        for f in LEGACY_FILES:
+            if (root / f).is_file():
+                found.append(root / f)
+                break
+    out = []
+    for p in found:
+        try:
+            meta, sections = parse(p)
+        except OSError:
+            continue
+        out.append(
+            {
+                "path": str(p),
+                "kind": _kind(p.stem, meta["name"], meta["about"]),
+                "name": meta["name"] or p.stem,
+                "title_prefix": meta["title_prefix"],
+                "labels": meta["labels"],
+                "sections": sections,
+            }
+        )
+    return out
+
+
+NO_TEMPLATE = (
+    "[issue-template NONE] 이 저장소엔 이슈 템플릿이 없어요 — 헤딩을 지어내지 말고 "
+    "제목 + 평문 본문으로 쓰고, Phase 2.5(헤딩 대조)는 건너뛰세요."
+)
+
+
+def render(templates):
+    if not templates:
+        return NO_TEMPLATE
+    lines = [f"[issue-template] {len(templates)}개 발견 — 종류를 보고 하나 고르세요."]
+    for t in templates:
+        opt = sum(1 for s in t["sections"] if s["optional"])
+        lines.append(
+            f"  {t['kind']:<8} {t['path']}  섹션 {len(t['sections'])}개"
+            f"{f' (선택 {opt}개)' if opt else ''}"
+        )
+        if t["title_prefix"]:
+            lines.append(f"           제목 접두어: {t['title_prefix']!r}")
+        if t["labels"]:
+            lines.append(f"           라벨: {', '.join(t['labels'])}")
+    lines.append(
+        "섹션 목록은 `--headings <path>`로 받아서 그대로 조립하고, 그 출력이 "
+        "check-heading-match.py의 `--template` 입력이에요."
+    )
+    return "\n".join(lines)
+
+
+def self_test():
+    cases = []
+    md = """---
+name: Bug
+about: 버그 리포트
+title: "fix: "
+labels: bug
+---
+
+## 증상
+## 환경 (선택)
+"""
+    meta, sec = parse_md(md)
+    cases.append(("md-meta", (meta["title_prefix"], meta["labels"]), ("fix: ", ["bug"])))
+    cases.append(
+        ("md-sections", sec, [{"name": "증상", "optional": False},
+                              {"name": "환경 (선택)", "optional": True}])
+    )
+    cases.append(("md-kind", _kind("bug_report", meta["name"], meta["about"]), "defect"))
+
+    # GitHub's own English scaffold names + an `(optional)` marker: the case that used to
+    # be unskippable because `(선택)` was the only marker the skill knew.
+    en = "## Steps\n## Environment (optional)\n"
+    cases.append(("en-optional", [s["optional"] for s in parse_md(en)[1]], [False, True]))
+    cases.append(("en-kind", _kind("feature_request", "", ""), "proposal"))
+
+    form = """name: Bug Report
+description: File a bug report
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for reporting!
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Also tell us what you expected
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Version
+    validations:
+      required: false
+"""
+    fmeta, fsec = parse_form(form)
+    cases.append(("form-meta", (fmeta["title_prefix"], fmeta["labels"]),
+                  ("[Bug]: ", ["bug", "triage"])))
+    # `type: markdown` is presentation, never a section to assemble into.
+    cases.append(
+        ("form-sections", fsec, [{"name": "What happened?", "optional": False},
+                                 {"name": "Version", "optional": True}])
+    )
+    cases.append(("form-kind", _kind("bug_report.yml", fmeta["name"], fmeta["about"]), "defect"))
+
+    # A parenthetical that is not an optional marker must not read as optional.
+    cases.append(("paren-not-optional", is_optional("환경 (Claude Code 버전)"), False))
+    cases.append(("no-template", render([]), NO_TEMPLATE))
+
+    failed = 0
+    for name, got, want in cases:
+        if got != want:
+            failed += 1
+            print(f"FAIL {name}\n  got:  {got}\n  want: {want}", file=sys.stderr)
+    if failed:
+        print(f"FAIL: {failed}/{len(cases)} issue-template self-test cases failed", file=sys.stderr)
+        return 1
+    print(f"OK: all {len(cases)} issue-template self-test cases passed")
+    return 0
+
+
+def main():
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--list", action="store_true")
+    ap.add_argument("--headings", metavar="PATH")
+    ap.add_argument("--root", default=None, help="default: the git toplevel of the cwd")
+    ap.add_argument("--json", action="store_true")
+    ap.add_argument("--self-test", action="store_true")
+    args = ap.parse_args()
+
+    if args.self_test:
+        return self_test()
+
+    if args.headings:
+        try:
+            _, sections = parse(args.headings)
+        except OSError as e:
+            print(f"ERROR: {e}", file=sys.stderr)
+            return 2
+        if not sections:
+            print(
+                f"ERROR: `{args.headings}`에서 섹션을 못 찾았어요 — 템플릿이 비었거나 "
+                "이 스크립트가 못 읽는 모양이에요.",
+                file=sys.stderr,
+            )
+            return 1
+        for s in sections:
+            print(f"## {s['name']}")
+        return 0
+
+    if args.list:
+        templates = find_templates(args.root if args.root else repo_root())
+        if args.json:
+            print(json.dumps(templates, ensure_ascii=False, indent=2))
+        else:
+            print(render(templates))
+        return 0 if templates else 1
+
+    ap.print_help()
+    return 2
+
+
+if __name__ == "__main__":
+    sys.exit(main())
