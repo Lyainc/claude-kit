@@ -71,6 +71,10 @@ jobs:
           # (`## 제안 (선택)` assembled as `## 제안`, marker dropped) pinned as a regression case.
           python3 thinking-tools/scripts/check-heading-match.py --self-test
 
+          # issue-raise template discovery: GitHub's own scaffold names, `.yml` issue forms,
+          # and no-template repos must all resolve — issue-raise hardcodes no filename.
+          python3 thinking-tools/scripts/issue-template.py --self-test
+
           # Release tooling self-tests (lockstep bump + per-plugin notes generation +
           # the release-trigger policy: label / backstop / bump derivation).
           python3 scripts/bump-version.py --self-test
