@@ -369,6 +369,13 @@ python3 thinking-tools/scripts/backlog-prefilter.py --self-check
 python3 thinking-tools/scripts/check-heading-match.py --self-test
 # Expected: OK: all check-heading-match self-test cases passed
 
+# issue-raise 템플릿 탐색·섹션 추출 (보편성): 이 repo의 `bug.md`/`feature.md`를 하드코딩하는 대신
+# 저장소가 실제로 가진 것을 읽는다 — GitHub 기본 스캐폴드 이름(`bug_report.md`), `.yml` 이슈 폼
+# (`## ` 헤딩이 0개라 그냥 읽으면 빈 본문이 됨), 템플릿 없음까지 세 모양 전부. 선택 섹션 판정도
+# `(선택)` 한국어 고정이 아니라 폼의 `validations.required`와 헤딩 말미 괄호로 언어 무관하게 낸다.
+python3 thinking-tools/scripts/issue-template.py --self-test
+# Expected: OK: all 10 issue-template self-test cases passed
+
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test
 # Expected: OK: all bump-version self-test cases passed
