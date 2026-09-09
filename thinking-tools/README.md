@@ -13,7 +13,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | Agent | Model | Description |
 | --- | --- | --- |
 | `thinking-facilitator` | — | Auto-route requests to the optimal thinking skill |
-| `requirement-gap-reviewer` | sonnet | Grade a diff for requirement gaps — 3-state verdicts + blocking/should-fix/nit severity |
+| `requirement-gap-reviewer` | sonnet | Grade a diff against this session's own issue/Seed/completion condition — not correctness or CLAUDE.md compliance, which native `/code-review` already covers |
 
 ## 포함된 스킬
 
