@@ -88,6 +88,7 @@ import glob
 import json
 import os
 import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -499,7 +500,7 @@ def check_all(root, external_roots=None, allowlist=None):
                     continue
                 findings.append({
                     "file": _display(path, root), "line": lineno,
-                    "ref": ref, "problem": problem,
+                    "ref": ref, "problem": problem, "external": wide,
                 })
 
     for suffix, ref, reason in allowlist:
@@ -549,6 +550,71 @@ def check_all(root, external_roots=None, allowlist=None):
     stats = {"files": files, "refs": refs, "roots": len(surfaces),
              "absent_roots": absent, "exempt": len(fired), "catalog": len(catalog)}
     return findings, stats
+
+
+# --------------------------------------------------------------------- releasing checklist
+
+# #737: an EXTERNAL_ROOTS finding means a consumer outside this repo (local-harness) names
+# a skill/agent this repo just renamed or removed — exactly the shape that sat broken 7
+# days after #562 (see the module docstring). CI never sees this (no local-harness
+# checkout there), so the only machine that CAN catch it live is the maintainer's own,
+# and only if local-harness happens to be checked out when the rename lands. `--sync-
+# releasing` turns that transient finding into a durable, checked-in reminder: a pending
+# bullet in RELEASING.md that survives until someone updates local-harness's
+# `skill-bindings.json` and reruns this. Scope is deliberately this half only (issue #737
+# option 3's lower tier) — no cross-repo PR is opened, and local-harness itself is never
+# touched from here.
+RELEASING_BEGIN = "<!-- BEGIN skill-bindings-drift (auto: check-skill-reference-drift.py --sync-releasing) -->"
+RELEASING_END = "<!-- END skill-bindings-drift -->"
+RELEASING_EMPTY = "_(none pending)_"
+
+
+def sync_releasing_checklist(findings, releasing_path):
+    """Rewrite the managed block in `releasing_path` from every EXTERNAL finding.
+
+    Returns None if there is nothing this can safely sync into — no file at `releasing_path`,
+    or one with no managed block (the doc was not wired up) — else True if the block's
+    content changed, False if it already matched.
+
+    One bullet per REF, not per (ref, file, line): the same dangling name can be named at
+    several spots in the consumer's files, and the fix on local-harness's side is one
+    binding update regardless of how many places named it — a bullet per occurrence would
+    make the maintainer check off duplicates for one action.
+
+    Deliberately does not delete a bullet on its own initiative: it can only ever rewrite
+    the block to exactly the CURRENT finding set, so a rerun after the reference is fixed
+    (either side: local-harness updates its binding, or claude-kit's rename is reverted)
+    clears the bullet the same mechanical way it appeared — never a human editing the list.
+    """
+    locations = {}
+    for f in findings:
+        if f.get("external"):
+            locations.setdefault(f["ref"], []).append((f["file"], f["line"]))
+    if not locations:
+        body = RELEASING_EMPTY
+    else:
+        body = "\n".join(
+            f"- [ ] `{ref}` — dangling in "
+            + ", ".join(f"`{file}:{line}`" for file, line in sorted(set(locs)))
+            + "; update local-harness's `skill-bindings.json` entry for it before the "
+              "next release."
+            for ref, locs in sorted(locations.items())
+        )
+    try:
+        with open(releasing_path, encoding="utf-8") as fh:
+            text = fh.read()
+    except FileNotFoundError:
+        return None
+    if RELEASING_BEGIN not in text or RELEASING_END not in text:
+        return None
+    pre, _, rest = text.partition(RELEASING_BEGIN)
+    _, _, post = rest.partition(RELEASING_END)
+    new_text = f"{pre}{RELEASING_BEGIN}\n{body}\n{RELEASING_END}{post}"
+    if new_text == text:
+        return False
+    with open(releasing_path, "w", encoding="utf-8") as fh:
+        fh.write(new_text)
+    return True
 
 
 # --------------------------------------------------------------------------- self-test
@@ -850,6 +916,75 @@ def run_self_test():
         case("HARNESS_BUILTIN_AGENTS collision reported when shipped",
              [f["ref"] for f in found], [builtin])
 
+        # 15. --sync-releasing (#737): an EXTERNAL finding writes a durable pending bullet
+        # into RELEASING.md's managed block; with no external finding the block reverts to
+        # empty. One run proves both directions — falsifiable pass AND fail, not just the
+        # happy path (a rename that never gets fixed vs. an unrelated commit that must not
+        # trip the reminder).
+        rel_repo = _fixture_repo(os.path.join(tmp, "rel-repo"))
+        rel_ext = _materialise(os.path.join(tmp, "rel-harness", "skills"), {
+            "session-close/SKILL.md": 'Skill(skill: "tt:next-goal")\n',
+        })
+        releasing = os.path.join(tmp, "RELEASING.md")
+
+        def write_releasing():
+            with open(releasing, "w", encoding="utf-8") as fh:
+                fh.write(f"# Releasing\n\n## Pending\n\n{RELEASING_BEGIN}\n"
+                          f"{RELEASING_EMPTY}\n{RELEASING_END}\n")
+
+        # 15a. next-goal disappearing from the catalogue (a rename/removal) leaves the
+        # external reference to it dangling — a bullet naming the ref must appear.
+        write_releasing()
+        shutil.rmtree(os.path.join(rel_repo, "tt", "skills", "next-goal"))
+        found, _ = check_all(rel_repo, external_roots=[rel_ext], allowlist=[])
+        changed = sync_releasing_checklist(found, releasing)
+        with open(releasing, encoding="utf-8") as fh:
+            after_rename = fh.read()
+        case("rename produces a pending bullet", changed, True)
+        case("pending bullet names the dangling ref", "`tt:next-goal`" in after_rename, True)
+
+        # 15b. the rename is undone and an UNRELATED file is added instead — the external
+        # reference resolves again, so the block must revert to empty, not keep the bullet.
+        _materialise(rel_repo, {
+            "tt/skills/next-goal/SKILL.md": SKILL_MD.format(name="next-goal"),
+            "docs/unrelated.md": "nothing to see here\n",
+        })
+        found, _ = check_all(rel_repo, external_roots=[rel_ext], allowlist=[])
+        changed = sync_releasing_checklist(found, releasing)
+        with open(releasing, encoding="utf-8") as fh:
+            after_unrelated = fh.read()
+        case("unrelated change leaves no pending bullet", RELEASING_EMPTY in after_unrelated, True)
+        case("unrelated change is reported as a sync (bullet cleared)", changed, True)
+
+        # 15c. a doc with no managed markers is left alone — nothing this can safely sync.
+        no_block = os.path.join(tmp, "NoBlock.md")
+        with open(no_block, "w", encoding="utf-8") as fh:
+            fh.write("# no markers here\n")
+        case("no managed block returns None", sync_releasing_checklist(found, no_block), None)
+
+        # 15d. a path that names no file at all (not even a wrong one) is the same "nothing
+        # to sync into" case, not an unhandled crash (/code-review high finding, reproduced
+        # live: `--sync-releasing` against a --root with no RELEASING.md raised a raw
+        # FileNotFoundError instead of degrading like 15c above).
+        case("missing RELEASING.md returns None",
+             sync_releasing_checklist(found, os.path.join(tmp, "no-such-dir", "RELEASING.md")),
+             None)
+
+        # 15e. the same dangling ref named at two different consumer locations collapses to
+        # ONE bullet, not one per occurrence (/code-review high finding, reproduced live: a
+        # ref mentioned 3 places produced 3 near-identical checkboxes for one binding fix).
+        two_spots = [
+            {"ref": "tt:dup", "file": "~/harness/a.md", "line": 1, "external": True},
+            {"ref": "tt:dup", "file": "~/harness/b.md", "line": 2, "external": True},
+        ]
+        write_releasing()
+        sync_releasing_checklist(two_spots, releasing)
+        with open(releasing, encoding="utf-8") as fh:
+            after_dup = fh.read()
+        case("one ref, two locations -> one bullet", after_dup.count("- [ ]"), 1)
+        case("the one bullet still names both locations",
+             "a.md:1" in after_dup and "b.md:2" in after_dup, True)
+
     if failures:
         print("FAIL: check-skill-reference-drift self-test")
         print("\n".join(failures))
@@ -865,6 +1000,11 @@ def main(argv=None):
     parser.add_argument("--root", default=None)
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--self-test", action="store_true")
+    parser.add_argument(
+        "--sync-releasing", action="store_true",
+        help="write every EXTERNAL_ROOTS finding into RELEASING.md's pending-binding "
+             "checklist (see #737); no-op if the managed block isn't there",
+    )
     args = parser.parse_args(argv)
 
     if args.self_test:
@@ -877,6 +1017,16 @@ def main(argv=None):
         print(f"ERROR: no */skills/*/SKILL.md found under {root} — nothing to resolve against",
               file=sys.stderr)
         return 2
+
+    # After the catalog check, not before: an empty/mis-rooted --root still reaches here
+    # with `findings` computed against whatever WAS found, which would otherwise silently
+    # overwrite a real pending block with garbage on a run that's about to report failure
+    # anyway. Printed to stderr, never stdout, so `--sync-releasing --json` still emits
+    # nothing but the JSON payload on stdout.
+    if args.sync_releasing:
+        changed = sync_releasing_checklist(findings, os.path.join(root, "RELEASING.md"))
+        if changed:
+            print("RELEASING.md pending-binding checklist updated", file=sys.stderr)
 
     if args.json:
         print(json.dumps({"findings": findings, **stats}, ensure_ascii=False, indent=2))

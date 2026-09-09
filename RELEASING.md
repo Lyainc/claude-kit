@@ -77,18 +77,35 @@ above (`--self-test` pins it); `.github/workflows/auto-release.yml` is the wirin
 calls the manual workflow below to actually cut. The manual route stays open as the escape
 hatch — ship something right now without waiting for a label or the backstop.
 
+## Pending: local-harness binding sync (#737)
+
+`scripts/check-skill-reference-drift.py --sync-releasing` keeps the block below current —
+don't hand-edit the list. A bullet here means a local-harness consumer file (scanned via
+`EXTERNAL_ROOTS`) still names a claude-kit skill/agent this repo just renamed or removed;
+CI can't see this (no local-harness checkout there), so it only surfaces on a machine that
+has both repos cloned. Clear a bullet by updating local-harness's `skill-bindings.json`
+entry for it, then rerun the command — it reverts to empty on its own once the reference
+resolves again.
+
+<!-- BEGIN skill-bindings-drift (auto: check-skill-reference-drift.py --sync-releasing) -->
+_(none pending)_
+<!-- END skill-bindings-drift -->
+
 ## Cutting a release
 
-1. **Make sure `main` is green** — the `Plugin Validation` workflow must be passing on
+1. **If local-harness is checked out on this machine**, run
+   `python3 scripts/check-skill-reference-drift.py --sync-releasing` and clear anything
+   the "Pending: local-harness binding sync" section above lists before shipping.
+2. **Make sure `main` is green** — the `Plugin Validation` workflow must be passing on
    the commit you intend to release.
-2. **Actions → Release → Run workflow.** Fill in:
+3. **Actions → Release → Run workflow.** Fill in:
    - **version** — the new SemVer, no leading `v` (e.g. `3.0.0`).
    - **dry_run** — leave **checked** for the first run.
    - **prerelease** — check only for pre-release tags (`-rc.1`, `-beta.1`, …).
-3. **Review the dry-run.** The workflow renders the full release notes to the run's
+4. **Review the dry-run.** The workflow renders the full release notes to the run's
    **Summary** without writing anything — no commit, no tag, no release. Read the
    per-plugin sections and confirm the version bump is right.
-4. **Run again with dry_run unchecked.** The workflow then:
+5. **Run again with dry_run unchecked.** The workflow then:
    - bumps every `plugin.json` + `marketplace.json` to the version (`bump-version.py`),
    - commits `chore(release): vX.Y.Z` and pushes it to `main`,
    - tags `vX.Y.Z` and pushes the tag,
