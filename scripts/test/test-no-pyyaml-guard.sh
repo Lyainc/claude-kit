@@ -72,7 +72,7 @@ if grep -q '"event":"rule_fire"' "$TMPD"/events-*.jsonl 2>/dev/null \
 else
   bad "telemetry ON → rule_fire emitted ($(cat "$TMPD"/events-*.jsonl 2>/dev/null))"
 fi
-trash-put "$TMPD" 2>/dev/null || true   # P4: trash, never rm -rf (CI: ephemeral runner cleans up)
+/usr/bin/trash "$TMPD" 2>/dev/null || true   # P4: trash, never rm -rf (CI: ephemeral runner cleans up)
 
 # telemetry OFF → guard still denies but emits nothing.
 TMPD2="$(mktemp -d)"
@@ -84,7 +84,7 @@ if ls "$TMPD2"/events-*.jsonl >/dev/null 2>&1; then
 else
   ok "telemetry OFF → guard denies but emits 0 (CON-2)"
 fi
-trash-put "$TMPD2" 2>/dev/null || true   # P4: trash, never rm -rf
+/usr/bin/trash "$TMPD2" 2>/dev/null || true   # P4: trash, never rm -rf
 
 echo
 if [ "$FAIL" -eq 0 ]; then

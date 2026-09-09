@@ -160,7 +160,7 @@ downgrades the check to a title comparison:
   up**, never silence. **Reminder-site entries only, never a user-authored skill** (§5).
   Surfaces in the §3 은퇴 field with **two choices — delete it, or
   narrow its firing condition to what it was written for**: **recommends only**,
-  no second prompt (§3 carries the pick), no answer means keep, `trash-put` never `rm`.
+  no second prompt (§3 carries the pick), no answer means keep, `/usr/bin/trash` never `rm`.
   ([reference.md](reference.md) §6-unused)
 - **Contradiction**: if it conflicts with an existing rule and the request does NOT target that
   rule as an explicit edit, do NOT write — report the contradiction and stop.
