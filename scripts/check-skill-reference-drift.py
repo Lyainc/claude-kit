@@ -132,11 +132,12 @@ NAME_KEY_RE = re.compile(r"^name:[ \t]*(\S+)", re.MULTILINE)
 # get this exemption: unlike subagent_type, a bare Skill() name can only ever mean a sibling
 # skill in THIS repo's own catalogue, so it stays held to that catalogue.
 #
-# Source (#730): unlike DESCRIPTION_CHAR_CAP below, there is no static, machine-readable harness
-# doc to cite — checked, no file under `~/.claude/` (settings, `agents/`, session caches) lists
-# the harness's own builtins; the only place they appear is the "Available agent types for the
-# Agent tool" block the harness injects into a session's system prompt at runtime, which this
-# CI-run script cannot read. This set was read off that block under Claude Code CLI 2.1.266
+# Source (#730): unlike DESCRIPTION_CHAR_CAP in check-skill-token-budget.py (cites changelog.md),
+# there is no static, machine-readable harness doc to cite here — checked, no file under
+# `~/.claude/` (settings, `agents/`, session caches) lists the harness's own builtins; the only
+# place they appear is the "Available agent types for the Agent tool" block the harness injects
+# into a session's system prompt at runtime, which this CI-run script cannot read. This set was
+# read off that block under Claude Code CLI 2.1.266
 # (`claude --version`) on 2026-09-06 (#719), re-confirmed unchanged 2026-09-09 (#730).
 # REVERIFY against a live session's listing when the CLI's major/minor version moves. Nothing
 # below (or anywhere) auto-detects the harness renaming, adding, or retiring one of these six —
