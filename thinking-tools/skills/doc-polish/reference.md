@@ -222,10 +222,15 @@ present; otherwise skip it and omit its line from the report entirely.
 | Pattern | Example |
 |---------|---------|
 | Issue/PR reference | `#688`, `PR #693` |
-| Repo-relative path | `scripts/check-test-exitcode.py`, `thinking-tools/skills/` |
+| Repo-relative path — `/` plus a file extension (`.py`, `.md`, `.ts`, `.json`, `.sh`, ...), or `/` after a directory that actually exists at the repo root (`ls` the repo root if unsure), not a bare slash | `scripts/check-test-exitcode.py`, `thinking-tools/skills/` |
 | Script, function, or flag name | `check-version-sync.py`, `--fix`, `create_inline_comment` |
-| Commit SHA (7-40 hex) | `3b82292` |
-| Status assertion | "미구현", "없음", "아직", "지원 안 함", "not implemented" |
+| Commit SHA — 7-40 hex chars containing at least one `a`-`f`; pure decimal digits aren't a SHA | `3b82292` |
+| Status assertion — 미구현/없음/아직/지원 안 함/not implemented, only when it directly predicates a named target in the same clause (a backtick name, `#N`, or path) | "`--fix`는 아직 미구현" |
+
+None of these fire on ordinary prose that merely resembles the pattern:
+- `read/write 권한`, `pass/fail 기준` — a slash with no extension and no directory shape isn't a path.
+- `1234567` — seven decimal digits with no hex letter is a line count or timestamp, not a SHA.
+- "알려진 버그는 없음", "이 기능은 아직 베타" — a status word with no named target in the clause is ordinary prose, not a checkable claim.
 
 The gate is what keeps `gh`/`git` off an ordinary polish call. A README with no issue numbers and
 no paths costs exactly what it did before this layer existed.
@@ -237,11 +242,17 @@ no paths costs exactly what it did before this layer existed.
 | `#N` and what the prose says about it | `gh issue view N --json state,title` | prose says "열려 있다", state is `CLOSED` |
 | path exists | test the path | referenced file was moved or deleted |
 | name exists as described | `grep -rn "<name>"` | renamed, or never existed |
-| SHA resolves | `git log -1 --format=%s <sha>` | rebased away, or wrong subject |
+| SHA resolves | `git log -1 --format=%s <sha>` | wrong subject line → 어긋남; command errors (`fatal: bad revision`) → 저장소로 확인 불가, not 어긋남 |
 | asserted absence still holds | `grep`/`gh` for the thing | "아직 없다" but it landed since |
 
 **Deterministic only.** If settling the claim needs weighing rather than one lookup, it is out of
 scope — that is `adversarial-review`'s question, not this one.
+
+**Command error vs. mismatch.** A check command failing to run at all — `git log` exiting with
+`fatal: bad revision`, `gh` erroring on auth or network, a lookup that can't even execute — isn't
+evidence the document is wrong; it's the tool being unable to answer. That maps to 저장소로 확인
+불가. 어긋남 is reserved for a command that ran successfully and returned a fact contradicting the
+prose. Don't read a command's error output as if it were the answer.
 
 ### Reporting
 
