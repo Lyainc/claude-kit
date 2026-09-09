@@ -159,9 +159,11 @@ something a session would visibly produce.
   exit code. If proving completion takes six commands, the loop slows and failure modes multiply.
 - **L2 — an independent review gate inside the condition.** `evaluator_passed ≠ complete`. A
   model is the worst judge of its own output, so put a fresh-context review of the final diff
-  into the condition itself — split by scope, not one call for both. Correctness routes to
-  `/code-review high` (it already carries finder → per-finding verifier); requirement gaps route
-  to a fresh-context subagent (native review does not know this session's Seed or requirements).
+  into the condition itself — split by scope, not one call for both. Correctness, and
+  CLAUDE.md/guard-script rule compliance, route to `/code-review high` (it already carries
+  finder → per-finding verifier, and grades repo rules by running the guards itself, #728);
+  requirement gaps route to a fresh-context subagent (native review does not know this session's
+  Seed or requirements).
   Name that subagent's type: `subagent_type: "thinking-tools:requirement-gap-reviewer"`. The
   methodology lives in that agent's body — requirement sourcing, three-state verdicts
   (충족 / 미충족 / 산출물로 판단 불가), blocking/should-fix/nit severity, pre-existing defects held
