@@ -131,6 +131,18 @@ NAME_KEY_RE = re.compile(r"^name:[ \t]*(\S+)", re.MULTILINE)
 # without this list every one of them reads as dangling (#719). `Skill()`'s bare form does NOT
 # get this exemption: unlike subagent_type, a bare Skill() name can only ever mean a sibling
 # skill in THIS repo's own catalogue, so it stays held to that catalogue.
+#
+# Source (#730): unlike DESCRIPTION_CHAR_CAP below, there is no static, machine-readable harness
+# doc to cite — checked, no file under `~/.claude/` (settings, `agents/`, session caches) lists
+# the harness's own builtins; the only place they appear is the "Available agent types for the
+# Agent tool" block the harness injects into a session's system prompt at runtime, which this
+# CI-run script cannot read. This set was read off that block under Claude Code CLI 2.1.266
+# (`claude --version`) on 2026-09-06 (#719), re-confirmed unchanged 2026-09-09 (#730).
+# REVERIFY against a live session's listing when the CLI's major/minor version moves. Nothing
+# below (or anywhere) auto-detects the harness renaming, adding, or retiring one of these six —
+# only a human re-reading the live listing can. The collision guard further down only catches
+# the opposite drift, this repo growing INTO one of these six names; it cannot see the harness
+# moving them out from under it.
 HARNESS_BUILTIN_AGENTS = {
     "general-purpose", "Explore", "Plan", "claude-code-guide", "statusline-setup", "claude",
 }
