@@ -133,6 +133,7 @@ def parse_form(text):
     cur = None
     ctx = None  # 'attributes' | 'validations' — which sub-block the scanner is inside
     item_indent = None  # indentation of the body list's own `-` marker, set from the first item
+    block_key = None  # top-level key currently open for a block-style YAML list (e.g. labels)
 
     def flush():
         if cur and cur.get("label") and cur.get("type") != "markdown":
@@ -141,15 +142,22 @@ def parse_form(text):
     for line in text.splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
             continue
+        # A block-style top-level `labels:` list (`labels:\n  - bug\n  - triage` — valid
+        # GitHub issue-form syntax, parse_md already supports it for .md via `block_key`).
+        if not in_body and block_key == "labels" and re.match(r"^\s*-\s", line):
+            meta["labels"].append(_scalar(line.split("-", 1)[1]))
+            continue
         top = re.match(r"^([A-Za-z_-]+):(.*)$", line)
         if top:
             key, raw = top.group(1).lower(), top.group(2)
             if key == "body":
                 in_body = True
+                block_key = None
                 continue
             in_body = False
             flush()
             cur = None
+            block_key = key if not raw.strip() else None
             if key == "title":
                 meta["title_prefix"] = _scalar(raw)
             elif key == "labels" and raw.strip():
@@ -186,6 +194,12 @@ def parse_form(text):
             cur["label"] = _scalar(raw)
         elif key == "required" and ctx == "validations":
             cur["required"] = _scalar(raw).lower() == "true"
+        elif key == "required" and ctx == "attributes":
+            # checkboxes has no field-level validations block — GitHub puts `required:`
+            # per-option under attributes.options[] instead (e.g. a mandatory Code of
+            # Conduct checkbox). Any option required makes the whole field required.
+            if _scalar(raw).lower() == "true":
+                cur["required"] = True
     flush()
     return meta, sections
 
@@ -235,7 +249,10 @@ def find_templates(root="."):
     for p in found:
         try:
             meta, sections = parse(p)
-        except OSError:
+        except (OSError, UnicodeDecodeError):
+            # A non-UTF-8 template (plausible for a Korean-authored repo, exactly the
+            # portability case this script exists for) must not crash discovery for
+            # every OTHER template — skip it like any other unreadable file.
             continue
         out.append(
             {
@@ -305,6 +322,18 @@ def _discovery_checks():
         # config.yml only configures the chooser — it must never be read as a template.
         _write(tmp, ".github/ISSUE_TEMPLATE/config.yml", "blank_issues_enabled: false\n")
         cases.append(("config-yml-is-not-a-template", find_templates(tmp), []))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # A non-UTF-8 template (plausible for a Korean-authored repo — exactly the
+        # portability case this script targets) must be skipped, not crash discovery
+        # for every other template in the same directory.
+        _write(tmp, ".github/ISSUE_TEMPLATE/bug_report.md", bug_md)
+        (Path(tmp) / ".github/ISSUE_TEMPLATE/legacy.md").write_bytes(
+            "--- \nname: 옛날 버그\n---\n\n## 증상\n".encode("euc-kr")
+        )
+        found = find_templates(tmp)
+        cases.append(("bad-encoding-template-skipped-not-crashed",
+                      [Path(t["path"]).name for t in found], ["bug_report.md"]))
 
     with tempfile.TemporaryDirectory() as tmp:
         # A repo with no template directory or legacy file at all: empty, not a crash.
@@ -420,6 +449,49 @@ body:
          [{"name": "Priority", "optional": False}])
     )
 
+    # checkboxes has no field-level `validations:` block at all — GitHub's real schema puts
+    # `required:` per-option under `attributes.options[]` instead (a mandatory "I agree to the
+    # Code of Conduct" checkbox is the canonical case). Any option required makes the field
+    # required; a field with no required option stays optional.
+    form_checkboxes = """body:
+  - type: checkboxes
+    id: coc
+    attributes:
+      label: Code of Conduct
+      options:
+        - label: "I agree to follow this project's Code of Conduct"
+          required: true
+  - type: checkboxes
+    id: extra
+    attributes:
+      label: Nice to have
+      options:
+        - label: "Ping me for follow-up"
+          required: false
+"""
+    cases.append(
+        ("form-checkboxes-required", parse_form(form_checkboxes)[1],
+         [{"name": "Code of Conduct", "optional": False},
+          {"name": "Nice to have", "optional": True}])
+    )
+
+    # A block-style top-level `labels:` list (valid GitHub issue-form syntax, already
+    # supported for .md via parse_md's `block_key`) must not be silently dropped for .yml.
+    form_block_labels = """title: "[Bug]: "
+labels:
+  - bug
+  - triage
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+    validations:
+      required: true
+"""
+    cases.append(("form-block-style-labels", parse_form(form_block_labels)[0]["labels"],
+                  ["bug", "triage"]))
+
     # A parenthetical that is not an optional marker must not read as optional.
     cases.append(("paren-not-optional", is_optional("환경 (Claude Code 버전)"), False))
     cases.append(("no-template", render([]), NO_TEMPLATE))
@@ -451,7 +523,7 @@ def main():
     if args.headings:
         try:
             _, sections = parse(args.headings)
-        except OSError as e:
+        except (OSError, UnicodeDecodeError) as e:
             print(f"ERROR: {e}", file=sys.stderr)
             return 2
         if not sections:
