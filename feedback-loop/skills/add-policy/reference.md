@@ -289,7 +289,7 @@ empties into one of the three sites of SKILL.md §3 — **not a fourth site**; a
 - **On a content-match hit → surface it in the §3 confirmation** ("memory에도 있어요 — 매립 후
   memory 항목은 지울게요"), and after the write remove that memory file **and its
   `MEMORY.md` index line — the line whose markdown link target is that file's basename** (never
-  the title; those repeat). Same confirmation, no second prompt. Use `trash-put`; if
+  the title; those repeat). Same confirmation, no second prompt. Use `/usr/bin/trash`; if
   unavailable, leave the file and report it — **never force-delete, never `rm`**.
 
 

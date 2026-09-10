@@ -41,7 +41,7 @@ The pinned claims:
 6. (#377) The scan LISTS candidates; a Duplicate is a CONTENT match. Conflating the two turns
    "land any rule" into "delete every `feedback` memory on the machine". Scan scope follows
    the chosen site (a project-scoped CLAUDE.md is not duplicated by another project's memory).
-7. (#377) The new delete path is recoverable (`trash-put`), never forced, and the MEMORY.md
+7. (#377) The new delete path is recoverable (`/usr/bin/trash`), never forced, and the MEMORY.md
    index line is keyed by the deleted file's link target — not by its title.
 8. (#377) Vanilla machine with no ~/.claude/projects memory directory -> the memory scan is
    SILENTLY SKIPPED, never a scan failure. Zero hits is likewise not a failure. But an ERRORED
@@ -270,15 +270,15 @@ def check_memory_scan_fails_loud(text: str) -> tuple[bool, str]:
 def check_memory_delete_safety(text: str) -> tuple[bool, str]:
     """#377 review: this PR introduces a DELETE path — pin its recoverable-delete clause."""
     lower = _prose(text)
-    if "trash-put" not in lower:
-        return False, "memory-duplicate removal does not mandate a recoverable delete (trash-put)"
+    if "/usr/bin/trash" not in lower:
+        return False, "memory-duplicate removal does not mandate a recoverable delete (/usr/bin/trash)"
     # The combined literal, not "never `rm`" alone — that one already appears in pre-#377
     # prose (§2's HARD/SOFT example), so on its own it pins nothing. Proven in review.
     if "never force-delete, never `rm`" not in lower:
         return False, "the never-force-delete / never-`rm` guarantee on the memory delete path is missing"
     if "link target" not in lower:
         return False, "MEMORY.md index-line removal has no join key — an LLM could delete the wrong line"
-    return True, "memory delete is recoverable (trash-put), never forced; index line keyed by link target"
+    return True, "memory delete is recoverable (/usr/bin/trash), never forced; index line keyed by link target"
 
 
 def check_memory_vanilla_skip(text: str) -> tuple[bool, str]:
@@ -697,7 +697,7 @@ empties into one of the three sites of SKILL.md §3 — **not a fourth site**; a
 - **On a content-match hit → surface it in the §3 confirmation** ("memory에도 있어요 — 매립 후
   memory 항목은 지울게요"), and after the write remove that memory file **and its
   `MEMORY.md` index line — the line whose markdown link target is that file's basename** (never
-  the title; those repeat). Same confirmation, no second prompt. Use `trash-put`; if
+  the title; those repeat). Same confirmation, no second prompt. Use `/usr/bin/trash`; if
   unavailable, leave the file and report it — **never force-delete, never `rm`**.
 """)
 
@@ -960,7 +960,7 @@ failure. But an errored scan is not an empty one: anything on stderr means the s
 INCONCLUSIVE, never `none` — "memory 스캔 실패" in the confirmation. On a
 hit, surface it in the 1-click confirmation ("매립 후 memory 항목은 지울게요") and delete the
 duplicate memory file after the landfill write — its MEMORY.md index line is the one whose
-markdown link target is that file's basename. Use trash-put; never force-delete, never `rm`.
+markdown link target is that file's basename. Use /usr/bin/trash; never force-delete, never `rm`.
 Memory is an input, never a destination: an input queue, not a fourth site.
 
 ## §6-snippet — the runnable scan command
