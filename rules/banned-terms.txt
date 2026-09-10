@@ -28,6 +28,14 @@
 # catches the reintroduction symptom without flagging the legacy files still pending removal.
 x-release-please  ::  release-please inline version-marker comment; its presence means release-please was reintroduced into a manifest, breaking single-source plugin.json versioning
 #
+# ── trash-cli removal (P4 now routes deletes through /usr/bin/trash and the rm wrapper) ──
+# trash-put's try_persist retries .trashinfo creation in a `while True` without reading errno and
+# with no attempt cap or sleep, so an unresolvable failure spins a core at 100% forever (#733:
+# 54.6 CPU-hours across five orphaned processes). It is also uninstalled on this machine now, so a
+# reappearance would be a cleanup call that silently does nothing behind `2>/dev/null || true`.
+# Greps to zero in the scanned scope as of the change that added this line (#738).
+trash-put  ::  trash-cli's put command; upstream infinite-retry bug (#733) spins a CPU core with no attempt cap, and with trash-cli uninstalled a reappearance is a silently no-op cleanup
+#
 # PENDING — activate in the PR that DELETES the legacy release-please files (per the ATOMICITY RULE
 # above). These identifiers still exist on main today (.github/workflows/release-please.yml,
 # release-please-config.json, .release-please-manifest.json), so they cannot be banned until that
