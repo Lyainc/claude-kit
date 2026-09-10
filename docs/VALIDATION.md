@@ -760,6 +760,18 @@ python3 thinking-tools/scripts/test/test-persona-selection.py --self-test
 python3 thinking-tools/scripts/test/test-persona-selection.py
 # Expected: OK: all persona-selection checks passed (10 pool entries, 7 topic fixtures, ...)
 
+# doc-polish Layer 4 gate false-positive regression (#705) — reference.md's Gate table is
+# prose an LLM follows, not code, so this executes the three narrowed rules (path needs a
+# file extension or a known top-level dir prefix, SHA needs a non-decimal hex letter, a
+# status assertion needs a companion #N/path/backticked name in the same clause) against
+# #705's real false positives ("read/write 권한", a bare 7-digit number, "알려진 버그는
+# 없음") and its real true positives, and pins the wording that encodes each rule plus the
+# "command error maps to 저장소로 확인 불가, not 어긋남" verdict rule added beside it.
+python3 thinking-tools/scripts/test/test-doc-polish-gate.py --self-test
+# Expected: OK: all 17 test-doc-polish-gate self-test cases passed
+python3 thinking-tools/scripts/test/test-doc-polish-gate.py
+# Expected: OK: all 17 doc-polish-gate checks passed against the live reference.md
+
 # adversarial-review Judge Rubric anchor pins (#610/#663) — the 0-10 anchor TABLE lives in the
 # loaded SKILL.md body, where the Judge scores: a table behind an on-demand pointer is a scale
 # nothing forces the Judge to read, so #610 would read as closed while the scale stayed
