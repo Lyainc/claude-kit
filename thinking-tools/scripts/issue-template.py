@@ -28,7 +28,9 @@ Exit codes:
 import argparse
 import json
 import re
+import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 # GitHub resolves issue templates from these three roots, in this order.
@@ -275,8 +277,73 @@ def render(templates):
     return "\n".join(lines)
 
 
+def _write(base, rel, content=""):
+    p = Path(base) / rel
+    p.parent.mkdir(parents=True, exist_ok=True)
+    p.write_text(content, encoding="utf-8")
+    return p
+
+
+def _discovery_checks():
+    """find_templates()/repo_root() are the actual filesystem-facing behavior the branch's
+    commit message claims is pinned (GitHub scaffold names, config.yml never a template,
+    TEMPLATE_DIRS priority, LEGACY_FILES fallback, cwd-independent discovery) — self_test()
+    otherwise only ever calls parse_md/parse_form/is_optional directly on in-memory strings,
+    so none of find_templates()'s own glob/priority/exclusion logic was ever exercised."""
+    cases = []
+    bug_md = "---\nname: Bug\nabout: bug\ntitle: \"fix: \"\n---\n\n## 증상\n"
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # GitHub's own scaffold filename (not this repo's `bug.md`) must be discovered.
+        _write(tmp, ".github/ISSUE_TEMPLATE/bug_report.md", bug_md)
+        found = find_templates(tmp)
+        cases.append(("discover-github-scaffold-name",
+                      [Path(t["path"]).name for t in found], ["bug_report.md"]))
+        cases.append(("discover-github-scaffold-kind", found[0]["kind"] if found else None, "defect"))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # config.yml only configures the chooser — it must never be read as a template.
+        _write(tmp, ".github/ISSUE_TEMPLATE/config.yml", "blank_issues_enabled: false\n")
+        cases.append(("config-yml-is-not-a-template", find_templates(tmp), []))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # A repo with no template directory or legacy file at all: empty, not a crash.
+        cases.append(("no-template-dir-at-all", find_templates(tmp), []))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # TEMPLATE_DIRS priority: `.github/ISSUE_TEMPLATE` (checked first) wins over
+        # `ISSUE_TEMPLATE` even though both exist — find_templates() breaks on first match.
+        _write(tmp, ".github/ISSUE_TEMPLATE/bug.md", bug_md)
+        _write(tmp, "ISSUE_TEMPLATE/other.md", bug_md)
+        found = find_templates(tmp)
+        cases.append(("template-dirs-priority-order",
+                      [Path(t["path"]).parent.as_posix().replace(tmp, "") for t in found],
+                      ["/.github/ISSUE_TEMPLATE"]))
+
+    with tempfile.TemporaryDirectory() as tmp:
+        # No TEMPLATE_DIRS present at all → falls back to a LEGACY_FILES single template.
+        _write(tmp, ".github/ISSUE_TEMPLATE.md", bug_md)
+        found = find_templates(tmp)
+        cases.append(("legacy-file-fallback",
+                      [Path(t["path"]).name for t in found], ["ISSUE_TEMPLATE.md"]))
+
+    # cwd-independent discovery (#562's actual failure shape: a session sitting in a
+    # subdirectory reported "no template" on a repo that has one) — repo_root() must resolve
+    # to the real git toplevel from a nested cwd, not just wherever `start` happens to be.
+    with tempfile.TemporaryDirectory() as tmp:
+        real_tmp = str(Path(tmp).resolve())
+        subprocess.run(["git", "init", "-q", real_tmp], check=True)
+        nested = Path(real_tmp, "some", "nested", "dir")
+        nested.mkdir(parents=True)
+        got = repo_root(str(nested))
+        cases.append(("repo-root-resolves-from-subdirectory", str(Path(got).resolve()), real_tmp))
+
+    return cases
+
+
 def self_test():
     cases = []
+    cases.extend(_discovery_checks())
     md = """---
 name: Bug
 about: 버그 리포트
