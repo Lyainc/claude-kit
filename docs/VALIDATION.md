@@ -771,13 +771,16 @@ python3 thinking-tools/scripts/test/test-persona-selection.py
 # 버그는 없음", a version number like "v1.2/v2.0") and its real true positives, and pins the
 # wording that encodes each rule plus the verdict rule added beside the SHA row: `git log`
 # actually running and answering "not there" (rebased away / never existed) is 어긋남, same as
-# any other mismatch — only a `gh` auth/network failure (the tool unable to even run) is
-# 저장소로 확인 불가. Also runs a real `git log` against a nonexistent SHA to prove that
-# premise rather than only pinning its wording.
+# any other mismatch — only a `gh` auth/network failure, or `git log` on a SHALLOW/PARTIAL
+# clone (`git rev-parse --is-shallow-repository`), is 저장소로 확인 불가 — a shallow clone's
+# `fatal: bad revision` can mean "outside this partial history," not "never existed." Runs a
+# real `git log` against a nonexistent SHA on a full clone AND a real depth-1 `git clone` that
+# genuinely can't resolve an old-but-valid commit, to prove both premises rather than only
+# pinning their wording.
 python3 thinking-tools/scripts/test/test-doc-polish-gate.py --self-test
-# Expected: OK: all 24 test-doc-polish-gate self-test cases passed
+# Expected: OK: all 30 test-doc-polish-gate self-test cases passed
 python3 thinking-tools/scripts/test/test-doc-polish-gate.py
-# Expected: OK: all 24 doc-polish-gate checks passed against the live reference.md
+# Expected: OK: all 30 doc-polish-gate checks passed against the live reference.md
 
 # adversarial-review Judge Rubric anchor pins (#610/#663) — the 0-10 anchor TABLE lives in the
 # loaded SKILL.md body, where the Judge scores: a table behind an on-demand pointer is a scale

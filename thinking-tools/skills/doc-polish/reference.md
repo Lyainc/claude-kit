@@ -247,7 +247,7 @@ no paths costs exactly what it did before this layer existed.
 | `#N` and what the prose says about it | `gh issue view N --json state,title` | prose says "열려 있다", state is `CLOSED` |
 | path exists | test the path | referenced file was moved or deleted |
 | name exists as described | `grep -rn "<name>"` | renamed, or never existed |
-| SHA resolves | `git log -1 --format=%s <sha>` | wrong subject line, or `fatal: bad revision` (rebased away / never existed) — both 어긋남 |
+| SHA resolves | `git log -1 --format=%s <sha>` | wrong subject line, or `fatal: bad revision` on a full clone (rebased away / never existed) — both 어긋남; the same failure on a shallow/partial clone is 저장소로 확인 불가 instead |
 | asserted absence still holds | `grep`/`gh` for the thing | "아직 없다" but it landed since |
 
 **Deterministic only.** If settling the claim needs weighing rather than one lookup, it is out of
@@ -256,10 +256,14 @@ scope — that is `adversarial-review`'s question, not this one.
 **Command error vs. mismatch.** A check command failing for a reason unrelated to content — `gh`
 erroring on auth or network, a lookup that can't even execute — isn't evidence the document is
 wrong; it's the tool being unable to answer, and that maps to 저장소로 확인 불가. `git log`'s
-`fatal: bad revision` on a well-formed SHA is not this case: the command DID run and DID answer —
-the commit isn't there, rebased away or never existed — which is exactly what 어긋남 means. Don't
-read `gh`'s inability to reach GitHub as the same kind of failure as `git log` telling you a commit
-doesn't exist.
+`fatal: bad revision` on a well-formed SHA is usually not this case: the command DID run and DID
+answer — the commit isn't there, rebased away or never existed — which is exactly what 어긋남
+means. The one exception: on a shallow/partial clone (`git rev-parse --is-shallow-repository` →
+`true`, check this once per Layer 4 pass, not per SHA), the identical `fatal: bad revision` can
+mean nothing more than "outside this checkout's partial history" — a real, old, still-valid
+commit reads exactly the same as a fabricated one. That ambiguity is the tool being unable to
+answer, so it drops back to 저장소로 확인 불가 too. Don't read `gh`'s inability to reach GitHub,
+or `git log`'s inability to see a shallow clone's missing history, as if either were the answer.
 
 ### Reporting
 
