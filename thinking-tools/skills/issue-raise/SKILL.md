@@ -74,11 +74,18 @@ hardcode a template path or heading into this skill.
    say so in the Output Format's 템플릿 field. Inventing headings here would ship a body
    shaped like this repo's conventions into someone else's tracker.
 5. **Gather missing content** for each *required* section the source data doesn't already
-   cover, via `AskUserQuestion` (one round, batch the questions). Which sections are optional
-   comes from `--list` (`--json` gives the per-section `optional` flag), not from a marker
-   spelled out here: a `.yml` form states it formally as `validations.required: false`, and a
-   Markdown template states it as a trailing parenthetical — `(선택)` on this repo,
-   `(optional)` on an English one.
+   cover, via `AskUserQuestion` (one round, batch the questions). A `.yml` form's `--headings`
+   output carries no inline optional marker the way a Markdown template's trailing
+   parenthetical does, so pull the per-section `optional` flag from `--list --json` and match
+   each entry's `name` against the chosen template's `path`:
+
+   ```bash
+   python3 "${CLAUDE_PLUGIN_ROOT}/scripts/issue-template.py" --list --json
+   ```
+
+   Never guess required-ness from the marker style (`(선택)`/`(optional)`) alone — a `.yml`
+   form states it formally as `validations.required: false` (or, for `checkboxes`, per-option
+   under `attributes.options[]`), which `--json`'s `optional` flag already resolves for you.
 
 ### Phase 1: Duplicate Check (mandatory, zero LLM cost)
 
