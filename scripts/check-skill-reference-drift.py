@@ -573,12 +573,14 @@ RELEASING_END = "<!-- END skill-bindings-drift -->"
 RELEASING_EMPTY = "_(none pending)_"
 
 
-def sync_releasing_checklist(findings, releasing_path):
+def sync_releasing_checklist(findings, releasing_path, absent_roots=None):
     """Rewrite the managed block in `releasing_path` from every EXTERNAL finding.
 
     Returns None if there is nothing this can safely sync into — no file at `releasing_path`,
-    or one with no managed block (the doc was not wired up) — else True if the block's
-    content changed, False if it already matched.
+    a doc with no managed block (not wired up), or `absent_roots` non-empty (this run could
+    not scan EXTERNAL_ROOTS at all, so an empty `findings` proves nothing: syncing from it
+    would silently clear real pending bullets on any machine without the consumer checked
+    out) — else True if the block's content changed, False if it already matched.
 
     One bullet per REF, not per (ref, file, line): the same dangling name can be named at
     several spots in the consumer's files, and the fix on local-harness's side is one
@@ -590,6 +592,8 @@ def sync_releasing_checklist(findings, releasing_path):
     (either side: local-harness updates its binding, or claude-kit's rename is reverted)
     clears the bullet the same mechanical way it appeared — never a human editing the list.
     """
+    if absent_roots:
+        return None
     locations = {}
     for f in findings:
         if f.get("external"):
@@ -995,6 +999,24 @@ def run_self_test():
         case("the one bullet still names both locations",
              "a.md:1" in after_dup and "b.md:2" in after_dup, True)
 
+        # 15f. an absent external root (local-harness not checked out on this machine) means
+        # `findings` proves nothing about the real pending state — syncing from it would
+        # silently erase a real bullet left by an earlier run on a machine that DID have the
+        # checkout (/code-review high finding, reproduced live: same `findings=[]` shape as
+        # "everything got fixed", indistinguishable without the absent_roots signal).
+        write_releasing()
+        sync_releasing_checklist(
+            [{"ref": "tt:dup", "file": "~/harness/a.md", "line": 1, "external": True}], releasing,
+        )
+        with open(releasing, encoding="utf-8") as fh:
+            before_absent = fh.read()
+        result = sync_releasing_checklist([], releasing, absent_roots=["~/dev/prj/local-harness/skills"])
+        with open(releasing, encoding="utf-8") as fh:
+            after_absent = fh.read()
+        case("absent root returns None instead of syncing", result, None)
+        case("absent root leaves an existing pending bullet untouched",
+             after_absent, before_absent)
+
     if failures:
         print("FAIL: check-skill-reference-drift self-test")
         print("\n".join(failures))
@@ -1034,9 +1056,19 @@ def main(argv=None):
     # anyway. Printed to stderr, never stdout, so `--sync-releasing --json` still emits
     # nothing but the JSON payload on stdout.
     if args.sync_releasing:
-        changed = sync_releasing_checklist(findings, os.path.join(root, "RELEASING.md"))
-        if changed:
-            print("RELEASING.md pending-binding checklist updated", file=sys.stderr)
+        if stats["absent_roots"]:
+            print(
+                "NOTE: --sync-releasing skipped — external root(s) absent on this machine "
+                f"({', '.join(stats['absent_roots'])}), so this run cannot prove anything "
+                "resolved; RELEASING.md left untouched.",
+                file=sys.stderr,
+            )
+        else:
+            changed = sync_releasing_checklist(
+                findings, os.path.join(root, "RELEASING.md"), absent_roots=stats["absent_roots"]
+            )
+            if changed:
+                print("RELEASING.md pending-binding checklist updated", file=sys.stderr)
 
     if args.json:
         print(json.dumps({"findings": findings, **stats}, ensure_ascii=False, indent=2))
