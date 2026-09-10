@@ -100,16 +100,18 @@ what keeps the added `gh`/`git` cost off every ordinary polish call; there is no
 | Issue/PR reference (`#N`) | `gh issue view N --json state` / `gh pr view` | state matches what the prose says about it |
 | File or directory path — `/` plus a file extension, or `/` after an existing top-level repo dir, not a bare slash | file exists at that path | 확인됨 / 어긋남 |
 | Script, function, or flag name | `grep` for the name in the repo | present as described |
-| Commit SHA — 7-40 hex chars with at least one `a`-`f` (pure decimal isn't a SHA) | `git log -1 <sha>` | resolves to the stated subject → 어긋남 if not; command itself failing (`fatal: bad revision`) → 저장소로 확인 불가, not 어긋남 |
-| Status assertion ("미구현", "없음", "아직", "지원 안 함") — only when it directly predicates a named target in the same clause (backtick name, `#N`, or path) | `grep`/`gh` for the thing asserted absent | still absent |
+| Commit SHA — 7-40 hex chars with at least one `a`-`f` (pure decimal isn't a SHA) | `git log -1 <sha>` | resolves to the stated subject; `fatal: bad revision` (rebased away, or never existed) is also 어긋남 — a well-formed SHA that doesn't resolve IS the mismatch |
+| Status assertion ("미구현", "없음", "아직", "지원 안 함") — only when it directly predicates a named target in the same sentence (backtick name, `#N`, or path) | `grep`/`gh` for the thing asserted absent | still absent |
 
 **Deterministic checks only.** A claim that needs judgment — whether a design is right, whether a
 trade-off holds — is out of scope and belongs to `adversarial-review`. If settling it takes reading
 and weighing rather than one `gh issue view`, `git log`, or `grep`, it is not this layer's business.
 
-**Command error vs. mismatch.** A check command failing to run (`git log` erroring with `fatal: bad
-revision`, `gh` failing on auth/network) is not evidence the document is wrong — it maps to 저장소로
-확인 불가, never 어긋남. See `reference.md` for the full gate/check detail.
+**Command error vs. mismatch.** A check command failing for a reason unrelated to content — `gh`
+failing on auth/network — is not evidence the document is wrong; it maps to 저장소로 확인 불가,
+never 어긋남. `git log`'s `fatal: bad revision` on a well-formed SHA is different: the lookup DID
+run and DID answer — the commit isn't there — which is 어긋남, the same as any other mismatch. See
+`reference.md` for the full gate/check detail.
 
 **Three verdicts, one of them reported**: 확인됨 / **어긋남** / 저장소로 확인 불가. Report only
 어긋남, with the line number, what the document asserts, and what the check actually returned.
