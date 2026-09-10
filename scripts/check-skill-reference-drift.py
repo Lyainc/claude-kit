@@ -73,11 +73,15 @@ is how the one entry this guard shipped with was retired, minutes after the brid
 
 Usage:
     python3 scripts/check-skill-reference-drift.py [--root DIR] [--json] [--self-test]
+                                                    [--sync-releasing]
 
-    --root DIR    Repo root to check (default: git toplevel, else CWD).
-    --json        Emit a machine-readable JSON report instead of text.
-    --self-test   Run the matching logic against temp-directory fixtures and exit 0 only if
-                  every case behaves as expected.
+    --root DIR          Repo root to check (default: git toplevel, else CWD).
+    --json              Emit a machine-readable JSON report instead of text.
+    --self-test         Run the matching logic against temp-directory fixtures and exit 0
+                        only if every case behaves as expected.
+    --sync-releasing    Write every EXTERNAL_ROOTS finding into RELEASING.md's pending-
+                        binding checklist (see #737); no-op if the managed block isn't
+                        there.
 
 Exit codes: 0 = every reference resolves (or --self-test passed),
             1 = at least one dangling reference or stale exemption,
@@ -955,6 +959,12 @@ def run_self_test():
             after_unrelated = fh.read()
         case("unrelated change leaves no pending bullet", RELEASING_EMPTY in after_unrelated, True)
         case("unrelated change is reported as a sync (bullet cleared)", changed, True)
+
+        # 15b2. a rerun with nothing new to report must say so — the docstring promises
+        # None/True/False, and nothing above exercises the third one: content already
+        # matches, so this write is a no-op, not a rewrite that happens to look the same.
+        changed_again = sync_releasing_checklist(found, releasing)
+        case("idempotent rerun with nothing changed returns False", changed_again, False)
 
         # 15c. a doc with no managed markers is left alone — nothing this can safely sync.
         no_block = os.path.join(tmp, "NoBlock.md")
