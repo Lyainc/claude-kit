@@ -21,6 +21,9 @@ Checks:
 2. The "command error vs. mismatch" verdict-mapping rule is present.
 3. Independently-implemented matchers for the three narrowed rules fire on #705's real
    examples and do NOT fire on its false-positive examples.
+4. The SHA gate's premise is real, not assumed: a nonexistent SHA actually makes `git log`
+   fail (command error), and a real SHA (HEAD's own) actually resolves — proven by running
+   both, not by reading the doc's wording.
 
 Usage:
     python3 thinking-tools/scripts/test/test-doc-polish-gate.py
@@ -34,6 +37,7 @@ Exit codes:
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -126,6 +130,34 @@ _WORDING_PINS = [
 ]
 
 
+def git_log_command_errors(sha: str, cwd: Path) -> bool:
+    """True if `git log -1 --format=%s <sha>` fails to even run (the 저장소로 확인 불가
+    case) rather than resolving to a subject line (확인됨, or 어긋남 if it's the wrong one)."""
+    result = subprocess.run(
+        ["git", "log", "-1", "--format=%s", sha],
+        cwd=cwd, capture_output=True, text=True,
+    )
+    return result.returncode != 0
+
+
+def _git_command_error_checks(repo_root: Path) -> list[str]:
+    """Proves the premise the 'command error vs. mismatch' rule depends on: a bad SHA makes
+    `git log` fail outright, and this is distinguishable from a real SHA resolving fine —
+    not just a wording pin, since #705's SHA gate problem was reproduced by actually running
+    `git log` into `fatal: bad revision`, not by reading the doc."""
+    failures = []
+    if not git_log_command_errors("ffffffffffffffffffffffffffffffffffffff", repo_root):
+        failures.append(
+            "expected git log to fail (command error) on a nonexistent 40-hex SHA, it did not"
+        )
+    real_sha = subprocess.run(
+        ["git", "rev-parse", "HEAD"], cwd=repo_root, capture_output=True, text=True,
+    ).stdout.strip()
+    if real_sha and git_log_command_errors(real_sha, repo_root):
+        failures.append("expected git log to resolve HEAD's own real SHA, it errored instead")
+    return failures
+
+
 def _normalize_ws(text: str) -> str:
     return re.sub(r"\s+", " ", text)
 
@@ -186,7 +218,15 @@ def run_self_test() -> int:
             print(f"FAIL: {f}")
         return 1
 
-    total = len(_WORDING_PINS) + len(_PATH_FIXTURES) + len(_SHA_FIXTURES) + len(_STATUS_FIXTURES)
+    git_failures = _git_command_error_checks(_REPO_ROOT)
+    if git_failures:
+        for f in git_failures:
+            print(f"FAIL: {f}")
+        return 1
+
+    total = (
+        len(_WORDING_PINS) + len(_PATH_FIXTURES) + len(_SHA_FIXTURES) + len(_STATUS_FIXTURES) + 2
+    )
     print(f"OK: all {total} test-doc-polish-gate self-test cases passed")
     return 0
 
@@ -202,11 +242,14 @@ def main(argv=None) -> int:
     text = _REF_PATH.read_text(encoding="utf-8")
 
     failures = run_checks(text)
+    failures += _git_command_error_checks(_REPO_ROOT)
     if failures:
         for f in failures:
             print(f"FAIL: {f}")
         return 1
-    total = len(_WORDING_PINS) + len(_PATH_FIXTURES) + len(_SHA_FIXTURES) + len(_STATUS_FIXTURES)
+    total = (
+        len(_WORDING_PINS) + len(_PATH_FIXTURES) + len(_SHA_FIXTURES) + len(_STATUS_FIXTURES) + 2
+    )
     print(f"OK: all {total} doc-polish-gate checks passed against the live reference.md")
     return 0
 

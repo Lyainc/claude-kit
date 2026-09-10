@@ -766,11 +766,13 @@ python3 thinking-tools/scripts/test/test-persona-selection.py
 # status assertion needs a companion #N/path/backticked name in the same clause) against
 # #705's real false positives ("read/write 권한", a bare 7-digit number, "알려진 버그는
 # 없음") and its real true positives, and pins the wording that encodes each rule plus the
-# "command error maps to 저장소로 확인 불가, not 어긋남" verdict rule added beside it.
+# "command error maps to 저장소로 확인 불가, not 어긋남" verdict rule added beside it —
+# including running a real `git log` against a nonexistent SHA to prove that rule's own
+# premise (the command actually fails) rather than only pinning its wording.
 python3 thinking-tools/scripts/test/test-doc-polish-gate.py --self-test
-# Expected: OK: all 17 test-doc-polish-gate self-test cases passed
+# Expected: OK: all 19 test-doc-polish-gate self-test cases passed
 python3 thinking-tools/scripts/test/test-doc-polish-gate.py
-# Expected: OK: all 17 doc-polish-gate checks passed against the live reference.md
+# Expected: OK: all 19 doc-polish-gate checks passed against the live reference.md
 
 # adversarial-review Judge Rubric anchor pins (#610/#663) — the 0-10 anchor TABLE lives in the
 # loaded SKILL.md body, where the Judge scores: a table behind an on-demand pointer is a scale
