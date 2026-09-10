@@ -62,7 +62,7 @@ FIXTURE="$(mktemp -d)"
 # --show-toplevel` resolves symlinks, so compare against the resolved form or
 # every assertion fails on a path that is actually correct.
 FIXTURE="$(cd "$FIXTURE" && pwd -P)"
-trap 'trash-put "$FIXTURE" 2>/dev/null || true' EXIT
+trap 'rm -rf "$FIXTURE" 2>/dev/null || true' EXIT
 
 git -C "$FIXTURE" init -q 2>/dev/null || { printf 'FAIL: git init failed\n' >&2; exit 1; }
 SUBDIR="${FIXTURE}/nested/deeper"
