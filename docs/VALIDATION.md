@@ -762,17 +762,22 @@ python3 thinking-tools/scripts/test/test-persona-selection.py
 
 # doc-polish Layer 4 gate false-positive regression (#705) — reference.md's Gate table is
 # prose an LLM follows, not code, so this executes the three narrowed rules (path needs a
-# file extension or a known top-level dir prefix, SHA needs a non-decimal hex letter, a
-# status assertion needs a companion #N/path/backticked name in the same clause) against
-# #705's real false positives ("read/write 권한", a bare 7-digit number, "알려진 버그는
-# 없음") and its real true positives, and pins the wording that encodes each rule plus the
-# "command error maps to 저장소로 확인 불가, not 어긋남" verdict rule added beside it —
-# including running a real `git log` against a nonexistent SHA to prove that rule's own
-# premise (the command actually fails) rather than only pinning its wording.
+# file extension with a letter in it — not a bare decimal like a version number — or a known
+# top-level dir prefix; SHA needs a non-decimal hex letter, matched on hex-digit boundaries so
+# a Korean particle attached with no space still counts; a status assertion needs a companion
+# #N/path/backticked name in the same SENTENCE, not clause — a Korean run-on joining two
+# clauses with ~는데/~지만 and no terminal punctuation is still one sentence about one topic)
+# against #705's real false positives ("read/write 권한", a bare 7-digit number, "알려진
+# 버그는 없음", a version number like "v1.2/v2.0") and its real true positives, and pins the
+# wording that encodes each rule plus the verdict rule added beside the SHA row: `git log`
+# actually running and answering "not there" (rebased away / never existed) is 어긋남, same as
+# any other mismatch — only a `gh` auth/network failure (the tool unable to even run) is
+# 저장소로 확인 불가. Also runs a real `git log` against a nonexistent SHA to prove that
+# premise rather than only pinning its wording.
 python3 thinking-tools/scripts/test/test-doc-polish-gate.py --self-test
-# Expected: OK: all 19 test-doc-polish-gate self-test cases passed
+# Expected: OK: all 24 test-doc-polish-gate self-test cases passed
 python3 thinking-tools/scripts/test/test-doc-polish-gate.py
-# Expected: OK: all 19 doc-polish-gate checks passed against the live reference.md
+# Expected: OK: all 24 doc-polish-gate checks passed against the live reference.md
 
 # adversarial-review Judge Rubric anchor pins (#610/#663) — the 0-10 anchor TABLE lives in the
 # loaded SKILL.md body, where the Judge scores: a table behind an on-demand pointer is a scale

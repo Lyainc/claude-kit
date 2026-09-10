@@ -59,19 +59,27 @@ _PATH_TOKEN = re.compile(r"[\w.\-]+(?:/[\w.\-]+)+")
 
 
 def path_gate_fires(text: str) -> bool:
-    """Fires only on a token with a file extension or a known top-level dir prefix."""
+    """Fires only on a token with a file extension or a known top-level dir prefix.
+
+    "Extension" requires a letter in the suffix — a bare `.0`/`.2` off a version number or
+    ratio (`v1.2/v2.0`, `0.5/1.0`) is a decimal point, not an extension.
+    """
     for token in _PATH_TOKEN.findall(text):
         segments = [s for s in token.split("/") if s]
         if not segments:
             continue
-        if "." in segments[-1]:
+        last = segments[-1]
+        if "." in last and re.search(r"[A-Za-z]", last.rsplit(".", 1)[1]):
             return True
         if segments[0] in _KNOWN_DIRS:
             return True
     return False
 
 
-_HEX_TOKEN = re.compile(r"\b[0-9a-fA-F]{7,40}\b")
+# Hex-digit boundaries, not `\w` boundaries — Korean particles attach directly to a token
+# with no space ("3b82292가"), and `\b`'s `\w` treats Hangul as a word character, so no
+# boundary exists at that junction and a plain `\b`-bounded token silently fails to match.
+_HEX_TOKEN = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{7,40}(?![0-9a-fA-F])")
 
 
 def sha_gate_fires(text: str) -> bool:
@@ -84,7 +92,13 @@ _COMPANION = re.compile(r"#\d+|`[^`]+`")
 
 
 def status_gate_fires(text: str) -> bool:
-    """Fires only when a status keyword shares a clause with #N / a path / a backticked name."""
+    """Fires only when a status keyword shares a SENTENCE with #N / a path / a backticked name.
+
+    Sentence, not clause: reference.md's rule is scoped to the sentence on purpose (#705
+    round 2) — a Korean run-on joining two clauses with a connective (~는데/~지만) and no
+    terminal punctuation is still one sentence about one topic, and requiring an even
+    narrower "same clause" missed exactly that ordinary construction.
+    """
     sentences = re.split(r"(?<=[.!?])\s+|\n+", text)
     for sentence in sentences:
         if any(kw in sentence for kw in _STATUS_KEYWORDS):
@@ -102,12 +116,15 @@ _PATH_FIXTURES = [
     ("pass/fail 기준", False),
     ("scripts/check-test-exitcode.py", True),
     ("thinking-tools/skills/", True),
+    ("v1.2/v2.0", False),                    # version numbers, not a path (round 2)
+    ("설정값은 0.5/1.0 입니다", False),       # a ratio, not a path (round 2)
 ]
 
 _SHA_FIXTURES = [
     ("1234567", False),          # 7-digit line count / timestamp
     ("2222222 lines changed", False),
     ("3b82292", True),           # real SHA example from the doc
+    ("3b82292가 그 예시다", True),  # Korean particle attached with no space (round 2)
 ]
 
 _STATUS_FIXTURES = [
@@ -115,6 +132,7 @@ _STATUS_FIXTURES = [
     ("이 기능은 아직 베타", False),
     ("PR #693은 아직 머지 안 됨", True),
     ("`--fix`는 아직 미구현", True),   # doc's own canonical example
+    ("`--foo` 플래그가 있는데 구현은 아직 안 됨", True),  # one run-on sentence, same rule (round 2)
 ]
 
 # Wording pins: each must be a substring of the live Gate row / Checks section once
@@ -123,9 +141,10 @@ _STATUS_FIXTURES = [
 _WORDING_PINS = [
     "not a bare slash",
     "pure decimal digits aren't a SHA",
-    "directly predicates a named target in the same clause",
+    "directly predicates a named target in the same sentence",
     "Command error vs. mismatch",
-    "저장소로 확인 불가, not 어긋남",
+    "the tool being unable to answer",
+    "rebased away or never existed",
     "None of these fire on ordinary prose",
 ]
 
