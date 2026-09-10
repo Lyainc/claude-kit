@@ -130,6 +130,7 @@ def parse_form(text):
     in_body = False
     cur = None
     ctx = None  # 'attributes' | 'validations' — which sub-block the scanner is inside
+    item_indent = None  # indentation of the body list's own `-` marker, set from the first item
 
     def flush():
         if cur and cur.get("label") and cur.get("type") != "markdown":
@@ -158,12 +159,17 @@ def parse_form(text):
             continue
         if not in_body:
             continue
-        item = re.match(r"^\s*-\s+(.*)$", line)
-        if item:
+        item = re.match(r"^(\s*)-\s+(.*)$", line)
+        # A nested list (dropdown/checkboxes `attributes.options:`) also uses `- `, but always
+        # deeper-indented than the body list's own item marker — only THAT indentation starts
+        # a new field; a deeper one is option content, not a sibling item.
+        if item and (item_indent is None or len(item.group(1)) <= item_indent):
+            if item_indent is None:
+                item_indent = len(item.group(1))
             flush()
             cur = {}
             ctx = None
-            line = "  " + item.group(1)  # a `- type: x` opener carries the first key inline
+            line = "  " + item.group(2)  # a `- type: x` opener carries the first key inline
         if cur is None:
             continue
         kv = re.match(r"^\s*([A-Za-z_-]+):(.*)$", line)
@@ -326,6 +332,26 @@ body:
                                  {"name": "Version", "optional": True}])
     )
     cases.append(("form-kind", _kind("bug_report.yml", fmeta["name"], fmeta["about"]), "defect"))
+
+    # A `dropdown`/`checkboxes` field's `attributes.options:` is itself a nested `- ` list,
+    # deeper-indented than the body list's own item marker — it must not be misread as a new
+    # sibling item, which would flush the field (losing `required`) before `validations:` is reached.
+    form_options = """body:
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority
+      options:
+        - Low
+        - Medium
+        - High
+    validations:
+      required: true
+"""
+    cases.append(
+        ("form-nested-options", parse_form(form_options)[1],
+         [{"name": "Priority", "optional": False}])
+    )
 
     # A parenthetical that is not an optional marker must not read as optional.
     cases.append(("paren-not-optional", is_optional("환경 (Claude Code 버전)"), False))

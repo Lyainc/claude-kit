@@ -374,7 +374,7 @@ python3 thinking-tools/scripts/check-heading-match.py --self-test
 # (`## ` 헤딩이 0개라 그냥 읽으면 빈 본문이 됨), 템플릿 없음까지 세 모양 전부. 선택 섹션 판정도
 # `(선택)` 한국어 고정이 아니라 폼의 `validations.required`와 헤딩 말미 괄호로 언어 무관하게 낸다.
 python3 thinking-tools/scripts/issue-template.py --self-test
-# Expected: OK: all 10 issue-template self-test cases passed
+# Expected: OK: all 11 issue-template self-test cases passed
 
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test
