@@ -39,6 +39,7 @@ from __future__ import annotations
 import re
 import subprocess
 import sys
+import tempfile
 from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -76,10 +77,14 @@ def path_gate_fires(text: str) -> bool:
     return False
 
 
-# Hex-digit boundaries, not `\w` boundaries — Korean particles attach directly to a token
-# with no space ("3b82292가"), and `\b`'s `\w` treats Hangul as a word character, so no
-# boundary exists at that junction and a plain `\b`-bounded token silently fails to match.
-_HEX_TOKEN = re.compile(r"(?<![0-9a-fA-F])[0-9a-fA-F]{7,40}(?![0-9a-fA-F])")
+# ASCII-alnum boundaries, not `\w` boundaries and not "any other hex digit": Korean particles
+# attach directly to a token with no space ("3b82292가"), and `\b`'s `\w` treats Hangul as a
+# word character, so no boundary exists there and a plain `\b`-bounded token silently fails to
+# match. But the boundary can't be "not another hex digit" either — that lets the token match
+# INSIDE an ordinary Latin word ("commit3b82292x") where the surrounding letters just don't
+# happen to be hex ones. Hangul isn't ASCII alnum, so this rejects the Latin case while still
+# allowing the Korean-particle case through.
+_HEX_TOKEN = re.compile(r"(?<![0-9a-zA-Z])[0-9a-fA-F]{7,40}(?![0-9a-zA-Z])")
 
 
 def sha_gate_fires(text: str) -> bool:
@@ -125,6 +130,7 @@ _SHA_FIXTURES = [
     ("2222222 lines changed", False),
     ("3b82292", True),           # real SHA example from the doc
     ("3b82292가 그 예시다", True),  # Korean particle attached with no space (round 2)
+    ("commit3b82292x", False),   # hex run glued to ordinary Latin letters, not a token (round 3)
 ]
 
 _STATUS_FIXTURES = [
@@ -145,6 +151,7 @@ _WORDING_PINS = [
     "Command error vs. mismatch",
     "the tool being unable to answer",
     "rebased away or never existed",
+    "is-shallow-repository",
     "None of these fire on ordinary prose",
 ]
 
@@ -174,6 +181,56 @@ def _git_command_error_checks(repo_root: Path) -> list[str]:
     ).stdout.strip()
     if real_sha and git_log_command_errors(real_sha, repo_root):
         failures.append("expected git log to resolve HEAD's own real SHA, it errored instead")
+    return failures
+
+
+def _write(base: str, rel: str, content: str) -> None:
+    Path(base, rel).write_text(content, encoding="utf-8")
+
+
+def is_shallow_clone(cwd: Path) -> bool:
+    result = subprocess.run(
+        ["git", "rev-parse", "--is-shallow-repository"], cwd=cwd, capture_output=True, text=True,
+    )
+    return result.stdout.strip() == "true"
+
+
+def _shallow_clone_checks() -> list[str]:
+    """Proves the premise the shallow-clone carve-out depends on: a real, valid, OLD commit
+    genuinely fails `git log` in a depth-1 clone that doesn't have it — the exact ambiguity
+    (indistinguishable from a fabricated SHA) round-2's blanket rule missed — and that
+    `git rev-parse --is-shallow-repository` correctly tells the shallow clone from the full one."""
+    failures = []
+    with tempfile.TemporaryDirectory() as tmp:
+        full = str(Path(tmp, "full"))
+        subprocess.run(["git", "init", "-q", full], check=True)
+        subprocess.run(["git", "-C", full, "config", "user.email", "t@t"], check=True)
+        subprocess.run(["git", "-C", full, "config", "user.name", "t"], check=True)
+        _write(full, "a.txt", "1\n")
+        subprocess.run(["git", "-C", full, "add", "a.txt"], check=True)
+        subprocess.run(["git", "-C", full, "commit", "-q", "-m", "old"], check=True)
+        old_sha = subprocess.run(
+            ["git", "-C", full, "rev-parse", "HEAD"], capture_output=True, text=True
+        ).stdout.strip()
+        _write(full, "a.txt", "2\n")
+        subprocess.run(["git", "-C", full, "commit", "-q", "-am", "new"], check=True)
+
+        if is_shallow_clone(Path(full)):
+            failures.append("expected the full repo to NOT report as shallow, it did")
+        if git_log_command_errors(old_sha, Path(full)):
+            failures.append("expected the full repo to resolve its own old commit, it errored")
+
+        shallow = str(Path(tmp, "shallow"))
+        subprocess.run(
+            ["git", "clone", "-q", "--depth", "1", f"file://{full}", shallow], check=True
+        )
+        if not is_shallow_clone(Path(shallow)):
+            failures.append("expected the depth-1 clone to report as shallow, it did not")
+        if not git_log_command_errors(old_sha, Path(shallow)):
+            failures.append(
+                "expected a real, valid, old commit to fail git log in a depth-1 clone that "
+                "never fetched it — the exact ambiguity the shallow-clone carve-out exists for"
+            )
     return failures
 
 
@@ -238,13 +295,14 @@ def run_self_test() -> int:
         return 1
 
     git_failures = _git_command_error_checks(_REPO_ROOT)
+    git_failures += _shallow_clone_checks()
     if git_failures:
         for f in git_failures:
             print(f"FAIL: {f}")
         return 1
 
     total = (
-        len(_WORDING_PINS) + len(_PATH_FIXTURES) + len(_SHA_FIXTURES) + len(_STATUS_FIXTURES) + 2
+        len(_WORDING_PINS) + len(_PATH_FIXTURES) + len(_SHA_FIXTURES) + len(_STATUS_FIXTURES) + 6
     )
     print(f"OK: all {total} test-doc-polish-gate self-test cases passed")
     return 0
@@ -262,12 +320,13 @@ def main(argv=None) -> int:
 
     failures = run_checks(text)
     failures += _git_command_error_checks(_REPO_ROOT)
+    failures += _shallow_clone_checks()
     if failures:
         for f in failures:
             print(f"FAIL: {f}")
         return 1
     total = (
-        len(_WORDING_PINS) + len(_PATH_FIXTURES) + len(_SHA_FIXTURES) + len(_STATUS_FIXTURES) + 2
+        len(_WORDING_PINS) + len(_PATH_FIXTURES) + len(_SHA_FIXTURES) + len(_STATUS_FIXTURES) + 6
     )
     print(f"OK: all {total} doc-polish-gate checks passed against the live reference.md")
     return 0
