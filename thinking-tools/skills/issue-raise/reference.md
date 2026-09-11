@@ -41,19 +41,24 @@ carry it, never into a heading this skill adds.
 
 ## 2. Title Convention
 
-**A template's own `title:` prefix outranks the survey below.** It is the convention the repo
-declared rather than one inferred from a sample, and the web UI already applies it to every
-issue filed through the browser — `gh issue create` does not, so an issue filed by this skill
-without it is the odd one out in the list. The survey below is the fallback for a repo whose
-template declares no prefix, or that has no template.
+**A template's own `title:` prefix is a floor, not the whole shape.** It is the convention the
+repo *declared*, and the web UI pre-fills exactly that string for every issue filed through the
+browser — `gh issue create` does not, so an issue filed by this skill without at least that
+prefix is the odd one out in the list. But a human filer types the rest of the title after that
+pre-fill, and on this repo the rest routinely adds a scope segment the bare prefix doesn't carry
+(`bug.md` declares `title: "fix: "`; the repo's actual issues read
+`fix(vault-bridge): 매니페스트가 archived 노트를 올린다`). Applying only the declared prefix would
+ship a title *less* specific than what this repo's own history shows, in the one case
+(`fix(vault-bridge): ...`) this section exists to protect — so the survey below still runs
+even when a template prefix exists, specifically to catch a scope segment the prefix lacks.
 
 `gh issue create --title "{slug}"` (a bare slug) reads wrong on this repo: titles here carry
-type and scope (`fix(vault-bridge): 매니페스트가 archived 노트를 올린다`) instead of relying on
-labels, because `gh issue create` does not inherit a template's `labels:` frontmatter — most
-issues ship unlabeled, so the title prefix is the real type signal (issue #502's own evidence
-survey, 100-issue sample). Reading the repo's own last 10 titles before proposing one keeps
-this skill correct on any repo it runs in, including ones with a different convention, without
-a second code path — and avoids a validating hook: a prior project-scoped prototype tried a
-title-format guard hook and its only real catch was a build-spec-internal title defect, while
-the hook itself produced a quote-mention false positive. Following the convention at
-*generation* time catches the same class without a second failure mode.
+type and scope instead of relying on labels, because `gh issue create` does not inherit a
+template's `labels:` frontmatter — most issues ship unlabeled, so the title prefix is the real
+type signal (issue #502's own evidence survey, 100-issue sample). Reading the repo's own last 10
+titles before proposing one keeps this skill correct on any repo it runs in, including ones with
+a different convention or no template at all, without a second code path — and avoids a
+validating hook: a prior project-scoped prototype tried a title-format guard hook and its only
+real catch was a build-spec-internal title defect, while the hook itself produced a
+quote-mention false positive. Following the convention at *generation* time catches the same
+class without a second failure mode.

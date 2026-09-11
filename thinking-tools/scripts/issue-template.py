@@ -47,6 +47,9 @@ NOT_A_TEMPLATE = {"config.yml", "config.yaml"}
 
 FRONTMATTER_RE = re.compile(r"\A---\r?\n(.*?)\r?\n---\r?\n?", re.DOTALL)
 HEADING_RE = re.compile(r"^## (.+?)\s*$", re.MULTILINE)
+# A top-level `key: value` line — same shape in a `.md` template's frontmatter block and a
+# `.yml` form's document root. Compiled once, matched in both parse_md() and parse_form().
+TOP_KEY_RE = re.compile(r"^([A-Za-z_-]+):(.*)$")
 # A trailing parenthetical carrying one of these marks the section optional. Language-open
 # on purpose: this repo writes `(선택)`, GitHub's English scaffolds write `(optional)`.
 OPTIONAL_WORDS = ("선택", "optional", "if applicable", "nice to have", "任意", "可选")
@@ -102,7 +105,7 @@ def parse_md(text):
             if re.match(r"^\s*-\s", line) and block_key == "labels":
                 meta["labels"].append(_scalar(line.split("-", 1)[1]))
                 continue
-            m = re.match(r"^([A-Za-z_-]+):(.*)$", line)
+            m = TOP_KEY_RE.match(line)
             if not m:
                 continue
             key, raw = m.group(1).lower(), m.group(2)
@@ -134,6 +137,8 @@ def parse_form(text):
     ctx = None  # 'attributes' | 'validations' — which sub-block the scanner is inside
     item_indent = None  # indentation of the body list's own `-` marker, set from the first item
     block_key = None  # top-level key currently open for a block-style YAML list (e.g. labels)
+    in_option = False  # inside a nested attributes.options[] item — its own `label:` is the
+    # option's checkbox text, never the field's own section label
 
     def flush():
         if cur and cur.get("label") and cur.get("type") != "markdown":
@@ -147,7 +152,7 @@ def parse_form(text):
         if not in_body and block_key == "labels" and re.match(r"^\s*-\s", line):
             meta["labels"].append(_scalar(line.split("-", 1)[1]))
             continue
-        top = re.match(r"^([A-Za-z_-]+):(.*)$", line)
+        top = TOP_KEY_RE.match(line)
         if top:
             key, raw = top.group(1).lower(), top.group(2)
             if key == "body":
@@ -179,7 +184,17 @@ def parse_form(text):
             flush()
             cur = {}
             ctx = None
+            in_option = False
             line = "  " + item.group(2)  # a `- type: x` opener carries the first key inline
+        elif item:
+            # A deeper `-` item: one entry of attributes.options[] (checkboxes/dropdown).
+            # Strip its dash too — otherwise a same-line `- required: true` (dash attached to
+            # `required` instead of `label`) never reaches the kv match below and the flag is
+            # silently dropped, exactly the checkboxes-required bug this branch exists to fix,
+            # just under a different key order. `in_option` keeps the option's own `label:`
+            # (its checkbox text) from clobbering the field's real label, set below.
+            in_option = True
+            line = "  " + item.group(2)
         if cur is None:
             continue
         kv = re.match(r"^\s*([A-Za-z_-]+):(.*)$", line)
@@ -190,7 +205,7 @@ def parse_form(text):
             ctx = key
         elif key == "type":
             cur["type"] = _scalar(raw)
-        elif key == "label" and ctx == "attributes":
+        elif key == "label" and ctx == "attributes" and not in_option:
             cur["label"] = _scalar(raw)
         elif key == "required" and ctx == "validations":
             cur["required"] = _scalar(raw).lower() == "true"
@@ -214,8 +229,6 @@ def parse(path):
 def repo_root(start="."):
     """Templates live at the repo root, but a session's cwd is often a subdirectory —
     resolving from cwd would report 'no template' on a repo that has one."""
-    import subprocess
-
     try:
         out = subprocess.run(
             ["git", "-C", start, "rev-parse", "--show-toplevel"],
@@ -258,6 +271,10 @@ def find_templates(root="."):
             {
                 "path": str(p),
                 "kind": _kind(p.stem, meta["name"], meta["about"]),
+                # This template's own frontmatter `name:` (or filename stem) — the template's
+                # display name (e.g. "Bug"). NOT the same field as a `sections[]` entry's own
+                # `name` below, which is a section's heading text (e.g. "증상"). Correlate a
+                # `--list --json` entry back to a chosen template by `path`, never by `name`.
                 "name": meta["name"] or p.stem,
                 "title_prefix": meta["title_prefix"],
                 "labels": meta["labels"],
@@ -473,6 +490,24 @@ body:
         ("form-checkboxes-required", parse_form(form_checkboxes)[1],
          [{"name": "Code of Conduct", "optional": False},
           {"name": "Nice to have", "optional": True}])
+    )
+
+    # Key order inside the option flipped (`required:` on the dash line, `label:` after) —
+    # must still resolve `required` and must not let the option's own `label:` (its checkbox
+    # text) clobber the field's real label ("Code of Conduct").
+    form_checkboxes_reversed = """body:
+  - type: checkboxes
+    id: coc
+    attributes:
+      label: Code of Conduct
+      options:
+        - required: true
+          label: "I agree to follow this project's Code of Conduct"
+"""
+    cases.append(
+        ("form-checkboxes-required-key-order-reversed",
+         parse_form(form_checkboxes_reversed)[1],
+         [{"name": "Code of Conduct", "optional": False}])
     )
 
     # A block-style top-level `labels:` list (valid GitHub issue-form syntax, already
