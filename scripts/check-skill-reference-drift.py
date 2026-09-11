@@ -564,10 +564,13 @@ def check_all(root, external_roots=None, allowlist=None):
 # checkout there), so the only machine that CAN catch it live is the maintainer's own,
 # and only if local-harness happens to be checked out when the rename lands. `--sync-
 # releasing` turns that transient finding into a durable, checked-in reminder: a pending
-# bullet in RELEASING.md that survives until someone updates local-harness's
-# `skill-bindings.json` and reruns this. Scope is deliberately this half only (issue #737
-# option 3's lower tier) — no cross-repo PR is opened, and local-harness itself is never
-# touched from here.
+# bullet in RELEASING.md that survives until someone fixes local-harness's reference and
+# reruns this. "Fixes" means whatever mechanism local-harness actually has at the time —
+# today that is the hardcoded `Skill(skill: "...")` call itself (#737's proposals 1/2, an
+# indirect `skill-bindings.json` layer, are not built there yet); the bullet text below
+# does not assume it exists. Scope is deliberately this half only (issue #737 option 3's
+# lower tier) — no cross-repo PR is opened, and local-harness itself is never touched from
+# here.
 RELEASING_BEGIN = "<!-- BEGIN skill-bindings-drift (auto: check-skill-reference-drift.py --sync-releasing) -->"
 RELEASING_END = "<!-- END skill-bindings-drift -->"
 RELEASING_EMPTY = "_(none pending)_"
@@ -604,8 +607,9 @@ def sync_releasing_checklist(findings, releasing_path, absent_roots=None):
         body = "\n".join(
             f"- [ ] `{ref}` — dangling in "
             + ", ".join(f"`{file}:{line}`" for file, line in sorted(set(locs)))
-            + "; update local-harness's `skill-bindings.json` entry for it before the "
-              "next release."
+            + "; fix local-harness's reference to it (its hardcoded `Skill()`/"
+              "`subagent_type:` call, or its `skill-bindings.json` entry once that "
+              "indirection exists) before the next release."
             for ref, locs in sorted(locations.items())
         )
     try:
@@ -1064,11 +1068,21 @@ def main(argv=None):
                 file=sys.stderr,
             )
         else:
+            releasing_path = os.path.join(root, "RELEASING.md")
             changed = sync_releasing_checklist(
-                findings, os.path.join(root, "RELEASING.md"), absent_roots=stats["absent_roots"]
+                findings, releasing_path, absent_roots=stats["absent_roots"]
             )
             if changed:
                 print("RELEASING.md pending-binding checklist updated", file=sys.stderr)
+            elif changed is None:
+                # Otherwise a bad --root or a RELEASING.md missing its managed block fails
+                # completely silently — the maintainer would have no way to tell "synced,
+                # nothing pending" apart from "didn't sync at all" without this.
+                print(
+                    f"NOTE: --sync-releasing found nothing to update at {releasing_path} "
+                    "(missing file or no managed block) — left untouched.",
+                    file=sys.stderr,
+                )
 
     if args.json:
         print(json.dumps({"findings": findings, **stats}, ensure_ascii=False, indent=2))
