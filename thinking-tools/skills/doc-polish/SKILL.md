@@ -101,7 +101,7 @@ what keeps the added `gh`/`git` cost off every ordinary polish call; there is no
 | File or directory path — `/` plus a file extension, or `/` after an existing top-level repo dir, not a bare slash | file exists at that path | 확인됨 / 어긋남 |
 | Script, function, or flag name | `grep` for the name in the repo | present as described |
 | Commit SHA — 7-40 hex chars with at least one `a`-`f` (pure decimal isn't a SHA) | `git log -1 <sha>` | resolves to the stated subject; `fatal: bad revision` on a full clone (rebased away, or never existed) is also 어긋남 — on a shallow/partial clone (`git rev-parse --is-shallow-repository` prints `true`), the same failure could just mean "outside this partial history," so it's 저장소로 확인 불가 instead |
-| Status assertion ("미구현", "없음", "아직", "지원 안 함") — only when it directly predicates a named target in the same sentence (backtick name, `#N`, or path) | `grep`/`gh` for the thing asserted absent | still absent |
+| Status assertion ("미구현", "없음", "아직", "지원 안 함") — only when it directly predicates a named target in the same sentence (backtick name, `#N`, or path; a Korean run-on joined by `~는데`/`~지만` with no terminal punctuation still counts as one sentence) | `grep`/`gh` for the thing asserted absent | still absent |
 
 **Deterministic checks only.** A claim that needs judgment — whether a design is right, whether a
 trade-off holds — is out of scope and belongs to `adversarial-review`. If settling it takes reading
