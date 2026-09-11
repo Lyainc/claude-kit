@@ -83,9 +83,11 @@ hatch — ship something right now without waiting for a label or the backstop.
 don't hand-edit the list. A bullet here means a local-harness consumer file (scanned via
 `EXTERNAL_ROOTS`) still names a claude-kit skill/agent this repo just renamed or removed;
 CI can't see this (no local-harness checkout there), so it only surfaces on a machine that
-has both repos cloned. Clear a bullet by updating local-harness's `skill-bindings.json`
-entry for it, then rerun the command — it reverts to empty on its own once the reference
-resolves again.
+has both repos cloned. Clear a bullet by fixing local-harness's reference to it — today
+that means editing its hardcoded skill call directly (e.g. in
+`skills/session-close/SKILL.md`); once #737's indirect-binding layer lands there, it means
+updating its `skill-bindings.json` entry instead — then rerun the command; it reverts to
+empty on its own once the reference resolves again.
 
 <!-- BEGIN skill-bindings-drift (auto: check-skill-reference-drift.py --sync-releasing) -->
 _(none pending)_
