@@ -67,7 +67,9 @@ hardcode a template path or heading into this skill.
    That output is the **only** section list this skill assembles against, and it is also
    Phase 2.5's `--template` input, so a `.yml` form passes the same guard as a `.md`
    template with no second code path. If the template changes shape, this skill's output
-   changes with it, with zero code edit.
+   changes with it, with zero code edit. Exit 1 here (a template with zero sections) is not
+   the same failure as step 2's `--list` finding no template at all — treat it the same way
+   regardless: take step 4's plain-prose path (Known Limitations has the detail).
 4. **No template at all** (`--list` prints `[issue-template NONE]`, exit 1): the repo chose
    not to impose a structure, so do not invent one. Write a title plus plain prose covering
    what the source data actually says, skip Phase 2.5 (there is nothing to conform to), and
@@ -76,8 +78,10 @@ hardcode a template path or heading into this skill.
 5. **Gather missing content** for each *required* section the source data doesn't already
    cover, via `AskUserQuestion` (one round, batch the questions). A `.yml` form's `--headings`
    output carries no inline optional marker the way a Markdown template's trailing
-   parenthetical does, so pull the per-section `optional` flag from `--list --json` and match
-   each entry's `name` against the chosen template's `path`:
+   parenthetical does, so pull the per-section `optional` flag from `--list --json` instead:
+   find the array entry whose `path` matches the template chosen in step 2, then read that
+   entry's own `sections[]` array and match each section by `name` against the heading text
+   printed by `--headings` in step 3.
 
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/issue-template.py" --list --json
@@ -144,13 +148,20 @@ step mechanically confirms they were (#563; observed live in #562, where the tem
 
 ### Phase 3: Title + Create
 
-**Title.** Two sources, in this order:
-1. The template's own `title:` prefix, when Phase 0 reported one (`fix: ` here, `[Bug]: ` on a
-   form-based repo). It is the convention the repo *declared*, and `gh issue create` does not
-   apply it the way the web UI does — so prepend it explicitly or issues filed by this skill
-   drift from every issue filed through the browser.
-2. Otherwise the repo's live convention: `gh issue list --state all --limit 10 --json title`,
-   and match the observed shape (rationale: [reference.md](reference.md) §2).
+**Title.** The template's own `title:` prefix (when Phase 0 reported one) is a floor, not the
+whole shape — `gh issue list --state all --limit 10 --json title` still runs to check whether
+the observed history adds a scope segment the bare prefix doesn't carry (rationale:
+[reference.md](reference.md) §2):
+1. Match the observed shape (e.g. `fix(scope): `) against the template's prefix. If the survey's
+   type matches the prefix but adds a scope the prefix lacks (this repo: prefix `fix: `,
+   observed `fix(vault-bridge): ...`), use the fuller observed shape — the template prefix is
+   the minimum GitHub's web UI pre-fills, not a ceiling on what a human filer then adds, and
+   dropping the scope regresses behind what the repo's issues actually look like.
+2. Otherwise use the template's prefix as-is. It is the convention the repo *declared*, and
+   `gh issue create` does not apply it the way the web UI does — so prepend it explicitly or
+   issues filed by this skill drift from every issue filed through the browser.
+3. No template prefix at all → the observed shape alone, or a bare slug if the survey finds
+   nothing consistent.
 
 No separate title-format guard hook: a prior prototype's guard reproduced a quote-mention
 false positive and was scrapped for it — this skill only *follows* the convention at generation
