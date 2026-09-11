@@ -225,7 +225,7 @@ present; otherwise skip it and omit its line from the report entirely.
 | Repo-relative path — `/` plus a file extension (`.py`, `.md`, `.ts`, `.json`, `.sh`, ...), or `/` after a directory that actually exists at the repo root (`ls` the repo root if unsure), not a bare slash | `scripts/check-test-exitcode.py`, `thinking-tools/skills/` |
 | Script, function, or flag name | `check-version-sync.py`, `--fix`, `create_inline_comment` |
 | Commit SHA — 7-40 hex chars containing at least one `a`-`f`; pure decimal digits aren't a SHA | `3b82292` |
-| Status assertion — 미구현/없음/아직/지원 안 함/not implemented, only when it directly predicates a named target in the same sentence (a backtick name, `#N`, or path) | "`--fix`는 아직 미구현" |
+| Status assertion — 미구현/없음/아직/지원 안 함/not implemented, only when it directly predicates a named target in the same sentence (a backtick name, `#N`, or path; a Korean run-on joined by `~는데`/`~지만` with no terminal punctuation still counts as one sentence) | "`--fix`는 아직 미구현" |
 
 None of these fire on ordinary prose that merely resembles the pattern:
 - `read/write 권한`, `pass/fail 기준` — a slash with no extension and no directory shape isn't a path.
@@ -236,6 +236,16 @@ ponytail: the SHA rule's known ceiling is a genuine all-decimal short SHA (rare 
 twenty 7-char SHAs) silently going unchecked rather than merely skipped-with-a-note, since #705's
 whole point was keeping ordinary line-count/timestamp numbers off the gate; widen the rule (a
 disambiguating word like "commit"/"SHA" nearby) only if that specific miss actually recurs.
+
+ponytail: two more known ceilings from the same narrowing, both silent misses rather than false
+positives. (1) The path rule's directory-prefix check runs against the CURRENT repo tree, so a
+directory-only reference whose top-level segment was itself renamed or removed no longer looks
+path-shaped and the gate never fires — the exact "moved/deleted" drift this layer exists to
+catch, just for a bare directory instead of a file. (2) The status rule's same-sentence scope
+misses a target named one sentence earlier and the status word in the next (e.g. "...#282/PR
+#283이 ... 철회했고 ... 이 위임은 미구현 상태로 종결이고..." — real instance in this repo at
+`docs/design/output-adapter-contract.md`). Both trade recall for the precision #705 asked for;
+widen either only if a real case actually goes unnoticed.
 
 The gate is what keeps `gh`/`git` off an ordinary polish call. A README with no issue numbers and
 no paths costs exactly what it did before this layer existed.
