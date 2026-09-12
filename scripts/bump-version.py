@@ -4,12 +4,13 @@
 claude-kit releases lockstep: every plugin shares one version, published under a
 single tag `vX.Y.Z`. This script is the one entry point that writes that version to:
 
-  - each plugin's {plugin}/.claude-plugin/plugin.json  ($.version)
+  - each plugin's {plugin}/plugin.json and .claude-plugin/plugin.json  ($.version)
   - the root marketplace.json                          ($.version)
   - each marketplace.json plugins[] entry              ($.version)
 
-It does NOT touch description/keywords — plugin.json stays the source of truth for
-those, and `check-version-sync.py --fix` reconciles them into marketplace.json. Here we
+It does NOT touch description/keywords — each `.claude-plugin/plugin.json` stays the
+source of truth for the Claude marketplace, and `check-version-sync.py --fix` reconciles
+those fields into `.claude-plugin/marketplace.json`. Here we
 only move the version, so the diff a release commit carries is minimal and reviewable.
 
 Usage:
@@ -62,9 +63,12 @@ def _write(path, data):
 
 def manifest_paths(root):
     """Return (plugin_json_paths[], marketplace_path)."""
-    pjs = [
-        os.path.join(root, d, ".claude-plugin", "plugin.json") for d in PLUGIN_DIRS
-    ]
+    pjs = []
+    for d in PLUGIN_DIRS:
+        pjs.extend([
+            os.path.join(root, d, "plugin.json"),
+            os.path.join(root, d, ".claude-plugin", "plugin.json"),
+        ])
     mp = os.path.join(root, ".claude-plugin", "marketplace.json")
     return pjs, mp
 
@@ -73,8 +77,11 @@ def current_versions(root):
     """Return {label: version} across all manifests, for --check / reporting."""
     pjs, mp_path = manifest_paths(root)
     out = {}
-    for d, pj in zip(PLUGIN_DIRS, pjs):
-        out[f"plugin.json:{d}"] = _read(pj).get("version")
+    for d in PLUGIN_DIRS:
+        out[f"plugin.json:{d}"] = _read(os.path.join(root, d, "plugin.json")).get("version")
+        out[f"claude-plugin.json:{d}"] = _read(
+            os.path.join(root, d, ".claude-plugin", "plugin.json")
+        ).get("version")
     marketplace = _read(mp_path)
     out["marketplace:root"] = marketplace.get("version")
     for entry in marketplace.get("plugins", []):
@@ -114,6 +121,8 @@ def run_self_test():
         # Build a minimal fixture mirroring the real layout.
         for d in PLUGIN_DIRS:
             os.makedirs(os.path.join(tmp, d, ".claude-plugin"))
+            _write(os.path.join(tmp, d, "plugin.json"),
+                   {"name": d, "version": "0.0.1"})
             _write(os.path.join(tmp, d, ".claude-plugin", "plugin.json"),
                    {"name": d, "version": "0.0.1"})
         os.makedirs(os.path.join(tmp, ".claude-plugin"))
@@ -123,8 +132,8 @@ def run_self_test():
                             for d in PLUGIN_DIRS]})
 
         changed = apply_version(tmp, "3.0.0")
-        if changed != 5:  # 4 plugin.json + 1 marketplace.json
-            failures.append(f"  expected 5 files changed, got {changed}")
+        if changed != 9:  # 4 root + 4 Claude plugin manifests + 1 marketplace
+            failures.append(f"  expected 9 files changed, got {changed}")
         versions = set(current_versions(tmp).values())
         if versions != {"3.0.0"}:
             failures.append(f"  expected all 3.0.0, got {versions}")

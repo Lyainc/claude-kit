@@ -61,9 +61,9 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   not by this file's scripts.)
 - **Version lockstep.** All plugins share one version and ship together under a
   single tag `vX.Y.Z`. Do **not** bump a version in a feature branch — the release
-  workflow bumps every manifest at once. `plugin.json` is the source of truth;
-  `marketplace.json` is derived. See `RELEASING.md` and the Version Sync Rule in
-  `CLAUDE.md`.
+  workflow bumps every manifest at once. `.claude-plugin/plugin.json` is the Claude
+  marketplace source of truth, while root `plugin.json` owns portable metadata and shares
+  only name/version lockstep. See `RELEASING.md` and the Version Sync Rule in `CLAUDE.md`.
 - **Vault file conventions — by reference, not redefined.** Files written to the
   vault follow the unified convention already specified in `CLAUDE.md` ("Vault File
   Conventions" — folder layout, filename pattern, frontmatter standard, `type:`
