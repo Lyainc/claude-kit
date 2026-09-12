@@ -54,7 +54,8 @@ All plugins (thinking-tools, obsidian-vault-manager, vault-bridge) follow a unif
 ## Marketplace Structure
 
 - `marketplace.json`: 전체 플러그인 목록. 각 항목의 `source` 필드가 플러그인 루트 경로
-- `plugin.json`: 개별 플러그인 메타데이터 (name, version, keywords)
+- `.claude-plugin/plugin.json`: Claude marketplace 메타데이터의 source of truth
+- `plugin.json`: Codex portable 메타데이터. Claude manifest와 `name`/`version`만 lockstep
 - `skills/*/SKILL.md`: Claude Code가 자동 검색하는 스킬 정의 파일
 - `agents/*.md`: 에이전트 정의 파일 (두 플러그인 모두 보유)
 
@@ -106,8 +107,8 @@ Within `thinking-tools`:
 
 1. 해당 플러그인의 `skills/{skill-name}/SKILL.md` 생성
 2. **`allowed-tools:`를 명시** (#611) — 생략하면 하네스에 연결된 도구 전부를 상속합니다 (에이전트 `tools:`와 같은 #472 위험). 본문이 실제로 호출하는 도구만 나열하세요. `scripts/check-agent-tools-usage.py`가 에이전트와 같은 양방향 검사를 스킬에도 적용합니다: 선언에만 있고 본문이 이름을 안 부르면 UNUSED, 본문이 부르는데 선언에 없으면 UNDECLARED, 키 자체가 없으면 MISSING. 코드펜스 안은 근거로 안 쳐주므로, 셸 커맨드로만 쓰는 `Bash`도 본문 산문에 이름을 적으세요.
-3. `plugin.json`의 `keywords`에 스킬명 추가
-4. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
+3. `.claude-plugin/plugin.json`의 `keywords`에 스킬명 추가
+4. Claude `description`/`keywords`를 바꿨다면 `.claude-plugin/marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). Codex root `plugin.json` 메타데이터는 별도로 관리합니다. 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
 5. 에이전트가 해당 스킬을 사용해야 하면: 에이전트 `.md`의 `skills:` frontmatter에 추가
 6. **트리거 안내 컨벤션 (#173)** — 사용자 대면 카탈로그에 진입점을 추가해 발견성을 확보합니다: 루트 `README.md`의 플러그인 스킬 표(이럴 때 → 스킬) **(필수)**, 그리고 `docs/design/4-flow-catalog.md`의 "흐름별 대표 기능" **(4-흐름에 맞을 때만)**. 트리거 문구의 단일 소스는 SKILL.md `description`이고(각 플러그인의 `check-trigger-regression.py`가 드롭을 강제 감지), 카탈로그는 그걸 사용자 언어로 노출하는 뷰입니다.
 
@@ -115,28 +116,31 @@ Within `thinking-tools`:
 
 1. 해당 플러그인의 `agents/{agent-name}.md` 생성 (frontmatter: name, description, model, skills)
 2. **`tools:`를 명시** (#472) — 생략하면 하네스에 연결된 도구 전부를 상속합니다. 에이전트 본문이 실제로 호출하는 도구만 나열하세요 (Bash 커맨드·Read·Grep·Glob·Write 등을 본문에서 grep해 확인). `scripts/check-agent-tools-field.py`가 `tools:` 필드 존재를, `scripts/check-agent-tools-usage.py`가 선언 목록과 본문 사용의 일치를 양방향으로 검사합니다 (#577). 후자는 본문이 도구를 **이름으로 언급**해야 근거로 인정하므로, 셸 커맨드로만 쓰는 도구도 본문에 이름을 적으세요.
-3. `plugin.json`의 `keywords`에 에이전트명 추가
-4. `description`/`keywords`를 바꿨다면 `marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
+3. `.claude-plugin/plugin.json`의 `keywords`에 에이전트명 추가
+4. Claude `description`/`keywords`를 바꿨다면 `.claude-plugin/marketplace.json`에 동기화 (`python3 scripts/check-version-sync.py --fix`). Codex root `plugin.json` 메타데이터는 별도로 관리합니다. 버전은 직접 올리지 않습니다 — lockstep 릴리스(RELEASING.md)가 전 플러그인을 일괄 범프
 
 ## Version Sync Rule
 
-`plugin.json`이 단일 소스(source of truth), `marketplace.json`은 거기서 derived입니다.
+Claude `.claude-plugin/plugin.json`이 Claude marketplace의 단일 source of truth이고,
+`.claude-plugin/marketplace.json`은 거기서 derived입니다. Codex root `plugin.json`은
+portable metadata를 소유하며 Claude manifest와 `name`/`version`만 lockstep입니다.
 다음 필드는 항상 양쪽이 일치해야 하고, `check-version-sync.py`가 CI block 가드로 강제합니다:
 - `version`, `description`, `keywords` (+ `name`은 매칭 키)
 
 운영 규칙:
 - **버전은 lockstep** — 모든 플러그인이 같은 버전을 공유하고, 단일 태그 `vX.Y.Z`로 함께
   배포됩니다. 개별 작업에서 버전을 직접 올리지 마세요. 릴리스 워크플로가 `bump-version.py`로
-  전 매니페스트(4개 `plugin.json` + `marketplace.json` 루트·항목)를 한 번에 같은 값으로 씁니다.
-- **drift 동기화**: `description`/`keywords`를 `plugin.json`에서 바꿨다면
-  `python3 scripts/check-version-sync.py --fix`로 `marketplace.json`을 맞춥니다 (plugin.json이 이김).
+  전 매니페스트(4개 root portable manifest + 4개 Claude manifest + Claude marketplace)를 한 번에 같은 값으로 씁니다.
+- **drift 동기화**: Claude `description`/`keywords`를 `.claude-plugin/plugin.json`에서 바꿨다면
+  `python3 scripts/check-version-sync.py --fix`로 `.claude-plugin/marketplace.json`을 맞춥니다 (Claude manifest가 이김).
 - 자세한 버전 정책·릴리스 절차: [RELEASING.md](RELEASING.md).
 
 ## Adding a New Plugin
 
 1. `{plugin-name}/` 디렉토리 생성
-2. `{plugin-name}/.claude-plugin/plugin.json` 작성
-3. `{plugin-name}/skills/` 하위에 스킬 추가
-4. `.claude-plugin/marketplace.json`의 `plugins` 배열에 항목 추가 (`source` 경로 지정)
-5. `{plugin-name}/README.md` 작성
-6. 루트 `README.md`에 플러그인 소개 추가
+2. `{plugin-name}/plugin.json`에 portable Codex metadata 작성
+3. `{plugin-name}/.claude-plugin/plugin.json`에 Claude metadata 작성 (`name`/`version`은 portable manifest와 lockstep)
+4. `{plugin-name}/skills/` 하위에 스킬 추가
+5. `.claude-plugin/marketplace.json`과 `.agents/plugins/marketplace.json`의 `plugins` 배열에 항목 추가 (각 source 경로·Codex policy/category 포함)
+6. `{plugin-name}/README.md` 작성
+7. 루트 `README.md`에 플러그인 소개 추가

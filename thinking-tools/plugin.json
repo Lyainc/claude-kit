@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "thinking-tools",
+  "version": "5.0.0",
+  "description": "Structured reasoning, debate, document polish, blind-spot detection, idea crystallization, issue authoring, and next-session planning skills.",
+  "author": {
+    "name": "Lyainc",
+    "url": "https://github.com/Lyainc"
+  },
+  "homepage": "https://github.com/Lyainc/claude-kit",
+  "repository": "https://github.com/Lyainc/claude-kit",
+  "license": "MIT",
+  "keywords": ["skills", "thinking", "reasoning", "planning", "review"]
+}

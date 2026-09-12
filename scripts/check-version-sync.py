@@ -5,11 +5,13 @@ The Version Sync Rule (CLAUDE.md): for every plugin, the `version`, `description
 and `keywords` fields in `.claude-plugin/marketplace.json` MUST equal the same fields
 in that plugin's `{source}/.claude-plugin/plugin.json`. The plugin `name` must match too.
 
-This is a BLOCK guard: any drift (or an unresolvable plugin.json a marketplace entry
-points at) exits non-zero, so a release that would ship divergent manifests is stopped
-in CI before merge.
+This is a BLOCK guard: any drift, missing portable root manifest, or an unresolvable
+plugin.json a marketplace entry points at exits non-zero, so a release that would ship
+divergent manifests is stopped in CI before merge.
 
-plugin.json is the source of truth; --fix rewrites marketplace.json entries to match.
+The Claude `.claude-plugin/plugin.json` is the source of truth; --fix rewrites Claude
+marketplace entries to match. Root portable `plugin.json` metadata is independent except
+for the name/version lockstep check below.
 
 Usage:
     python3 scripts/check-version-sync.py [--root DIR] [--json] [--self-test] [--fix]
@@ -95,7 +97,13 @@ def check_root(root):
         pj_path = os.path.normpath(
             os.path.join(root, source, ".claude-plugin", "plugin.json")
         )
-        plugin_status = {"name": name, "plugin_json": pj_path, "drifts": []}
+        portable_path = os.path.normpath(os.path.join(root, source, "plugin.json"))
+        plugin_status = {
+            "name": name,
+            "plugin_json": pj_path,
+            "portable_plugin_json": portable_path,
+            "drifts": [],
+        }
 
         if not os.path.isfile(pj_path):
             msg = f"[{name}] plugin.json not found at {pj_path}"
@@ -114,6 +122,37 @@ def check_root(root):
             report["plugins"].append(plugin_status)
             ok = False
             continue
+
+        if not os.path.isfile(portable_path):
+            msg = f"[{name}] portable plugin.json not found at {portable_path}"
+            report["violations"].append(msg)
+            plugin_status["error"] = "portable plugin.json not found"
+            report["plugins"].append(plugin_status)
+            ok = False
+            continue
+
+        try:
+            portable_json = _load_json(portable_path)
+        except (json.JSONDecodeError, OSError) as exc:
+            msg = f"[{name}] portable plugin.json unreadable: {exc}"
+            report["violations"].append(msg)
+            plugin_status["error"] = "portable plugin.json unreadable"
+            report["plugins"].append(plugin_status)
+            ok = False
+            continue
+
+        for field in ("name", "version"):
+            if plugin_json.get(field) != portable_json.get(field):
+                report["violations"].append(
+                    f"[{name}] {field} drift: Claude={plugin_json.get(field)!r} "
+                    f"!= portable={portable_json.get(field)!r}"
+                )
+                plugin_status["drifts"].append({
+                    "field": field,
+                    "claude_plugin_json": plugin_json.get(field),
+                    "portable_plugin_json": portable_json.get(field),
+                })
+                ok = False
 
         drifts = compare_entry(entry, plugin_json)
         for field, mp_val, pj_val in drifts:
@@ -209,6 +248,8 @@ def run_self_test():
     # Test --fix reconciles drift on a real fixture (plugin.json wins).
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(os.path.join(tmpdir, "demo", ".claude-plugin"))
+        with open(os.path.join(tmpdir, "demo", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "2.0.0"}, fh)
         os.makedirs(os.path.join(tmpdir, ".claude-plugin"))
         with open(os.path.join(tmpdir, "demo", ".claude-plugin", "plugin.json"), "w") as fh:
             json.dump({"name": "demo", "version": "2.0.0",

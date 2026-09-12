@@ -144,7 +144,7 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Scope to exactly what bump-version.py writes (the only repo-file mutation
           # in this workflow) — explicit intent over `-A` staging the whole tree.
-          git add '*/.claude-plugin/plugin.json' .claude-plugin/marketplace.json
+          git add '*/plugin.json' '*/.claude-plugin/plugin.json' .claude-plugin/marketplace.json
           git commit -m "chore(release): v$VERSION"
           git push origin HEAD:main
           git tag "v$VERSION"

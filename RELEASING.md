@@ -27,8 +27,9 @@ policy and the release procedure.
   PR history). The GitHub Release notes still break the changes down **per plugin**, so
   readers can see exactly which plugin moved.
 
-`plugin.json` is the source of truth for each plugin's `version` (plus `description`,
-`keywords`); `marketplace.json` is **derived** and kept in sync by
+`.claude-plugin/plugin.json` is the source of truth for each Claude plugin's `version`,
+`description`, and `keywords`; `.claude-plugin/marketplace.json` is **derived** and kept in
+sync by
 `scripts/check-version-sync.py` (a CI block guard). The release workflow writes the new
 version into all manifests at once via `scripts/bump-version.py`, so they can never
 diverge across a release.

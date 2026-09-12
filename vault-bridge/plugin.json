@@ -1,0 +1,14 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "vault-bridge",
+  "version": "5.0.0",
+  "description": "Obsidian vault capture, project binding, manifest, commit, and wiki skills.",
+  "author": {
+    "name": "Lyainc",
+    "url": "https://github.com/Lyainc"
+  },
+  "homepage": "https://github.com/Lyainc/claude-kit",
+  "repository": "https://github.com/Lyainc/claude-kit",
+  "license": "MIT",
+  "keywords": ["obsidian", "vault", "bridge", "capture", "wiki"]
+}

@@ -18,6 +18,11 @@ python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/.claude-plugin/plugin.json > /dev/null
 python3 -m json.tool feedback-loop/.claude-plugin/plugin.json > /dev/null
+python3 -m json.tool thinking-tools/plugin.json > /dev/null
+python3 -m json.tool obsidian-vault-manager/plugin.json > /dev/null
+python3 -m json.tool vault-bridge/plugin.json > /dev/null
+python3 -m json.tool feedback-loop/plugin.json > /dev/null
+python3 -m json.tool .agents/plugins/marketplace.json > /dev/null
 
 # 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(block — #175 --strict 승격)
 python3 scripts/check-version-sync.py --self-test
