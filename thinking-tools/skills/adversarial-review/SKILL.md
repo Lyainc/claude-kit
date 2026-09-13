@@ -15,6 +15,11 @@ effort: high
 
 # Adversarial Review
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 > **Contract-pinned**: the **Judge Rubric** block and § Survival Score are compared verbatim, each to the next heading, by `thinking-tools/scripts/test/test-judge-rubric-anchors.py` — editing either is a deliberate contract change, made in the same commit as its constant. No other block here is block-pinned.
 >
 > **Reference files (load on demand)**: [reference/patterns.md](reference/patterns.md) (attack templates, judge rubric anchors, judge score mapping, termination priority, report formats, round display) · [reference/rationale.md](reference/rationale.md) (why the design is the way it is — background, not instructions) · [examples/sample.md](examples/sample.md) (full Phase 0 → Phase 1 → Phase 2 session example). Read these explicitly when the corresponding section is reached; they are not auto-loaded with SKILL.md.

@@ -1,0 +1,27 @@
+{
+  "name": "vault-bridge",
+  "version": "5.1.0",
+  "description": "Obsidian vault capture, project binding, manifest, commit, and wiki skills for Codex.",
+  "author": {
+    "name": "Lyainc",
+    "url": "https://github.com/Lyainc"
+  },
+  "homepage": "https://github.com/Lyainc/claude-kit",
+  "repository": "https://github.com/Lyainc/claude-kit",
+  "license": "MIT",
+  "keywords": ["obsidian", "vault", "bridge", "capture", "wiki"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Vault Bridge",
+    "shortDescription": "Connect projects and Obsidian vaults",
+    "longDescription": "Save references, bind projects, refresh manifests, commit vault changes, and compile wiki notes from Codex.",
+    "developerName": "Lyainc",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/Lyainc/claude-kit",
+    "privacyPolicyURL": "https://github.com/Lyainc/claude-kit/blob/main/LICENSE",
+    "termsOfServiceURL": "https://github.com/Lyainc/claude-kit/blob/main/LICENSE",
+    "defaultPrompt": ["Save this reference to my vault", "Bind this project to a vault", "Refresh the vault manifest"],
+    "brandColor": "#059669"
+  }
+}

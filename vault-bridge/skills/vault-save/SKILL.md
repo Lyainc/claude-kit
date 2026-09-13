@@ -8,6 +8,11 @@ effort: low
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 Save `$ARGUMENTS` into `{vault_root}` immediately, without a confirmation prompt, then print only the saved path.
 
 This skill runs in the main context. Never delegate the write to a subagent — the vault-bridge

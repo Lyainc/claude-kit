@@ -22,6 +22,10 @@ python3 -m json.tool thinking-tools/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/plugin.json > /dev/null
 python3 -m json.tool feedback-loop/plugin.json > /dev/null
+python3 -m json.tool thinking-tools/.codex-plugin/plugin.json > /dev/null
+python3 -m json.tool obsidian-vault-manager/.codex-plugin/plugin.json > /dev/null
+python3 -m json.tool vault-bridge/.codex-plugin/plugin.json > /dev/null
+python3 -m json.tool feedback-loop/.codex-plugin/plugin.json > /dev/null
 python3 -m json.tool .agents/plugins/marketplace.json > /dev/null
 
 # 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(block — #175 --strict 승격)
@@ -29,6 +33,8 @@ python3 scripts/check-version-sync.py --self-test
 # Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check)
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (root: ...)
+python3 scripts/check-codex-portability.py
+# Expected: OK: Codex portability clean — 19 skills classified (17 supported, 2 unsupported)
 # drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단.
 # marketplace.json은 plugin.json에서 derived — drift 시 `--fix`로 plugin.json 기준 동기화:
 #   python3 scripts/check-version-sync.py --fix
@@ -1095,3 +1101,32 @@ bash obsidian-vault-manager/scripts/test/run-audit-dod.sh
 # Note: dod.priority_counts is informational only (P1 includes existing
 # fixture sources captures with old created: dates, varies by run date).
 ```
+
+## Codex runtime smoke check
+
+Run this manual check after a portability change. It refreshes only the local Codex plugin cache;
+use new ephemeral read-only sessions for the representative supported paths that session-close
+depends on.
+
+```bash
+codex plugin remove thinking-tools@Lyainc-claude-kit
+codex plugin remove obsidian-vault-manager@Lyainc-claude-kit
+codex plugin remove vault-bridge@Lyainc-claude-kit
+codex plugin remove feedback-loop@Lyainc-claude-kit
+codex plugin add thinking-tools@Lyainc-claude-kit
+codex plugin add obsidian-vault-manager@Lyainc-claude-kit
+codex plugin add vault-bridge@Lyainc-claude-kit
+codex plugin add feedback-loop@Lyainc-claude-kit
+
+codex exec --ephemeral --sandbox read-only -C "$PWD" \
+  'Use installed thinking-tools next-goal. Return exactly NEXT, POOL, RUNNERS, GOAL in Korean; no /goal fence, writes, or network.'
+codex exec --ephemeral --sandbox read-only -C "$PWD" \
+  'Use installed thinking-tools issue-raise. Do not inspect files or call tools. Do not create/write/network. Reply with exactly one Korean sentence: the normal user approval required immediately before gh issue create.'
+codex exec --ephemeral --sandbox read-only -C ../local-harness \
+  'Read skills/session-close/SKILL.md and apply only its Codex adapter to a hypothetical stage ① sweep with one qualifies:true worktree, one qualifies:true plain branch, and one remote_status:fetch-failed row. Return the owner-confirmed safe actions plus NEXT, POOL, RUNNERS, GOAL. Do not write or use network.'
+```
+
+The first response must contain a plain `GOAL` field and no `/goal` fence. The second must ask for
+normal user approval before `gh issue create`. The third must preserve the `qualifies: true` gate,
+keep `fetch-failed` unresolved, distinguish `worktree remove <worktree_path>` from `branch -D`, and
+render plain `NEXT`/`POOL`/`RUNNERS`/`GOAL`; no session may write the repository or network.

@@ -23,6 +23,11 @@ allowed-tools: AskUserQuestion Skill
 
 # Diverse Sampling
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 Generate diverse responses using Verbalized Sampling technique to overcome LLM mode collapse.
 
 ## Modes

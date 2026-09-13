@@ -2,11 +2,15 @@
 name: vault-manifest-refresh
 description: "Force-regenerate the vault manifest cache (~/vault/.vault-bridge/manifest.json), bypassing the staleness check. Invoke via /vault-manifest-refresh."
 allowed-tools: Bash
-disable-model-invocation: true
 effort: low
 ---
 
 Force-regenerate the vault manifest by running the manifest generator with `--force`.
+
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
 **User language: Korean.** All user-facing output MUST be in Korean.
 

@@ -19,6 +19,11 @@ allowed-tools: Read Edit Bash WebFetch
 
 # Document Polish
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 Validate and improve existing Markdown documents while preserving original content and structure.
 
 ## Core Principle

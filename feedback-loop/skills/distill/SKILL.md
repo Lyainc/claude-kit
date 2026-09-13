@@ -8,6 +8,15 @@ effort: medium
 
 **User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) MUST be in Korean. Instructions below are English for LLM parsing.
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Use Phases 1–3 below, with these replacements: the already-landed duplicate check reads
+only the current conversation and installed plugin skill names, never `~/.claude`; confirmation
+is a normal user turn; and a confirmed proposal is printed as `Persistence unavailable in Codex:`
+followed by the proposal, then stops. Do not read Claude settings or suggest a `/add-policy`
+handoff. Claude Code ignores this section.
+
 # distill — retrospective discovery of procedural techniques (layer ⑤)
 
 `distill` closes a different half of the measure→improve loop than `retro`: where

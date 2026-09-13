@@ -20,6 +20,21 @@ effort: medium
 
 # Next Goal
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Apply this section and the vendor-neutral ranking rules below, but do not execute any later
+hook, Workflow, Agent/Skill, model-routing, or Claude `/goal` output instruction; Claude Code
+ignores this section.
+For Phase 2, name only direct checks available in the current runtime. Request an independent
+Codex subagent review only when that facility is available, otherwise perform a separate direct
+final check; never name a Claude agent type, model route, Workflow, or slash review command.
+Describe parallel work only when the current Codex runtime can delegate it, otherwise keep the
+work sequential.
+For a direct call, render `NEXT`, `POOL`, `RUNNERS`, then one plain `GOAL` paragraph — never a
+`/goal` fence. A caller cannot invoke this skill as a nested tool; it reuses those four values
+inline instead.
+
 ## Language Behavior
 
 - **Instructions**: English (this file)

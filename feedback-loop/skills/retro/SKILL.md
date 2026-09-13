@@ -8,6 +8,11 @@ effort: medium
 
 **User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) MUST be in Korean. Instructions below are English for LLM parsing.
 
+## Codex Availability
+
+In Codex, stop and report `Unsupported in Codex: retro requires Claude hook telemetry.` Do not
+apply the Claude workflow below. Claude Code ignores this section.
+
 # retro — measure → improve loop closure (layer ⑤)
 
 `retro` reads what the leaf layers already produced (the project-local

@@ -11,6 +11,11 @@ effort: medium
 exception**: the user's own stance/voice document, so read it first and write in its language.
 ([reference.md](reference.md) §0)
 
+## Codex Availability
+
+In Codex, stop and report `Unsupported in Codex: add-policy writes Claude rules, hooks, and
+skills under ~/.claude.` Do not apply the Claude workflow below. Claude Code ignores this section.
+
 # add-policy — the landfill engine (layer ⑤)
 
 `add-policy` is the **landfill half** of the recursive-improvement loop: it answers **"where

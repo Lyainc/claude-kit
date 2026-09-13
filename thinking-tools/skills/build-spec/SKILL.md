@@ -14,6 +14,11 @@ effort: medium
 
 # Build Spec
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 ## Language Behavior
 
 - **Instructions**: English (optimized for LLM parsing)

@@ -18,6 +18,12 @@ effort: low
 
 # Issue Authoring
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+Keep Phase 3's approval gate as a normal user turn before `gh issue create`.
+
 ## Language Behavior
 
 - **Instructions**: English (optimized for LLM parsing)

@@ -7,6 +7,11 @@ allowed-tools: Read Write Bash Glob AskUserQuestion
 
 **User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 Create a new Obsidian Bases view file at `~/vault/notes/{view-name}.base` for `$ARGUMENTS`.
 
 A `.base` file is a **pure-YAML view definition** that renders a live table/cards/list over the vault's enforced frontmatter (`type` / `created` / `tags` / `provenance`). It is **new-file-only**: this skill writes a brand-new `.base` file and NEVER reads, edits, or overwrites any existing `.md` note. See `../../reference/obsidian-bases-schema.md` for the version-pinned `.base` schema.

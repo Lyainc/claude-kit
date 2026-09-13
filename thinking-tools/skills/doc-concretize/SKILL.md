@@ -18,6 +18,11 @@ effort: medium
 
 # Document Concretization
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 Transform abstract concepts into concrete, well-structured documentation through recursive writing and rigorous verification.
 
 ## Language Behavior

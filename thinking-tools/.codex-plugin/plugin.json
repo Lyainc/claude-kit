@@ -1,0 +1,27 @@
+{
+  "name": "thinking-tools",
+  "version": "5.1.0",
+  "description": "Structured reasoning, document, issue, and next-session planning skills for Codex.",
+  "author": {
+    "name": "Lyainc",
+    "url": "https://github.com/Lyainc"
+  },
+  "homepage": "https://github.com/Lyainc/claude-kit",
+  "repository": "https://github.com/Lyainc/claude-kit",
+  "license": "MIT",
+  "keywords": ["skills", "thinking", "reasoning", "planning", "review"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Thinking Tools",
+    "shortDescription": "Reasoning and planning skills",
+    "longDescription": "Structured reasoning, document, issue authoring, and next-session planning skills for Codex.",
+    "developerName": "Lyainc",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "websiteURL": "https://github.com/Lyainc/claude-kit",
+    "privacyPolicyURL": "https://github.com/Lyainc/claude-kit/blob/main/LICENSE",
+    "termsOfServiceURL": "https://github.com/Lyainc/claude-kit/blob/main/LICENSE",
+    "defaultPrompt": ["Find the blind spots in this plan", "Draft a GitHub issue from this request", "Choose the next session goal"],
+    "brandColor": "#2563EB"
+  }
+}

@@ -5,13 +5,14 @@ The Version Sync Rule (CLAUDE.md): for every plugin, the `version`, `description
 and `keywords` fields in `.claude-plugin/marketplace.json` MUST equal the same fields
 in that plugin's `{source}/.claude-plugin/plugin.json`. The plugin `name` must match too.
 
-This is a BLOCK guard: any drift, missing portable root manifest, or an unresolvable
+This is a BLOCK guard: any drift, missing portable root/Codex manifest, or an unresolvable
 plugin.json a marketplace entry points at exits non-zero, so a release that would ship
 divergent manifests is stopped in CI before merge.
 
 The Claude `.claude-plugin/plugin.json` is the source of truth; --fix rewrites Claude
 marketplace entries to match. Root portable `plugin.json` metadata is independent except
-for the name/version lockstep check below.
+for the name/version lockstep check below. The Codex `.codex-plugin/plugin.json` has the
+same name/version lockstep requirement.
 
 Usage:
     python3 scripts/check-version-sync.py [--root DIR] [--json] [--self-test] [--fix]
@@ -98,10 +99,14 @@ def check_root(root):
             os.path.join(root, source, ".claude-plugin", "plugin.json")
         )
         portable_path = os.path.normpath(os.path.join(root, source, "plugin.json"))
+        codex_path = os.path.normpath(
+            os.path.join(root, source, ".codex-plugin", "plugin.json")
+        )
         plugin_status = {
             "name": name,
             "plugin_json": pj_path,
             "portable_plugin_json": portable_path,
+            "codex_plugin_json": codex_path,
             "drifts": [],
         }
 
@@ -141,6 +146,24 @@ def check_root(root):
             ok = False
             continue
 
+        if not os.path.isfile(codex_path):
+            msg = f"[{name}] Codex plugin.json not found at {codex_path}"
+            report["violations"].append(msg)
+            plugin_status["error"] = "Codex plugin.json not found"
+            report["plugins"].append(plugin_status)
+            ok = False
+            continue
+
+        try:
+            codex_json = _load_json(codex_path)
+        except (json.JSONDecodeError, OSError) as exc:
+            msg = f"[{name}] Codex plugin.json unreadable: {exc}"
+            report["violations"].append(msg)
+            plugin_status["error"] = "Codex plugin.json unreadable"
+            report["plugins"].append(plugin_status)
+            ok = False
+            continue
+
         for field in ("name", "version"):
             if plugin_json.get(field) != portable_json.get(field):
                 report["violations"].append(
@@ -151,6 +174,17 @@ def check_root(root):
                     "field": field,
                     "claude_plugin_json": plugin_json.get(field),
                     "portable_plugin_json": portable_json.get(field),
+                })
+                ok = False
+            if plugin_json.get(field) != codex_json.get(field):
+                report["violations"].append(
+                    f"[{name}] {field} drift: Claude={plugin_json.get(field)!r} "
+                    f"!= Codex={codex_json.get(field)!r}"
+                )
+                plugin_status["drifts"].append({
+                    "field": field,
+                    "claude_plugin_json": plugin_json.get(field),
+                    "codex_plugin_json": codex_json.get(field),
                 })
                 ok = False
 
@@ -248,12 +282,15 @@ def run_self_test():
     # Test --fix reconciles drift on a real fixture (plugin.json wins).
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(os.path.join(tmpdir, "demo", ".claude-plugin"))
+        os.makedirs(os.path.join(tmpdir, "demo", ".codex-plugin"))
         with open(os.path.join(tmpdir, "demo", "plugin.json"), "w") as fh:
             json.dump({"name": "demo", "version": "2.0.0"}, fh)
         os.makedirs(os.path.join(tmpdir, ".claude-plugin"))
         with open(os.path.join(tmpdir, "demo", ".claude-plugin", "plugin.json"), "w") as fh:
             json.dump({"name": "demo", "version": "2.0.0",
                        "description": "new desc", "keywords": ["x", "y"]}, fh)
+        with open(os.path.join(tmpdir, "demo", ".codex-plugin", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "2.0.0"}, fh)
         with open(os.path.join(tmpdir, ".claude-plugin", "marketplace.json"), "w") as fh:
             json.dump({"name": "mp", "version": "1.0.0", "plugins": [
                 {"name": "demo", "version": "1.0.0", "description": "old desc",
@@ -274,6 +311,14 @@ def run_self_test():
         mp_after = _load_json(os.path.join(tmpdir, ".claude-plugin", "marketplace.json"))
         if mp_after["plugins"][0]["name"] != "demo":
             failures.append("  --fix fixture: name must not be rewritten")
+
+        # Codex is a separate install manifest: its drift must not hide behind clean
+        # Claude marketplace metadata.
+        with open(os.path.join(tmpdir, "demo", ".codex-plugin", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "2.0.1"}, fh)
+        codex_ok, _ = check_root(tmpdir)
+        if codex_ok:
+            failures.append("  Codex manifest drift: expected a blocking failure")
 
     if failures:
         print("FAIL: check-version-sync self-test")
