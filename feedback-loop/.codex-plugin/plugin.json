@@ -1,7 +1,7 @@
 {
   "name": "feedback-loop",
   "version": "5.1.0",
-  "description": "Session distillation skills for Codex; Claude hook-based telemetry workflows are unavailable.",
+  "description": "Session feedback, distillation, and durable policy storage for Codex; Claude hook enforcement remains unavailable.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -14,14 +14,14 @@
   "interface": {
     "displayName": "Feedback Loop",
     "shortDescription": "Distill reusable session techniques",
-    "longDescription": "Distill reusable techniques from a Codex session. Claude-specific policy placement and telemetry are marked unavailable.",
+    "longDescription": "Turn observable session waste into confirmed issues and land reusable policy in Codex-native instructions or skills. Claude-only hook enforcement remains unavailable.",
     "developerName": "Lyainc",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
     "websiteURL": "https://github.com/Lyainc/claude-kit",
     "privacyPolicyURL": "https://github.com/Lyainc/claude-kit/blob/main/LICENSE",
     "termsOfServiceURL": "https://github.com/Lyainc/claude-kit/blob/main/LICENSE",
-    "defaultPrompt": ["Distill this session into a reusable technique", "What reusable process did we discover?", "Explain why retro is unavailable in Codex"],
+    "defaultPrompt": ["Distill this session into a reusable technique", "What reusable process did we discover?", "Turn this session's observable waste into issue candidates"],
     "brandColor": "#D97706"
   }
 }

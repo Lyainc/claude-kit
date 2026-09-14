@@ -34,7 +34,7 @@ python3 scripts/check-version-sync.py --self-test
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (root: ...)
 python3 scripts/check-codex-portability.py
-# Expected: OK: Codex portability clean — 19 skills classified (17 supported, 2 unsupported)
+# Expected: OK: Codex portability clean — 19 skills classified (19 supported, 0 unsupported)
 # drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단.
 # marketplace.json은 plugin.json에서 derived — drift 시 `--fix`로 plugin.json 기준 동기화:
 #   python3 scripts/check-version-sync.py --fix
@@ -726,6 +726,14 @@ python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
 # Expected: OK: all 29 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
 # Expected: OK: all 7 add-policy-index-detail checks passed.
+
+# Codex feedback-loop portability regression: retro falls back to current-conversation waste,
+# distill continues confirmed proposals into Codex storage, and add-policy uses only safe Codex
+# instruction/skill paths while leaving Claude-only hook enforcement unavailable.
+python3 feedback-loop/scripts/test/test-codex-portability.py --self-test
+# Expected: OK: all 4 Codex feedback-loop portability self-test cases passed
+python3 feedback-loop/scripts/test/test-codex-portability.py
+# Expected: OK: all 3 Codex feedback-loop portability contracts passed
 
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:

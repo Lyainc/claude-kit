@@ -1,6 +1,6 @@
 ---
 name: retro
-description: "Session retro for the ⑤ execution loop: turn telemetry waste patterns and this session's own observed waste into confirmed git issues, deduped against existing open issues. Trigger: 회고, 회고해줘, 세션 회고, 낭비 탐색, retro, session retrospective, waste sweep. Routing: vault structural defects only = obsidian-vault-manager /audit; this skill is the ⑤ post-loop consumer that ACTS on telemetry output. Example: '/retro' or '회고해줘'."
+description: "Turn observed session waste and telemetry patterns into deduplicated GitHub issues. Trigger: 회고, 회고해줘, 세션 회고, 낭비 탐색, retro, session retrospective, waste sweep. Routing: use /audit for vault-only structural defects."
 model: inherit
 allowed-tools: Bash AskUserQuestion
 effort: medium
@@ -8,10 +8,15 @@ effort: medium
 
 **User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) MUST be in Korean. Instructions below are English for LLM parsing.
 
-## Codex Availability
+## Codex Portability
 
-In Codex, stop and report `Unsupported in Codex: retro requires Claude hook telemetry.` Do not
-apply the Claude workflow below. Claude Code ignores this section.
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Claude hook telemetry is unavailable in Codex. Do not run `stamp`, `report.py`,
+`sequence.py`, or `emit`; collect only the current conversation's observable waste (repeated
+failed tool calls, review rounds, and same-error retries). Keep the within-session and cached
+open-issue deduplication from Phases 1–2, use a normal user confirmation before `gh issue create`,
+and report no candidate when the conversation supplies no observable waste. Claude Code ignores
+this section.
 
 # retro — measure → improve loop closure (layer ⑤)
 

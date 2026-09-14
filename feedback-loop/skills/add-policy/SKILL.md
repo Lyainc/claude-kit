@@ -1,6 +1,6 @@
 ---
 name: add-policy
-description: "The landfill engine of the ⑤ self-improvement loop: take ONE work-policy / convention / rule — stated by the user in natural language, or handed off as a distill proposal — infer its classification, and place it in one of three native landfill sites (an always-read reminder, a deterministic hook — blocking or recovery, or an invocable skill) behind a single 1-click confirmation. Leaves every change in the working tree; never commits. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: distill (sibling) DISCOVERS what is worth keeping and emits the proposal; add-policy LANDS it — distill never fills the placement, add-policy never re-judges the rule's reuse value (it does judge whether the artifact is needed — the §6 gate). Declarative knowledge (facts/decisions) = vault /vault-save, not a policy. Example: '/add-policy' or '이 규칙 어디다 넣을지 분류해줘'."
+description: "Classify and land one user-confirmed reusable work policy as an always-read reminder, deterministic hook, or invocable skill; leaves changes uncommitted. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: use distill to discover a proposal; add-policy does not re-judge reuse value; use vault-save for declarative facts."
 model: inherit
 allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 effort: medium
@@ -11,10 +11,22 @@ effort: medium
 exception**: the user's own stance/voice document, so read it first and write in its language.
 ([reference.md](reference.md) §0)
 
-## Codex Availability
+## Codex Portability
 
-In Codex, stop and report `Unsupported in Codex: add-policy writes Claude rules, hooks, and
-skills under ~/.claude.` Do not apply the Claude workflow below. Claude Code ignores this section.
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Set `CODEX_ROOT="${CODEX_HOME:-$HOME/.codex}"`; never read or write `~/.claude`.
+
+- A SOFT reminder lands only in `$CODEX_ROOT/AGENTS.md`; read an existing file before an
+  append or explicit edit.
+- An invocable procedure lands only in `$HOME/.agents/skills/<name>/SKILL.md`; inspect an existing
+  target and preserve the user-authored-skill inviolability rule below.
+- Codex has no verified equivalent for a deterministic Claude hook. Do not create `config.toml`
+  entries or hook registrations. Offer a no-write reminder or skill alternative; without that
+  choice, report the hard-enforcement gap and stop.
+
+For either writable path, inspect the target and its parent first; a missing target may be
+created only after the existing one-click confirmation, and an unreadable or conflicting target
+stops without modification. Claude Code ignores this section.
 
 # add-policy — the landfill engine (layer ⑤)
 

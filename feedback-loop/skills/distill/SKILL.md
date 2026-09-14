@@ -1,6 +1,6 @@
 ---
 name: distill
-description: "User-confirmed DISCOVERY of REUSABLE PROCEDURAL TECHNIQUES in the current session — the discovery half of the ⑤ self-improvement loop. Judges what is class-level reusable (vs a one-off), whether an existing skill already covers it, or whether nothing is worth capturing, and emits a natural-language proposal (what / why / session-provenance / inviolability judgment); placement and authoring are the sibling add-policy landfill engine's job, not distill's. SIS-derived (claude-self-improving-skills). Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: declarative knowledge (facts/decisions/session records) = vault /vault-save, NOT distill; placing/authoring a confirmed rule = add-policy (sibling); mechanical skill authoring = skill-creator. Example: '/distill' or '이 세션 기법 증류해줘'."
+description: "Discover user-confirmed reusable procedural techniques from this session and emit a proposal; it neither writes nor places the policy. Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: use vault-save for facts and add-policy to land a confirmed rule."
 model: inherit
 allowed-tools: Read Bash Grep AskUserQuestion
 effort: medium
@@ -13,9 +13,10 @@ effort: medium
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Use Phases 1–3 below, with these replacements: the already-landed duplicate check reads
 only the current conversation and installed plugin skill names, never `~/.claude`; confirmation
-is a normal user turn; and a confirmed proposal is printed as `Persistence unavailable in Codex:`
-followed by the proposal, then stops. Do not read Claude settings or suggest a `/add-policy`
-handoff. Claude Code ignores this section.
+is a normal user turn. For every confirmed proposal, continue with `add-policy`'s Codex storage
+branch in the current context, preserving the complete proposal object and its inviolability
+judgment. `add-policy` owns a separate one-click confirmation before any write. Do not read
+Claude settings or emit a Claude slash-command handoff. Claude Code ignores this section.
 
 # distill — retrospective discovery of procedural techniques (layer ⑤)
 

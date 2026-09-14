@@ -13,7 +13,7 @@ PLUGINS = {
     "vault-bridge": {"vault-commit", "vault-link", "vault-manifest-refresh", "vault-save", "wiki"},
     "feedback-loop": {"add-policy", "distill", "retro"},
 }
-UNSUPPORTED = {("feedback-loop", "add-policy"), ("feedback-loop", "retro")}
+UNSUPPORTED = set()
 PORTABLE_MARKER = "## Codex Portability"
 UNSUPPORTED_MARKER = "## Codex Availability"
 
@@ -107,12 +107,28 @@ def check(root: Path) -> list[str]:
             errors.append("thinking-tools/next-goal: missing Codex direct-output contract")
     if issue_raise.is_file() and "normal user turn before `gh issue create`" not in issue_raise.read_text(encoding="utf-8"):
         errors.append("thinking-tools/issue-raise: missing Codex approval contract")
+    retro = root / "feedback-loop/skills/retro/SKILL.md"
+    if retro.is_file():
+        text = retro.read_text(encoding="utf-8")
+        if ("Claude hook telemetry is unavailable in Codex." not in text
+                or "current conversation's observable waste" not in text
+                or "normal user confirmation before `gh issue create`" not in text):
+            errors.append("feedback-loop/retro: missing Codex conversation-waste contract")
     distill = root / "feedback-loop/skills/distill/SKILL.md"
     if distill.is_file():
         text = distill.read_text(encoding="utf-8")
-        if ("never `~/.claude`" not in text or "Persistence unavailable in Codex:" not in text
-                or "Do not read Claude settings or suggest a `/add-policy`\nhandoff." not in text):
-            errors.append("feedback-loop/distill: missing Codex-only duplicate and handoff contract")
+        if ("never `~/.claude`" not in text
+                or "continue with `add-policy`'s Codex storage" not in text
+                or "separate one-click confirmation" not in text):
+            errors.append("feedback-loop/distill: missing Codex persistence handoff contract")
+    add_policy = root / "feedback-loop/skills/add-policy/SKILL.md"
+    if add_policy.is_file():
+        text = add_policy.read_text(encoding="utf-8")
+        if ("CODEX_ROOT=\"${CODEX_HOME:-$HOME/.codex}\"" not in text
+                or "$CODEX_ROOT/AGENTS.md" not in text
+                or "$HOME/.agents/skills/<name>/SKILL.md" not in text
+                or "Do not create `config.toml`\n  entries or hook registrations." not in text):
+            errors.append("feedback-loop/add-policy: missing safe Codex storage contract")
     return errors
 
 
@@ -125,7 +141,7 @@ def main() -> int:
         print("FAIL: Codex portability")
         print("\n".join(f"- {error}" for error in errors))
         return 1
-    print("OK: Codex portability clean — 19 skills classified (17 supported, 2 unsupported)")
+    print("OK: Codex portability clean — 19 skills classified (19 supported, 0 unsupported)")
     return 0
 
 
