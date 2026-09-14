@@ -289,15 +289,18 @@ python3 scripts/check-skill-catalogue-drift.py
 # thinning refactor with 14 false positives while the two rule-backed legs stayed clean.
 # Removed; the count check inside a present CLAUDE.md bullet is untouched (different axis).
 
-# + description-char total line (#686, always printed, both OK/FAIL paths) + a 1,536-char
-# harness listing-cap FAIL on SKILL.md description: (agents/*.md counted in the total but
-# exempt from the cap — #686 scope (2)). No new .github/workflows/validate.yml entry: both
-# commands below were already registered/run there, so the new output rides the same CI line.
+# + Codex initial-list description total (SKILL.md only: `--context-window-chars N` uses 2% of a
+# known context window; no option uses the documented 8,000-char fallback) + a 1,536-char harness
+# listing-cap FAIL per SKILL.md description:. Agents remain outside the Codex skill listing and
+# aggregate total. No new .github/workflows/validate.yml entry: both commands below were already
+# registered/run there, so the new output rides the same CI line.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 51 check-skill-token-budget self-test cases passed
+# Expected: OK: all 57 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
-#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
+#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...).
+# To verify a known host/model window: append `--context-window-chars N`; the description total
+# is then capped at `floor(N * 2 / 100)` instead of 8,000.
 
 python3 scripts/check-release-failure-notify.py --self-test
 # Expected: OK: all check-release-failure-notify self-test cases passed

@@ -77,7 +77,7 @@ meaning if the budget is ever raised or scoped.
 
 Usage:
     uv run --with tiktoken python3 scripts/check-skill-token-budget.py
-        [--root DIR] [--list] [--self-test] [--allow-estimate]
+        [--root DIR] [--context-window-chars N] [--list] [--self-test] [--allow-estimate]
 
 Exit codes: 0 = clean, 1 = violation(s) found, 2 = cannot measure (no tiktoken and no
 --allow-estimate) or nothing to measure (no SKILL.md under --root).
@@ -153,6 +153,17 @@ FRONTMATTER_RE = re.compile(r"\A---\n.*?\n(?:---|\.\.\.)\n", re.DOTALL)
 _FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 
 DESCRIPTION_CHAR_CAP = 1536  # harness listing-cap: changelog.md "raised the listing cap from 250 to 1,536 characters"
+# Codex uses 2% of a known context window for its initial skill list, or 8,000 characters
+# when that window is unknown. A source-tree guard cannot know the active host/model, so it
+# enforces the documented fallback. Agents are not skills and never enter this listing.
+CODEX_SKILL_DESCRIPTION_FALLBACK_CHAR_CAP = 8000
+
+
+def codex_skill_description_total_cap(context_window_chars=None):
+    """Return the 2%-of-context cap, or Codex's documented unknown-context fallback."""
+    if context_window_chars is None:
+        return CODEX_SKILL_DESCRIPTION_FALLBACK_CHAR_CAP
+    return context_window_chars * 2 // 100
 
 
 class _UnterminatedFrontmatter(Exception):
@@ -371,7 +382,7 @@ def _write_fixture_plugin(root: Path, body: str) -> None:
     (root / "CLAUDE.md").write_text(body)
 
 
-def _write_desc_fixture(root: Path, description: str, is_agent: bool = False) -> None:
+def _write_desc_fixture(root: Path, description: str, is_agent: bool = False, name: str = "x") -> None:
     """A minimal source plugin with ONE file carrying the given raw description: value."""
     plugin = root / "fixture-plugin"
     (plugin / ".claude-plugin").mkdir(parents=True, exist_ok=True)
@@ -380,9 +391,9 @@ def _write_desc_fixture(root: Path, description: str, is_agent: bool = False) ->
     if is_agent:
         d = plugin / "agents"
         d.mkdir(parents=True, exist_ok=True)
-        (d / "x.md").write_text(fm)
+        (d / f"{name}.md").write_text(fm)
     else:
-        d = plugin / "skills" / "x"
+        d = plugin / "skills" / name
         d.mkdir(parents=True, exist_ok=True)
         (d / "SKILL.md").write_text(fm)
 
@@ -675,6 +686,57 @@ def run_self_test() -> int:
         check(str(DESCRIPTION_CHAR_CAP) in out,
               f"description boundary: FAIL output must name {DESCRIPTION_CHAR_CAP}: {out}")
 
+    # Codex's initial list contains SKILL.md name/description/path entries, not agent
+    # frontmatter. It gets 2% of a known context window or this documented 8,000-char fallback.
+    # Keep every fixture description within the existing per-skill cap, so this exercises only
+    # the aggregate guard.
+    per_skill_cap = '"' + "x" * (DESCRIPTION_CHAR_CAP - 2) + '"'
+    fallback_cap = codex_skill_description_total_cap()
+    exact_total = '"' + "x" * (fallback_cap - 5 * DESCRIPTION_CHAR_CAP - 2) + '"'
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for i in range(5):
+            _write_desc_fixture(root, per_skill_cap, name=f"s{i}")
+        _write_desc_fixture(root, exact_total, name="exact")
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 0,
+              f"Codex listing total: exactly {fallback_cap} fallback chars must pass, got {rc}: {out}")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        for i in range(5):
+            _write_desc_fixture(root, per_skill_cap, name=f"s{i}")
+        _write_desc_fixture(root, exact_total[:-1] + "x\"", name="over")
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 1,
+              f"Codex listing total: {fallback_cap + 1} fallback chars must fail, got {rc}: {out}")
+        check(str(fallback_cap) in out,
+              f"Codex listing total: FAIL must name {fallback_cap}: {out}")
+
+    # Known context: the host supplies its actual context window, so the 2% cap replaces the
+    # fallback. Use a small fixture context to pin the exact floor calculation without guessing
+    # any model's window size.
+    known_context_chars = 5000
+    known_cap = codex_skill_description_total_cap(known_context_chars)
+    exact_known_total = '"' + "x" * (known_cap - 2) + '"'
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_desc_fixture(root, exact_known_total)
+        rc, out = run_main([
+            "--root", tmp, "--allow-estimate", "--context-window-chars", str(known_context_chars),
+        ])
+        check(rc == 0,
+              f"Codex listing total: exactly 2% of {known_context_chars} chars ({known_cap}) must pass, got {rc}: {out}")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_desc_fixture(root, exact_known_total[:-1] + "x\"")
+        rc, out = run_main([
+            "--root", tmp, "--allow-estimate", "--context-window-chars", str(known_context_chars),
+        ])
+        check(rc == 1,
+              f"Codex listing total: 2% of {known_context_chars} chars plus one must fail, got {rc}: {out}")
+        check(f"2% of {known_context_chars}-char context" in out,
+              f"Codex listing total: known-context FAIL must name its source: {out}")
+
     if failures:
         print(f"FAIL: {len(failures)} check-skill-token-budget self-test case(s) failed", file=sys.stderr)
         for line in failures:
@@ -687,6 +749,13 @@ def run_self_test() -> int:
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--root", type=Path, default=None)
+    parser.add_argument(
+        "--context-window-chars",
+        type=int,
+        default=None,
+        metavar="N",
+        help="enforce 2%% of this known Codex context window instead of the 8,000-char fallback",
+    )
     parser.add_argument("--self-test", action="store_true", help="run in-memory fixtures")
     parser.add_argument("--list", action="store_true", help="print every file's count and anchors")
     parser.add_argument(
@@ -695,6 +764,9 @@ def main(argv=None):
         help="proceed with the char-class estimate when tiktoken is unavailable (indicative only)",
     )
     args = parser.parse_args(argv)
+
+    if args.context_window_chars is not None and args.context_window_chars <= 0:
+        parser.error("--context-window-chars must be positive")
 
     if args.self_test:
         return run_self_test()
@@ -720,10 +792,17 @@ def main(argv=None):
         return 2
 
     desc_results, desc_malformed = measure_descriptions(root)
-    total_desc_chars = sum(c for _, c, _ in desc_results)
+    skill_desc_results = [(rel, c) for rel, c, is_skill in desc_results if is_skill]
+    total_desc_chars = sum(c for _, c in skill_desc_results)
+    description_total_cap = codex_skill_description_total_cap(args.context_window_chars)
+    cap_source = (
+        f"2% of {args.context_window_chars}-char context"
+        if args.context_window_chars is not None
+        else "unknown-context fallback"
+    )
     print(
-        f"description total: {total_desc_chars} chars across {len(desc_results)} file(s) "
-        f"(SKILL.md + agents/*.md description:, disable-model-invocation excluded)"
+        f"description total: {total_desc_chars} chars across {len(skill_desc_results)} SKILL.md file(s) "
+        f"(Codex initial list: {description_total_cap}-char cap from {cap_source})"
     )
     # This is the always-loaded axis only — the smallest of three real cost axes (a session's
     # own judgment, not #686's original scope): per-file BODY size is the token count this
@@ -746,7 +825,7 @@ def main(argv=None):
             print(f"{str(rel):56} ~{total:5.0f} tok  anchors={len(anchors):2} last@~{last:.0f}")
 
     offenders = [(rel, total, v) for rel, total, v in results if v]
-    if offenders or desc_offenders or desc_malformed:
+    if offenders or desc_offenders or desc_malformed or total_desc_chars > description_total_cap:
         if desc_malformed:
             print(
                 f"FAIL: {len(desc_malformed)} file(s) have frontmatter that never closes — no "
@@ -783,6 +862,18 @@ def main(argv=None):
             for rel, c in desc_offenders:
                 print(f"  {rel}: description is {c} chars (> {DESCRIPTION_CHAR_CAP})", file=sys.stderr)
             print("\nFix: shorten the description — text past the cap never reaches the model.", file=sys.stderr)
+        if total_desc_chars > description_total_cap:
+            print(
+                f"FAIL: SKILL.md description total {total_desc_chars} chars exceeds Codex's "
+                f"{description_total_cap}-char initial-list cap from {cap_source} — "
+                "the host may shorten descriptions or omit skills from the initial list.",
+                file=sys.stderr,
+            )
+            print(
+                "\nFix: shorten SKILL.md descriptions while keeping each skill's primary use and "
+                "trigger phrases first.",
+                file=sys.stderr,
+            )
         return 1
 
     worst = max(results, key=lambda r: r[1], default=None)
