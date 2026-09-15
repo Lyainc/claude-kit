@@ -7,7 +7,6 @@ description: |
 
   Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, 교정, 다듬기, 문서 사실 확인, 내용이 최신인지,
   polish, lint, fact check this doc, "이 문서 검사해줘", "README 다듬어줘", "이 설계문서 아직 맞아?".
-effort: medium
 allowed-tools: Read Edit Bash WebFetch
 ---
 

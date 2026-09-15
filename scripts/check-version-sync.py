@@ -5,14 +5,13 @@ The Version Sync Rule (CLAUDE.md): for every plugin, the `version`, `description
 and `keywords` fields in `.claude-plugin/marketplace.json` MUST equal the same fields
 in that plugin's `{source}/.claude-plugin/plugin.json`. The plugin `name` must match too.
 
-This is a BLOCK guard: any drift, missing portable root/Codex manifest, or an unresolvable
+This is a BLOCK guard: any drift, missing portable root manifest, or an unresolvable
 plugin.json a marketplace entry points at exits non-zero, so a release that would ship
 divergent manifests is stopped in CI before merge.
 
 The Claude `.claude-plugin/plugin.json` is the source of truth; --fix rewrites Claude
 marketplace entries to match. Root portable `plugin.json` metadata is independent except
-for the name/version lockstep check below. The Codex `.codex-plugin/plugin.json` has the
-same name/version lockstep requirement.
+for the name/version lockstep check below.
 
 Usage:
     python3 scripts/check-version-sync.py [--root DIR] [--json] [--self-test] [--fix]
@@ -99,9 +98,7 @@ def check_root(root):
             os.path.join(root, source, ".claude-plugin", "plugin.json")
         )
         portable_path = os.path.normpath(os.path.join(root, source, "plugin.json"))
-        codex_path = os.path.normpath(
-            os.path.join(root, source, ".codex-plugin", "plugin.json")
-        )
+        codex_path = os.path.normpath(os.path.join(root, source, ".codex-plugin", "plugin.json"))
         plugin_status = {
             "name": name,
             "plugin_json": pj_path,
@@ -128,65 +125,65 @@ def check_root(root):
             ok = False
             continue
 
+        # A missing/unreadable portable manifest is its own violation, but it must not
+        # skip the marketplace<->plugin.json compare_entry() check below (#747 review
+        # finding): that pre-existing check is independent of the portable manifest and
+        # was being masked by a `continue` here whenever the portable file was absent.
+        portable_json = None
         if not os.path.isfile(portable_path):
             msg = f"[{name}] portable plugin.json not found at {portable_path}"
             report["violations"].append(msg)
             plugin_status["error"] = "portable plugin.json not found"
-            report["plugins"].append(plugin_status)
             ok = False
-            continue
+        else:
+            try:
+                portable_json = _load_json(portable_path)
+            except (json.JSONDecodeError, OSError) as exc:
+                msg = f"[{name}] portable plugin.json unreadable: {exc}"
+                report["violations"].append(msg)
+                plugin_status["error"] = "portable plugin.json unreadable"
+                ok = False
 
-        try:
-            portable_json = _load_json(portable_path)
-        except (json.JSONDecodeError, OSError) as exc:
-            msg = f"[{name}] portable plugin.json unreadable: {exc}"
-            report["violations"].append(msg)
-            plugin_status["error"] = "portable plugin.json unreadable"
-            report["plugins"].append(plugin_status)
-            ok = False
-            continue
+        if portable_json is not None:
+            for field in ("name", "version"):
+                if plugin_json.get(field) != portable_json.get(field):
+                    report["violations"].append(
+                        f"[{name}] {field} drift: Claude={plugin_json.get(field)!r} "
+                        f"!= portable={portable_json.get(field)!r}"
+                    )
+                    plugin_status["drifts"].append({
+                        "field": field,
+                        "claude_plugin_json": plugin_json.get(field),
+                        "portable_plugin_json": portable_json.get(field),
+                    })
+                    ok = False
 
+        # Codex checks are independent too: a missing manifest must not mask marketplace drift.
+        codex_json = None
         if not os.path.isfile(codex_path):
-            msg = f"[{name}] Codex plugin.json not found at {codex_path}"
-            report["violations"].append(msg)
-            plugin_status["error"] = "Codex plugin.json not found"
-            report["plugins"].append(plugin_status)
+            report["violations"].append(f"[{name}] Codex plugin.json not found at {codex_path}")
+            plugin_status.setdefault("error", "Codex plugin.json not found")
             ok = False
-            continue
-
-        try:
-            codex_json = _load_json(codex_path)
-        except (json.JSONDecodeError, OSError) as exc:
-            msg = f"[{name}] Codex plugin.json unreadable: {exc}"
-            report["violations"].append(msg)
-            plugin_status["error"] = "Codex plugin.json unreadable"
-            report["plugins"].append(plugin_status)
-            ok = False
-            continue
-
-        for field in ("name", "version"):
-            if plugin_json.get(field) != portable_json.get(field):
-                report["violations"].append(
-                    f"[{name}] {field} drift: Claude={plugin_json.get(field)!r} "
-                    f"!= portable={portable_json.get(field)!r}"
-                )
-                plugin_status["drifts"].append({
-                    "field": field,
-                    "claude_plugin_json": plugin_json.get(field),
-                    "portable_plugin_json": portable_json.get(field),
-                })
+        else:
+            try:
+                codex_json = _load_json(codex_path)
+            except (json.JSONDecodeError, OSError) as exc:
+                report["violations"].append(f"[{name}] Codex plugin.json unreadable: {exc}")
+                plugin_status.setdefault("error", "Codex plugin.json unreadable")
                 ok = False
-            if plugin_json.get(field) != codex_json.get(field):
-                report["violations"].append(
-                    f"[{name}] {field} drift: Claude={plugin_json.get(field)!r} "
-                    f"!= Codex={codex_json.get(field)!r}"
-                )
-                plugin_status["drifts"].append({
-                    "field": field,
-                    "claude_plugin_json": plugin_json.get(field),
-                    "codex_plugin_json": codex_json.get(field),
-                })
-                ok = False
+        if codex_json is not None:
+            for field in ("name", "version"):
+                if plugin_json.get(field) != codex_json.get(field):
+                    report["violations"].append(
+                        f"[{name}] {field} drift: Claude={plugin_json.get(field)!r} "
+                        f"!= Codex={codex_json.get(field)!r}"
+                    )
+                    plugin_status["drifts"].append({
+                        "field": field,
+                        "claude_plugin_json": plugin_json.get(field),
+                        "codex_plugin_json": codex_json.get(field),
+                    })
+                    ok = False
 
         drifts = compare_entry(entry, plugin_json)
         for field, mp_val, pj_val in drifts:
@@ -283,14 +280,14 @@ def run_self_test():
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(os.path.join(tmpdir, "demo", ".claude-plugin"))
         os.makedirs(os.path.join(tmpdir, "demo", ".codex-plugin"))
+        with open(os.path.join(tmpdir, "demo", ".codex-plugin", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "2.0.0"}, fh)
         with open(os.path.join(tmpdir, "demo", "plugin.json"), "w") as fh:
             json.dump({"name": "demo", "version": "2.0.0"}, fh)
         os.makedirs(os.path.join(tmpdir, ".claude-plugin"))
         with open(os.path.join(tmpdir, "demo", ".claude-plugin", "plugin.json"), "w") as fh:
             json.dump({"name": "demo", "version": "2.0.0",
                        "description": "new desc", "keywords": ["x", "y"]}, fh)
-        with open(os.path.join(tmpdir, "demo", ".codex-plugin", "plugin.json"), "w") as fh:
-            json.dump({"name": "demo", "version": "2.0.0"}, fh)
         with open(os.path.join(tmpdir, ".claude-plugin", "marketplace.json"), "w") as fh:
             json.dump({"name": "mp", "version": "1.0.0", "plugins": [
                 {"name": "demo", "version": "1.0.0", "description": "old desc",
@@ -319,6 +316,57 @@ def run_self_test():
         codex_ok, _ = check_root(tmpdir)
         if codex_ok:
             failures.append("  Codex manifest drift: expected a blocking failure")
+
+
+    # Test portable-manifest checks don't mask the marketplace<->plugin.json drift check
+    # (regression for #747 review finding: a missing/unreadable portable manifest used to
+    # `continue` past compare_entry() entirely, hiding real drift).
+    with tempfile.TemporaryDirectory() as tmpdir:
+        os.makedirs(os.path.join(tmpdir, "demo", ".claude-plugin"))
+        os.makedirs(os.path.join(tmpdir, ".claude-plugin"))
+        with open(os.path.join(tmpdir, "demo", ".claude-plugin", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "2.0.0",
+                       "description": "new desc", "keywords": ["x", "y"]}, fh)
+        with open(os.path.join(tmpdir, ".claude-plugin", "marketplace.json"), "w") as fh:
+            json.dump({"name": "mp", "version": "1.0.0", "plugins": [
+                {"name": "demo", "version": "1.0.0", "description": "old desc",
+                 "keywords": ["x"], "source": "./demo/"}]}, fh)
+
+        # No demo/plugin.json (portable manifest) at all.
+        ok, report = check_root(tmpdir)
+        drift_fields = {d["field"] for d in report["plugins"][0]["drifts"]}
+        if ok or not {"version", "description", "keywords"} <= drift_fields:
+            failures.append(
+                f"  missing portable manifest: marketplace<->plugin.json drift was masked "
+                f"(ok={ok}, drifts={drift_fields})"
+            )
+        if report["plugins"][0].get("error") != "portable plugin.json not found":
+            failures.append("  missing portable manifest: expected its own error too")
+
+        # Portable manifest present but unreadable (bad JSON) — same masking check.
+        with open(os.path.join(tmpdir, "demo", "plugin.json"), "w") as fh:
+            fh.write("{not valid json")
+        ok2, report2 = check_root(tmpdir)
+        drift_fields2 = {d["field"] for d in report2["plugins"][0]["drifts"]}
+        if ok2 or not {"version", "description", "keywords"} <= drift_fields2:
+            failures.append(
+                f"  unreadable portable manifest: marketplace<->plugin.json drift was masked "
+                f"(ok={ok2}, drifts={drift_fields2})"
+            )
+
+        # Portable manifest present and valid, but its own name/version disagree with the
+        # Claude plugin.json — the portable-specific check this PR added.
+        with open(os.path.join(tmpdir, "demo", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "9.9.9"}, fh)
+        ok3, report3 = check_root(tmpdir)
+        portable_drift_fields = {
+            d["field"] for d in report3["plugins"][0]["drifts"] if "claude_plugin_json" in d
+        }
+        if ok3 or "version" not in portable_drift_fields:
+            failures.append(
+                f"  portable version mismatch: expected a version drift entry (ok={ok3}, "
+                f"portable_drifts={portable_drift_fields})"
+            )
 
     if failures:
         print("FAIL: check-version-sync self-test")

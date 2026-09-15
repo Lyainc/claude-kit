@@ -1,7 +1,6 @@
 ---
 name: audit
 description: "Scan the vault for structural defects and surface a triage report. Detects 9 error types: missing frontmatter (E1), missing required fields (E2), filename convention violations (E3, rename suggestion), orphan notes (E5, tag-based connection candidates), stale sources (E6), tag/property vocabulary inconsistencies (E9a/E9b deterministic; `--deep` adds E9c semantic synonym), misplaced files (E10), unstructured paths (E11), and stale/unverifiable/near-duplicate wiki pages (E12a stale/missing/unparseable `verified:`; E12c deterministic near-dup — same tags + overlapping title tokens; `--deep` adds E12b cross-page contradiction). Example: '/audit' or '/audit --deep'"
-effort: low
 allowed-tools: Read Edit Bash AskUserQuestion
 ---
 

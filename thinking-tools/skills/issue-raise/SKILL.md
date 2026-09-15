@@ -8,7 +8,6 @@ description: |
   Trigger when user mentions: 이슈 만들어줘, 이슈 저작, 버그 리포트 열어줘, 기능 제안 이슈 올려줘,
   file an issue, open a github issue, write this up as an issue.
 allowed-tools: Read Write Bash AskUserQuestion
-effort: low
 ---
 
 # Issue Authoring

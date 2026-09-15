@@ -2,7 +2,6 @@
 name: vault-commit
 description: "Commit uncommitted vault changes to git — shows a diff summary, generates a commit message, and requires user approval before committing. Invoke via /vault-commit."
 allowed-tools: Bash AskUserQuestion
-effort: low
 ---
 
 Commit uncommitted changes in the vault git repository with user approval.

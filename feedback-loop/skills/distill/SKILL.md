@@ -3,7 +3,6 @@ name: distill
 description: "Discover user-confirmed reusable procedural techniques from this session and emit a proposal; it neither writes nor places the policy. Trigger: 증류, 증류해줘, 이 기법 남길까, 재사용 기법 추출, distill, distill this technique, is this technique worth keeping, /distill. Routing: use vault-save for facts and add-policy to land a confirmed rule."
 model: inherit
 allowed-tools: Read Bash Grep AskUserQuestion
-effort: medium
 ---
 
 **User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) MUST be in Korean. Instructions below are English for LLM parsing.

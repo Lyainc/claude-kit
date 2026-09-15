@@ -8,7 +8,6 @@ description: |
   Trigger when user mentions: 다양한 아이디어, 브레인스토밍, 대안 제시, 창의적 답변, VS 기법으로,
   diverse ideas, brainstorming, alternatives, verbalized sampling,
   글로 발전시켜줘, 더 구체적으로 작성해줘, enhance, 작성 다양성.
-effort: medium
 allowed-tools: AskUserQuestion Skill
 ---
 

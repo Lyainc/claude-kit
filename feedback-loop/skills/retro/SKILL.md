@@ -3,7 +3,6 @@ name: retro
 description: "Turn observed session waste and telemetry patterns into deduplicated GitHub issues. Trigger: 회고, 회고해줘, 세션 회고, 낭비 탐색, retro, session retrospective, waste sweep. Routing: use /audit for vault-only structural defects."
 model: inherit
 allowed-tools: Bash AskUserQuestion
-effort: medium
 ---
 
 **User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) MUST be in Korean. Instructions below are English for LLM parsing.

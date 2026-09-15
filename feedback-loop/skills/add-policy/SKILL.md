@@ -3,7 +3,6 @@ name: add-policy
 description: "Classify and land one user-confirmed reusable work policy as an always-read reminder, deterministic hook, or invocable skill; leaves changes uncommitted. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: use distill to discover a proposal; add-policy does not re-judge reuse value; use vault-save for declarative facts."
 model: inherit
 allowed-tools: Read Edit Write Bash Grep AskUserQuestion
-effort: medium
 ---
 
 **User language: Korean for dialogue.** What the engine WRITES is English — the

@@ -9,7 +9,6 @@ description: |
   Trigger when user mentions: 완료조건, 다음 세션 목표, START-PROMPT, goal 조건 작성,
   다음 작업 정해줘, completion condition, next goal, what should I do next session.
 allowed-tools: Read Bash
-effort: medium
 ---
 
 # Next Goal
@@ -17,8 +16,8 @@ effort: medium
 ## Codex Portability
 
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
-first, then read [the detailed rules](reference.md). Apply this section and the vendor-neutral
-rules there, but do not execute any later
+first. Read `reference.md` only when a judgment needs its full rationale. Apply this section
+and the vendor-neutral rules below, but do not execute any later
 hook, Workflow, Agent/Skill, model-routing, or Claude `/goal` output instruction; Claude Code
 ignores this section.
 For Phase 2, name only direct checks available in the current runtime. Request an independent
@@ -72,15 +71,118 @@ the runs where the comparison set matters most. So: injected block in context �
 against `0개`), so a failed lookup is never readable as an empty backlog.
 
 The injected payload carries **data only**. Every judgment — the impact floor, when to
-re-pick, disclosing which pool the candidate came from — lives in these skill instructions, not
-the payload.
+re-pick, disclosing which pool the candidate came from — lives in this file and nowhere else.
 
 ---
 
-## Detailed Rules
+## Phase 1 — Pick (internal ranking, only the outcome is rendered)
 
-Before Phase 1, read [the detailed rules](reference.md). They are canonical for the ROI ranking,
-condition criteria, and pre-emission checks; keep the input and output contracts in this file.
+### Step 0 — Group before you narrow
+
+Cluster the follow-ups that share a file, module, theme, or epic. **Take the highest-ROI
+*group*, not the highest-ROI single item.** See `reference.md` §1 for why decomposing too fine
+is the default failure mode this step exists to prevent.
+
+### Step 1 — Floor test
+
+Ask it in the negative: **"if this were never done, what would actually be worse?"** Asked
+positively ("is this high-ROI?") the question is self-satisfying and always answers yes.
+"Nothing, it would just be tidier" is below the floor. Cleanup, wording, formatting, typos, and
+nits from review comments on this session's own PR are almost always below it.
+
+### Step 2 — Size test
+
+**Does this fill a session?** Size it against a fanned-out session (parallel subagents on
+independent pieces), not a lone linear context — the unit that fits is an epic, a module's whole
+migration, a subsystem's related work. If one context would finish the candidate in a straight
+line without delegating anything, it is below this bar: bundle, or go to step 3. Bundle only
+what shares the candidate's file, module, theme, or epic. See `reference.md` §2 for the
+cohesion-failure detail and the judgment-shaped-candidate narrowing rule.
+
+### Step 3 — Widen to the backlog
+
+Fires when the candidate fails either bar, **or** when chain depth ≥ 3. Rank the backlog by
+(1) issues that combine with what just shipped, (2) label and staleness priority. Take the wider
+unit — several backlog issues sharing one theme are one unit here. See `reference.md` §3 for why
+grouping alone cannot save a nits-only pool.
+
+### What Phase 1 renders
+
+Three fields, nothing more. The ranking that produced them is never narrated.
+
+```
+NEXT      — the pick, in one line
+POOL      — where it came from; on a switch, why the thread's own pool failed the floor
+RUNNERS   — what lost, in one line
+```
+
+Emit all three on every run, not only on a switch. Direction stays the user's, and they cannot
+overrule a choice they cannot see.
+
+Follow-ups outside the chosen group are dropped here. This skill keeps no holding area for
+in-flight decisions — anything that must survive becomes a clause inside Phase 2's sentence.
+
+---
+
+## Phase 2 — Condition (the paragraph)
+
+Fold Phase 1's candidate into one natural-language paragraph that a goal evaluator can judge.
+The evaluator judges completion **from evidence surfaced in the conversation only** — it does
+not run commands or read files on its own, so every claim the condition rests on must be
+something a session would visibly produce.
+
+### Shape it against four levers (internal only — never rendered as labels)
+
+See `reference.md` §4 for the full rationale and exact clause wording. In brief:
+
+- **L1 — falsifiable in one tool call.** Fold verification into a single wrapper or exit code.
+- **L2 — an independent review gate inside the condition.** Correctness/rule-compliance →
+  `/code-review high`; requirement gaps → `subagent_type: "thinking-tools:requirement-gap-reviewer"`
+  with an explicit base ref/diff range, "ignore style" on both calls. Never omit the type — it
+  never falls through to a generic reviewer.
+- **L3 — a turn cap.** End with `or stop after N turns`, sized for the whole unit.
+- **L4 — say the work fans out, and by which path.** Name parallel-subagent vs. hand-off, and
+  the per-branch effort mechanism (`Workflow agent()`'s `opts.effort`, an agent/skill's own
+  `effort:`) — the `Agent` tool itself takes no effort parameter.
+
+And the four elements: a single measurable end-state · the proof method · the invariant
+constraints · the turn or time cap. These inform the sentence; they never appear as labels.
+
+### Format mandate
+
+Inside the fence: **`/goal ` plus one paragraph, nothing else.** No bold labels, no separate
+fields, no blocks appended below the paragraph. Plain prose, with the relevant issue, PR, and
+file numbers woven in inline so the next session can follow those numbers to whatever background
+it needs — self-contained from the paragraph alone. Convert relative dates to absolute.
+
+**The line budget is one paragraph and it is spent.** Anything else worth carrying forward — a
+constraint to respect, a pointer to a separate pass — goes *inside* the sentence as a clause,
+never as an appended line. Appending a cold status block below the paragraph is the exact
+failure of the handoff format this replaced.
+
+### Read the emitted sentence back — mandatory checklist before emitting
+
+See `reference.md` §5 for the full rationale and failure examples. The checklist:
+
+- Must **not** end at merged / "머지한다" — merge is an irreversible step decided against
+  information this paragraph does not have.
+- Must **not** mandate "PR을 연다". If the unit is expected to close, say only that the
+  accumulated commits are ready to go up as one or more PRs, **and name the non-action in the
+  same clause** (`PR은 다음 세션이 판단하므로 이번엔 열지 않는다`).
+- Must name a depth every branch clears regardless of outcome — a condition that stays satisfied
+  when every verdict comes back negative, or every branch ends shallow, needs that clause added.
+
+This has to be an actual re-read pass over the output, not just a stated intention.
+
+### Scope check — mandatory, before emitting
+
+Verify the condition is **one cohesive unit of related work, not the smallest fragment
+mechanically extractable**. Widen until it is one coherent theme — do not merely note the risk,
+actually widen it. Then check the floor from the other side: **could one context finish this in
+a straight line?** If yes, go back and add the related work left out. Same policy as Phase 1
+step 0; this is the backstop.
+
+---
 
 ## Output format
 
@@ -111,20 +213,13 @@ garbage.
 
 ## Example
 
-```
-NEXT     · vault 폴더 재편 에픽 통째 — inbox→sources 개명(#B) + audit E4/E10 규칙 정합(#C) + manifest 스키마 갱신(#D)
-POOL     · 이번 스레드 #B + 백로그에서 같은 테마 #C·#D 합류
-RUNNERS  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 안 묶임)
-```
-
-```
-/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 병렬로 돌리되 한 갈래 안의 경로 수정 여섯 지점은 순차로 처리하고, 기계적인 경로 치환과 manifest 필드 추가는 Workflow agent() 에 effort low 로 넘기고 판정이 걸린 audit E4 규칙 재작성은 메인에서 직접 본다 — 실물을 보고 난이도가 다르면 이 배정은 바꿔도 된다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 correctness는 /code-review high 로, 요구사항 갭은 읽기 전용 fresh-context 서브에이전트로 나눠 돌려 각각 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
-```
+See `reference.md` for the worked example; load it only when needed.
 
 ---
 
 ## References
 
+- Detailed judgment rules and rationale for every §-numbered pointer above: `reference.md`.
 - `/goal` completion conditions: https://code.claude.com/docs/en/goal — conditions are capped at
   4,000 characters and the feature requires Claude Code v2.1.139+; on an older CLI a Skip renders
   cleanly instead of a broken paste.

@@ -8,7 +8,6 @@ description: |
   Trigger when user mentions: 구체화, 문서화, 체계적 정리, 개념 정리, 아이디어 문서화, 글로 정리,
   doc-concretize, concretize, "이 개념을 문서로 정리해줘".
 allowed-tools: Read AskUserQuestion WebFetch Agent
-effort: medium
 ---
 
 # Document Concretization

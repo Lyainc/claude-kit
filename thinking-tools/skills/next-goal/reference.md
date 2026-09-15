@@ -1,38 +1,24 @@
-# Next Goal Detailed Rules
+# next-goal — detailed judgment rules
 
-Read this after `SKILL.md` and before Phase 1. It is the canonical ranking and condition-writing
-procedure; `SKILL.md` retains the input and output contracts.
+Split out of `SKILL.md` (#750) to keep the always-loaded body under the runtime prompt budget.
+`SKILL.md` carries the imperative core and a compressed version of every rule below; read this
+file when a judgment call needs the full rationale, not on every invocation.
 
-## Phase 1 — Pick (internal ranking, only the outcome is rendered)
+## §1 — Step 0: why grouping happens before narrowing
 
-### Step 0 — Group before you narrow
+A candidate may bundle several related follow-ups into one wider unit; it is not mechanically
+the narrowest extractable piece. Decomposing too fine is the default failure mode, not too
+coarse. This step is where that gets prevented — the scope check at the end of Phase 2 is only
+a backstop for what slips through.
 
-Cluster the follow-ups that share a file, module, theme, or epic. **Take the highest-ROI
-*group*, not the highest-ROI single item.** A candidate may bundle several related follow-ups
-into one wider unit; it is not mechanically the narrowest extractable piece.
+## §2 — Step 2: size test detail
 
-Decomposing too fine is the default failure mode, not too coarse. This step is where that
-gets prevented — the check at the end of Phase 2 is only a backstop for what slips through.
+Impact and size are separate axes and a candidate must clear both — a ten-minute verification
+can be genuinely high-impact and still make a wasted session.
 
-### Step 1 — Floor test
-
-Ask it in the negative: **"if this were never done, what would actually be worse?"**
-
-Asked positively ("is this high-ROI?") the question is self-satisfying and always answers yes.
-"Nothing, it would just be tidier" is below the floor. Cleanup, wording, formatting, typos, and
-nits from review comments on this session's own PR are almost always below it.
-
-### Step 2 — Size test
-
-**Does this fill a session?** Impact and size are separate axes and a candidate must clear both
-— a ten-minute verification can be genuinely high-impact and still make a wasted session.
-
-**Size it against a fanned-out session, not a lone context.** A session runs parallel subagents
-on independent pieces and can hand a self-contained thread to another session entirely, so its
-capacity is several times what one linear context types. The unit that fits is an epic, a
-module's whole migration, a subsystem's related work — **worth several PRs is normal, not a
-warning sign.** If one context would finish the candidate in a straight line without delegating
-anything, it is below this bar: bundle, or go to step 3.
+A session runs parallel subagents on independent pieces and can hand a self-contained thread to
+another session entirely, so its capacity is several times what one linear context types.
+**Worth several PRs is normal, not a warning sign.**
 
 A candidate that passes the floor but not the size test is **not dropped and not taken alone**:
 bundle it with the next-best items so the session lands one real dent instead of one errand.
@@ -48,49 +34,13 @@ falsified in one tool call and Phase 2 would have to send them back. Narrow to t
 judgment produces — a drafted file, a registered issue, a landed guard — or take the work that
 consumes the design instead.
 
-### Step 3 — Widen to the backlog
+## §3 — Step 3: why grouping alone can't save a nits-only pool
 
-Fires when the candidate fails either bar, **or** when chain depth ≥ 3. Grouping alone cannot
-save a pool that holds only nits: a session that just polished one module leaves that module's
-nits behind, so ranking them by ROI still returns a nit, and the chain decays the longer it runs.
+Grouping alone cannot save a pool that holds only nits: a session that just polished one module
+leaves that module's nits behind, so ranking them by ROI still returns a nit, and the chain
+decays the longer it runs.
 
-Rank the backlog by:
-1. Issues that combine with what just shipped — context is hot, so doing it now is cheapest
-2. Label and staleness priority
-
-Take the wider unit. **Several backlog issues sharing one theme are one unit here** — a group of
-four related issues is a better pick than the single highest-ranked one, and closing them
-together is what the fanned-out capacity in step 2 is for.
-
-### What Phase 1 renders
-
-Three fields, nothing more. The ranking that produced them is never narrated.
-
-```
-NEXT      — the pick, in one line
-POOL      — where it came from; on a switch, why the thread's own pool failed the floor
-RUNNERS   — what lost, in one line
-```
-
-Emit all three on every run, not only on a switch. Direction stays the user's, and they cannot
-overrule a choice they cannot see.
-
-Follow-ups outside the chosen group are dropped here. This skill keeps no holding area for
-in-flight decisions — anything that must survive becomes a clause inside Phase 2's sentence.
-
----
-
-## Phase 2 — Condition (the paragraph)
-
-Fold Phase 1's candidate into one natural-language paragraph that a goal evaluator can judge.
-
-### What the evaluator can and cannot see
-
-A `/goal` evaluator judges completion **from evidence surfaced in the conversation**. It does
-not run commands or read files on its own. Every claim the condition rests on must therefore be
-something a session would visibly produce.
-
-### Shape it against four levers (internal only — never rendered as labels)
+## §4 — Phase 2 four levers, full detail
 
 - **L1 — falsifiable in one tool call.** Fold verification into a single wrapper or a single
   exit code. If proving completion takes six commands, the loop slows and failure modes multiply.
@@ -113,11 +63,12 @@ something a session would visibly produce.
   resolves its own base grades something different on every run). Told no range, it stops.
   A `subagent_type` the harness does not know is refused outright — it never falls through to an
   untyped spawn — so on a machine whose installed thinking-tools predates the agent, update the
-  plugin rather than dropping the type back out of the condition. Additionally attach `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` when the unit
-  traces back to a build-spec Seed: that document specializes the same three states onto the
-  Seed's `constraints[]` and `success_criteria[]`. Bound its rounds separately from L3's
-  session-wide turn cap: only unresolved blocking/should-fix findings buy another round, nits
-  get collected without spending one.
+  plugin rather than dropping the type back out of the condition. Additionally attach
+  `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` when the unit traces back to a
+  build-spec Seed: that document specializes the same three states onto the Seed's
+  `constraints[]` and `success_criteria[]`. Bound its rounds separately from L3's session-wide
+  turn cap: only unresolved blocking/should-fix findings buy another round, nits get collected
+  without spending one.
 - **L3 — a turn cap.** End with `or stop after N turns` so an unattended run cannot spin. Size N
   for the whole unit, not for one slice of it — a multi-PR unit that fans out needs room to
   finish, and a cap tuned to a single linear slice silently shrinks the work back down.
@@ -133,26 +84,7 @@ something a session would visibly produce.
   session may override — candidates are picked without opening the files, so a per-branch
   difficulty call is one session ahead of the evidence.
 
-And the four elements: a single measurable end-state · the proof method · the invariant
-constraints · the turn or time cap.
-
-These inform what goes *into* the sentence. They never appear as labels, headers, or a
-checklist in the output.
-
-### Format mandate
-
-Inside the fence: **`/goal ` plus one paragraph, nothing else.** No bold labels, no separate
-fields, no `현재상태` / `참조` blocks. Plain prose, with the relevant issue, PR, and file
-numbers woven in inline so the next session can follow those numbers to whatever background it
-needs — self-contained from the paragraph alone. Convert relative dates to absolute where a
-date matters.
-
-**The line budget is one paragraph and it is spent.** Anything else worth carrying forward — a
-constraint to respect, a pointer to a separate pass — goes *inside* the sentence as a clause,
-never as an appended line. Appending a cold status block below the paragraph is the exact
-failure of the handoff format this replaced.
-
-### Read the emitted sentence back — check before emitting
+## §5 — Read the emitted sentence back, full rationale
 
 The condition must **not** end at merged, "머지한다", or "머지하는 것으로 닫는다". Merge is an
 irreversible step decided against information this paragraph does not have.
@@ -178,18 +110,14 @@ issues still satisfies it.
 these boundaries in prose alone has been observed to fail — the check has to be an actual pass
 over the output.
 
-### Scope check — mandatory, before emitting
+## Example
 
-Verify the condition is **one cohesive unit of related work, not the smallest fragment
-mechanically extractable**. Cohesion is about theme, not size: several PRs under one epic pass,
-while two unrelated errands bundled for bulk fail. Widen until the condition is one coherent
-theme — do not merely note the risk, actually widen it.
+```
+NEXT     · vault 폴더 재편 에픽 통째 — inbox→sources 개명(#B) + audit E4/E10 규칙 정합(#C) + manifest 스키마 갱신(#D)
+POOL     · 이번 스레드 #B + 백로그에서 같은 테마 #C·#D 합류
+RUNNERS  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 안 묶임)
+```
 
-Then check the floor from the other side: **could one context finish this in a straight line?**
-If yes, it is too small — go back and add the related work you left out.
-
-This sits upstream of commit atomicity and review-sized diffs, which still apply downstream
-unchanged. It is the same policy as Phase 1 step 0; that is where the widening should already
-have happened, and this is the backstop.
-
----
+```
+/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 병렬로 돌리되 한 갈래 안의 경로 수정 여섯 지점은 순차로 처리하고, 기계적인 경로 치환과 manifest 필드 추가는 Workflow agent() 에 effort low 로 넘기고 판정이 걸린 audit E4 규칙 재작성은 메인에서 직접 본다 — 실물을 보고 난이도가 다르면 이 배정은 바꿔도 된다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 correctness는 /code-review high 로, 요구사항 갭은 읽기 전용 fresh-context 서브에이전트로 나눠 돌려 각각 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
+```

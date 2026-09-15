@@ -152,6 +152,14 @@ FRONTMATTER_RE = re.compile(r"\A---\n.*?\n(?:---|\.\.\.)\n", re.DOTALL)
 
 _FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 
+# #751: a skill frontmatter effort: differing from session ambient regenerates the whole
+# main-context messages cache on every call. agents/*.md is exempt on purpose — a subagent
+# runs in its own context, never touching the main cache.
+# `[ \t]*`, not `\s*` — `\s*` crosses the newline, so a bare `effort:` immediately followed
+# by the closing fence or another key would have its first non-space character misread as
+# an on-the-same-line value (same bug class check-effort-field.py's EFFORT_KEY_RE avoids).
+EFFORT_RE = re.compile(r"^effort:[ \t]*\S", re.MULTILINE)
+
 DESCRIPTION_CHAR_CAP = 1536  # harness listing-cap: changelog.md "raised the listing cap from 250 to 1,536 characters"
 # Codex uses 2% of a known context window for its initial skill list, or 8,000 characters
 # when that window is unknown. A source-tree guard cannot know the active host/model, so it
@@ -290,6 +298,23 @@ def measure_descriptions(root: Path):
                 continue
             out.append((agent.relative_to(root), len(span) if span else 0, False))
     return out, malformed
+
+
+def find_skill_effort_overrides(root: Path):
+    """Return rel paths of `*/skills/*/SKILL.md` files whose frontmatter sets `effort:`.
+
+    Informational only (#751) — never turns main()'s exit code non-zero. Scope matches
+    measure_descriptions(): source plugins only, SKILL.md only (agents/*.md is exempt).
+    """
+    hits = []
+    for manifest in sorted(root.glob("*/.claude-plugin/plugin.json")):
+        plugin = manifest.parent.parent
+        for skill in sorted(plugin.glob("skills/*/SKILL.md")):
+            text = skill.read_text(encoding="utf-8")
+            fm = FRONTMATTER_RE.match(text)
+            if fm and EFFORT_RE.search(fm.group(0)):
+                hits.append(skill.relative_to(root))
+    return hits
 
 
 def find_anchors(text: str):
@@ -736,6 +761,30 @@ def run_self_test() -> int:
               f"Codex listing total: 2% of {known_context_chars} chars plus one must fail, got {rc}: {out}")
         check(f"2% of {known_context_chars}-char context" in out,
               f"Codex listing total: known-context FAIL must name its source: {out}")
+    # #751: a skill's own frontmatter effort: is flagged (informational only, never fails
+    # the build); the identical key in agents/*.md is exempt — a subagent's own context
+    # never touches the main messages cache.
+    with tempfile.TemporaryDirectory() as tmp:
+        effort_body = "---\nname: x\neffort: low\n---\n\nBody.\n"
+        _write_fixture_plugin(Path(tmp), effort_body)
+        hits = find_skill_effort_overrides(Path(tmp))
+        check(
+            [str(p) for p in hits] == ["fixture-plugin/skills/x/SKILL.md"],
+            f"#751: expected only the skill's effort: flagged, got {hits}",
+        )
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 0, f"#751: a flagged effort: must not fail the build, got rc={rc}: {out}")
+        check("effort:" in out, f"#751: the warning must mention effort: — {out}")
+
+    # #751 (/code-review high finding, reproduced live): EFFORT_RE must not cross the
+    # newline after `effort:` — a bare key with no value, immediately followed by the
+    # closing fence or another key, must NOT be misread as a same-line value.
+    check(not EFFORT_RE.search("---\nname: x\neffort:\n---\n"),
+          "#751: a bare effort: right before the closing fence must not match")
+    check(not EFFORT_RE.search("---\nname: x\neffort:\nmodel: haiku\n---\n"),
+          "#751: a bare effort: right before another key must not match")
+    check(bool(EFFORT_RE.search("---\nname: x\neffort: low\n---\n")),
+          "#751: a real same-line value must still match")
 
     if failures:
         print(f"FAIL: {len(failures)} check-skill-token-budget self-test case(s) failed", file=sys.stderr)
@@ -816,6 +865,16 @@ def main(argv=None):
         "feedback-loop/scripts/report.py (skill_lifecycle_view / agent_spawn_distribution_view)"
     )
     desc_offenders = [(rel, c) for rel, c, is_skill in desc_results if is_skill and c > DESCRIPTION_CHAR_CAP]
+
+    effort_hits = find_skill_effort_overrides(root)
+    if effort_hits:
+        print(
+            f"  ! {len(effort_hits)} skill(s) set frontmatter effort: — regenerates the main "
+            f"messages cache on every call when it differs from session ambient (#751); move "
+            f"it to the agent's own effort: or Workflow agent()'s opts.effort instead:"
+        )
+        for rel in effort_hits:
+            print(f"    {rel}")
 
     if args.list:
         for rel, total, _ in results:
