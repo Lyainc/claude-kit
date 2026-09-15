@@ -92,13 +92,16 @@ python3 scripts/check-agent-tools-field.py
 python3 scripts/check-effort-field.py --self-test
 # Expected: OK: all check-effort-field self-test cases passed
 python3 scripts/check-effort-field.py
-# Expected: OK: all N skill(s)/agent(s) declare `effort:`
-# #648 BLOCK guard: same shape as check-agent-tools-field.py above, widened to
-# */skills/*/SKILL.md + */agents/*.md and the `effort:` key. Without it, a skill/agent
-# inherits the whole session's effort dial instead of a value tuned to what it actually
-# does — #448 established effort-over-model-tier, but 11 skills and all 4 agents shipped
-# with no `effort:` at all. Key existence + non-emptiness only; the value itself is a
-# manual judgment call (see #648's issue body).
+# Expected: OK: all N agent(s) declare `effort:`
+# #648 BLOCK guard: same shape as check-agent-tools-field.py above, for */agents/*.md and
+# the `effort:` key. Without it, an agent inherits the whole session's effort dial instead
+# of a value tuned to what it actually does — #448 established effort-over-model-tier.
+# Key existence + non-emptiness only; the value itself is a manual judgment call (see
+# #648's issue body). #648 originally mandated the same key on */skills/*/SKILL.md too;
+# #751 found that a SKILL.md effort: differing from session ambient regenerates the whole
+# main-context messages cache on every call (agents are exempt — a subagent's own context
+# never touches the main cache), so the skill side of this guard was dropped and
+# check-skill-token-budget.py now warns (never blocks) on a skill that still sets one.
 python3 scripts/check-agent-nonresponse-clause.py --self-test
 # Expected: OK: all check-agent-nonresponse-clause self-test cases passed
 python3 scripts/check-agent-nonresponse-clause.py
@@ -288,7 +291,7 @@ python3 scripts/check-skill-catalogue-drift.py
 # exempt from the cap — #686 scope (2)). No new .github/workflows/validate.yml entry: both
 # commands below were already registered/run there, so the new output rides the same CI line.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 51 check-skill-token-budget self-test cases passed
+# Expected: OK: all 57 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
 #   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
