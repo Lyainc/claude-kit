@@ -7,6 +7,7 @@ This repository packages four independent plugins: `thinking-tools`,
 - Reuse existing skills and scripts; do not add a dependency or a compatibility layer unless the current layout cannot express the need.
 - Plugin metadata is the source of truth; keep the corresponding marketplace metadata in sync. Do not bump versions outside the lockstep release workflow.
 - Use Conventional Commit messages in English and write PR descriptions in Korean. Rebase-merge by default.
+- Keep commits atomic; use machine Git policy P3 for detailed granularity guidance when available.
 - Run only the relevant commands from `docs/VALIDATION.md` for the files changed.
 - Treat Claude-only hooks, agents, and tool names as optional integrations: document or omit them for Codex unless an equivalent is verified.
 - Skill/agent shell calls that reference `${CLAUDE_PLUGIN_ROOT}` need no change: Codex sets `CLAUDE_PLUGIN_ROOT`/`CLAUDE_PLUGIN_DATA` itself for compatibility with existing plugin hooks, alongside its own `PLUGIN_ROOT`/`PLUGIN_DATA` (source: [developers.openai.com/codex/plugins/build](https://developers.openai.com/codex/plugins/build)).
