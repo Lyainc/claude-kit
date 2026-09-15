@@ -301,7 +301,7 @@ uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
 # Expected: OK: all 65 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
-#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...).
+#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
 # To verify a known host/model window: append `--context-window-chars N`; the description total
 # is then capped at `floor(N * 2 / 100)` instead of 8,000.
 
@@ -744,7 +744,7 @@ python3 feedback-loop/scripts/test/test-codex-portability.py
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
 python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
-# Expected: OK: all 9 self-test cases passed
+# Expected: OK: all 11 self-test cases passed
 # Diff trigger sets between a base ref and the working tree (exit 1 = removals found):
 python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main
 # A char-count check does NOT catch dropped triggers; ALWAYS run this when slimming

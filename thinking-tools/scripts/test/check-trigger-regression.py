@@ -61,8 +61,8 @@ def extract_triggers(skill_text: str, label: str = "") -> set[str]:
     """Pull the set of trigger phrases out of a SKILL.md's description block.
 
     Returns normalized phrases (quotes/trailing punctuation stripped). Routing
-    and Skip-for guidance lines are excluded — only the "Trigger when user
-    mentions:" enumeration is parsed.
+    and Skip-for guidance lines are excluded — only the "Trigger:" or
+    "Trigger when user mentions:" enumeration is parsed.
 
     NOTE: Only handles `description: |` block-scalar style (every current
     thinking-tools skill uses it). Folded (>) or quoted single-line
@@ -88,7 +88,7 @@ def extract_triggers(skill_text: str, label: str = "") -> set[str]:
     description = desc_match.group(1)
 
     trig_match = re.search(
-        r"Trigger when user mentions:(.*?)(?=\n\s*(?:Routing|Skip for):|\Z)",
+        r"Trigger(?: when user mentions)?:(.*?)(?=\n\s*(?:Routing|Skip for):|\Z)",
         description,
         re.DOTALL,
     )
@@ -98,7 +98,7 @@ def extract_triggers(skill_text: str, label: str = "") -> set[str]:
     blob = _CONNECTOR_RE.sub(",", trig_match.group(1))
     triggers = set()
     for raw in blob.split(","):
-        token = raw.strip('". \t')
+        token = raw.strip('". \t\r\n')
         # Drop stray guidance fragments and single-char noise.
         if not token or len(token) < 2:
             continue
@@ -214,6 +214,11 @@ body
 
     b = extract_triggers(before)
     a = extract_triggers(after)
+
+    cases.append(("compact trigger label equivalent", b == extract_triggers(
+        before.replace("Trigger when user mentions:", "Trigger:")
+    )))
+    cases.append(("multiline trigger normalized", "devil's advocate" in b))
 
     # Connector phrases must not leak in as triggers.
     cases.append(("no 'or requests' leak", "or requests:" not in " ".join(b)))
