@@ -49,7 +49,7 @@ cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null || true)
 [ -z "$cwd" ] && cwd=$(pwd)
 
 command -v python3 >/dev/null 2>&1 || exit 0
-report=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-candidate.py" --cwd "$cwd" 2>/dev/null || true)
+report=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-candidate.py" --local-only --cwd "$cwd" 2>/dev/null || true)
 [ -z "$report" ] && exit 0
 
 ctx="[next-goal 후보 풀 — 훅이 자동 주입, 요청해서 받은 게 아니에요]
