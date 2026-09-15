@@ -6,6 +6,11 @@ allowed-tools: Read Write Bash AskUserQuestion
 
 **User language: Korean.** All user-facing output (responses, AskUserQuestion prompts, generated content, file contents) MUST be in Korean.
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 Compile the domain knowledge in `$ARGUMENTS` into a page under `~/vault/wiki/` — the **A layer** of vault second-brain v5 (`docs/design/vault-second-brain-v5.md`). The wiki is plain-markdown knowledge written *for the model to read on the human's behalf* — the write target is the model, not a browsing UI, but humans remain a secondary consumer of the same pages (v5 §3); to browse them directly, use OVM `/base` rather than this skill. This skill is the **query-driven compounding** entry point: what you learned while working becomes a recall-able wiki page with near-zero friction.
 
 **This is a gated, explicit compile action — never always-on.** The gate is the explicit invocation itself (v4 §9.1 "no always-on push" is preserved). Run inline in the main context — do NOT fork to a subagent (vault writes from subagents are blocked by the Write Role Contract; `pre-write-guard.sh` denies them).

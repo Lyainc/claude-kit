@@ -98,10 +98,12 @@ def check_root(root):
             os.path.join(root, source, ".claude-plugin", "plugin.json")
         )
         portable_path = os.path.normpath(os.path.join(root, source, "plugin.json"))
+        codex_path = os.path.normpath(os.path.join(root, source, ".codex-plugin", "plugin.json"))
         plugin_status = {
             "name": name,
             "plugin_json": pj_path,
             "portable_plugin_json": portable_path,
+            "codex_plugin_json": codex_path,
             "drifts": [],
         }
 
@@ -153,6 +155,33 @@ def check_root(root):
                         "field": field,
                         "claude_plugin_json": plugin_json.get(field),
                         "portable_plugin_json": portable_json.get(field),
+                    })
+                    ok = False
+
+        # Codex checks are independent too: a missing manifest must not mask marketplace drift.
+        codex_json = None
+        if not os.path.isfile(codex_path):
+            report["violations"].append(f"[{name}] Codex plugin.json not found at {codex_path}")
+            plugin_status.setdefault("error", "Codex plugin.json not found")
+            ok = False
+        else:
+            try:
+                codex_json = _load_json(codex_path)
+            except (json.JSONDecodeError, OSError) as exc:
+                report["violations"].append(f"[{name}] Codex plugin.json unreadable: {exc}")
+                plugin_status.setdefault("error", "Codex plugin.json unreadable")
+                ok = False
+        if codex_json is not None:
+            for field in ("name", "version"):
+                if plugin_json.get(field) != codex_json.get(field):
+                    report["violations"].append(
+                        f"[{name}] {field} drift: Claude={plugin_json.get(field)!r} "
+                        f"!= Codex={codex_json.get(field)!r}"
+                    )
+                    plugin_status["drifts"].append({
+                        "field": field,
+                        "claude_plugin_json": plugin_json.get(field),
+                        "codex_plugin_json": codex_json.get(field),
                     })
                     ok = False
 
@@ -250,6 +279,9 @@ def run_self_test():
     # Test --fix reconciles drift on a real fixture (plugin.json wins).
     with tempfile.TemporaryDirectory() as tmpdir:
         os.makedirs(os.path.join(tmpdir, "demo", ".claude-plugin"))
+        os.makedirs(os.path.join(tmpdir, "demo", ".codex-plugin"))
+        with open(os.path.join(tmpdir, "demo", ".codex-plugin", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "2.0.0"}, fh)
         with open(os.path.join(tmpdir, "demo", "plugin.json"), "w") as fh:
             json.dump({"name": "demo", "version": "2.0.0"}, fh)
         os.makedirs(os.path.join(tmpdir, ".claude-plugin"))
@@ -276,6 +308,15 @@ def run_self_test():
         mp_after = _load_json(os.path.join(tmpdir, ".claude-plugin", "marketplace.json"))
         if mp_after["plugins"][0]["name"] != "demo":
             failures.append("  --fix fixture: name must not be rewritten")
+
+        # Codex is a separate install manifest: its drift must not hide behind clean
+        # Claude marketplace metadata.
+        with open(os.path.join(tmpdir, "demo", ".codex-plugin", "plugin.json"), "w") as fh:
+            json.dump({"name": "demo", "version": "2.0.1"}, fh)
+        codex_ok, _ = check_root(tmpdir)
+        if codex_ok:
+            failures.append("  Codex manifest drift: expected a blocking failure")
+
 
     # Test portable-manifest checks don't mask the marketplace<->plugin.json drift check
     # (regression for #747 review finding: a missing/unreadable portable manifest used to

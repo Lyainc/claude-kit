@@ -1,21 +1,22 @@
 ---
 name: issue-raise
 description: |
-  Author and file one GitHub issue from a single natural-language line, or from a build-spec
-  Seed handoff — no Socratic interview, no Ambiguity gate. Discovers whatever issue template
-  the repo actually ships (Markdown template, `.yml` issue form, or none) and reads its
-  sections at call time — never a hardcoded filename — runs the backlog-prefilter duplicate
-  check, and gates on user approval before `gh issue create`.
+  Author and file one GitHub issue from a natural-language request or build-spec Seed, using
+  the repository template, duplicate check, and user approval. Use build-spec first when the
+  requirements need crystallizing.
 
   Trigger when user mentions: 이슈 만들어줘, 이슈 저작, 버그 리포트 열어줘, 기능 제안 이슈 올려줘,
   file an issue, open a github issue, write this up as an issue.
-  Routing: called directly for a one-line bug/feature request; build-spec sub-calls it
-  automatically right after Seed Emit (no extra user call needed) when the user accepts the
-  "이 Seed로 GitHub 이슈를 열까요?" offer. 명세부터 굳혀야 하면 build-spec을 먼저 쓰세요.
 allowed-tools: Read Write Bash AskUserQuestion
 ---
 
 # Issue Authoring
+
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+Keep Phase 3's approval gate as a normal user turn before `gh issue create`.
 
 ## Language Behavior
 

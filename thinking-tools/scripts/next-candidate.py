@@ -237,6 +237,7 @@ def main():
     ap.add_argument("--hours", type=int, default=12, help="window for 'this session changed'")
     ap.add_argument("--commits", type=int, default=12, help="commits inspected for chain depth")
     ap.add_argument("--cwd", default=os.getcwd())
+    ap.add_argument("--local-only", action="store_true", help="collect chain data without a backlog lookup")
     args = ap.parse_args()
 
     cwd = args.cwd
@@ -249,6 +250,11 @@ def main():
         out.append(f"체인 깊이 {depth} — 최근 커밋 {depth}개가 연속으로 같은 영역({', '.join(areas)})")
         if depth >= DEPTH_ALARM:
             out.append(f"  깊이 {DEPTH_ALARM} 이상 — 같은 영역이 연속으로 이어진 구간이에요.")
+
+    if args.local_only:
+        out.append("열린 이슈: 조회 안 함 — 후보 비교가 필요할 때만 조회해요.")
+        print("\n".join(out))
+        return 0
 
     paths = changed_paths(cwd, args.hours)
     issues, reason = open_issues(cwd)

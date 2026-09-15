@@ -4,7 +4,8 @@
 claude-kit releases lockstep: every plugin shares one version, published under a
 single tag `vX.Y.Z`. This script is the one entry point that writes that version to:
 
-  - each plugin's {plugin}/plugin.json and .claude-plugin/plugin.json  ($.version)
+  - each plugin's {plugin}/plugin.json, .claude-plugin/plugin.json, and
+    .codex-plugin/plugin.json  ($.version)
   - the root marketplace.json                          ($.version)
   - each marketplace.json plugins[] entry              ($.version)
 
@@ -68,6 +69,7 @@ def manifest_paths(root):
         pjs.extend([
             os.path.join(root, d, "plugin.json"),
             os.path.join(root, d, ".claude-plugin", "plugin.json"),
+            os.path.join(root, d, ".codex-plugin", "plugin.json"),
         ])
     mp = os.path.join(root, ".claude-plugin", "marketplace.json")
     return pjs, mp
@@ -81,6 +83,9 @@ def current_versions(root):
         out[f"plugin.json:{d}"] = _read(os.path.join(root, d, "plugin.json")).get("version")
         out[f"claude-plugin.json:{d}"] = _read(
             os.path.join(root, d, ".claude-plugin", "plugin.json")
+        ).get("version")
+        out[f"codex-plugin.json:{d}"] = _read(
+            os.path.join(root, d, ".codex-plugin", "plugin.json")
         ).get("version")
     marketplace = _read(mp_path)
     out["marketplace:root"] = marketplace.get("version")
@@ -121,9 +126,12 @@ def run_self_test():
         # Build a minimal fixture mirroring the real layout.
         for d in PLUGIN_DIRS:
             os.makedirs(os.path.join(tmp, d, ".claude-plugin"))
+            os.makedirs(os.path.join(tmp, d, ".codex-plugin"))
             _write(os.path.join(tmp, d, "plugin.json"),
                    {"name": d, "version": "0.0.1"})
             _write(os.path.join(tmp, d, ".claude-plugin", "plugin.json"),
+                   {"name": d, "version": "0.0.1"})
+            _write(os.path.join(tmp, d, ".codex-plugin", "plugin.json"),
                    {"name": d, "version": "0.0.1"})
         os.makedirs(os.path.join(tmp, ".claude-plugin"))
         _write(os.path.join(tmp, ".claude-plugin", "marketplace.json"),
@@ -132,8 +140,8 @@ def run_self_test():
                             for d in PLUGIN_DIRS]})
 
         changed = apply_version(tmp, "3.0.0")
-        if changed != 9:  # 4 root + 4 Claude plugin manifests + 1 marketplace
-            failures.append(f"  expected 9 files changed, got {changed}")
+        if changed != 13:  # 4 root + 4 Claude + 4 Codex manifests + 1 marketplace
+            failures.append(f"  expected 13 files changed, got {changed}")
         versions = set(current_versions(tmp).values())
         if versions != {"3.0.0"}:
             failures.append(f"  expected all 3.0.0, got {versions}")

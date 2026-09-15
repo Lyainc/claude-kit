@@ -148,6 +148,13 @@ got="$(env PATH="$no_gh_dir" python3 "$script" --cwd "$tmp/gh" 2>/dev/null | gre
 check "an unreachable gh is reported as such, never papered over by the cache" "$got" "1"
 
 # === report ========================================================================
+# Invocation gathers local chain data only; the skill decides whether a backlog is needed.
+make_stub "echo called >> '$tmp/gh-calls'; echo '[]'"
+printf '{"tool_name":"Skill","tool_input":{"skill":"next-goal"},"cwd":"%s"}' "$tmp/gh" \
+  | env PATH="$stub_dir:$PATH" CLAUDE_PLUGIN_ROOT="$root" bash "$hook" > "$tmp/hook-local.json"
+check "invocation hook never fetches backlog" "$([ -e "$tmp/gh-calls" ] && echo called || echo none)" "none"
+check "unconsulted backlog is explicitly labelled" "$(jq -r '.hookSpecificOutput.additionalContext' "$tmp/hook-local.json" | grep -c '候補\|필요할 때만 조회')" "1"
+
 if [ "$fail" -eq 0 ]; then
   echo "OK: all ${pass} next-goal-hook cases passed"
   exit 0

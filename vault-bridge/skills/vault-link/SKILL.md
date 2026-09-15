@@ -2,10 +2,14 @@
 name: vault-link
 description: "Create or update a .vault-link pointer file that binds the current code repository to a specific vault project under ~/vault/notes/. Invoke via /vault-link."
 allowed-tools: Read Write Bash AskUserQuestion
-disable-model-invocation: true
 ---
 
 Create a `.vault-link` pointer file in the current working directory (CWD), binding this repository to a specific `~/vault/notes/` project sub-folder.
+
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
 **User language: Korean.** All user-facing output MUST be in Korean.
 

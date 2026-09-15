@@ -2,21 +2,20 @@
 name: doc-polish
 
 description: |
-  Validate and improve EXISTING Markdown documents: fix formatting, consistency, and flag quality concerns,
-  and cross-check the document's repo-checkable factual claims (issue numbers and their state, file paths,
-  script/function names, commit SHAs, "미구현"/"없음" status assertions) against the repository — report-only,
-  never auto-fixed, since a wrong fact means the content must change and this skill does not write content.
-  Output-layer md-edit adapter (format=md × intent=edit): acts as an Editor (not Writer) —
-  requires an existing MD file as input; preserves content while improving structure and readability.
-  AI 표현(LLM trope, delve/grandiose nouns 등) 제거는 doc-polish 범위 밖 — Humanize KR 같은 전용 휴머나이저를 쓰세요.
+  Report-only validation of an existing Markdown document: improve structure and cross-check
+  repository-verifiable facts; never rewrite its content. Use doc-concretize for a new document.
 
   Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, 교정, 다듬기, 문서 사실 확인, 내용이 최신인지,
   polish, lint, fact check this doc, "이 문서 검사해줘", "README 다듬어줘", "이 설계문서 아직 맞아?".
-  Routing: 새 콘텐츠를 처음부터 작성하는 건 doc-concretize (doc-polish는 기존 MD 파일 편집 전용).
 allowed-tools: Read Edit Bash WebFetch
 ---
 
 # Document Polish
+
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
 Validate and improve existing Markdown documents while preserving original content and structure.
 

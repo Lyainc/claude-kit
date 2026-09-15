@@ -22,6 +22,10 @@ python3 -m json.tool thinking-tools/plugin.json > /dev/null
 python3 -m json.tool obsidian-vault-manager/plugin.json > /dev/null
 python3 -m json.tool vault-bridge/plugin.json > /dev/null
 python3 -m json.tool feedback-loop/plugin.json > /dev/null
+python3 -m json.tool thinking-tools/.codex-plugin/plugin.json > /dev/null
+python3 -m json.tool obsidian-vault-manager/.codex-plugin/plugin.json > /dev/null
+python3 -m json.tool vault-bridge/.codex-plugin/plugin.json > /dev/null
+python3 -m json.tool feedback-loop/.codex-plugin/plugin.json > /dev/null
 python3 -m json.tool .agents/plugins/marketplace.json > /dev/null
 
 # 마켓플레이스 거버넌스 가드 (#134): version-sync drift(block) + CI 커버리지(block — #175 --strict 승격)
@@ -29,6 +33,8 @@ python3 scripts/check-version-sync.py --self-test
 # Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check)
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (root: ...)
+python3 scripts/check-codex-portability.py
+# Expected: OK: Codex portability clean — 19 skills classified (19 supported, 0 unsupported)
 # drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단.
 # marketplace.json은 plugin.json에서 derived — drift 시 `--fix`로 plugin.json 기준 동기화:
 #   python3 scripts/check-version-sync.py --fix
@@ -286,15 +292,18 @@ python3 scripts/check-skill-catalogue-drift.py
 # thinning refactor with 14 false positives while the two rule-backed legs stayed clean.
 # Removed; the count check inside a present CLAUDE.md bullet is untouched (different axis).
 
-# + description-char total line (#686, always printed, both OK/FAIL paths) + a 1,536-char
-# harness listing-cap FAIL on SKILL.md description: (agents/*.md counted in the total but
-# exempt from the cap — #686 scope (2)). No new .github/workflows/validate.yml entry: both
-# commands below were already registered/run there, so the new output rides the same CI line.
+# + Codex initial-list description total (SKILL.md only: `--context-window-chars N` uses 2% of a
+# known context window; no option uses the documented 8,000-char fallback) + a 1,536-char harness
+# listing-cap FAIL per SKILL.md description:. Agents remain outside the Codex skill listing and
+# aggregate total. No new .github/workflows/validate.yml entry: both commands below were already
+# registered/run there, so the new output rides the same CI line.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 57 check-skill-token-budget self-test cases passed
+# Expected: OK: all 65 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
 #   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
+# To verify a known host/model window: append `--context-window-chars N`; the description total
+# is then capped at `floor(N * 2 / 100)` instead of 8,000.
 
 python3 scripts/check-release-failure-notify.py --self-test
 # Expected: OK: all check-release-failure-notify self-test cases passed
@@ -724,10 +733,18 @@ python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
 python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
 # Expected: OK: all 7 add-policy-index-detail checks passed.
 
+# Codex feedback-loop portability regression: retro falls back to current-conversation waste,
+# distill continues confirmed proposals into Codex storage, and add-policy uses only safe Codex
+# instruction/skill paths while leaving Claude-only hook enforcement unavailable.
+python3 feedback-loop/scripts/test/test-codex-portability.py --self-test
+# Expected: OK: all 4 Codex feedback-loop portability self-test cases passed
+python3 feedback-loop/scripts/test/test-codex-portability.py
+# Expected: OK: all 3 Codex feedback-loop portability contracts passed
+
 # thinking-tools trigger-regression check (run after editing any SKILL.md description)
 # Self-test the extractor:
 python3 thinking-tools/scripts/test/check-trigger-regression.py --self-test
-# Expected: OK: all 9 self-test cases passed
+# Expected: OK: all 11 self-test cases passed
 # Diff trigger sets between a base ref and the working tree (exit 1 = removals found):
 python3 thinking-tools/scripts/test/check-trigger-regression.py origin/main
 # A char-count check does NOT catch dropped triggers; ALWAYS run this when slimming
@@ -834,7 +851,7 @@ bash thinking-tools/scripts/test/test-session-start-welcome.sh
 # gh를 PATH에 스텁으로 깔아 네트워크 없이 결정적으로 돈다. 페이로드가 판정문(임팩트 바닥 등)을
 # 싣지 않는지도 함께 핀 — 판정은 SKILL.md 소유고 양쪽에 두면 경계를 가로지른 중복이다.
 bash thinking-tools/scripts/test/test-next-goal-hook.sh
-# Expected: OK: all 19 next-goal-hook cases passed
+# Expected: OK: all 21 next-goal-hook cases passed
 
 # next-candidate.py chain_depth()/top_areas() unit tests (#521) — the hook test above only
 # exercises these through single-commit e2e fixtures; this asserts the edges directly:
@@ -1098,3 +1115,78 @@ bash obsidian-vault-manager/scripts/test/run-audit-dod.sh
 # Note: dod.priority_counts is informational only (P1 includes existing
 # fixture sources captures with old created: dates, varies by run date).
 ```
+
+## Paired Codex close-loop batch
+
+This is intentionally outside the standalone `## Validation` runner: it requires the separately
+checked-out `local-harness` source. It bundles source contracts, temporary HOME install, and fresh
+Codex-session prompt discovery without touching real user configuration. Runtime invocation stays
+the separately authorized smoke below.
+
+```bash
+LOCAL_HARNESS_DIR=../local-harness bash scripts/test-codex-close-loop.sh
+# Expected: PASS: Codex close-loop source, install, and discovery checks
+```
+
+## Codex runtime smoke check
+
+Run this manual check after a portability change. It refreshes only the local Codex plugin cache;
+use new ephemeral read-only sessions for the representative supported paths that session-close
+depends on.
+
+```bash
+codex plugin remove thinking-tools@Lyainc-claude-kit
+codex plugin remove obsidian-vault-manager@Lyainc-claude-kit
+codex plugin remove vault-bridge@Lyainc-claude-kit
+codex plugin remove feedback-loop@Lyainc-claude-kit
+codex plugin add thinking-tools@Lyainc-claude-kit
+codex plugin add obsidian-vault-manager@Lyainc-claude-kit
+codex plugin add vault-bridge@Lyainc-claude-kit
+codex plugin add feedback-loop@Lyainc-claude-kit
+
+codex exec --ephemeral --sandbox read-only -C "$PWD" \
+  'Use installed thinking-tools next-goal. Return exactly NEXT, POOL, RUNNERS, GOAL in Korean; no /goal fence, writes, or network.'
+codex exec --ephemeral --sandbox read-only -C "$PWD" \
+  'Use installed thinking-tools issue-raise. Do not inspect files or call tools. Do not create/write/network. Reply with exactly one Korean sentence: the normal user approval required immediately before gh issue create.'
+runtime_home="$(mktemp -d)"
+trap '/bin/rm -rf "$runtime_home"' EXIT
+HOME="$runtime_home" ../local-harness/home/bootstrap.sh --target codex
+mkdir -p "$runtime_home/.codex"
+HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex debug prompt-input \
+  'session-close discovery probe'
+HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex exec --ephemeral --sandbox read-only \
+  -C ../local-harness \
+  'Use installed session-close. Apply only its Codex adapter to a hypothetical stage ① sweep with one qualifies:true worktree, one qualifies:true plain branch, and one remote_status:fetch-failed row. Return the owner-confirmed safe actions plus NEXT, POOL, RUNNERS, GOAL. Do not write or use network.'
+```
+
+The first response must contain a plain `GOAL` field and no `/goal` fence. The second must ask for
+normal user approval before `gh issue create`. The third must list `session-close` in the rendered
+prompt and the runtime response must preserve the `qualifies: true` gate, keep `fetch-failed`
+unresolved, distinguish `worktree remove <worktree_path>` from `branch -D`, and render plain
+`NEXT`/`POOL`/`RUNNERS`/`GOAL`; no session may write the repository or use tools or network.
+
+## Paired native runtime scenario proof
+
+These opt-in checks call the currently configured model and write only new disposable fixtures
+and records. They exercise small valid work, an independent bundle, failed validation followed
+by correction, no valuable follow-up, and session-close. Run both runtimes with identical inputs;
+inspect event records as well as artifact checks. CLI/authentication failures are unsupported
+proof, never a pass. No production push, issue creation, merge or cleanup is authorized.
+
+```bash
+python3 scripts/test-native-loop.py codex --records /tmp/loop-codex-records
+python3 scripts/test-native-loop.py claude --records /tmp/loop-claude-records
+python3 scripts/test-native-hooks.py --records /tmp/loop-codex-hook-records
+# Recheck recorded event order/counts or native router feedback without another model call:
+python3 scripts/test-native-loop.py codex --records /tmp/loop-codex-records --audit-only
+python3 scripts/test-native-hooks.py --records /tmp/loop-codex-hook-records --audit-only
+```
+
+The hook check vets its own disposable source and bypasses native hook trust for that invocation
+only; it retains workspace-write tool permissions and never persists trust. Confirm deny before
+the designated file write and recovery after the safe write. Production add-policy hook outputs
+still require the existing placement approval and native trust review.
+
+Keep list-budget proof separate from invocation-body proof: the budget self-test covers both
+axes, while live records must show the selected SKILL.md's final sentence and the selected
+session-close runtime reference through its final line, without a missing preview range.

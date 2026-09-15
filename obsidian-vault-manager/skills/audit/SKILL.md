@@ -6,6 +6,11 @@ allowed-tools: Read Edit Bash AskUserQuestion
 
 **User language: Korean.** All user-facing output (responses, AskUserQuestion prompts, confirmation messages, progress lines) MUST be in Korean.
 
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+
 Scan the vault at `$VAULT_ROOT` (Phase 1 Step 1) for structural defects and produce a triage report grouped by severity.
 
 ---

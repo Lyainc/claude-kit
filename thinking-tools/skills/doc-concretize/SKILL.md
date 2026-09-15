@@ -2,20 +2,20 @@
 name: doc-concretize
 
 description: |
-  Transform abstract concepts into concrete, well-structured documentation
-  through step-by-step recursive writing, checked once by an isolated final
-  verification pass over the assembled document.
-  Output-layer md-author adapter (format=md × intent=author): creates NEW
-  markdown documents while preserving the recursive-concretization cognitive core.
-  For editing/improving an existing MD file, use doc-polish.
+  Create a new structured Markdown document through recursive concretization and a separate
+  final check; use doc-polish for existing docs and build-spec for YAML specs.
 
   Trigger when user mentions: 구체화, 문서화, 체계적 정리, 개념 정리, 아이디어 문서화, 글로 정리,
   doc-concretize, concretize, "이 개념을 문서로 정리해줘".
-  Routing: 기존 MD 파일 개선은 doc-polish, YAML 스펙 생성은 build-spec.
 allowed-tools: Read AskUserQuestion WebFetch Agent
 ---
 
 # Document Concretization
+
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
 Transform abstract concepts into concrete, well-structured documentation through recursive writing and rigorous verification.
 

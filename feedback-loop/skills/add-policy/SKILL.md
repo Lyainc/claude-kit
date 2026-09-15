@@ -1,6 +1,6 @@
 ---
 name: add-policy
-description: "The landfill engine of the ⑤ self-improvement loop: take ONE work-policy / convention / rule — stated by the user in natural language, or handed off as a distill proposal — infer its classification, and place it in one of three native landfill sites (an always-read reminder, a deterministic hook — blocking or recovery, or an invocable skill) behind a single 1-click confirmation. Leaves every change in the working tree; never commits. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: distill (sibling) DISCOVERS what is worth keeping and emits the proposal; add-policy LANDS it — distill never fills the placement, add-policy never re-judges the rule's reuse value (it does judge whether the artifact is needed — the §6 gate). Declarative knowledge (facts/decisions) = vault /vault-save, not a policy. Example: '/add-policy' or '이 규칙 어디다 넣을지 분류해줘'."
+description: "Classify and land one user-confirmed reusable work policy as an always-read reminder, deterministic hook, or invocable skill; leaves changes uncommitted. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: use distill to discover a proposal; add-policy does not re-judge reuse value; use vault-save for declarative facts."
 model: inherit
 allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 ---
@@ -9,6 +9,29 @@ allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 `~/.claude/rules` catalogue, a hook script, a skill body. **`~/.claude/CLAUDE.md` is the
 exception**: the user's own stance/voice document, so read it first and write in its language.
 ([reference.md](reference.md) §0)
+
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Set `CODEX_ROOT="${CODEX_HOME:-$HOME/.codex}"`; never read or write `~/.claude`.
+
+- For a SOFT reminder, inspect `$CODEX_ROOT/AGENTS.md` and its declared source/catalogue.
+  A work-rule updates the existing shared catalogue entry when one is available; follow its
+  detail links and keep the global file a thin pointer, without duplicate rule prose.
+  For other reminders, edit the declared managed source and include its installed copy in the
+  same exact-diff approval. Preserve symlinks; if source ownership or synchronization is unclear,
+  stop without writing. Only an unmanaged file with no applicable catalogue is edited directly.
+- An invocable procedure lands only in `$HOME/.agents/skills/<name>/SKILL.md`; inspect an existing
+  target and preserve the user-authored-skill inviolability rule below.
+- A deterministic hook lands as a script plus a merged `$CODEX_ROOT/hooks.json` definition,
+  never by replacing existing hooks. Read the [Codex hook branch](codex.md) only for this site.
+  Keep the one-click approval and inspect the current registration and script before a write.
+  Native hook trust is a separate runtime activation requirement; never silently grant trust.
+
+For each writable path, inspect the target and its parent first; a missing target may be
+created only after the existing one-click confirmation, and an unreadable or conflicting target
+stops without modification. Skip the later Claude auto-memory promotion/deletion mechanics:
+Codex-managed memory is not a writable placement site. Claude Code ignores this section.
 
 # add-policy — the landfill engine (layer ⑤)
 

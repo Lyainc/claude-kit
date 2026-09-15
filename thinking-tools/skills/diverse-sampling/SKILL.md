@@ -2,25 +2,21 @@
 name: diverse-sampling
 
 description: |
-  Generate diverse responses using Verbalized Sampling (VS) technique to overcome mode collapse.
-  Two modes: Mode A (Explore) produces multiple alternative outputs with a probability
-  distribution and selects one by strategy; Mode B (Enhance) channels the same
-  anti-mode-collapse diversity into authored prose, then sub-calls doc-concretize
-  (intra-plugin) to crystallize the chosen direction into a structured document.
+  Generate diverse prose with Verbalized Sampling: explore alternatives or enhance a chosen
+  direction through doc-concretize. Not for factual, single-answer, or code/query work.
 
   Trigger when user mentions: 다양한 아이디어, 브레인스토밍, 대안 제시, 창의적 답변, VS 기법으로,
   diverse ideas, brainstorming, alternatives, verbalized sampling,
   글로 발전시켜줘, 더 구체적으로 작성해줘, enhance, 작성 다양성.
-
-  Routing: factual questions, single-answer tasks, and code/query work (debugging OR
-  enhancement) fall outside both modes — Mode B authors prose, not code — so recommend a
-  standard response instead. For plain concretization without diverse framing, use
-  doc-concretize directly; Mode B is for when multiple authoring directions should be
-  explored first.
 allowed-tools: AskUserQuestion Skill
 ---
 
 # Diverse Sampling
+
+## Codex Portability
+
+When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
+first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
 Generate diverse responses using Verbalized Sampling technique to overcome LLM mode collapse.
 
