@@ -1164,3 +1164,29 @@ normal user approval before `gh issue create`. The third must list `session-clos
 prompt and the runtime response must preserve the `qualifies: true` gate, keep `fetch-failed`
 unresolved, distinguish `worktree remove <worktree_path>` from `branch -D`, and render plain
 `NEXT`/`POOL`/`RUNNERS`/`GOAL`; no session may write the repository or use tools or network.
+
+## Paired native runtime scenario proof
+
+These opt-in checks call the currently configured model and write only new disposable fixtures
+and records. They exercise small valid work, an independent bundle, failed validation followed
+by correction, no valuable follow-up, and session-close. Run both runtimes with identical inputs;
+inspect event records as well as artifact checks. CLI/authentication failures are unsupported
+proof, never a pass. No production push, issue creation, merge or cleanup is authorized.
+
+```bash
+python3 scripts/test-native-loop.py codex --records /tmp/loop-codex-records
+python3 scripts/test-native-loop.py claude --records /tmp/loop-claude-records
+python3 scripts/test-native-hooks.py --records /tmp/loop-codex-hook-records
+# Recheck recorded event order/counts or native router feedback without another model call:
+python3 scripts/test-native-loop.py codex --records /tmp/loop-codex-records --audit-only
+python3 scripts/test-native-hooks.py --records /tmp/loop-codex-hook-records --audit-only
+```
+
+The hook check vets its own disposable source and bypasses native hook trust for that invocation
+only; it retains workspace-write tool permissions and never persists trust. Confirm deny before
+the designated file write and recovery after the safe write. Production add-policy hook outputs
+still require the existing placement approval and native trust review.
+
+Keep list-budget proof separate from invocation-body proof: the budget self-test covers both
+axes, while live records must show the selected SKILL.md's final sentence and the selected
+session-close runtime reference through its final line, without a missing preview range.
