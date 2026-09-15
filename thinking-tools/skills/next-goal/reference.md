@@ -1,123 +1,33 @@
-# next-goal — detailed judgment rules
+# next-goal — rationale and runtime limits
 
-Split out of `SKILL.md` (#750) to keep the always-loaded body under the runtime prompt budget.
-`SKILL.md` carries the imperative core and a compressed version of every rule below; read this
-file when a judgment call needs the full rationale, not on every invocation.
+Read only when a judgment needs explanation. The binding selection and completion rules live
+in `SKILL.md`; this file does not supply a second ranking algorithm.
 
-## §1 — Step 0: why grouping happens before narrowing
+## Cohesion and value
 
-A candidate may bundle several related follow-ups into one wider unit; it is not mechanically
-the narrowest extractable piece. Decomposing too fine is the default failure mode, not too
-coarse. This step is where that gets prevented — the scope check at the end of Phase 2 is only
-a backstop for what slips through.
+Mechanically selecting the smallest fragment loses necessary related work. The opposite error
+is enlarging a valid small task solely because one context could finish it. Group by the real
+problem and its dependencies, then stop when the unit has practical value and a provable end
+state. A nits-only pool may remain empty after one backlog comparison. Unknown backlog is not
+empty backlog, and neither requires a fabricated next goal.
 
-## §2 — Step 2: size test detail
+## Evidence and bounded review
 
-Impact and size are separate axes and a candidate must clear both — a ten-minute verification
-can be genuinely high-impact and still make a wasted session.
+A repository check cannot prove the installed copy or a fresh runtime invocation. A runtime
+migration's completion condition must expose each relevant layer. Reviewer scope comes from the
+caller so separate passes grade the same diff. Review round limits count attempts across calling
+methods; an infrastructure failure is not a reason to try a new agent until something agrees.
+Use existing machine rules P9/P18 when installed; do not copy their catalogue into the goal.
 
-A session runs parallel subagents on independent pieces and can hand a self-contained thread to
-another session entirely, so its capacity is several times what one linear context types.
-**Worth several PRs is normal, not a warning sign.**
+## Runtime limits
 
-A candidate that passes the floor but not the size test is **not dropped and not taken alone**:
-bundle it with the next-best items so the session lands one real dent instead of one errand.
-
-**Bundle only what shares the candidate's file, module, theme, or epic.** An unrelated pairing
-buys size at the cost of cohesion and then fails the scope check at the end of Phase 2. When
-nothing related is in this session's pool, go to step 3 and bundle from the backlog — do not
-widen it into an incoherent pair.
-
-**Judgment-shaped candidates get narrowed here, not in Phase 2.** "Design X", "decide Y",
-"investigate Z" clear both bars but have no observable end-state, so the condition cannot be
-falsified in one tool call and Phase 2 would have to send them back. Narrow to the artifact the
-judgment produces — a drafted file, a registered issue, a landed guard — or take the work that
-consumes the design instead.
-
-## §3 — Step 3: why grouping alone can't save a nits-only pool
-
-Grouping alone cannot save a pool that holds only nits: a session that just polished one module
-leaves that module's nits behind, so ranking them by ROI still returns a nit, and the chain
-decays the longer it runs.
-
-## §4 — Phase 2 four levers, full detail
-
-- **L1 — falsifiable in one tool call.** Fold verification into a single wrapper or a single
-  exit code. If proving completion takes six commands, the loop slows and failure modes multiply.
-- **L2 — an independent review gate inside the condition.** `evaluator_passed ≠ complete`. A
-  model is the worst judge of its own output, so put a fresh-context review of the final diff
-  into the condition itself — split by scope, not one call for both. Correctness, and
-  CLAUDE.md/guard-script rule compliance, route to `/code-review high` (it already carries
-  finder → per-finding verifier, and grades repo rules by running the guards itself, #728);
-  requirement gaps route to a fresh-context subagent (native review does not know this session's
-  Seed or requirements).
-  Name that subagent's type: `subagent_type: "thinking-tools:requirement-gap-reviewer"`. The
-  methodology lives in that agent's body — requirement sourcing, three-state verdicts
-  (충족 / 미충족 / 산출물로 판단 불가), blocking/should-fix/nit severity, pre-existing defects held
-  separate — so it arrives with the type, Seed or no Seed. Omit the type and the call falls
-  through to `general-purpose`, which carries none of it and fails silently: a vanilla reviewer
-  reports "no findings" too. Say "ignore style" for both calls, or the reviewer invents gaps and
-  drives over-engineering. The agent is read-only by its own contract — no edits, no `git` state
-  changes — and it does not pick its own scope either, so the condition must say that the
-  delegation hands it the base ref or diff range (P3: the parent provides scope; a reviewer that
-  resolves its own base grades something different on every run). Told no range, it stops.
-  A `subagent_type` the harness does not know is refused outright — it never falls through to an
-  untyped spawn — so on a machine whose installed thinking-tools predates the agent, update the
-  plugin rather than dropping the type back out of the condition. Additionally attach
-  `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md` when the unit traces back to a
-  build-spec Seed: that document specializes the same three states onto the Seed's
-  `constraints[]` and `success_criteria[]`. Bound its rounds separately from L3's session-wide
-  turn cap: only unresolved blocking/should-fix findings buy another round, nits get collected
-  without spending one.
-- **L3 — a turn cap.** End with `or stop after N turns` so an unattended run cannot spin. Size N
-  for the whole unit, not for one slice of it — a multi-PR unit that fans out needs room to
-  finish, and a cap tuned to a single linear slice silently shrinks the work back down.
-- **L4 — say the work fans out, and by which path.** When pieces are independent, the condition
-  names that they run as parallel subagents (or hand off to another session), so the next session
-  does not serialize by default. Independence is the test — anything sharing a file stays
-  sequential. Name the path too, not just the fan-out: the main session's effort is one
-  session-wide dial, so the delegation unit is the only place it can be set per branch. The
-  `Agent` tool takes no effort parameter, which makes "이 갈래는 effort low로 서브에이전트에"
-  unexecutable; what does execute is a Workflow `agent()` call (`opts.effort`), a named agent
-  (its definition's `effort:` follows), a named skill (its `effort:` applies), or an
-  argument-form command like `/code-review high`. Write the assignment as a default the next
-  session may override — candidates are picked without opening the files, so a per-branch
-  difficulty call is one session ahead of the evidence.
-
-## §5 — Read the emitted sentence back, full rationale
-
-The condition must **not** end at merged, "머지한다", or "머지하는 것으로 닫는다". Merge is an
-irreversible step decided against information this paragraph does not have.
-
-Do not write "PR을 연다" into it either — opening a PR is a judgment on what has accumulated by
-then, and mandating it forces a half-unit PR.
-
-If the goal is expected to close the unit, the most it may say is that the accumulated commits
-are then ready to go up as one or more PRs (a unit this size usually splits into several) —
-**and it must say the negative out loud in the same clause**
-(`PR은 다음 세션이 판단하므로 이번엔 열지 않는다`). "Ready to go up as a PR" is not a
-self-evident stop state: an evaluator reading it infers the PR is the deliverable and returns
-not-complete on a run that did exactly what was asked. Naming the non-action makes the end state
-falsifiable instead of inferable.
-
-**Also check depth, not just breadth.** Re-read the condition's completion state: if it stays
-satisfied (a) when every verdict comes back negative, or (b) when every branch ends shallow,
-add one clause naming the depth every branch must clear regardless of outcome. A conditional
-deliverable like "채택된 항목 수만큼 이슈" demands nothing by itself — six REJECTs and zero
-issues still satisfies it.
-
-**Read the emitted sentence back for merge vocabulary and depth before showing it.** Stating
-these boundaries in prose alone has been observed to fail — the check has to be an actual pass
-over the output.
-
-## Example
-
-```
-NEXT     · vault 폴더 재편 에픽 통째 — inbox→sources 개명(#B) + audit E4/E10 규칙 정합(#C) + manifest 스키마 갱신(#D)
-POOL     · 이번 스레드 #B + 백로그에서 같은 테마 #C·#D 합류
-RUNNERS  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 안 묶임)
-```
-
-```
-/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 병렬로 돌리되 한 갈래 안의 경로 수정 여섯 지점은 순차로 처리하고, 기계적인 경로 치환과 manifest 필드 추가는 Workflow agent() 에 effort low 로 넘기고 판정이 걸린 audit E4 규칙 재작성은 메인에서 직접 본다 — 실물을 보고 난이도가 다르면 이 배정은 바꿔도 된다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 correctness는 /code-review high 로, 요구사항 갭은 읽기 전용 fresh-context 서브에이전트로 나눠 돌려 각각 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
-```
+- Claude `/goal`: 4,000 characters, requires Claude Code v2.1.139+. Confirm current support with
+  the installed CLI and [official goal documentation](https://code.claude.com/docs/en/goal).
+- Claude skill listing and invoked body are different budgets. The installed v2.1.267 code uses
+  a default 1,536-character per-description listing cap, 1% listing budget, a 5,000-token
+  per-skill compaction reattachment cap, and 25,000 tokens across reattached skills. These are
+  version-specific observations, not an initial invocation body cap of 3,000 tokens.
+- Codex starts with name/description/path, reserving at most 2% of known context or 8,000
+  characters when unknown. Selection reads the full SKILL.md. See [official skills docs](https://learn.chatgpt.com/docs/build-skills).
+- A tool's output preview may truncate a read independently. Check its truncation marker and
+  retrieve missing ranges; a clean listing-budget check cannot prove full invocation content.

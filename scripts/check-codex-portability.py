@@ -101,9 +101,9 @@ def check(root: Path) -> list[str]:
     issue_raise = root / "thinking-tools/skills/issue-raise/SKILL.md"
     if next_goal.is_file():
         text = next_goal.read_text(encoding="utf-8")
-        if ("one plain `GOAL` paragraph" not in text or "never a\n`/goal` fence" not in text
-                or "do not execute any later\nhook, Workflow, Agent/Skill, model-routing, or Claude `/goal` output instruction" not in text
-                or "never name a Claude agent type, model route, Workflow, or slash review command." not in text):
+        if ("one plain `GOAL` paragraph" not in text or "never a `/goal` fence" not in text
+                or "Do not load Claude runtime details in Codex." not in text
+                or "no nested Claude Skill call" not in text):
             errors.append("thinking-tools/next-goal: missing Codex direct-output contract")
     if issue_raise.is_file() and "normal user turn before `gh issue create`" not in issue_raise.read_text(encoding="utf-8"):
         errors.append("thinking-tools/issue-raise: missing Codex approval contract")
