@@ -57,6 +57,11 @@ Write one self-contained paragraph centered on the **problem, current state, res
 relevant files, protection conditions, and observable completion criteria**. Include authoritative
 baseline refs and unresolved facts when needed. Convert relative dates to absolute dates.
 
+Carry the caller's Git completion contract into the condition: verified work includes its
+authorized commits and push; open a PR only for a reviewable thread unit with owner authorization.
+Explicit commit/push/PR exclusions override that contract and must remain visible. A push/PR
+exclusion does not by itself exclude local commits. Never call local work published.
+
 Describe the resulting behavior and proof, not a long predetermined execution plan. Name only
 checks relevant to the scope; a wrapper is useful only if it already exists or the work needs it.
 Passing checks are not repeated without changed files, a new failure, or an unresolved material
@@ -99,5 +104,5 @@ outcome above instead of a fence.
 Before emitting, reread the actual paragraph: all required related scope is present, facts are
 supported, protections and observable proof are explicit, and no size/spawn requirement inflated
 it. A negative decision is completion only when the required investigation produced its named
-evidence. Do not mandate PR creation or merge; they require the user's authorization in the
+evidence. Do not mandate unauthorized PR creation or merge; they require the user's authorization in the
 execution session. The paragraph and any caller report must not print the pick twice.

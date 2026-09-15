@@ -105,6 +105,9 @@ def check(root: Path) -> list[str]:
                 or "Do not load Claude runtime details in Codex." not in text
                 or "no nested Claude Skill call" not in text):
             errors.append("thinking-tools/next-goal: missing Codex direct-output contract")
+        if ("caller's Git completion contract" not in text
+                or "exclusion does not by itself exclude local commits" not in text):
+            errors.append("thinking-tools/next-goal: missing caller Git completion contract")
     if issue_raise.is_file() and "normal user turn before `gh issue create`" not in issue_raise.read_text(encoding="utf-8"):
         errors.append("thinking-tools/issue-raise: missing Codex approval contract")
     retro = root / "feedback-loop/skills/retro/SKILL.md"
