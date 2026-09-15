@@ -11,7 +11,8 @@ allowed-tools: Read Bash Grep AskUserQuestion
 
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Use Phases 1–3 below, with these replacements: the already-landed duplicate check reads
-only the current conversation and installed plugin skill names, never `~/.claude`; confirmation
+the current conversation, native user/project AGENTS.md, and relevant installed skills,
+never `~/.claude`; follow only the chosen catalogue's detail links, without a recursive sweep; confirmation
 is a normal user turn. For every confirmed proposal, continue with `add-policy`'s Codex storage
 branch in the current context, preserving the complete proposal object and its inviolability
 judgment. `add-policy` owns a separate one-click confirmation before any write. Do not read

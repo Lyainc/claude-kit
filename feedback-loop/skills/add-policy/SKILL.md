@@ -15,17 +15,23 @@ exception**: the user's own stance/voice document, so read it first and write in
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Set `CODEX_ROOT="${CODEX_HOME:-$HOME/.codex}"`; never read or write `~/.claude`.
 
-- A SOFT reminder lands only in `$CODEX_ROOT/AGENTS.md`; read an existing file before an
-  append or explicit edit.
+- For a SOFT reminder, inspect `$CODEX_ROOT/AGENTS.md` and its declared source/catalogue.
+  A work-rule updates the existing shared catalogue entry when one is available; follow its
+  detail links and keep the global file a thin pointer, without duplicate rule prose.
+  For other reminders, edit the declared managed source and include its installed copy in the
+  same exact-diff approval. Preserve symlinks; if source ownership or synchronization is unclear,
+  stop without writing. Only an unmanaged file with no applicable catalogue is edited directly.
 - An invocable procedure lands only in `$HOME/.agents/skills/<name>/SKILL.md`; inspect an existing
   target and preserve the user-authored-skill inviolability rule below.
-- Codex has no verified equivalent for a deterministic Claude hook. Do not create `config.toml`
-  entries or hook registrations. Offer a no-write reminder or skill alternative; without that
-  choice, report the hard-enforcement gap and stop.
+- A deterministic hook lands as a script plus a merged `$CODEX_ROOT/hooks.json` definition,
+  never by replacing existing hooks. Read the [Codex hook branch](codex.md) only for this site.
+  Keep the one-click approval and inspect the current registration and script before a write.
+  Native hook trust is a separate runtime activation requirement; never silently grant trust.
 
-For either writable path, inspect the target and its parent first; a missing target may be
+For each writable path, inspect the target and its parent first; a missing target may be
 created only after the existing one-click confirmation, and an unreadable or conflicting target
-stops without modification. Claude Code ignores this section.
+stops without modification. Skip the later Claude auto-memory promotion/deletion mechanics:
+Codex-managed memory is not a writable placement site. Claude Code ignores this section.
 
 # add-policy — the landfill engine (layer ⑤)
 

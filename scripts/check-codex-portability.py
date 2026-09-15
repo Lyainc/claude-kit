@@ -127,7 +127,8 @@ def check(root: Path) -> list[str]:
         if ("CODEX_ROOT=\"${CODEX_HOME:-$HOME/.codex}\"" not in text
                 or "$CODEX_ROOT/AGENTS.md" not in text
                 or "$HOME/.agents/skills/<name>/SKILL.md" not in text
-                or "Do not create `config.toml`\n  entries or hook registrations." not in text):
+                or "$CODEX_ROOT/hooks.json" not in text
+                or "never silently grant trust." not in text):
             errors.append("feedback-loop/add-policy: missing safe Codex storage contract")
     return errors
 

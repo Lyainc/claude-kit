@@ -25,8 +25,12 @@ _REQUIRED = {
     "add-policy": (
         'CODEX_ROOT="${CODEX_HOME:-$HOME/.codex}"',
         "$CODEX_ROOT/AGENTS.md",
+        "existing shared catalogue entry",
+        "declared managed source",
+        "same exact-diff approval",
         "$HOME/.agents/skills/<name>/SKILL.md",
-        "Do not create `config.toml`\n  entries or hook registrations.",
+        "$CODEX_ROOT/hooks.json",
+        "never silently grant trust.",
     ),
 }
 

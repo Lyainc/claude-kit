@@ -1,7 +1,7 @@
 {
   "name": "feedback-loop",
   "version": "5.1.0",
-  "description": "Session feedback, distillation, and durable policy storage for Codex; Claude hook enforcement remains unavailable.",
+  "description": "Session feedback, distillation, and durable policy storage for Codex; Native command hooks require explicit review and trust.",
   "author": {
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
@@ -14,7 +14,7 @@
   "interface": {
     "displayName": "Feedback Loop",
     "shortDescription": "Distill reusable session techniques",
-    "longDescription": "Turn observable session waste into confirmed issues and land reusable policy in Codex-native instructions or skills. Claude-only hook enforcement remains unavailable.",
+    "longDescription": "Turn observable session waste into confirmed issues and land reusable policy in Codex-native instructions or skills. Native hook registration preserves explicit review and trust.",
     "developerName": "Lyainc",
     "category": "Productivity",
     "capabilities": ["Interactive", "Write"],
