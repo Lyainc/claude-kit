@@ -1,6 +1,6 @@
 {
   "name": "obsidian-vault-manager",
-  "version": "5.1.0",
+  "version": "5.2.0",
   "description": "Obsidian vault audit and non-destructive Bases view skills for Codex.",
   "author": {
     "name": "Lyainc",
@@ -9,7 +9,13 @@
   "homepage": "https://github.com/Lyainc/claude-kit",
   "repository": "https://github.com/Lyainc/claude-kit",
   "license": "MIT",
-  "keywords": ["obsidian", "vault", "knowledge-management", "audit", "bases"],
+  "keywords": [
+    "obsidian",
+    "vault",
+    "knowledge-management",
+    "audit",
+    "bases"
+  ],
   "skills": "./skills/",
   "interface": {
     "displayName": "Obsidian Vault Manager",
@@ -17,11 +23,18 @@
     "longDescription": "Audit an Obsidian vault and create non-destructive Bases views from Codex.",
     "developerName": "Lyainc",
     "category": "Productivity",
-    "capabilities": ["Interactive", "Write"],
+    "capabilities": [
+      "Interactive",
+      "Write"
+    ],
     "websiteURL": "https://github.com/Lyainc/claude-kit",
     "privacyPolicyURL": "https://github.com/Lyainc/claude-kit/blob/main/LICENSE",
     "termsOfServiceURL": "https://github.com/Lyainc/claude-kit/blob/main/LICENSE",
-    "defaultPrompt": ["Audit my Obsidian vault", "Create a recent notes Base", "Find structural vault defects"],
+    "defaultPrompt": [
+      "Audit my Obsidian vault",
+      "Create a recent notes Base",
+      "Find structural vault defects"
+    ],
     "brandColor": "#7C3AED"
   }
 }
