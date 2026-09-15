@@ -786,6 +786,14 @@ def run_self_test() -> int:
     check(bool(EFFORT_RE.search("---\nname: x\neffort: low\n---\n")),
           "#751: a real same-line value must still match")
 
+    # Listing and selected-body budgets are independent; neither clean axis proves the other.
+    short_listing = "---\nname: fixture\ndescription: short\n---\n" + "word " * (TOKEN_BUDGET * 3)
+    check(len(_description_span(short_listing)) < DESCRIPTION_CHAR_CAP and bool(check_text(short_listing)[1]),
+          "short listing cannot hide an over-budget selected body")
+    long_listing = "---\nname: fixture\ndescription: " + "x" * (DESCRIPTION_CHAR_CAP + 1) + "\n---\n## Rules\nKeep gates.\n"
+    check(len(_description_span(long_listing)) > DESCRIPTION_CHAR_CAP and not check_text(long_listing)[1],
+          "a compact body cannot hide an over-budget listing")
+
     if failures:
         print(f"FAIL: {len(failures)} check-skill-token-budget self-test case(s) failed", file=sys.stderr)
         for line in failures:

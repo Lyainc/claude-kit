@@ -298,7 +298,7 @@ python3 scripts/check-skill-catalogue-drift.py
 # aggregate total. No new .github/workflows/validate.yml entry: both commands below were already
 # registered/run there, so the new output rides the same CI line.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 63 check-skill-token-budget self-test cases passed
+# Expected: OK: all 65 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
 #   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...).
