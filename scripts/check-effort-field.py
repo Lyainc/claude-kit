@@ -1,29 +1,37 @@
 #!/usr/bin/env python3
-"""check-effort-field.py — every SKILL.md and agent .md must declare `effort:` (#648).
+"""check-effort-field.py — every agents/*.md must declare `effort:` (#648, narrowed by #751).
 
-RULE: every `*/skills/*/SKILL.md` and `*/agents/*.md` file's YAML frontmatter must have
-an explicit, non-empty `effort:` key. Without it, the site inherits the whole session's
-effort dial instead of a value tuned to what that skill/agent actually does — #448
-established that an effort override is preferred over a `model:` tier downgrade, but
-that lever was only filled in on 8 of 19 skills and 0 of 4 agents (#648). This is a
-BLOCK guard so a new or edited skill/agent can't silently land without one.
+RULE: every `*/agents/*.md` file's YAML frontmatter must have an explicit, non-empty
+`effort:` key. Without it, the agent inherits the whole session's effort dial instead of
+a value tuned to what it actually does — #448 established that an effort override is
+preferred over a `model:` tier downgrade. This is a BLOCK guard so a new or edited agent
+can't silently land without one.
+
+#648 originally mandated the same key on `*/skills/*/SKILL.md` too. #751 found the
+opposite is true there: a SKILL.md `effort:` that differs from the session's ambient
+effort regenerates the WHOLE main-context messages cache on every call the skill is
+invoked (measured: 83% collapse rate when the value transitions, 1-hour-TTL cache
+writes billed at 20x a read) — so a skill should OMIT `effort:` and inherit ambient
+unless it deliberately matches it. A subagent has no such cost: it runs in its own
+context, never touching the main cache, so #648's original mandate stands for agents.
 
 This only checks that the key EXISTS and is non-empty — it does not judge whether the
-value (low/medium/high/xhigh/max) is the right one for what the skill/agent does. That
+value (low/medium/high/xhigh/max) is the right one for what the agent does. That
 judgment call is manual (see #648's issue body for the reasoning behind each site's
-chosen value). Same shape as check-agent-tools-field.py (#472), widened to cover skills.
+chosen value). Same shape as check-agent-tools-field.py (#472).
 
 Usage:
     python3 scripts/check-effort-field.py [--root DIR] [--json] [--self-test]
 
     --root DIR    Repo root to check (default: git toplevel, else CWD). Scans
-                  DIR/*/skills/*/SKILL.md and DIR/*/agents/*.md.
+                  DIR/*/agents/*.md only — */skills/*/SKILL.md is #751's opposite case,
+                  checked (as a warning, not a block) by check-skill-token-budget.py.
     --json        Emit a machine-readable JSON report instead of text.
     --self-test   Validate the frontmatter-parsing logic in-memory against fixture
                   strings (missing effort:, empty effort:, present effort:) and exit 0
                   only if every case is detected as expected.
 
-Exit codes: 0 = every skill/agent has a non-empty effort: field (or --self-test passed),
+Exit codes: 0 = every agent has a non-empty effort: field (or --self-test passed),
             1 = at least one is missing it, 2 = usage error / no files found.
 """
 import argparse
@@ -53,9 +61,8 @@ def _git_toplevel():
 
 
 def find_target_files(root):
-    files = glob.glob(os.path.join(root, "*", "skills", "*", "SKILL.md"))
-    files += glob.glob(os.path.join(root, "*", "agents", "*.md"))
-    return sorted(files)
+    # #751: SKILL.md is deliberately NOT scanned here — see module docstring.
+    return sorted(glob.glob(os.path.join(root, "*", "agents", "*.md")))
 
 
 def check_effort_field(text):
@@ -87,6 +94,23 @@ def run_self_test():
         has, nonempty = check_effort_field(text)
         if (has, nonempty) != (expect_has, expect_nonempty):
             failures.append((text[:30], (has, nonempty), (expect_has, expect_nonempty)))
+    # #751: find_target_files must scan agents/*.md only — a SKILL.md with or without
+    # effort: must never appear, or this guard re-imposes the mandate #751 just lifted.
+    import tempfile
+
+    with tempfile.TemporaryDirectory() as tmp:
+        plugin = os.path.join(tmp, "fixture-plugin")
+        os.makedirs(os.path.join(plugin, "skills", "x"))
+        os.makedirs(os.path.join(plugin, "agents"))
+        with open(os.path.join(plugin, "skills", "x", "SKILL.md"), "w") as fh:
+            fh.write("---\nname: x\n---\nbody")
+        with open(os.path.join(plugin, "agents", "y.md"), "w") as fh:
+            fh.write("---\nname: y\neffort: low\n---\nbody")
+        found = find_target_files(tmp)
+        expected = [os.path.join(plugin, "agents", "y.md")]
+        if found != expected:
+            failures.append(("find_target_files scope", found, expected))
+
     if failures:
         print("FAIL: check-effort-field self-test")
         for snippet, got, want in failures:
@@ -109,7 +133,7 @@ def main():
     root = args.root or _git_toplevel() or os.getcwd()
     target_files = find_target_files(root)
     if not target_files:
-        print(f"ERROR: no */skills/*/SKILL.md or */agents/*.md files found under {root}", file=sys.stderr)
+        print(f"ERROR: no */agents/*.md files found under {root}", file=sys.stderr)
         return 2
 
     missing = []
@@ -124,11 +148,11 @@ def main():
         print(json.dumps({"checked": len(target_files), "missing_effort_field": missing}, indent=2))
     else:
         if missing:
-            print("FAIL: skills/agents missing a non-empty `effort:` frontmatter field:")
+            print("FAIL: agent(s) missing a non-empty `effort:` frontmatter field:")
             for rel in missing:
                 print(f"  {rel}")
         else:
-            print(f"OK: all {len(target_files)} skill(s)/agent(s) declare `effort:`")
+            print(f"OK: all {len(target_files)} agent(s) declare `effort:`")
 
     return 1 if missing else 0
 

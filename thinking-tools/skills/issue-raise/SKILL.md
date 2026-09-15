@@ -13,7 +13,6 @@ description: |
   automatically right after Seed Emit (no extra user call needed) when the user accepts the
   "이 Seed로 GitHub 이슈를 열까요?" offer. 명세부터 굳혀야 하면 build-spec을 먼저 쓰세요.
 allowed-tools: Read Write Bash AskUserQuestion
-effort: low
 ---
 
 # Issue Authoring

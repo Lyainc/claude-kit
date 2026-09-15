@@ -17,7 +17,6 @@ description: |
   standard response instead. For plain concretization without diverse framing, use
   doc-concretize directly; Mode B is for when multiple authoring directions should be
   explored first.
-effort: medium
 allowed-tools: AskUserQuestion Skill
 ---
 
