@@ -1149,7 +1149,7 @@ codex exec --ephemeral --sandbox read-only -C "$PWD" \
 codex exec --ephemeral --sandbox read-only -C "$PWD" \
   'Use installed thinking-tools issue-raise. Do not inspect files or call tools. Do not create/write/network. Reply with exactly one Korean sentence: the normal user approval required immediately before gh issue create.'
 runtime_home="$(mktemp -d)"
-trap '/bin/rm -rf "$runtime_home"' EXIT
+trap 'rm -rf "$runtime_home"' EXIT
 HOME="$runtime_home" ../local-harness/home/bootstrap.sh --target codex
 mkdir -p "$runtime_home/.codex"
 HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex debug prompt-input \
