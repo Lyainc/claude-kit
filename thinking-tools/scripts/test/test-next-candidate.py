@@ -204,6 +204,36 @@ def check_maintenance_ratio_near_misses() -> list[str]:
     return failures
 
 
+def check_maintenance_ratio_merge_commit() -> list[str]:
+    """A merge commit's --name-only output is empty, the same shape as the split artifact
+    before the first commit — without a non-empty per-commit marker (chain_depth's own %h),
+    a merge silently vanishes from both total and streak instead of counting as untouched."""
+    failures = []
+    cwd = _repo()
+    _commit(cwd, ["thinking-tools/skills/foo/SKILL.md"], "e1 real body")
+    base_branch = subprocess.run(
+        ["git", "symbolic-ref", "--short", "HEAD"], cwd=cwd, capture_output=True, text=True, check=True,
+    ).stdout.strip()
+    _git(cwd, "checkout", "-b", "side")
+    _commit(cwd, ["docs/x.md"], "e2 on side")
+    _git(cwd, "checkout", base_branch)
+    _git(cwd, "merge", "--no-ff", "-m", "e3 merge (touches nothing itself)", "side")
+    streak, touched, total = nc.maintenance_ratio(cwd, 3)
+    # `git log`'s default (non-topo) order interleaves the two parents' commits by date, which
+    # can put e1 before e2 when they land in the same wall-clock second — the same ordering
+    # caveat chain_depth's own docstring already documents ("will drift, not re-checked"). What
+    # this test actually pins is total == 3: the merge (e3, empty --name-only) must be counted,
+    # never silently dropped the way a bare %x00 separator (indistinguishable from the
+    # split-artifact before the first commit) used to drop it.
+    if total != 3 or touched != 1:
+        failures.append(
+            f"maintenance_ratio merge commit: expected (touched=1, total=3), got "
+            f"(streak={streak}, touched={touched}, total={total}) — a merge with an empty "
+            f"--name-only body must still count, not vanish"
+        )
+    return failures
+
+
 def check_open_issues_body_requested_only_when_needed() -> list[str]:
     """`gh issue list` must request `body` only when the caller says it needs it (#757 —
     fetching body for the whole open backlog was the dominant cost of the hook's default
@@ -253,6 +283,7 @@ def main() -> int:
         check_age_days_dst,
         check_maintenance_ratio,
         check_maintenance_ratio_near_misses,
+        check_maintenance_ratio_merge_commit,
         check_open_issues_body_requested_only_when_needed,
     ]
     failures = []

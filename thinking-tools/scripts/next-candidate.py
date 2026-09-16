@@ -123,7 +123,11 @@ def maintenance_ratio(cwd, n_commits):
     never proof the work was low-impact. Widen the predicate if that miscategorization is ever
     measured, not before.
     """
-    raw = run(["git", "log", f"-{n_commits}", "--name-only", "--pretty=format:%x00"], cwd)
+    # %h (like chain_depth's own header line) keeps every commit's block non-empty even when it
+    # changed zero files — a merge commit's --name-only output is empty, which a bare %x00
+    # separator can't tell apart from the split artifact before the first commit, silently
+    # dropping merges from both total and streak.
+    raw = run(["git", "log", f"-{n_commits}", "--name-only", "--pretty=format:%x00%h"], cwd)
     if not raw:
         return 0, 0, 0
     commits = [b.strip("\n") for b in raw.split("\x00") if b.strip("\n")]
@@ -131,7 +135,7 @@ def maintenance_ratio(cwd, n_commits):
     if not total:
         return 0, 0, 0
     touched_flags = [
-        _touches_skill_or_agent_body([f for f in block.split("\n") if f.strip()])
+        _touches_skill_or_agent_body([f for f in block.split("\n")[1:] if f.strip()])
         for block in commits
     ]
     touched = sum(1 for t in touched_flags if t)

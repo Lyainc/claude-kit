@@ -111,10 +111,12 @@ claims requiring their own evidence when the task concerns installation or runti
 For nontrivial work, require one independent final review with an explicit diff/base scope and
 requirements, ignoring style-only nits. Use the current runtime's native review capability, and
 name the requirement-gap axis explicitly (`subagent_type: "thinking-tools:requirement-gap-reviewer"`
-with the same base ref) rather than falling through to a generic reviewer. Only unresolved
-material findings justify a correction round; an infrastructure failure consumes the attempt —
-inspect the diff separately and report reduced independent evidence, never retry through another
-tool or agent. A stricter caller limit takes precedence.
+with the same base ref) rather than falling through to a generic reviewer. The condition declares
+a review-round cap, separate from its turn/time cap, shared across tools, invocation methods, and
+replacement agents — only unresolved material findings justify another round; an infrastructure
+failure consumes the attempt instead of extending it — inspect the diff separately and report
+reduced independent evidence, never retry through another tool or agent. A stricter caller limit
+takes precedence.
 
 Do not mandate delegation, a model, an effort dial, or a runtime-specific agent type. Delegation
 is an execution-time choice only for a concrete independent task with actual parallel benefit —
@@ -131,9 +133,7 @@ render the layout below on top of the caller's — that prints the pick twice in
 **Called directly**, render the three fields from Phase 1, then the condition from Phase 2, per
 the runtime rules below. Nothing follows the condition.
 
-## Runtime output
-
-### Claude Code
+## Claude Code
 
 Place `/goal ` plus the paragraph in one plain three-backtick fence, with nothing following it.
 **Never nest fences** — an inner fence inside an outer one renders as literal backticks, not a
@@ -142,11 +142,11 @@ garbage. Keep the condition within the native 4,000-character limit. On a CLI wi
 render a plain `GOAL` line instead and say the native feature is unavailable. No worthwhile
 candidate uses the no-goal outcome above instead of a fence.
 
-### Codex
+## Codex Portability
 
 Render the three pick fields, then one plain `GOAL` paragraph — never a `/goal` fence; Codex has
 no equivalent slash command to paste into. Use only available native tools and conversation
-input; no nested Claude `Skill()` call, `Workflow`, hook payload, or model-routing instruction is
+input; no nested Claude Skill call, Workflow, hook payload, or model-routing instruction is
 required or available. Do not load Claude runtime details in Codex. Use
 [the shared tool contract](../../reference/codex-portability.md) only when native tool mapping
 needs clarification.
