@@ -11,7 +11,7 @@ description: |
   guards itself and citing their output — is native's axis, not this one
   (measured, #728). This agent covers only what native structurally cannot see:
   this session's own ask (an issue's 기대 동작, a Seed, a completion condition).
-  Used by next-goal L2 and build-spec. Read-only — reports, never edits.
+  Used by next-goal's Phase 2 review requirement and build-spec. Read-only — reports, never edits.
 model: sonnet
 color: yellow
 effort: high

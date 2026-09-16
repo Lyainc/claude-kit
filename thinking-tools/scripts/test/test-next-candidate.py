@@ -171,6 +171,78 @@ def check_root_file_prefix_breaks_chain() -> list[str]:
     return failures
 
 
+def check_maintenance_ratio() -> list[str]:
+    """Streak counts consecutive non-body commits from HEAD backward, stopping at the first
+    commit that touched a SKILL.md/agents/*.md body (#755)."""
+    failures = []
+    cwd = _repo()
+    _commit(cwd, ["thinking-tools/skills/foo/SKILL.md"], "c1 touches a body")
+    _commit(cwd, ["rules/rm-guard.sh"], "c2 maintenance")
+    _commit(cwd, ["rules/other.sh"], "c3 maintenance")
+    streak, touched, total = nc.maintenance_ratio(cwd, 3)
+    if (streak, touched, total) != (2, 1, 3):
+        failures.append(f"maintenance_ratio: expected (streak=2, touched=1, total=3), got {(streak, touched, total)}")
+    return failures
+
+
+def check_maintenance_ratio_near_misses() -> list[str]:
+    """Near-miss paths must not count as a body touch: `agents.py` (not .md), `SKILL.md.bak`
+    (not exactly SKILL.md) — only a nested `agents/*.md` still counts."""
+    failures = []
+    cwd = _repo()
+    _commit(cwd, ["thinking-tools/skills/foo/SKILL.md"], "d1 real body")
+    _commit(cwd, ["thinking-tools/agents/agents.py"], "d2 near-miss: agents.py not .md")
+    _commit(cwd, ["thinking-tools/skills/foo/SKILL.md.bak"], "d3 near-miss: not exactly SKILL.md")
+    _commit(cwd, ["docs/nested/agents/reviewer.md"], "d4 real: nested agents/*.md")
+    streak, touched, total = nc.maintenance_ratio(cwd, 4)
+    # HEAD is d4, a real body touch, so the trailing streak is immediately 0.
+    if (streak, touched, total) != (0, 2, 4):
+        failures.append(
+            f"maintenance_ratio near-misses: expected (streak=0, touched=2, total=4), got "
+            f"{(streak, touched, total)}"
+        )
+    return failures
+
+
+def check_open_issues_body_requested_only_when_needed() -> list[str]:
+    """`gh issue list` must request `body` only when the caller says it needs it (#757 —
+    fetching body for the whole open backlog was the dominant cost of the hook's default
+    fetch; the hook had been fixed by skipping the fetch outright instead of lightening it).
+
+    Asserts on the actual `gh` invocation args, not on rendered prose, so a future change that
+    keeps the words right but re-widens the fetch still fails this.
+    """
+    failures = []
+    cwd = _repo()
+    _commit(cwd, ["f.txt"], "init")
+    _git(cwd, "remote", "add", "origin", "https://github.com/example/example.git")
+
+    stub_dir = tempfile.mkdtemp(prefix="test-next-candidate-stub-")
+    atexit.register(shutil.rmtree, stub_dir, ignore_errors=True)
+    calls_log = Path(stub_dir) / "calls.log"
+    stub = Path(stub_dir) / "gh"
+    stub.write_text(f'#!/usr/bin/env bash\necho "$@" >> "{calls_log}"\necho "[]"\n')
+    stub.chmod(0o755)
+
+    orig_path = os.environ.get("PATH", "")
+    try:
+        os.environ["PATH"] = f"{stub_dir}:{orig_path}"
+        nc.open_issues(cwd, want_body=False)
+        nc.open_issues(cwd, want_body=True)
+    finally:
+        os.environ["PATH"] = orig_path
+
+    calls = calls_log.read_text().splitlines() if calls_log.exists() else []
+    if len(calls) != 2:
+        failures.append(f"open_issues body gating: expected 2 gh calls, got {len(calls)}: {calls}")
+        return failures
+    if "body" in calls[0]:
+        failures.append(f"open_issues(want_body=False) requested body: {calls[0]}")
+    if "body" not in calls[1]:
+        failures.append(f"open_issues(want_body=True) did not request body: {calls[1]}")
+    return failures
+
+
 def main() -> int:
     checks = [
         check_top_areas,
@@ -179,6 +251,9 @@ def main() -> int:
         check_partial_overlap,
         check_root_file_prefix_breaks_chain,
         check_age_days_dst,
+        check_maintenance_ratio,
+        check_maintenance_ratio_near_misses,
+        check_open_issues_body_requested_only_when_needed,
     ]
     failures = []
     for check in checks:

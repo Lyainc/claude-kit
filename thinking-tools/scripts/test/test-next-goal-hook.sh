@@ -148,12 +148,22 @@ got="$(env PATH="$no_gh_dir" python3 "$script" --cwd "$tmp/gh" 2>/dev/null | gre
 check "an unreachable gh is reported as such, never papered over by the cache" "$got" "1"
 
 # === report ========================================================================
-# Invocation gathers local chain data only; the skill decides whether a backlog is needed.
+# Invocation fetches the open backlog (restored 2026-09-16, claude-kit #757 — a same-day
+# regression had the hook pass --local-only, silently turning P9's ③ reselection into an
+# alarm with nothing left to act on it). The fetch is lightened, not the removed heavy one:
+# open_issues() only requests `body` when this session actually touched paths in the window
+# (see test-next-candidate.py for that half); this fixture's own "init" commit is inside the
+# default 12h window, so body IS requested here and gh is expected to be called.
 make_stub "echo called >> '$tmp/gh-calls'; echo '[]'"
 printf '{"tool_name":"Skill","tool_input":{"skill":"next-goal"},"cwd":"%s"}' "$tmp/gh" \
   | env PATH="$stub_dir:$PATH" CLAUDE_PLUGIN_ROOT="$root" bash "$hook" > "$tmp/hook-local.json"
-check "invocation hook never fetches backlog" "$([ -e "$tmp/gh-calls" ] && echo called || echo none)" "none"
-check "unconsulted backlog is explicitly labelled" "$(jq -r '.hookSpecificOutput.additionalContext' "$tmp/hook-local.json" | grep -c '候補\|필요할 때만 조회')" "1"
+check "invocation hook fetches the backlog" "$([ -e "$tmp/gh-calls" ] && echo called || echo none)" "called"
+check "empty backlog renders as genuinely empty, not unconsulted" "$(jq -r '.hookSpecificOutput.additionalContext' "$tmp/hook-local.json" | grep -c '실제로 비어')" "1"
+
+# === 7. maintenance-ratio metric is injected (#755) ================================
+# The fixture repo's own "init" commit touched f.txt, not a SKILL.md/agents body, so the
+# metric line must appear (any repo with at least one commit has a well-defined ratio).
+check "payload carries the maintenance-ratio metric" "$(jq -r '.hookSpecificOutput.additionalContext' "$tmp/hook-local.json" | grep -c '유지보수 비율')" "1"
 
 if [ "$fail" -eq 0 ]; then
   echo "OK: all ${pass} next-goal-hook cases passed"

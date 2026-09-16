@@ -93,6 +93,56 @@ def chain_depth(cwd, n_commits):
     return depth, sorted(head_areas), [h for h, _ in commits[:depth]]
 
 
+def _touches_skill_or_agent_body(paths):
+    """A changed path is a SKILL.md file, or a `.md` file directly under an `agents/` dir.
+
+    Not a substring match — `agents.py` or a stray `SKILL.md.bak` must not count, and neither
+    should a path that merely contains "agents" as a directory name deeper in the tree
+    (`vault-bridge/scripts/agents_helper.py`).
+    """
+    for p in paths:
+        parts = p.split("/")
+        base = parts[-1]
+        if base == "SKILL.md":
+            return True
+        if len(parts) >= 2 and parts[-2] == "agents" and base.endswith(".md"):
+            return True
+    return False
+
+
+def maintenance_ratio(cwd, n_commits):
+    """Fraction of the last n_commits that touched a SKILL.md/agents/*.md body, and the
+    trailing streak of consecutive commits that did not (#755).
+
+    Same proxy the issue's own measurement used (claude-kit, last 40 commits: 14 touched a
+    skill/agent body, 24 (63%) did not — guards, scripts, docs, manifests, CI). Data only, same
+    contract as chain_depth: this script computes the number, SKILL.md decides what it means.
+
+    ponytail: this predicate's ceiling is real — a felt change to vault-bridge/scripts/* or a
+    guard script is invisible to it, so a high maintenance streak is a prompt to look closer,
+    never proof the work was low-impact. Widen the predicate if that miscategorization is ever
+    measured, not before.
+    """
+    raw = run(["git", "log", f"-{n_commits}", "--name-only", "--pretty=format:%x00"], cwd)
+    if not raw:
+        return 0, 0, 0
+    commits = [b.strip("\n") for b in raw.split("\x00") if b.strip("\n")]
+    total = len(commits)
+    if not total:
+        return 0, 0, 0
+    touched_flags = [
+        _touches_skill_or_agent_body([f for f in block.split("\n") if f.strip()])
+        for block in commits
+    ]
+    touched = sum(1 for t in touched_flags if t)
+    streak = 0
+    for t in touched_flags:
+        if t:
+            break
+        streak += 1
+    return streak, touched, total
+
+
 def changed_paths(cwd, hours):
     raw = run(["git", "log", f"--since={hours} hours ago", "--name-only", "--pretty=format:"], cwd)
     return sorted({ln.strip() for ln in raw.splitlines() if ln.strip()})
@@ -149,25 +199,34 @@ def _write_gh_cache(cwd, issues):
         pass  # the cache is an optimization, never a requirement
 
 
-def open_issues(cwd):
+def open_issues(cwd, want_body):
     """Return (issues, failure_reason). A failure is never reported as an empty backlog.
 
     "No open issues" and "could not look" lead to opposite decisions — the first says the
     backlog is genuinely exhausted, the second says nothing at all — so collapsing them into
     one blank section is how a lookup failure gets read as a clean result.
 
+    `want_body` is false whenever this session touched no paths in the window: the backlog
+    listing itself only needs number/title/labels/updatedAt, and body is the expensive field
+    (#757 — fetching it for 300 issues was most of the measured 0.6s). Only path-linking needs
+    body, so it is requested only when there is something to link against.
+
     Always fetches live — see the cache comment above for why this end-of-chain reader
-    must not trust a cache written earlier in the same chain (#638).
+    must not trust a cache written earlier in the same chain (#638). The shared cache
+    (`_write_gh_cache`) is written only for a `want_body` fetch: it is the one shape that
+    matches `gh-issues-cache.sh`'s own schema, and writing the body-less shape there would
+    silently downgrade it for retro's dedup step, which does read it.
     """
     if not has_github_remote(cwd):
         return [], "no-remote"
     if not _which("gh"):
         return [], "gh-missing"
 
+    fields = "number,title,body,labels,updatedAt" if want_body else "number,title,labels,updatedAt"
     try:
         p = subprocess.run(
             ["gh", "issue", "list", "--state", "open", "--limit", str(GH_CACHE_LIMIT),
-             "--json", "number,title,body,labels,updatedAt"],
+             "--json", fields],
             cwd=cwd, capture_output=True, text=True, timeout=15,
         )
     except Exception:
@@ -180,7 +239,8 @@ def open_issues(cwd):
     except Exception:
         return [], "gh-failed"
 
-    _write_gh_cache(cwd, issues)
+    if want_body:
+        _write_gh_cache(cwd, issues)
     return issues, None
 
 
@@ -236,6 +296,8 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--hours", type=int, default=12, help="window for 'this session changed'")
     ap.add_argument("--commits", type=int, default=12, help="commits inspected for chain depth")
+    ap.add_argument("--maintenance-commits", type=int, default=40,
+                     help="commits inspected for the SKILL.md/agents body maintenance ratio (#755)")
     ap.add_argument("--cwd", default=os.getcwd())
     ap.add_argument("--local-only", action="store_true", help="collect chain data without a backlog lookup")
     args = ap.parse_args()
@@ -251,13 +313,21 @@ def main():
         if depth >= DEPTH_ALARM:
             out.append(f"  깊이 {DEPTH_ALARM} 이상 — 같은 영역이 연속으로 이어진 구간이에요.")
 
+    streak, m_touched, m_total = maintenance_ratio(cwd, args.maintenance_commits)
+    if m_total:
+        pct = m_touched * 100 // m_total
+        out.append(
+            f"유지보수 비율 — 최근 {m_total}커밋 중 SKILL.md·agents 본문을 건드린 커밋 "
+            f"{m_touched}건({pct}%), 최근 연속 {streak}개는 그 외(가드·스크립트·문서 등)"
+        )
+
     if args.local_only:
         out.append("열린 이슈: 조회 안 함 — 후보 비교가 필요할 때만 조회해요.")
         print("\n".join(out))
         return 0
 
     paths = changed_paths(cwd, args.hours)
-    issues, reason = open_issues(cwd)
+    issues, reason = open_issues(cwd, want_body=bool(paths))
 
     if issues:
         out.append(f"\n열린 이슈 {len(issues)}개 (백로그 전체):")
