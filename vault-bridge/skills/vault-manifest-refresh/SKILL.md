@@ -1,7 +1,7 @@
 ---
 name: vault-manifest-refresh
 description: "Force-regenerate the vault manifest cache (~/vault/.vault-bridge/manifest.json), bypassing the staleness check. Invoke via /vault-manifest-refresh."
-allowed-tools: Bash
+allowed-tools: Bash Read
 ---
 
 Force-regenerate the vault manifest by running the manifest generator with `--force`.

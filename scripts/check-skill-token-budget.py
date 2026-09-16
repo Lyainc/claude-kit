@@ -300,6 +300,23 @@ def measure_descriptions(root: Path):
     return out, malformed
 
 
+def per_plugin_description_totals(skill_desc_results):
+    """Return {plugin_dir_name: total_chars} summed over skill_desc_results.
+
+    A plugin's boundary is its top-level directory (thinking-tools/, obsidian-vault-manager/,
+    vault-bridge/, feedback-loop/) — the first path segment of each SKILL.md's rel path, since
+    measure_descriptions() already scopes to SOURCE plugins only. Informational only (#758):
+    Codex installs/lists each plugin as its own unit, so the single repo-wide total this guard
+    already prints hides which plugin actually carries the weight. Never a second gate — the
+    existing aggregate check above stays the one hard block, unchanged.
+    """
+    totals: dict = {}
+    for rel, chars in skill_desc_results:
+        plugin = Path(rel).parts[0]
+        totals[plugin] = totals.get(plugin, 0) + chars
+    return totals
+
+
 def find_skill_effort_overrides(root: Path):
     """Return rel paths of `*/skills/*/SKILL.md` files whose frontmatter sets `effort:`.
 
@@ -786,6 +803,26 @@ def run_self_test() -> int:
     check(bool(EFFORT_RE.search("---\nname: x\neffort: low\n---\n")),
           "#751: a real same-line value must still match")
 
+    # Per-plugin description breakdown (#758): WARN only, never a second gate — the aggregate
+    # check above stays the sole hard block.
+    check(
+        per_plugin_description_totals(
+            [("thinking-tools/skills/a/SKILL.md", 10), ("thinking-tools/skills/b/SKILL.md", 5),
+             ("vault-bridge/skills/c/SKILL.md", 7)]
+        ) == {"thinking-tools": 15, "vault-bridge": 7},
+        "per-plugin description totals: expected sums grouped by top-level plugin dir",
+    )
+    check(per_plugin_description_totals([]) == {}, "per-plugin description totals: empty input yields empty dict")
+    with tempfile.TemporaryDirectory() as tmp:
+        root = Path(tmp)
+        _write_desc_fixture(root, '"short"')
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 0, f"per-plugin breakdown: a clean run must still exit 0, got rc={rc}: {out}")
+        check("per-plugin description chars" in out,
+              f"per-plugin breakdown: the WARN line must appear on a clean run: {out}")
+        check("fixture-plugin: " in out,
+              f"per-plugin breakdown: must name the plugin whose SKILL.md was measured: {out}")
+
     # Listing and selected-body budgets are independent; neither clean axis proves the other.
     short_listing = "---\nname: fixture\ndescription: short\n---\n" + "word " * (TOKEN_BUDGET * 3)
     check(len(_description_span(short_listing)) < DESCRIPTION_CHAR_CAP and bool(check_text(short_listing)[1]),
@@ -872,6 +909,11 @@ def main(argv=None):
         "script's own token count (--list), actual invocation count is in "
         "feedback-loop/scripts/report.py (skill_lifecycle_view / agent_spawn_distribution_view)"
     )
+    plugin_totals = per_plugin_description_totals(skill_desc_results)
+    if plugin_totals:
+        print("  ! per-plugin description chars (WARN only — Codex installs/lists each as its own unit):")
+        for plugin in sorted(plugin_totals):
+            print(f"    {plugin}: {plugin_totals[plugin]} chars")
     desc_offenders = [(rel, c) for rel, c, is_skill in desc_results if is_skill and c > DESCRIPTION_CHAR_CAP]
 
     effort_hits = find_skill_effort_overrides(root)

@@ -10,6 +10,15 @@ set. Four findings, four different harms:
     path-resolution recovery said "use AskUserQuestion" while `tools:` listed only
     Read/Bash/Glob/Grep (#577).
 
+    A second narrow exception, alongside the shell-fence one below: a body sentence of the
+    shape "read [the portability contract](../../reference/codex-portability.md)" — a markdown
+    link to a relative `.md` file — is this repo's own cross-reference convention (see this
+    file's CLAUDE.md), and following it means reading a file, which is what the `Read` tool is
+    for. Found live in 5 SKILL.md files (#758) whose Codex-portability sentence linked
+    `reference/codex-portability.md` while `allowed-tools:` omitted `Read` entirely. Only a
+    relative `.md` target counts — an `http(s)://` link is an external reference, not a file
+    this tool set reads.
+
     One narrow exception to "never infer a tool from a shell command" (#634). #611's headline
     pair — adversarial-review and expert-panel directing a mandatory backlog-prefilter step with
     no `Bash` grant — was found by hand, not by this rule, because the `python3 …` call sat
@@ -174,6 +183,17 @@ FENCE_LINE_RE = re.compile(r"^[ \t]*(`{3,})[ \t]*(\S*)")
 # leading position (```{=html}) still fails to match and stays non-shell.
 FENCE_LANG_RE = re.compile(r"^\{?\.?([A-Za-z]+)")
 SHELL_FENCE_LANGS = ("bash", "sh", "shell")
+
+
+# A relative `.md` link implies the body directs a `Read`, per this repo's own cross-reference
+# convention. `\w+://` excludes an absolute URL (http(s), or any other scheme) — that is an
+# external reference, not a file this tool set reads. Matched on the noise-stripped body so a
+# link shown only inside a fenced example does not count (same reasoning as has_shell_fence).
+MD_LINK_RE = re.compile(r"\[[^\]\n]*\]\(\s*(?!\w+://)([^)\s]+\.md)(?:#[^)\s]*)?\s*\)")
+
+
+def has_md_link(body):
+    return bool(MD_LINK_RE.search(body))
 
 
 def _is_shell_lang(info):
@@ -366,7 +386,7 @@ def strip_noise(body):
 
 
 def check_agent(text, key="tools", require_key=False, check_contract=True,
-                shell_fence_implies_bash=False):
+                shell_fence_implies_bash=False, md_link_implies_read=False):
     """Return (undeclared, unused, unknown, contract, missing, uncontracted) for one .md."""
     frontmatter, raw_body = split_frontmatter(text)
     if frontmatter is None:
@@ -403,7 +423,19 @@ def check_agent(text, key="tools", require_key=False, check_contract=True,
             and "Bash" not in undeclared and has_shell_fence(raw_body)):
         undeclared.append("Bash")
 
-    unused = [t for t in known_declared if not _mention_re(t).search(body)]
+    if (md_link_implies_read and "Read" not in declared_bases
+            and "Read" not in undeclared and has_md_link(body)):
+        undeclared.append("Read")
+
+    unused = [
+        t for t in known_declared
+        if not _mention_re(t).search(body)
+        # A relative-.md markdown link is the same evidence for UNUSED as for UNDECLARED
+        # above — the body already reaches for Read via "read [x](y.md)", it just never
+        # spells the tool name in capitals. Without this, declaring Read to satisfy the
+        # UNDECLARED finding above immediately re-trips UNUSED on the very same sentence.
+        and not (t == "Read" and md_link_implies_read and has_md_link(body))
+    ]
 
     lowered = body.lower()
     names_contract = any(marker in lowered for marker in READONLY_MARKERS)
@@ -439,9 +471,11 @@ def find_skill_files(root):
 
 SCOPES = (
     {"label": "agent", "finder": find_agent_files, "key": "tools",
-     "require_key": False, "check_contract": True, "shell_fence_implies_bash": False},
+     "require_key": False, "check_contract": True, "shell_fence_implies_bash": False,
+     "md_link_implies_read": False},
     {"label": "skill", "finder": find_skill_files, "key": "allowed-tools",
-     "require_key": True, "check_contract": False, "shell_fence_implies_bash": True},
+     "require_key": True, "check_contract": False, "shell_fence_implies_bash": True,
+     "md_link_implies_read": True},
 )
 
 
@@ -733,6 +767,35 @@ SKILL_SELF_TEST_CASES = [
         "---\nname: s\nallowed-tools: Read Bash(git add:*, git commit:*)\n---\nRead it, then use Bash.",
         [], [], [], [], False,
     ),
+    (
+        # #758: the exact live shape in 5 SKILL.md files — a markdown link to a relative .md
+        # reference with no Read grant.
+        "a markdown link to a relative .md file implies Read (#758)",
+        "---\nname: s\nallowed-tools: Bash\n---\n"
+        "When Codex invokes this skill, use Bash first, then read [the portability contract]"
+        "(../../reference/codex-portability.md).",
+        ["Read"], [], [], [], False,
+    ),
+    (
+        # The real fix (#758): adding Read alone must clear it — the lowercase "read" in the
+        # link sentence is the same evidence for UNUSED as it is for UNDECLARED above, so
+        # declaring Read must not immediately re-trip UNUSED on that very sentence.
+        "the same markdown-link skill is clean once Read is declared (#758)",
+        "---\nname: s\nallowed-tools: Bash Read\n---\n"
+        "When Codex invokes this skill, use Bash first, then read [the portability contract]"
+        "(../../reference/codex-portability.md).",
+        [], [], [], [], False,
+    ),
+    (
+        "a link to an absolute http(s) URL does not imply Read",
+        "---\nname: s\nallowed-tools: Bash\n---\nUse Bash, then see [the docs](https://example.com/guide.md).",
+        [], [], [], [], False,
+    ),
+    (
+        "a markdown link shown only inside a fenced example does not imply Read",
+        "---\nname: s\nallowed-tools: Bash\n---\nUse Bash. Example:\n```\n[link](../ref.md)\n```\n",
+        [], [], [], [], False,
+    ),
 ]
 
 
@@ -745,7 +808,7 @@ def _norm(values):
 # never touches an existing case.
 WANT_DEFAULTS = ([], [], [], [], False, [])
 SKILL_KWARGS = {"key": "allowed-tools", "require_key": True, "check_contract": False,
-                "shell_fence_implies_bash": True}
+                "shell_fence_implies_bash": True, "md_link_implies_read": True}
 
 
 def run_self_test():

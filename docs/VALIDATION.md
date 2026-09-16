@@ -123,7 +123,7 @@ python3 scripts/check-agent-nonresponse-clause.py
 # mode at runtime. The file list inside the script is explicit and hand-maintained on purpose:
 # a new Agent-delegating skill is added by hand, like its fallback paragraph.
 python3 scripts/check-agent-tools-usage.py --self-test
-# Expected: OK: all 54 check-agent-tools-usage self-test cases passed
+# Expected: OK: all 58 check-agent-tools-usage self-test cases passed
 python3 scripts/check-agent-tools-usage.py
 # Expected: OK: all N agent(s)/skill(s) declare exactly the tools their body uses
 # #577: the declared set and the body must agree, in both directions. UNDECLARED (body says
@@ -134,7 +134,11 @@ python3 scripts/check-agent-tools-usage.py
 # imperative (`use X`, `call X`, `X(`, negations excluded sentence-wide) for UNDECLARED, a bare
 # mention anywhere for UNUSED. Fenced code and HTML comments are stripped first, and usage is
 # never inferred from a shell command — a body must NAME the tools it relies on, which is what
-# CLAUDE.md's "Adding a New Agent" §2 already asks for. A third finding, CONTRACT, covers what
+# CLAUDE.md's "Adding a New Agent" §2 already asks for. A markdown link to a relative `.md` file
+# (this repo's own cross-reference convention, e.g. "read [the portability contract]
+# (../../reference/codex-portability.md)") counts as an UNDECLARED/UNUSED `Read` the same way —
+# found live in 5 SKILL.md files whose Codex-portability sentence linked a `.md` reference with
+# no `Read` grant (#758). A third finding, CONTRACT, covers what
 # the weak UNUSED signal structurally cannot: a body claiming the Write Role Contract while
 # `tools:` grants Write/Edit/NotebookEdit — the sentence stating the prohibition contains the
 # word `Write`, so a bare-mention check always passes it.
@@ -298,12 +302,21 @@ python3 scripts/check-skill-catalogue-drift.py
 # aggregate total. No new .github/workflows/validate.yml entry: both commands below were already
 # registered/run there, so the new output rides the same CI line.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 65 check-skill-token-budget self-test cases passed
+# Expected: OK: all 70 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
 #   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
 # To verify a known host/model window: append `--context-window-chars N`; the description total
 # is then capped at `floor(N * 2 / 100)` instead of 8,000.
+# #758: alongside the repo-wide description total, the same run also prints a per-plugin
+# breakdown (WARN only, never a second gate — the aggregate check above stays the sole hard
+# block) since Codex installs/lists each of the 4 plugins (thinking-tools, obsidian-vault-manager,
+# vault-bridge, feedback-loop) as its own unit:
+#   ! per-plugin description chars (WARN only — Codex installs/lists each as its own unit):
+#     feedback-loop: N chars
+#     obsidian-vault-manager: N chars
+#     thinking-tools: N chars
+#     vault-bridge: N chars
 
 python3 scripts/check-release-failure-notify.py --self-test
 # Expected: OK: all check-release-failure-notify self-test cases passed
