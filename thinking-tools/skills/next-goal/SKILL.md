@@ -36,6 +36,19 @@ run `scripts/next-candidate.py --cwd <repo>` via Bash, resolved from this skill'
 plugin root. Never recursively explore other repositories to fill the pool. No remote or failed
 lookup: disclose the gap and rank only the known pool.
 
+**A build-spec Seed is a third pool, when one is in play.** A Seed states `success_criteria[]` as
+observable outcomes, so a criterion this repo does not satisfy yet is already a ranked candidate —
+it was specified as required, which is the floor test answered in advance. Treat a Seed as in play
+only when the session or the caller names one, or an issue already in the pool references its path;
+never glob a spec directory to find one, and never read a Seed from another repository. Most
+sessions have none, and an unrelated stale Seed is a worse pool than no pool.
+
+A Seed carries no status field by design — its amendment contract makes it a spec, not a work log —
+so "not met yet" is a judgment about the repository, never a value read out of the file. Check the
+criterion's `measurable_via` against current state before ranking it. One that no longer resolves
+(a renamed script, a deleted module) is a stale spec fact rather than a follow-up: report it as
+unresolved instead of proposing work against it.
+
 ## Phase 1 — Pick (internal ranking; only the outcome is rendered)
 
 ### Step 0 — Group before you narrow
@@ -43,6 +56,10 @@ lookup: disclose the gap and rank only the known pool.
 Cluster follow-ups that share a file, module, theme, or epic. Take the highest-ROI *group*, not
 the highest-ROI single item — decomposing too fine is the default failure mode this step exists
 to prevent (`reference.md`'s cohesion section).
+
+A Seed's unmet `success_criteria[]` are already such a group — they share the Seed's goal by
+construction. Group them with the session's own follow-ups that touch the same files rather than
+ranking criteria one at a time.
 
 ### Step 1 — Floor test
 
@@ -74,7 +91,9 @@ artifact that resolves the problem, not just a promise to look.
 
 Fires when the candidate fails either bar above, **or** when chain depth ≥ 3. Rank the backlog by
 (1) issues that combine with what just shipped, (2) label and staleness priority. Take the wider
-unit — several backlog issues sharing one theme are one unit here.
+unit — several backlog issues sharing one theme are one unit here. With a Seed in play, its
+remaining criteria rank ahead of unrelated backlog issues: they are the declared scope of the
+thread that just ran, not a new one.
 
 If, after widening, nothing clears the floor, output `NEXT · 없음`, explain the pool and rejected
 runners in one line each, and `GOAL · 없음 — 가치 있는 후속 후보가 없어요`. Stop without a
@@ -118,8 +137,8 @@ failure consumes the attempt instead of extending it — inspect the diff separa
 reduced independent evidence, never retry through another tool or agent. A stricter caller limit
 takes precedence.
 
-**When the work follows a build-spec Seed** (`docs/specs/*.yaml` or wherever this repo keeps them,
-named by the session — never go looking for one): name the Seed's path inside the condition, and say
+**When the work follows a build-spec Seed** (identified by the Input contract's rule — named or
+referenced, never found by scanning): name the Seed's path inside the condition, and say
 to attach `thinking-tools/reference/seed-diff-grading.md`'s instruction to the requirement-gap review
 call. The reviewer grades the Seed's `constraints[]`/`success_criteria[]` only when the prompt names
 one, so an unnamed Seed is an ungraded Seed. In the same clause, state that the Seed is a spec, not a

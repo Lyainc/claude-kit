@@ -52,9 +52,9 @@ def is_structural_growth(added: str) -> bool:
 
 
 def is_seed_path(path: str) -> bool:
-    # Suffix only. A `specs/` component is the convention, not the identity — next-goal's
-    # clause says "wherever this repo keeps them", and a Seed at docs/seed-x.yaml is the same
-    # file with the same failure. reads_as_seed() below is what actually decides.
+    # Suffix only. A `specs/` component is the convention, not the identity — next-goal's Input
+    # contract never names a directory, only a Seed the session or an issue points at, so a Seed
+    # at docs/seed-x.yaml is the same file with the same failure. reads_as_seed() below decides.
     return path.endswith((".yaml", ".yml"))
 
 
