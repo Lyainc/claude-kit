@@ -118,6 +118,15 @@ failure consumes the attempt instead of extending it — inspect the diff separa
 reduced independent evidence, never retry through another tool or agent. A stricter caller limit
 takes precedence.
 
+**When the work follows a build-spec Seed** (`docs/specs/*.yaml` or wherever this repo keeps them,
+named by the session — never go looking for one): name the Seed's path inside the condition, and say
+to attach `thinking-tools/reference/seed-diff-grading.md`'s instruction to the requirement-gap review
+call. The reviewer grades the Seed's `constraints[]`/`success_criteria[]` only when the prompt names
+one, so an unnamed Seed is an ungraded Seed. In the same clause, state that the Seed is a spec, not a
+work log: a fact it states wrongly gets that field's value replaced, while progress, dated
+corrections, and review findings go to the issue or ledger the repo already keeps — never appended to
+the Seed. Omit this clause entirely when no Seed is in play; most sessions have none.
+
 Do not mandate delegation, a model, an effort dial, or a runtime-specific agent type. Delegation
 is an execution-time choice only for a concrete independent task with actual parallel benefit —
 state the fan-out path and its per-branch effort mechanism when delegation is named at all.
