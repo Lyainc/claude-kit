@@ -133,3 +133,29 @@ re-deriving findings the UD report already states with more rigor.
 
 **Detection.** The report's frontmatter carries `skill: unknown-discovery` (common-schema.md);
 absent that (a bare prose feedback string), the user naming it explicitly is enough.
+
+
+---
+
+## 7. Amendment Contract — why it travels in the file
+
+**Why a header comment and not only this skill.** The session that edits a Seed after emit is
+usually a `/goal` loop that never loads build-spec. Its only readable surfaces are the Seed file
+and its own completion condition, so a rule stated here reaches nobody. The template's header
+comment is the one place the offender is guaranteed to read, and `next-goal` carries the same
+sentence into the condition paragraph.
+
+**What the rot looks like.** Measured on a real Seed (999 lines, 18 commits, near-monotonic
+growth): constraint rationales had become commit messages — `(2026-09-17 requirement-gap-reviewer
+발견·수정) 첫 구현은 ... 빠뜨렸었다 ... 바로잡았고 ... 단위 테스트 4케이스로 확인` — and the file
+had grown a CHANGELOG header. None of it is a requirement; all of it is already in git and the
+issue timeline.
+
+**In-place edit vs `-v2`.** They answer different questions. A full build-spec re-run produces a
+new generation and still writes `-v2`/`-v3` (Phase 3 step 2). An in-place edit is for a fact the
+spec states wrongly — the value gets replaced, the file does not grow a journal entry.
+
+**Enforcement.** `hooks/seed-append-guard.sh` denies the one shape that breaks this: the old text
+surviving whole inside the new text while the added part carries work-log vocabulary. An addition
+that starts a new key or list item is structural growth and exempt — a new constraint legitimately
+carries a provenance date, so signal alone would fire on exactly the edit Refine mode has to make.

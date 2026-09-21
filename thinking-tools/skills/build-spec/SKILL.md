@@ -212,7 +212,10 @@ When gate opens OR user explicitly exits:
    - If file exists: append `-v2`, `-v3`
 3. Display summary and file path
 4. The Seed file is the terminal deliverable — build-spec crystallizes *what* to build, not *how*.
-5. Offer once: "이 Seed로 GitHub 이슈를 열까요?" Accepted → `Skill(skill: "issue-raise", args:
+5. Emit the template's `AMENDMENT CONTRACT` header verbatim into the Seed. The Seed is a spec, not a
+   work log: a correction *replaces* a field's value, and progress, dated notes, round records,
+   review findings, and status are never appended to it (`reference.md` §7).
+6. Offer once: "이 Seed로 GitHub 이슈를 열까요?" Accepted → `Skill(skill: "issue-raise", args:
    "<seed-path>")` — one sub-call, no new user-typed command (same pattern as
    diverse-sampling → doc-concretize). Declined → build-spec ends here, exactly as before.
 
