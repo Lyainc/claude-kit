@@ -1,7 +1,7 @@
 {
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "vault-bridge",
-  "version": "5.2.0",
+  "version": "5.3.0",
   "description": "Obsidian vault capture, project binding, manifest, commit, and wiki skills.",
   "author": {
     "name": "Lyainc",
