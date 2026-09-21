@@ -85,6 +85,11 @@ jobs:
           # and no-template repos must all resolve — issue-raise hardcodes no filename.
           python3 thinking-tools/scripts/issue-template.py --self-test
 
+          # build-spec Seed append guard: only an edit that preserves the old text whole AND
+          # adds work-log prose is denied; structural growth (a new key or list item) is exempt,
+          # because a legitimate new constraint carries a provenance date too.
+          python3 thinking-tools/scripts/seed-append-check.py --self-test
+
           # Release tooling self-tests (lockstep bump + per-plugin notes generation +
           # the release-trigger policy: label / backstop / bump derivation).
           python3 scripts/bump-version.py --self-test

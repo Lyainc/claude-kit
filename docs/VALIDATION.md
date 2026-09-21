@@ -406,6 +406,16 @@ python3 thinking-tools/scripts/check-heading-match.py --self-test
 python3 thinking-tools/scripts/issue-template.py --self-test
 # Expected: OK: all 22 issue-template self-test cases passed
 
+# build-spec Seed append 가드 (PreToolUse Write|Edit 훅의 판정부): Seed를 작업 로그로
+# 만드는 편집 한 가지 모양 — 기존 텍스트가 새 텍스트 안에 통째로 살아남고(교체 아님, 덧대기)
+# 덧댄 부분이 작업 기록 어휘(날짜·과거형 보고·리뷰 출처)를 담은 것 — 만 deny한다.
+# 두 방향의 오탐이 각각 가드를 무력화한다: 날짜만 보면 정당한 근거 표기("확정한다(2026-09-16
+# 사용자 결정)")가 걸려 refine 라운드가 막히고, 덧대기만 보면 신규 제약 추가가 전부 걸린다.
+# 그래서 신규 리스트 항목·신규 키로 시작하는 추가(구조 성장)는 면제한다. 실측: 실사용 Seed
+# 1건(999줄·18커밋)의 순수 추가 hunk 13개 중 4개 deny, 그중 3개가 노린 모양.
+python3 thinking-tools/scripts/seed-append-check.py --self-test
+# Expected: OK: all 15 seed-append-check self-test cases passed
+
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test
 # Expected: OK: all bump-version self-test cases passed
