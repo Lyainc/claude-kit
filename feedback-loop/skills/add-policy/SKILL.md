@@ -209,7 +209,8 @@ content is already an index+detail split (one-line index rows linking to per-ent
 detail file, not a new inline block — and **put the detail file where the existing ones live,
 resolving the index's own link to find out**. Never invent this split on a site that doesn't
 already use it. An **Edit** there rewrites **both** the index row and its detail file whenever
-the change touches what the index claims.
+the change touches what the index claims. What the detail file may state follows the site's own
+authoring guide when it has one, else [reference.md](reference.md) §6-detail-contract.
 
 ## 7. Output contract
 
