@@ -536,6 +536,32 @@ passes **20 rows**; below that a flat scan is cheaper than the structure. That i
 work (local-harness), not `add-policy`.
 
 
+## §6-detail-contract — what a written detail file may state, CANONICAL text
+
+Applies whenever §6 writes or edits a per-entry detail file on an index+detail site. If the site
+publishes its own authoring guide for those files (a README beside them, e.g.
+`policies/README.md`), follow it; the defaults below yield only where it says otherwise.
+
+- **The why is dated and past tense**: the incident or measurement that justifies the rule, with
+  its date (`Measured 2026-08-19: …`). A dated past-tense fact stays true, and it is what lets a
+  later reader keep, amend or retire the entry instead of accepting or reversing it blindly.
+- **Current state points at whatever checks it, never restates it**: "registered in `<hooks
+  file>`; `<detector>` reports it missing", not "wired and active". Counts, labels, prices and
+  "currently" sentences start going stale the day they are written, and nothing checks prose.
+- **An Edit replaces the wrong sentence**; it never appends "Correction (date)" beneath it, since
+  git keeps the history. A new observation is written once, when it changes a conclusion, never
+  as a running count.
+- **Investigation logs and design history go to the site's decision-record directory** when it
+  has one, linked from the detail file, which keeps only the resulting behavior. Without one,
+  they stay in the proposal text, not in the detail file.
+- **A measurement states how it could have come out the other way**: its check was first run on a
+  known positive. A negative result from a check that cannot fire is not evidence.
+
+Why (local-harness, 2026-09-23): a read of all 23 detail files against the live machine found a
+guard described as active that was not wired, a test count, checklist labels and a price that had
+drifted, two files grown to 14 KB of inline investigation log with corrections nested inside, and
+a committed "0 of 87,611 syllables" from a check that could never fire.
+
 ## §7 — output contract, in full
 
 SKILL.md §7 keeps the working-tree rule and the closing line; this holds the written-content language rule and the hook registration fragment.
