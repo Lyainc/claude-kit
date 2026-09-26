@@ -73,7 +73,7 @@ can the user do differently that they couldn't before?** "Nothing — just less 
 floor test (a guard that was silently failing is a real problem) but is still maintenance, not
 felt change. When the pick is maintenance, surface the injected maintenance streak (how many
 consecutive recent commits, per `next-candidate.py`, did not touch a `SKILL.md`/`agents/*.md`
-body) in `POOL` — e.g. "이번까지 연속 N번째 유지보수 픽". This is a data point for the user to
+body) in `FROM` — e.g. "이번까지 연속 N번째 유지보수 픽". This is a data point for the user to
 weigh, never a rule that blocks the pick: a broken guard is worth fixing whether or not it is the
 Nth one in a row. ponytail: the streak's ceiling is the same as the ratio's — a felt change to a
 non-`SKILL.md` file (`vault-bridge/scripts/*`, a guard's actual behavior) does not count as
@@ -95,8 +95,8 @@ unit — several backlog issues sharing one theme are one unit here. With a Seed
 remaining criteria rank ahead of unrelated backlog issues: they are the declared scope of the
 thread that just ran, not a new one.
 
-If, after widening, nothing clears the floor, output `NEXT · 없음`, explain the pool and rejected
-runners in one line each, and `GOAL · 없음 — 가치 있는 후속 후보가 없어요`. Stop without a
+If, after widening, nothing clears the floor, output `NEXT · 없음`, then the `FROM` and
+`SKIPPED` lines below as usual, and `GOAL · 없음 — 가치 있는 후속 후보가 없어요`. Stop without a
 fabricated goal, issue, or repeated search.
 
 Otherwise render these three fields on every run, without narrating the ranking that produced
@@ -104,8 +104,8 @@ them — direction stays the user's, and they cannot overrule a choice they cann
 
 ```text
 NEXT     · {pick in one line}
-POOL     · {source; on a switch, why the thread's own pool failed the floor}
-RUNNERS  · {rejected candidates and brief reason}
+FROM     · {source; on a switch, why the thread's own pool failed the floor}
+SKIPPED  · {rejected candidates and brief reason}
 ```
 
 ## Phase 2 — Condition
@@ -155,8 +155,9 @@ means stop with unmet conditions and the resume point; it does not prove complet
 ## Output format
 
 **Called from a routine that owns its own report shape** (a session-close pass, a wrap-up
-sequence): return the three pick fields and the paragraph, and let the caller place them. Do not
-render the layout below on top of the caller's — that prints the pick twice in two shapes.
+sequence): return the three pick lines in Phase 1's layout, plus the paragraph. The caller
+decides where they go but prints them as-is, so the pick has one shape whichever way the user
+reached it; render nothing yourself, or the pick prints twice.
 
 **Called directly**, render the three fields from Phase 1, then the condition from Phase 2, per
 the runtime rules below. Nothing follows the condition.
@@ -183,8 +184,8 @@ needs clarification.
 
 ```
 NEXT     · vault 폴더 재편 에픽 통째 — inbox→sources 개명(#B) + audit E4/E10 규칙 정합(#C) + manifest 스키마 갱신(#D)
-POOL     · 이번 스레드 #B + 백로그에서 같은 테마 #C·#D 합류
-RUNNERS  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 안 묶임)
+FROM     · 이번 스레드 #B + 백로그에서 같은 테마 #C·#D 합류
+SKIPPED  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 안 묶임)
 ```
 
 ```
