@@ -1171,6 +1171,10 @@ codex exec --ephemeral --sandbox read-only -C "$PWD" \
   'Use installed thinking-tools next-goal. Return exactly NEXT, FROM, SKIPPED, GOAL in Korean; no /goal fence, writes, or network.'
 codex exec --ephemeral --sandbox read-only -C "$PWD" \
   'Use installed thinking-tools issue-raise. Do not inspect files or call tools. Do not create/write/network. Reply with exactly one Korean sentence: the normal user approval required immediately before gh issue create.'
+codex exec --ephemeral --sandbox read-only -C "$PWD" \
+  'Use installed feedback-loop retro. Treat this as the conversation to inspect: pytest failed three times with the same ImportError before the import was fixed; a review took two rounds. Do not create issues, write, or use network; stop where you would ask for confirmation. Answer in Korean.'
+codex exec --ephemeral --sandbox read-only -C "$PWD" \
+  'Use installed feedback-loop distill. Treat this as a proposal I already confirmed: "Before rebasing a branch whose PR another session may have touched, fetch and diff origin/main for the same files first." Continue as the skill says for Codex through add-policy up to its one-click confirmation; show the classification, exact target path, and exact diff. Do not write or use network. Answer in Korean.'
 runtime_home="$(mktemp -d)"
 trap 'rm -rf "$runtime_home"' EXIT
 HOME="$runtime_home" ../local-harness/home/bootstrap.sh --target codex
@@ -1182,11 +1186,17 @@ HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex exec --ephemeral --
   'Use installed session-close. Apply only its Codex adapter to a hypothetical stage ① sweep with one qualifies:true worktree, one qualifies:true plain branch, and one remote_status:fetch-failed row. Return the owner-confirmed safe actions plus NEXT, FROM, SKIPPED, GOAL. Do not write or use network.'
 ```
 
-The first response must contain a plain `GOAL` field and no `/goal` fence. The second must ask for
-normal user approval before `gh issue create`. The third must list `session-close` in the rendered
-prompt and the runtime response must preserve the `qualifies: true` gate, keep `fetch-failed`
-unresolved, distinguish `worktree remove <worktree_path>` from `branch -D`, and render plain
-`NEXT`/`FROM`/`SKIPPED`/`GOAL`; no session may write the repository or use tools or network.
+The next-goal response must contain a plain `GOAL` field and no `/goal` fence. The issue-raise
+response must ask for normal user approval before `gh issue create`. The session-close probe must
+list `session-close` in the rendered prompt, and its runtime response must preserve the
+`qualifies: true` gate, keep `fetch-failed` unresolved, distinguish `worktree remove
+<worktree_path>` from `branch -D`, and render plain `NEXT`/`FROM`/`SKIPPED`/`GOAL`. Those three
+sessions must not write the repository or use tools or network.
+The two feedback-loop probes may read files but never write or use network. The retro one must
+say that telemetry patterns were not collected, must not run `stamp`/`report.py`/`sequence.py`,
+and must stop at a confirmation before `gh issue create`. The distill one must reach add-policy's
+Codex branch: a target under `$CODEX_HOME`, the catalogue its `AGENTS.md` declares, or
+`~/.agents/skills` (never `~/.claude`), an exact diff, and a separate placement confirmation.
 
 ## Paired native runtime scenario proof
 
