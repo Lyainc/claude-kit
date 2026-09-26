@@ -12,7 +12,8 @@ allowed-tools: Bash AskUserQuestion Read
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Claude hook telemetry is unavailable in Codex. Do not run `stamp`, `report.py`,
 `sequence.py`, or `emit`; collect only the current conversation's observable waste (repeated
-failed tool calls, review rounds, and same-error retries). Keep the within-session and cached
+failed tool calls, review rounds, and same-error retries). Open the report by saying that
+telemetry patterns were not collected, so it covers this conversation only. Keep the within-session and cached
 open-issue deduplication from Phases 1–2, use a normal user confirmation before `gh issue create`,
 and report no candidate when the conversation supplies no observable waste. Claude Code ignores
 this section.

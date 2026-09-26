@@ -14,6 +14,7 @@ _REQUIRED = {
     "retro": (
         "Claude hook telemetry is unavailable in Codex.",
         "current conversation's observable waste",
+        "telemetry patterns were not collected, so it covers this conversation only",
         "Do not run `stamp`, `report.py`,\n`sequence.py`, or `emit`",
         "normal user confirmation before `gh issue create`",
     ),
