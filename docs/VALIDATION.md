@@ -1168,7 +1168,7 @@ codex plugin add vault-bridge@Lyainc-claude-kit
 codex plugin add feedback-loop@Lyainc-claude-kit
 
 codex exec --ephemeral --sandbox read-only -C "$PWD" \
-  'Use installed thinking-tools next-goal. Return exactly NEXT, POOL, RUNNERS, GOAL in Korean; no /goal fence, writes, or network.'
+  'Use installed thinking-tools next-goal. Return exactly NEXT, FROM, SKIPPED, GOAL in Korean; no /goal fence, writes, or network.'
 codex exec --ephemeral --sandbox read-only -C "$PWD" \
   'Use installed thinking-tools issue-raise. Do not inspect files or call tools. Do not create/write/network. Reply with exactly one Korean sentence: the normal user approval required immediately before gh issue create.'
 runtime_home="$(mktemp -d)"
@@ -1179,14 +1179,14 @@ HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex debug prompt-input 
   'session-close discovery probe'
 HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex exec --ephemeral --sandbox read-only \
   -C ../local-harness \
-  'Use installed session-close. Apply only its Codex adapter to a hypothetical stage ① sweep with one qualifies:true worktree, one qualifies:true plain branch, and one remote_status:fetch-failed row. Return the owner-confirmed safe actions plus NEXT, POOL, RUNNERS, GOAL. Do not write or use network.'
+  'Use installed session-close. Apply only its Codex adapter to a hypothetical stage ① sweep with one qualifies:true worktree, one qualifies:true plain branch, and one remote_status:fetch-failed row. Return the owner-confirmed safe actions plus NEXT, FROM, SKIPPED, GOAL. Do not write or use network.'
 ```
 
 The first response must contain a plain `GOAL` field and no `/goal` fence. The second must ask for
 normal user approval before `gh issue create`. The third must list `session-close` in the rendered
 prompt and the runtime response must preserve the `qualifies: true` gate, keep `fetch-failed`
 unresolved, distinguish `worktree remove <worktree_path>` from `branch -D`, and render plain
-`NEXT`/`POOL`/`RUNNERS`/`GOAL`; no session may write the repository or use tools or network.
+`NEXT`/`FROM`/`SKIPPED`/`GOAL`; no session may write the repository or use tools or network.
 
 ## Paired native runtime scenario proof
 
