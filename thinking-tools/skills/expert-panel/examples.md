@@ -324,7 +324,7 @@ User: 이 인증 설계를 보안/성능/UX 전문가 관점에서 격리해서 
 - **[Performance Expert — independent]**: 매 요청 signature 검증이 병목. Redis 캐싱 권장.
 - **[UX Expert — independent]**: Silent Refresh만 보장되면 세션 방식 대비 UX 손해 없음.
 
-STATE: `Rebuttal: [t1:e1:3/3]` (수집 완료)
+오케스트레이터가 3개 발언을 `_exchanges/t1-e1-security.md` 등 3개 record로 Write한 **뒤에야** STATE를 갱신: `Rebuttal: [t1:e1:3/3]` · `Collected: [t1:e1:security,performance,ux]`
 
 ### Exchange 2 — 반박 (병렬 재spawn)
 
@@ -334,7 +334,7 @@ STATE: `Rebuttal: [t1:e1:3/3]` (수집 완료)
 - **[Performance Expert]**: 입장 유지하되 수정 — 캐싱 TTL을 Rotation 주기 이하로 두면 양립 가능.
 - **[UX Expert]**: 입장 유지. 새 논점 없음.
 
-STATE: `Rebuttal: [t1:e2:3/3]`
+오케스트레이터가 `_exchanges/t1-e2-security.md` 등 3개 record를 Write한 뒤 STATE 갱신: `Rebuttal: [t1:e2:3/3]` · `Collected: [t1:e2:security,performance,ux]`
 
 ### Exchange 3 — 재반박 (병렬 재spawn)
 
@@ -344,11 +344,11 @@ e2에서 보안·성능이 새 논점(캐싱↔Rotation 충돌·TTL 절충)을 �
 - **[Performance Expert]**: 동일 합의.
 - **[UX Expert]**: 입장 유지. 새 논점 없음.
 
-STATE: `Rebuttal: [t1:e3:3/3]`
+오케스트레이터가 `_exchanges/t1-e3-security.md` 등 3개 record를 Write한 뒤 STATE 갱신: `Rebuttal: [t1:e3:3/3]` · `Collected: [t1:e3:security,performance,ux]`
 
 ### 조기 종료 판정 (오케스트레이터)
 
-e3는 e2 대비 새 논점·반박이 없음(전원 수렴, UX는 재진술) → early-stop 발동, 종료. e3는 2-rebuttal 캡이기도 함. (만약 e2가 e1 재진술뿐이었다면 e3 없이 e2에서 종료 — early-stop은 캡 전에도 발동합니다.)
+e3는 e2 대비 새 논점·반박이 없음(전원 수렴, UX는 재진술) → early-stop 발동, 종료. e3는 2-rebuttal 캡이기도 함. (만약 e2가 e1 재진술뿐이었다면 e3 없이 e2에서 종료 — early-stop은 캡 전에도 발동합니다.) 다만 캡이든 조기 종료든 루프를 끝내는 것일 뿐 결론이 아니에요 — 결론은 Moderator가 Topic Conclusion 규칙으로 냅니다.
 
 ### Synthesis (Moderator subagent)
 
@@ -359,4 +359,45 @@ e3는 e2 대비 새 논점·반박이 없음(전원 수렴, UX는 재진술) →
 **결론**: JWT + Refresh Token Rotation, 캐싱 TTL ≤ Rotation 주기 합의.
 
 ───
-*격리 모드: e1 독립 3 + e2 반박 3 + e3 재반박 3 = expert subagent 9 + Synthesis Moderator 1*
+*격리 모드: e1 독립 3 + e2 반박 3 + e3 재반박 3 = expert subagent 9 (3N 상한) + Synthesis Moderator 1*
+
+---
+
+## Example 4: 격리 모드 — 보류와 부분 복구
+
+격리 모드에서 결론이 안 나거나 중간에 끊겼을 때의 세 장면이에요. 토픽당 한 사이클(e1 → e2 → 선택 e3 → 결론)이라 라운드를 다시 돌리지 않고, 발언 record는 요약 출력 모드에서도 남아요.
+
+### (a) 동점 보류
+
+전문가 4인, e3까지 갔는데 합의 실패. 가중 투표(High 3 / Medium 2 / Low 1): 2명이 선택지 A에 High(6점), 2명이 선택지 B에 High(6점).
+
+STATE: `Votes: [t1:security:A:High, t1:performance:A:High, t1:ux:B:High, t1:legal:B:High]` · `Tie-break: [t1:margin:0]` · `Topic-status: [t1:held:tie]`
+
+SUMMARY.md 행: | 인증 방식 | 보류 (동점 6:6) | 선택지 A·B 동점 | — |
+UNRESOLVED.md 행: | 1 | 인증 방식 | A vs B | 동점 | 추가 근거 확보 후 재논의 |
+
+승자도 조건부 승인도 기록하지 않아요. 참고로 4명 중 1명이 Medium이었다면 6 대 5(margin 1)라 `tie-broken` + SUMMARY에 "조건부"가 붙었을 거예요.
+
+### (b) 정족수 미달
+
+전문가 3인. e2에서 2명이 재시도 1회씩 뒤에도 또 실패해서 유효 전문가 1명. 유효 3명 미만이라 루프를 멈추고 투표는 하지 않아요. 실패 내역은 `_exchanges/t2-e2-*.md` record에 남겨요.
+
+STATE: `Topic-status: [t2:held:quorum]`
+
+전문가 1명의 의견은 합의도 종합도 아니라서, 그 발언을 결론처럼 쓰지 않고 UNRESOLVED.md로 보내요.
+
+### (c) 요약 출력 모드에서 e2 부분 복구
+
+전문가 4인(security, performance, ux, legal), 요약 출력 켜짐. e2 도중 `t3-e2-security.md`, `t3-e2-performance.md` 두 record가 써졌고 그 뒤 compaction이 일어났어요. 마지막 STATE는 `Rebuttal: [t3:e2:3/4]` · `Collected: [t3:e2:security,performance,ux]`인데, `t3-e2-ux.md`는 디스크에 없어요.
+
+복구 순서:
+1. record가 있는 expert만 끝난 걸로 쳐요. ux는 카운터에는 있지만 record가 없으니 끝난 게 아니에요.
+2. 없는 ux와 legal만 다시 spawn하고, packet은 e1 record 4개로 다시 만들어요.
+3. security·performance의 e2 결과는 record에서 읽어오고 두 번 세지 않아요.
+
+요약 출력 모드에는 transcript가 없어서, 복구의 근거는 record뿐이에요.
+
+비용: e2에서 복구 spawn 2건, 3N 상한 밖에서 따로 셈해요.
+
+───
+*보류·복구 예시: 토픽당 expert 최대 3N + Moderator 1, 재시도·추가 expert·복구 spawn은 별도 집계*
