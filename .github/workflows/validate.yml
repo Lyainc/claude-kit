@@ -370,6 +370,13 @@ jobs:
           python3 thinking-tools/scripts/test/test-next-candidate.py
           echo "next-candidate unit tests OK"
 
+      - name: Run seed-relations unit tests
+        run: |
+          # #780 — Seed edge reader (tree/check): -vN resolution, mismatch kinds, gh failure
+          # line, depends_on. Cross-repo reads go through a GH_BIN shim, no network.
+          python3 thinking-tools/scripts/test/test-seed-relations.py
+          echo "seed-relations unit tests OK"
+
       - name: Run obsidian-vault-manager unit tests
         run: |
           python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py

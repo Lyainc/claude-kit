@@ -889,6 +889,15 @@ bash thinking-tools/scripts/test/test-next-goal-hook.sh
 python3 thinking-tools/scripts/test/test-next-candidate.py
 # Expected: OK: all 10 test-next-candidate checks passed
 
+# seed-relations.py 회귀 (#780) — Seed 간 엣지(parent/refines/depends_on/children)를 읽는 결정론
+# 스크립트. 같은 레포 부모 1 + 자식 2의 tree 출력(refines 대응·PARENT-ITEM), `-vN` 해석(foo.yaml →
+# foo-v2.yaml), 불일치 3종 + 없는 id를 가리키는 refines, gh 실패 시 FAILED 줄(빈 결과 아님),
+# depends_on 같은 레포·다른 레포(`확인 못 함`), origin이 ssh 별칭·대소문자 다른 좌표일 때의 자기 레포 판정,
+# 다른 레포 줄의 `링크만` 표시, 이전 세대 파일을 지목했을 때의 NOTE 줄을 픽스처로 핀한다. 다른 레포 읽기는 GH_BIN shim으로
+# 네트워크 없이 돈다. 스크립트는 쓰지 않고 done/pending 값도 출력하지 않는다(c1·c6).
+python3 thinking-tools/scripts/test/test-seed-relations.py
+# Expected: OK: all 10 test-seed-relations checks passed
+
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
 bash -n thinking-tools/hooks/session-start-welcome.sh   # #117 first-run onboarding hint
