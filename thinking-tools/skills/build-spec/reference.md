@@ -18,7 +18,7 @@ For each dimension, evaluate after receiving the user's answer. Mark Y/N and wri
 | # | Question | Y if... |
 |---|----------|---------|
 | C1 | 최소 1개의 hard constraint가 명시됐나? | At least one non-negotiable limit stated (tech stack, deadline, budget, legal) |
-| C2 | hard / soft constraint 구분이 가능한가? | User differentiated "must have" vs "nice to have" |
+| C2 | hard / soft constraint 구분이 가능한가? | User decided hard vs soft for each major constraint — "all hard" counts when the user made that call. N only when hard/soft was never raised or the answers do not show it |
 | C3 | 제약의 근거를 이해할 수 있나? | Reason for each major constraint is stated or inferable |
 
 ### Success Criteria (4 questions)
