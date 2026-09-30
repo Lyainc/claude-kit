@@ -40,8 +40,27 @@ lookup: disclose the gap and rank only the known pool.
 observable outcomes, so a criterion this repo does not satisfy yet is already a ranked candidate —
 it was specified as required, which is the floor test answered in advance. Treat a Seed as in play
 only when the session or the caller names one, or an issue already in the pool references its path;
-never glob a spec directory to find one, and never read a Seed from another repository. Most
-sessions have none, and an unrelated stale Seed is a worse pool than no pool.
+never glob a spec directory to find one. A Seed reached from the named Seed by a `relations` edge
+is in play too, and the only way to reach it is
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" tree <named-seed-path>` (deterministic;
+it needs the named Seed and never runs without one). A Seed in another repository is never judged
+here — it is listed as a link only, because its evidence lives in that repo's code. Most sessions
+have none, and an unrelated stale Seed is a worse pool than no pool.
+
+Read the `tree` output this way. Whether anything is satisfied is judged by observing the repo;
+the script never says.
+
+- `PARENT-ITEM` lines are the parent's ids. An item this repo does not satisfy yet is a candidate,
+  the same as the named Seed's own criteria.
+- `SIBLING` lines are candidate Seeds. A sibling marked `requires <same-repo path> (same repo ...)`
+  is dropped while that predecessor Seed is not finished (judged the same way). One marked
+  `(다른 레포 — 확인 못 함)` stays, and the mark is carried into the pick's `FROM` line.
+- Lines ending `(다른 레포 — 여기서 판정 안 함, 링크만)` are shown as links in `FROM`/`SKIPPED` and never
+  ranked here; only same-repo `PARENT-ITEM`/`SIBLING` lines are candidates.
+- `[seed-relations FAILED] ...` lines are reported as unavailable in `SKIPPED`/`FROM`, never as
+  "no related Seeds".
+- `FROM` names the edge for a candidate that came through one, e.g.
+  `FROM · Seed edge: <named> → parent docs/specs/p.yaml ac3`.
 
 A Seed carries no status field by design — its amendment contract makes it a spec, not a work log —
 so "not met yet" is a judgment about the repository, never a value read out of the file. Check the
