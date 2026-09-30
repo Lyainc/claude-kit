@@ -7,6 +7,9 @@
 # field's value. Never append progress notes, dated corrections, round records, review
 # findings, or implementation status to it: git history and the issue timeline already
 # carry those, and a spec carrying both stops being readable as a spec.
+# Keys: only the fields this template defines — no status/progress field. Claude Code's
+# seed-append-guard hook denies any other new key; on Codex no hook runs, so this contract
+# is the only enforcement.
 ---
 # Output conforms to thinking-tools/reference/common-schema.md
 skill: build-spec
