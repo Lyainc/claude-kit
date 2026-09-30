@@ -418,8 +418,9 @@ python3 thinking-tools/scripts/issue-template.py --self-test
 # 1건(999줄·18커밋)의 순수 추가 hunk 13개 중 4개 deny, 그중 3개가 노린 모양.
 # 단 면제되는 키는 templates/SEED_SPEC.yaml이 그 위치에 정의한 것뿐이다(#767) — 최상위든
 # constraint 항목 안이든 `status:` 같은 템플릿 밖 키를 새로 넣으면 deny, 기존 파일에 있던 키는 안 본다.
+# 기존 Seed에서 constraints[]/success_criteria[]의 c*/ac* id가 편집 뒤 사라지면 deny(#780 c3) — 다른 Seed의 relations.refines가 그 id를 가리킨다. 템플릿 경로는 면제.
 python3 thinking-tools/scripts/seed-append-check.py --self-test
-# Expected: OK: all 32 seed-append-check self-test cases passed
+# Expected: OK: all 39 seed-append-check self-test cases passed
 
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test

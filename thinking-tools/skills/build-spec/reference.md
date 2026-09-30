@@ -153,16 +153,18 @@ issue timeline.
 
 **In-place edit vs `-v2`.** They answer different questions. A full build-spec re-run produces a
 new generation and still writes `-v2`/`-v3` (Phase 3 step 2). An in-place edit is for a fact the
-spec states wrongly — the value gets replaced, the file does not grow a journal entry.
+spec states wrongly — the value gets replaced, the file does not grow a journal entry. Ids survive
+both: a `-vN` regeneration keeps the prior `c*`/`ac*` ids so children's `refines` still resolve.
 
-**Enforcement.** `hooks/seed-append-guard.sh` denies two shapes. First, an edit that introduces a
+**Enforcement.** `hooks/seed-append-guard.sh` denies three shapes. First, an edit that introduces a
 key `templates/SEED_SPEC.yaml` does not define at that position — a top-level `status:` and one
 indented inside a constraint item alike (#767); keys the Seed already carried are left alone, so a
 field a Seed needs belongs in the template first. Second, the journaling shape: the old text
 surviving whole inside the new text while the added part carries work-log vocabulary. An addition
 that starts a new key or list item is structural growth and exempt from that second check only — a
 new constraint legitimately carries a provenance date, so signal alone would fire on exactly the
-edit Refine mode has to make.
+edit Refine mode has to make. Third, an edit after which a `c*`/`ac*` id the Seed held before has
+disappeared (#780 c3) — other Seeds' `refines` point at those ids.
 
 **On Codex this document contract is the only enforcement.** The guard is a Claude Code PreToolUse
 hook; a Codex run edits the Seed with no hook in the way, so the header comment and this section are
