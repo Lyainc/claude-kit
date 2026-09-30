@@ -36,7 +36,7 @@ Facilitate expert panel discussions where diverse specialists reach consensus th
 ## Execution Modes
 
 Express mode preferences in natural language — no flags needed:
-- **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation). Enables real multi-turn rebuttal — experts are re-spawned each round with prior statements injected, instead of one simulated pass (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
+- **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation). Enables real multi-turn rebuttal — experts are re-spawned for each rebuttal exchange with prior-exchange statements injected, instead of one simulated pass (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
 - **요약 출력** ("요약만", "transcript 없이"): Skip transcript generation; produce SUMMARY.md + UNRESOLVED.md only
 
 All combinations compose silently — including any combination with citation grounding (see [Citation Contract](#citation-contract)) and the Phase 2 inline-summary path (see [Phase 2: Recording](#phase-2-recording)).
@@ -97,8 +97,8 @@ When an expert states a **numeric or factual claim** (statistics, performance fi
 |------|------|
 | Principle | Unanimity (allows up to 1 minority dissent) |
 | Moderator | No voting rights, facilitation authority only |
-| Experts | Minimum 3 experts required |
-| Re-discussion | Re-discuss topic if 2+ experts object |
+| Experts | Minimum 3 valid experts; below 3 the topic is held (see [Topic Conclusion](#topic-conclusion)) |
+| Objection | 2+ experts objecting means no consensus — the topic goes to the weighted vote, never to a repeat cycle |
 
 ## Core Workflow
 
@@ -116,18 +116,17 @@ When an expert states a **numeric or factual claim** (statistics, performance fi
 
 **Anti-conformity directive** (applied to every expert turn): "You are not required to reach the same conclusions as other panel members. Maintain your position if your domain evidence supports it."
 
-For each topic (max 3 rounds per topic):
+For each topic (one cycle per topic — see Cycle Limits):
 1. **Briefing**: Practitioners present pro/con perspectives
 2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber). In default (inline) mode this is best-effort via prompt contract; isolated execution mode enforces it mechanically via subagent context boundaries.
 3. **Q&A / Rebuttal**: Experts question and rebut each other. Inline mode renders this as one simulated pass; isolated mode runs it as a real exchange loop — 1 independent exchange + up to 2 rebuttal exchanges (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
 4. **Dialectic**: Thesis → Antithesis → Synthesis
-5. **Conclusion**: Consensus or hold decision
+5. **Conclusion**: consensus, vote result, or hold (see [Topic Conclusion](#topic-conclusion))
 
-**Round Limits**:
-- Each topic has a maximum of 3 discussion rounds
-- If no consensus after 3 rounds, Moderator escalates to tie-breaking
-- A "round" = one complete Briefing → Independent Statements → Q&A/Rebuttal → Dialectic → Conclusion cycle
-- Early stop (isolated mode): within a topic round, the rebuttal *exchange* loop (the inner Q&A/Rebuttal loop, see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges)) may stop after any rebuttal exchange that adds no new argument — before reaching the 2-rebuttal cap. This inner loop is distinct from the 3 topic-round ceiling above
+**Cycle Limits**:
+- Each topic runs one cycle: independent statements once (E1), then at most 2 rebuttal exchanges (E2, E3). There is no outer topic-round repeat, and E1 is never re-collected for the same topic because a new round started — the only re-collection is a restore that lost E1 records ([reference.md → STATE Block 복원 상세](reference.md)).
+- Inline mode simulates the same shape in one response: one independent pass, then at most 2 rebuttal passes.
+- Early stop: the rebuttal loop may stop after any rebuttal exchange that adds no new argument, before the 2-rebuttal cap. Early stop ends the debate, not the decision — the topic still goes to [Topic Conclusion](#topic-conclusion), and stopping is never itself a consensus verdict.
 
 **STATE Block Contract**:
 
@@ -138,37 +137,40 @@ dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). Th
 
 ```
 <!-- STATE:CHECKPOINT -->
-Topic: {idx}/{total} | Phase: {0|1|2} | Round: {r}/3
+Topic: {idx}/{total} | Phase: {0|1|2}
 Mode: [isolated:{on|off}] [summary-only:{on|off}]
 Backlog: {scanned|partial|skipped}
 Personas: [{P-id} ...] adhoc:{n}
 Independent: {k}/{N}
 Rebuttal: [t{n}:e{i}:{k}/{N}]
-Topic-status: [t{n}:{pending|thesis-reached|antithesis-reached|synthesis-reached|consensus-reached|tie-broken}] ...
+Collected: [t{n}:e{i}:{expert-id},...]
+Records: {discussion-dir}/_exchanges/ | —
+Topic-status: [t{n}:{pending|thesis-reached|antithesis-reached|synthesis-reached|consensus-reached|tie-broken|held:{tie|evidence|quorum}}] ...
 Citation: [t{n}:{grounded|unverified|skipped}] ...
-Votes: [{expert}:{option}:{High|Medium|Low}] ...
-Tie-break: [used:{yes|no}] [margin:{n|—}]
+Votes: [t{n}:{expert}:{option}:{High|Medium|Low}] ...
+Tie-break: [t{n}:margin:{n|—}] ...
 <!-- /STATE -->
 ```
 
-**Field semantics, isolated-mode multi-round loop tracking, and compaction-restore defaults**: see [reference.md → STATE Block 복원 상세](reference.md) — load it before resuming a compacted isolated-mode session. Load-bearing invariants (kept here so restore is safe even before that load): `Rebuttal` is the authoritative isolated-mode loop cursor and **wins over `Independent` on any divergence**; on compaction, restore from the most recent STATE block, defaulting missing fields to the low-loss side — Mode flags → `off` (full output), Backlog → `skipped`, Citation → `skipped`, Topic-status → `pending`, Votes → no-consensus, `Independent → 0` (re-collect) **only while `Rebuttal` is at `e1`** (at `e2`/`e3` independent collection is already done — re-running E1 would discard rebuttal progress). A missing `Personas` field is recovered by re-running the Selection Rule on the same topic text — it is deterministic, so recomputation returns the identical set (ad-hoc personas are the exception: they are session-local, so recover those from the transcript instead).
+**Field semantics, exchange records, and compaction-restore defaults**: see [reference.md → STATE Block 복원 상세](reference.md) — load it before resuming a compacted isolated-mode session. Load-bearing invariants (kept here so restore is safe even before that load): in isolated mode the exchange records under `Records` are the source of truth for which experts finished an exchange — each record is written *before* `Collected`/`Rebuttal` are updated, so a record wins over a counter on any divergence, and an expert with no record is never counted as done by inference (re-collect it instead). `Rebuttal` locates the exchange and wins over `Independent`. On compaction, restore from the most recent STATE block, defaulting missing fields to the low-loss side — Mode flags → `off` (full output), Backlog → `skipped`, Citation → `skipped`, Topic-status → `pending`, Votes → no vote. A missing `Personas` field is recovered by re-running the Selection Rule on the same topic text — it is deterministic, so recomputation returns the identical set (ad-hoc personas are the exception: they are session-local, so recover those from the exchange records or transcript instead).
 
-**Tie-Breaking Mechanism**:
-When consensus cannot be reached after 3 rounds:
-1. **Weighted Vote**: Each expert votes with confidence level (High/Medium/Low)
-   - High confidence = 3 points, Medium = 2, Low = 1
-   - Option with highest total points wins
-2. **Moderator Summary**: Record the majority position AND dissenting rationale
-3. **Conditional Approval**: If vote margin < 2 points, mark as "Conditional — requires validation"
-4. **Document**: All tie-break decisions recorded in SUMMARY.md with vote breakdown
+### Topic Conclusion
+
+Every topic ends in exactly one outcome, decided after the rebuttal loop (isolated) or the rebuttal passes (inline) stop:
+
+1. **Consensus** — unanimity allowing up to 1 minority dissent → `consensus-reached`.
+2. **Weighted vote** (no consensus): each valid expert votes with a confidence of High = 3, Medium = 2, Low = 1 points. `margin` = the top option's points minus the runner-up's. `margin ≥ 2` → the top option wins, `tie-broken`. `margin = 1` → `tie-broken`, and SUMMARY.md marks that winning option "Conditional — requires validation".
+3. **Hold** — no winner is invented: `held:tie` when `margin = 0` (e.g. 6 vs 6), `held:evidence` when the Moderator judges the deciding claims unverifiable without facts the user must supply ([Phase 3](#phase-3-moderator-authority)), `held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all. A held topic is never recorded as `tie-broken` or Conditional.
+
+Record the outcome with its vote breakdown and the dissenting rationale in SUMMARY.md; every held topic also goes to UNRESOLVED.md with its reason. STATE `Topic-status`, SUMMARY.md, and UNRESOLVED.md name the same outcome for each topic. This whole section is pinned VERBATIM by `_SKILL_CONCLUSION_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`.
 
 ### Isolated Execution: Rebuttal Exchanges
 
-Isolated execution replaces inline mode's *simulated* debate (one model scripting all voices in one response) with real multi-turn **exchanges** inside a single topic round's Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a topic round. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total — independent of the 3 topic-round ceiling and its tie-break trigger.
+Isolated execution replaces inline mode's *simulated* debate (one model scripting all voices in one response) with real multi-turn **exchanges** inside a topic's single Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a separate discussion cycle. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total, once per topic — there is no outer topic-round loop around it.
 
 **Orchestrator vs. Moderator**: the mechanical work — spawning experts, assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator subagent, which stays visibility-limited (position summaries only) and is spawned only for Synthesis/Conclusion.
 
-**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for the E1/E2 packet composition, both stop conditions (the 2-rebuttal cap and the *no new argument* test), the degenerate cases, and the per-topic **Cost** including **Recovery cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone. This whole section is pinned VERBATIM by `_SKILL_ISOLATED_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`: the always-loaded body outranks an on-demand doc at runtime, so it may not drift from the section it points at.
+**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for the E1/E2 packet composition, the exchange records used for restore, both stop conditions (the 2-rebuttal cap and the *no new argument* test), the degenerate cases, and the per-topic **Cost** including **Recovery cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone. This whole section is pinned VERBATIM by `_SKILL_ISOLATED_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`: the always-loaded body outranks an on-demand doc at runtime, so it may not drift from the section it points at.
 
 ### Phase 2: Recording
 
@@ -209,7 +211,7 @@ Proceed to Phase 2 immediately after all topics are discussed. In the inline pat
 ### Moderator Visibility Contract
 
 - **Default**: Moderator receives expert position summaries only (full Q&A transcript blocked during synthesis)
-- **Isolated execution mode**: Moderator spawned as separate Agent subagent; pass expert position summaries only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
+- **Isolated execution mode**: Moderator spawned as separate Agent subagent; pass the final exchange's expert position summaries only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
 - **Rebuttal relay (isolated)**: between exchanges the **orchestrator** (not the Moderator subagent) assembles and forwards per-expert summary packets; the Moderator subagent is spawned only for Synthesis and still sees position summaries only (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
 
 This prevents the Moderator from being anchored by the Q&A thread and ensures independent synthesis.

@@ -160,11 +160,11 @@ In default (inline) mode, an entire topic — every persona's turns — is produ
 response: a *simulated* debate where a single model scripts all voices. It is fast, but it is not
 a real turn exchange, and personas drift toward a single voice.
 
-Isolated execution replaces the simulated pass with real multi-turn **exchanges** inside a single
-topic round's Q&A/Rebuttal step (SKILL.md Phase 1 step 3). An "exchange" is one synchronous
-fan-out across all experts (not per-expert) — it is NOT a topic round. The loop runs **1
-independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total —
-independent of the 3 topic-round ceiling and its tie-break trigger.
+Isolated execution replaces the simulated pass with real multi-turn **exchanges** inside a topic's single
+Q&A/Rebuttal step (SKILL.md Phase 1 step 3). An "exchange" is one synchronous
+fan-out across all experts (not per-expert) — it is NOT a separate discussion cycle. The loop runs **1
+independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total,
+once per topic — there is no outer topic-round loop around it.
 
 **Orchestrator vs. Moderator**: in isolated mode the mechanical work — spawning experts,
 assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition —
@@ -176,7 +176,7 @@ orchestrator already holds every statement, so it is the one allowed to summariz
 **Exchange loop**:
 
 1. **E1 — Independent** (anchoring-free): the orchestrator spawns each expert as a separate
-   subagent with the topic + briefing only. No expert sees another's statement. The orchestrator
+   subagent with the topic + briefing only. No expert sees another's statement. Each E1 spawn is a fresh, non-fork subagent, so it inherits none of the parent's debate history. The orchestrator
    collects all statements.
 2. **E2/E3 — Rebuttal**: the orchestrator re-spawns all experts **in parallel**, each receiving a
    packet of — (a) its own prior-exchange position (a re-spawned subagent is stateless; without
@@ -185,6 +185,16 @@ orchestrator already holds every statement, so it is the one allowed to summariz
    current-exchange turn, preserving anti-anchoring), and (c) the re-applied **Anti-conformity
    directive** (defined at the top of SKILL.md § Phase 1: Topic Rounds). Each expert then (a)
    holds and defends, (b) rebuts a specific point with new evidence, or (c) revises.
+
+**Exchange records (restore source)**: the moment an expert's statement is collected, the
+orchestrator Writes it — before touching STATE — to
+`{discussion-dir}/_exchanges/t{n}-e{i}-{expert-id}.md` (`{discussion-dir}` =
+`docs/discussions/{YYYYMMDD}_{name}/`; the topic briefing goes to `t{n}-briefing.md`), then adds
+the expert to `Collected` and advances `Rebuttal`. These are internal restore records, not the
+user-facing transcript: they are written in every isolated session, including summary-only,
+which skips only the Phase 2 transcripts. STATE holds only the counters, the collected-expert
+set, and the `Records` directory — never statement prose. Restore rules: [STATE Block 복원
+상세](#state-block-복원-상세).
 
 **Stop conditions** (whichever comes first):
 
@@ -199,20 +209,30 @@ orchestrator already holds every statement, so it is the one allowed to summariz
   false consensus.
 
 After the loop stops, the orchestrator spawns the Moderator subagent with the final exchange's
-position summaries to compute Synthesis → Conclusion.
+position summaries to compute Synthesis → Conclusion. Stopping — by the cap or by *no new argument* — is not itself a verdict: the outcome follows SKILL.md § Topic Conclusion.
 
 **Degenerate cases**:
 
 - An expert subagent that fails, returns empty, or returns no final text at all is retried once; on
-  a second failure the exchange proceeds with the remaining experts (recorded in the transcript — never silently dropped).
+  a second failure the exchange proceeds with the remaining experts (recorded in the exchange records — never silently dropped).
   A subagent that returns only idle notifications and no final text after one re-request counts as
   unavailable and takes this same fallback (#647) — never wait on it further.
+- If fewer than 3 valid experts remain after those retries, the loop stops for that topic: no
+  further exchange and no vote, and the topic is `held:quorum` (SKILL.md § Topic Conclusion).
+  One or zero remaining experts never produce a consensus or a synthesis.
 - An expert added mid-discussion (see Expert Selection Guide) first runs a catch-up E1 independent
   statement, then joins from the next rebuttal exchange.
 
 **Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) +
 1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop
-fires — plus 1 Moderator subagent for Synthesis. **Recovery cost**: if Phase 2 produces only a
+fires — plus 1 Moderator subagent for Synthesis.
+Every expert run is a new spawn (a re-spawned subagent is stateless), so on this path runs and
+spawns are equal: at most `3N` expert spawns + 1 Moderator per topic for N experts. Counted
+separately, never folded into that ceiling: **added experts** (a mid-added expert costs 1
+catch-up E1 plus each later exchange it joins), **retries** (at most 1 extra spawn per failed
+expert per exchange), and **restore** (re-collecting only the experts whose records are
+missing — never a whole exchange whose records survive).
+**Recovery cost**: if Phase 2 produces only a
 compressed final message or a content-free sign-off (e.g. due to context pressure), the user must
 re-request the full record — add one full-panel context reload to the effective cost. This
 recovery overhead is avoided by the inline SUMMARY path (lightweight sessions) and by the full
@@ -235,10 +255,11 @@ exchange matter more than speed — inline mode stays the default for quick revi
 - 전원 동의 확인
 - 토픽 종료 선언
 
-**합의 불가 시**:
+**합의 불가 시** (판정 규칙은 [SKILL.md § Topic Conclusion](SKILL.md#topic-conclusion)):
 
-- 구조적 한계 인정 → 미해결 이슈로 기록
-- 또는 유저 개입 요청 (팩트체크/의사결정 필요)
+- 가중 투표로 승자가 있으면 `tie-broken` — 차이가 1점이면 SUMMARY.md에 조건부로 표시
+- 동점(차이 0점) → `held:tie`, 근거 부족 → `held:evidence`, 유효 전문가 3명 미만 → `held:quorum` (투표 없음). 보류는 승자를 만들지 않고 UNRESOLVED.md에 사유와 함께 남김
+- 팩트체크·의사결정이 필요하면 유저 개입 요청
 
 **실무자 절충**:
 
@@ -249,8 +270,8 @@ exchange matter more than speed — inline mode stays the default for quick revi
 **논의 종료 조건**:
 
 - 합의 도달 (반대 1명 이하)
-- 모더레이터가 논의에 발전이 없다고 판단
-- 구조적 한계 인정 → 미해결 이슈로 이관
+- 가중 투표 승자 확정 (`tie-broken`)
+- 보류 (`held:tie` / `held:evidence` / `held:quorum`) → 미해결 이슈로 이관
 
 ---
 
@@ -262,24 +283,30 @@ SKILL.md의 STATE Block Contract에서 참조됨 — 필드별 write/read 지점
 - `Backlog` (#524) — written once at Phase 0 step 2, before the panel is composed: `scanned` if `backlog-prefilter.py` returned a clean digest, `partial` if it prefixed the digest with `[backlog-scan PARTIAL]` (#561 — one side's `gh` fetch failed while the other rendered normally), `skipped` if it printed `[backlog-scan SKIPPED]` instead. Read at Phase 2 to decide the carried-over line (SKILL.md → Phase 2: Recording, "Backlog scan carry-over") — a session-level field, not per-topic (the scan runs once on the original topic text, before topic-splitting). Zero LLM cost: `backlog-prefilter.py` is a deterministic shell scan of the open+closed issue corpus, the same script `build-spec` Phase 0 uses (#489) — the corpus itself never enters context, only the budgeted digest does. The digest is fed to experts as grounding at the same status as the Citation Contract's vault excerpts (SKILL.md → Citation Contract): material an expert may cite or override, never a verdict the panel is bound to, since the point is to make an existing decision *visible* to the debate, not to pre-decide it.
 - `Mode` — set at Phase 0 (mode detection); read at Phase 2 item 1 (transcript skip in summary-only mode).
 - `Personas` — written at Phase 0 step 3 (the [`../../reference/personas.md`](../../reference/personas.md) Selection Rule) and re-written whenever the panel changes (a mid-discussion addition, a per-topic re-run). Pool IDs in ranked order plus `adhoc:{n}`; `adhoc:{n}` is required even at `0`, since a silent ad-hoc fallback is the failure this field exists to expose. On restore, a missing value is recomputed by re-running the rule on the same topic text — it is deterministic, so it returns the identical set; ad-hoc personas are session-local and recover from the transcript instead.
-- `Independent` — updated during Phase 1 Independent Statements; `k==N` means collection complete (single format; no separate "complete" token).
+- `Independent` — updated during Phase 1 Independent Statements; `k==N` means collection complete (single format; no separate "complete" token). Inline mode only for restore; in isolated mode it is a mirror of `e1`.
 - `Rebuttal` (isolated mode only) — topic `n`, exchange index `e{i}` (`e1` = independent, `e2`/`e3` = up to 2 rebuttal exchanges), and `{k}/{N}` experts collected in the current exchange — updated after each expert is collected, so `k` may be partial mid-exchange (e.g. `e1:1/3` after the first of three). Bounded counters only — never statement prose. Empty/omitted in inline mode. In isolated mode the `Rebuttal` cursor is the authoritative loop-position source — recorded in the STATE block in **all** modes (including isolated + summary-only, since it is not a transcript); `Independent` is the inline-mode tracker and only a redundant mirror at `e1`. On any divergence (e.g. a partial write interrupted by compaction), `Rebuttal` wins (it also distinguishes `e2`/`e3`).
+- `Collected` (isolated mode only) — per topic and exchange, the ids of the experts whose exchange record has been Written. Updated right after each record Write, never before. It is a set, not a count, so a restore knows *which* experts to re-collect.
+- `Records` (isolated mode only) — the `_exchanges/` directory holding the per-expert records; `—` in inline mode. Present in summary-only mode too.
 - `Citation` — written per topic after the vault-searcher call attempt (or inline fallback). Three values: `grounded` = at least one expert cited a source for a numeric/factual claim; `unverified` = grounding *was available* (vault-searcher reachable, or an in-scope doc) and consulted, but no source was found / experts fell back to inline judgment despite availability; `skipped` = vault-searcher was *unavailable* (not installed / Agent call failed) so grounding was never attempted — inline fallback, behavior identical to pre-grounding. Read by the escalation signal: a topic with consensus AND `Citation: unverified` is escalated/deepened rather than marked easy; `grounded` and `skipped` never escalate (see SKILL.md → Citation Contract).
-- `Votes` — populated only by the Tie-Breaking Mechanism (after round 3); empty before tie-break.
-- `Topic-status` — closed enum, exactly these 6 values; no free-text. `tie-broken` = resolved via the Tie-Breaking Mechanism (weighted vote always yields a winner; a margin < 2 is recorded as "Conditional" in SUMMARY.md but the status stays `tie-broken`). There is no separate `deadlock` value — the vote is total, so a topic never ends unresolved.
+- `Votes` — per topic; populated only by the weighted vote of SKILL.md § Topic Conclusion, after the rebuttal loop stops without consensus. Empty for consensus topics and for `held:quorum` (no vote runs).
+- `Tie-break` — per topic: the vote margin (top option minus runner-up); `—` when no vote ran.
+- `Topic-status` — closed enum, exactly these 7 values; no free-text: `pending`, `thesis-reached`, `antithesis-reached`, `synthesis-reached`, `consensus-reached`, `tie-broken`, `held:{tie|evidence|quorum}`. `tie-broken` requires a single winning option (margin ≥ 1; a margin of 1 is marked Conditional in SUMMARY.md). A vote with margin 0 is `held:tie`, never `tie-broken`. Every `held` topic carries its reason and appears in UNRESOLVED.md.
 
-**Multi-round support (isolated mode) — verified**: the block tracks two nested loops, and isolated-mode multi-round debate is fully supported by them:
-- *Outer loop* = topic rounds, located by `Round: {r}/3` (the 3-round ceiling — see SKILL.md → Round Limits).
-- *Inner loop* = the isolated-mode exchange loop inside one round's Q&A/Rebuttal step, located by `Rebuttal: [t{n}:e{i}:{k}/{N}]`.
-
-The `Rebuttal` cursor intentionally carries only topic index `t{n}` + exchange index `e{i}` — **not** the round index `r`. It does not need one: the exchange loop re-enters fresh at `e1` every new topic round (independent statements are re-collected per round, preserving anti-anchoring), so the pair `(Round={r}, Rebuttal=[t{n}:e{i}:…])` — both fields in the same STATE block — uniquely locates the loop position across rounds. On compaction restore, read `Round` for the topic-round position and `Rebuttal` for the in-progress exchange; together they resume multi-round isolated debate without ambiguity. (Single-round and inline modes use the same fields; inline simply leaves `Rebuttal` empty.)
+**Loop position (isolated mode)**: each topic has one loop — the exchange loop — located by `Rebuttal: [t{n}:e{i}:{k}/{N}]` together with `Collected`. There is no topic-round counter: E1 runs once per topic and is not re-entered.
 
 **Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
-Topic-status → `pending`; Votes → treat as no-vote / no-consensus; Independent → `0` (re-collect, preserves anti-anchoring);
+Topic-status → `pending`; Votes → no vote; Independent → `0` (inline mode: re-collect, preserves anti-anchoring);
 Mode flags → both `off` (full output — over-producing transcripts is safer than losing user content);
 Citation → `skipped` (a missing citation state most often means grounding was never attempted this session — e.g. no vault-bridge — so defaulting to `skipped` avoids spuriously escalating every restored topic; if vault-searcher IS available this session, re-attempt grounding on the resumed topic instead of trusting the default);
 Backlog → `skipped` (mirrors the `Citation` default — a missing value must not read as a clean scan; the script is zero-LLM-cost, so re-run it on the resumed topic text instead of trusting the default when a corpus is reachable this session).
-In isolated mode the in-progress exchange is restored from the `Rebuttal` cursor — NOT from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode, so they do not exist mid-loop). When `Rebuttal` shows `e{i}` with `i>=2`, independent collection is already complete: do NOT apply the `Independent → 0` re-collect default above (that default applies only while the loop is still at `e1`) — re-running E1 would discard completed rebuttal progress. Conversely, when `Rebuttal` shows `e1`, independent collection is still in progress, so the `Independent → 0` re-collect default applies as usual — any partial e1 statements are re-collected from scratch, preserving anti-anchoring.
+In isolated mode the in-progress exchange is restored from the exchange records — not from the conversation, and not from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode). For topic `t{n}`:
+
+1. List `Records` for `t{n}-*`. An expert with a record for an exchange is done for it — take its statement from the record, never re-collect it and never count it twice. An expert without a record is not done, even if `Collected` or `k` says it is.
+2. Find the earliest exchange of the topic with a missing record. Re-spawn only its missing experts, with the packet that exchange used: topic + `t{n}-briefing.md` for `e1`; for `e2`/`e3`, the records of the exchange before it. Other experts' records from the same exchange never go into a packet.
+3. Records of any later exchange were built from the lost statement, so discard them and re-collect that later exchange after step 2. If `t{n}-briefing.md` itself is missing, or the records directory is gone, restart the topic at `e1` with a fresh briefing.
+4. If the retries leave fewer than 3 valid experts, the topic is `held:quorum`.
+
+Never mark an expert, an exchange, or a topic complete from a counter alone.
 
 ---
 

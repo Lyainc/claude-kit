@@ -244,11 +244,11 @@ In default (inline) mode, an entire topic — every persona's turns — is produ
 response: a *simulated* debate where a single model scripts all voices. It is fast, but it is not
 a real turn exchange, and personas drift toward a single voice.
 
-Isolated execution replaces the simulated pass with real multi-turn **exchanges** inside a single
-topic round's Q&A/Rebuttal step (SKILL.md Phase 1 step 3). An "exchange" is one synchronous
-fan-out across all experts (not per-expert) — it is NOT a topic round. The loop runs **1
-independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total —
-independent of the 3 topic-round ceiling and its tie-break trigger.
+Isolated execution replaces the simulated pass with real multi-turn **exchanges** inside a topic's single
+Q&A/Rebuttal step (SKILL.md Phase 1 step 3). An "exchange" is one synchronous
+fan-out across all experts (not per-expert) — it is NOT a separate discussion cycle. The loop runs **1
+independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total,
+once per topic — there is no outer topic-round loop around it.
 
 **Orchestrator vs. Moderator**: in isolated mode the mechanical work — spawning experts,
 assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition —
@@ -260,7 +260,7 @@ orchestrator already holds every statement, so it is the one allowed to summariz
 **Exchange loop**:
 
 1. **E1 — Independent** (anchoring-free): the orchestrator spawns each expert as a separate
-   subagent with the topic + briefing only. No expert sees another's statement. The orchestrator
+   subagent with the topic + briefing only. No expert sees another's statement. Each E1 spawn is a fresh, non-fork subagent, so it inherits none of the parent's debate history. The orchestrator
    collects all statements.
 2. **E2/E3 — Rebuttal**: the orchestrator re-spawns all experts **in parallel**, each receiving a
    packet of — (a) its own prior-exchange position (a re-spawned subagent is stateless; without
@@ -269,6 +269,16 @@ orchestrator already holds every statement, so it is the one allowed to summariz
    current-exchange turn, preserving anti-anchoring), and (c) the re-applied **Anti-conformity
    directive** (defined at the top of SKILL.md § Phase 1: Topic Rounds). Each expert then (a)
    holds and defends, (b) rebuts a specific point with new evidence, or (c) revises.
+
+**Exchange records (restore source)**: the moment an expert's statement is collected, the
+orchestrator Writes it — before touching STATE — to
+`{discussion-dir}/_exchanges/t{n}-e{i}-{expert-id}.md` (`{discussion-dir}` =
+`docs/discussions/{YYYYMMDD}_{name}/`; the topic briefing goes to `t{n}-briefing.md`), then adds
+the expert to `Collected` and advances `Rebuttal`. These are internal restore records, not the
+user-facing transcript: they are written in every isolated session, including summary-only,
+which skips only the Phase 2 transcripts. STATE holds only the counters, the collected-expert
+set, and the `Records` directory — never statement prose. Restore rules: [STATE Block 복원
+상세](#state-block-복원-상세).
 
 **Stop conditions** (whichever comes first):
 
@@ -283,20 +293,30 @@ orchestrator already holds every statement, so it is the one allowed to summariz
   false consensus.
 
 After the loop stops, the orchestrator spawns the Moderator subagent with the final exchange's
-position summaries to compute Synthesis → Conclusion.
+position summaries to compute Synthesis → Conclusion. Stopping — by the cap or by *no new argument* — is not itself a verdict: the outcome follows SKILL.md § Topic Conclusion.
 
 **Degenerate cases**:
 
 - An expert subagent that fails, returns empty, or returns no final text at all is retried once; on
-  a second failure the exchange proceeds with the remaining experts (recorded in the transcript — never silently dropped).
+  a second failure the exchange proceeds with the remaining experts (recorded in the exchange records — never silently dropped).
   A subagent that returns only idle notifications and no final text after one re-request counts as
   unavailable and takes this same fallback (#647) — never wait on it further.
+- If fewer than 3 valid experts remain after those retries, the loop stops for that topic: no
+  further exchange and no vote, and the topic is `held:quorum` (SKILL.md § Topic Conclusion).
+  One or zero remaining experts never produce a consensus or a synthesis.
 - An expert added mid-discussion (see Expert Selection Guide) first runs a catch-up E1 independent
   statement, then joins from the next rebuttal exchange.
 
 **Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) +
 1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop
-fires — plus 1 Moderator subagent for Synthesis. **Recovery cost**: if Phase 2 produces only a
+fires — plus 1 Moderator subagent for Synthesis.
+Every expert run is a new spawn (a re-spawned subagent is stateless), so on this path runs and
+spawns are equal: at most `3N` expert spawns + 1 Moderator per topic for N experts. Counted
+separately, never folded into that ceiling: **added experts** (a mid-added expert costs 1
+catch-up E1 plus each later exchange it joins), **retries** (at most 1 extra spawn per failed
+expert per exchange), and **restore** (re-collecting only the experts whose records are
+missing — never a whole exchange whose records survive).
+**Recovery cost**: if Phase 2 produces only a
 compressed final message or a content-free sign-off (e.g. due to context pressure), the user must
 re-request the full record — add one full-panel context reload to the effective cost. This
 recovery overhead is avoided by the inline SUMMARY path (lightweight sessions) and by the full
@@ -341,6 +361,10 @@ _SKILL_ISOLATED_SECTION_RE = re.compile(
     r"^### Isolated Execution: Rebuttal Exchanges\b.*?(?=^#{2,4} |\Z)",
     re.MULTILINE | re.DOTALL,
 )
+_SKILL_CONCLUSION_SECTION_RE = re.compile(
+    r"^### Topic Conclusion\b.*?(?=^#{2,4} |\Z)",
+    re.MULTILINE | re.DOTALL,
+)
 _SKILL_SELECTION_SECTION_RE = re.compile(
     r"^### Expert Selection Guide\b.*?(?=^#{2,4} |\Z)",
     re.MULTILINE | re.DOTALL,
@@ -349,11 +373,23 @@ _SKILL_SELECTION_SECTION_RE = re.compile(
 _SKILL_ISOLATED_SECTION = _normalise("""\
 ### Isolated Execution: Rebuttal Exchanges
 
-Isolated execution replaces inline mode's *simulated* debate (one model scripting all voices in one response) with real multi-turn **exchanges** inside a single topic round's Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a topic round. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total — independent of the 3 topic-round ceiling and its tie-break trigger.
+Isolated execution replaces inline mode's *simulated* debate (one model scripting all voices in one response) with real multi-turn **exchanges** inside a topic's single Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a separate discussion cycle. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total, once per topic — there is no outer topic-round loop around it.
 
 **Orchestrator vs. Moderator**: the mechanical work — spawning experts, assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator subagent, which stays visibility-limited (position summaries only) and is spawned only for Synthesis/Conclusion.
 
-**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for the E1/E2 packet composition, both stop conditions (the 2-rebuttal cap and the *no new argument* test), the degenerate cases, and the per-topic **Cost** including **Recovery cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone. This whole section is pinned VERBATIM by `_SKILL_ISOLATED_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`: the always-loaded body outranks an on-demand doc at runtime, so it may not drift from the section it points at.
+**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for the E1/E2 packet composition, the exchange records used for restore, both stop conditions (the 2-rebuttal cap and the *no new argument* test), the degenerate cases, and the per-topic **Cost** including **Recovery cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone. This whole section is pinned VERBATIM by `_SKILL_ISOLATED_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`: the always-loaded body outranks an on-demand doc at runtime, so it may not drift from the section it points at.
+""")
+
+_SKILL_CONCLUSION_SECTION = _normalise("""\
+### Topic Conclusion
+
+Every topic ends in exactly one outcome, decided after the rebuttal loop (isolated) or the rebuttal passes (inline) stop:
+
+1. **Consensus** — unanimity allowing up to 1 minority dissent → `consensus-reached`.
+2. **Weighted vote** (no consensus): each valid expert votes with a confidence of High = 3, Medium = 2, Low = 1 points. `margin` = the top option's points minus the runner-up's. `margin ≥ 2` → the top option wins, `tie-broken`. `margin = 1` → `tie-broken`, and SUMMARY.md marks that winning option "Conditional — requires validation".
+3. **Hold** — no winner is invented: `held:tie` when `margin = 0` (e.g. 6 vs 6), `held:evidence` when the Moderator judges the deciding claims unverifiable without facts the user must supply ([Phase 3](#phase-3-moderator-authority)), `held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all. A held topic is never recorded as `tie-broken` or Conditional.
+
+Record the outcome with its vote breakdown and the dissenting rationale in SUMMARY.md; every held topic also goes to UNRESOLVED.md with its reason. STATE `Topic-status`, SUMMARY.md, and UNRESOLVED.md name the same outcome for each topic. This whole section is pinned VERBATIM by `_SKILL_CONCLUSION_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`.
 """)
 
 _SKILL_SELECTION_SECTION = _normalise("""\
@@ -449,6 +485,8 @@ def reference_checks(skill_text: str, ref_text: str) -> list[tuple[bool, str]]:
          "SKILL.md § Isolated Execution: Rebuttal Exchanges (loaded body) matches VERBATIM"),
         (_section(_SKILL_SELECTION_SECTION_RE, skill_text) == _SKILL_SELECTION_SECTION,
          "SKILL.md § Expert Selection Guide (loaded body) matches VERBATIM"),
+        (_section(_SKILL_CONCLUSION_SECTION_RE, skill_text) == _SKILL_CONCLUSION_SECTION,
+         "SKILL.md § Topic Conclusion (loaded body) matches VERBATIM"),
         # --- adjacency: no heading inserted on either side of a pinned section ---
     ] + [
         (_neighbour_headings(pattern, ref_text) == expected,
@@ -465,6 +503,22 @@ def reference_checks(skill_text: str, ref_text: str) -> list[tuple[bool, str]]:
          "reference.md pins the stop test as *new arguments*, not *agreement*"),
         (_SELECTION_NO_TOP_UP in ref,
          "reference.md pins the ban on topping up an implementation-heavy-looking panel (#423)"),
+        (_normalise("There is no outer topic-round repeat") in skill,
+         "SKILL.md pins one cycle per topic (no topic-round repeat)"),
+        (_normalise("`held:tie` when `margin = 0`") in skill,
+         "SKILL.md pins a margin-0 vote as held:tie, never a winner"),
+        (_normalise("`held:quorum` when fewer than 3 valid experts remain after retries") in skill,
+         "SKILL.md pins held:quorum below 3 valid experts"),
+        (_normalise("an expert with no record is never counted as done by inference") in skill,
+         "SKILL.md restore invariant: no completion by inference"),
+        (_normalise("orchestrator Writes it — before touching STATE") in ref,
+         "reference.md pins record-before-STATE ordering"),
+        (_normalise("Never mark an expert, an exchange, or a topic complete from a counter alone.") in ref,
+         "reference.md restore: no completion from a counter"),
+        (_normalise("One or zero remaining experts never produce a consensus or a synthesis.") in ref,
+         "reference.md pins no consensus from 1 or 0 experts"),
+        (_normalise("Counted separately, never folded into that ceiling") in ref,
+         "reference.md cost keeps retries/added/restore outside the 3N ceiling"),
         # --- the seam: the pointers that make the canonical copies binding ---
         (_POINTER_EXCHANGE_LOOP in skill,
          "SKILL.md binds the exchange-loop contract by section name (read-and-apply, not a cite)"),
@@ -548,7 +602,7 @@ When an expert states a numeric or factual claim it must cite one grounding sour
 
 ```
 <!-- STATE:CHECKPOINT -->
-Topic: 1/2 | Phase: 1 | Round: 1/3
+Topic: 1/2 | Phase: 1
 Mode: [isolated:off] [summary-only:off]
 Citation: [t1:grounded]
 <!-- /STATE -->
@@ -627,6 +681,35 @@ _SKILL_PANEL_SIZE_WIDENED = _CLEAN_SKILL.replace("panel size (3–5)", "panel si
 _SKILL_LOCATOR_CAVEAT_DELETED = _CLEAN_SKILL.replace(
     " Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone.", "")
 
+# --- #783: one cycle per topic, held outcomes never invent a winner, restore trusts records ---
+# The always-loaded body flips back to a repeat cycle.
+_SKILL_ROUNDS_BACK = _CLEAN_SKILL.replace(
+    "There is no outer topic-round repeat", "Each topic may repeat up to 3 rounds")
+# A margin-0 vote turned into a winner instead of a hold.
+_SKILL_TIE_WINS = _CLEAN_SKILL.replace(
+    "`held:tie` when `margin = 0`", "`tie-broken` when `margin = 0`")
+# The quorum hold deleted: fewer than 3 experts would proceed to a vote.
+_SKILL_QUORUM_DROPPED = _CLEAN_SKILL.replace(
+    "`held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all", "")
+# Restore allowed to count an expert as done with no record on disk.
+_SKILL_INFER_DONE = _CLEAN_SKILL.replace(
+    "an expert with no record is never counted as done by inference",
+    "an expert with no record may be counted as done")
+# Record ordering flipped: STATE first, so a crash between the two loses the statement.
+_REF_STATE_BEFORE_RECORD = _CLEAN_REF.replace(
+    "orchestrator Writes it — before touching STATE",
+    "orchestrator Writes it — after updating STATE")
+# The counter-only completion ban deleted from the restore procedure.
+_REF_INFER_DONE = _CLEAN_REF.replace(
+    "Never mark an expert, an exchange, or a topic complete from a counter alone.", "")
+# Quorum loss rewritten so the survivors go on to a consensus.
+_REF_QUORUM_PROCEEDS = _CLEAN_REF.replace(
+    "One or zero remaining experts never produce a consensus or a synthesis.",
+    "The remaining experts proceed to consensus as usual.")
+# Retries/added experts/restore folded back into the 3N ceiling.
+_REF_RETRIES_FOLDED = _CLEAN_REF.replace(
+    "Counted\nseparately, never folded into that ceiling", "Included in that ceiling")
+
 # --- a heading used as an escape hatch: contradicting text parked in a NEW sibling section,
 # immediately after the pinned one, so every whole-section pin still matches.
 _REF_ADDENDUM_INSERTED = _CLEAN_REF.replace(
@@ -669,7 +752,7 @@ _REF_STOPS_ON_AGREEMENT = _CLEAN_REF.replace(
     "The test is *agreement*:")
 # Failed subagents silently dropped instead of recorded.
 _REF_SILENT_DROP = _CLEAN_REF.replace(
-    "(recorded in the transcript — never silently dropped)", "(dropped)")
+    "(recorded in the exchange records — never silently dropped)", "(dropped)")
 # Recovery cost deleted from the cost accounting.
 _REF_NO_RECOVERY_COST = _CLEAN_REF.replace(
     "**Recovery cost**: if Phase 2 produces only a",
@@ -728,6 +811,14 @@ for _name, _fixture, _base in (
     ("_REF_TOP_UP_ALLOWED", _REF_TOP_UP_ALLOWED, _CLEAN_REF),
     ("_SKILL_EXCHANGE_POINTER_DECAYED", _SKILL_EXCHANGE_POINTER_DECAYED, _CLEAN_SKILL),
     ("_SKILL_SELECTION_POINTER_DECAYED", _SKILL_SELECTION_POINTER_DECAYED, _CLEAN_SKILL),
+    ("_SKILL_ROUNDS_BACK", _SKILL_ROUNDS_BACK, _CLEAN_SKILL),
+    ("_SKILL_TIE_WINS", _SKILL_TIE_WINS, _CLEAN_SKILL),
+    ("_SKILL_QUORUM_DROPPED", _SKILL_QUORUM_DROPPED, _CLEAN_SKILL),
+    ("_SKILL_INFER_DONE", _SKILL_INFER_DONE, _CLEAN_SKILL),
+    ("_REF_STATE_BEFORE_RECORD", _REF_STATE_BEFORE_RECORD, _CLEAN_REF),
+    ("_REF_INFER_DONE", _REF_INFER_DONE, _CLEAN_REF),
+    ("_REF_QUORUM_PROCEEDS", _REF_QUORUM_PROCEEDS, _CLEAN_REF),
+    ("_REF_RETRIES_FOLDED", _REF_RETRIES_FOLDED, _CLEAN_REF),
 ):
     assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
 
@@ -785,6 +876,22 @@ _CANONICAL_CASES: list[tuple[str, str, str, bool]] = [
      _SKILL_EXCHANGE_POINTER_DECAYED, _CLEAN_REF, False),
     ("selection-guide pointer decayed into a citation -> FAIL",
      _SKILL_SELECTION_POINTER_DECAYED, _CLEAN_REF, False),
+    ("loaded body allows a repeat topic-round cycle -> FAIL",
+     _SKILL_ROUNDS_BACK, _CLEAN_REF, False),
+    ("loaded body records a margin-0 vote as a winner -> FAIL",
+     _SKILL_TIE_WINS, _CLEAN_REF, False),
+    ("loaded body drops the held:quorum rule -> FAIL",
+     _SKILL_QUORUM_DROPPED, _CLEAN_REF, False),
+    ("loaded body lets restore infer completion without a record -> FAIL",
+     _SKILL_INFER_DONE, _CLEAN_REF, False),
+    ("record written after the STATE update -> FAIL",
+     _CLEAN_SKILL, _REF_STATE_BEFORE_RECORD, False),
+    ("restore no-completion-from-a-counter rule deleted -> FAIL",
+     _CLEAN_SKILL, _REF_INFER_DONE, False),
+    ("quorum loss rewritten to proceed to consensus -> FAIL",
+     _CLEAN_SKILL, _REF_QUORUM_PROCEEDS, False),
+    ("retries/added/restore folded into the 3N ceiling -> FAIL",
+     _CLEAN_SKILL, _REF_RETRIES_FOLDED, False),
     ("reflowed reference.md still passes (whitespace is not the contract)",
      _CLEAN_SKILL, _REF_REFLOWED, True),
 ]

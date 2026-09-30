@@ -798,9 +798,9 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/mai
 # each pinned section's neighbouring headings are pinned too — otherwise one inserted heading
 # parks contradicting text just outside every pin.
 python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
-# Expected: OK: all 44 self-test cases passed
+# Expected: OK: all 52 self-test cases passed
 python3 thinking-tools/scripts/test/test-mode-compose.py
-# Expected: OK: all 20 mode-compose checks passed.
+# Expected: OK: all 29 mode-compose checks passed.
 # (static check against the live SKILL.md)
 
 # persona-pool selection guard (#418) — executes reference/personas.md's Selection Rule
