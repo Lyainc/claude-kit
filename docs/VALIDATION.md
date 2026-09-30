@@ -104,10 +104,13 @@ python3 scripts/check-effort-field.py
 # of a value tuned to what it actually does — #448 established effort-over-model-tier.
 # Key existence + non-emptiness only; the value itself is a manual judgment call (see
 # #648's issue body). #648 originally mandated the same key on */skills/*/SKILL.md too;
-# #751 found that a SKILL.md effort: differing from session ambient regenerates the whole
-# main-context messages cache on every call (agents are exempt — a subagent's own context
-# never touches the main cache), so the skill side of this guard was dropped and
-# check-skill-token-budget.py now warns (never blocks) on a skill that still sets one.
+# #751 measured on Opus 5 / Sonnet 5 that a SKILL.md effort: differing from session ambient
+# regenerated the whole main-context messages cache, so the skill side of this guard was
+# dropped. #770 narrowed it: Opus/Sonnet 5.5 on a Claude subscription or Anthropic API key
+# keep the cache across an effort change; Bedrock, Google Cloud Agent Platform, the Claude
+# apps gateway, CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS and HIPAA are the exceptions.
+# check-skill-token-budget.py reports (never blocks) a skill that sets one; agents are
+# exempt in every environment — a subagent's own context never touches the main cache.
 python3 scripts/check-agent-nonresponse-clause.py --self-test
 # Expected: OK: all check-agent-nonresponse-clause self-test cases passed
 python3 scripts/check-agent-nonresponse-clause.py

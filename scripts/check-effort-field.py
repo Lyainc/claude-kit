@@ -7,13 +7,17 @@ a value tuned to what it actually does — #448 established that an effort overr
 preferred over a `model:` tier downgrade. This is a BLOCK guard so a new or edited agent
 can't silently land without one.
 
-#648 originally mandated the same key on `*/skills/*/SKILL.md` too. #751 found the
-opposite is true there: a SKILL.md `effort:` that differs from the session's ambient
-effort regenerates the WHOLE main-context messages cache on every call the skill is
-invoked (measured: 83% collapse rate when the value transitions, 1-hour-TTL cache
-writes billed at 20x a read) — so a skill should OMIT `effort:` and inherit ambient
-unless it deliberately matches it. A subagent has no such cost: it runs in its own
-context, never touching the main cache, so #648's original mandate stands for agents.
+#648 originally mandated the same key on `*/skills/*/SKILL.md` too. #751 dropped that
+after measuring, on Opus 5 / Sonnet 5, that a SKILL.md `effort:` differing from the
+session's ambient effort regenerated the whole main-context messages cache (83% collapse
+rate when the value transitioned). #770 narrowed that finding: per the Claude Code docs,
+Opus/Sonnet 5.5 on a Claude subscription or Anthropic API key keep the cache across an
+effort change, while Bedrock, Google Cloud Agent Platform, the Claude apps gateway,
+CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS and HIPAA setups are the exceptions. So a skill's
+`effort:` is neither required nor banned — it is judged on quality and total usage, and
+check-skill-token-budget.py reports it without blocking. A subagent has no such cost in
+any environment: it runs in its own context, never touching the main cache, so #648's
+original mandate stands for agents.
 
 This only checks that the key EXISTS and is non-empty — it does not judge whether the
 value (low/medium/high/xhigh/max) is the right one for what the agent does. That
