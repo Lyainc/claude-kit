@@ -169,3 +169,81 @@ disappeared (#780 c3) — other Seeds' `refines` point at those ids.
 **On Codex this document contract is the only enforcement.** The guard is a Claude Code PreToolUse
 hook; a Codex run edits the Seed with no hook in the way, so the header comment and this section are
 all that stand between a Seed and a `status:` field there.
+
+## 8. Seed Relations — Phase 0 question and Phase 3 parent write (#780)
+
+SKILL.md keeps the steps as short imperatives; this section holds the reasons and the detail.
+
+**Why the sub-feature list is human-picked.** next-goal never scans `docs/specs/` to guess a parent,
+because a directory scan would decide for the user which Seed a new one belongs to, and a wrong guess
+writes a wrong edge into two files. build-spec only *offers* candidates from `Glob(pattern="docs/specs/*.yaml")`
+and the user chooses. No `docs/specs/` or no match means there is nothing to offer, so the question is
+skipped entirely.
+
+**Option count.** `AskUserQuestion` allows 4 options. Show at most 3 same-repo Seeds, each labelled by its
+`target:` and ordered most recently modified first (a slug appears once, as its latest `-vN`: when `foo.yaml`
+and `foo-v2.yaml` both match, only `foo-v2.yaml` is offered, because the older file is a superseded
+generation), plus "아니요, 독립 Seed". Any other same-repo path, or an
+other-repo coordinate `owner/repo:docs/specs/x.yaml`, comes in through Other. "아니요, 독립 Seed" means no
+parent and `relations` stays at the template defaults.
+
+**What gets recorded.** While interviewing, note which of the parent's `c*`/`ac*` ids this Seed spells
+out (`relations.refines`, may be empty) and any sibling Seed it must wait on (`relations.depends_on`).
+`depends_on` is written only when the user says so, never inferred, because a guessed dependency blocks
+work that was never blocked.
+
+**Why Refine carries relations and ids.** A refined Seed is written to a new `-vN` file. If `relations`
+is not restored verbatim, the edges vanish in that file. The prior `c*`/`ac*` ids stay as they are
+because children's `refines` point at those ids. The parent edge already sits in the restored
+`relations`, so the sub-feature question is skipped in Refine mode.
+
+**Phase 3 parent write.** With a parent chosen, fill the template's `relations` block: `relations.parent`
+(same repo: repo-root relative path; other repo: `owner/repo:docs/specs/x.yaml`), `relations.refines`,
+`relations.depends_on`.
+- Same-repo parent: resolve the chosen parent to its latest `-vN` first (highest N of the same slug; the
+  unsuffixed file counts as v1), then `Edit` only that file's `relations.children`, adding the new Seed's
+  path, and set `relations.parent` to that resolved path. Editing the older generation would leave the
+  edge on a superseded file, and the child's parent edge would point at a file whose `children` the
+  reader never consults. If the parent predates `relations`, add the template's `relations` block
+  first, then edit only that field.
+- Other-repo parent: never written. Each repo writes only itself, so a session here editing another
+  repo's file would bypass that repo's own review and guards. Print one line telling the user to add
+  the new Seed to that parent's `children` from a session in that repo.
+
+**What `seed-relations.py check` reports.** It reads the new Seed's edges and verifies them against the
+files they name, printing `MISMATCH` lines where an edge is not mirrored on the other side (for example
+the parent's `children` lacks the new Seed) and `FAILED` where a referenced Seed cannot be read. Show
+those lines to the user; do not fix them silently.
+
+## 9. Requirement-gap review of a Seed-traced diff (note for later reviewers)
+
+build-spec does not run this review itself. When a completion condition's requirement-gap review
+(next-goal's L2, not the correctness + CLAUDE.md/guard-script `/code-review` call) traces its diff back
+to a Seed, it runs as `subagent_type: "thinking-tools:requirement-gap-reviewer"`. That agent carries the
+grading methodology in its own body, Seed or no Seed, but not its own scope, so hand it the base ref or
+diff range as well, and additionally attach `${CLAUDE_PLUGIN_ROOT}/reference/seed-diff-grading.md`'s
+instruction to its prompt for the Seed-aware specialization.
+
+## 10. Known Limitations and Phase 2.5 rationale
+
+**Why Phase 2.5 runs once, after the gate.** Put earlier, every finding becomes new interview rounds, which doubles the interview and gets the skill abandoned in real use. After the gate it reads an already-sharp spec, so its questions are sharper too. The clarity gate only scores dimensions that were *asked*: a dimension nobody raised is not scored low, it is not scored at all, so all four dimensions can sit at 0.9 while the spec still collides with a decision made elsewhere. This pass looks at the unasked.
+
+### Known Limitations
+
+- **Isolated verdict is gate-only**: per-round scoring stays inline; only the round that would open the
+  gate is re-judged in a subagent (Phase 2). A mid-interview score can still drift — it just cannot open
+  the gate on its own. Users can override scores by providing explicit corrections during the interview.
+- **Blind-spot pass is one shot**: three findings, one call, no follow-up round (constraint: the
+  interview length must not grow). It is a last sweep, not a second interview — a spec needing real
+  blind-spot work should go through `unknown-discovery` directly.
+- **Backlog scan reads titles and bodies, not comments**: an issue whose current state lives in its
+  comment timeline can still read as unconflicting. Closed candidates are ranked by **title only**
+  (bodies are not fetched for the closed half — that is what keeps the corpus out of context), so a
+  closed decision whose conflict is stated only in its body is reachable but not pre-surfaced.
+- **A silent subagent is indistinguishable from a slow one** (#647): a spawned subagent can stay alive,
+  emit only idle notifications, and never return a final report — no error, no timeout, so nothing in
+  Phase 2 / Phase 2.5 fires on its own. The documented rule (one re-request, then treat as unavailable)
+  is what converts it into the inline fallback, and applying that rule is a judgment call, not a check.
+- **The prefilter is the recall ceiling**: candidates are scored by term overlap, so a conflicting
+  issue that shares no vocabulary with the target scores 0 and never appears. Term overlap is not
+  meaning.
