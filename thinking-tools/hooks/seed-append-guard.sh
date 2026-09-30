@@ -1,13 +1,14 @@
 #!/usr/bin/env bash
 # thinking-tools PreToolUse(Write|Edit) hook — build-spec Seed append guard.
 #
-# Denies two edit shapes. (1) A new key the Seed template does not define at that position —
+# Denies three edit shapes. (1) A new key the Seed template does not define at that position —
 # `status:` at the top level or inside a constraint item (#767). (2) The shape that turns a
 # Seed into a changelog: the old text survives whole inside the new text (nothing replaced,
 # only added) AND the added part reads like a work log (a date, past-tense reporting, review
 # provenance). Replacing a field's value — the amendment the Seed template's header actually
 # sanctions — matches neither, so correcting the spec stays frictionless while journaling in
-# it stops. This is a Claude Code hook only; on Codex the Seed's header contract is all there is.
+# it stops. (3) A constraints[]/success_criteria[] c*/ac* id vanishing (#780 c3).
+# This is a Claude Code hook only; on Codex the Seed's header contract is all there is.
 #
 # Why a hook and not another sentence in a SKILL.md: the session doing the appending is a
 # `/goal` loop in someone else's repo, and the only surfaces it reads are the Seed file and its

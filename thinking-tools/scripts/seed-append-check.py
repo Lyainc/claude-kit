@@ -24,6 +24,11 @@ an indented `status: done` inside a constraint item rode through as "growth". No
 an existing Seed may introduce only key paths that templates/SEED_SPEC.yaml defines at that
 position; keys the file already carried are never flagged, so old Seeds with custom keys keep
 working. If the template cannot be read the key check is skipped (fail open).
+
+**Ids are never deleted (#780 c3).** Other Seeds' `relations.refines` point at a parent's
+constraints[].id / success_criteria[].id, so an edit that makes an id present before the edit
+vanish would silently orphan those edges. A dropped requirement keeps its id and has its entry
+rewritten; a new one takes the next unused id. Same template-path exemption as the key check.
 """
 
 from __future__ import annotations
@@ -105,6 +110,30 @@ def key_paths(text: str) -> set[tuple[str, ...]]:
         if value:
             scalar = (col, value[0] in "|>")
     return paths
+
+
+_ID_LINE = re.compile(r"""^\s*(?:-\s+)?id:\s*["']?([\w-]+)""")
+_ID_SECTIONS = ("constraints", "success_criteria")
+
+
+def item_ids(text: str) -> set[str]:
+    """`id:` values of constraints[] and success_criteria[] items (top-level sections only)."""
+    ids: set[str] = set()
+    section = ""
+    for line in text.splitlines():
+        if line[:1] not in ("", " ", "\t", "#", "-"):
+            section = line.split(":", 1)[0].strip()
+            continue
+        if section in _ID_SECTIONS:
+            m = _ID_LINE.match(line)
+            if m:
+                ids.add(m.group(1))
+    return ids
+
+
+def missing_ids(existing: str, result: str) -> list[str]:
+    """Ids the existing Seed holds that the edited text no longer does."""
+    return sorted(item_ids(existing) - item_ids(result))
 
 
 # The template documents blindspots' item fields only in a comment (its default is `[]`).
@@ -200,6 +229,13 @@ def decide(payload: dict, read_file=None) -> str:
     if not existing or not reads_as_seed(existing):
         return ""
     result = result_text(tool, ti, existing)
+    lost = missing_ids(existing, result) if result is not None and not is_template_path(path) else []
+    if lost:
+        return (
+            f"Seed의 id를 지우려고 했어요 ({os.path.basename(path)}: {', '.join(lost)}). "
+            "c*/ac* id는 다른 Seed의 relations.refines가 가리키니까 재사용하거나 지우면 안 돼요 — "
+            "빠진 요구사항도 id는 두고 그 항목의 내용만 고쳐 쓰고, 새 요구사항은 아직 안 쓴 다음 번호를 쓰세요."
+        )
     # The template defines the allowlist, so widening it must not be judged against itself.
     keys = foreign_keys(existing, result) if result is not None and not is_template_path(path) else []
     if keys:
@@ -230,6 +266,7 @@ def _read_file(path: str) -> str:
 
 SEED_HEAD = "skill: build-spec\nspec_version: 1\nconstraints:\n"
 SEED_ITEM = SEED_HEAD + "  - id: c1\n    type: technical\n    description: 기존 제약.\n    hard: true\n    rationale: 기존 근거.\n"
+SEED_ITEM_BODY = SEED_ITEM[len(SEED_HEAD):]
 SEED_COMPACT = SEED_HEAD + "- id: c1\n  type: technical\n  description: 기존 제약.\n  hard: true\n  rationale: 기존 근거.\n"
 SEED_CUSTOM = SEED_ITEM + "custom_note: x\n"
 
@@ -354,12 +391,69 @@ def _self_test() -> int:
             }}, item, True,
         ),
         (
-            "relations: block is not in the template yet (expected deny; flips to allow when #780 adds relations to the template)",
+            "relations: block with the template's shape is allowed",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "    rationale: 기존 근거.\n",
-                "new_string": "    rationale: 기존 근거.\nrelations:\n  - from: c1\n    to: ac1\n",
+                "new_string": "    rationale: 기존 근거.\nrelations:\n  parent: docs/specs/p.yaml\n"
+                              "  refines: [c1]\n  depends_on: []\n  children: []\n",
+            }}, item, False,
+        ),
+        (
+            "relations.status is still a foreign key",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\nrelations:\n  parent: null\n  status: done\n",
             }}, item, True,
+        ),
+        # --- id invariance (#780 c3) ---
+        (
+            "deleting the c1 item is denied",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": SEED_ITEM_BODY,
+                "new_string": "",
+            }}, item, True,
+        ),
+        (
+            "renumbering c1 to c2 is denied (c1 vanished)",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "  - id: c1\n",
+                "new_string": "  - id: c2\n",
+            }}, item, True,
+        ),
+        (
+            "Write that drops a success_criteria id is denied",
+            {"tool_name": "Write", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "content": SEED_ITEM,
+            }}, lambda _: SEED_ITEM + "success_criteria:\n  - id: ac1\n    description: 관찰 가능한 결과.\n", True,
+        ),
+        (
+            "rewriting c1's description while keeping the id is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "description: 기존 제약.",
+                "new_string": "description: 고쳐 쓴 제약.",
+            }}, item, False,
+        ),
+        (
+            "adding a new c2 while keeping c1 is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\n  - id: c2\n    description: 새 제약.\n",
+            }}, item, False,
+        ),
+        (
+            "the same c1 deletion on the template path is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml",
+                "old_string": "  - id: c1\n    type: technical|resource|legal|temporal|other\n",
+                "new_string": "",
+            }}, lambda _: _TEMPLATE.read_text(encoding="utf-8"), False,
         ),
         (
             "adding a key to the Seed template itself is allowed (path-scoped exemption)",

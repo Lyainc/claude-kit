@@ -10,6 +10,8 @@
 # Keys: only the fields this template defines — no status/progress field. Claude Code's
 # seed-append-guard hook denies any other new key; on Codex no hook runs, so this contract
 # is the only enforcement.
+# Ids: a c*/ac* id is never reused or deleted — a dropped requirement keeps its id and its
+# entry is rewritten, a new one takes the next unused id. Other Seeds' `refines` point at them.
 ---
 # Output conforms to thinking-tools/reference/common-schema.md
 skill: build-spec
@@ -56,6 +58,12 @@ context:
   integration_points: [] # brownfield only — API endpoints, modules, tables affected
   backlog_scan: <brownfield only — Phase 0 open-issue scan verdict: conflicting "#N — what conflicts"
                  entries, or an explicit no-conflict statement. null only when gh/GitHub was unavailable>
+
+relations:            # edges to other Seeds — never a status/progress value (c1)
+  parent: null        # parent Seed, or null. Same repo: repo-root relative path; other repo: owner/repo:docs/specs/x.yaml
+  refines: []         # parent item ids this Seed spells out, e.g. [c3, ac2]
+  depends_on: []      # sibling Seeds that must be finished before this one (same path/coordinate rules)
+  children: []        # child Seeds (the parent side of each child's `parent` edge)
 
 blindspots: []   # Phase 2.5 findings the user kept — each: {area, question}. [] when none kept or the pass was skipped
 
