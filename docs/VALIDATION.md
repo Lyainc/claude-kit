@@ -416,8 +416,10 @@ python3 thinking-tools/scripts/issue-template.py --self-test
 # 사용자 결정)")가 걸려 refine 라운드가 막히고, 덧대기만 보면 신규 제약 추가가 전부 걸린다.
 # 그래서 신규 리스트 항목·신규 키로 시작하는 추가(구조 성장)는 면제한다. 실측: 실사용 Seed
 # 1건(999줄·18커밋)의 순수 추가 hunk 13개 중 4개 deny, 그중 3개가 노린 모양.
+# 단 면제되는 키는 templates/SEED_SPEC.yaml이 그 위치에 정의한 것뿐이다(#767) — 최상위든
+# constraint 항목 안이든 `status:` 같은 템플릿 밖 키를 새로 넣으면 deny, 기존 파일에 있던 키는 안 본다.
 python3 thinking-tools/scripts/seed-append-check.py --self-test
-# Expected: OK: all 15 seed-append-check self-test cases passed
+# Expected: OK: all 32 seed-append-check self-test cases passed
 
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test

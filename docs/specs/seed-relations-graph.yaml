@@ -107,14 +107,13 @@ constraints:
   - id: c8
     type: technical
     description: >-
-      #767을 같은 변경에서 고친다. seed-append-check.py의 구조적 성장 판정을 "템플릿이 그 위치에
-      정의한 키만 통과"로 좁힌다. 최상위든 항목 안이든 같은 규칙이라, `relations:`는 통과하고
-      `status:`는 어느 깊이에서도 막힌다.
+      #767이 먼저 seed-append-check.py의 판정을 "템플릿이 그 위치에 정의한 키만 통과"로 좁혔고,
+      여기서는 템플릿에 relations만 추가한다. 최상위든 항목 안이든 같은 규칙이라, 템플릿에 들어간
+      `relations:`는 통과하고 `status:`는 어느 깊이에서도 막힌다.
     hard: true
     rationale: >-
-      지금 STRUCTURAL_START 정규식(scripts/seed-append-check.py:45)은 `^\s*`로 시작해서 들여쓴
-      키까지 전부 구조적 성장으로 본다. 최상위만 좁히면 constraint 항목 안에 `status:`를 끼우는
-      길이 그대로 남는다. relations를 넣으려면 같은 정규식을 건드려야 해서 따로 하면 충돌한다.
+      가드는 템플릿에 없는 키를 새로 넣는 편집을 막는다. 그래서 relations는 템플릿 정의(c9)가
+      먼저 들어가야 Seed에 쓸 수 있고, 가드 코드는 따로 고칠 필요가 없다.
   - id: c9
     type: technical
     description: templates/SEED_SPEC.yaml이 relations 필드(parent, refines, depends_on, children)를 정의한다.
@@ -221,8 +220,8 @@ context:
     - local-harness session-close는 이름 댄 Seed 경로를 next-goal에 넘기기만 하므로 변경 없음
   backlog_scan: >-
     open 29건 · closed 385건 스캔. 충돌 1건 — #767(OPEN) seed-append-guard가 새 키를 전부 구조적
-    성장으로 통과시켜 status 금지가 강제되지 않는다. relations 추가가 같은 정규식에 기대므로 c8로
-    같은 변경에서 해소한다. 목적 중첩 1건 — #756(OPEN) GitHub 마일스톤으로 세션 간 진척 누적.
+    성장으로 통과시켜 status 금지가 강제되지 않는다. #767이 먼저 판정을 템플릿 키로 좁히고, 여기서는
+    c8·c9로 템플릿에 relations를 더한다. 목적 중첩 1건 — #756(OPEN) GitHub 마일스톤으로 세션 간 진척 누적.
     Seed 안의 c/ac 항목까지는 연결하지 못해 대체 관계는 아니다. 닫힌 build-spec/next-goal 이슈
     8건은 제목 기준 충돌 없음.
 
