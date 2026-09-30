@@ -152,9 +152,12 @@ FRONTMATTER_RE = re.compile(r"\A---\n.*?\n(?:---|\.\.\.)\n", re.DOTALL)
 
 _FRONTMATTER_KEY_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_-]*:")
 
-# #751: a skill frontmatter effort: differing from session ambient regenerates the whole
-# main-context messages cache on every call. agents/*.md is exempt on purpose — a subagent
-# runs in its own context, never touching the main cache.
+# #751/#770: a skill frontmatter effort: is reported, never failed. Whether it costs the main
+# messages cache depends on the runtime, which a static scan cannot see: Opus/Sonnet 5.5 on a
+# Claude subscription or Anthropic API key keep the cache across an effort change; Bedrock,
+# Google Cloud Agent Platform, the Claude apps gateway, CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS
+# and HIPAA setups may regenerate it (#751 measured that on Opus 5 / Sonnet 5). agents/*.md is
+# exempt on purpose — a subagent runs in its own context, never touching the main cache.
 # `[ \t]*`, not `\s*` — `\s*` crosses the newline, so a bare `effort:` immediately followed
 # by the closing fence or another key would have its first non-space character misread as
 # an on-the-same-line value (same bug class check-effort-field.py's EFFORT_KEY_RE avoids).
@@ -919,9 +922,12 @@ def main(argv=None):
     effort_hits = find_skill_effort_overrides(root)
     if effort_hits:
         print(
-            f"  ! {len(effort_hits)} skill(s) set frontmatter effort: — regenerates the main "
-            f"messages cache on every call when it differs from session ambient (#751); move "
-            f"it to the agent's own effort: or Workflow agent()'s opts.effort instead:"
+            f"  ! {len(effort_hits)} skill(s) set frontmatter effort: — informational, not a "
+            f"removal order (#770). Opus/Sonnet 5.5 on a Claude subscription or Anthropic API "
+            f"key keep the cache across an effort change; on Bedrock, Google Cloud Agent "
+            f"Platform, the Claude apps gateway, CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS or "
+            f"HIPAA it may regenerate the main messages cache when it differs from ambient "
+            f"(#751). Confirm the runtime and judge by quality and total usage before moving it:"
         )
         for rel in effort_hits:
             print(f"    {rel}")

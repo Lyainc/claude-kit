@@ -76,11 +76,11 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 # context: fork                # 선택: fork 시 별도 에이전트에서 실행
 # agent: Explore               # 선택: fork 시 사용할 에이전트 타입
 # model: haiku                 # 선택: 스킬 실행 시 사용할 모델 (haiku|sonnet|opus|inherit)
-# effort: low                   # 선택 — SKILL.md에는 대부분 넣지 마세요, 아래 자리 규칙(#751) 참고
+# effort: low                   # 선택 — 캐시 영향은 환경마다 달라요, 아래 설명(#751·#770) 참고
 ---
 ```
 
-`effort:`는 자리가 갈려요 (#751): SKILL.md frontmatter에 박으면 그 스킬이 호출될 때마다 메인 컨텍스트의 messages 캐시가 통째로 재생성돼요(세션 ambient와 다른 값일수록 비쌈 — 1시간 TTL 쓰기 단가는 읽기의 20배). 안전한 자리는 에이전트 정의(`*/agents/*.md`)의 `effort:`나 Workflow `agent()`의 `opts.effort` — 둘 다 서브에이전트 자체 컨텍스트라 메인 캐시와 무관해요.
+`effort:`의 캐시 영향은 실행 환경마다 달라요 (#751, #770). Claude Code 문서(2026-09-30 확인)를 보면 Sonnet 5.5·Opus 5.5를 Claude 구독이나 Anthropic API 키로 쓸 때는 effort를 바꿔도 캐시가 유지돼요. Amazon Bedrock·Google Cloud Agent Platform·Claude apps gateway, `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS`, HIPAA 구성은 예외라서, 여기서는 SKILL.md `effort:`가 세션 ambient와 다르면 메인 messages 캐시가 다시 만들어질 수 있어요. #751의 캐시 붕괴 측정은 Opus 5·Sonnet 5 시절 기록이라 5.5에 그대로 옮기지 않아요. 그래서 일반 5.5 환경에서는 캐시 보호만을 이유로 SKILL.md `effort:`를 빼거나 서브에이전트로 옮기지 않고, 품질과 전체 사용량으로 정해요. 예외 환경이면 모델 전환·TTL 만료·압축 같은 다른 원인을 통제하고 확인한 다음에 정해요. 에이전트 정의(`*/agents/*.md`)의 `effort:`와 Workflow `agent()`의 `opts.effort`는 서브에이전트 자체 컨텍스트라 어느 환경에서든 메인 캐시와 무관해요.
 
 ## Vault File Conventions
 
