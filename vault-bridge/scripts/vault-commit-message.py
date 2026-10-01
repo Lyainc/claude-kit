@@ -11,6 +11,8 @@ Exit codes:
   0 — success (always, even on fallback)
 """
 
+from __future__ import annotations
+
 import re
 import subprocess
 import sys
@@ -60,6 +62,50 @@ def _git_show(vault_root: str, rel_path: str) -> str | None:
         return result.stdout
     except (subprocess.TimeoutExpired, OSError):
         return None
+
+
+# ---------------------------------------------------------------------------
+# git C-style path unquoting
+# ---------------------------------------------------------------------------
+
+_SIMPLE_ESCAPES = {
+    "a": 7, "b": 8, "t": 9, "n": 10, "v": 11, "f": 12, "r": 13,
+    '"': 34, "\\": 92,
+}
+
+
+def _unquote_git_path(token: str) -> str:
+    r"""Decode a path as git prints it under core.quotepath=true.
+
+    Non-ASCII or special paths arrive wrapped in double quotes, with octal
+    escapes carrying the raw UTF-8 bytes (\354\227\205) plus \t \n \" \\.
+    Unquoted tokens are returned unchanged.
+    """
+    if len(token) < 2 or not (token.startswith('"') and token.endswith('"')):
+        return token
+    body = token[1:-1]
+    out = bytearray()
+    i = 0
+    while i < len(body):
+        ch = body[i]
+        if ch != "\\" or i + 1 >= len(body):
+            out.extend(ch.encode("utf-8"))
+            i += 1
+            continue
+        nxt = body[i + 1]
+        if nxt in "01234567":
+            j = i + 1
+            while j < len(body) and j < i + 4 and body[j] in "01234567":
+                j += 1
+            out.append(int(body[i + 1:j], 8) & 0xFF)
+            i = j
+        elif nxt in _SIMPLE_ESCAPES:
+            out.append(_SIMPLE_ESCAPES[nxt])
+            i += 2
+        else:
+            out.extend(("\\" + nxt).encode("utf-8"))
+            i += 2
+    return out.decode("utf-8", errors="replace")
 
 
 # ---------------------------------------------------------------------------
@@ -211,6 +257,7 @@ def _parse_diff_lines(lines: list[str], vault_root: str) -> list[tuple[str, str]
             continue
 
         status = parts[0].strip()
+        parts = [parts[0]] + [_unquote_git_path(p) for p in parts[1:]]
 
         if status == "A":
             records.append(("add", _msg_for_added(vault_root, parts[1])))

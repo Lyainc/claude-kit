@@ -7,6 +7,8 @@ Run: python3 vault-bridge/scripts/test/test-vault-commit-message.py
 Exit 0 on pass, 1 on fail.
 """
 
+from __future__ import annotations
+
 import subprocess
 import sys
 import tempfile
@@ -567,6 +569,60 @@ def case_rename_file(errors: list[str]) -> None:
         _assert("old-name" in out and "new-name" in out, f"both stems in message (got: {out!r})", errors)
 
 
+def case_quoted_korean_path(errors: list[str]) -> None:
+    """git C-quoted octal path (default core.quotepath) decodes to real Hangul (#779)."""
+    print("\ncase: quoted_korean_path")
+    name = "hr-업무-정리"
+    octal = "".join(f"\\{b:03o}" for b in name.encode("utf-8"))
+    quoted = f'"notes/{octal}.md"'
+    with tempfile.TemporaryDirectory() as tmp:
+        vault_root = Path(tmp)
+        _init_git_repo(vault_root)
+        _write_note(vault_root, f"notes/{name}.md", "note", "draft")
+        proc = _run_script(str(vault_root), [f"A\t{quoted}"])
+        out = proc.stdout.strip()
+        _assert(proc.returncode == 0, "exit 0", errors)
+        _assert(out == f"note(draft): {name} (new)", f"Hangul stem decoded (got: {out!r})", errors)
+        _assert("\\" not in out and '"' not in out, "no escapes/quotes left", errors)
+        # Real git output under default quotepath round-trips
+        _git(str(vault_root), "add", "-A")
+        real = _git(str(vault_root), "-c", "core.quotepath=true", "diff", "--cached", "--name-status")
+        _assert("\\354" in real.stdout, "git really emitted octal escapes", errors)
+        proc = _run_script(str(vault_root), real.stdout.splitlines())
+        _assert(
+            name in proc.stdout and "\\" not in proc.stdout,
+            f"real git output decoded (got: {proc.stdout!r})",
+            errors,
+        )
+
+
+def case_quoted_rename_and_escapes(errors: list[str]) -> None:
+    r"""Quoted rename paths and \" \\ escapes parse (#779)."""
+    print("\ncase: quoted_rename_and_escapes")
+    with tempfile.TemporaryDirectory() as tmp:
+        proc = _run_script(tmp, ['R100\t"notes/\\354\\227\\205.md"\t"notes/\\353\\254\\264.md"'])
+        out = proc.stdout.strip()
+        _assert(out == "vault: rename 업 → 무", f"quoted rename decoded (got: {out!r})", errors)
+        proc = _run_script(tmp, ['D\t"notes/a\\"b\\\\c.md"'])
+        _assert(
+            proc.stdout.strip() == 'vault: delete a"b\\c.md',
+            f"simple escapes (got: {proc.stdout!r})",
+            errors,
+        )
+
+
+def case_imports_under_system_python(errors: list[str]) -> None:
+    """Script must load on the macOS system python3 (3.9) — no PEP 604 at runtime (#779)."""
+    print("\ncase: imports_under_system_python")
+    py = "/usr/bin/python3"
+    if not Path(py).exists():
+        print("  skip /usr/bin/python3 absent")
+        return
+    proc = subprocess.run([py, str(SCRIPT), "."], input="", capture_output=True, text=True)
+    _assert(proc.returncode == 0, f"runs under {py} (stderr tail: {proc.stderr.strip()[-200:]!r})", errors)
+    _assert(proc.stdout.strip() == "vault: update notes", f"empty-diff fallback (got: {proc.stdout!r})", errors)
+
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -603,6 +659,9 @@ def main() -> int:
     case_single_file_winner_titled_by_its_own_group(errors)
     case_tie_broken_by_diff_order(errors)
     case_rename_file(errors)
+    case_quoted_korean_path(errors)
+    case_quoted_rename_and_escapes(errors)
+    case_imports_under_system_python(errors)
 
     print()
     if errors:
