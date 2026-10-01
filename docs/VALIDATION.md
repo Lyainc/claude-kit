@@ -919,9 +919,9 @@ python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
 python3 obsidian-vault-manager/scripts/test/test-git-activity.py
 # Expected: OK: all 18 cases passed
 
-# E2 auto-fix tag inference regression (#127)
+# E2 auto-fix tag inference regression (#127) + E3 권장 파일명 keeps the slug (#761)
 python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test
-# Expected: OK: all 6 infer-tags cases + E2 auto-fix simulation passed
+# Expected: OK: all 6 infer-tags cases + E2 auto-fix simulation + 4 E3 suggestion cases passed
 
 # infer-tags batch-mode regression (#152, shell-level — complements --infer-self-test:
 # covers multi-path/stdin array shape, partial-failure exit codes, and the security

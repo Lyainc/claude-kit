@@ -198,7 +198,9 @@ def _slug_from_filename(rel: Path) -> str:
     """
     stem = rel.stem
     # Strip leading YYYY-MM-DD- or YYYY-MM- date prefix (v3 date-first artifact).
-    stem = re.sub(r"^\d{4}-\d{2}(?:-\d{2})?-", "", stem)
+    # `(?:-|$)` lets a date-only stem (`2026-04-12`) strip whole; with a mandatory
+    # trailing `-` the regex backtracked to `2026-04-` and left `12` as the slug (#761).
+    stem = re.sub(r"^\d{4}-\d{2}(?:-\d{2})?(?:-|$)", "", stem)
     # Strip a single leading {type}- prefix so we don't double it on rebuild.
     stem = re.sub(r"^(?:note|decision|plan|capture|session)-", "", stem)
     return stem
@@ -208,8 +210,8 @@ def _compute_suggested_filename(rel: Path, fm: dict) -> Optional[str]:
     """Compute a v4-conforming filename suggestion for an E3 violation.
 
     note            → {slug}.md            (date prefix removed)
-    decision / plan → {type}-{YYYY-MM-DD}-{slug}.md
-    capture / session → {type}-{YYYY-MM-DD}.md
+    decision / plan / capture / session → {type}-{YYYY-MM-DD}-{slug}.md
+                    ({type}-{YYYY-MM-DD}.md only when the slug is empty, #761)
     missing type: or created: → None       (cannot suggest; keep base message)
     """
     ftype = fm.get("type")
@@ -225,13 +227,11 @@ def _compute_suggested_filename(rel: Path, fm: dict) -> Optional[str]:
     if created_d is None:
         return None
     date_str = created_d.isoformat()
-    if ftype in ("decision", "plan"):
+    if ftype in ("decision", "plan", "capture", "session"):
         slug = _slug_from_filename(rel)
         if not slug:
             return f"{ftype}-{date_str}.md"
         return f"{ftype}-{date_str}-{slug}.md"
-    if ftype in ("capture", "session"):
-        return f"{ftype}-{date_str}.md"
     return None
 
 
@@ -1062,10 +1062,29 @@ def _infer_self_test() -> int:
         print(f"[OK] E2 sim: inferred_tags={sim['inferred_tags']} "
               f"missing_fields={sim['missing_fields']}")
 
+    # E3 suggestion (#761): every dated type keeps its slug, so two same-day session
+    # notes get distinct suggestions; only a date-only filename falls back to no slug.
+    e3_cases = [
+        ("notes/daily/2026-09-07-daily.md",
+         {"type": "session", "created": "2026-09-07"}, "session-2026-09-07-daily.md"),
+        ("notes/daily/2026-09-07-채용-미팅.md",
+         {"type": "session", "created": "2026-09-07"}, "session-2026-09-07-채용-미팅.md"),
+        ("notes/2026-05-01-obsidian-api.md",
+         {"type": "capture", "created": "2026-05-01"}, "capture-2026-05-01-obsidian-api.md"),
+        ("notes/2026-04-12.md",
+         {"type": "session", "created": "2026-04-12"}, "session-2026-04-12.md"),
+    ]
+    for rel_str, fm, expected in e3_cases:
+        got = _compute_suggested_filename(Path(rel_str), fm)
+        if got != expected:
+            failures += 1
+        print(f"[{'OK' if got == expected else 'FAIL'}] E3 {rel_str}: got={got} expected={expected}")
+
     if failures:
         print(f"FAIL: {failures} infer-tags self-test case(s) failed", file=sys.stderr)
         return 1
-    print(f"OK: all {len(cases)} infer-tags cases + E2 auto-fix simulation passed")
+    print(f"OK: all {len(cases)} infer-tags cases + E2 auto-fix simulation "
+          f"+ {len(e3_cases)} E3 suggestion cases passed")
     return 0
 
 

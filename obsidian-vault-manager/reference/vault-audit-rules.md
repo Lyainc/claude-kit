@@ -137,7 +137,7 @@ only the date), so the slug is extracted from the current filename.
 
 ```
 slug = stem
-  minus leading /^\d{4}-\d{2}(-\d{2})?-/    # strip date-first prefix
+  minus leading /^\d{4}-\d{2}(-\d{2})?(-|$)/    # strip date-first prefix (a date-only stem strips whole)
   minus leading /^(note|decision|plan|capture|session)-/   # strip a type prefix
 
 suggested_filename(rel, fm):
@@ -145,10 +145,15 @@ suggested_filename(rel, fm):
   if type missing:                  → None   (keep base message; cannot suggest)
   if type == "note":                → "{slug}.md"          (date prefix removed)
   if created is None (non-note):     → None
-  if type in {decision, plan}:       → "{type}-{YYYY-MM-DD}-{slug}.md"
-  if type in {capture, session}:     → "{type}-{YYYY-MM-DD}.md"
+  if type in {decision, plan, capture, session}:
+    if slug is empty:               → "{type}-{YYYY-MM-DD}.md"
+    else:                           → "{type}-{YYYY-MM-DD}-{slug}.md"
   else:                             → None
 ```
+
+The slug is kept for every dated type (#761): `capture` and `session` are exactly the
+types that occur several times a day, so dropping the slug made two same-day notes
+receive the same suggestion, and following it would overwrite one with the other.
 
 Rename is **never auto-applied** — it affects inbound wikilinks, so the audit
 only suggests; the user decides.

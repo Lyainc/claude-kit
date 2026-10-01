@@ -508,7 +508,7 @@ def parse_type(content):
 
 def slug_from_filename(name):
     stem = name[:-3] if name.endswith('.md') else name
-    stem = re.sub(r'^\d{4}-\d{2}(?:-\d{2})?-', '', stem)
+    stem = re.sub(r'^\d{4}-\d{2}(?:-\d{2})?(?:-|$)', '', stem)  # date-only stem strips whole (#761)
     stem = re.sub(r'^(?:' + '|'.join(TYPE_PREFIXES) + r')-', '', stem)
     return stem
 
