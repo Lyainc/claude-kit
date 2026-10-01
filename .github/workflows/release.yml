@@ -144,7 +144,9 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           # Scope to exactly what bump-version.py writes (the only repo-file mutation
           # in this workflow) — explicit intent over `-A` staging the whole tree.
-          git add '*/plugin.json' '*/.claude-plugin/plugin.json' '*/.codex-plugin/plugin.json' .claude-plugin/marketplace.json
+          # `:(glob)` keeps `*` inside one path segment; a plain pathspec `*` crosses `/`,
+          # so '*/plugin.json' alone matched all 12 manifests and any nested plugin.json.
+          git add ':(glob)*/plugin.json' ':(glob)*/.claude-plugin/plugin.json' ':(glob)*/.codex-plugin/plugin.json' .claude-plugin/marketplace.json
           git commit -m "chore(release): v$VERSION"
           git push origin HEAD:main
           git tag "v$VERSION"

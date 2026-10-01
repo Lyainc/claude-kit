@@ -79,14 +79,12 @@ def current_versions(root):
     """Return {label: version} across all manifests, for --check / reporting."""
     pjs, mp_path = manifest_paths(root)
     out = {}
-    for d in PLUGIN_DIRS:
-        out[f"plugin.json:{d}"] = _read(os.path.join(root, d, "plugin.json")).get("version")
-        out[f"claude-plugin.json:{d}"] = _read(
-            os.path.join(root, d, ".claude-plugin", "plugin.json")
-        ).get("version")
-        out[f"codex-plugin.json:{d}"] = _read(
-            os.path.join(root, d, ".codex-plugin", "plugin.json")
-        ).get("version")
+    # Label off the shared path list so --check reads exactly what apply_version writes:
+    # <d>/plugin.json → plugin.json:<d>, <d>/.claude-plugin/plugin.json → claude-plugin.json:<d>.
+    for pj in pjs:
+        d, *rest = os.path.relpath(pj, root).split(os.sep)
+        kind = f"{rest[0].lstrip('.')}.json" if len(rest) > 1 else "plugin.json"
+        out[f"{kind}:{d}"] = _read(pj).get("version")
     marketplace = _read(mp_path)
     out["marketplace:root"] = marketplace.get("version")
     for entry in marketplace.get("plugins", []):
