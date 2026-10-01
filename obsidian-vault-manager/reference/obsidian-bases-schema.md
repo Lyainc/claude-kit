@@ -3,6 +3,7 @@
 `base` 스킬이 생성하는 `.base` 파일의 YAML 스키마를 버전 고정(version-pin)하는 문서예요. Bases는 비교적 신규 기능(2026)이라 스키마가 바뀔 수 있어요. 생성 템플릿이 깨지면 이 문서의 핀 버전과 실제 Obsidian 버전을 대조하세요 (#118 Risk 완화).
 
 - **핀 기준 스키마 버전**: Obsidian Bases 1.0 (2026 GA)
+- **재검증**: 2026-10-01에 공식 문서(`https://obsidian.md/help/bases/syntax`, `https://obsidian.md/help/bases/functions`)와 대조해 filters·views·날짜 함수 문법을 바로잡았어요 (#760). 이전 판은 존재하지 않는 `property.` 접두어를 규정해서 생성된 뷰가 전부 빈 표로 렌더됐어요.
 - **출처**: Obsidian Help — Bases (`https://help.obsidian.md/bases`), Bases syntax / filters / views. kepano vault 사용 사례(`https://stephango.com/vault`).
 - **갱신 규칙**: Obsidian이 `.base` 스키마를 변경하면 이 문서의 키 표와 템플릿을 함께 갱신하고, `base` 스킬의 템플릿 YAML도 맞춰서 수정하세요.
 
@@ -24,17 +25,37 @@
 
 ## filters 문법
 
-property 비교는 `property.{key}` 형태로 참조해요. 함수형 비교를 씁니다.
+`filters`는 `and` / `or` / `not` 아래에 **표현식 문자열 목록**을 중첩해서 써요. 표현식은 전부 YAML 문자열이에요. `file.hasTag("book")`처럼 그대로 써도 되지만, 따옴표로 시작하거나 `: `·` #`이 들어가면 YAML이 다르게 읽으니까 비교식은 공식 문서처럼 작은따옴표로 감싸는 게 안전해요.
+
+property 참조 방식은 세 가지예요. `property.` 접두어는 **없어요**.
+
+| 종류 | 문법 | 예시 |
+|------|------|------|
+| 노트 property (frontmatter) | `note.<key>` 또는 접두어 없는 `<key>` | `note.author`, `author` |
+| 파일 property | `file.<name>` | `file.name`, `file.ext`, `file.mtime` |
+| 수식 property | `formula.<name>` | `formula.price` |
+
+접두어를 생략하면 note property로 해석돼요.
 
 | 패턴 | 예시 | 의미 |
 |------|------|------|
-| 동등 비교 | `property.type == "capture"` | type이 capture인 노트 |
-| 함수 비교 | `property.type != null` | type property가 존재하는 노트 (type opt-in 가드) |
+| 동등 비교 | `'note.type == "capture"'` | type이 capture인 노트 |
+| 존재 확인 | `file.hasProperty("type")` | type property가 있는 노트 (type opt-in 가드) |
 | 폴더 조건 | `file.inFolder("sources")` | sources/ 하위 파일 |
-| 폴더 조건 | `file.inFolder("notes")` | notes/ 하위 파일 |
-| 논리 결합 | `and: [...]` | 모든 하위 조건 만족 |
+| 태그 조건 | `file.hasTag("book")` | book 태그가 붙은 파일 |
+| 날짜 조건 | `'file.mtime > now() - "14d"'` | 최근 14일 안에 수정된 파일 |
+| 논리 결합 | `and:` / `or:` / `not:` + 하위 목록 | 모두 만족 / 하나 이상 / 부정 |
 
-**type opt-in 가드 (필수)**: 모든 필터는 `property.type != null` 조건을 포함해야 해요. `type:` 없는 노트(다이어리·책 노트·자유 폴더)는 claude-kit 관리 대상이 아니므로 뷰에서 invisible 상태를 유지해야 하거든요 (v4 §2.2).
+```yaml
+filters:
+  and:
+    - 'status != "done"'
+    - file.hasTag("book")
+```
+
+**날짜 함수**: `now()`, `today()`, `date("2024-12-01")`. duration 산술도 돼요 (`today() + "7d"`, `now() - "14d"`). 단위는 `y` / `M` / `d` / `w` / `h` / `m` / `s`예요.
+
+**type opt-in 가드 (필수)**: 모든 필터는 `file.hasProperty("type")` 조건을 포함해야 해요. `type:` 없는 노트(다이어리·책 노트·자유 폴더)는 claude-kit 관리 대상이 아니므로 뷰에서 invisible 상태를 유지해야 하거든요 (v4 §2.2). 공식 문서에 있는 함수라서 `!= null` 비교 대신 이걸 써요.
 
 ## views 문법
 
@@ -49,12 +70,17 @@ views:
     sort:                # 정렬 (선택)
       - property: created
         direction: ASC   # ASC | DESC
+    groupBy:             # 그룹화 (선택)
+      property: note.type
+      direction: DESC    # ASC | DESC
     limit: 100           # 표시 개수 제한 (선택)
 ```
 
+view 옵션으로 `order` / `sort` / `groupBy` / `limit` / `summaries`를 쓸 수 있어요. 템플릿 3종은 `order`와 `sort`만 써요.
+
 ## 빌트인 템플릿 3종
 
-`base` 스킬이 제공하는 3종 뷰 — 각 필터는 B층 폴더 분할(v5 §5: 원문 `sources/`, 내가 쓴 것 `notes/`)과 정렬되고, `property.type != null` opt-in 가드를 반드시 포함해요. status machine은 #480에서 폐기돼 필터 조건에서 빠졌어요.
+`base` 스킬이 제공하는 3종 뷰 — 각 필터는 B층 폴더 분할(v5 §5: 원문 `sources/`, 내가 쓴 것 `notes/`)과 정렬되고, `file.hasProperty("type")` opt-in 가드를 반드시 포함해요. status machine은 #480에서 폐기돼 필터 조건에서 빠졌어요.
 
 ### sources — sources/ 전체 (원문 그대로 보관한 자료)
 
@@ -62,7 +88,7 @@ views:
 filters:
   and:
     - file.inFolder("sources")
-    - property.type != null
+    - file.hasProperty("type")
 views:
   - type: table
     name: "Sources"
@@ -81,7 +107,7 @@ views:
 filters:
   and:
     - file.inFolder("notes")
-    - property.type != null
+    - file.hasProperty("type")
 views:
   - type: table
     name: "Notes"
@@ -92,7 +118,7 @@ views:
       - created
     sort:
       - property: created
-        direction: ASC
+        direction: DESC
 ```
 
 ### recent — 최근 저장한 것 전체 (폴더 무관)
@@ -100,7 +126,7 @@ views:
 ```yaml
 filters:
   and:
-    - property.type != null
+    - file.hasProperty("type")
 views:
   - type: table
     name: "Recent"
