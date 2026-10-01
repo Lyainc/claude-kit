@@ -25,7 +25,7 @@ Parse `$ARGUMENTS`:
 
 ## Built-in View Templates
 
-Each template's filter is aligned with the B-layer folder split (v5 §5 — source text in `sources/`, your own prose in `notes/`). The status machine the old `inbox-raw`/`draft-notes`/`evergreen` templates filtered on was abolished in #480, so those three were replaced. **Every filter MUST include `property.type != null`** so notes without a `type:` field stay invisible (v4 §2.2 type opt-in) — never drop this condition.
+Each template's filter is aligned with the B-layer folder split (v5 §5 — source text in `sources/`, your own prose in `notes/`). The status machine the old `inbox-raw`/`draft-notes`/`evergreen` templates filtered on was abolished in #480, so those three were replaced. **Every filter MUST include `file.hasProperty("type")`** so notes without a `type:` field stay invisible (v4 §2.2 type opt-in) — never drop this condition.
 
 ### sources — everything in `sources/` (source text kept as-is)
 
@@ -33,7 +33,7 @@ Each template's filter is aligned with the B-layer folder split (v5 §5 — sour
 filters:
   and:
     - file.inFolder("sources")
-    - property.type != null
+    - file.hasProperty("type")
 views:
   - type: table
     name: "Sources"
@@ -52,7 +52,7 @@ views:
 filters:
   and:
     - file.inFolder("notes")
-    - property.type != null
+    - file.hasProperty("type")
 views:
   - type: table
     name: "Notes"
@@ -71,7 +71,7 @@ views:
 ```yaml
 filters:
   and:
-    - property.type != null
+    - file.hasProperty("type")
 views:
   - type: table
     name: "Recent"
@@ -98,15 +98,16 @@ views:
 
 5. **Create file** (after user confirmation): Write the resolved template YAML to `~/vault/notes/{view-name}.base`. The file body is pure YAML — no frontmatter, no Markdown.
 
-6. **Output result**: Created file path. No follow-up questions.
+6. **Output result**: Created file path. Then tell the user (in Korean) to open the generated `.base` in Obsidian and confirm that rows actually render. Explain that a table with headers but zero rows means a filter mismatch (property reference or expression syntax differs from what Obsidian's Bases expects), and that the user should report it. This skill cannot verify rendering itself, so never claim the view works. No other follow-up questions.
 
 ## Rules
 
 - **New-file-only**: write ONLY the new `.base` file. NEVER read, edit, or overwrite any existing note. This skill has no path that touches `.md` content.
 - **Built-ins are starting points**: the 3 built-in templates cover the most common cases; users can author custom views with any other filter (tag, type, folder) — this skill is not limited to those 3.
-- **type opt-in guard**: every template filter MUST keep `property.type != null` so untyped notes (diary, book notes, free folders) stay invisible (v4 §2.2). Never remove it.
+- **type opt-in guard**: every template filter MUST keep `file.hasProperty("type")` so untyped notes (diary, book notes, free folders) stay invisible (v4 §2.2). Never remove it.
 - **Pure YAML body**: a `.base` file is YAML only — no YAML frontmatter delimiters (`---`), no Markdown sections.
 - Show the plan first; write the file only after user confirmation.
 - `notes/` allows free sub-folder structure; do not auto-create sub-folders unless the user specifies a path.
+- Bases syntax: reference note properties as `note.<key>` or bare `<key>` (there is NO `property.` prefix) and write filter expressions as quoted YAML strings. The type guard uses the documented function `file.hasProperty("type")`, not `!= null`.
 - Do not filter on `status:` — the status machine is abolished (v5 §5/§6, #480) and nothing writes that field anymore.
 - For schema details / future Obsidian Bases version changes, Read `../../reference/obsidian-bases-schema.md` — the only file this skill ever reads.
