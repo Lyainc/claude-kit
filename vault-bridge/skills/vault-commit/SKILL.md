@@ -51,7 +51,7 @@ If this fails (non-zero exit), output the following and stop:
 ### Step 3 — Check for uncommitted changes
 
 ```bash
-git -C "{vault_root}" status --porcelain
+git -C "{vault_root}" -c core.quotepath=false status --porcelain
 ```
 
 If the output is empty, output the following and stop:
@@ -71,7 +71,7 @@ git -C "{vault_root}" add -A
 #### Step 4b — Get staged diff for message generation
 
 ```bash
-git -C "{vault_root}" diff --cached --name-status
+git -C "{vault_root}" -c core.quotepath=false diff --cached --name-status
 ```
 
 Capture the output as `{diff_output}`.
@@ -142,7 +142,7 @@ not match any files` and, by the stop-on-failure rule below, aborts the whole sp
 1. **Read the groups off the still-staged set**, before anything un-stages it — this
    listing is the only place the membership exists, and every later step consumes it:
    ```bash
-   git -C "{vault_root}" diff --cached --name-only
+   git -C "{vault_root}" -c core.quotepath=false diff --cached --name-only
    ```
    Group each path by its first segment; paths with no `/` are the `기타` members. Record
    `기타`'s member paths verbatim. Running this *after* step 2 returns nothing, and the
@@ -162,7 +162,7 @@ not match any files` and, by the stop-on-failure rule below, aborts the whole sp
    git -C "{vault_root}" add -A -- "wiki/"                      # normal group: the prefix
    git -C "{vault_root}" add -A -- "README.md" "2026 계획.md"    # 기타: each member, quoted
 
-   git -C "{vault_root}" diff --cached --name-status \
+   git -C "{vault_root}" -c core.quotepath=false diff --cached --name-status \
      | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/vault-commit-message.py" "{vault_root}"
    git -C "{vault_root}" reset HEAD
    ```
