@@ -123,12 +123,23 @@ invent a section the template doesn't have. Field-mapping detail: [reference.md]
 Write the assembled body to a temp file, then:
 
 ```bash
-python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check-heading-match.py" --template {tmp}/tpl.md --draft {temp file path}
+python3 "${CLAUDE_PLUGIN_ROOT}/scripts/check-heading-match.py" --template {tmp}/tpl.md --draft {temp file path} --optional-from {chosen template path}
 ```
 
 `--template` is Phase 0's normalized section list, not the raw template path — that is what
 makes a `.yml` issue form checkable at all (a form carries no `## ` headings, so pointing
 this at the raw file would compare against zero sections and pass anything).
+`--optional-from` is the raw template path Phase 0 chose: it lets the checker read the same
+`optional` flags `issue-template.py --list --json` reports, which a `.yml` form needs because
+its section list carries no inline `(선택)` marker (a `.md` template's marker is recognized
+without it).
+
+**What passes.** Headings must equal the template's in text and order, except that a heading
+Phase 0 reported **optional** may be absent — that is exactly Phase 2's "skip an empty optional
+section", so a draft that left one out passes without being padded. A required heading
+missing, any reorder, an extra heading, or reworded text (a dropped `(선택)` marker counts —
+the #562 case) still fails, and each is reported as that one problem rather than as every
+later heading shifting.
 
 Never skip this — Phase 2 only *instructs* headings be copied verbatim; nothing before this
 step mechanically confirms they were (#563; observed live in #562, where the template's
@@ -136,7 +147,8 @@ step mechanically confirms they were (#563; observed live in #562, where the tem
 **Skipped only when Phase 0 found no template**; say so rather than passing an empty file.
 
 - **Exit 0** → proceed to Phase 3 unchanged.
-- **Exit 1** (heading mismatch) → the printed table names the exact heading and position.
+- **Exit 1** (heading mismatch) → each printed line names the problem and heading (required
+  heading missing / text changed / out of order / extra / duplicate).
   Re-render Phase 2's mapping against it, then **re-run this same command against the new
   draft** before moving on — do not proceed to Phase 3 on an unverified re-render, or the
   marker-drop failure mode can slip through a second time undetected. If Phase 0's source data
