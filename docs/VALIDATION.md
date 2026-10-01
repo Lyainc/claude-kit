@@ -396,7 +396,9 @@ python3 thinking-tools/scripts/backlog-prefilter.py --self-check
 # Expected: self-check ok
 
 # issue-raise 템플릿 헤딩 기계적 검증 가드 (#563): Phase 2(조립)와 Phase 3(승인) 사이에서
-# 초안의 `## ` 헤딩을 템플릿의 `## ` 헤딩과 텍스트·순서·개수(`(선택)` 마커 포함)로 1:1 diff.
+# 초안의 `## ` 헤딩을 템플릿의 `## ` 헤딩과 텍스트·순서(`(선택)` 마커 포함)로 순서 보존 정렬 비교.
+# 선택 헤딩(issue-template.py의 is_optional과 같은 판정, `.yml` 폼은 `--optional-from`)만
+# 초안에서 빠져도 통과(#774) — 필수 누락·순서 뒤바뀜·추가·텍스트 변경은 종류별로 실패.
 # LLM 호출 없는 순수 파이썬(backlog-prefilter.py와 같은 철학). #562에서 실제 발생한 결함
 # (`## 제안 (선택)` → `## 제안`, 마커 누락)을 self-test 회귀 케이스로 고정.
 python3 thinking-tools/scripts/check-heading-match.py --self-test
