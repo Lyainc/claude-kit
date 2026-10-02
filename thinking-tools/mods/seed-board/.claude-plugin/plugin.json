@@ -1,0 +1,12 @@
+{
+  "name": "seed-board",
+  "description": "Optional Claude Code mod: a read-only Seed board pane. It observes the output of seed-relations.py walk and next-goal-render.py and shows the relation tree and next-goal's judgment, and never runs, rewrites or judges anything.",
+  "author": {
+    "name": "Lyainc",
+    "url": "https://github.com/Lyainc"
+  },
+  "homepage": "https://github.com/Lyainc/claude-kit",
+  "repository": "https://github.com/Lyainc/claude-kit",
+  "license": "MIT",
+  "types": "./types/index.d.ts"
+}

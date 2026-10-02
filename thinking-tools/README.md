@@ -29,6 +29,8 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | `issue-raise` | Author and file one GitHub issue from a single natural-language line, no interview | 이슈 만들어줘, 이슈 저작, file an issue |
 | `next-goal` | Pick the next session's cohesive unit, then render it as a `/goal`-evaluable condition | 완료조건, 다음 세션 목표, START-PROMPT, next goal |
 
+**Optional Claude Code mod**: [`mods/seed-board`](mods/seed-board/README.md) shows the Seed relation tree and next-goal's pick in a pane (`/seed-board`). The plugin does not load it; enable it per session with `claude --plugin-dir`.
+
 ## 문제 해결
 
 **설치 후 적용 안됨**: Claude Code 재시작 필요
