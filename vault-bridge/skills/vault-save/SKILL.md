@@ -1,6 +1,6 @@
 ---
 name: vault-save
-description: "The single entry for putting reference material into the vault (~/vault/) — replaces the retired /capture and /note. Anything worth pulling back out while planning later: web clippings, papers, analyses, brainstorms, early plans, study notes, meeting memos. Saves immediately with no confirmation and prints the path. Destination is mechanical, by authorship: source text taken as-is (URL, pasted original, session dump) → sources/, prose you wrote → notes/. No status field and no promotion gate — the vault is a reference warehouse, so selection happens on retrieval, not at the entrance (v5 §5). KR triggers: '볼트에 저장', '메모해줘', '이거 저장해줘', '자료 저장', '받아적어줘', '클리핑 저장', '노트로 정리', '인박스에 저장'. EN triggers: 'save to vault', 'vault save', 'capture this', 'quick memo', 'save this link', 'jot this down', 'write up a note'. Examples: '/vault-save https://example.com/article', '/vault-save 오늘 회의에서 나온 API 변경점'. Routing: domain knowledge compiled for AI recall is /wiki (this plugin, A layer, #645); a repo-bound design decision goes to a GitHub issue, not the vault (v5 §10)."
+description: "Save requested reference material to the configured Obsidian vault: source text/URLs/session dumps to sources/, authored prose to notes/. Use wiki for compiled domain knowledge, add-policy for behavioral rules, and issue-raise for repository work proposals. A generic save request needs an established vault destination; explicit file paths/formats win. KR triggers: '볼트에 저장', '자료 저장', '클리핑 저장', '인박스에 저장'. EN triggers: 'save to vault', 'vault save', 'save this link to the vault'. Examples: '/vault-save https://example.com/article', '/vault-save 오늘 회의에서 나온 API 변경점'."
 allowed-tools: Write Bash Glob Read
 model: haiku  # kept: mechanical write only, no LLM judgment — merges /capture + /note (#448, #480)
 ---
@@ -12,7 +12,10 @@ model: haiku  # kept: mechanical write only, no LLM judgment — merges /capture
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
-Save `$ARGUMENTS` into `{vault_root}` immediately, without a confirmation prompt, then print only the saved path.
+Invoke for an explicit vault-save request or an already established vault destination.
+A generic “save this” with an explicit different path or format is ordinary file work. Once
+invoked for the vault, save `$ARGUMENTS` into `{vault_root}` immediately, without a redundant
+confirmation prompt, then print only the saved path.
 
 This skill runs in the main context. Never delegate the write to a subagent — the vault-bridge
 Write Role Contract denies subagent vault writes (`hooks/pre-write-guard.sh`).

@@ -2,7 +2,7 @@
 """check-skill-token-budget.py — always-loaded/always-attached instruction files stay under budget.
 
 RULE (deterministic): every `*/skills/*/SKILL.md`, every `*/agents/*.md` in a source plugin,
-and the repo's own `CLAUDE.md` must count at most 5,000 tokens each. For SKILL.md specifically,
+and the repo's own `AGENTS.md` and `CLAUDE.md` must count at most 5,000 tokens each. For SKILL.md specifically,
 every compaction-critical anchor inside it (the `## Rules` heading, each `AskUserQuestion` in
 the BODY) must also sit inside that same 5,000-token prefix.
 
@@ -22,6 +22,9 @@ gating), but it only ever fires meaningfully on SKILL.md: `## Rules`/`AskUserQue
 SKILL.md gate specifically, CLAUDE.md/agents/*.md carry neither, and any anchor one of those two
 did contain past the boundary would already be subsumed by that file's own over-budget
 violation (see WHY BOTH CHECKS below).
+
+#794 moves shared contributor guidance to AGENTS.md, imported by CLAUDE.md. Both entry
+files remain in this guard so moving instructions cannot silently remove budget coverage.
 
 OBJECTIVE DAMAGE (#447, not taste): Claude Code keeps an invoked skill's body in context
 across turns, and auto-compaction re-attaches only **the first 5,000 tokens of each skill**.
@@ -389,13 +392,14 @@ def _git_toplevel() -> Path:
 
 
 def check(root: Path):
-    """Scan source plugins (skills/*/SKILL.md, agents/*.md) plus the repo's own CLAUDE.md."""
+    """Scan source plugins and both repository instruction entry files."""
     results = []
-    claude_md = root / "CLAUDE.md"
-    if claude_md.exists():
-        text = claude_md.read_text(encoding="utf-8")
-        total, violations = check_text(text)
-        results.append((claude_md.relative_to(root), total, violations))
+    for name in ("AGENTS.md", "CLAUDE.md"):
+        instruction = root / name
+        if instruction.exists():
+            text = instruction.read_text(encoding="utf-8")
+            total, violations = check_text(text)
+            results.append((instruction.relative_to(root), total, violations))
     for manifest in sorted(root.glob("*/.claude-plugin/plugin.json")):
         plugin = manifest.parent.parent
         for skill in sorted(plugin.glob("skills/*/SKILL.md")):
@@ -425,6 +429,7 @@ def _write_fixture_plugin(root: Path, body: str) -> None:
     agents.mkdir(parents=True)
     (agents / "x.md").write_text(body)
     (root / "CLAUDE.md").write_text(body)
+    (root / "AGENTS.md").write_text(body)
 
 
 def _write_desc_fixture(root: Path, description: str, is_agent: bool = False, name: str = "x") -> None:
@@ -553,8 +558,8 @@ def run_self_test() -> int:
         _write_fixture_plugin(Path(tmp), _CLEAN)
         rels = {str(rel) for rel, _, _ in globals()["check"](Path(tmp))}
         check(
-            rels == {"CLAUDE.md", "fixture-plugin/skills/x/SKILL.md", "fixture-plugin/agents/x.md"},
-            f"scope (#473): expected CLAUDE.md + SKILL.md + agents/*.md, got {rels}",
+            rels == {"AGENTS.md", "CLAUDE.md", "fixture-plugin/skills/x/SKILL.md", "fixture-plugin/agents/x.md"},
+            f"scope (#473/#794): expected AGENTS.md + CLAUDE.md + SKILL.md + agents/*.md, got {rels}",
         )
 
     saved_backend, saved_encoding = globals()["BACKEND"], globals()["_ENCODING"]
@@ -995,7 +1000,7 @@ def main(argv=None):
     worst_note = f"largest {worst[0]} at ~{worst[1]:.0f}" if worst else "none found"
     print(
         f"OK: skill-token-budget clean — {len(results)} file(s) checked (SKILL.md/agents/*.md/"
-        f"CLAUDE.md), every one within {TOKEN_BUDGET} tokens, SKILL.md gates inside the window "
+        f"AGENTS.md/CLAUDE.md), every one within {TOKEN_BUDGET} tokens, SKILL.md gates inside the window "
         f"[{BACKEND}] ({worst_note})"
     )
     return 0

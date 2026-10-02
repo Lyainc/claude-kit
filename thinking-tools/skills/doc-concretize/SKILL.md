@@ -3,7 +3,9 @@ name: doc-concretize
 
 description: |
   Create a new structured Markdown document through recursive concretization and a separate
-  final check; use doc-polish for existing docs and build-spec for YAML specs.
+  final check. Use doc-polish for inspecting existing docs, ordinary editing for substantive
+  rewrites, and build-spec for YAML specs. A request to clarify an answer or edit configuration
+  does not invoke this document workflow.
 
   Trigger when user mentions: 구체화, 문서화, 체계적 정리, 개념 정리, 아이디어 문서화, 글로 정리,
   doc-concretize, concretize, "이 개념을 문서로 정리해줘".

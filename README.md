@@ -207,7 +207,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 ## 개발
 
-- 개발자 가이드: [CLAUDE.md](CLAUDE.md)
+- 개발자 가이드: [AGENTS.md](AGENTS.md), [작성 절차](docs/contributor-authoring.md)
 - 기여 가이드 (커밋 컨벤션·리뷰 라운드 정책): [CONTRIBUTING.md](CONTRIBUTING.md)
 - 릴리스 정책·절차 (lockstep): [RELEASING.md](RELEASING.md)
 
