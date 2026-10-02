@@ -123,6 +123,17 @@ context:
   existing_stack: []
   dependencies: []
 
+issues:
+  source: null        # session did not start from a GitHub issue
+  tracking: []
+
+relations:
+  parent: null
+  refines: []
+  link_reason: null   # no parent, nothing to explain
+  depends_on: []
+  children: []
+
 ambiguity:
   overall: 0.10
   gate_passed: true

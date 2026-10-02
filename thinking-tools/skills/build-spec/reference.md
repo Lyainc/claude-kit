@@ -54,6 +54,14 @@ For each dimension, evaluate after receiving the user's answer. Mark Y/N and wri
 
 ---
 
+**Why only the gate-opening round is isolated, and why the judge sees no scores.** Every other round
+stays inline: cheap by default, the expensive call only where it changes an outcome. The judge gets
+the transcript and checklist alone, because a judge shown the score it is meant to check is not
+isolated.
+
+**Why the Gate Check shows ✓/✗, not numbers.** The per-dimension mark is the user-facing progress
+signal: it shows which dimensions still fall short without exposing the underlying numeric scores.
+
 ## 3. Brownfield Repo Files Detection List
 
 In order of precedence for context injection:
@@ -116,6 +124,12 @@ target scores 0 and never surfaces. Closed candidates are ranked on titles only.
 SKILL.md Known Limitations — the scan narrows the search, it does not close it.
 
 ---
+
+**Why the backlog scan exists, and why it stays in the shell.** Code and manifests carry only what
+already shipped; a repo's decided-but-unbuilt constraints live in the backlog, so X3 has no source
+without it. `backlog-prefilter.py` reads the whole open+closed corpus in the shell and emits only a
+budgeted digest, so the corpus never enters context. A `[backlog-scan PARTIAL]` line is copied whole
+because that side's "0 hits" is unconfirmed, not clean — a paraphrase would erase the difference.
 
 ## 6. UD Handoff — Phase 2.5 Skip Condition (#430)
 
@@ -192,6 +206,18 @@ out (`relations.refines`, may be empty) and any sibling Seed it must wait on (`r
 `depends_on` is written only when the user says so, never inferred, because a guessed dependency blocks
 work that was never blocked.
 
+**Link reason.** Also record `relations.link_reason`: one sentence on what the refined parent items leave
+open that this Seed settles; with `refines` empty, why no parent item maps. If the interview did not make
+it evident, ask; if the user gives none, leave `null` (shown as 미확인). A fabricated reason reads as a
+fact in every later `tree` output, so a blank is better than a guess.
+
+**Issue references.** `issues.source` is the issue the session started from, recorded only when the
+conversation or input names it (`#N` same repo, `owner/repo#N` otherwise); otherwise `null`.
+`issues.tracking` stays `[]` at creation and gets the number of the issue implementing the Seed once
+step 7's issue-raise creates one (an `Edit` on the just-emitted Seed). Source and tracking are distinct: a
+Seed created from #N whose implementation is tracked in the same #N lists it in both. These are
+references, never a status.
+
 **Why Refine carries relations and ids.** A refined Seed is written to a new `-vN` file. If `relations`
 is not restored verbatim, the edges vanish in that file. The prior `c*`/`ac*` ids stay as they are
 because children's `refines` point at those ids. The parent edge already sits in the restored
@@ -213,7 +239,14 @@ because children's `refines` point at those ids. The parent edge already sits in
 **What `seed-relations.py check` reports.** It reads the new Seed's edges and verifies them against the
 files they name, printing `MISMATCH` lines where an edge is not mirrored on the other side (for example
 the parent's `children` lacks the new Seed) and `FAILED` where a referenced Seed cannot be read. Show
-those lines to the user; do not fix them silently.
+those lines to the user; do not fix them silently. `check` also prints `UNRECORDED` lines (not errors) for
+a missing `link_reason` or `issues.source`; show those as 미확인 items. To see the parent-to-child item
+mapping from either side, run `seed-relations.py tree <seed>`.
+
+**Linking an existing Seed that has no relations.** Write an edge only when the user names it or the
+files verify it (for example an issue body that cites the parent's path). Proposing a candidate link is
+separate from writing it: a proposal waits for the user's yes. Never write `relations` or `depends_on`
+on a guess, and never write into another repo's Seed.
 
 ## 9. Requirement-gap review of a Seed-traced diff (note for later reviewers)
 
