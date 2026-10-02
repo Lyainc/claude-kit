@@ -42,25 +42,35 @@ it was specified as required, which is the floor test answered in advance. Treat
 only when the session or the caller names one, or an issue already in the pool references its path;
 never glob a spec directory to find one. A Seed reached from the named Seed by a `relations` edge
 is in play too, and the only way to reach it is
-`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" tree <named-seed-path>` (deterministic;
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" walk <named-seed-path>` (deterministic;
 it needs the named Seed and never runs without one). A Seed in another repository is never judged
 here — it is listed as a link only, because its evidence lives in that repo's code. Most sessions
 have none, and an unrelated stale Seed is a worse pool than no pool.
 
-Read the `tree` output this way. Whether anything is satisfied is judged by observing the repo;
-the script never says.
+Read the `walk` output this way (`seed-relations.py walk <named-seed-path>`: tab-separated
+records, latest `-vN` already resolved, depth ≤ 3 and ≤ 25 Seeds by default). Whether anything is
+satisfied is judged by observing the repo; the script never says, and graph distance never ranks.
+Open only the Seeds the walk visited — never list or read `docs/specs/` to look for others.
 
-- `PARENT-ITEM` lines are the parent's ids. An item this repo does not satisfy yet is a candidate,
-  the same as the named Seed's own criteria.
-- `SIBLING` lines are candidate Seeds. A sibling marked `requires <same-repo path> (same repo ...)`
-  is dropped while that predecessor Seed is not finished (judged the same way). One marked
-  `(다른 레포 — 확인 못 함)` stays, and the mark is carried into the pick's `FROM` line.
-- Lines ending `(다른 레포 — 여기서 판정 안 함, 링크만)` are shown as links in `FROM`/`SKIPPED` and never
-  ranked here; only same-repo `PARENT-ITEM`/`SIBLING` lines are candidates.
-- `[seed-relations FAILED] ...` lines are reported as unavailable in `SKIPPED`/`FROM`, never as
-  "no related Seeds".
-- `FROM` names the edge for a candidate that came through one, e.g.
-  `FROM · Seed edge: <named> → parent docs/specs/p.yaml ac3`.
+- `NODE` records are the Seeds actually visited, each with its relation to the named Seed and the
+  edge path that reached it. `start`'s own criteria and `ancestor` items are candidates (an
+  `ancestor` item is what `PARENT-ITEM` was). `ancestor-child` nodes are sibling Seeds and
+  `descendant` nodes are child Seeds — both candidates when this repo does not satisfy them yet; a
+  child that already satisfies its criteria is `done`, never re-proposed.
+- `ITEM <owner> <id> refined_by=<children>` maps a Seed's item to the child Seeds that spell it out,
+  so starting from a parent shows which child carries which item. An item refined by a child is
+  judged through that child; one with `refined_by=(none)` is judged directly.
+- `predecessor` nodes are what another node `depends_on`. A candidate whose same-repo predecessor
+  is not finished is `held`; that predecessor itself becomes a candidate when it is startable. A
+  predecessor in another repo stays unverified and the hold says so.
+- `external` / `external-failed` nodes are another repo's Seeds: links only, never ranked or judged
+  here (`decision: external`).
+- `STOP`, `CYCLE`, `FAILED` and `notfound` mark where the walk ended or could not read. They are
+  never "no related Seeds": name what they left unchecked in the judgment's `unverified`.
+
+**Seed handoff missing.** When the conversation shows the session worked from a Seed but no path was
+handed over, do not search for one: set `handoff: "missing"` so the result reads as a missing
+handoff, not as "no candidate".
 
 A Seed carries no status field by design — its amendment contract makes it a spec, not a work log —
 so "not met yet" is a judgment about the repository, never a value read out of the file. Check the
@@ -127,6 +137,27 @@ FROM     · {source; on a switch, why the thread's own pool failed the floor}
 SKIPPED  · {rejected candidates and brief reason}
 ```
 
+**With a Seed in play, or a missing Seed handoff, the pick is rendered, not typed.** Write the
+judgment once as JSON and print what
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --cwd <repo> <<'JSON' ... JSON` returns,
+via Bash, verbatim — its docstring holds the schema. Each candidate names its `via` (a walked Seed
+key, `session`, `backlog` or `issue:#N`), and the pick carries its target ids, the observable unmet
+evidence, whether it is startable and why, and the user-facing change; each main alternative carries
+its decision (`held`, `below-floor`, `done`, `external`, `unverified`) and reason. The script re-walks
+the Seed: FROM's edge path and the extra `TRACE` line (start, visited scope, stops, failures,
+unverified, evidence id and time) come from that walk, never from the JSON, and a `via` the walk did
+not visit is refused — fix the judgment, never the path. A `[근거 변경됨 ...]` mark means the Seed
+or HEAD moved after the walk: walk again and re-judge before writing the condition. Without a Seed
+in play, render the three lines directly as before; no extra call. The same JSON is what the
+optional seed-board mod shows, so the choice and the condition never depend on whether a UI is on.
+
+**User switch.** When the user names a different candidate — typed, or a prompt the seed-board mod
+pre-filled (`next-goal: 후보를 <title> (via <key>)로 바꿔줘 [walk <id>]`) — make it the pick, render
+again, and rewrite the condition for it. Keep the original only when repository evidence shows the
+named one already satisfied, not startable, or in another repo, and say which. If the request's walk
+id is not the current one, walk again first. A pick change never starts work, edits an issue,
+commits, or pushes by itself.
+
 ## Phase 2 — Condition
 
 Write one self-contained paragraph centered on the **problem, current state, resume point,
@@ -174,11 +205,11 @@ means stop with unmet conditions and the resume point; it does not prove complet
 ## Output format
 
 **Called from a routine that owns its own report shape** (a session-close pass, a wrap-up
-sequence): return the three pick lines in Phase 1's layout, plus the paragraph. The caller
+sequence): return the three pick lines in Phase 1's layout (plus the rendered `TRACE` line when there is one), plus the paragraph. The caller
 decides where they go but prints them as-is, so the pick has one shape whichever way the user
 reached it; render nothing yourself, or the pick prints twice.
 
-**Called directly**, render the three fields from Phase 1, then the condition from Phase 2, per
+**Called directly**, render the three fields from Phase 1 (and `TRACE` when rendered), then the condition from Phase 2, per
 the runtime rules below. Nothing follows the condition.
 
 ## Claude Code
@@ -192,7 +223,7 @@ candidate uses the no-goal outcome above instead of a fence.
 
 ## Codex Portability
 
-Render the three pick fields, then one plain `GOAL` paragraph — never a `/goal` fence; Codex has
+Render the three pick fields (and `TRACE` when rendered), then one plain `GOAL` paragraph — never a `/goal` fence; Codex has
 no equivalent slash command to paste into. Use only available native tools and conversation
 input; no nested Claude Skill call, Workflow, hook payload, or model-routing instruction is
 required or available. Do not load Claude runtime details in Codex. Use

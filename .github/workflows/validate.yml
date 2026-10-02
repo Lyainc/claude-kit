@@ -377,6 +377,13 @@ jobs:
           python3 thinking-tools/scripts/test/test-seed-relations.py
           echo "seed-relations unit tests OK"
 
+      - name: Run next-goal-render unit tests
+        run: |
+          # #792 — next-goal's pick rendered from its judgment JSON; paths and counts come
+          # from a fresh seed-relations walk, never from the JSON.
+          python3 thinking-tools/scripts/test/test-next-goal-render.py
+          echo "next-goal-render unit tests OK"
+
       - name: Run obsidian-vault-manager unit tests
         run: |
           python3 obsidian-vault-manager/scripts/test/test-parse-created-date.py
