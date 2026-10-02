@@ -31,7 +31,8 @@ Options:
 2. 일반 응답 (Standard response)
 ```
 
-**Mode B — Enhance trigger** ("글로 발전시켜줘", "더 구체적으로 작성해줘", "enhance", "작성 다양성"):
+**Mode B — alternatives then expansion** ("여러 방향으로 글을 발전시켜줘",
+"explore alternative angles, then expand one"; a bare "enhance" is ordinary editing):
 ```
 작성 다양성 향상(Verbalized Sampling → doc-concretize)을 적용할까요?
 

@@ -306,10 +306,10 @@ creating emotional resonance with eco-conscious consumers.
 
 **User**:
 ```
-이 한 줄 아이디어 "원격근무 팀의 비동기 협업 문화" 글로 발전시켜줘
+이 한 줄 아이디어 "원격근무 팀의 비동기 협업 문화"를 여러 방향으로 탐색하고 하나를 글로 발전시켜줘
 ```
 
-**Assistant** (detects Mode B trigger "글로 발전시켜줘"):
+**Assistant** (detects a request for alternative directions followed by expansion):
 ```
 [AskUserQuestion — Mode B Confirmation]
 작성 다양성 향상(Verbalized Sampling → doc-concretize)을 적용할까요?
@@ -352,7 +352,7 @@ Phase 3-B: Sub-call doc-concretize (Skill tool) with the selected
 대한민국 인구 수 enhance해서 정리해줘
 ```
 
-**Assistant** (Mode B trigger present, but use case is factual):
+**Assistant** (factual request, no creative alternatives requested):
 ```
 ⚠️ 사실 단답형 입력은 Mode B(작성 다양성) 적용 대상이 아니에요.
 VS 생성과 doc-concretize 하위호출 없이 일반 응답으로 답할게요.
@@ -372,7 +372,7 @@ def parse(data):
     return [x.strip() for x in data.split(",")]
 ```
 
-**Assistant** (Mode B trigger "enhance" present, but the target is code):
+**Assistant** (ordinary code edit, no Mode B trigger):
 ```
 ⚠️ 코드 대상의 enhance는 Mode B(작성 다양성, prose 저작) 적용 범위 밖이에요.
 VS 생성과 doc-concretize 하위호출 없이 일반 응답으로 코드를 개선할게요.
@@ -382,25 +382,21 @@ VS 생성과 doc-concretize 하위호출 없이 일반 응답으로 코드를 �
 
 ---
 
-### Example 11: Gray-Zone Target → Confirmation Disambiguates
+### Example 11: Existing README → Ordinary Editing
 
 **User**:
 ```
 README enhance해줘
 ```
 
-**Assistant** (Mode B trigger present, but target type is ambiguous — prose or structure?):
+**Assistant** (existing-document editing, no creative alternatives requested):
 ```
-[AskUserQuestion — Mode B Confirmation]
-작성 다양성 향상(Verbalized Sampling → doc-concretize)을 적용할까요?
-
-- README를 산문으로 다시 쓰는 작업이면 적용해요
-- 목차·배지·링크 등 구조 편집이면 일반 응답이 더 맞아요
-...
+[README를 읽고 요청된 범위에서 일반 문서 편집을 진행한다.
+편집 방향이 결과를 실질적으로 바꾸는 경우에만 그 방향을 확인한다.]
 ```
 
-The confirmation prompt resolves the gray zone: if the user wants prose authoring →
-"적용", if they want structural edits → "일반 응답". No silent misfire either way.
+Prose versus structure does not decide whether VS is needed. This request stays in ordinary
+editing; do not ask for Mode B confirmation just because it contains "enhance".
 
 ---
 

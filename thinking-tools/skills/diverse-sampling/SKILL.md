@@ -96,7 +96,9 @@ not prompt again): see [reference.md → Confirmation Prompts](reference.md#conf
 ### Phase 0: Preparation
 
 1. **Mode Determination**
-   - Mode B trigger detected (글로 발전시켜줘 / 더 구체적으로 작성해줘 / enhance / 작성 다양성) → **Mode B (Enhance)**
+   - Requests alternative creative directions followed by expansion of one → **Mode B (Enhance)**
+   - Plain expansion or rewriting without alternatives → ordinary editing or doc-concretize;
+     exit this skill without a VS confirmation
    - Explore trigger or `/diverse-sampling` → **Mode A (Explore)**
    - Ambiguous (e.g. "다양하게 써줘") → ask via the **Mode Disambiguation Prompt** (above) — a
      single AskUserQuestion offering Mode A vs Mode B that also states Mode B's higher token
@@ -113,9 +115,9 @@ not prompt again): see [reference.md → Confirmation Prompts](reference.md#conf
      response **immediately, with no confirmation prompt** (applies to Mode A and Mode B alike
      — neither runs VS generation nor the doc-concretize sub-call for excluded inputs).
      Gating here, before step 4, means an excluded input never triggers a wasted confirmation.
-   - Ambiguous target type (README, JSON/SQL schema, outline — prose or structure?) → do NOT
-     auto-exclude; let step 4's confirmation prompt disambiguate (Mode B = prose authoring; if
-     the user wants structural/code edits instead, they decline → standard response)
+   - README, schema or outline edits without a request for creative alternatives → ordinary
+     editing. Ambiguity about the edit does not establish a need for VS; clarify only what
+     materially changes the requested edit, without a Mode B confirmation.
 
 4. **Invocation Type Check / Confirmation**
    - Explicit Mode A trigger (`/diverse-sampling`, "VS 기법으로", …) → proceed to Phase 1
