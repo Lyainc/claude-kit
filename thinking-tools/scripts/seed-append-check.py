@@ -407,6 +407,31 @@ def _self_test() -> int:
                 "new_string": "    rationale: 기존 근거.\nrelations:\n  parent: null\n  status: done\n",
             }}, item, True,
         ),
+        (
+            "issues: block with source/tracking is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\nissues:\n  source: \"#792\"\n  tracking: [\"#800\"]\n",
+            }}, item, False,
+        ),
+        (
+            "issues.status is still a foreign key",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\nissues:\n  source: null\n  status: done\n",
+            }}, item, True,
+        ),
+        (
+            "relations.link_reason is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\nrelations:\n  parent: docs/specs/p.yaml\n"
+                              "  refines: [c1]\n  link_reason: 부모가 비워 둔 인증 경로를 정한다.\n",
+            }}, item, False,
+        ),
         # --- id invariance (#780 c3) ---
         (
             "deleting the c1 item is denied",
