@@ -193,8 +193,8 @@ in STATE (`"already covered by prior unknown-discovery pass"`), Phase 3.
   the Seed's `blindspots:` list; if the user answers one inline, fold that answer into the matching
   constraint or success criterion instead. No new interview round either way.
 - STATE records `blindspot_pass: {done|skipped|pending}` — `pending` until the gate opens, then `done`,
-  or `skipped` when the `Agent` call fails (skip silently in that case), idle-only subagents included
-  (#647, as in Phase 2).
+  or `skipped` when the `Agent` call fails (skip silently in that case). A subagent that returns only
+  idle notifications and no final text after one re-request counts as unavailable (#647).
 
 ### Phase 3: Seed Emit
 
