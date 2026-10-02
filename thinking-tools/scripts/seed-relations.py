@@ -17,8 +17,10 @@ What it does not do, on purpose:
     the only Seeds reached are the ones the named Seed's explicit edges point to.
 
 Usage:
-    seed-relations.py tree  <seed-path>   # parent / refines / siblings / children / parent items
+    seed-relations.py tree  <seed-path>   # parent / refines / siblings / children / items both ways
     seed-relations.py check <seed-path>   # do the named Seed's edges agree in both directions?
+    seed-relations.py walk  <seed-path> [--max-depth N] [--max-nodes N] [--json]
+                                          # bounded BFS over the edges, as records (or one JSON object)
 
 `<seed-path>` is a local file. Same-repo edges are repo-root-relative paths; another repo's
 Seed is a coordinate `owner/repo:docs/specs/x.yaml`. An edge names the file as written and is
@@ -33,8 +35,22 @@ still the Seed described, and a `NOTE      newer generation exists: <path>` line
 If `gh api` fails, an explicit `[seed-relations FAILED] ...` line is printed instead of an
 empty section, and the remaining edges are still read.
 
+A Seed may also record `issues:` (source, tracking) and `relations.link_reason`. They are
+printed as written; a null/absent value is shown as "미확인" (not recorded) and never guessed
+(check prints an UNRECORDED line for it; that is not a mismatch and does not change the exit code).
+
+`walk` starts at the named Seed and follows parent / children / depends_on breadth-first, with
+the relation kinds start, ancestor, ancestor-child (a sibling/aunt: only its depends_on is
+followed), descendant and predecessor. It stops at --max-depth (default 3) and --max-nodes
+(default 25) and records each cut as STOP; an already-seen target is a DUP, or a CYCLE when it is on
+the current node's own path. A node in another repo is read (to surface gh failures) but never
+expanded. Text output is tab-separated records (WALK, NODE, ITEM, DUP, CYCLE, STOP, FAILED,
+SUMMARY); --json prints the same data as one object. `walk(seed_file, max_depth, max_nodes)`
+returns that object, so another script can import this file and call it.
+
 Exit codes: tree 0 (data, not a verdict; the FAILED line is the signal), 2 on bad usage.
             check 0 consistent, 1 any MISMATCH, 2 any FAILED with no MISMATCH (or bad usage).
+            walk 0 (data, not a verdict), 2 on bad usage.
 
 Stdlib only; runs on Python 3.9 (the hook and next-goal use the system python3).
 """
@@ -42,12 +58,14 @@ Stdlib only; runs on Python 3.9 (the hook and next-goal use the system python3).
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import os
 import posixpath
 import re
 import subprocess
 import sys
+from datetime import datetime, timezone
 from urllib.parse import quote
 
 TRUNC = 100
@@ -62,6 +80,10 @@ REMOTE_URL = re.compile(
     r"([A-Za-z0-9_.-]+)/([A-Za-z0-9_.-]+?)(?:\.git)?/?$")
 NAME_WITH_OWNER = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 LINK_ONLY = " (다른 레포 — 여기서 판정 안 함, 링크만)"
+UNRECORDED = "(기록 없음 — 미확인)"
+USAGE = ("usage: seed-relations.py tree|check <seed-path>\n"
+         "       seed-relations.py walk <seed-path> [--max-depth N] [--max-nodes N] [--json]\n"
+         "(a named Seed is required)")
 _UNSET = object()
 
 
@@ -201,7 +223,8 @@ def _items(body):
 
 
 class Seed:
-    def __init__(self, target, parent, refines, depends_on, children, items):
+    def __init__(self, target, parent, refines, depends_on, children, items,
+                 link_reason=None, source=None, tracking=None):
         self.target = target
         self.parent = parent
         self.refines = refines
@@ -209,6 +232,9 @@ class Seed:
         self.children = children
         self.items = items  # [(id, description)] constraints first, then success_criteria
         self.item_map = dict(items)
+        self.link_reason = link_reason  # None = not recorded (or an old Seed)
+        self.source = source            # issues.source, None = not recorded
+        self.tracking = tracking or []  # issues.tracking
 
 
 def parse_seed(text):
@@ -224,11 +250,24 @@ def parse_seed(text):
     def lst(key):
         return _list(*rel[key]) if key in rel else []
 
+    link_reason = _scalar(*rel["link_reason"]) if "link_reason" in rel else None
+    if _null(link_reason):
+        link_reason = None
+
+    iss = {}
+    if "issues" in top:
+        iss = {k: (inline, body) for k, inline, body in _mapping_blocks(top["issues"][1])}
+    source = _scalar(*iss["source"]) if "source" in iss else None
+    if _null(source):
+        source = None
+    tracking = _list(*iss["tracking"]) if "tracking" in iss else []
+
     items = []
     for key in ("constraints", "success_criteria"):
         if key in top:
             items += _items(top[key][1])
-    return Seed(target, parent, lst("refines"), lst("depends_on"), lst("children"), items)
+    return Seed(target, parent, lst("refines"), lst("depends_on"), lst("children"), items,
+                link_reason=link_reason, source=source, tracking=tracking)
 
 
 # ---------------------------------------------------------------------------
@@ -267,12 +306,13 @@ def disp(orig, resolved):
 
 
 class Loaded:
-    def __init__(self, orig, loc, seed, status, failed_line=None):
+    def __init__(self, orig, loc, seed, status, failed_line=None, error=None):
         self.orig = orig        # location as written (normalized)
         self.loc = loc          # after -vN resolution
         self.seed = seed        # Seed or None
         self.status = status    # "ok" | "failed" | "notfound"
         self.failed_line = failed_line
+        self.error = error      # the gh error text of a failed load
 
 
 class Reader:
@@ -366,7 +406,7 @@ class Reader:
             return self._loaded[loc]
         rloc, err = self.resolve(loc)
         if err:
-            res = Loaded(loc, loc, None, "failed", self._fail_line(loc, err))
+            res = Loaded(loc, loc, None, "failed", self._fail_line(loc, err), err)
         else:
             repo, path = rloc
             if repo is None:
@@ -387,7 +427,7 @@ class Reader:
                     except (ValueError, UnicodeDecodeError):
                         err = "content was not valid base64 UTF-8"
                 if err:
-                    res = Loaded(loc, rloc, None, "failed", self._fail_line(loc, err))
+                    res = Loaded(loc, rloc, None, "failed", self._fail_line(loc, err), err)
                 else:
                     res = Loaded(loc, rloc, parse_seed(text), "ok")
         self._loaded[loc] = res
@@ -477,6 +517,8 @@ def cmd_tree(rd, rel, seed):
     out = [_row("SEED", f"{rel}  (target: {seed.target or '(none)'})")]
     self_res = rd.resolve_quiet((None, rel))
     out += _newer_note(rel, self_res)
+    out.append(_row("SOURCE", seed.source or UNRECORDED))
+    out.append(_row("TRACKING", ", ".join(seed.tracking) or "(없음)"))
 
     parent = None
     if seed.parent:
@@ -502,6 +544,14 @@ def cmd_tree(rd, rel, seed):
         else:
             note = "[missing in parent]"
         out.append(_row("REFINES", f"{rid} — {note}"))
+
+    if seed.parent:
+        if seed.link_reason:
+            out.append(_row("LINK", _short(seed.link_reason)))
+        elif not seed.refines:
+            out.append(_row("LINK", "(기록 없음 — 미확인; 대응 부모 항목도 비어 있음)"))
+        else:
+            out.append(_row("LINK", UNRECORDED))
 
     # Family = the parent's children (resolved) — used for siblings and for who refines what.
     family = []  # [(resolved loc, display, Loaded)]
@@ -540,13 +590,30 @@ def cmd_tree(rd, rel, seed):
                     else "다른 레포 — 확인 못 함")
             out.append(_row("SIBLING", f"{disp(ld.orig, ld.loc)}  requires {disp(dloc, dres)} ({note})"))
 
+    kids, kid_seen = [], set()  # the named Seed's children, deduplicated by resolved location
     for c in seed.children:
         ld = rd.load(rd.norm(c, None))
         line = _row("CHILD", disp(ld.orig, ld.loc))
         if ld.status == "notfound":
             line += "  [file not found]"
+        elif ld.seed is not None:
+            line += f"  refines: {', '.join(ld.seed.refines) or '(none)'}"
         out.append(line)
         out += rd.failure_lines(ld)
+        if ld.loc not in kid_seen:
+            kid_seen.add(ld.loc)
+            kids.append(ld)
+
+    if kids:  # the parent-side view: each of this Seed's items -> the child Seeds that refine it
+        readable = [ld for ld in kids if ld.seed is not None]
+        for iid, desc in seed.items:
+            who = [ld for ld in readable if iid in ld.seed.refines]
+            mark = LINK_ONLY if any(ld.loc[0] is not None for ld in who) else ""
+            out.append(_row("ITEM", f"{iid} — {_short(desc)}  refined by: "
+                            f"{', '.join(key(ld.loc) for ld in who) if who else '(none)'}{mark}"))
+        for ld in kids:
+            if ld.seed is None:
+                out.append(_row("ITEM", f"(unreadable child {key(ld.loc)} — 대응 미확인)"))
 
     if parent is not None and parent.seed is not None:
         refiners = []  # [(display, refines list)]
@@ -574,6 +641,11 @@ def cmd_check(rd, rel, seed):
     edges = 0
     self_res = rd.resolve_quiet((None, rel))
     out = _newer_note(rel, self_res)
+    # Unrecorded values are reported, never guessed, and are not mismatches (exit code unchanged).
+    if seed.parent and seed.link_reason is None:
+        out.append(_row("UNRECORDED", f"{rel} link_reason is not recorded (미확인 — 추측해 채우지 않음)"))
+    if seed.source is None:
+        out.append(_row("UNRECORDED", f"{rel} issues.source is not recorded"))
 
     def mismatch(text):
         nonlocal mismatches
@@ -629,16 +701,307 @@ def cmd_check(rd, rel, seed):
 
 
 # ---------------------------------------------------------------------------
+# walk
+# ---------------------------------------------------------------------------
+
+# Which edges a node of each relation kind follows, and the kind a followed target gets.
+WALK_EDGES = {
+    "start": ("parent", "children", "depends_on"),
+    # An ancestor's own predecessors too: its items are candidates, and an unfinished
+    # predecessor is what holds them.
+    "ancestor": ("parent", "children", "depends_on"),
+    "descendant": ("children", "depends_on"),
+    "ancestor-child": ("depends_on",),
+    "predecessor": ("depends_on",),
+}
+WALK_NEXT = {
+    ("start", "parent"): "ancestor", ("start", "children"): "descendant",
+    ("start", "depends_on"): "predecessor",
+    ("ancestor", "parent"): "ancestor", ("ancestor", "children"): "ancestor-child",
+    ("ancestor", "depends_on"): "predecessor",
+    ("descendant", "children"): "descendant", ("descendant", "depends_on"): "predecessor",
+    ("ancestor-child", "depends_on"): "predecessor",
+    ("predecessor", "depends_on"): "predecessor",
+}
+
+
+class _Node:
+    def __init__(self, key_, loc, depth, relation, via, path, status, seed, came_from=None):
+        self.key = key_
+        self.loc = loc              # identity: the resolved location
+        self.depth = depth
+        self.relation = relation
+        self.via = via              # [[edge, key], ...] from the start
+        self.path = path            # identities from the start to this node, inclusive
+        self.status = status        # ok | external | external-failed | notfound
+        self.seed = seed
+        self.came_from = came_from  # identity of the node this one was reached from
+        self.error = None
+        self.sha = None
+
+
+def _sha8(raw):
+    return hashlib.sha256(raw).hexdigest()[:8]
+
+
+def _edge_texts(seed, edge):
+    if edge == "parent":
+        return [seed.parent] if seed.parent else []
+    return list(getattr(seed, edge))
+
+
+def walk(seed_file, max_depth=3, max_nodes=25):
+    """Bounded breadth-first walk from the named Seed -> the data every output format renders."""
+    root = find_root(seed_file)
+    rel = posixpath.normpath(
+        os.path.relpath(os.path.realpath(seed_file), root).replace(os.sep, "/"))
+    with open(seed_file, "rb") as f:
+        raw = f.read()
+    rd = Reader(root)
+    self_res = rd.resolve_quiet((None, rel))
+    start = _Node(rel, self_res, 0, "start", [], [self_res], "ok", parse_seed(raw.decode("utf-8")))
+    start.sha = _sha8(raw)
+    nodes = [start]
+    by_loc = {self_res: start}
+    by_orig = {(None, rel): start}
+    dups, cycles, stops, seen = [], [], [], set()
+
+    def record(bucket, rec):
+        ident = (id(bucket),) + tuple(rec.values())
+        if ident not in seen:
+            seen.add(ident)
+            bucket.append(rec)
+
+    def seen_target(src, edge, tgt):
+        # A cycle is a loop of one edge kind: the target sits on the run of same-kind steps that
+        # ended at this node (A depends_on B depends_on A; a parent chain that comes back). A
+        # sibling depending on the start closes no such run — it is an ordinary edge to a Seed
+        # already listed, so a duplicate.
+        i = len(src.via)
+        while i > 0 and src.via[i - 1][0] == edge:
+            i -= 1
+        bucket = cycles if tgt.loc in src.path[i:] else dups
+        record(bucket, {"from": src.key, "edge": edge, "to": tgt.key})
+
+    def stop(src, edge, nloc, reason):
+        record(stops, {"from": src.key, "edge": edge, "target": key(nloc), "reason": reason})
+
+    def follow(src, edge, text):
+        nloc = rd.norm(text, None)
+        rloc = rd.resolve_quiet(nloc) if nloc[0] is None else None
+        if rloc is not None and src.relation == "ancestor" and edge == "children" \
+                and rloc == src.came_from:
+            return  # the node we came up from is not its own sibling
+        tgt = by_orig.get(nloc)
+        if tgt is None and rloc is not None:
+            tgt = by_loc.get(rloc)
+        if tgt is not None:
+            seen_target(src, edge, tgt)
+            return
+        if src.depth + 1 > max_depth:
+            stop(src, edge, nloc, "depth")
+            return
+        if len(nodes) >= max_nodes:
+            stop(src, edge, nloc, "nodes")
+            return
+        ld = rd.load(nloc)
+        tgt = by_loc.get(ld.loc)
+        if tgt is not None:
+            by_orig[nloc] = tgt
+            seen_target(src, edge, tgt)
+            return
+        external = ld.loc[0] is not None
+        if ld.status == "failed":
+            status = "external-failed"
+        elif ld.status == "notfound":
+            status = "notfound"
+        else:
+            status = "external" if external else "ok"
+        k = key(ld.loc)
+        node = _Node(k, ld.loc, src.depth + 1, WALK_NEXT[(src.relation, edge)],
+                     src.via + [[edge, k]], src.path + [ld.loc], status, ld.seed, src.loc)
+        node.error = ld.error
+        if status == "ok":
+            try:
+                with open(os.path.join(root, ld.loc[1]), "rb") as f:
+                    node.sha = _sha8(f.read())
+            except OSError:
+                pass
+        nodes.append(node)
+        by_loc[ld.loc] = node
+        by_orig[nloc] = node
+
+    i = 0
+    while i < len(nodes):
+        src = nodes[i]
+        i += 1
+        if src.status != "ok":
+            continue  # notfound / other-repo nodes are never expanded
+        for edge in WALK_EDGES[src.relation]:
+            for text in _edge_texts(src.seed, edge):
+                follow(src, edge, text)
+
+    def child_locs(n):
+        out, got = [], set()
+        for c in n.seed.children:
+            nloc = rd.norm(c, n.loc[0])
+            loc = rd.resolve_quiet(nloc) if nloc[0] is None else nloc
+            if loc not in got:
+                got.add(loc)
+                out.append(loc)
+        return out
+
+    node_dicts, items = [], []
+    for n in nodes:
+        s = n.seed
+        kids = child_locs(n) if s is not None else []
+        node_dicts.append({
+            "key": n.key, "depth": n.depth, "relation": n.relation, "status": n.status,
+            "via": n.via,
+            "target": s.target if s else None,
+            "parent": s.parent if s else None,
+            "refines": list(s.refines) if s else [],
+            "link_reason": s.link_reason if s else None,
+            "source": s.source if s else None,
+            "tracking": list(s.tracking) if s else [],
+            "items": [iid for iid, _ in s.items] if s else [],
+            "children": [key(loc) for loc in kids],
+        })
+        visited = [by_loc[loc] for loc in kids if loc in by_loc and by_loc[loc].seed is not None]
+        if visited:  # every item of a Seed with a visited child, so unmapped items stay visible
+            for iid, _ in s.items:
+                items.append({"owner": n.key, "id": iid,
+                              "refined_by": [v.key for v in visited if iid in v.seed.refines]})
+
+    failures = [{"key": n.key, "error": n.error or ""} for n in nodes
+                if n.status == "external-failed"]
+    summary = {
+        "visited": len(nodes), "stopped": len(stops), "failed": len(failures),
+        "cycles": len(cycles),
+        "external": sum(1 for n in nodes if n.status in ("external", "external-failed")),
+        "notfound": sum(1 for n in nodes if n.status == "notfound"),
+    }
+    prints = sorted(f"{n.key}:{n.sha}" for n in nodes if n.status == "ok" and n.sha)
+    fingerprint = hashlib.sha256("\n".join(prints).encode("utf-8")).hexdigest()[:12]
+    head = _run_git(root, "rev-parse", "HEAD")
+    # The id moves with HEAD, the start file and every visited Seed (via the fingerprint), so a
+    # judgment made on an earlier walk is recognisably stale whichever Seed changed.
+    # The limits ride in the id too, so a consumer re-walking it uses the same bounds.
+    walk_id = (f"{rd.self_repo or 'local'}@{head[:12] if head else 'nohead'}:{rel}"
+               f"#{start.sha}.{fingerprint[:8]}~d{max_depth}n{max_nodes}")
+    return {
+        "walk": {"id": walk_id, "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                 "start": rel, "max_depth": max_depth, "max_nodes": max_nodes,
+                 "fingerprint": fingerprint},
+        "nodes": node_dicts, "items": items, "dups": dups, "cycles": cycles, "stops": stops,
+        "failures": failures, "summary": summary,
+    }
+
+
+def _clean(text):
+    """One tab-free, single-line value."""
+    return str(text).replace("\t", " ").replace("\r", " ").replace("\n", " ")
+
+
+def render_walk_text(data):
+    w = data["walk"]
+    out = ["\t".join(["WALK", f"id={_clean(w['id'])}", f"at={w['at']}", f"start={_clean(w['start'])}",
+                      f"max_depth={w['max_depth']}", f"max_nodes={w['max_nodes']}",
+                      f"fingerprint={w['fingerprint']}"])]
+
+    def csv(vals):
+        return _clean(",".join(vals)) if vals else "-"
+
+    for n in data["nodes"]:
+        loaded = n["status"] in ("ok", "external")
+        via = ">".join(part for step in n["via"] for part in step) or "-"
+        out.append("\t".join([
+            "NODE", str(n["depth"]), n["relation"], _clean(n["key"]), n["status"],
+            f"via={_clean(via)}",
+            f"target={_short(_clean(n['target'])) if n['target'] else '-'}",
+            f"refines={csv(n['refines'])}",
+            # A root has nothing to link to, so only a node with a parent can lack a reason.
+            "link_reason=" + (_short(_clean(n["link_reason"])) if n["link_reason"]
+                              else ("미확인" if loaded and n["parent"] else "-")),
+            "source=" + (_clean(n["source"]) if n["source"] else ("미확인" if loaded else "-")),
+            f"tracking={csv(n['tracking'])}", f"items={csv(n['items'])}",
+            f"children={csv(n['children'])}"]))
+    for it in data["items"]:
+        refined = csv(it["refined_by"]) if it["refined_by"] else "(none)"
+        out.append("\t".join(["ITEM", _clean(it["owner"]), _clean(it["id"]),
+                              f"refined_by={refined}"]))
+    for tag, rows in (("DUP", data["dups"]), ("CYCLE", data["cycles"])):
+        for r in rows:
+            out.append("\t".join([tag, _clean(r["from"]), r["edge"], _clean(r["to"])]))
+    for r in data["stops"]:
+        out.append("\t".join(["STOP", _clean(r["from"]), r["edge"], _clean(r["target"]),
+                              f"reason={r['reason']}"]))
+    for r in data["failures"]:
+        out.append("\t".join(["FAILED", _clean(r["key"]), _clean(r["error"])]))
+    sm = data["summary"]
+    out.append("\t".join(["SUMMARY"] + [f"{k}={sm[k]}" for k in
+                                        ("visited", "stopped", "failed", "cycles", "external",
+                                         "notfound")]))
+    return out
+
+
+def _parse_walk_args(args):
+    """`[--max-depth N] [--max-nodes N] [--json]` -> (depth, nodes, as_json), or None if invalid."""
+    depth, nodes, as_json = 3, 25, False
+    i = 0
+    while i < len(args):
+        a = args[i]
+        i += 1
+        if a == "--json":
+            as_json = True
+        elif a.split("=", 1)[0] in ("--max-depth", "--max-nodes"):
+            name, eq, val = a.partition("=")
+            if not eq:
+                if i >= len(args):
+                    return None
+                val = args[i]
+                i += 1
+            try:
+                n = int(val)
+            except ValueError:
+                return None
+            if n < 1:
+                return None
+            if name == "--max-depth":
+                depth = n
+            else:
+                nodes = n
+        else:
+            return None
+    return depth, nodes, as_json
+
+
+# ---------------------------------------------------------------------------
 
 def main(argv):
-    if len(argv) != 3 or argv[1] not in ("tree", "check"):
-        print("usage: seed-relations.py tree|check <seed-path>   (a named Seed is required)",
-              file=sys.stderr)
+    if len(argv) < 3 or argv[1] not in ("tree", "check", "walk") or argv[2].startswith("--"):
+        print(USAGE, file=sys.stderr)
         return 2
     cmd, seed_file = argv[1], argv[2]
+    opts = None
+    if cmd == "walk":
+        opts = _parse_walk_args(argv[3:])
+        if opts is None:
+            print(USAGE + "\n(--max-depth and --max-nodes take an integer >= 1)", file=sys.stderr)
+            return 2
+    elif len(argv) != 3:
+        print(USAGE, file=sys.stderr)
+        return 2
     if not os.path.isfile(seed_file):
         print(f"seed-relations: not a file: {seed_file}", file=sys.stderr)
         return 2
+    if cmd == "walk":
+        data = walk(seed_file, opts[0], opts[1])
+        if opts[2]:
+            print(json.dumps(data, ensure_ascii=False))
+        else:
+            print("\n".join(render_walk_text(data)))
+        return 0
     root = find_root(seed_file)
     rel = posixpath.normpath(
         os.path.relpath(os.path.realpath(seed_file), root).replace(os.sep, "/"))

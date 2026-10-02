@@ -897,8 +897,11 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # depends_on 같은 레포·다른 레포(`확인 못 함`), origin이 ssh 별칭·대소문자 다른 좌표일 때의 자기 레포 판정,
 # 다른 레포 줄의 `링크만` 표시, 이전 세대 파일을 지목했을 때의 NOTE 줄을 픽스처로 핀한다. 다른 레포 읽기는 GH_BIN shim으로
 # 네트워크 없이 돈다. 스크립트는 쓰지 않고 done/pending 값도 출력하지 않는다(c1·c6).
+# #792: tree의 SOURCE/TRACKING/LINK·부모 출발 ITEM 대응, check의 UNRECORDED(종료 코드 불변), walk의
+# 관계 종류·깊이·경로, -vN, DUP과 같은 종류 엣지 순환(CYCLE), 깊이·개수 상한 STOP, 없는 파일,
+# 다른 레포 실패·미확장, 텍스트↔JSON 일치, walk id·fingerprint 변화를 함께 핀한다.
 python3 thinking-tools/scripts/test/test-seed-relations.py
-# Expected: OK: all 10 test-seed-relations checks passed
+# Expected: OK: all 21 test-seed-relations checks passed
 
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
