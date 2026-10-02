@@ -44,7 +44,7 @@ reference that a clone would need to resolve.
 ## 1. Domain conventions & traceability
 
 These are the conventions specific to working on claude-kit. The canonical *runtime*
-guidance lives in `CLAUDE.md`; this section captures the **work/traceability** rules.
+guidance lives in `AGENTS.md`, imported by `CLAUDE.md`; this section captures the **work/traceability** rules.
 
 - **Issue = canonical source of truth.** Every non-trivial change traces to a GitHub
   issue. The issue holds the *why* (the decision, the spec, the trade-off). Commits
@@ -63,11 +63,11 @@ guidance lives in `CLAUDE.md`; this section captures the **work/traceability** r
   single tag `vX.Y.Z`. Do **not** bump a version in a feature branch — the release
   workflow bumps every manifest at once. `.claude-plugin/plugin.json` is the Claude
   marketplace source of truth, while root `plugin.json` owns portable metadata and shares
-  only name/version lockstep. See `RELEASING.md` and the Version Sync Rule in `CLAUDE.md`.
+  only name/version lockstep. See `RELEASING.md` and the Version Sync Rule in `docs/contributor-authoring.md`.
 - **Vault file conventions — by reference, not redefined.** Files written to the
-  vault follow the unified convention already specified in `CLAUDE.md` ("Vault File
+  vault follow the unified convention specified in `docs/REFERENCE.md` ("Vault File
   Conventions" — folder layout, filename pattern, frontmatter standard, `type:`
-  opt-in). This file does **not** restate them; treat `CLAUDE.md` as canonical and
+  opt-in). This file does **not** restate them; treat that reference as canonical and
   keep them in one place.
 - **Subagents do not cause git side effects (#209).** A subagent (Workflow `agent()`,
   Agent/Task) leaves all changes in the working tree — it does **not** `commit`,

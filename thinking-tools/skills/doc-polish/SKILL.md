@@ -2,8 +2,10 @@
 name: doc-polish
 
 description: |
-  Report-only validation of an existing Markdown document: improve structure and cross-check
-  repository-verifiable facts; never rewrite its content. Use doc-concretize for a new document.
+  Inspect existing Markdown formatting, consistency, and repository-verifiable facts. Report
+  by default; --fix applies mechanical/nonsemantic corrections only, preserving meaning and
+  structure. Substantive rewriting is an ordinary editing task, not this skill; use
+  doc-concretize for a new document.
 
   Trigger when user mentions: 검사해줘, 다듬어줘, 품질 검사, 교정, 다듬기, 문서 사실 확인, 내용이 최신인지,
   polish, lint, fact check this doc, "이 문서 검사해줘", "README 다듬어줘", "이 설계문서 아직 맞아?".
@@ -17,7 +19,9 @@ allowed-tools: Read Edit Bash WebFetch
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
-Validate and improve existing Markdown documents while preserving original content and structure.
+Inspect existing Markdown documents; report by default. With --fix, apply only the
+nonsemantic corrections permitted below. An explicit request to rewrite meaning or structure
+uses ordinary editing, not this skill's restricted fix mode.
 
 ## Core Principle
 

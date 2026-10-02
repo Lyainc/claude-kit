@@ -307,7 +307,7 @@ python3 scripts/check-skill-catalogue-drift.py
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
 # Expected: OK: all 70 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
-# Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/CLAUDE.md),
+# Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/AGENTS.md/CLAUDE.md),
 #   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
 # To verify a known host/model window: append `--context-window-chars N`; the description total
 # is then capped at `floor(N * 2 / 100)` instead of 8,000.

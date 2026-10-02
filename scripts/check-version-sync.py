@@ -417,7 +417,7 @@ def main(argv=None):
                 print(f"  - {v}")
             print("Fix: keep version/description/keywords identical between "
                   ".claude-plugin/marketplace.json and each plugin's plugin.json "
-                  "(see CLAUDE.md 'Version Sync Rule').")
+                  "(see docs/contributor-authoring.md 'Version Sync Rule').")
 
     if report.get("missing_manifest"):
         return 3

@@ -3,11 +3,13 @@ name: diverse-sampling
 
 description: |
   Generate diverse prose with Verbalized Sampling: explore alternatives or enhance a chosen
-  direction through doc-concretize. Not for factual, single-answer, or code/query work.
+  direction through doc-concretize only when alternative creative directions are requested.
+  Plain expansion or structuring goes directly to doc-concretize or ordinary editing; not for
+  factual, single-answer, or code/query work.
 
   Trigger when user mentions: 다양한 아이디어, 브레인스토밍, 대안 제시, 창의적 답변, VS 기법으로,
   diverse ideas, brainstorming, alternatives, verbalized sampling,
-  글로 발전시켜줘, 더 구체적으로 작성해줘, enhance, 작성 다양성.
+  작성 다양성, 여러 방향으로 글을 발전시켜줘.
 allowed-tools: AskUserQuestion Skill Read
 ---
 
@@ -79,23 +81,11 @@ its own subsection.
 
 ### Mode B — Enhance (Requires Confirmation)
 
-| Trigger | Example |
-|---------|---------|
-| "글로 발전시켜줘" | "이 초안 글로 발전시켜줘" |
-| "더 구체적으로 작성해줘" | "이 아이디어 더 구체적으로 작성해줘" |
-| "enhance" | "enhance this rough draft into a full section" — but a code target ("이 쿼리 enhance해줘") routes to Exclude, not Mode B |
-| "작성 다양성" | "작성 다양성 살려서 정리해줘" |
-
-Mode B triggers are implicit — confirm before running, since Mode B consumes more tokens
-(diverse generation + doc-concretize authoring).
-
-> **On the broad `enhance` trigger**: `enhance` is a common English verb, so it can match
-> code/structure requests too. This is safe **by design** — Mode B has no explicit
-> immediate-execution path, so every match is confirmation-gated, and Phase 0's Use Case
-> Validation routes clear code targets to a standard response *before* any prompt. A broad
-> match therefore costs at most a decline-able confirmation, never a wrong action. The
-> `enhance` trigger is intentional (required by the Mode B spec); the implicit gating is the
-> safeguard that makes its breadth harmless.
+Use Mode B when the user requests several creative authoring directions before expanding one,
+for example “여러 방향으로 글을 발전시켜줘” or “explore alternative angles, then expand one”.
+A bare “enhance”, “글로 발전시켜줘”, or “더 구체적으로 작성해줘” does not establish that need:
+route new-document authoring to doc-concretize and existing-document rewrites to ordinary editing.
+Keep the existing Mode B confirmation for the genuinely additional generation stage.
 
 **Mode B Confirmation Prompt** and **Mode Disambiguation Prompt** (for ambiguous input like
 "다양하게 써줘" — its pick resolves the mode AND doubles as confirmation, so Phase 0 step 4 does
