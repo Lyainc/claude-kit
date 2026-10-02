@@ -903,6 +903,13 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 python3 thinking-tools/scripts/test/test-seed-relations.py
 # Expected: OK: all 21 test-seed-relations checks passed
 
+# next-goal-render.py 회귀 (#792) — next-goal의 판단 JSON에서 NEXT/FROM/SKIPPED(+Seed가 있으면 TRACE)를
+# 렌더한다. FROM의 엣지 경로와 TRACE의 방문·실패 수는 JSON이 아니라 다시 돌린 walk에서 나오고, walk가
+# 방문하지 않은 via·다른 레포 Seed pick·착수 불가 pick은 거부, walk 이후 Seed가 바뀌면 `근거 변경됨`,
+# Seed 경로 인계 누락은 무후보와 다른 줄로 나오는지 픽스처로 핀한다. 네트워크 없음(GH_BIN 무효 경로).
+python3 thinking-tools/scripts/test/test-next-goal-render.py
+# Expected: OK: all test-next-goal-render checks passed
+
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
 bash -n thinking-tools/hooks/session-start-welcome.sh   # #117 first-run onboarding hint
