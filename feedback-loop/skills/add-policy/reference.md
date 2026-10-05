@@ -630,7 +630,8 @@ Run the case matching the site just written:
   inbound link still points at it.
 - **Unused retirement** (#609, only on the user's pick): on *delete*, the same checks as
   Supersede minus the absorption one — the row and its detail file are gone (recoverable
-  delete), no inbound link still points at it; on *narrow*, the entry is still there and its
+  delete), no inbound link still points at it; with no confirmed trash tool the entry stays and
+  the report says so — never claim a removal that didn't happen; on *narrow*, the entry is still there and its
   firing condition is the approved narrower text, not the old one.
 - **memory duplicate removal** (only when §6 found one): the duplicate file is gone and its
   `MEMORY.md` index line with it. If the delete could not run, say so — never claim a removal

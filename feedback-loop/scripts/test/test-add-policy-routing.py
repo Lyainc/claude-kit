@@ -274,8 +274,8 @@ def check_memory_delete_safety(text: str) -> tuple[bool, str]:
         return False, "memory-duplicate removal does not mandate a recoverable delete"
     if "confirmed" not in lower:
         return False, "the trash tool is not required to be confirmed to exist on this machine"
-    if "leave the file and its index line" not in lower:
-        return False, "with no confirmed trash tool the fallback must leave the file AND its MEMORY.md index line"
+    if "leave the file and its index line" not in lower or "report it" not in lower:
+        return False, "with no confirmed trash tool the fallback must leave the file AND its MEMORY.md index line and report it"
     if "use `/usr/bin/trash`" in lower or "use /usr/bin/trash" in lower:
         return False, "the memory delete still mandates the single macOS-26-only path /usr/bin/trash"
     # The combined literal, not "never `rm`" alone — that one already appears in pre-#377
@@ -970,7 +970,7 @@ failure. But an errored scan is not an empty one: anything on stderr means the s
 INCONCLUSIVE, never `none` — "memory 스캔 실패" in the confirmation. On a
 hit, surface it in the 1-click confirmation ("매립 후 memory 항목은 지울게요") and delete the
 duplicate memory file after the landfill write — its MEMORY.md index line is the one whose
-markdown link target is that file's basename. Delete recoverably with a confirmed trash tool; with none, leave the file and its index line. Never force-delete, never `rm`.
+markdown link target is that file's basename. Delete recoverably with a confirmed trash tool; with none, leave the file and its index line and report it. Never force-delete, never `rm`.
 Memory is an input, never a destination: an input queue, not a fourth site.
 
 ## §6-snippet — the runnable scan command
