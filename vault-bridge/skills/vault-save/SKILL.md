@@ -12,18 +12,16 @@ model: haiku  # kept: mechanical write only, no LLM judgment — merges /capture
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
-Invoke for an explicit vault-save request or an already established vault destination.
-A generic “save this” with an explicit different path or format is ordinary file work. Once
-invoked for the vault, save `$ARGUMENTS` into `{vault_root}` immediately, without a redundant
-confirmation prompt, then print only the saved path.
+Invoke for an explicit vault-save request or an established vault destination. A generic
+“save this” with an explicit different path or format is ordinary file work. Once invoked, save
+`$ARGUMENTS` into `{vault_root}` immediately, without a confirmation prompt, then print only the saved path.
 
 This skill runs in the main context. Never delegate the write to a subagent — the vault-bridge
 Write Role Contract denies subagent vault writes (`hooks/pre-write-guard.sh`).
 
 ## Destination
 
-The split is **authorship, not quality**. Nothing here judges whether the material is good enough
-to keep; that judgment happens when you go looking for it again.
+The split is **authorship, not quality** (`reference.md` §Destination notes).
 
 | Input | Folder | `type:` | Filename |
 |-------|--------|---------|----------|
@@ -32,16 +30,9 @@ to keep; that judgment happens when you go looking for it again.
 | `--type decision {topic}` — an explicit decision record | `{vault_root}/notes/` | `decision` | `decision-YYYY-MM-DD-{slug}.md` |
 | `--type discussion {topic}` — a thinking-tools session artifact (expert-panel SUMMARY/UNRESOLVED, adversarial-review result, unknown-discovery report) | `{vault_root}/wiki/` | `discussion` | `{slug}.md` (no date prefix) |
 
-- `{slug}`: 2–4 kebab-case words from the topic or the extracted title.
-- Unsure which side? If the text would survive unchanged without you, it is source → `sources/`.
-- `--type decision` is KEEP, confirmed (#477 item 2, 2026-08-04) — for non-repo-bound decisions
-  only (e.g. a personal tool choice). A **repo-bound** design decision belongs in a GitHub issue,
-  not here (v5 §10) — say so and stop rather than writing one.
-- `--type discussion` is the one case that writes to `wiki/` (#586 c1) — the content is an AI
-  compilation, not raw authorship, so it belongs with the rest of the A-layer even though it
-  reads as history rather than fact (vault-discussion-history-wiring Seed, #586). Filename carries
-  no date prefix — `wiki/`'s naming convention is evergreen kebab slugs, same as any other page
-  there (`pre-write-guard.sh`); the date lives only in `created:`.
+- `{slug}`: 2–4 kebab-case words from the topic or title. Unsure? Text that would survive unchanged without you is source → `sources/`.
+- `--type decision` is for non-repo-bound decisions only. A **repo-bound** design decision belongs in a GitHub issue (v5 §10) — say so and stop rather than writing one.
+- `--type discussion` is the one case that writes to `wiki/` (#586); no date prefix in the filename (the date lives only in `created:`).
 
 ## Frontmatter
 
@@ -56,16 +47,10 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 ---
 ```
 
-- **`provenance` is required on every file.** There is no gate at the entrance, so being able to
-  trace a file back to its origin is the whole defense at retrieval time (v5 §5, #480). Never
-  write a file without it; if the origin is genuinely just "this conversation", say that.
-- **No `status:` field.** The `raw→draft→evergreen→archived` machine and the promotion gate are
-  abolished (v5 §5/§6, #480). Do not write `status:` and do not offer to promote anything.
+- **`provenance` is required on every file** (v5 §5, #480); never write a file without it. If the origin is just "this conversation", say that.
+- **No `status:` field**; do not offer to promote anything (v5 §5/§6, #480).
 - URL saves add `url:` and, when an H1 was extracted, `title:` (see below). Quote both values.
-- `type: discussion` keeps rejected alternatives and the assumptions behind them in the body, not
-  just the conclusion — a one-line verdict doesn't answer "was this still valid" or "what didn't
-  we know yet" later (#586 c4/c5). Link related `wiki/` pages with `[[wikilinks]]` in the body
-  (see Procedure below) rather than a dedicated frontmatter field.
+- `type: discussion` keeps rejected alternatives and their assumptions in the body (#586); link related `wiki/` pages with `[[wikilinks]]`. More: `reference.md` §Frontmatter notes.
 
 ## Procedure
 
@@ -86,29 +71,21 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
    멈췄어요. 볼트 경로를 `VAULT_BRIDGE_VAULT_ROOT`(환경변수)나 플러그인 설정
    `vault_path`로 지정해 주세요." Never `mkdir` the vault root itself.
 
-   This is the same contract the rest of vault-bridge already keeps — `hooks/pre-write-guard.sh`
-   and `hooks/session-start-manifest.sh` both treat a missing vault directory as "do nothing".
-   Creating it here would produce a vault nobody knows about, and because
-   `session-start-manifest.sh` already exited for this session, that vault never receives a
-   manifest — every later manifest-dependent path (recall, dedup) then degrades silently.
+   Rationale: `reference.md` §Procedure step 3.
 
-   If the root exists but `[ -d "{vault_root}/.obsidian" ]` is false, warn once and continue
-   (#763): "`{vault_root}`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."
+   Root exists but `[ -d "{vault_root}/.obsidian" ]` is false → warn once, continue (#763): "`{vault_root}`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."
 
-   Only once the vault root exists, `mkdir -p` the target sub-directory (`sources/`, `notes/`,
-   `wiki/`) before writing.
+   Once the root exists, `mkdir -p` the target sub-directory before writing.
 4. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
    write the content as the body verbatim (keep the user's own wording — do not summarize).
-5. Filename collision — use Glob over the target folder to see whether the same stem already
-   exists, and if it does, append `-v2`, `-v3`, … automatically. This is a mechanical uniqueness
-   guarantee, not a content check.
+5. Filename collision — use Glob over the target folder; if the stem exists, append `-v2`, `-v3`, … automatically (mechanical uniqueness, not a content check).
 6. Write the file. For `--type decision`, structure the body as `## 문제` / `## 선택지` /
    `## 결정` / `## 근거`. `--type discussion` has no fixed structure — write whatever the caller
    already composed (SUMMARY/UNRESOLVED, adversarial-review verdicts, unknown-discovery findings)
    verbatim, same as a plain note.
-7. Output the saved path. No follow-up questions, no summary of what was saved.
+7. Output the saved path only. No follow-up questions or summary.
 
-Use `[[wikilinks]]` for internal vault references and Markdown links for external URLs.
+Use `[[wikilinks]]` for internal vault references, Markdown links for external URLs.
 
 ## URL capture
 
@@ -116,7 +93,7 @@ Use `[[wikilinks]]` for internal vault references and Markdown links for externa
 
 1. Store `URL="$ARGUMENTS"`.
 2. Check for Defuddle: `command -v defuddle`. Do not install anything if it is missing.
-3. Detect a timeout helper (`timeout` → `gtimeout` → none); store as `$DEFUDDLE_TO`.
+3. Timeout helper (`timeout` → `gtimeout` → none) → `$DEFUDDLE_TO`.
 4. Run `${DEFUDDLE_TO:+$DEFUDDLE_TO 15} defuddle parse "$URL" --md`; capture stdout in
    `$DEFUDDLE_OUT` and the exit code in `$DEFUDDLE_RC`.
 
@@ -152,11 +129,8 @@ Body: the full `$DEFUDDLE_OUT` (including its H1) on success, the bare URL other
 
 ## Rules
 
-- **Save immediately, without confirmation.** This is the core behavior — friction at the entrance
-  is what killed the previous two entries (#477).
+- **Save immediately, without confirmation** (#477; `reference.md` §Rules).
 - Write `provenance:` on every file; never write `status:`.
-- Save immediately regardless of the Defuddle outcome.
-- Output the saved path only.
+- Save immediately regardless of the Defuddle outcome; output the saved path only.
 - `notes/` allows free sub-folder structure; do not auto-create sub-folders.
-- Never write to `{vault_root}/wiki/` except for `--type discussion` — every other type stays out
-  of `/wiki`'s A layer (sibling skill in this plugin, #645).
+- Never write to `{vault_root}/wiki/` except for `--type discussion` (#645).
