@@ -663,3 +663,25 @@ CLASSIFY renders it Critical/P0, sorted ahead of E1 (see the Priority Mapping ta
 "we could not look" outranks any judgment made on content that was actually read. It is
 excluded from E1/E3/E5/E6/E10/E11/E12's own record lists so the same file is never
 double-reported as both `unreadable` and a finding about content nobody examined.
+
+### Bundle shape (moved from `skills/audit/SKILL.md` Phase 1 Outputs, #764)
+
+The in-memory scan bundle CLASSIFY receives. The raw per-file scans stay on disk in `$scan_tmp`
+and are never read into context. `omitted: N` means that type's list was CUT: `$scan_tmp` is
+gone by then, so re-run Steps 5–7b as one new Bash call with a larger `--max-per-type`, into a
+file, and open it with `Read`.
+```
+{
+  scan_summary {           // Step 7b — reduces raw frontmatter/filename records + link index
+    total_files, max_per_type,
+    link_index {targets, sources},   // size only — the Step 7 index itself never enters context
+    errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified E12_near_dup, defect-bearing
+                           // only; {count, paths[] | records[], omitted?}. Field set:
+                           // scripts/README.md → scan-summary.py.
+    }
+  }
+  manifest_summary?        // {file_count, generated_at} or null
+  vocabulary_pairs[]       // from detect-vocabulary (E9, vault-wide)
+  e5_candidates[]          // from e5-candidates (E5) — joined to E5 paths by path
+}
+```
