@@ -5,107 +5,61 @@ model: inherit
 allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 ---
 
-**User language: Korean for dialogue.** What the engine WRITES is English — the
-`~/.claude/rules` catalogue, a hook script, a skill body. **`~/.claude/CLAUDE.md` is the
-exception**: the user's own stance/voice document, so read it first and write in its language.
-([reference.md](reference.md) §0)
+**User language: Korean for dialogue.** Artifact language: reference.md §0 (binding).
 
 ## Codex Portability
 
-When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
-first. Set `CODEX_ROOT="${CODEX_HOME:-$HOME/.codex}"`; never read or write `~/.claude`.
+On Codex, read [the portability contract](../../reference/codex-portability.md)
+first. Set `CODEX_ROOT="${CODEX_HOME:-$HOME/.codex}"`; never read or write `~/.claude`. Inspect each
+target and its parent first; create a missing one only after the existing one-click confirmation,
+and stop unmodified if unreadable or conflicting.
 
-- For a SOFT reminder, inspect `$CODEX_ROOT/AGENTS.md` and its declared source/catalogue.
-  A work-rule updates the existing shared catalogue entry when one is available; follow its
-  detail links and keep the global file a thin pointer, without duplicate rule prose.
-  For other reminders, edit the declared managed source and include its installed copy in the
-  same exact-diff approval. Preserve symlinks; if source ownership or synchronization is unclear,
-  stop without writing. Only an unmanaged file with no applicable catalogue is edited directly.
-- An invocable procedure lands only in `$HOME/.agents/skills/<name>/SKILL.md`; inspect an existing
-  target and preserve the user-authored-skill inviolability rule below.
-- A deterministic hook lands as a script plus a merged `$CODEX_ROOT/hooks.json` definition,
-  never by replacing existing hooks. Read the [Codex hook branch](codex.md) only for this site.
-  Keep the one-click approval and inspect the current registration and script before a write.
-  Native hook trust is a separate runtime activation requirement; never silently grant trust.
+- SOFT reminder: inspect `$CODEX_ROOT/AGENTS.md` and its declared source/catalogue. A work-rule
+  updates the existing shared catalogue entry when available (global file stays a thin pointer, no
+  duplicate rule prose); other reminders edit the declared managed source plus its installed copy
+  in the same exact-diff approval. Preserve symlinks; unclear ownership or sync: stop; edit an
+  unmanaged file only with no catalogue.
+- Procedure: only `$HOME/.agents/skills/<name>/SKILL.md` (§5).
+- Hook: a script plus a merged `$CODEX_ROOT/hooks.json` definition, never replacing existing hooks
+  (read `codex.md`, this site only). Hook trust is separate; never silently grant trust.
 
-For each writable path, inspect the target and its parent first; a missing target may be
-created only after the existing one-click confirmation, and an unreadable or conflicting target
-stops without modification. Skip the later Claude auto-memory promotion/deletion mechanics:
-Codex-managed memory is not a writable placement site. Claude Code ignores this section.
+Codex memory is not writable: skip §6's memory promotion/deletion. Claude Code ignores this
+section.
 
-# add-policy — the landfill engine (layer ⑤)
+# add-policy
 
-`add-policy` is the **landfill half** of the recursive-improvement loop: it answers **"where
-does this rule go, and in what form?"** and writes it there on a single confirmation. Its
-sibling `distill` is the **discovery half**; the boundary between them is §6's necessity gate.
+## 1. Input contract
 
-## 1. Input contract — what the engine accepts
+A user one-liner or a distill proposal object (what, why, provenance, inviolability
+judgment): re-classify it; enforce (§5), do not re-make, the judgment.
 
-The engine takes a rule in **natural language**: a **user one-liner**, or a **distill proposal
-object** carrying *what*, *why*, *session provenance*, and an *inviolability judgment*. It
-**re-runs the classification itself** on either — a proposal never arrives with the placement
-pre-filled, so tier is inferred and **the inviolability judgment is enforced (§5), not
-re-made**. ([reference.md](reference.md) §1)
+**Source gate — the third input.** A candidate may be
+inferred by the agent. Route by provenance: a distill proposal proceeds (never bounced back to the
+skill that sent it). Everything else, including anything that reads like a user one-liner, asks:
+can you point at the user's own utterance stating this rule in the transcript? Yes: proceed. No:
+hand it to `/distill` (bouncing is not re-judging: it routes to the judge), before
+classification and the §6 conflict check.
 
-**Source gate — the third input, and the one that must not land unjudged.** A candidate also
-arrives **inferred by the agent**, which the two accepted kinds' free pass does not cover. Route
-by **provenance**: a **distill proposal proceeds** — distill already judged it, and a proposal is
-never bounced back to the skill that sent it. **Everything else, including anything that reads
-like a user one-liner**, asks one question: **can you point at the user's own utterance stating
-this rule in the transcript?** Yes → proceed. No → it is agent-inferred: **hand it to
-`/distill`** — bouncing is not re-judging, it sends the candidate to the judge. Run it **before**
-classification and the §6 conflict check, so a bounce wastes neither.
-([reference.md](reference.md) §1-source)
+## 2. Classification grid
 
-## 2. Classification grid (default taxonomy — editable, replaceable)
+Internal layer: judgment (decide), expression (say), work-rule (do).
 
-**Layer** — internal reasoning, never a user-filled axis, an editable default not a hardcoded
-ontology: **judgment** = what you *decide/assess* (→ the reminder site's persona block);
-**expression** = how you *say/phrase* (→ its voice block); **work-rule** = how you *do the
-work*. Why this partition is reusable: [reference.md](reference.md) §2.
+## 3. The three landfill sites
 
-## 3. The three landfill sites (+ tier absorbed, 1-click UX)
+- **reminder** (CLAUDE.md or `~/.claude/rules`): always-read, SOFT, one prose line.
+- **hook**: deterministic, HARD; guard script + `hooks` entry, working tree only, never
+  self-activated. Blocking = PreToolUse + `permissionDecision: "deny"`; recovery = PostToolUse +
+  `exit 2`, reports only.
+- **skill**: `~/.claude/skills/<name>/SKILL.md`.
 
-There are exactly **three** native places a rule lands (the small count keeps classification
-reliable and the engine portable):
+Tier folds into the site (HARD ⇒ hook, SOFT ⇒ reminder), inferred per reference §3-tier, never
+asked; HARD means "deterministically enforced", not "a guard blocks".
 
-- **reminder** (CLAUDE.md or `~/.claude/rules`) — an always-read rule, **SOFT**: one prose line
-  appended to the layer's channel, **layer-determined** (below).
-- **hook** — deterministic auto-enforcement, **HARD**: a guard script + a `hooks` registration
-  entry, working tree only, never self-activated. **Two forms** (#609), by *when* the violation
-  becomes visible: **blocking** = PreToolUse + `hookSpecificOutput.permissionDecision: "deny"`;
-  **recovery** = PostToolUse + `exit 2`, stderr back to Claude — reports only
-  (PostToolUse carries neither `permissionDecision` nor `updatedInput`).
-- **skill** — an invocable procedure: `~/.claude/skills/<name>/SKILL.md` (patch > extend > new).
-
-**Tier folds into the site, so the user never picks an axis** (**HARD ⇒ hook, SOFT ⇒
-reminder**); the hook's *form* folds the same way, never a second axis — **HARD means
-"deterministically enforced", not "a guard blocks"** (#609), since recovery auto-fires like
-blocking but cannot undo. The scope/channel question is the site choice itself.
-
-**Layer → tier default (engine inference):** *judgment* and *expression* are **always SOFT**
-(not deterministically guardable); a *work-rule* is **HARD (→ hook) iff its violation is
-deterministically detectable**, else SOFT — detectable **before** the act → blocking, only
-**after** (from what the act leaves behind) → recovery. Examples: [reference.md](reference.md)
-§3-tier.
-
-**SOFT reminder channel — routed by layer (one mapping, NOT a fourth site):** *judgment /
-expression* (stance·voice) → the top-level **`~/.claude/CLAUDE.md`** persona block; *work-rule*
-→ the machine **work-rule catalogue `~/.claude/rules`** *if it exists*, **otherwise fall back to
-`~/.claude/CLAUDE.md`**. It routes by the layer §2 already computed — no new site, no new axis.
-The fallback is **non-negotiable: never hardcode the machine's `rules/` structure**: detect it
-(`[ -d "$HOME/.claude/rules" ]`) and degrade to CLAUDE.md where it is absent. Per-site
-conflict target, and why the fallback is non-negotiable: [reference.md](reference.md) §3-sites.
-
-**Thin pointer + backing detail (catalogue channel):** machine-level reminders ride in *every*
-session, so the catalogue holds the detail and `~/.claude/CLAUDE.md` gets at most a one-line
-pointer — none if it already points at the catalogue, never full rule prose. And **everything
-under `~/.claude/rules/` is loaded, not just its index**, so write the new detail file where the
-index's own links point, outside that directory; never add a second `.md` there. (Measured leak:
-[reference.md](reference.md) §3)
-
-**1-click confirmation**: present the *decision*, not the grid — where it lands, the exact
-text/diff, one line of why-here — then one confirmation:
+SOFT channel by layer (not a fourth site): judgment/expression → `~/.claude/CLAUDE.md`; work-rule →
+`~/.claude/rules` if it exists, else fall back to CLAUDE.md. Never hardcode the machine's `rules/`
+structure: detect it (`[ -d "$HOME/.claude/rules" ]`). Catalogue: a thin pointer in CLAUDE.md at
+most (none if it already points there), never full rule prose; `~/.claude/rules/` is loaded whole,
+so never add a second `.md` there.
 
 ```
 ## 분류 결과
@@ -118,139 +72,67 @@ text/diff, one line of why-here — then one confirmation:
 - memory 중복: <none | memory에도 있어요: <path...> — 매립 후 그 항목은 지울게요 (§6)>
 ```
 
-Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" — with two exceptions. 필요성 not
-통과, and then the gate's recommendation is the first option and the question carries **that**
-recommendation, never a generic refusal: 기존 항목으로 충분 asks about folding it into that
-entry, 안 넣는 게 나음 asks whether to land it at all. And 은퇴 = 미발동, a three-way pick rather
-than a yes/no (#609). Wordings: [reference.md](reference.md) §3-gate-question. **Never write without confirmation.** If any axis
-cannot be settled, hold the classification and report what is ambiguous instead of placing it
-arbitrarily ("don't know" beats a confident-wrong placement).
+Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" If 필요성 is 기존 항목으로 충분 /
+안 넣는 게 나음 or 은퇴 is 미발동, first read reference §3-gate-question (binding): the
+recommendation is the first option, never a generic refusal; 미발동 is a three-way pick, not
+yes/no. Never write without confirmation; hold an unsettled axis.
 
-## 4. User-shell receiver — the destination outside the three sites
+## 4. User-shell receiver
 
-A rule whose **receiver is the user's own shell** (an alias, an env setting) has no home among
-the three sites. Not a fourth site: **emit the command only**, never write the user's shell
-files. **Receiver/audience match is a rule**: place a rule where its audience reads it, and say
-so in the placement reasoning. ([reference.md](reference.md) §4)
+A rule for the user's own shell (alias, env) is not a fourth site: emit the command only, never
+write the user's shell files; place a rule where its audience reads it (reference §4).
 
-## 5. Inviolability safety mechanism (the engine enforces it)
+## 5. Inviolability safety mechanism
 
-The *judgment* "skill X is user-authored" rides in the distill proposal; the **mechanism**
-preventing an overwrite is the engine's and is non-negotiable (losing it overwrites
-user-authored content irreversibly). When the engine writes to the **skill** site:
+On the skill site, a target with `provenance: user-authored` (or a marker the engine did not write,
+or none on a pre-existing user skill) is NEVER overwritten: propose a sibling skill or a reference
+append. Only `provenance: distilled` skills may be revised; a new skill carries it. Provenance
+inspection: reference §5 (binding).
 
-- If the target's frontmatter carries **`provenance: user-authored`** — or any marker the
-  engine/distill did not write, or none at all on a pre-existing user skill — **NEVER overwrite
-  its body**: propose a **sibling** skill or a **reference** append. **User-authored skills are
-  inviolable.**
-- Only **`provenance: distilled`** skills may be revised; a newly created skill carries a
-  top-level **`provenance: distilled`** — machine-authored, revisable later.
+## 6. Conflict check
 
-Verify before writing: read the target's frontmatter and confirm provenance, and **check
-`[ -d "$HOME/.claude/skills" ]` first** — a glob against that missing directory errors instead
-of matching nothing. Missing = "no existing skills", not a failure. (An old nested
-`metadata.provenance: distilled` reads as an unknown marker, so it stays inviolable — the
-intended fail-safe: [reference.md](reference.md) §5.)
+New site: check the target exists first (`[ -f "$TARGET" ]`); a read *error* is not "missing" (it
+overwrites existing content): absent → `Write`, unreadable → stop and report.
+Otherwise read the site's current rules, hook matchers and guard scripts, or skills (read-only
+`Bash`/`Grep`), following an index+detail split's links to its detail files (§3):
 
-## 6. Conflict check (target = the landfill site's current rules + native auto-memory)
+- **Duplicate**: the site already states the rule → strengthen that entry, no second one.
+- **Edit (explicit modification of an existing entry)**: edit in place, showing before → after in
+  the §3 confirmation.
+- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant absorbs
+  it and retires it in the same write, on the same confirmation, never a separate prompt. Read
+  reference §6-supersede-contract and apply it as written; this bullet is a locator, not the
+  contract.
+- **Unused retirement (#609)**: only when the user says outright the entry never came up (never
+  silence); recommends only, never `rm`. Read reference §6-unused-contract and apply it as written.
+- **Contradiction**: conflicts with an existing rule and the request does NOT target it as an
+  explicit edit → do NOT write; report and stop.
+- **Sibling**: pair of an existing rule → link "sibling to <rule>".
 
-**New site**: check the target **exists** first (`[ -f "$TARGET" ]`, as §5 does for the skill
-site). Never infer "missing" from a read *error* — that **overwrites existing content**. Absent
-→ **`Write`**, not append; exists but unreadable → stop and report.
-([reference.md](reference.md) §6-new-site)
+**The Duplicate scan also covers native auto-memory**: read reference §6-memory-contract and apply it as written, then read
+§6-snippet and run the command it ships.
 
-Otherwise read the **current contents of the chosen site** first (read-only `Bash`/`Grep`):
-that channel's own rules, or the existing hook matchers and guard scripts (so a new guard
-doesn't fire on an event one already covers), or existing skills.
-**If the site is an index+detail split, follow the index's links and read the detail files
-too** — they may sit outside the indexed directory (§3), and scanning that directory alone
-downgrades the check to a title comparison:
+**Necessity gate — runs here, after the conflict check and before the §3 confirmation.**
+Recommends only and weighs the artifact's cost, never the rule's reuse value (distill's). Read
+reference §6-gate-contract and apply it as written.
 
-- **Duplicate**: if the site already states the same rule, strengthen that entry rather than
-  adding a second (DRY).
-- **Edit (explicit modification of an existing entry)**: if the request clearly targets one
-  existing entry and asks to change it ("update rule X to say Y"), treat it as an in-place edit,
-  not a new append: show that entry's **before → after** in the §3 confirmation instead of new
-  prose, so the user approves the exact rewrite. Its own outcome, not a variant of Duplicate.
-- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant
-  absorbs it and retires it in the **same write**, on the same confirmation — never a separate
-  prompt. **Its canonical, binding text is [reference.md](reference.md) §6-supersede-contract —
-  read that section and apply it as written; this bullet is a locator, not the contract.**
-  Rationale: [reference.md](reference.md) §6-supersede.
-- **Unused retirement (the other exit, #609)**: absorption above is otherwise the only way an
-  entry ever leaves. Positive evidence only — the **user says outright the entry never came
-  up**, never silence. **Reminder-site entries only, never a user-authored skill** (§5).
-  Surfaces in the §3 은퇴 field with **two choices — delete it, or
-  narrow its firing condition to what it was written for**: **recommends only**,
-  no second prompt (§3 carries the pick), no answer means keep; delete recoverably with a
-  confirmed trash tool, else keep it and report — never force, never `rm`.
-  ([reference.md](reference.md) §6-unused)
-- **Contradiction**: if it conflicts with an existing rule and the request does NOT target that
-  rule as an explicit edit, do NOT write — report the contradiction and stop.
-- **Sibling**: if it is one half of an existing rule's pair, link them with a one-line
-  "sibling to <that rule>", not duplicated context.
-
-**The Duplicate scan also covers native auto-memory** (`~/.claude/projects/<proj>/memory/*.md`
-`feedback` entries), in two steps whose conflation is a data-loss bug. **Its canonical, binding
-text is [reference.md](reference.md) §6-memory-contract: Read that section and apply it as
-written, then read §6-snippet and run the command it ships — this paragraph is a locator, not
-the contract.** Memory is an input queue that empties into a §3 site — **never a fourth site**,
-never a write destination. Why two steps: [reference.md](reference.md) §6-memory.
-
-**Necessity gate — runs here, after the conflict check and before the §3 confirmation.** Four
-questions, three outcomes; it **recommends only** and weighs the artifact's cost, never the
-rule's **reuse value** (distill's). **Its canonical, binding text is
-[reference.md](reference.md) §6-gate-contract — read that section and apply it as written; this
-line is a locator, not the contract.** Why it exists: [reference.md](reference.md) §6-gate.
-
-For a new rule the engine appends in each site's **native form** (CLAUDE.md prose / a hook
-script / a skill SKILL.md); an **Edit** rewrites the targeted entry in place. If the site's
-content is already an index+detail split (one-line index rows linking to per-entry files, e.g.
-`README.md` → `../policies/Pn.md`), match that shape — one terse index row plus its linked
-detail file, not a new inline block — and **put the detail file where the existing ones live,
-resolving the index's own link to find out**. Never invent this split on a site that doesn't
-already use it. An **Edit** there rewrites **both** the index row and its detail file whenever
-the change touches what the index claims. What the detail file may state follows the site's own
-authoring guide when it has one, else [reference.md](reference.md) §6-detail-contract.
+On an index+detail split, match that shape: one index row plus its linked detail file, not a
+new inline block; never invent this split on a site that doesn't already use it. An Edit rewrites
+both row and detail file. Read reference §6-shape-contract and apply it as written.
 
 ## 7. Output contract
 
-Every change is left **in the working tree** — no commit/push/PR; a guard script's `chmod +x`,
-activation and live test are the main context's job. **Zero own harness hooks (CON-2)**: a hook
-written into the *user's* config is a landfill output, not a harness hook. Close in Korean:
-"메인 컨텍스트가 검토 후 커밋하세요." Written-content language and the hook registration
-fragment: [reference.md](reference.md) §7.
+Leave every change in the working tree (no commit/push/PR; a guard's `chmod +x`, activation and
+live test are the main context's). Zero own harness hooks (CON-2). Details: reference §7. Close
+in Korean: "메인 컨텍스트가 검토 후 커밋하세요."
 
-## 8. Post-write self-check (artifact verification)
+## 8. Post-write self-check
 
-After writing, verify the artifact deterministically; a malformed write is **reported in Korean
-and fixed**, never left in place, and you **never claim a write or a removal that didn't happen**.
-*What* gets checked depends on the site, so **read [reference.md](reference.md) §8 and run its
-checklist** for the site just written (skill / hook / reminder, plus the Edit, retirement and
-memory-duplicate-removal cases). Reporting "done" without running it is the failure this step
-exists to prevent. An in-skill self-check, never a registered harness hook (CON-2).
+After writing, read reference §8 and run its checklist for the site written; report a malformed
+write in Korean and fix it; never claim a write or removal that didn't happen.
 
 ## Rules
 
-- Classify, then place: classification is user-confirmed (one 1-click step), placement
-  deterministic once classified.
-- Source gate first (§1): a candidate the AGENT inferred — no user utterance to point at in
-  the transcript — is bounced to `/distill` before classification, never landed. The engine
-  still never re-judges what to keep; it routes the unjudged to the judge.
-- Three sites only: reminder (SOFT) / hook (HARD — blocking or recovery, #609) / skill
-  (procedure). The reminder *channel* is layer-routed — stance/voice → `~/.claude/CLAUDE.md`,
-  work-rule → `~/.claude/rules` if present else CLAUDE.md fallback (never hardcode the machine's
-  `rules/` structure). A user-shell receiver is command emission only, not a fourth site.
-- Tier (HARD/SOFT) is inferred from the rule's what/why, never asked of the user; so is the
-  hook's form (blocking vs recovery).
-- The **necessity gate** (four questions, three outcomes, and one occurrence → narrow the
-  condition, no counter) and both **retirements** (§6 Supersede / never-fired) ride the one
-  confirmation — no second prompt. The gate **recommends only** and never blocks a landing;
-  it judges the artifact's cost, never reuse value. A retired number is never reused.
-- Native auto-memory is a **duplicate-scan target and a promotion queue, not a fourth site**:
-  scan its `feedback` entries, land the rule in a §3 site, then delete the memory duplicate;
-  skip the scan silently when that directory doesn't exist (§6).
-- User-authored skills are **inviolable**: never overwrite a `provenance: user-authored` body;
-  propose a sibling/reference instead.
+- Classify, then place: user-confirmed classification, deterministic placement.
+- Source gate first (§1): an agent-inferred candidate is bounced to `/distill`, never landed.
 - The default taxonomy is editable, not a hardcoded ontology; personal instances are zero.
-- Never commit/push; leave changes in the working tree. Zero own harness hooks (CON-2).
