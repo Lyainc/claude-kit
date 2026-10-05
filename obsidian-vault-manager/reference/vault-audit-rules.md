@@ -701,6 +701,24 @@ always the full number found, so the cut is legible twice over. The tail is not
 lost — re-run with a larger cap into a file and open it with `Read`, which paginates
 where Bash stdout truncates.
 
+**A count cap is not a byte budget.** E13 records name every missing field, so a schema
+alone took the 530-file fixture from 1,802 B to 2,114 B at the default cap (and the first
+2,048 B no longer parsed as JSON). The default line is therefore held to a real budget,
+`--max-bytes` (default 2000, trailing newline included): the contract is scan-summary.py's own
+number, chosen to sit under the ~2 KB preview these docs assume. Do not read it as a claim
+that every runtime cuts at exactly 2,048 B; a line that fits is simply never cut. Over budget,
+every type keeps its full `count`, records are added back round-robin across types until the
+next would not fit, and each shortened type carries `omitted: N`; the top level adds
+`budget: {max_bytes, trimmed: true}` (`exceeded: true` if even the counts do not fit; a long
+E13 `computed: false` reason is cut to 200 characters). A trimmed result therefore never
+reads as normal or as zero findings, and `omitted`/`budget.trimmed` mean the same thing: re-run
+Steps 5-7b as ONE new Bash call with a larger `--max-per-type` (an explicit cap switches the
+budget off, as does `--max-bytes 0`), into a file, and `Read` it. That is the only file path:
+the default bundle is stdout, no `--output` file exists, and `$scan_tmp` lives only for the one
+Bash call that created it. A payload already within `--max-bytes` is byte-identical to the
+pre-budget output. A schema-less vault can exceed it too (long paths at the default cap) and is
+then trimmed the same way.
+
 `extract-wikilinks-batch` exists for the same reason plus speed: the old per-file
 `extract-wikilinks` loop cost 528 Bash round trips and one Python start each,
 measured at ~110 s on the 528-file fixture against 0.14 s for the single dir-shaped
