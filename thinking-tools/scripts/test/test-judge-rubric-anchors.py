@@ -653,9 +653,11 @@ _RATIONALE_NEW_H1_EOF = _CLEAN_RATIONALE.rstrip() + (
 )
 # The operative rule demoted back OUT of the loaded body into the file that declares itself
 # non-operative — the #663 defect this round reverted.
+# (#750: the body sentence is now one unwrapped line without the rationale citation; the mutation
+# still deletes the rule from the loaded body, which `_ROLE_LABEL_RULE` must catch.)
 _SKILL_RULE_DEMOTED = _CLEAN_SKILL.replace(
-    "The fixed role labels — Attacker, Judge,\nSteelman Coach — are roles, not domain personas; they are never selected from the pool and never\nchange per topic (why both skills land on the same entry: ",
-    "(why the role labels are not drawn from it: ",
+    "The fixed role labels — Attacker, Judge, Steelman Coach — are roles, not domain personas; they are never selected from the pool and never change per topic.",
+    "(why the role labels are not drawn from it: rationale.md § Shared-pool contact point)",
 )
 # The Phase 0.5 ceiling rewritten 10x in the body, where it is now the only copy.
 _SKILL_BUDGET_INFLATED = _CLEAN_SKILL.replace("≤ +1500 tokens", "≤ +15000 tokens")

@@ -404,3 +404,26 @@ When process fails or structured output unavailable:
 
 - Korean: `일반 응답으로 대체되었습니다.`
 - English: `Falling back to standard response.`
+
+---
+
+## Quick Start
+
+Moved verbatim from SKILL.md.
+
+```
+User: "Document our service's core values.
+       Customer focus, fast execution, and transparency matter."
+
+→ Phase 1: Concept Analysis - Decompose core values and identify relationships
+→ Phase 2: Structure Design - Plan document architecture and ordering
+→ Phase 3: Content Build - draft each segment, then one isolated final Verify over the whole
+→ Phase 4: Completeness Check - Review for logical gaps and missing content
+→ Phase 5: Basic Polish - Fix grammar and maintain reference style
+→ Output: Structured core values document (~1,500 chars)
+
+───
+*3개 섹션 작성 완료 · 검토 통과*
+
+→ Optional: Run doc-polish for expression quality refinement
+```

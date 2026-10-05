@@ -438,3 +438,65 @@ If no network connectivity:
   - Complete Layer 1 internal checks only
   - Report: "Offline mode - external links not verified"
 ```
+
+---
+
+## Layer 3 Auto-Suggestions
+
+Moved verbatim from SKILL.md Layer 3.
+
+| Issue Type | Auto-Suggestion |
+|------------|----------------|
+| Vague Claims | "약 80%" → Ask: "정확한 수치를 확인할 수 있나요? (예: 78.3%)" |
+| Outdated Info | Version/year detected → "현재 최신 버전을 확인해주세요" + WebFetch offer |
+| Unexplained Terms | First occurrence without definition → "첫 등장 시 간단한 설명을 추가하세요" |
+| Missing Context | Reference without explanation → "이 참조의 배경을 1-2문장으로 추가하세요" |
+
+## Output Modes
+
+Moved verbatim from SKILL.md.
+
+### Default Mode
+```
+[Document Polish Summary]
+
+File: path/to/document.md
+
+Layer 1 (Mechanical): 3 issues found, 2 auto-fixed
+Layer 2 (Consistency): Term consistency: 1 issue, Sentence quality: 2 suggestions
+Layer 3 (Semantic): 2 warnings
+Layer 4 (Fact): 1 mismatch — omit this line entirely when the gate did not fire
+
+Run with --fix to apply auto-corrections (Layer 4 mismatches are never among them).
+```
+
+### Fix Mode (`--fix`)
+```
+[Document Polish - Fix Applied]
+
+File: path/to/document.md
+
+Auto-fixed:
+- Line 15: Fixed trailing whitespace
+- Line 23: Added language tag to code block
+- Line 45: Fixed heading hierarchy
+
+Remaining issues (require manual review):
+- Line 30: Term inconsistency "사용자/유저" → unify to "사용자"
+- Line 52: Sentence exceeds 50 chars → suggest splitting
+- Line 61: 어긋남 — 문서는 #564를 "열려 있음"으로 서술하지만 `gh issue view 564`는 CLOSED
+```
+
+> **Removed**: `--report` 플래그(상세 리포트 모드)는 더 이상 지원하지 않아요. AI 표현(LLM trope) 감사가 필요하면 Humanize KR 같은 전용 휴머나이저를 쓰세요.
+
+## Quick Start
+
+```
+User: "이 README.md 품질 검사해줘"
+
+→ Layer 1: Markdown lint + link check
+→ Layer 2: Consistency + readability check
+→ Layer 3: Vague claims + outdated info warnings
+→ Layer 4: Cross-check #N refs, paths, names, SHAs against the repo (skipped if none present)
+→ Output: Summary with actionable suggestions
+```

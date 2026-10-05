@@ -20,343 +20,124 @@ allowed-tools: AskUserQuestion Skill Read
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
-Generate diverse responses using Verbalized Sampling technique to overcome LLM mode collapse.
+Generate diverse responses with Verbalized Sampling (VS) to overcome LLM mode collapse.
+Plain expansion or structuring routes to `doc-concretize` or ordinary editing.
 
-## Modes
+- **Mode A (Explore)**: ideation/alternatives; output is one selected alternative (or all / best).
+- **Mode B (Enhance)**: diverse authoring directions, then the chosen one is authored by
+  `doc-concretize`.
 
-This skill operates in two modes, both driven by the same VS anti-mode-collapse core:
+## Language Behavior and Options
 
-| Mode | Purpose | Output |
-|------|---------|--------|
-| **A — Explore** | Ideation, alternatives, brainstorming (the original default behavior) | One selected alternative (or all / best) |
-| **B — Enhance** | Diversity-driven *authoring* — avoid mode collapse in prose, then crystallize | A structured document authored by `doc-concretize` from the selected direction |
-
-Mode A's Phases 1–3 are unchanged. Mode B reuses Phase 1 (diverse generation) to produce
-distinct *authoring directions*, then hands the chosen direction to the intra-plugin
-`doc-concretize` skill for structured authoring. Both modes share the same Use Case
-Boundaries — factual, single-answer, and debugging tasks are excluded from either mode.
-
-## Language Behavior
-
-- **Instructions**: English (optimized for LLM parsing)
-- **Output**: MUST match input language
-  - Korean input → Korean output
-  - English input → English output
-  - Mixed input → follow dominant language
-
-## Prerequisites
-
-- Creative or open-ended query requiring diverse outputs
-- "all" mode: say "전부 보여줘" or "all" to show all generated responses
-- "best" mode: say "제일 나은 것" or "best" to select highest probability response
-- Count: say "N개 만들어줘" to generate N responses (range: 3-10, clamping rules unchanged)
-  - If N < 3, clamp to 3 with notice. If N > 10, clamp to 10 with notice. If non-numeric, ignore and use default 5.
+Output MUST match the input language (mixed: dominant language). Options: "전부 보여줘"/all,
+"제일 나은 것"/best, "N개 만들어줘" (clamped to 3-10 with a notice; non-numeric ignored; default 5).
 
 ## Invocation Detection
 
-Detect the **mode** first (Explore vs Enhance), then the invocation type. The Explicit /
-Implicit tables below govern **Mode A (Explore)**; **Mode B (Enhance)** detection follows in
-its own subsection.
+Detect the **mode** first, then the invocation type.
 
-### Explicit (Immediate Execution)
-
-| Trigger | Example |
-|---------|---------|
-| `/diverse-sampling` | `/diverse-sampling 커피숍 이름 아이디어` |
-| "VS 기법으로" | "VS 기법으로 마케팅 카피 만들어줘" |
-| "verbalized sampling" | "verbalized sampling으로 브레인스토밍" |
-| "diverse sampling으로" | "diverse sampling으로 대안 제시해줘" |
-
-### Implicit (Requires Confirmation)
-
-| Trigger | Example |
-|---------|---------|
-| "다양한 아이디어" | "다양한 아이디어 좀 내줘" |
-| "브레인스토밍" | "브레인스토밍 해보자" |
-| "여러 대안" | "여러 대안을 만들어줘" |
-| "alternatives" | "Give me some alternatives" |
-
-**Confirmation Prompt**: fire the **Mode A** prompt (via AskUserQuestion) — see
-[reference.md → Confirmation Prompts](reference.md#confirmation-prompts).
-
-### Mode B — Enhance (Requires Confirmation)
-
-Use Mode B when the user requests several creative authoring directions before expanding one,
-for example “여러 방향으로 글을 발전시켜줘” or “explore alternative angles, then expand one”.
-A bare “enhance”, “글로 발전시켜줘”, or “더 구체적으로 작성해줘” does not establish that need:
-route new-document authoring to doc-concretize and existing-document rewrites to ordinary editing.
-Keep the existing Mode B confirmation for the genuinely additional generation stage.
-
-**Mode B Confirmation Prompt** and **Mode Disambiguation Prompt** (for ambiguous input like
-"다양하게 써줘" — its pick resolves the mode AND doubles as confirmation, so Phase 0 step 4 does
-not prompt again): see [reference.md → Confirmation Prompts](reference.md#confirmation-prompts).
+- **Mode A explicit (run immediately)**: `/diverse-sampling`, "VS 기법으로", "verbalized
+  sampling", "diverse sampling으로".
+- **Mode A implicit (confirm)**: "다양한 아이디어", "브레인스토밍", "여러 대안", "alternatives".
+  Fire the Mode A prompt via AskUserQuestion ([reference.md → Confirmation Prompts](reference.md#confirmation-prompts)).
+- **Mode B (confirm)**: the user requests several creative authoring directions before expanding
+  one ("여러 방향으로 글을 발전시켜줘", "explore alternative angles, then expand one"). A bare
+  "enhance", "글로 발전시켜줘", or "더 구체적으로 작성해줘" does not: route new-document authoring
+  to doc-concretize and existing-document rewrites to ordinary editing.
+- **Ambiguous** ("다양하게 써줘"): fire the **Mode Disambiguation Prompt** (same reference
+  section); its pick resolves the mode AND confirms, so Phase 0 step 4 does not prompt again.
 
 ## Core Workflow
 
 ### Phase 0: Preparation
 
-1. **Mode Determination**
-   - Requests alternative creative directions followed by expansion of one → **Mode B (Enhance)**
-   - Plain expansion or rewriting without alternatives → ordinary editing or doc-concretize;
-     exit this skill without a VS confirmation
-   - Explore trigger or `/diverse-sampling` → **Mode A (Explore)**
-   - Ambiguous (e.g. "다양하게 써줘") → ask via the **Mode Disambiguation Prompt** (above) — a
-     single AskUserQuestion offering Mode A vs Mode B that also states Mode B's higher token
-     cost. The user's pick resolves the mode **and doubles as confirmation** — do not prompt
-     again in step 4.
+1. **Mode**: alternatives then expansion of one → B; Explore trigger or `/diverse-sampling` → A;
+   plain expansion/rewriting without alternatives → exit to ordinary editing or doc-concretize
+   with no VS confirmation; ambiguous → the disambiguation AskUserQuestion (Mode A vs B, stating
+   Mode B's higher token cost).
+2. **Language**: select the EN/KO VS template.
+3. **Use Case Validation** (both modes, BEFORE confirmation): creative/open-ended → proceed.
+   Factual question, code debugging/enhancement, or single-answer task → recommend a standard
+   response **immediately, with no confirmation prompt** (no VS generation or doc-concretize
+   sub-call, in either mode). README, schema or outline edits without a request for creative
+   alternatives → ordinary editing. Ambiguity about the edit does not establish a need for VS; clarify
+   only what materially changes the requested edit, without a Mode B confirmation.
+4. **Confirmation**: explicit Mode A → Phase 1; implicit Mode A or Mode B → AskUserQuestion; mode
+   already resolved by disambiguation → no second prompt; user declines → standard response, exit.
 
-2. **Language Detection**
-   - Analyze input language
-   - Select appropriate VS prompt template (EN/KO)
-
-3. **Use Case Validation** (both modes — runs BEFORE confirmation)
-   - Creative/open-ended task → proceed
-   - Factual question, code debugging/enhancement, single-answer task → recommend a standard
-     response **immediately, with no confirmation prompt** (applies to Mode A and Mode B alike
-     — neither runs VS generation nor the doc-concretize sub-call for excluded inputs).
-     Gating here, before step 4, means an excluded input never triggers a wasted confirmation.
-   - README, schema or outline edits without a request for creative alternatives → ordinary
-     editing. Ambiguity about the edit does not establish a need for VS; clarify only what
-     materially changes the requested edit, without a Mode B confirmation.
-
-4. **Invocation Type Check / Confirmation**
-   - Explicit Mode A trigger (`/diverse-sampling`, "VS 기법으로", …) → proceed to Phase 1
-   - Implicit Mode A trigger → call AskUserQuestion for confirmation
-   - Mode B trigger → call AskUserQuestion for Mode B confirmation
-   - Mode already resolved via step 1's disambiguation question → already confirmed; proceed
-     with no second prompt
-   - User declines any confirmation → generate standard response and exit
-
-**Quality Gate**: Mode determined + appropriate use case (validated before asking) +
-confirmation received (if implicit/Mode B) → proceed (Mode A → Phase 1; Mode B → Phase 1-B
-in the Mode B Branch below)
+**Quality Gate**: mode determined + appropriate use case + confirmation (if implicit/Mode B)
+→ Mode A: Phase 1; Mode B: Phase 1-B.
 
 ### Phase 1: VS Generation
 
-1. **Apply VS Prompt Template** (see [reference.md](reference.md) for templates)
-   - Inject user query into template
-   - Request k responses with probability distribution (k = count from "N개 만들어줘", default 5)
-   - Specify tail sampling (probability < 0.10)
-
-2. **Generate Responses**
-   - Model produces k `<response>` blocks
-   - Each contains `<text>` and `<probability>`
-
-3. **Parse Output**
-   - Extract all response blocks
-   - Parse probability values
-   - **On parse failure → Fallback**
-
-**Quality Gate**: k valid responses parsed (k = count from "N개 만들어줘", default 5) → proceed to Phase 2
+Apply the VS template ([reference.md](reference.md) → VS Prompt Templates): inject the query,
+request k responses (k = "N개" count, default 5) each with `<text>` and `<probability>`, with
+tail sampling (probability < 0.10). Parse all blocks; **on parse failure → Fallback Mechanism.** 
+**Quality Gate**: k valid responses parsed → Phase 2.
 
 ### Phase 2: Selection
 
-Apply selection strategy based on option:
-
-| Option | Strategy | Description |
-|--------|----------|-------------|
-| (default) | Weighted Random | Sample from distribution proportional to probabilities |
-| 전부/all | Show All | Display all 5 responses with probabilities |
-| 제일 나은 것/best | Highest Probability | Select response with highest probability |
-
-**Weighted Random Sampling**:
-```
-1. Normalize probabilities to sum to 1.0
-2. Generate random value [0, 1)
-3. Select response based on cumulative distribution
-```
+Default: weighted random (normalize probabilities to 1.0, draw [0, 1), pick by cumulative
+distribution). "전부/all": display all k responses (default 5) with probabilities. "제일 나은 것/best": the
+highest-probability response.
 
 ### Phase 3: Output
 
-**Default Output** (single response):
-```
-**브루잉 포레스트 (Brewing Forest)**
-
-커피가 숲처럼 천천히 우러나는 공간이라는 의미를 담았습니다.
-
-───
-*{k}개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*
-```
-
-**"전부 보여줘" Output** (all responses):
-```
-## 생성된 대안들
-
-| 순위 | 선호도 | 아이디어 |
-|:---:|:------:|----------|
-| 1 | 100% | 첫 번째 아이디어 설명 |
-| 2 | 71% | 두 번째 아이디어 설명 |
-| 3 | 57% | 세 번째 아이디어 설명 |
-| 4 | 34% | 네 번째 아이디어 설명 |
-| 5 | 23% | 다섯 번째 아이디어 설명 |
-
-───
-*다양성 기법으로 {k}개 대안 생성*
-```
-
-**"제일 나은 것" Output**:
-```
-**Inkwell** ★
-
-A classic writing reference that evokes craftsmanship.
-
-───
-*{k}개 대안 중 가장 선호되는 옵션*
-```
+Natural language only, ending with a pinned footer ([examples](reference.md#output-examples-mode-a)): default
+`*{k}개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*`; "전부 보여줘" (a `## 생성된 대안들`
+table of 순위 | 선호도 | 아이디어) `*다양성 기법으로 {k}개 대안 생성*`; "제일 나은 것" (top response
+marked ★) `*{k}개 대안 중 가장 선호되는 옵션*`. Each footer follows a `───` line.
 
 ## Mode B Branch: Enhance (Authoring Diversity)
 
-Mode B reuses VS generation to diversify the *authoring approach*, then delegates the actual
-writing to `doc-concretize`. It runs after Phase 0 determines Mode B (replacing Phases 1–3).
-
 ### Phase 1-B: Diverse Direction Generation
 
-- Apply the VS prompt template to generate k distinct **authoring directions** for the
-  writing task (framing, structure, angle, tone) — not finished prose, but distinct
-  approaches — each with a probability via tail sampling (same mechanism as Phase 1).
-  - **Template adaptation**: reuse the Phase 1 VS template (see [reference.md](reference.md)),
-    but instruct each `<text>` to hold a *one-paragraph approach/outline* (framing + section
-    skeleton), not a finished answer. Probability and tail-sampling mechanics are unchanged.
-  - **k**: same count rule as Mode A ("N개 만들어줘" → default 5, range 3–10).
-- Parse the k directions exactly as Phase 1, with the same Fallback Mechanism on parse
-  failure.
+Apply the VS template to generate k distinct **authoring directions** (framing, structure,
+angle, tone), each `<text>` a one-paragraph approach/outline, not finished prose. Probability,
+tail sampling, k, parsing, and Fallback are as in Phase 1.
 
 ### Phase 2-B: Direction Selection
 
-- Apply the selection strategy: weighted random by default; "제일 나은 것" picks the
-  highest-probability direction; "전부 보여줘" (or the Mode B confirmation's "방향 직접 선택"
-  option) presents all k directions as a table **and then asks which one to author** — unlike
-  Mode A's "Show All" (which displays and stops), Mode B must converge on a single direction
-  for the doc-concretize handoff.
-
-  **Direction-pick prompt** (after "전부 보여줘", via AskUserQuestion):
-```
-어느 방향으로 작성할까요?
-
-1. {direction 1 한 줄 요약}
-2. {direction 2 한 줄 요약}
-... ({k}개 방향)
-```
-- The selected direction becomes the seed for authoring.
+Same strategies as Phase 2. "전부 보여줘" (or the confirmation's "방향 직접 선택" option) shows all
+k directions as a table **and then asks which one to author** via AskUserQuestion ("어느 방향으로
+작성할까요?", numbered one-line summaries; [reference.md](reference.md#output-examples-mode-a)),
+because Mode B must converge on a single direction to seed authoring.
 
 ### Phase 3-B: Concretization Handoff
 
-- Sub-call the intra-plugin **`doc-concretize`** skill (same plugin — see
-  [doc-concretize](../doc-concretize/SKILL.md)) via the **Skill** tool. Pass the selected
-  direction's outline text as doc-concretize's input — its Prerequisites accept an "abstract
-  concept or idea to concretize" as free-form text (plain text, ≤1 paragraph; optionally
-  append a format/structure hint). doc-concretize then authors the full structured document
-  through its recursive-concretization workflow.
-- This is a one-way ①→② handoff: diverse-sampling (① cognition — diversity generation) feeds
-  doc-concretize (② output — authored markdown). diverse-sampling does **not** edit the
-  produced document; doc-concretize owns authoring.
-- **Output**: the structured document returned by doc-concretize, followed by a pinned
-  one-line footer (mirroring Mode A's pinned footers; abbreviate `{selected}` to its first
-  phrase or ~15–20 chars (Korean) with an ellipsis — a word/phrase boundary, not a hard char
-  cut, so Korean text is not split mid-morpheme):
+Sub-call the intra-plugin **`doc-concretize`** skill ([doc-concretize](../doc-concretize/SKILL.md))
+via the **Skill** tool with the selected direction's outline as free-form input (plain text, at
+most one paragraph; optionally a format hint). One-way handoff: diverse-sampling does **not**
+edit the produced document; doc-concretize owns authoring. Output the returned document, then a
+pinned footer (abbreviate `{selected}` to ~15-20 Korean chars at a word boundary, with an ellipsis):
 
 ```
 ───
 *작성 다양성: {k}개 방향 중 "{selected}" 선택 → doc-concretize 구체화*
 ```
 
-**Mode B Fallback**: if the doc-concretize sub-call cannot run (e.g. Skill 도구 에러 또는
-doc-concretize 미설치 시), emit the selected direction as a standard structured response
-(no sub-call) and note the fallback to the user.
-
-## Structured Output Handling
-
-Regardless of model: structured data (XML/JSON `<response>` blocks with `<text>` and `<probability>`) is internal processing only.
-- Never expose raw XML/JSON to the user — emit converted natural language only.
-- On parse failure, apply the Fallback Mechanism below.
+**Mode B Fallback**: if the doc-concretize sub-call cannot run (Skill error or not installed),
+emit the selected direction as a standard structured response and tell the user.
 
 ## Fallback Mechanism
 
-**Trigger Conditions**:
-- XML parsing failure
-- Fewer than expected valid responses
-- Probability values not parseable
+XML/JSON `<response>` blocks are internal only, in every phase and mode: never show raw XML/JSON.
 
-**Fallback Strategy** (cascading):
-```
-1. XML parse failed → retry with JSON format prompt
-2. JSON parse failed → extract responses via regex pattern matching
-3. All structured parsing failed → generate standard response
-```
-
-**JSON Fallback Prompt** (injected on XML failure):
-```
-Respond in JSON array format:
-[{"text": "response text", "probability": 0.35}, ...]
-```
-
-**Final Fallback**:
-```
-1. Log warning (Korean): "구조화 파싱 실패. 일반 응답으로 대체되었습니다." | (English): "Structured parsing failed. Falling back to standard response."
-2. Generate standard response to original query
-3. Return standard response
-```
+On XML parse failure, too few valid responses, or unparseable probabilities: retry with a
+JSON-format prompt, then regex extraction, then log the warning (Korean: "구조화 파싱 실패. 일반
+응답으로 대체되었습니다." / English: "Structured parsing failed. Falling back to standard
+response.") and return a standard response to the original query. Before retrying with JSON, read
+[reference.md → Fallback Procedure](reference.md#fallback-procedure): it holds the exact JSON-format prompt.
 
 ## Use Case Boundaries
 
-### Apply — Mode A (Explore)
+Apply: creative/open-ended work ([lists](reference.md#use-case-lists)). Exclude in both modes: factual questions,
+code debugging/fixing, code/query/logic enhancement or optimization ("이 쿼리 enhance해줘"; Mode B authors prose),
+single-answer tasks, precise calculations/analysis, security-sensitive operations. Excluded inputs
+get a standard response and skip VS generation and the doc-concretize sub-call.
 
-- Brainstorming, ideation
-- Creative writing (stories, poems, jokes, marketing copy)
-- Alternative/option generation
-- Synthetic data generation
-- Dialogue simulation
-- Exploring multiple perspectives
-
-### Apply — Mode B (Enhance)
-
-- Long-form / structured authoring where mode collapse flattens the result
-  (essays, documentation, narrative sections, marketing long-form)
-- Turning a chosen idea or rough draft into a fully developed document
-- Open-ended authoring tasks that benefit from a diverse framing before concretization
-
-### Exclude (Not Recommended — both modes)
-
-- Factual questions ("What is the capital of Korea?")
-- Code debugging/fixing
-- Code/query/logic enhancement or optimization (e.g. "이 쿼리 enhance해줘") — Mode B authors
-  prose, not code, so a bare "enhance" on a code target routes here
-- Tasks with single correct answer
-- Precise calculations/analysis
-- Security-sensitive operations
-
-For excluded inputs, **both Mode A and Mode B** recommend a standard response and skip VS
-generation and the doc-concretize sub-call entirely.
-
-## Tool Usage
-
-| Tool | When | Example |
-|------|------|---------|
-| AskUserQuestion | Implicit (Mode A) or Mode B trigger confirmation | "Apply VS technique?" / "작성 다양성 적용할까요?" |
-| Skill (`doc-concretize`) | Mode B Phase 3-B — author the selected direction into a structured document | Skill tool invokes the intra-plugin `doc-concretize` skill with the selected direction as seed |
+Tools: AskUserQuestion for every prompt; Skill (`doc-concretize`) in Phase 3-B; Read for reference.md.
 
 ## References
 
-- **Detailed procedures**: See [reference.md](reference.md)
-- **Examples**: See [examples.md](examples.md)
-- **Mode B authoring skill**: [doc-concretize](../doc-concretize/SKILL.md) (intra-plugin; sub-called in Mode B Phase 3-B)
-- **Research paper**: [arXiv:2510.01171](https://arxiv.org/abs/2510.01171)
-
-## Quick Start
-
-```
-User: "/diverse-sampling 스타트업 이름 아이디어 좀 줘"
-
-→ Phase 0: Explicit trigger → proceed, Korean detected
-→ Phase 1: Apply Korean VS template, generate 5 responses
-→ Phase 2: Weighted random sampling
-→ Phase 3: Output selected response
-
-Output:
-**NexaFlow**
-
-다음 단계로의 흐름을 의미
-
-───
-*{k}개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*
-```
+See [reference.md](reference.md), [examples.md](examples.md); paper arXiv:2510.01171.

@@ -805,7 +805,9 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/mai
 # always-loaded SKILL.md sections are pinned the same way (the loaded body outranks an
 # on-demand doc at runtime, so a corrupted locator defeats a correctly pinned contract), and
 # each pinned section's neighbouring headings are pinned too — otherwise one inserted heading
-# parks contradicting text just outside every pin.
+# parks contradicting text just outside every pin. #750 then compacted the three loaded-body
+# sections (Expert Selection Guide, Topic Conclusion, Isolated Execution) under Codex's 8,000-byte
+# invoked-skill limit and re-pinned each whole; the long forms stay canonical in reference.md.
 python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
 # Expected: OK: all 52 self-test cases passed
 python3 thinking-tools/scripts/test/test-mode-compose.py
