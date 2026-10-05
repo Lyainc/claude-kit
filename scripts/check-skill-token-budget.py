@@ -181,8 +181,7 @@ def codex_skill_description_total_cap(context_window_chars=None):
 
 
 class _UnterminatedFrontmatter(Exception):
-    """Raised by _description_span when a description: block scalar reads to EOF with no
-    closing ---/... fence in sight — the frontmatter itself never closes."""
+    """Raised by _description_span when no unindented ---/... fence closes the frontmatter."""
 
 
 def _is_top_level_fence(line: str) -> bool:
@@ -217,33 +216,24 @@ def _description_span(text: str):
     lines = text.splitlines()
     if not lines or lines[0].strip() != "---":
         return None
-    for i in range(1, len(lines)):
-        if _is_top_level_fence(lines[i]):
-            return None
+    # Find the closing fence BEFORE reading description:. An unclosed frontmatter is malformed
+    # whatever comes after description: — EOF (the old whole-file blob, #725-cluster), no
+    # description: key at all (agents/*.md rarely carry one), or a next key that merely ENDS
+    # the description: value (#732: "description: short\nallowed-tools: Read\n\nBody." with no
+    # fence returned "short" and passed as clean). Only an actual fence makes the value real.
+    end = next((i for i in range(1, len(lines)) if _is_top_level_fence(lines[i])), None)
+    if end is None:
+        raise _UnterminatedFrontmatter("frontmatter never closes")
+    for i in range(1, end):
         if not lines[i].startswith("description:"):
             continue
         collected = [lines[i][len("description:"):]]
-        for j in range(i + 1, len(lines)):
-            nxt = lines[j]
-            if _is_top_level_fence(nxt) or _FRONTMATTER_KEY_RE.match(nxt):
+        for nxt in lines[i + 1:end]:
+            if _FRONTMATTER_KEY_RE.match(nxt):
                 break
             collected.append(nxt)
-        else:
-            # EOF reached with no closing fence and no next key: frontmatter never closes, so
-            # `collected` is bogus (the whole rest of the file, body included) rather than a
-            # real description value. Without this guard the caller measured that whole-file
-            # blob as the description's char count and reported "description is N chars",
-            # which misdiagnoses a malformed file as an oversized one (#725-cluster).
-            raise _UnterminatedFrontmatter("description: block never finds a closing fence")
         return "\n".join(collected).strip()
-    # Reaching here means every line was checked and NONE was a closing fence (that path
-    # returns None above) and NONE started a description: key — i.e. frontmatter never closes
-    # at all. Returning None here silently reported this as "no description, 0 chars" instead
-    # of malformed, which missed exactly the agents/*.md class this guard exists to catch
-    # (per this module's own note: "agents rarely carry" a description: key at all, so a
-    # malformed agent frontmatter is MORE likely to hit this path than the inner-loop one) —
-    # /code-review high follow-up.
-    raise _UnterminatedFrontmatter("frontmatter never closes and no description: key is found")
+    return None
 
 
 def _is_disabled(text: str) -> bool:
@@ -698,6 +688,26 @@ def run_self_test() -> int:
         check((measured, [str(p) for p in malformed]) == ([], ["fixture-plugin/agents/x.md"]),
               f"description sum: an unterminated agent file with no description: key is "
               f"malformed, not silently 0 chars — got measured={measured} malformed={malformed}")
+
+    # #732: a description: value ended by the next KEY (not EOF) used to return early, so an
+    # unclosed frontmatter with a short description read as clean — measured, not malformed.
+    never_closes_next_key = "---\nname: x\ndescription: short\nallowed-tools: Read\n\nBody.\n"
+    try:
+        _description_span(never_closes_next_key)
+        check(False, "description span: unterminated frontmatter ended by a next key must raise")
+    except _UnterminatedFrontmatter:
+        check(True, "description span: unterminated frontmatter ended by a next key raises")
+
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_desc_fixture(Path(tmp), '"short"')
+        Path(tmp, "fixture-plugin", "skills", "x", "SKILL.md").write_text(never_closes_next_key)
+        measured, malformed = measure_descriptions(Path(tmp))
+        check((measured, [str(p) for p in malformed]) == ([], ["fixture-plugin/skills/x/SKILL.md"]),
+              f"description sum: an unterminated file whose description: ends at a next key is "
+              f"malformed, not measured — got measured={measured} malformed={malformed}")
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 1 and "frontmatter never closes" in out,
+              f"wiring: an unterminated frontmatter ended by a next key must FAIL, got rc={rc}: {out}")
 
     # Sum case (#686 "합산 1건").
     with tempfile.TemporaryDirectory() as tmp:
