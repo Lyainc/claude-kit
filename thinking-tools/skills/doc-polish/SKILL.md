@@ -75,87 +75,46 @@ Content quality warnings:
 | Unexplained Terms | Undefined acronyms/jargon | Explanation recommendation |
 | Missing Context | References without explanation | Clarification recommendation |
 
-**Auto-Suggestions**: Layer 3 issues include actionable recommendations:
-
-| Issue Type | Auto-Suggestion |
-|------------|----------------|
-| Vague Claims | "약 80%" → Ask: "정확한 수치를 확인할 수 있나요? (예: 78.3%)" |
-| Outdated Info | Version/year detected → "현재 최신 버전을 확인해주세요" + WebFetch offer |
-| Unexplained Terms | First occurrence without definition → "첫 등장 시 간단한 설명을 추가하세요" |
-| Missing Context | Reference without explanation → "이 참조의 배경을 1-2문장으로 추가하세요" |
-
-**Note**: Layer 3 auto-suggestions are recommendations — final judgment requires human review.
+Layer 3 issues carry actionable recommendations (table: `reference.md` §Layer 3 Auto-Suggestions);
+they are recommendations, so final judgment requires human review.
 
 ### Layer 4: Fact Cross-Check (Report-only)
 
-Layer 3 asks whether a claim is *vague*. This layer asks whether it is *false* — the one question
-no other skill answers for a whole document (`adversarial-review` works per claim, `audit` reads
-vault structure and not prose). Design docs fall behind the decisions they describe, so this gap
-widens with time rather than staying constant.
+Layer 3 asks whether a claim is *vague*; this layer asks whether it is *false*, for the whole
+document. Before Layer 4, read `reference.md` §"Layer 4: Fact Cross-Check Details" (Gate, Checks, Reporting): it defines the
+exact patterns and commands.
 
-**Gate — runs only when the document actually contains something checkable.** Skip the layer
-entirely, and omit its line from the report, when a scan finds none of the patterns below. This is
-what keeps the added `gh`/`git` cost off every ordinary polish call; there is no flag to remember.
+**Gate**: run only when a scan finds a checkable claim: issue/PR ref (`#N`), repo path (`/` plus
+a file extension, or after an existing top-level repo dir), script/function/flag name, commit SHA
+(7-40 hex chars with at least one `a`-`f`), or a status assertion ("미구현", "없음", "아직", "지원
+안 함") that directly predicates a named target in the same sentence. Otherwise skip the layer and
+omit its report line entirely, keeping `gh`/`git` cost off ordinary calls.
 
-| Claim in the document | Deterministic check | Verdict |
-|-----------------------|---------------------|---------|
-| Issue/PR reference (`#N`) | `gh issue view N --json state` / `gh pr view` | state matches what the prose says about it |
-| File or directory path — `/` plus a file extension, or `/` after an existing top-level repo dir, not a bare slash | file exists at that path | 확인됨 / 어긋남 |
-| Script, function, or flag name | `grep` for the name in the repo | present as described |
-| Commit SHA — 7-40 hex chars with at least one `a`-`f` (pure decimal isn't a SHA) | `git log -1 <sha>` | resolves to the stated subject; `fatal: bad revision` on a full clone (rebased away, or never existed) is also 어긋남 — on a shallow/partial clone (`git rev-parse --is-shallow-repository` prints `true`), the same failure could just mean "outside this partial history," so it's 저장소로 확인 불가 instead |
-| Status assertion ("미구현", "없음", "아직", "지원 안 함") — only when it directly predicates a named target in the same sentence (backtick name, `#N`, or path; a Korean run-on joined by `~는데`/`~지만` with no terminal punctuation still counts as one sentence) | `grep`/`gh` for the thing asserted absent | still absent |
+**Deterministic checks only**: `gh issue view N --json state` / `gh pr view`, a file-exists test,
+`grep` for the name, `git log -1 <sha>`. A claim needing judgment (is a design right, does a
+trade-off hold) is out of scope and belongs to `adversarial-review`.
 
-**Deterministic checks only.** A claim that needs judgment — whether a design is right, whether a
-trade-off holds — is out of scope and belongs to `adversarial-review`. If settling it takes reading
-and weighing rather than one `gh issue view`, `git log`, or `grep`, it is not this layer's business.
+**Command error vs. mismatch.** A check failing for an unrelated reason (`gh` auth/network) is
+never 어긋남; it maps to 저장소로 확인 불가. `git log`'s `fatal: bad revision` on a well-formed
+SHA is 어긋남 (the lookup ran and the commit isn't there), except on a shallow/partial clone
+(`git rev-parse --is-shallow-repository` prints `true`, checked once per Layer 4 pass), where it
+is 저장소로 확인 불가.
 
-**Command error vs. mismatch.** A check command failing for a reason unrelated to content — `gh`
-failing on auth/network — is not evidence the document is wrong; it maps to 저장소로 확인 불가,
-never 어긋남. `git log`'s `fatal: bad revision` on a well-formed SHA is usually different: the
-lookup DID run and DID answer — the commit isn't there — which is 어긋남, the same as any other
-mismatch. The one exception is a shallow/partial clone (check with `git rev-parse
---is-shallow-repository` once per Layer 4 pass): the same failure there could mean the commit is
-simply outside this checkout's partial history, not that it never existed, so it drops back to
-저장소로 확인 불가. See `reference.md` for the full gate/check detail.
-
-**Three verdicts, one of them reported**: 확인됨 / **어긋남** / 저장소로 확인 불가. Report only
-어긋남, with the line number, what the document asserts, and what the check actually returned.
-Silence on the other two is deliberate — a list of everything that checked out is noise.
+**Three verdicts, one reported**: 확인됨 / **어긋남** / 저장소로 확인 불가. Report only 어긋남,
+with the line number, what the document asserts, and what the check returned.
 
 **Never auto-fixed, and excluded from `--fix` by design.** A false fact means the *content* is
-wrong, and changing content is the one thing "Editor, not Writer" forbids. So this layer reports
-the mismatch and stops; the human decides what the document should say instead. That asymmetry is
-the point of the layer, not a limitation of it.
+wrong, and "Editor, not Writer" forbids changing content: report the mismatch and stop.
 
 ## Workflow
 
-```
-Input: MD file path + options
+1. Phase 1 Mechanical: markdownlint, links (internal then external), code blocks; auto-fix or list issues.
+2. Phase 2 Consistency: term consistency, sentence quality; issues + suggestions.
+3. Phase 3 Semantic: vague claims, possibly outdated info, unexplained terms; warnings.
+4. Phase 4 Fact Cross-Check (skipped when no checkable claim is present): extract refs, paths,
+   names, SHAs, status assertions; verify with gh / git / grep / file existence; report 어긋남 only.
 
-Phase 1: Mechanical Check
-├── Run markdownlint
-├── Validate links (internal → external)
-├── Check code blocks
-└── Output: Auto-fixed file or issue list
-
-Phase 2: Consistency Check
-├── Check term consistency
-├── Analyze sentence quality
-└── Output: Consistency issues + suggestions
-
-Phase 3: Semantic Review
-├── Flag vague claims
-├── Identify potential outdated info
-├── Find unexplained terms
-└── Output: Warnings with recommendations
-
-Phase 4: Fact Cross-Check (skipped when no checkable claim is present)
-├── Extract #N refs, paths, script/function names, SHAs, status assertions
-├── Verify each with gh / git / grep / file existence
-└── Output: 어긋남 only — never auto-fixed
-
-Output: Fixed file and/or Quality Report
-```
+Output: fixed file and/or quality report.
 
 ## Tool Usage
 
@@ -169,51 +128,20 @@ Output: Fixed file and/or Quality Report
 
 ## Output Modes
 
-### Default Mode
-```
-[Document Polish Summary]
+Both modes open with `[Document Polish Summary]` (default) or `[Document Polish - Fix Applied]`
+(`--fix`) and `File: <path>`. Full templates: `reference.md` §Output Modes.
 
-File: path/to/document.md
+- **Default**: one line per layer, `Layer 1 (Mechanical): N issues found, M auto-fixed`,
+  `Layer 2 (Consistency): ...`, `Layer 3 (Semantic): N warnings`, and
+  `Layer 4 (Fact): N mismatch` (omit this line when the gate did not fire), then
+  "Run with --fix to apply auto-corrections (Layer 4 mismatches are never among them)."
+- **Fix (`--fix`)**: an `Auto-fixed:` list (`Line N: ...`) then `Remaining issues (require manual
+  review):` including any 어긋남 line such as `Line 61: 어긋남 — 문서는 #564를 "열려 있음"으로
+  서술하지만 gh issue view 564는 CLOSED`.
 
-Layer 1 (Mechanical): 3 issues found, 2 auto-fixed
-Layer 2 (Consistency): Term consistency: 1 issue, Sentence quality: 2 suggestions
-Layer 3 (Semantic): 2 warnings
-Layer 4 (Fact): 1 mismatch — omit this line entirely when the gate did not fire
+`--report` is no longer supported; for an LLM-trope audit use a dedicated humanizer such as Humanize KR.
 
-Run with --fix to apply auto-corrections (Layer 4 mismatches are never among them).
-```
-
-### Fix Mode (`--fix`)
-```
-[Document Polish - Fix Applied]
-
-File: path/to/document.md
-
-Auto-fixed:
-- Line 15: Fixed trailing whitespace
-- Line 23: Added language tag to code block
-- Line 45: Fixed heading hierarchy
-
-Remaining issues (require manual review):
-- Line 30: Term inconsistency "사용자/유저" → unify to "사용자"
-- Line 52: Sentence exceeds 50 chars → suggest splitting
-- Line 61: 어긋남 — 문서는 #564를 "열려 있음"으로 서술하지만 `gh issue view 564`는 CLOSED
-```
-
-> **Removed**: `--report` 플래그(상세 리포트 모드)는 더 이상 지원하지 않아요. AI 표현(LLM trope) 감사가 필요하면 Humanize KR 같은 전용 휴머나이저를 쓰세요.
-
-## Integration with doc-concretize
-
-After `doc-concretize` generates a document:
-
-```
-doc-concretize output → doc-polish --fix → Final polished document
-```
-
-Recommended workflow:
-1. `doc-concretize`: Create structured content
-2. `doc-polish --fix`: Auto-fix mechanical issues
-3. Manual review of remaining suggestions
+Integration: `doc-concretize` output → `doc-polish --fix` → manual review of remaining suggestions.
 
 ## Boundaries
 
@@ -232,15 +160,3 @@ Recommended workflow:
 
 - **Detailed procedures**: See [reference.md](reference.md)
 - **Examples**: See [examples.md](examples.md)
-
-## Quick Start
-
-```
-User: "이 README.md 품질 검사해줘"
-
-→ Layer 1: Markdown lint + link check
-→ Layer 2: Consistency + readability check
-→ Layer 3: Vague claims + outdated info warnings
-→ Layer 4: Cross-check #N refs, paths, names, SHAs against the repo (skipped if none present)
-→ Output: Summary with actionable suggestions
-```

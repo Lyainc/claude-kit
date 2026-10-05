@@ -240,6 +240,14 @@ Algorithm:
 2. **Insufficient Responses**: Fewer than 5 valid responses parsed
 3. **Invalid Probabilities**: All probability values unparseable
 
+### JSON Fallback Prompt (binding)
+
+Inject this on XML parse failure, before regex extraction (moved from SKILL.md; the SKILL.md fallback cascade requires it):
+```
+Respond in JSON array format:
+[{"text": "response text", "probability": 0.35}, ...]
+```
+
 ### Fallback Steps
 
 ```
@@ -396,3 +404,80 @@ Zhang, J., Yu, S., Chong, D., Sicilia, A., Tomz, M.R., Manning, C.D., & Shi, W. 
 Verbalized Sampling: How to Mitigate Mode Collapse and Unlock LLM Diversity.
 arXiv:2510.01171
 ```
+
+---
+
+## Output Examples (Mode A)
+
+Moved verbatim from SKILL.md Phase 3 and Mode B Phase 2-B.
+
+**Default Output** (single response):
+```
+**브루잉 포레스트 (Brewing Forest)**
+
+커피가 숲처럼 천천히 우러나는 공간이라는 의미를 담았습니다.
+
+───
+*{k}개 대안 중 다양성 기반 선택 · 전체 보기: "전부 보여줘"*
+```
+
+**"전부 보여줘" Output** (all responses):
+```
+## 생성된 대안들
+
+| 순위 | 선호도 | 아이디어 |
+|:---:|:------:|----------|
+| 1 | 100% | 첫 번째 아이디어 설명 |
+| 2 | 71% | 두 번째 아이디어 설명 |
+| 3 | 57% | 세 번째 아이디어 설명 |
+| 4 | 34% | 네 번째 아이디어 설명 |
+| 5 | 23% | 다섯 번째 아이디어 설명 |
+
+───
+*다양성 기법으로 {k}개 대안 생성*
+```
+
+**"제일 나은 것" Output**:
+```
+**Inkwell** ★
+
+A classic writing reference that evokes craftsmanship.
+
+───
+*{k}개 대안 중 가장 선호되는 옵션*
+```
+
+**Mode B direction-pick prompt** (after "전부 보여줘", via AskUserQuestion):
+```
+어느 방향으로 작성할까요?
+
+1. {direction 1 한 줄 요약}
+2. {direction 2 한 줄 요약}
+... ({k}개 방향)
+```
+
+**Quick Start**:
+```
+User: "/diverse-sampling 스타트업 이름 아이디어 좀 줘"
+
+→ Phase 0: Explicit trigger → proceed, Korean detected
+→ Phase 1: Apply Korean VS template, generate 5 responses
+→ Phase 2: Weighted random sampling
+→ Phase 3: Output selected response
+```
+
+## Use Case Lists
+
+Moved from SKILL.md Use Case Boundaries.
+
+**Apply, Mode A (Explore)**: brainstorming, ideation; creative writing (stories, poems, jokes,
+marketing copy); alternative/option generation; synthetic data generation; dialogue simulation;
+exploring multiple perspectives.
+
+**Apply, Mode B (Enhance)**: long-form / structured authoring where mode collapse flattens the
+result (essays, documentation, narrative sections, marketing long-form); turning a chosen idea
+or rough draft into a fully developed document; open-ended authoring tasks that benefit from a
+diverse framing before concretization.
+
+**Mode B template adaptation**: reuse the Phase 1 VS template, but instruct each `<text>` to
+hold a one-paragraph approach/outline (framing + section skeleton), not a finished answer.

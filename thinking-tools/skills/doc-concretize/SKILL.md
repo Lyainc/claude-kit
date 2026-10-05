@@ -23,12 +23,8 @@ Transform abstract concepts into concrete, well-structured documentation through
 
 ## Language Behavior
 
-- **Instructions**: English (optimized for LLM parsing)
-- **Output**: MUST match input language
-  - Korean input → Korean output
-  - English input → English output
-  - Mixed input → follow dominant language
-- **Style reference**: If user provides a reference document, match its language and tone
+Output MUST match the input language (mixed input follows the dominant language); if the user
+provides a reference document, match its language and tone.
 
 ## Prerequisites
 
@@ -49,41 +45,23 @@ Transform abstract concepts into concrete, well-structured documentation through
       - If > 2000 chars → **Full Mode**: execute all phases
 5. If reference document exists, analyze and record its style
 
-**Mandatory State Tracking** *(Internal Only - not shown to users)*:
-```json
-{
-  "segments": [
-    {"id": 1, "name": "segment_name", "status": "pending", "depends_on": []},
-    ...
-  ],
-  "current": 0,
-  "style_ref": "user_doc.md or null",
-  "quality_gate": "pending"
-}
-```
+**Mandatory State Tracking** *(Internal Only, not shown to users)*: keep a JSON object with
+`segments` (`id`, `name`, `status`, `depends_on`), `current`, `style_ref`, and `quality_gate`
+(schema: `reference.md` §State Tracking JSON Schema).
 
 **Quality Gate**: Concepts decomposed + relationships mapped + segments defined → proceed
 
 ### Quick Mode (800-2000 chars)
 
-When estimated output is 800-2000 characters, use compressed workflow:
-
-1. **Phase 1**: Concept Analysis (same as Full Mode)
-2. **Phase 3**: Content Build (skip Phase 2 Structure Design — use linear ordering; isolated final Verify still runs after assembly, same as Full Mode)
-3. **Phase 4 (Reduced)**: Single completeness review pass (skip adversarial check and self-critique questions)
-4. **Phase 5**: Basic Polish (same as Full Mode)
-
-Quick Mode skips Structure Design and reduces Completeness Check, cutting processing time by ~40% for shorter documents.
+Phase 1, then Phase 3 (no Phase 2: use linear ordering; the isolated final Verify still runs after
+assembly), then a Phase 4 single completeness review pass (no adversarial check or self-critique
+questions), then Phase 5 Basic Polish.
 
 ### Phase 2: Structure Design
 
-Plan document architecture and determine optimal ordering patterns:
-
-1. **Architecture Planning**: Define hierarchy (sections, subsections, flow)
-2. **Ordering Strategy**: Determine presentation order (chronological, priority-based, conceptual progression)
-3. **Dependency Resolution**: Ensure prerequisites are addressed before dependent concepts
-
-**Quality Gate**: Document structure defined + ordering determined → proceed to content build
+Plan the hierarchy (sections, subsections, flow), the ordering strategy (chronological,
+priority-based, conceptual progression), and resolve dependencies so prerequisites precede
+dependents. **Quality Gate**: structure and ordering defined → Phase 3.
 
 ### Phase 3: Content Build
 
@@ -163,11 +141,9 @@ fallback (#647) — never wait on it further.
 
 ## Tool Usage
 
-| Tool | When | Example |
-|------|------|---------|
-| AskUserQuestion | Clarify ambiguous concepts, Critical Issues | "Did you mean X or Y?" |
-| WebFetch | Fact-check (numbers, quotes, external info) | Verify statistics |
-| Agent | Isolated final Verify pass over the assembled document | Pass document + 4 Verify items, get per-segment pass/fail |
+AskUserQuestion clarifies ambiguous concepts and Critical Issues; WebFetch fact-checks numbers,
+quotes, and external info; Agent runs the isolated final Verify over the assembled document
+(document + 4 Verify items in, per-segment pass/fail out); Read loads a reference document.
 
 ## Output Format
 
@@ -190,36 +166,10 @@ fallback (#647) — never wait on it further.
 
 ## Expression Quality Enhancement
 
-`doc-concretize` focuses on **content creation** (logic, structure, completeness). For **expression quality** (clarity, readability, style refinement), run `doc-polish` as a follow-up step:
-
-```
-1. Complete doc-concretize (content creation)
-2. Run doc-polish (expression refinement)
-```
-
-`doc-concretize` = Writer (creates content)
-`doc-polish` = Editor (refines expression)
+`doc-concretize` is the Writer (content: logic, structure, completeness); for expression quality
+run `doc-polish` afterwards.
 
 ## References
 
 - **Detailed procedures**: See [reference.md](reference.md)
 - **Examples**: See [examples.md](examples.md)
-
-## Quick Start
-
-```
-User: "Document our service's core values.
-       Customer focus, fast execution, and transparency matter."
-
-→ Phase 1: Concept Analysis - Decompose core values and identify relationships
-→ Phase 2: Structure Design - Plan document architecture and ordering
-→ Phase 3: Content Build - draft each segment, then one isolated final Verify over the whole
-→ Phase 4: Completeness Check - Review for logical gaps and missing content
-→ Phase 5: Basic Polish - Fix grammar and maintain reference style
-→ Output: Structured core values document (~1,500 chars)
-
-───
-*3개 섹션 작성 완료 · 검토 통과*
-
-→ Optional: Run doc-polish for expression quality refinement
-```

@@ -370,40 +370,37 @@ _SKILL_SELECTION_SECTION_RE = re.compile(
     re.MULTILINE | re.DOTALL,
 )
 
+# #750: these three loaded-body constants were re-pinned to the compact SKILL.md sections (same
+# whole-section verbatim comparison) when SKILL.md shrank under Codex's 8,000-byte invoked-skill
+# limit; the long forms stay canonical in reference.md, whose own pins are unchanged.
 _SKILL_ISOLATED_SECTION = _normalise("""\
 ### Isolated Execution: Rebuttal Exchanges
 
-Isolated execution replaces inline mode's *simulated* debate (one model scripting all voices in one response) with real multi-turn **exchanges** inside a topic's single Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a separate discussion cycle. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total, once per topic — there is no outer topic-round loop around it.
+Isolated mode runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)** in a topic's Q&A/Rebuttal step, capped at 3 exchanges total.
 
-**Orchestrator vs. Moderator**: the mechanical work — spawning experts, assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator subagent, which stays visibility-limited (position summaries only) and is spawned only for Synthesis/Conclusion.
+**Orchestrator vs. Moderator**: spawning experts, assembling packets, relaying between exchanges, and judging the stop condition is done by the **parent orchestrator**, NOT by the Moderator subagent, which sees position summaries only and is spawned only for Synthesis/Conclusion.
 
-**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for the E1/E2 packet composition, the exchange records used for restore, both stop conditions (the 2-rebuttal cap and the *no new argument* test), the degenerate cases, and the per-topic **Cost** including **Recovery cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone. This whole section is pinned VERBATIM by `_SKILL_ISOLATED_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`: the always-loaded body outranks an on-demand doc at runtime, so it may not drift from the section it points at.
+**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for packets, exchange records, stop conditions (2-rebuttal cap, *no new argument* test), degenerate cases and **Cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone.
 """)
 
 _SKILL_CONCLUSION_SECTION = _normalise("""\
 ### Topic Conclusion
 
-Every topic ends in exactly one outcome, decided after the rebuttal loop (isolated) or the rebuttal passes (inline) stop:
+Each topic ends in exactly one outcome after the rebuttal stage stops:
 
 1. **Consensus** — unanimity allowing up to 1 minority dissent → `consensus-reached`.
-2. **Weighted vote** (no consensus): each valid expert votes with a confidence of High = 3, Medium = 2, Low = 1 points. `margin` = the top option's points minus the runner-up's. `margin ≥ 2` → the top option wins, `tie-broken`. `margin = 1` → `tie-broken`, and SUMMARY.md marks that winning option "Conditional — requires validation".
-3. **Hold** — no winner is invented: `held:tie` when `margin = 0` (e.g. 6 vs 6), `held:evidence` when the Moderator judges the deciding claims unverifiable without facts the user must supply ([Phase 3](#phase-3-moderator-authority)), `held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all. A held topic is never recorded as `tie-broken` or Conditional.
+2. **Weighted vote** (no consensus): each valid expert votes High = 3, Medium = 2, Low = 1 points; `margin` = the top option's points minus the runner-up's. `margin ≥ 2` → the top option wins, `tie-broken`. `margin = 1` → `tie-broken`, and SUMMARY.md marks the winner "Conditional — requires validation".
+3. **Hold** — no winner is invented: `held:tie` when `margin = 0`, `held:evidence` when the Moderator judges the deciding claims unverifiable without facts the user must supply ([Phase 3](#phase-3-moderator-authority)), `held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all. A held topic is never recorded as `tie-broken` or Conditional.
 
-Record the outcome with its vote breakdown and the dissenting rationale in SUMMARY.md; every held topic also goes to UNRESOLVED.md with its reason. STATE `Topic-status`, SUMMARY.md, and UNRESOLVED.md name the same outcome for each topic. This whole section is pinned VERBATIM by `_SKILL_CONCLUSION_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`.
+SUMMARY.md records the outcome, vote breakdown and dissent; held topics also go to UNRESOLVED.md with the reason; STATE `Topic-status`, SUMMARY.md and UNRESOLVED.md name the same outcome.
 """)
 
 _SKILL_SELECTION_SECTION = _normalise("""\
 ### Expert Selection Guide
 
-The Selection Rule produces the panel outright; there is no judgment step here — the single
-departure is an explicit user override. **Apply § Expert Selection Guide: what the Selection Rule
-enforces in [reference.md](reference.md) as written — that section is the binding contract** for
-panel size (3–5), domain overlap, perspective balance and rotation, including the standing ban on
-topping up a panel that merely *looks* implementation-heavy (#423). This paragraph is a locator,
-not a summary you may act from alone, and this whole section is pinned VERBATIM by
-`_SKILL_SELECTION_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`.
+**Apply § Expert Selection Guide: what the Selection Rule enforces in [reference.md](reference.md) as written — that section is the binding contract** for panel size (3–5) and the ban on topping up a panel that merely *looks* implementation-heavy (#423). This paragraph is a locator, not a summary you may act from alone.
 
-**When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`. This is the user-override path, not a selection judgment: without the user's explicit yes the rule's output stands unchanged.
+**When to add experts mid-discussion**: for an uncovered domain, Moderator may propose an expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`; without an explicit yes the rule's output stands.
 """)
 
 

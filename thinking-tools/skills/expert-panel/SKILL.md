@@ -22,209 +22,72 @@ effort: high
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
-## Language Behavior
-
-- **Instructions**: English (optimized for LLM parsing)
-- **Output**: Korean by default (panel discussions use Korean)
-  - If user writes in English → English output
-  - Role labels: use English labels (see Role Labels table)
-
-## Overview
-
-Facilitate expert panel discussions where diverse specialists reach consensus through dialectical debate.
-
 ## Execution Modes
 
-Express mode preferences in natural language — no flags needed:
-- **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation). Enables real multi-turn rebuttal — experts are re-spawned for each rebuttal exchange with prior-exchange statements injected, instead of one simulated pass (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
-- **요약 출력** ("요약만", "transcript 없이"): Skip transcript generation; produce SUMMARY.md + UNRESOLVED.md only
+Output Korean (English if the user writes English); moved detail: reference.md § Procedure Detail. Modes (natural language):
+- **격리 실행** ("엄격하게", "격리해서"): experts and Moderator are separate Agent subagents (see Isolated Execution)
+- **요약 출력** ("요약만", "transcript 없이"): no transcripts; SUMMARY.md + UNRESOLVED.md only
 
-All combinations compose silently — including any combination with citation grounding (see [Citation Contract](#citation-contract)) and the Phase 2 inline-summary path (see [Phase 2: Recording](#phase-2-recording)).
+All combinations compose silently, incl. citation grounding and the Phase 2 inline-summary path.
 
 ## Participants
 
-### Fixed (Always Present)
-
-| Role | Stance | Distinct evaluation criteria | Voice |
-|------|--------|------------------------------|-------|
-| **Moderator** | Neutral facilitation (no position) | Open/close authority, fact-check requests, unresolved-issue tracking | Procedural, summarizing |
-| **Optimistic Practitioner** | Advocates benefits + feasibility | Implementation experience, delivery numbers ("3주 내 가능", "X% 개선") | Forward-leaning, solution-first |
-| **Critical Practitioner** | Identifies risk + limitations, proposes alternatives | Failure precedents, risk probabilities, tech-debt cost | Skeptical, evidence-demanding |
-
-### Variable (Selected from the shared pool)
-
-| Role | Description |
-|------|-------------|
-| **Expert Panel** | 3–5 domain experts selected from [../../reference/personas.md](../../reference/personas.md) by that file's deterministic tag-matching Selection Rule — same topic text, same panel, every run |
-
-Run the Selection Rule per topic in Phase 0 on the **user's original topic text** (title + statement
-as submitted — the same input `adversarial-review` uses, which is what makes the two skills land on
-the same entry) and record the resulting IDs in the STATE block
-`Personas` field. The pool is a **default, not a closed list**: a topic matching no entry proceeds
-with ad-hoc personas labeled `{Domain} Expert (ad-hoc)`, counted in `adhoc:{n}` so the fallback is
-visible rather than silent. A user who names the experts explicitly overrides the rule — record
-that as `adhoc:{n}` for any named expert absent from the pool.
-
-**Important — role-prompt differentiation is the diversity source** (not extra spawns/temperature): every role needs a **distinct stance**, **distinct evaluation criteria**, and a **distinct voice** — pre-differentiated for variable roles by the shared pool ([personas.md](../../reference/personas.md)), so an ad-hoc persona is the only place this has to be authored per session. Easy agreement between roles may be conformity, not aligned evidence — re-validate against each role's own criteria (Anti-conformity directive, [Phase 1](#phase-1-topic-rounds)). Full rationale + the rejected full-spawn-default alternative: [reference.md](reference.md).
+Fixed: **Moderator** (no vote; position summaries only during synthesis, never the full Q&A), **Optimistic Practitioner**, **Critical Practitioner**. Variable: 3–5 experts from `../../reference/personas.md` by its deterministic Selection Rule, run per topic on the **user's original topic text**, which alone yields the panel; record IDs in STATE `Personas`. No match, or a user-named expert outside the pool → ad-hoc `{Domain} Expert (ad-hoc)`, counted in `adhoc:{n}`.
 
 ### Expert Selection Guide
 
-The Selection Rule produces the panel outright; there is no judgment step here — the single
-departure is an explicit user override. **Apply § Expert Selection Guide: what the Selection Rule
-enforces in [reference.md](reference.md) as written — that section is the binding contract** for
-panel size (3–5), domain overlap, perspective balance and rotation, including the standing ban on
-topping up a panel that merely *looks* implementation-heavy (#423). This paragraph is a locator,
-not a summary you may act from alone, and this whole section is pinned VERBATIM by
-`_SKILL_SELECTION_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`.
+**Apply § Expert Selection Guide: what the Selection Rule enforces in [reference.md](reference.md) as written — that section is the binding contract** for panel size (3–5) and the ban on topping up a panel that merely *looks* implementation-heavy (#423). This paragraph is a locator, not a summary you may act from alone.
 
-**When to add experts mid-discussion**: If a topic reveals an uncovered domain (e.g., legal implications emerge during a technical review), Moderator may propose adding a domain expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`. This is the user-override path, not a selection judgment: without the user's explicit yes the rule's output stands unchanged.
+**When to add experts mid-discussion**: for an uncovered domain, Moderator may propose an expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`; without an explicit yes the rule's output stands.
 
 ## Citation Contract
 
-When an expert states a **numeric or factual claim** (statistics, performance figures, failure rates, legal citations, precedents), it must cite exactly one grounding source:
-
-1. **Preferred**: call `vault-searcher` (Agent tool, Mode 3 — Keyword Search) once per topic to surface relevant past decisions or notes. Cache returned excerpts for reuse within the same topic — do NOT re-query per round. Search target: user's vault `notes/`, preferring `type: decision`.
-2. **Fallback**: cite a named document or file already in scope via Read/Grep (e.g., a design doc the user provided for this session).
-3. **Inline fallback**: if vault-searcher is unavailable / returns 0 relevant results / the Agent call fails or returns no response, fall back to the existing inline behavior — the expert states the claim as a domain judgment. Do NOT announce the fallback to the user; session behavior must look identical. A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further.
-
-**Token budget**: vault-searcher call + section-only excerpts + max 3 results keeps this step within **~+1500 tokens** of per-topic overhead (mirrors the adversarial-review grounding budget precedent). Never re-query per rebuttal exchange, never request full notes.
-
-**Citation-coverage escalation signal**: a consensus topic recorded `Citation: unverified` (grounding attempted, none found) escalates/deepens instead of being marked easy — catches false-consensus. Fires only on `unverified`, never on `skipped` (an unavailable vault-searcher must not make standalone sessions silently longer). Field semantics: [reference.md → STATE Block 복원 상세](reference.md).
-
-**Note on full-spawn-default**: citation grounding is a verification purpose — sourcing evidence to ground claims. It does NOT increase expert diversity and does NOT conflict with the spawn≠diversity / full-spawn-default ADR (see [reference.md → 다양성 원천](reference.md)). The diversity lever remains role-prompt differentiation only; citation is orthogonal.
-
-| Item | Rule |
-|------|------|
-| Principle | Unanimity (allows up to 1 minority dissent) |
-| Moderator | No voting rights, facilitation authority only |
-| Experts | Minimum 3 valid experts; below 3 the topic is held (see [Topic Conclusion](#topic-conclusion)) |
-| Objection | 2+ experts objecting means no consensus — the topic goes to the weighted vote, never to a repeat cycle |
+An expert's **numeric or factual claim** cites exactly one source: `vault-searcher` (Agent, Mode 3) once per topic over `notes/`, preferring `type: decision` (max 3 results, section-only, never full notes; cached, no per-round re-query), else a named document in scope via Read/Grep, else — vault-searcher unavailable / 0 results / Agent call fails or no response — a stated domain judgment, silently. A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647). `Citation: unverified` escalates/deepens the topic, never `skipped`.
 
 ## Core Workflow
 
 ### Phase 0: Preparation
-1. Analyze the review target → split into topics
-2. **Backlog prefilter scan (#524)**: use Bash to run the prefilter once, before any expert speaks, on the user's original topic text (before splitting):
+
+1. Split the target into topics; generate the agenda.
+2. **Backlog prefilter (#524)**: before any expert speaks, use Bash once on the user's original topic text:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{review target text}"
    ```
-   `[backlog-scan SKIPPED]` output → record `Backlog: skipped`, carry that line verbatim into Phase 2. A `[backlog-scan PARTIAL]` prefix (#561 — one side's `gh` fetch failed while the other rendered normally) → record `Backlog: partial`, carry that line verbatim into Phase 2 too, and still give the rendered digest below it to every expert — PARTIAL means one side is unconfirmed, not that nothing rendered. Otherwise record `Backlog: scanned` and give the digest to every expert as grounding, same status as [Citation Contract](#citation-contract) sources — never a verdict the panel is bound to. Rationale + zero-cost note: [reference.md](reference.md).
-3. Run the [personas.md](../../reference/personas.md) Selection Rule on each topic's text → panel composition (confirm with the user only when they asked to pick the experts themselves)
-4. Generate discussion agenda
+   `[backlog-scan SKIPPED]` → `Backlog: skipped`; `[backlog-scan PARTIAL]` → `Backlog: partial` (digest still given); carry the line verbatim into Phase 2. Else `Backlog: scanned`: the digest grounds, never binds, the panel.
+3. Run the Selection Rule per topic (confirm only if the user picks experts).
 
 ### Phase 1: Topic Rounds
 
-**Anti-conformity directive** (applied to every expert turn): "You are not required to reach the same conclusions as other panel members. Maintain your position if your domain evidence supports it."
+**Anti-conformity directive** (each turn): "You are not required to reach the same conclusions as other panel members. Maintain your position if your domain evidence supports it."
 
-For each topic (one cycle per topic — see Cycle Limits):
-1. **Briefing**: Practitioners present pro/con perspectives
-2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber). In default (inline) mode this is best-effort via prompt contract; isolated execution mode enforces it mechanically via subagent context boundaries.
-3. **Q&A / Rebuttal**: Experts question and rebut each other. Inline mode renders this as one simulated pass; isolated mode runs it as a real exchange loop — 1 independent exchange + up to 2 rebuttal exchanges (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
-4. **Dialectic**: Thesis → Antithesis → Synthesis
-5. **Conclusion**: consensus, vote result, or hold (see [Topic Conclusion](#topic-conclusion))
+Per topic: (1) **Briefing** by the practitioners; (2) **Independent Statements** labeled **[{Expert} — independent]**, all collected before any expert sees another's; (3) **Q&A / Rebuttal**; (4) **Dialectic**; (5) **Conclusion** per Topic Conclusion. **Cycle Limits**: E1 + at most 2 rebuttal exchanges. There is no outer topic-round repeat; an early stop (no new argument) ends the debate, not the decision.
 
-**Cycle Limits**:
-- Each topic runs one cycle: independent statements once (E1), then at most 2 rebuttal exchanges (E2, E3). There is no outer topic-round repeat, and E1 is never re-collected for the same topic because a new round started — the only re-collection is a restore that lost E1 records ([reference.md → STATE Block 복원 상세](reference.md)).
-- Inline mode simulates the same shape in one response: one independent pass, then at most 2 rebuttal passes.
-- Early stop: the rebuttal loop may stop after any rebuttal exchange that adds no new argument, before the 2-rebuttal cap. Early stop ends the debate, not the decision — the topic still goes to [Topic Conclusion](#topic-conclusion), and stopping is never itself a consensus verdict.
-
-**STATE Block Contract**:
-
-> **Core Rules**: See [../../reference/state-contract.md](../../reference/state-contract.md)
-
-Never store thesis/antithesis/synthesis prose in the block — only the closed-enum status below;
-dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). This keeps the block bounded.
-
-```
-<!-- STATE:CHECKPOINT -->
-Topic: {idx}/{total} | Phase: {0|1|2}
-Mode: [isolated:{on|off}] [summary-only:{on|off}]
-Backlog: {scanned|partial|skipped}
-Personas: [{P-id} ...] adhoc:{n}
-Independent: {k}/{N}
-Rebuttal: [t{n}:e{i}:{k}/{N}]
-Collected: [t{n}:e{i}:{expert-id},...]
-Records: {discussion-dir}/_exchanges/ | —
-Topic-status: [t{n}:{pending|thesis-reached|antithesis-reached|synthesis-reached|consensus-reached|tie-broken|held:{tie|evidence|quorum}}] ...
-Citation: [t{n}:{grounded|unverified|skipped}] ...
-Votes: [t{n}:{expert}:{option}:{High|Medium|Low}] ...
-Tie-break: [t{n}:margin:{n|—}] ...
-<!-- /STATE -->
-```
-
-**Field semantics, exchange records, and compaction-restore defaults**: see [reference.md → STATE Block 복원 상세](reference.md) — load it before resuming a compacted isolated-mode session. Load-bearing invariants (kept here so restore is safe even before that load): in isolated mode the exchange records under `Records` are the source of truth for which experts finished an exchange — each record is written *before* `Collected`/`Rebuttal` are updated, so a record wins over a counter on any divergence, and an expert with no record is never counted as done by inference (re-collect it instead). `Rebuttal` locates the exchange and wins over `Independent`. On compaction, restore from the most recent STATE block, defaulting missing fields to the low-loss side — Mode flags → `off` (full output), Backlog → `skipped`, Citation → `skipped`, Topic-status → `pending`, Votes → no vote. A missing `Personas` field is recovered by re-running the Selection Rule on the same topic text — it is deterministic, so recomputation returns the identical set (ad-hoc personas are the exception: they are session-local, so recover those from the exchange records or transcript instead).
+**STATE Block**: closed-enum status only, no debate prose. Before writing or restoring STATE, read [reference.md → STATE Block 복원 상세](reference.md): it is binding and defines the template and every field (Topic/Phase … Tie-break), their semantics and the restore defaults. A record under `Records` is written *before* `Collected`/`Rebuttal` update and wins over a counter, so an expert with no record is never counted as done by inference; `Rebuttal` locates the exchange and wins over `Independent`; missing fields default to the low-loss side (Mode `off`, Backlog/Citation `skipped`, Topic-status `pending`, no vote).
 
 ### Topic Conclusion
 
-Every topic ends in exactly one outcome, decided after the rebuttal loop (isolated) or the rebuttal passes (inline) stop:
+Each topic ends in exactly one outcome after the rebuttal stage stops:
 
 1. **Consensus** — unanimity allowing up to 1 minority dissent → `consensus-reached`.
-2. **Weighted vote** (no consensus): each valid expert votes with a confidence of High = 3, Medium = 2, Low = 1 points. `margin` = the top option's points minus the runner-up's. `margin ≥ 2` → the top option wins, `tie-broken`. `margin = 1` → `tie-broken`, and SUMMARY.md marks that winning option "Conditional — requires validation".
-3. **Hold** — no winner is invented: `held:tie` when `margin = 0` (e.g. 6 vs 6), `held:evidence` when the Moderator judges the deciding claims unverifiable without facts the user must supply ([Phase 3](#phase-3-moderator-authority)), `held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all. A held topic is never recorded as `tie-broken` or Conditional.
+2. **Weighted vote** (no consensus): each valid expert votes High = 3, Medium = 2, Low = 1 points; `margin` = the top option's points minus the runner-up's. `margin ≥ 2` → the top option wins, `tie-broken`. `margin = 1` → `tie-broken`, and SUMMARY.md marks the winner "Conditional — requires validation".
+3. **Hold** — no winner is invented: `held:tie` when `margin = 0`, `held:evidence` when the Moderator judges the deciding claims unverifiable without facts the user must supply ([Phase 3](#phase-3-moderator-authority)), `held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all. A held topic is never recorded as `tie-broken` or Conditional.
 
-Record the outcome with its vote breakdown and the dissenting rationale in SUMMARY.md; every held topic also goes to UNRESOLVED.md with its reason. STATE `Topic-status`, SUMMARY.md, and UNRESOLVED.md name the same outcome for each topic. This whole section is pinned VERBATIM by `_SKILL_CONCLUSION_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`.
+SUMMARY.md records the outcome, vote breakdown and dissent; held topics also go to UNRESOLVED.md with the reason; STATE `Topic-status`, SUMMARY.md and UNRESOLVED.md name the same outcome.
 
 ### Isolated Execution: Rebuttal Exchanges
 
-Isolated execution replaces inline mode's *simulated* debate (one model scripting all voices in one response) with real multi-turn **exchanges** inside a topic's single Q&A/Rebuttal step (step 3 above). An "exchange" is one synchronous fan-out across all experts (not per-expert) — it is NOT a separate discussion cycle. The loop runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 exchanges total, once per topic — there is no outer topic-round loop around it.
+Isolated mode runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)** in a topic's Q&A/Rebuttal step, capped at 3 exchanges total.
 
-**Orchestrator vs. Moderator**: the mechanical work — spawning experts, assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator subagent, which stays visibility-limited (position summaries only) and is spawned only for Synthesis/Conclusion.
+**Orchestrator vs. Moderator**: spawning experts, assembling packets, relaying between exchanges, and judging the stop condition is done by the **parent orchestrator**, NOT by the Moderator subagent, which sees position summaries only and is spawned only for Synthesis/Conclusion.
 
-**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for the E1/E2 packet composition, the exchange records used for restore, both stop conditions (the 2-rebuttal cap and the *no new argument* test), the degenerate cases, and the per-topic **Cost** including **Recovery cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone. This whole section is pinned VERBATIM by `_SKILL_ISOLATED_SECTION` in `thinking-tools/scripts/test/test-mode-compose.py`: the always-loaded body outranks an on-demand doc at runtime, so it may not drift from the section it points at.
+**Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for packets, exchange records, stop conditions (2-rebuttal cap, *no new argument* test), degenerate cases and **Cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone.
 
 ### Phase 2: Recording
 
-After all topics are discussed, produce output according to session scope:
+Default (single topic): an **inline SUMMARY** in the conversation (consensus, actions, unresolved issues), no files. **Full 3-file generation** when ANY applies: 2+ topics; the user asks for files; substantial unresolved issues; isolated mode. Write under `docs/discussions/{YYYYMMDD}_{name}/` (`templates/`): `transcripts/{순번}_{topic}.md`, `SUMMARY.md`, `UNRESOLVED.md`.
 
-**Lightweight / single-topic sessions** (default path when none of the triggers below apply):
-- Produce an **inline SUMMARY** in the current conversation — consensus items, recommendations, action items, unresolved issues. No files written.
-- This is sufficient for quick, single-topic reviews and avoids unnecessary file I/O for routine use.
-
-**Backlog scan carry-over (#524)**: state the Phase 0 backlog result in the output — the
-`[backlog-scan SKIPPED]` line verbatim if skipped, else one line naming conflicts or a no-conflict
-statement. An empty field is not a pass (mirrors `build-spec`'s `context.backlog_scan`, #489).
-
-**Full 3-file generation** is required when ANY of the following apply:
-- Session covers **multiple topics** (2+)
-- User explicitly requests file output ("저장해줘", "파일로", "transcript 남겨줘", etc.)
-- Unresolved issues are substantial enough to warrant a persistent UNRESOLVED.md record
-- Session used isolated execution mode (real turn exchanges justify persistent transcripts)
-
-When full generation is required, Write each of these three files:
-
-1. **Raw transcripts**: `docs/discussions/{YYYYMMDD}_{name}/transcripts/{순번}_{topic}.md`
-   - All statements recorded chronologically (template: `templates/TRANSCRIPT_TEMPLATE.md`)
-   - **Skipped in summary output mode**
-
-2. **Summary**: `docs/discussions/{YYYYMMDD}_{name}/SUMMARY.md`
-   - Consensus items, recommendations, action items (template: `templates/SUMMARY_TEMPLATE.md`)
-
-3. **Unresolved issues**: `docs/discussions/{YYYYMMDD}_{name}/UNRESOLVED.md`
-   - Detailed record of held topics (template: `templates/UNRESOLVED_TEMPLATE.md`)
-
-**`docs/discussions/` is a local working-draft location, not a canonical record** — whether it is git-tracked is project-specific (e.g. claude-kit gitignores it as of 2026-06-13, since GitHub issues are its canonical decision record). If the discussion is tied to a GitHub issue, propose also posting the SUMMARY as a comment on that issue with a `#N` backlink — with user confirmation before posting, since a comment on a shared issue is visible to others. That comment, once confirmed, is the durable, searchable record. The local files above remain useful as session-local working material either way.
-
-Proceed to Phase 2 immediately after all topics are discussed. In the inline path, the inline SUMMARY replaces file generation — discussion does not end without some form of output.
-
-**Note on summary output mode**: Item 1 (raw transcripts) is skipped. SUMMARY.md (item 2) and UNRESOLVED.md (item 3) are always generated regardless of mode when full generation is triggered.
-
-### Moderator Visibility Contract
-
-- **Default**: Moderator receives expert position summaries only (full Q&A transcript blocked during synthesis)
-- **Isolated execution mode**: Moderator spawned as separate Agent subagent; pass the final exchange's expert position summaries only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
-- **Rebuttal relay (isolated)**: between exchanges the **orchestrator** (not the Moderator subagent) assembles and forwards per-expert summary packets; the Moderator subagent is spawned only for Synthesis and still sees position summaries only (see [Isolated Execution: Rebuttal Exchanges](#isolated-execution-rebuttal-exchanges))
-
-This prevents the Moderator from being anchored by the Q&A thread and ensures independent synthesis.
+Output states the Phase 0 backlog result (the `[backlog-scan SKIPPED]` line verbatim, else conflicts or no-conflict; empty is not a pass). For a GitHub-issue discussion, propose posting the SUMMARY as an issue comment with a `#N` backlink, only after user confirmation. Never end without output.
 
 ### Phase 3: Moderator Authority
-- Request information from user when fact-checking is needed
-- Force-close discussion when no further progress is possible
-- Record unresolved issues separately
 
-## Output Format
-### Output Format details
-
-Discussion style, the output-integrity principle (no invented citations, no emoji), the
-Korean→English role-label table, and the Quick Start example live in
-[reference.md](reference.md) — read it when writing the output files. Conversation examples:
-[examples.md](examples.md); output templates: `templates/`.
+Request user facts for fact-checking; force-close when no progress is possible; record unresolved issues separately.
