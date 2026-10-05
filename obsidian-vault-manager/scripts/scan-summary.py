@@ -249,9 +249,86 @@ def _tag_set(fm: dict) -> frozenset:
     return frozenset(t.strip().lower() for t in tags if isinstance(t, str) and t.strip())
 
 
+class Counted(list):
+    """A bounded sample of a finding list that still knows the FULL number found.
+
+    Holds the first records in the list's own order (what `cap` would keep) and `total`, the
+    count of every record that exists. `cap` reports `total`, so the sample can stay small
+    while `count` stays exact. A plain list means "the sample is everything".
+    """
+    total = 0
+
+
+def _popcount(n: int) -> int:
+    try:
+        return n.bit_count()  # 3.10+
+    except AttributeError:
+        return bin(n).count("1")
+
+
+def near_dup_pairs(wiki_pages: list, keep=None) -> list:
+    """E12 near-dup pairs, in the order a naive all-pairs scan would produce them.
+
+    A pair needs the EXACT same non-empty tag set and at least one shared title token, so the
+    work is: tags/tokens computed once per page, pages bucketed by tag set, and inside a
+    bucket one bitmask per token (bit j = "page j has this token"). A page's later partners are
+    then the OR of its tokens' masks above its own bit — counted with a popcount, never
+    enumerated. `keep=None` returns every record. `keep=N` returns a `Counted` holding the
+    first N records (identical to the first N of the full list: pairs are ordered by the first
+    page's position, then the second's) with the exact total in `.total`.
+    """
+    groups: dict = {}
+    for pos, (rel, fm) in enumerate(wiki_pages):
+        tags = _tag_set(fm)
+        tokens = _title_tokens(rel)
+        if tags and tokens:  # a page with neither can never pair, on either side
+            groups.setdefault(tags, []).append((pos, rel, tokens))
+
+    total = 0
+    candidates = []  # (pos_a, pos_b, record), at most `keep` per bucket
+    for tags, members in groups.items():
+        if len(members) < 2:
+            continue
+        masks: dict = {}
+        for local, (_, _, tokens) in enumerate(members):
+            bit = 1 << local
+            for t in tokens:
+                masks[t] = masks.get(t, 0) | bit
+        taken = 0
+        for local, (pos_a, rel_a, tokens_a) in enumerate(members):
+            partners = 0
+            for t in tokens_a:
+                partners |= masks[t]
+            partners >>= local + 1  # only later pages; bit k = members[local + 1 + k]
+            if not partners:
+                continue
+            total += _popcount(partners)
+            while partners and (keep is None or taken < keep):
+                low = partners & -partners
+                pos_b, rel_b, tokens_b = members[local + low.bit_length()]
+                partners ^= low
+                a, b = sorted((rel_a, rel_b))
+                candidates.append((pos_a, pos_b, {
+                    "path": a, "other_path": b, "shared_tags": sorted(tags),
+                    "shared_title_tokens": sorted(tokens_a & tokens_b)}))
+                taken += 1
+    candidates.sort(key=lambda c: (c[0], c[1]))
+    records = [c[2] for c in candidates]
+    if keep is None:
+        return records
+    sample = Counted(records[:keep])
+    sample.total = total
+    return sample
+
+
 def summarize(fm_records: list, fn_records: list, inbound, today: date,
-              schemas=None, schema_problem=None) -> dict:
-    """Apply each error type's deterministic predicate; keep only what fires."""
+              schemas=None, schema_problem=None, keep=None) -> dict:
+    """Apply each error type's deterministic predicate; keep only what fires.
+
+    `keep` (the per-type cap, from build_payload) lets a type whose full list is quadratic —
+    E12 near-dup — return only that many records plus its exact total (`Counted`); None
+    returns every record.
+    """
     errors: dict = {}
 
     def emit(code: str, records: list) -> None:
@@ -404,23 +481,7 @@ def summarize(fm_records: list, fn_records: list, inbound, today: date,
     # page's tags always include the literal `wiki` type tag (v5 §4.1
     # `tags: [{type}, {domain}]`), so "any overlap" would trivially match every
     # wiki page against every other one.
-    near_dup = []
-    for i, (rel_a, fm_a) in enumerate(wiki_pages):
-        tags_a = _tag_set(fm_a)
-        tokens_a = _title_tokens(rel_a)
-        if not tags_a or not tokens_a:
-            continue
-        for rel_b, fm_b in wiki_pages[i + 1:]:
-            if _tag_set(fm_b) != tags_a:
-                continue
-            shared = tokens_a & _title_tokens(rel_b)
-            if not shared:
-                continue
-            a, b = sorted((rel_a, rel_b))
-            near_dup.append({"path": a, "other_path": b,
-                              "shared_tags": sorted(tags_a),
-                              "shared_title_tokens": sorted(shared)})
-    emit("E12_near_dup", near_dup)
+    emit("E12_near_dup", near_dup_pairs(wiki_pages, keep))
 
     # E13 — vault-declared custom schema (#764). Absent schema file: no key at all, so a vault
     # without one gets byte-identical output. Unusable file: the reason, never a silent zero.
@@ -445,9 +506,12 @@ def cap(errors: dict, max_per_type: int) -> dict:
             out[code] = {"computed": False, "reason": found or "no --index input"}
             continue
         key = "paths" if code in PATH_ONLY_TYPES else "records"
-        entry = {"count": len(found), key: found[:max_per_type]}
-        if len(found) > max_per_type:
-            entry["omitted"] = len(found) - max_per_type
+        total = getattr(found, "total", None)  # a `Counted` sample knows the full number
+        if total is None:
+            total = len(found)
+        entry = {"count": total, key: found[:max_per_type]}
+        if total > max_per_type:
+            entry["omitted"] = total - max_per_type
         out[code] = entry
     return out
 
@@ -464,7 +528,7 @@ def build_payload(fm_records: list, fn_records: list, inbound, max_per_type: int
                         "sources": len({s for v in inbound.values() for s in v})}
                        if inbound is not None else None),
         "errors": cap(summarize(fm_records, fn_records, inbound, today,
-                                schemas, schema_problem), max_per_type),
+                                schemas, schema_problem, keep=max_per_type), max_per_type),
     }
     return payload
 
@@ -552,6 +616,51 @@ def _yaml_only() -> Path:
     d = Path(tempfile.mkdtemp())
     (d / ".vault-schema.yaml").write_text("schemas: []\n", encoding="utf-8")
     return d / ".vault-schema.json"
+
+
+def _naive_near_dup(wiki_pages: list) -> list:
+    """The all-pairs E12 near-dup scan `near_dup_pairs` replaced — kept ONLY as the reference
+    the self-test compares against, so the optimization stays provably the same predicate."""
+    out = []
+    for i, (rel_a, fm_a) in enumerate(wiki_pages):
+        tags_a = _tag_set(fm_a)
+        tokens_a = _title_tokens(rel_a)
+        if not tags_a or not tokens_a:
+            continue
+        for rel_b, fm_b in wiki_pages[i + 1:]:
+            if _tag_set(fm_b) != tags_a:
+                continue
+            shared = tokens_a & _title_tokens(rel_b)
+            if not shared:
+                continue
+            a, b = sorted((rel_a, rel_b))
+            out.append({"path": a, "other_path": b, "shared_tags": sorted(tags_a),
+                        "shared_title_tokens": sorted(shared)})
+    return out
+
+
+def _near_dup_equivalent() -> bool:
+    """near_dup_pairs == the naive scan on varied pseudo-random wiki sets: full list, the
+    bounded sample for several caps, and the exact total through `cap`."""
+    import random
+    words = ["alpha", "beta", "gamma", "001", "cli", "tool", "x"]
+    tag_pool = [["wiki"], ["wiki", "a"], ["a", "WIKI"], ["wiki", "b"], [], "oops", ["  "]]
+    for seed in range(60):
+        rng = random.Random(seed)
+        pages = []
+        for i in range(rng.randint(0, 45)):
+            slug = "-".join(rng.choice(words) for _ in range(rng.randint(0, 3))) or "z"
+            pages.append((f"wiki/{slug}-{i}.md", {"tags": rng.choice(tag_pool)}))
+        ref = _naive_near_dup(pages)
+        if near_dup_pairs(pages) != ref:
+            return False
+        for keep in (1, 2, 5, 1000):
+            sample = near_dup_pairs(pages, keep)
+            entry = cap({"E12_near_dup": sample}, keep)["E12_near_dup"]
+            want = cap({"E12_near_dup": ref}, keep)["E12_near_dup"]
+            if list(sample) != ref[:keep] or entry != want:
+                return False
+    return True
 
 
 def self_test() -> int:
@@ -685,6 +794,18 @@ def self_test() -> int:
         ("E5 unavailable renders as computed:false, not an empty list",
          cap(summarize(fm, fn, None, today), 2)["E5"] == {"computed": False,
                                                           "reason": "no --index input"}),
+    ]
+
+    # E12 near-dup optimization: same predicate, same order, exact total beside a small sample.
+    pages = [(f"wiki/topic-{i}.md", {"tags": ["wiki", "domain"]}) for i in range(30)]
+    sample = near_dup_pairs(pages, 2)
+    cases += [
+        ("near-dup optimization equals the all-pairs scan (full list, samples, totals)",
+         _near_dup_equivalent()),
+        ("near-dup sample holds the first records but reports the exact total",
+         len(sample) == 2 and sample.total == 435 and list(sample) == _naive_near_dup(pages)[:2]
+         and cap({"E12_near_dup": sample}, 2)["E12_near_dup"]["count"] == 435
+         and cap({"E12_near_dup": sample}, 2)["E12_near_dup"]["omitted"] == 433),
     ]
 
     # E13 (#764): a vault-declared schema. No schema -> no E13 key; required = absent or empty.

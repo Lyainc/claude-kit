@@ -1113,6 +1113,8 @@ python3 obsidian-vault-manager/scripts/test/test-scan-summary-budget.py
 # the scan could not READ becomes its own `unreadable` bucket instead of a Critical E1 for
 # frontmatter nobody examined. Hand-built records, so it pins the RULES rather than
 # whatever gen-fixture.sh happens to seed — the budget test above covers the scale side.
+# Also pins the E12 near-dup optimization against the naive all-pairs scan (same records, order,
+# exact total for several caps) and fit_budget's trim/accounting rules.
 python3 obsidian-vault-manager/scripts/scan-summary.py --self-test
 # Expected: OK: all N scan-summary self-test cases passed
 
