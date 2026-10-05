@@ -3,7 +3,8 @@
 #
 # Runs at the start of every Claude Code session. Checks whether the vault
 # manifest needs regeneration and triggers generate-manifest.py if so.
-# Failures are always silent — this hook must never block session startup.
+# Generator failures are silent; a missing or non-Obsidian vault root gets one
+# systemMessage line (#763). This hook must never block session startup.
 #
 # Environment variables:
 #   VAULT_BRIDGE_DISABLE=1        — skip entirely (kill switch)
