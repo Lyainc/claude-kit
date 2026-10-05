@@ -385,6 +385,34 @@ def case_vault_save_aborts_without_vault_root(errors: list[str]) -> None:
 
 
 # ---------------------------------------------------------------------------
+# Case 9: a missing or non-Obsidian vault root is announced, never fatal (#763)
+# ---------------------------------------------------------------------------
+
+def case_vault_root_notices(errors: list[str]) -> None:
+    print("case 9: session-start hook / ovm-primitives announce a missing or non-Obsidian vault root")
+    hook = ROOT / "hooks" / "session-start-manifest.sh"
+    with tempfile.TemporaryDirectory() as tmp:
+        roots = {"none": Path(tmp) / "none", "plain": Path(tmp) / "plain", "vault": Path(tmp) / "vault"}
+        (roots["plain"] / "notes").mkdir(parents=True)
+        (roots["vault"] / "notes").mkdir(parents=True)
+        (roots["vault"] / ".obsidian").mkdir()
+        expect = {"none": "가 없어요", "plain": ".obsidian/", "vault": None}
+        for name, root in roots.items():
+            rc, out, _ = _run_hook(hook, {}, vault_root=str(root))
+            want = expect[name]
+            msg = json.loads(out)["systemMessage"] if out.strip() else ""
+            _assert(rc == 0 and (want in msg if want else out == ""),
+                    f"hook [{name}]: exit 0 and {'notice ' + repr(want) if want else 'no output'}", errors)
+
+            rc, _, err = _run_ovm("scan-filename", str(root / "notes"),
+                                  env_overrides={"VAULT_BRIDGE_VAULT_ROOT": str(root)})
+            ok = {"none": rc == 1 and "vault root not found" in err,
+                  "plain": rc == 0 and "no .obsidian/" in err,
+                  "vault": rc == 0 and ".obsidian" not in err and "not found" not in err}[name]
+            _assert(ok, f"ovm-primitives [{name}]: absent dies, missing .obsidian warns, real vault silent", errors)
+
+
+# ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
 
@@ -399,6 +427,7 @@ def main() -> None:
     case_wiki_skill_no_hardcoded_vault(errors)
     case_vault_link_no_hardcoded_vault(errors)
     case_vault_save_aborts_without_vault_root(errors)
+    case_vault_root_notices(errors)
 
     print()
     if errors:
@@ -406,7 +435,7 @@ def main() -> None:
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(1)
-    print(f"OK: all {8} vault-path cases passed")
+    print(f"OK: all {9} vault-path cases passed")
 
 
 if __name__ == "__main__":

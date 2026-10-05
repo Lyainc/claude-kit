@@ -24,9 +24,20 @@ _raw_vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
 VAULT_ROOT="${_raw_vr/#\~/$HOME}"
 unset _raw_vr
 
-# Vault must exist; if not, silently exit (external projects may not have a vault)
+# One-line user notice (#763) via SessionStart `systemMessage`; never blocks startup.
+_notice() {
+  local m="${1//\\/\\\\}"
+  printf '{"systemMessage": "%s"}\n' "${m//\"/\\\"}"
+}
+_howto='VAULT_BRIDGE_VAULT_ROOT 환경변수(~/.claude/settings.json의 env)나 플러그인 설정 vault_path로 지정해 주세요.'
+
+# Vault must exist; if not, say so once and exit 0 (the session still starts).
 if [ ! -d "$VAULT_ROOT" ]; then
+  _notice "vault-bridge: vault 루트 ${VAULT_ROOT}가 없어요. 볼트가 다른 곳에 있다면 ${_howto}"
   exit 0
+fi
+if [ ! -d "$VAULT_ROOT/.obsidian" ]; then
+  _notice "vault-bridge: ${VAULT_ROOT}에 .obsidian/이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 ${_howto}"
 fi
 
 # Locate this script's directory to find the generator relative to plugin root
