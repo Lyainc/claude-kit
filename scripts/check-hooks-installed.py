@@ -226,33 +226,35 @@ def self_test():
     # install-hooks.sh at test time (not a second hardcoded copy here) — a copy would keep
     # passing even after install-hooks.sh's own pattern drifts, which is the exact failure
     # this case exists to catch.
-    real_root = _git_toplevel()
-    if real_root:
-        real_source = os.path.join(real_root, SOURCE_REL)
-        installer_path = os.path.join(real_root, "scripts", "install-hooks.sh")
-        try:
-            with open(real_source, encoding="utf-8") as f:
-                real_text = f.read()
-            with open(installer_path, encoding="utf-8") as f:
-                installer_text = f.read()
-            awk_program_match = re.search(
-                r"awk '(.*?)'\s*scripts/hooks/pre-commit", installer_text, re.DOTALL
-            )
-            py_extracted = extract_shim(real_text)
-            if not awk_program_match:
-                record("install-hooks.sh awk and extract_shim() agree on the real source", False)
-            else:
-                awk_result = subprocess.run(
-                    ["awk", awk_program_match.group(1), real_source],
-                    capture_output=True, text=True, check=True,
-                )
-                sh_extracted = awk_result.stdout
-                if sh_extracted and not sh_extracted.endswith("\n"):
-                    sh_extracted += "\n"
-                record("install-hooks.sh awk and extract_shim() agree on the real source",
-                       py_extracted == sh_extracted and bool(py_extracted))
-        except (OSError, subprocess.CalledProcessError):
+    # Inputs are plain files next to this script, so locate them from __file__, not from
+    # git/CWD: a git-gated case silently vanished outside a checkout yet still printed OK (#685).
+    # An unreachable input records a FAILED case below rather than skipping it.
+    real_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    real_source = os.path.join(real_root, SOURCE_REL)
+    installer_path = os.path.join(real_root, "scripts", "install-hooks.sh")
+    try:
+        with open(real_source, encoding="utf-8") as f:
+            real_text = f.read()
+        with open(installer_path, encoding="utf-8") as f:
+            installer_text = f.read()
+        awk_program_match = re.search(
+            r"awk '(.*?)'\s*scripts/hooks/pre-commit", installer_text, re.DOTALL
+        )
+        py_extracted = extract_shim(real_text)
+        if not awk_program_match:
             record("install-hooks.sh awk and extract_shim() agree on the real source", False)
+        else:
+            awk_result = subprocess.run(
+                ["awk", awk_program_match.group(1), real_source],
+                capture_output=True, text=True, check=True,
+            )
+            sh_extracted = awk_result.stdout
+            if sh_extracted and not sh_extracted.endswith("\n"):
+                sh_extracted += "\n"
+            record("install-hooks.sh awk and extract_shim() agree on the real source",
+                   py_extracted == sh_extracted and bool(py_extracted))
+    except (OSError, subprocess.CalledProcessError):
+        record("install-hooks.sh awk and extract_shim() agree on the real source", False)
 
     failed = [name for name, ok in cases if not ok]
     if failed:
