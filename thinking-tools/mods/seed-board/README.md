@@ -48,6 +48,9 @@ The mod only watches Bash output that the skills already produce:
 A walk replaces the stored one for the same start only if its `at` is not older, so a slow older
 run never overwrites a newer screen.
 
+A judgment is ordered by when its renderer call started, not when it finished: a slower earlier run
+(for the same Seed or another) never replaces the judgment of a run that started after it.
+
 ## What it does not do
 
 - No judging, scoring or re-ranking: candidates, reasons and order are `next-goal`'s as printed.
