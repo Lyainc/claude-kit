@@ -158,7 +158,7 @@ written. Report `count`, never the list length; say in the REPORT whenever a lis
 | E10 | `misplaced_file` | Warning | P1 | `scan_summary.errors.E10` | — (display-only) |
 | E11 | `unstructured_path` | Warning | P1 | `scan_summary.errors.E11` | — (display-only) |
 | E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified` + `wiki_near_dup`) | Warning | P1 | `scan_summary.errors.E12_stale` / `.E12_unverified` / `.E12_near_dup` | — (display-only) |
-| E13 | `custom_schema_violation` | Warning | P1 | `scan_summary.errors.E13` (only with `.vault-schema.json`) | — (display-only) |
+| E13 | `custom_schema_violation` | Warning | P1 | `scan_summary.errors.E13` (only with `.vault-schema.json`; `computed: false` → report its `reason`) | — (display-only) |
 
 > **The table above is a summary; the binding rules — priority rationale per code, E9/E12
 > FP guards and staleness constants, display-only criteria per type — are in

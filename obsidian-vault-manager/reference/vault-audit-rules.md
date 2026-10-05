@@ -2,7 +2,7 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Ten error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention). A tenth item, `unreadable`, is not a rule-driven error type — it is `scan-summary.py`'s report of a file it could not read at all (see the Priority Mapping table and `## SCAN output budget` below).
+Ten error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention). An eleventh item, `unreadable`, is not a rule-driven error type — it is `scan-summary.py`'s report of a file it could not read at all (see the Priority Mapping table and `## SCAN output budget` below).
 
 > **Reading `**Source**` below (#614)**: each type's `**Source**` names what `scan-summary.py` reads OFF DISK to apply that predicate (`frontmatter_records`/`filename_records`/`inbound_links` — the untruncated raw scans). It is NOT what CLASSIFY itself receives — CLASSIFY only ever sees the reduced `scan_summary.errors.<code>` bundle these predicates compute into (`skills/audit/SKILL.md`'s CLASSIFY table `Source` column), same as `## SCAN output budget` below describes. Use this file for the RULE definitions; use the CLASSIFY table for what is actually in context.
 
@@ -548,6 +548,9 @@ because nothing shows the row is gone. E13 lets the vault state that schema and 
   value parses to an empty list) — a Bases filter drops both alike.
 - `enum`: every value present must be in the list; an absent field is `required`'s concern, not
   this one's. `optional` is documentation only and is never checked.
+
+A `.vault-schema.yaml`/`.yml` with no `.json` beside it is not read (no YAML parser in the
+stdlib) and renders `computed: false` saying so, rather than passing as "no schema".
 
 **No schema file → no E13 at all**: `scan-summary.py` emits no `E13` key, so a vault without the
 file gets byte-identical audit output. A file that is not valid JSON or not this shape renders
