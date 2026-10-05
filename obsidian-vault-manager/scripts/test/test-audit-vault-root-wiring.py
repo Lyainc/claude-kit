@@ -86,9 +86,17 @@ _STEP1 = _normalise(
     "   VAULT_ROOT=\"${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}\"\n"
     "   [ -z \"$VAULT_ROOT\" ] && VAULT_ROOT=\"$HOME/vault\"\n"
     "   VAULT_ROOT=\"${VAULT_ROOT/#\\~/$HOME}\"\n"
+    "   echo \"$VAULT_ROOT\"\n"
+    "   if [ ! -d \"$VAULT_ROOT\" ]; then echo \"VAULT_ABSENT\"\n"
+    "   elif [ ! -d \"$VAULT_ROOT/.obsidian\" ]; then echo \"VAULT_NO_OBSIDIAN\"; fi\n"
     "   ```\n"
+    "   `VAULT_ABSENT` → stop before any scan (#763) and say: \"`{vault_root}`에 볼트 디렉토리가 없어요.\n"
+    "   볼트가 다른 곳에 있다면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 vault-bridge 플러그인 설정\n"
+    "   `vault_path`로 경로를 지정해 주세요.\" `VAULT_NO_OBSIDIAN` → warn once that it may not be an\n"
+    "   Obsidian vault (same two settings), then continue.\n"
     "   `scan_dir` = `$VAULT_ROOT` unscoped, or `$VAULT_ROOT/<subdir>` under `--path <subdir>`.\n"
     "   `$scan_dir` → Steps 5–6; `$VAULT_ROOT` → everything else.\n"
+    "\n"
 )
 _STEP1_NEIGHBOURS = ("## Phase 1 — SCAN", "2. Start metrics (save `token`):")
 

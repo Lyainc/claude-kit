@@ -33,10 +33,21 @@ Resolve in priority order — `VAULT_BRIDGE_VAULT_ROOT` (env override) > `VAULT_
 ```bash
 _vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
 [ -z "$_vr" ] && _vr="$HOME/vault"
-echo "${_vr/#\~/$HOME}"
+_vr="${_vr/#\~/$HOME}"
+echo "$_vr"
+if [ ! -d "$_vr" ]; then echo "VAULT_ABSENT"
+elif [ ! -d "$_vr/.obsidian" ]; then echo "VAULT_NO_OBSIDIAN"; fi
 ```
 
-Use this path as `{vault_root}` for all subsequent steps.
+Use the first line as `{vault_root}` for all subsequent steps. Then (#763):
+
+- `VAULT_ABSENT` → output the following and stop (Step 2's "not a git repository" would misname the cause):
+
+  > `{vault_root}`에 볼트 디렉토리가 없습니다. 볼트가 다른 곳에 있다면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 경로를 지정해 주세요.
+
+- `VAULT_NO_OBSIDIAN` → warn once and continue:
+
+  > `{vault_root}`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있습니다. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요.
 
 ### Step 2 — Verify vault is a git repository
 

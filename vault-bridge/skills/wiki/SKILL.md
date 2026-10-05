@@ -68,7 +68,8 @@ The wiki *compounds* — a topic that already has a page is **updated**, never d
    _vr="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
    [ -z "$_vr" ] && _vr="$HOME/vault"
    VAULT_ROOT="${_vr/#\~/$HOME}"
-   if [ -d "$VAULT_ROOT" ]; then echo "$VAULT_ROOT"; else echo "VAULT_ABSENT"; fi
+   if [ -d "$VAULT_ROOT" ]; then echo "$VAULT_ROOT"; [ -d "$VAULT_ROOT/.obsidian" ] || echo "VAULT_NO_OBSIDIAN"
+   else echo "VAULT_ABSENT"; fi
    ```
    **Each Bash tool call is its own shell — `$VAULT_ROOT` does not survive to the next one.** The
    printed line is the resolved vault root (or the literal string `VAULT_ABSENT`); read it and
@@ -90,6 +91,8 @@ The wiki *compounds* — a topic that already has a page is **updated**, never d
    **Why before the manifest read**: a missing vault guarantees a missing manifest, so running
    step 1 first would report "manifest unusable" for what is really "no vault at all" and send the
    user to fix the wrong thing. One cause, one message, in cause order.
+
+   `VAULT_NO_OBSIDIAN` on a second line → warn once and continue (#763): "`$VAULT_ROOT`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."
 
 1. Find existing pages on the same topic. **Primary: the manifest** — when it exists and is reasonably fresh, match `type:wiki` entries on title + tags (catches same-topic pages on a different slug, e.g. `defuddle.md` vs `defuddle-cli.md`, which slug-only matching misses). **Never `cat` the manifest directly** — on a real vault it can run past 100 KB, and the harness truncates large Bash output to a 2 KB preview before this reads it, so a raw `cat` silently degrades to whichever few entries survive the cut (#468, same defect class as #460). Use the filter script instead, which reads the full file on disk and returns only `type:wiki` entries (`path`/`title`/`tags`):
    ```bash
