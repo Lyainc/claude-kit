@@ -89,7 +89,7 @@ grep -rl "keyword" ~/vault --include="*.md"
 
 ## Audit
 
-Invoke the `audit` skill (via Skill) to scan vault health. Detects 9 error types (E1–E3, E5–E6, E9–E12 — E4 was removed as a native-Obsidian duplicate, #482; E7/E8 went with the promotion gate, #480):
+Invoke the `audit` skill (via Skill) to scan vault health. Detects 10 error types (E1–E3, E5–E6, E9–E13 — E4 was removed as a native-Obsidian duplicate, #482; E7/E8 went with the promotion gate, #480):
 
 - `/audit` — full vault scan
 - `/audit --path notes` — scope to notes/ only
@@ -138,7 +138,7 @@ write. No MOC, no project linking.
 <example>
 user: "vault 건강 상태 확인해줘"
 assistant: "audit 스킬로 전체 볼트 스캔할게요."
-[audit 스킬 실행 → E1–E3·E5–E6·E9–E12 findings report]
+[audit 스킬 실행 → E1–E3·E5–E6·E9–E13 findings report]
 <commentary>
 Vault health check → invoke audit skill. Audit only READS the vault, so it runs here directly —
 this is the half of the agent's job that needs no handoff.

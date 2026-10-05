@@ -671,7 +671,7 @@ Clean note for FP measurement. Links to [[${link_target}]].
 EOF
   done
 
-  log "  Audit error fixtures (v4, E1-E11):"
+  log "  Audit error fixtures (v4, E1-E11; E13 is opt-in and not seeded):"
   log "    E1 missing_frontmatter              : 5 files"
   log "    E2 missing_required_fields          : 5 files (5 base)"
   log "    E3 filename_convention_violation     : 5 files (v3 date-first prefix; suggested_filename)"

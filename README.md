@@ -51,7 +51,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 
 | 스킬 | 하는 일 |
 |---|---|
-| `audit` | vault 구조 무결성 감사 (E1–E3·E5–E6·E9–E12 오류 추적) |
+| `audit` | vault 구조 무결성 감사 (E1–E3·E5–E6·E9–E13 오류 추적) |
 | `base` | 비파괴 Obsidian Bases(.base) 뷰 생성 |
 
 > `/wiki`를 찾는다면 아래 vault-bridge 표를 보세요 — #645에서 **배포 단위**만 vault-bridge로 옮겼고

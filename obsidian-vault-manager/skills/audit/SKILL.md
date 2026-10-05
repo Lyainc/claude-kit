@@ -96,7 +96,8 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
 7b. Reduce those three files to the bundle — the ONLY form of them CLASSIFY ever sees:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/scan-summary.py" \
-     --frontmatter "$scan_tmp/fm.json" --filename "$scan_tmp/fn.json" --index "$scan_tmp/links.json"
+     --frontmatter "$scan_tmp/fm.json" --filename "$scan_tmp/fn.json" --index "$scan_tmp/links.json" \
+     --schema "$VAULT_ROOT/.vault-schema.json"
    ```
    **Never `cat` a raw scan file** (#468, #460). Exit 0 → parse stdout as `scan_summary`.
    Exit 3 (a scan file absent or unparseable) → **STOP the audit**, name the unusable input;
@@ -143,7 +144,7 @@ written. Report `count`, never the list length; say in the REPORT whenever a lis
 
 **Inputs**: Scan bundle from SCAN.
 
-**Error types** (9: E1–E3, E5–E6, E9–E11, E12 — E4/E7/E8 are retired, never reused).
+**Error types** (10: E1–E3, E5–E6, E9–E13 — E4/E7/E8 are retired, never reused).
 
 | Code | Type | Severity | Priority | Source | Auto-fix |
 |---|---|---|---|---|---|
@@ -157,6 +158,7 @@ written. Report `count`, never the list length; say in the REPORT whenever a lis
 | E10 | `misplaced_file` | Warning | P1 | `scan_summary.errors.E10` | — (display-only) |
 | E11 | `unstructured_path` | Warning | P1 | `scan_summary.errors.E11` | — (display-only) |
 | E12 | `wiki_self_audit` (`wiki_stale` + `wiki_unverified` + `wiki_near_dup`) | Warning | P1 | `scan_summary.errors.E12_stale` / `.E12_unverified` / `.E12_near_dup` | — (display-only) |
+| E13 | `custom_schema_violation` | Warning | P1 | `scan_summary.errors.E13` (only with `.vault-schema.json`) | — (display-only) |
 
 > **The table above is a summary; the binding rules — priority rationale per code, E9/E12
 > FP guards and staleness constants, display-only criteria per type — are in
@@ -206,7 +208,7 @@ the pair; see `reference/vault-audit-rules.md` → **Finding shape**).
 
 ## REPORT Output Contract
 
-Grouped by priority (P0 must-fix → P1 → P2); within each group, sort by severity (Critical→Warning→Info), then error code ascending (unreadable→E1→E2→E3 in P0; E6→E10→E11→E12 in P1; E5→E9 in P2). E9 is vault-level (`path: ""`) — render under a vault-wide heading (e.g. `볼트 전역`), not per-file.
+Grouped by priority (P0 must-fix → P1 → P2); within each group, sort by severity (Critical→Warning→Info), then error code ascending (unreadable→E1→E2→E3 in P0; E6→E10→E11→E12→E13 in P1; E5→E9 in P2). E9 is vault-level (`path: ""`) — render under a vault-wide heading (e.g. `볼트 전역`), not per-file.
 
 Each finding line: `[E-code/priority/severity] type — N건` header, then one bullet per file (path + one-line description). A finding carrying `other_path` (`wiki_near_dup`/E12c) renders both paths in that one bullet (e.g. `path ↔ other_path`) — no separate bullet for the pair's second file.
 
@@ -244,7 +246,7 @@ proposal via ONE batched `ovm-primitives.sh infer-tags <relpath1> <relpath2> ...
 one per finding. Tier rules and examples: `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md`
 → **E2 tag inference**. Never auto-committed — previewed in the confirmation gate below.
 
-**Auto-fix NOT eligible** (never mutate): E1, E3, E5, E6, E9, E10, E11, E12. The binding list,
+**Auto-fix NOT eligible** (never mutate): E1, E3, E5, E6, E9, E10, E11, E12, E13. The binding list,
 with each type's reason for needing a human decision:
 `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **Auto-fix eligibility**.
 

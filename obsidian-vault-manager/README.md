@@ -19,7 +19,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 
 | Skill | Description |
 | --- | --- |
-| `audit` | vault 구조 무결성 감사 — E1–E3·E5–E6·E9–E12 오류 감지 (P0-P2 우선순위), stale 노트·orphan 추적 |
+| `audit` | vault 구조 무결성 감사 — E1–E3·E5–E6·E9–E13 오류 감지 (P0-P2 우선순위), stale 노트·orphan 추적 |
 | `base` | enforced frontmatter로 비파괴 Obsidian Bases(.base) 뷰 생성 — 기존 노트 불변, 내장 템플릿(sources/notes/recent) |
 
 ## v4 파일 컨벤션
@@ -41,7 +41,7 @@ provenance: "{출처 — URL, 세션 토픽, 대화, 책, 회의}"  # 필수 —
 
 - [Obsidian CLI reference](reference/obsidian-cli.md): optional CLI-first patterns with raw file I/O fallback.
 - [Web Clipper template](reference/web-clipper-template.md): Obsidian web clipper JSON template for `capture` type notes.
-- [Vault audit rules](reference/vault-audit-rules.md): E1–E3·E5–E6·E9–E12 error taxonomy and P0-P2 priority definitions.
+- [Vault audit rules](reference/vault-audit-rules.md): E1–E3·E5–E6·E9–E13 error taxonomy and P0-P2 priority definitions.
 
 ## 스킬 사용 예시
 
@@ -59,7 +59,7 @@ provenance: "{출처 — URL, 세션 토픽, 대화, 책, 회의}"  # 필수 —
 /audit
 ```
 
-E1–E3·E5–E6·E9–E12 오류(frontmatter 누락, stale sources, orphan 노트, 태그 혼용 등)를 P0-P2 우선순위로 정렬해 보고해요. REPORT에 지난 7일 git 활동 요약도 포함됩니다.
+E1–E3·E5–E6·E9–E13 오류(frontmatter 누락, stale sources, orphan 노트, 태그 혼용 등)를 P0-P2 우선순위로 정렬해 보고해요. REPORT에 지난 7일 git 활동 요약도 포함됩니다.
 
 ## vault-bridge와의 관계
 
