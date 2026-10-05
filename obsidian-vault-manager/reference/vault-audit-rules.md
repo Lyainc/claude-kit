@@ -545,9 +545,17 @@ because nothing shows the row is gone. E13 lets the vault state that schema and 
 - `when` (required, non-empty): field → value. A note matches when every listed field equals
   the value, or is a list containing it. Values compare as exact strings.
 - `required`: a field counts as missing when the key is absent **or empty** (`track:` with no
-  value parses to an empty list) — a Bases filter drops both alike.
+  value parses to an empty list; an unquoted YAML `null`/`~` is `null`) — a Bases filter drops all
+  alike. A quoted `"null"` is a real string value, not missing.
 - `enum`: every value present must be in the list; an absent field is `required`'s concern, not
   this one's. `optional` is documentation only and is never checked.
+
+**Scanner contract**: E13 reads the values `scan-frontmatter` emits, so a trailing comment
+(`status: 완료 # done`, `tags: [업무지도] # domain`) must not reach it as part of the value — the
+scanner strips it once, for every consumer (E10/E12 dates and types, E9 tags included), rather than
+E13 re-parsing. The comment/quote/null rules are in `scripts/README.md` → `scan-frontmatter`; a `#`
+inside quotes or glued to a word (`C#`, a URL fragment) is data. `scan-summary.py --self-test` and
+`test-audit-custom-schema.py` (case g, from the real scanner) pin it.
 
 A `.vault-schema.yaml`/`.yml` with no `.json` beside it is not read (no YAML parser in the
 stdlib) and renders `computed: false` saying so, rather than passing as "no schema".

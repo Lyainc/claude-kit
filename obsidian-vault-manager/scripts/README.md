@@ -55,6 +55,14 @@ bash ovm-primitives.sh scan-frontmatter ~/vault/30_Notes
 
 `missing_required` lists any of `{created, tags, type, provenance}` absent from the frontmatter.
 
+**Value contract** (the one place it is defined; `detect-vocabulary` carries the identical parser,
+and `scan-summary.py` reads the result as data). A value is a string, a list of strings, or `null`:
+a `#` starts a trailing comment only at the start of a value or after whitespace, outside quotes and
+outside a `[...]` flow list (`C#`, `http://x/#frag`, `"a # b"`, `[#a, #b]` stay data), and a
+whole-line comment never breaks a block list; an unquoted `null`/`Null`/`NULL`/`~` is JSON `null`
+while a quoted `"null"` stays the string; an empty value (`key:`, `key: # note`) is `[]`. Not full
+YAML: there is no multi-line scalar or nested map support.
+
 ### `scan-filename <dir>`
 
 Walk `<dir>` recursively, parse each `.md` filename against the vault naming convention, emit a JSON array.

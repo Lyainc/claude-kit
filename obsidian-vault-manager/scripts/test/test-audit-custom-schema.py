@@ -19,6 +19,11 @@ Cases:
      not match `when` is never reported.
   e) unusable schema (invalid JSON): E13 == {"computed": false, "reason": ...}, exit 0.
   f) static pin: audit/SKILL.md Step 7b passes `--schema "$VAULT_ROOT/.vault-schema.json"`.
+  g) YAML comments and null, from the REAL scanner (not a hand-built record): a trailing
+     comment on `tags: [업무지도] # note` still matches `when`; `track: null` / `track: ~` are
+     missing; `status: 완료 # done` is not an invalid enum value. The scanner contract is
+     pinned directly too: quoted "null" stays a string, and a `#` inside quotes or glued to a
+     word (`C#`, a URL fragment) is data, not a comment.
 
 Run: python3 obsidian-vault-manager/scripts/test/test-audit-custom-schema.py
 Exit 0 on pass, 1 on fail. Builds a fresh mktemp vault and removes it on the way out.
@@ -151,6 +156,67 @@ def main() -> None:
         v = e13(out)
         check(rc == 0 and isinstance(v, dict) and v.get("computed") is False and v.get("reason"),
               "e) invalid JSON schema -> computed:false with reason, exit 0")
+
+        # g) comments and null through the real scanner
+        vault = root / "g" / "vault"
+        (vault / ".obsidian").mkdir(parents=True)
+        base = ["type: note", "created: 2026-01-01"]
+        note(vault / "notes" / "2026-01-01-comment-tags.md",
+             base + ["tags: [업무지도] # domain tag", "status: 완료"])
+        note(vault / "notes" / "2026-01-01-null-track.md",
+             base + ["tags: [업무지도]", "track: null", "status: 완료"])
+        note(vault / "notes" / "2026-01-01-tilde-track.md",
+             base + ["tags: [업무지도]", "track: ~", "status: 완료"])
+        note(vault / "notes" / "2026-01-01-comment-track.md",
+             base + ["tags: [업무지도]", "track: # to fill", "status: 완료"])
+        note(vault / "notes" / "2026-01-01-comment-enum.md",
+             base + ["tags: [업무지도]", "track: A", "status: 완료 # finished"])
+        note(vault / "notes" / "2026-01-01-block-tags.md",
+             base + ["tags:", "  # a whole-line comment", "  - 업무지도 # domain", "track: A",
+                     "status: 완료"])
+        note(vault / "notes" / "2026-01-01-quoted-null.md",
+             base + ["tags: [업무지도]", 'track: "null"', "status: '완료' # q"])
+        note(vault / "notes" / "2026-01-01-hash-data.md",
+             base + ["tags: [업무지도]", 'track: "A # B"', "status: 완료",
+                     "lang: C#", "url: http://example.com/#frag"])
+        note(vault / "notes" / "2026-01-01-real-bad.md",
+             base + ["tags: [업무지도] # c", "track: A", "status: 끝 # bad"])
+        work = root / "g-work"; work.mkdir()
+        schema_path = vault / ".vault-schema.json"
+        schema_path.write_text(json.dumps(SCHEMA, ensure_ascii=False), encoding="utf-8")
+        rc, out = summary(vault, work, schema_path)
+        recs = {Path(r["path"]).name: r for r in e13(out)["records"]}
+        fm = {Path(r["path"]).name: r["frontmatter"]
+              for r in json.loads((work / "fm.json").read_text(encoding="utf-8"))}
+        check(rc == 0 and fm["2026-01-01-comment-tags.md"]["tags"] == ["업무지도"],
+              "g) scanner: `tags: [x] # c` is the list [x], not a string")
+        check(fm["2026-01-01-block-tags.md"]["tags"] == ["업무지도"],
+              "g) scanner: a whole-line comment and a trailing comment do not break a block list")
+        check(fm["2026-01-01-null-track.md"]["track"] is None
+              and fm["2026-01-01-tilde-track.md"]["track"] is None,
+              "g) scanner: unquoted null and ~ are JSON null")
+        check(fm["2026-01-01-comment-track.md"]["track"] == [],
+              "g) scanner: `track: # note` stays empty ([]), as `track:` always did")
+        check(fm["2026-01-01-quoted-null.md"]["track"] == "null"
+              and fm["2026-01-01-quoted-null.md"]["status"] == "완료",
+              "g) scanner: quoted \"null\" is the string; a comment after a quoted value is cut")
+        check(fm["2026-01-01-hash-data.md"]["track"] == "A # B"
+              and fm["2026-01-01-hash-data.md"]["lang"] == "C#"
+              and fm["2026-01-01-hash-data.md"]["url"] == "http://example.com/#frag",
+              "g) scanner: `#` inside quotes or glued to a word is data, not a comment")
+        check(recs.get("2026-01-01-comment-tags.md", {}).get("missing") == ["track"],
+              "g) E13: a commented `tags:` still matches `when` (violation not missed)")
+        check(recs.get("2026-01-01-null-track.md", {}).get("missing") == ["track"]
+              and recs.get("2026-01-01-tilde-track.md", {}).get("missing") == ["track"]
+              and recs.get("2026-01-01-comment-track.md", {}).get("missing") == ["track"],
+              "g) E13: `track: null`, `track: ~` and `track: # note` are missing")
+        check("2026-01-01-comment-enum.md" not in recs and "2026-01-01-block-tags.md" not in recs,
+              "g) E13: a trailing comment is not part of an enum value (no false invalid)")
+        check("2026-01-01-quoted-null.md" not in recs and "2026-01-01-hash-data.md" not in recs,
+              "g) E13: quoted \"null\" and a quoted `#` are real values, so not reported")
+        check(recs.get("2026-01-01-real-bad.md", {}).get("invalid") == {"status": ["끝"]}
+              and e13(out)["count"] == 5,
+              "g) E13: a real violation behind a comment is still reported (exactly 5 records)")
     finally:
         shutil.rmtree(root, ignore_errors=True)
 

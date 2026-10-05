@@ -421,6 +421,50 @@ def case_parity_parser_unit_divergences(errors: list) -> None:
     )
 
 
+def case_parity_comment_null_contract(errors: list) -> None:
+    """scan-frontmatter and detect-vocabulary carry the same parser (comment/null contract).
+
+    ovm-primitives.sh holds the frontmatter parser twice (one per python heredoc). A trailing
+    YAML comment on `tags:` made scan-frontmatter emit a STRING instead of a list, so E13/E10/
+    E12 missed the note; the same copy in detect-vocabulary must agree or E9 silently drops
+    the tags. Pins: (1) scan-frontmatter parses `tags: [api] # c` and a commented block list
+    to lists; (2) detect-vocabulary, run on a vault using those forms, still reports the
+    api/apis E9a pair; (3) a quoted "null" tag and a `#` in a quoted tag are tag data.
+    """
+    with tempfile.TemporaryDirectory() as tmp:
+        vault = Path(tmp)
+        (vault / "notes").mkdir()
+        for i in range(E9_MIN_FILES):
+            (vault / "notes" / f"s{i}.md").write_text(
+                "---\ntags: [api] # domain tag\ntype: note\n---\nbody\n", encoding="utf-8")
+            (vault / "notes" / f"p{i}.md").write_text(
+                "---\ntags:\n  # note\n  - apis # plural\ntype: note\n---\nbody\n",
+                encoding="utf-8")
+        (vault / "notes" / "q.md").write_text(
+            '---\ntags: ["null", "a # b"]\ntype: note\nowner: null\n---\nbody\n',
+            encoding="utf-8")
+        (vault / "notes" / "e.md").write_text(
+            "---\ntitle: 'it''s # x'\nowner: 'a' # c\ntags:\n  - a\n  - #todo\n  -  # c\ntype: note\n---\nbody\n",
+            encoding="utf-8")
+        fm = {r["path"]: r["frontmatter"] for r in _run_prim("scan-frontmatter", str(vault))}
+        e = fm["notes/e.md"]
+        _assert(e.get("title") == "it's # x" and e.get("owner") == "a",
+                "comment parity: '' escapes a single quote, and # inside single quotes is data", errors)
+        _assert(e.get("tags") == ["a"],
+                "comment parity: a list item that is only a comment adds no empty item", errors)
+        _assert(fm["notes/s0.md"].get("tags") == ["api"],
+                "comment parity: scan-frontmatter reads `tags: [api] # c` as [api]", errors)
+        _assert(fm["notes/p0.md"].get("tags") == ["apis"],
+                "comment parity: scan-frontmatter reads a commented block list as [apis]", errors)
+        _assert(fm["notes/q.md"].get("tags") == ["null", "a # b"] and fm["notes/q.md"].get("owner") is None,
+                'comment parity: quoted "null" and a quoted # are data; unquoted null is JSON null',
+                errors)
+        pairs = _pairs_of_sub(_run_prim("detect-vocabulary", str(vault)), "E9a")
+        _assert(len(pairs) == 1 and (pairs[0]["a"], pairs[0]["b"]) == ("api", "apis"),
+                "comment parity: detect-vocabulary still pairs api/apis behind trailing comments",
+                errors)
+
+
 # ── runner ───────────────────────────────────────────────────────────────────
 
 def main() -> int:
@@ -437,6 +481,7 @@ def main() -> int:
         case_parity_e9_end_to_end,
         case_parity_parser_unit_agreement,
         case_parity_parser_unit_divergences,
+        case_parity_comment_null_contract,
     ]
     for fn in cases:
         print(f"# {fn.__name__}")
