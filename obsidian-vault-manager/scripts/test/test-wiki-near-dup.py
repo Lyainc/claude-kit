@@ -6,7 +6,7 @@ The DoD fixture run exercises E12c end-to-end (1 seeded near-dup pair, distinct
 `dup-fixture` tag so it never exact-tag-matches the E12a/companion/clean seed
 groups → seeded_detected.E12_wiki_near_dup == 1, fp_on_clean == 0). This file
 pins the SCOPING and MATCHING edges that fixture cannot isolate, all against
-`detect_wiki_near_dup`:
+`detect_wiki_near_dup` (and the last against `dod_report`):
 
   - exact tag match required: an overlapping-but-not-identical tags set does NOT
     pair, even with fully overlapping title tokens.
@@ -20,6 +20,8 @@ pins the SCOPING and MATCHING edges that fixture cannot isolate, all against
   - self-pairs are never reported, and a pair is reported exactly once with
     rel_a < rel_b (never both orders).
   - a three-way match reports every pairing, not just adjacent ones.
+  - dod_report() credits the seeded pair only when BOTH paths carry the seed
+    prefix (#724) — a half-seeded pair is not a seeded detection.
 
 E12b (cross-page semantic contradiction) ships nowhere here — it is the
 deferred `--deep` LLM path (mirrors E9c). No test asserts it because the
@@ -157,6 +159,22 @@ def main() -> int:
         _rec("wiki/defuddle-cli.md", type="wiki"),
     ]
     _assert(_pairs(recs) == set(), "wiki pages with no tags never pair", errors)
+
+    # 11. dod_report() credits a seeded detection only when BOTH sides of the pair
+    # carry SEED_DUP_PREFIX (#724): a seed page paired with an unrelated page is a
+    # partial/accidental match, not the seeded pair, and must not pass the DoD.
+    def _dup(pa: str, pb: str) -> dict:
+        return {"type": _mod.E12_DUP_TYPE, "path": pa, "other_path": pb, "priority": "P2"}
+
+    def _dod(findings: list) -> tuple:
+        rep = _mod.dod_report(findings)
+        return (rep["seeded_detected"][_mod.E12_DUP_TYPE], rep["fp_on_clean"][_mod.E12_DUP_TYPE])
+
+    seed = _mod.SEED_DUP_PREFIX
+    _assert(_dod([_dup(f"wiki/{seed}a.md", f"wiki/{seed}b.md")]) == (1, 0),
+            "dod_report: the seeded pair (both sides seeded) counts as detected", errors)
+    _assert(_dod([_dup(f"wiki/{seed}a.md", "wiki/unrelated.md")]) == (0, 0),
+            "dod_report: a pair with only ONE seeded side is not a seeded detection", errors)
 
     if errors:
         print(f"\nFAILED: {len(errors)} assertion(s) failed")
