@@ -92,6 +92,9 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
    `session-start-manifest.sh` already exited for this session, that vault never receives a
    manifest — every later manifest-dependent path (recall, dedup) then degrades silently.
 
+   If the root exists but `[ -d "{vault_root}/.obsidian" ]` is false, warn once and continue
+   (#763): "`{vault_root}`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."
+
    Only once the vault root exists, `mkdir -p` the target sub-directory (`sources/`, `notes/`,
    `wiki/`) before writing.
 4. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise

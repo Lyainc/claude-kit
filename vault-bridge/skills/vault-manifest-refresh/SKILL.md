@@ -29,7 +29,11 @@ echo "${_vr/#\~/$HOME}"
 If the resolved vault root does not exist as a directory, output the following and stop:
 
 > vault 디렉토리를 찾을 수 없습니다: `{vault_root}`
-> `VAULT_BRIDGE_VAULT_ROOT` 환경변수를 설정하거나 `~/vault/`에 vault를 배치해 주세요.
+> `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 경로를 지정하거나 `~/vault/`에 vault를 배치해 주세요.
+
+If it exists but has no `.obsidian/` subdirectory, warn once and continue (#763):
+
+> `{vault_root}`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있습니다. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요.
 
 ### Step 2 — Run generator
 

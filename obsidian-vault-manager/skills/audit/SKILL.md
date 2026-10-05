@@ -40,7 +40,14 @@ Each phase has explicit inputs, outputs, and a termination condition. Do NOT col
    VAULT_ROOT="${VAULT_BRIDGE_VAULT_ROOT:-${VAULT_BRIDGE_VAULT_PATH:-}}"
    [ -z "$VAULT_ROOT" ] && VAULT_ROOT="$HOME/vault"
    VAULT_ROOT="${VAULT_ROOT/#\~/$HOME}"
+   echo "$VAULT_ROOT"
+   if [ ! -d "$VAULT_ROOT" ]; then echo "VAULT_ABSENT"
+   elif [ ! -d "$VAULT_ROOT/.obsidian" ]; then echo "VAULT_NO_OBSIDIAN"; fi
    ```
+   `VAULT_ABSENT` → stop before any scan (#763) and say: "`{vault_root}`에 볼트 디렉토리가 없어요.
+   볼트가 다른 곳에 있다면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 vault-bridge 플러그인 설정
+   `vault_path`로 경로를 지정해 주세요." `VAULT_NO_OBSIDIAN` → warn once that it may not be an
+   Obsidian vault (same two settings), then continue.
    `scan_dir` = `$VAULT_ROOT` unscoped, or `$VAULT_ROOT/<subdir>` under `--path <subdir>`.
    `$scan_dir` → Steps 5–6; `$VAULT_ROOT` → everything else.
 
