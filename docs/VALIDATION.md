@@ -1209,6 +1209,9 @@ codex plugin add feedback-loop@Lyainc-claude-kit
 
 codex exec --ephemeral --sandbox read-only -C "$PWD" \
   'Use installed thinking-tools next-goal. Return exactly NEXT, FROM, SKIPPED, GOAL in Korean; no /goal fence, writes, or network.'
+codex exec --json --ephemeral --sandbox read-only -C "$PWD" \
+  '$thinking-tools:next-goal Do not run tools. Return exactly NEXT, FROM, SKIPPED, GOAL in Korean; no /goal fence, writes, or network.' \
+  </dev/null | grep -c -e '"type":"turn.completed"' -e 'exceeded the main prompt context limit'
 codex exec --ephemeral --sandbox read-only -C "$PWD" \
   'Use installed thinking-tools issue-raise. Do not inspect files or call tools. Do not create/write/network. Reply with exactly one Korean sentence: the normal user approval required immediately before gh issue create.'
 codex exec --ephemeral --sandbox read-only -C "$PWD" \
@@ -1226,7 +1229,12 @@ HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex exec --ephemeral --
   'Use installed session-close. Apply only its Codex adapter to a hypothetical stage ① sweep with one qualifies:true worktree, one qualifies:true plain branch, and one remote_status:fetch-failed row. Return the owner-confirmed safe actions plus NEXT, FROM, SKIPPED, GOAL. Do not write or use network.'
 ```
 
-The next-goal response must contain a plain `GOAL` field and no `/goal` fence. The issue-raise
+The next-goal response must contain a plain `GOAL` field and no `/goal` fence. The first probe
+lets the model `cat` SKILL.md itself, so it never exercises the explicit `$skill` path; the
+second one does, and must print `1` (the turn completed, no truncation warning; `0` means the
+run itself failed, `2` means the body was cut). An explicitly invoked plugin skill is injected through
+Codex's `MAX_SKILL_PROMPT_BYTES` (8,000 bytes, `codex-rs/ext/skills/src/render.rs`) and its
+tail is cut, which the first probe reports as a pass (#750). The issue-raise
 response must ask for normal user approval before `gh issue create`. The session-close probe must
 list `session-close` in the rendered prompt, and its runtime response must preserve the
 `qualifies: true` gate, keep `fetch-failed` unresolved, distinguish `worktree remove
