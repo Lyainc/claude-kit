@@ -144,18 +144,18 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-
 # The ALWAYS-LOADED body, pinned the same way: at runtime the loaded SKILL.md outranks an
 # on-demand reference doc, so a body step saying "exit 3 → retry with cat" defeats a perfectly
 # pinned canonical section. Comparing the step WHOLE is what catches that.
+# #750: the step was condensed to fit Codex's 8,000-byte invoked-skill limit (its rationale prose
+# and the self-declaration moved to reference.md). Every protective clause survives and is still
+# pinned whole: the raw-`cat` prohibition, the filter-script call, the exit-0 two-field parse, the
+# exit-3 -> null branch WITH its no-`cat`-fallback clause, and the binding-locator caveat.
 _SKILL_STEP8 = _normalise("""\
-8. Read manifest summary (used for REPORT header) through the filter script — **never `cat` the
-   manifest directly** (#468, #460). Uses the `$VAULT_ROOT` from Step 1:
+8. Read manifest summary (REPORT header) — **never `cat` the manifest** (#468, #460):
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
-   Exit 0 → `manifest_summary` = parsed `{file_count, generated_at}`; exit 3 → null.
+   Exit 0 → `manifest_summary` = `{file_count, generated_at}`; exit 3 → null, never a raw `cat` fallback.
    **Apply `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → Reading the manifest as
-   written — that section is the binding contract** for why a raw `cat` is forbidden and the full
-   exit-code branch; the line above is a locator, not a summary you may act from alone. This whole
-   step is pinned VERBATIM by `_SKILL_STEP8` in
-   `obsidian-vault-manager/scripts/test/test-manifest-reads.py`.
+   written — the binding contract**; this line is a locator, not a summary to act from alone.
 """)
 
 
@@ -291,16 +291,16 @@ _AUDIT_RAW_CAT = _CLEAN_AUDIT.replace(
     '   cat "$VAULT_ROOT/.vault-bridge/manifest.json"')
 # The body's exit-3 branch flipped into the fallback the canonical section forbids.
 _AUDIT_EXIT3_RETRIES = _CLEAN_AUDIT.replace(
-    "exit 3 → null.", "exit 3 → retry with a raw `cat`.")
+    "exit 3 → null, never a raw `cat` fallback.", "exit 3 → retry with a raw `cat`.")
 # The binding locator decayed into a bare rationale citation: the contract still exists, nothing
 # routes the skill to it as binding. A path-only check ("vault-audit-rules.md" in text) is blind
 # to this — the path is cited half a dozen times elsewhere in the body.
 _AUDIT_POINTER_DECAYED = _CLEAN_AUDIT.replace(
-    "   **Apply `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → Reading the manifest as\n   written — that section is the binding contract** for why",
-    "   For background, see `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → Reading the\n   manifest, which covers why")
+    "   **Apply `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → Reading the manifest as\n   written — the binding contract**; this line",
+    "   For background, see `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → Reading the\n   manifest; this line")
 # The caveat that stops the model acting from the two-line summary alone, deleted.
 _AUDIT_LOCATOR_CAVEAT_DELETED = _CLEAN_AUDIT.replace(
-    "; the line above is a locator, not a summary you may act from alone", "")
+    "; this line is a locator, not a summary to act from alone", "")
 # ADJACENT-CLAUSE CORRUPTION, body side: a heading wedged between step 8 and step 9.
 _AUDIT_HEADING_WEDGED = _CLEAN_AUDIT.replace(
     "\n9. Detect E9 vocabulary",
