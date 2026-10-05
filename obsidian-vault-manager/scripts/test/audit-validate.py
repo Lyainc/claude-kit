@@ -902,7 +902,9 @@ def dod_report(findings: list) -> dict:
 
         if etype == E12_DUP_TYPE:
             pa, pb = f.get("path") or "", f.get("other_path") or ""
-            if SEED_DUP_PREFIX in pa or SEED_DUP_PREFIX in pb:
+            # Both sides, mirroring the clean branch: a seed paired with an unrelated
+            # page is an accidental match, not the seeded pair (#724).
+            if SEED_DUP_PREFIX in pa and SEED_DUP_PREFIX in pb:
                 detected[E12_DUP_TYPE] += 1
             elif "audit-clean-" in pa and "audit-clean-" in pb:
                 fp_clean[E12_DUP_TYPE] += 1
