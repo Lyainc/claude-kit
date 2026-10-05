@@ -714,7 +714,7 @@ python3 feedback-loop/scripts/test/test-distill-gate-routing.py
 # reads BOTH files — every prose claim against SKILL.md, only the snippet against reference.md —
 # and pins the seam the split created: SKILL.md must name §6-snippet AND say to run it (#469).
 python3 feedback-loop/scripts/test/test-add-policy-routing.py --self-test
-# Expected: OK: all 45 self-test cases passed
+# Expected: OK: all 46 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # Expected: OK: all 20 add-policy-routing checks passed.
 
@@ -735,7 +735,7 @@ python3 feedback-loop/scripts/test/test-add-policy-routing.py
 # firing condition) under the recommends-only ceiling, since rules/lint-catalogue.sh caps
 # the framing but deliberately not the row count, leaving absorption as the only way out.
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py --self-test
-# Expected: OK: all 65 self-test cases passed
+# Expected: OK: all 67 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-conflict-edit.py
 # Expected: OK: all 13 add-policy-conflict-edit checks passed.
 
