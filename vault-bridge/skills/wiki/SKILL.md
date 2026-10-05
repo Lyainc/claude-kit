@@ -79,7 +79,7 @@ The wiki *compounds* — a topic that already has a page is **updated**, never d
 
    `VAULT_ABSENT` → **stop without writing anything.** Tell the user in Korean that no vault was
    found and where to configure one — e.g. "볼트가 없어서 wiki 컴파일을 멈췄어요. 볼트 경로를
-   `VAULT_BRIDGE_VAULT_ROOT`(환경변수)나 플러그인 설정 `VAULT_BRIDGE_VAULT_PATH`로 지정해 주세요."
+   `VAULT_BRIDGE_VAULT_ROOT`(환경변수)나 플러그인 설정 `vault_path`로 지정해 주세요."
    **Never `mkdir` the vault root**, here or in Phase 5.
 
    This keeps the contract the rest of vault-bridge already holds — `pre-write-guard.sh:52-54` and

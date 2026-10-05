@@ -82,9 +82,9 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 3. **Vault-absent guard (#697) — check `{vault_root}` exists BEFORE creating anything.** If
    `[ -d "{vault_root}" ]` is false, **stop without writing** and tell the user in Korean that no
    vault was found at that path and where to configure one (`VAULT_BRIDGE_VAULT_ROOT`, or the
-   `VAULT_BRIDGE_VAULT_PATH` plugin setting) — e.g. "`{vault_root}`에 볼트가 없어서 저장을
+   `vault_path` plugin setting) — e.g. "`{vault_root}`에 볼트가 없어서 저장을
    멈췄어요. 볼트 경로를 `VAULT_BRIDGE_VAULT_ROOT`(환경변수)나 플러그인 설정
-   `VAULT_BRIDGE_VAULT_PATH`로 지정해 주세요." Never `mkdir` the vault root itself.
+   `vault_path`로 지정해 주세요." Never `mkdir` the vault root itself.
 
    This is the same contract the rest of vault-bridge already keeps — `hooks/pre-write-guard.sh`
    and `hooks/session-start-manifest.sh` both treat a missing vault directory as "do nothing".
