@@ -103,7 +103,7 @@ const judgeOut = (pick: Pick | null): string =>
   ].join('\n')
 
 type Bench = {
-  out: { text: string; isError: boolean }
+  out: { text: string; isError: boolean; gate?: Promise<void>; started?: () => void }
   fills: { text: string; mode?: string }[]
   opens: { id: string; title?: string }[]
   forbidden: string[]
@@ -113,11 +113,14 @@ type Bench = {
 const bench = (on: On): Bench => {
   const b: Bench = { out: { text: '', isError: false }, fills: [], opens: [], forbidden: [], fill: { isFilled: true } }
   mock.clock(on, { now: 1_000 })
-  on('tool.call', { tool: 'Bash' }, () =>
-    b.out.isError
-      ? ({ isError: true, result: b.out.text, text: b.out.text } as never)
-      : ({ result: { stdout: b.out.text, stderr: '', interrupted: false }, text: b.out.text } as never),
-  )
+  on('tool.call', { tool: 'Bash' }, async () => {
+    const out = b.out
+    out.started?.()
+    if (out.gate) await out.gate
+    return out.isError
+      ? ({ isError: true, result: out.text, text: out.text } as never)
+      : ({ result: { stdout: out.text, stderr: '', interrupted: false }, text: out.text } as never)
+  })
   on('prompt.fill', (_$, e) => {
     b.fills.push({ text: e.text, mode: e.mode })
     return { isFilled: b.fill.isFilled }
@@ -463,4 +466,71 @@ test('the pane opens only when the person runs the command', async ($, on) => {
   expect(ran.text).toBe('Seed board 패널을 열었어요.')
   expect(b.opens).toEqual([{ id: PLUGIN, title: 'Seed board' }])
   expect(b.forbidden).toEqual([])
+})
+
+// A run that started earlier but finishes later is held open here; `b.out` is read when the
+// renderer call starts, so the gate belongs to that run only.
+const gatedRun = async ($: Engine, b: Bench, command: string, text: string) => {
+  let release!: () => void
+  let ready!: () => void
+  const gate = new Promise<void>(r => {
+    release = r
+  })
+  const entered = new Promise<void>(r => {
+    ready = r
+  })
+  b.out = { text, isError: false, gate, started: ready }
+  const done = $.tool.call({ tool: 'Bash', command })
+  await entered
+  return { release, done }
+}
+
+test('a late judgment of an earlier run for another Seed does not replace the newer judgment', async ($, on) => {
+  const b = bench(on)
+  const z = 'docs/specs/z.yaml'
+  await bash($, b, WALK_CMD, walkText({ id: 'wa', at: '2026-10-01T10:00:00Z' }))
+  await bash($, b, WALK_CMD, walkText({ id: 'wz', at: '2026-10-01T12:00:00Z', start: z }))
+  const newer = { title: 'newer Z judgment', via: z }
+  const older = { title: 'older A judgment', via: A }
+  const late = await gatedRun($, b, judgeCmd({ walkId: 'wa', seed: A, pick: older }), judgeOut(older))
+  await bash($, b, judgeCmd({ walkId: 'wz', seed: z, pick: newer }), judgeOut(newer))
+  late.release()
+  await late.done
+  const ui = await mountPane($, 'terminal')
+  expect(await texts(ui)).toContain('NEXT newer Z judgment')
+  expect(await texts(ui)).not.toContain('NEXT older A judgment')
+  await ui.unmount()
+})
+
+test('a late judgment of an earlier run for the same Seed does not replace the newer judgment', async ($, on) => {
+  const b = bench(on)
+  await bash($, b, WALK_CMD, walkText({ id: 'wa', at: '2026-10-01T10:00:00Z' }))
+  const newer = { title: 'newer A judgment', via: A }
+  const older = { title: 'older A judgment', via: A }
+  const late = await gatedRun($, b, judgeCmd({ walkId: 'wa', seed: A, pick: older }), judgeOut(older))
+  await bash($, b, judgeCmd({ walkId: 'wa', seed: A, pick: newer }), judgeOut(newer))
+  late.release()
+  await late.done
+  const ui = await mountPane($, 'terminal')
+  expect(await texts(ui)).toContain('NEXT newer A judgment')
+  expect(await texts(ui)).not.toContain('NEXT older A judgment')
+  await ui.unmount()
+})
+
+test('a run started before the switch request does not resolve the pending switch', async ($, on) => {
+  const b = bench(on)
+  const first = { title: 'c1 닫기', via: PARENT }
+  const alt = { title: 'ac1 하기', via: CHILD }
+  await bash($, b, WALK_CMD, walkText({ id: 'w1', at: '2026-10-01T10:00:00Z' }))
+  await bash($, b, judgeCmd({ walkId: 'w1', pick: first, alts: [{ ...alt, decision: 'held' }] }), judgeOut(first))
+  const ui = await mountPane($, 'terminal')
+  const late = await gatedRun($, b, judgeCmd({ walkId: 'w1', pick: first, alts: [{ ...alt, decision: 'held' }] }), judgeOut(first))
+  await ui.press({ key: 'switch:0' })
+  late.release()
+  await late.done
+  await bash($, b, judgeCmd({ walkId: 'w1', pick: alt, alts: [{ ...first, decision: 'held' }] }), judgeOut(alt))
+  const t = await texts(ui)
+  expect(t).toContain(`반영 완료 — ${alt.title}`)
+  expect(t.some(x => x.includes('반영 안 됨'))).toBe(false)
+  await ui.unmount()
 })

@@ -33,7 +33,7 @@ const walksA = atom({ plugin: 'seed-board', key: 'walks' } as const, {} as Recor
 const judgmentA = atom({ plugin: 'seed-board', key: 'judgment' } as const, null as SeedBoardJudgment | null)
 const pendingA = atom(
   { plugin: 'seed-board', key: 'pending' } as const,
-  null as { title: string; via: string; walk_id: string | null; requestedAt: number } | null,
+  null as { title: string; via: string; walk_id: string | null; requestedAt: number; seq?: number } | null,
 )
 const lastSwitchA = atom(
   { plugin: 'seed-board', key: 'lastSwitch' } as const,
@@ -78,8 +78,12 @@ const keepNewest = (walks: Record<string, SeedBoardWalk>): Record<string, SeedBo
   return Object.fromEntries(keep.map(w => [w.start, w]))
 }
 
+// `seq` is taken when the renderer call STARTS, so it is the run's start order, not the order its
+// result arrives in. A result is applied only if no later-started run's result is already shown.
 const isNewer = (j: SeedBoardJudgment, cur: SeedBoardJudgment): boolean => {
-  if (cur.seed !== j.seed) return true
+  // Different Seeds have no walk time to compare: start order alone decides, so a late result of an
+  // earlier run for another Seed cannot cover the newer screen.
+  if (cur.seed !== j.seed) return j.seq > cur.seq
   if (cur.walkAt !== null && j.walkAt !== null) {
     const c = compareAt(j.walkAt, cur.walkAt)
     if (c !== 0) return c > 0
@@ -87,7 +91,7 @@ const isNewer = (j: SeedBoardJudgment, cur: SeedBoardJudgment): boolean => {
   // The shown judgment rests on the latest walk and this one does not: it is a late older run,
   // so it must not cover the newer screen.
   if (cur.walkAt !== null && j.walkAt === null) return false
-  return j.seq >= cur.seq
+  return j.seq > cur.seq
 }
 
 const observeWalk = async ($: Dollar, text: string): Promise<void> => {
@@ -101,10 +105,9 @@ const observeWalk = async ($: Dollar, text: string): Promise<void> => {
   })
 }
 
-const observeJudgment = async ($: Dollar, command: string, text: string): Promise<void> => {
+const observeJudgment = async ($: Dollar, command: string, text: string, seq: number): Promise<void> => {
   const parsed = parseJudgment(extractHeredoc(command))
   const known = walkFor(await read($, walksA), parsed.seed)
-  const seq = await update($, seqA, n => n + 1)
   const j: SeedBoardJudgment = {
     ...parsed,
     lines: renderedLines(text),
@@ -120,6 +123,9 @@ const observeJudgment = async ($: Dollar, command: string, text: string): Promis
 
   const pending = await read($, pendingA)
   if (pending === null) return
+  // A run that started before the switch was requested cannot be its answer, even if it is shown.
+  // A pending stored without `seq` (older state) keeps the earlier behaviour.
+  if (pending.seq !== undefined && j.seq <= pending.seq) return
   // Title and via together: several candidates share one via (every item of one Seed, every
   // `session`/`backlog` candidate), so a via match alone would confirm a switch that did not happen.
   const isApplied = j.pick !== null && j.pick.title === pending.title && j.pick.via === pending.via
@@ -162,6 +168,16 @@ export const register: Register = on => {
   })
 
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
+    // The ordering token is taken before the renderer call runs: the call may finish after a later
+    // one, and only its start order says which judgment is newer. Other commands pay nothing.
+    let startSeq: number | null = null
+    if (isRenderCommand(e.command)) {
+      try {
+        startSeq = await update($, seqA, n => n + 1)
+      } catch {
+        // No token, no judgment for this run; the call itself still goes on untouched.
+      }
+    }
     const ran = await next(e)
     if (ran.deny !== undefined || ran.isError === true || ran.text === undefined) return ran
     const text = ran.text
@@ -173,9 +189,9 @@ export const register: Register = on => {
         // A board fault must never break the session: the result goes on as it was.
       }
     }
-    if (isRenderCommand(e.command) && text.trimStart().startsWith('NEXT')) {
+    if (startSeq !== null && text.trimStart().startsWith('NEXT')) {
       try {
-        await observeJudgment($, e.command, text)
+        await observeJudgment($, e.command, text, startSeq)
       } catch {
         // Same: a malformed heredoc or judgment is skipped, not raised.
       }
@@ -212,8 +228,10 @@ export const register: Register = on => {
       })
       if (!filled.isFilled) return
       const requestedAt = await $.clock.now()
+      // Same counter as the renderer runs: only a run that starts after this token can answer it.
+      const seq = await update($, seqA, n => n + 1)
       await update($, lastSwitchA, () => null)
-      await update($, pendingA, () => ({ title, via, walk_id: walkId, requestedAt }))
+      await update($, pendingA, () => ({ title, via, walk_id: walkId, requestedAt, seq }))
     }
 
     const judged = judgment === null ? undefined : walkFor(walks, judgment.seed)
