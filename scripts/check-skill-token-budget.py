@@ -78,6 +78,17 @@ cannot have an anchor past the boundary). The anchor check is still reported, be
 the claim #447 actually makes — it names WHICH gate survives compaction, and it keeps its
 meaning if the budget is ever raised or scoped.
 
+CODEX INVOKED-SKILL BYTES (#750): a third, independent axis. When a user invokes a plugin
+skill explicitly (`$plugin:skill`), Codex injects the WHOLE SKILL.md file, frontmatter
+included, cut at `MAX_SKILL_PROMPT_BYTES = 8_000` UTF-8 bytes (`codex-rs/ext/skills/src/
+render.rs`, applied by `host_prompt.rs` to agent-plugin skills; codex-cli 0.160.0 and upstream
+main checked 2026-10-06). The tail is dropped with only a warning: next-goal at 18,327 bytes
+ended mid Step 3 and lost Phase 2, its output format and its Codex section. Bytes, not tokens:
+Hangul costs 3 bytes per char, so a skill can sit at ~4,000 tokens and still be cut in half.
+The 5,000-token budget above cannot see this, so every plugin SKILL.md must also fit in 8,000
+bytes. Same fix as the token budget: keep the executable contract (steps, gates, fallbacks,
+output fields) and move rationale and long examples to a reference the skill points to.
+
 Usage:
     uv run --with tiktoken python3 scripts/check-skill-token-budget.py
         [--root DIR] [--context-window-chars N] [--list] [--self-test] [--allow-estimate]
@@ -94,6 +105,9 @@ from pathlib import Path
 
 # Claude Code re-attaches the first 5,000 tokens of each invoked skill after compaction.
 TOKEN_BUDGET = 5000
+
+# Codex cuts an explicitly invoked plugin skill's whole file at this many UTF-8 bytes (#750).
+CODEX_SKILL_PROMPT_BYTE_CAP = 8000
 
 # Rule-of-thumb tokenizer: English/code ~4.4 chars per token, CJK ~1.2 tokens per char.
 # The 1.2 matters: at 1.0 the estimate ran 9% under on Hangul-dense skills, which is the
@@ -366,6 +380,19 @@ def check_text(text: str):
                 f"starts at ~{offset:.0f} tokens"
             )
     return total, violations
+
+
+def measure_skill_bytes(root: Path):
+    """Return [(rel_path, utf8_bytes)] for every source-plugin SKILL.md (#750).
+
+    Only SKILL.md: Codex applies the byte cut to a selected plugin skill's file, not to
+    agents/*.md or the repo's instruction entry files.
+    """
+    out = []
+    for manifest in sorted(root.glob("*/.claude-plugin/plugin.json")):
+        for skill in sorted(manifest.parent.parent.glob("skills/*/SKILL.md")):
+            out.append((skill.relative_to(root), len(skill.read_bytes())))
+    return out
 
 
 def _git_toplevel() -> Path:
@@ -849,6 +876,26 @@ def run_self_test() -> int:
     check(len(_description_span(long_listing)) > DESCRIPTION_CHAR_CAP and not check_text(long_listing)[1],
           "a compact body cannot hide an over-budget listing")
 
+    # #750: the Codex byte cap is its own axis. A Hangul body far under the token budget can
+    # still be cut, and only SKILL.md is measured (agents/CLAUDE.md never take the byte cut).
+    hangul = "---\nname: x\ndescription: d\n---\n" + "가" * 3000 + "\n"
+    check(not check_text(hangul)[1] and len(hangul.encode()) > CODEX_SKILL_PROMPT_BYTE_CAP,
+          "#750: a 9,000-byte Hangul body must pass the token budget yet exceed the byte cap")
+    for size, expect_fail in [(CODEX_SKILL_PROMPT_BYTE_CAP, False), (CODEX_SKILL_PROMPT_BYTE_CAP + 1, True)]:
+        with tempfile.TemporaryDirectory() as tmp:
+            _write_fixture_plugin(Path(tmp), "a" * size)
+            measured = measure_skill_bytes(Path(tmp))
+            check([(str(r), b) for r, b in measured] == [("fixture-plugin/skills/x/SKILL.md", size)],
+                  f"#750: only the SKILL.md is byte-measured, got {measured}")
+            rc, out = run_main(["--root", tmp, "--allow-estimate"])
+            check((rc == 1) == expect_fail and ("8000-byte" in out) == expect_fail,
+                  f"#750: a {size}-byte SKILL.md must {'fail' if expect_fail else 'pass'}, rc={rc}: {out}")
+    with tempfile.TemporaryDirectory() as tmp:
+        _write_fixture_plugin(Path(tmp), hangul)
+        rc, out = run_main(["--root", tmp, "--allow-estimate"])
+        check(rc == 1 and "fixture-plugin/skills/x/SKILL.md: 9" in out,
+              f"#750: the Hangul fixture must fail on bytes and name the file, rc={rc}: {out}")
+
     if failures:
         print(f"FAIL: {len(failures)} check-skill-token-budget self-test case(s) failed", file=sys.stderr)
         for line in failures:
@@ -947,15 +994,21 @@ def main(argv=None):
         for rel in effort_hits:
             print(f"    {rel}")
 
+    skill_bytes = measure_skill_bytes(root)
+    byte_offenders = [(rel, size) for rel, size in skill_bytes if size > CODEX_SKILL_PROMPT_BYTE_CAP]
+
     if args.list:
         for rel, total, _ in results:
             text = (root / rel).read_text(encoding="utf-8")
             anchors = list(find_anchors(text))
             last = max((o for _, o in anchors), default=0)
             print(f"{str(rel):56} ~{total:5.0f} tok  anchors={len(anchors):2} last@~{last:.0f}")
+        for rel, size in skill_bytes:
+            print(f"{str(rel):56} {size:6d} bytes (Codex invoked-skill cap {CODEX_SKILL_PROMPT_BYTE_CAP})")
 
     offenders = [(rel, total, v) for rel, total, v in results if v]
-    if offenders or desc_offenders or desc_malformed or total_desc_chars > description_total_cap:
+    if (offenders or desc_offenders or desc_malformed or byte_offenders
+            or total_desc_chars > description_total_cap):
         if desc_malformed:
             print(
                 f"FAIL: {len(desc_malformed)} file(s) have frontmatter that never closes — no "
@@ -980,6 +1033,22 @@ def main(argv=None):
                 "(a reference.md for a skill, docs/REFERENCE.md for CLAUDE.md, the owning plugin's "
                 "own reference doc for agents/*.md); keep gates and invariants in place. Always "
                 "split, never trim.",
+                file=sys.stderr,
+            )
+        if byte_offenders:
+            print(
+                f"FAIL: {len(byte_offenders)} SKILL.md file(s) exceed Codex's "
+                f"{CODEX_SKILL_PROMPT_BYTE_CAP}-byte invoked-skill cap — an explicit $plugin:skill "
+                f"call injects only the first {CODEX_SKILL_PROMPT_BYTE_CAP} UTF-8 bytes of the file, "
+                f"frontmatter included, and drops the rest (#750):",
+                file=sys.stderr,
+            )
+            for rel, size in byte_offenders:
+                print(f"  {rel}: {size} bytes (> {CODEX_SKILL_PROMPT_BYTE_CAP})", file=sys.stderr)
+            print(
+                "\nFix: keep steps, gates, fallbacks and output fields in SKILL.md; move rationale "
+                "and long examples to the skill's reference.md with a pointer saying when to read "
+                "it. Never raise the cap.",
                 file=sys.stderr,
             )
         if desc_offenders:
@@ -1011,7 +1080,7 @@ def main(argv=None):
     print(
         f"OK: skill-token-budget clean — {len(results)} file(s) checked (SKILL.md/agents/*.md/"
         f"AGENTS.md/CLAUDE.md), every one within {TOKEN_BUDGET} tokens, SKILL.md gates inside the window "
-        f"[{BACKEND}] ({worst_note})"
+        f"[{BACKEND}] ({worst_note}); every SKILL.md within {CODEX_SKILL_PROMPT_BYTE_CAP} bytes"
     )
     return 0
 
