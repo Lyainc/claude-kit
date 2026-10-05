@@ -1079,7 +1079,8 @@ python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py --se
 python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py
 # Expected: OK: all 3 audit-vault-root-wiring cases passed
 
-# audit/SKILL.md Phase 4 Step 1 (AskUserQuestion template) + reference/vault-audit-rules.md's
+# audit/fix.md Phase 4 Step 1 (AskUserQuestion template; moved out of audit/SKILL.md for #750, which
+# keeps a fail-closed Phase 4 gate that is pinned here too) + reference/vault-audit-rules.md's
 # Auto-fix eligibility table (#673, following #663's manifest-read pin architecture) — f8087d1
 # folded #625 nit2's $VAULT_ROOT snippet (pinned above) and #591's provenance example line into
 # audit/SKILL.md, plus a provenance-not-auto-fillable rationale sentence into
@@ -1087,7 +1088,7 @@ python3 obsidian-vault-manager/scripts/test/test-audit-vault-root-wiring.py
 # plus neighbour-anchor identity, so a reword of "not auto-fillable" into "infer it like tags"
 # or a sibling heading wedged just outside either pinned slice fails loud instead of silent.
 python3 obsidian-vault-manager/scripts/test/test-audit-provenance-autofix-pin.py --self-test
-# Expected: OK: all 9 self-test cases passed
+# Expected: OK: all 18 self-test cases passed
 python3 obsidian-vault-manager/scripts/test/test-audit-provenance-autofix-pin.py
 # Expected: OK: all provenance-autofix checks passed
 
