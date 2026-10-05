@@ -1168,6 +1168,50 @@ def check_walk_value_cleaning() -> list[str]:
     return failures
 
 
+def check_walk_reexpand_second_route() -> list[str]:
+    """A Seed found first as a predecessor and again as a descendant is also expanded as one."""
+    failures = []
+    repo = _repo()
+    at = lambda *ns: [f"{SP}{n}.yaml" for n in ns]
+    _write(repo, "a.yaml", target="A", children=at("b"), depends_on=at("c"))
+    _write(repo, "b.yaml", target="B", parent=SP + "a.yaml", children=at("c"))
+    _write(repo, "c.yaml", target="C", parent=SP + "b.yaml", children=at("d"))
+    _write(repo, "d.yaml", target="D", parent=SP + "c.yaml")
+    code, data, _ = _walk_json(repo, SP + "a.yaml")
+    got = {n["key"]: (n["depth"], n["relation"]) for n in data["nodes"]}
+    want = {SP + "a.yaml": (0, "start"), SP + "b.yaml": (1, "descendant"),
+            SP + "c.yaml": (1, "predecessor"), SP + "d.yaml": (3, "descendant")}
+    if got != want:
+        failures.append(f"walk re-expand: expected {want}, got {got}")
+    d = [n for n in data["nodes"] if n["key"] == SP + "d.yaml"]
+    if d and d[0]["via"] != [["children", SP + "b.yaml"], ["children", SP + "c.yaml"],
+                             ["children", SP + "d.yaml"]]:
+        failures.append(f"walk re-expand: D via should be the descendant path, got {d[0]['via']}")
+    s = data["summary"]
+    if (s["visited"], s["stopped"], s["cycles"]) != (4, 0, 0) or len(data["dups"]) != 1:
+        failures.append(f"walk re-expand: summary {s}, dups {data['dups']}")
+    # The caps still bind the re-expanded route and report it.
+    code, data, _ = _walk_json(repo, SP + "a.yaml", "--max-depth", "2")
+    if [n["key"] for n in data["nodes"]].count(SP + "d.yaml") or data["stops"] != [
+            {"from": SP + "c.yaml", "edge": "children", "target": SP + "d.yaml", "reason": "depth"}]:
+        failures.append(f"walk re-expand depth cap: nodes/stops {data['stops']}")
+    code, data, _ = _walk_json(repo, SP + "a.yaml", "--max-nodes", "3")
+    if len(data["nodes"]) != 3 or data["stops"] != [
+            {"from": SP + "c.yaml", "edge": "children", "target": SP + "d.yaml", "reason": "nodes"}]:
+        failures.append(f"walk re-expand node cap: {len(data['nodes'])} nodes, stops {data['stops']}")
+    # A second route already past max_depth is not expanded: C is a depth-1 predecessor, and
+    # the B→C route (depth 2) must not follow children or report stops from beyond the cap.
+    code, data, _ = _walk_json(repo, SP + "a.yaml", "--max-depth", "1")
+    if sorted(n["key"] for n in data["nodes"]) != at("a", "b", "c") or data["stops"]:
+        failures.append(f"walk re-expand past max-depth: nodes/stops {data['stops']}")
+    # A cycle through the re-expanded edge terminates and is reported, not looped.
+    _write(repo, "d.yaml", target="D", parent=SP + "c.yaml", children=at("c"))
+    code, data, _ = _walk_json(repo, SP + "a.yaml")
+    if code != 0 or len(data["nodes"]) != 4 or data["summary"]["cycles"] < 1:
+        failures.append(f"walk re-expand cycle: {code} {data['summary'] if data else None}")
+    return failures
+
+
 def main() -> int:
     checks = [
         check_tree_same_repo,
@@ -1191,6 +1235,7 @@ def main() -> int:
         check_walk_json_text_agree,
         check_walk_identification,
         check_walk_value_cleaning,
+        check_walk_reexpand_second_route,
     ]
     failures = []
     for check in checks:

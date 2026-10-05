@@ -902,7 +902,7 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # 관계 종류·깊이·경로, -vN, DUP과 같은 종류 엣지 순환(CYCLE), 깊이·개수 상한 STOP, 없는 파일,
 # 다른 레포 실패·미확장, 텍스트↔JSON 일치, walk id·fingerprint 변화를 함께 핀한다.
 python3 thinking-tools/scripts/test/test-seed-relations.py
-# Expected: OK: all 21 test-seed-relations checks passed
+# Expected: OK: all 22 test-seed-relations checks passed
 
 # next-goal-render.py 회귀 (#792) — next-goal의 판단 JSON에서 NEXT/FROM/SKIPPED(+Seed가 있으면 TRACE)를
 # 렌더한다. FROM의 엣지 경로와 TRACE의 방문·실패 수는 JSON이 아니라 다시 돌린 walk에서 나오고, walk가
