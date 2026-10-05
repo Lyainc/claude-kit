@@ -424,11 +424,17 @@ def check_unused_retirement_verdict(text: str, _ref: str = "") -> tuple[bool, st
     if "never silence" not in bullet_text and "not silence" not in bullet_text:
         return False, "unused retirement doesn't exclude silence — absence of evidence is not evidence"
     # The delete is irreversible, so the recovery route is part of the verdict, not a detail.
-    if "recoverabl" not in bullet_text:
-        return False, "unused retirement doesn't require a recoverable delete"
-    if "never `rm`" not in " ".join(bullet_text.split()):  # the bullet wraps mid-phrase
-        return False, "unused retirement doesn't forbid a bare `rm` delete"
-    return True, "unused retirement named with both choices, recommends-only, one confirmation, silence excluded, recoverable delete never `rm`"
+    flat = " ".join(bullet_text.split())  # the bullet wraps mid-phrase
+    if "recoverabl" not in flat or "confirmed" not in flat:
+        return False, "unused retirement doesn't require a recoverable delete via a confirmed trash tool"
+    if "report" not in flat:
+        return False, "unused retirement has no fallback when no trash tool is confirmed (keep it and report)"
+    if "never force" not in flat or "never `rm`" not in flat:
+        return False, "unused retirement doesn't forbid a forced or bare `rm` delete"
+    # #740: the property, not one platform's path — a pinned absolute path breaks every other OS.
+    if "/usr/bin/trash" in flat:
+        return False, "unused retirement pins the macOS-26-only path /usr/bin/trash instead of the property"
+    return True, "unused retirement named with both choices, recommends-only, one confirmation, silence excluded, recoverable delete via a confirmed tool, never forced or `rm`"
 
 
 
@@ -723,8 +729,8 @@ _PASSING = """\
   outright the entry never came up, never silence. Reminder-site entries only, never a
   user-authored skill. Surfaces
   in the §3 은퇴 field with two choices — delete it, or narrow its firing condition: same
-  confirmation, no second prompt, recommends only, no answer means keep, delete recoverably, never
-  `rm`.
+  confirmation, no second prompt, recommends only, no answer means keep; delete recoverably with
+  a confirmed trash tool, else keep it and report — never force, never `rm`.
 - **Contradiction**: if it conflicts with an existing rule and the request does NOT target
   that rule as an explicit edit, do NOT write — report and stop.
 - **Sibling**: link them with a one-line note.
@@ -825,7 +831,7 @@ _UNUSED_DELETE_ONLY = _mutate(
 # it never deletes on its own judgment.
 _UNUSED_AUTO_DELETES = _mutate(
     """same
-  confirmation, no second prompt, recommends only, no answer means keep,""",
+  confirmation, no second prompt, recommends only, no answer means keep;""",
     """the engine removes it in the same write.""",
 )
 
@@ -841,15 +847,23 @@ _UNUSED_SILENCE_TRIGGER = _mutate(
 # #609 review: the irreversible half left un-routed. A delete that reaches for `rm` is the
 # one failure this verdict cannot walk back (machine-rule P4).
 _UNUSED_RM_DELETE = _mutate(
-    """no answer means keep, delete recoverably, never
-  `rm`.""",
+    """no answer means keep; delete recoverably with
+  a confirmed trash tool, else keep it and report — never force, never `rm`.""",
     "no answer means keep. Remove it with `rm`.",
+)
+
+# #740 review: the property words kept, but the path pinned again — the path check must catch it.
+_UNUSED_REPINNED_PATH = _mutate(
+    """no answer means keep; delete recoverably with
+  a confirmed trash tool, else keep it and report — never force, never `rm`.""",
+    """no answer means keep; delete recoverably with
+  a confirmed trash tool (`/usr/bin/trash`), else keep it and report — never force, never `rm`.""",
 )
 
 # #740: the pre-fix wording pinned one macOS-26-only absolute path instead of the property.
 _UNUSED_PINNED_PATH = _mutate(
-    """no answer means keep, delete recoverably, never
-  `rm`.""",
+    """no answer means keep; delete recoverably with
+  a confirmed trash tool, else keep it and report — never force, never `rm`.""",
     """no answer means keep, `/usr/bin/trash` never
   `rm`.""",
 )
@@ -1208,6 +1222,8 @@ def _self_test() -> int:
     cases.append(("unused-silence-trigger: check_unused_retirement_verdict (expect FAIL)", not ok))
     ok, _ = check_unused_retirement_verdict(_UNUSED_RM_DELETE, _PASSING_REF)
     cases.append(("unused-rm-delete: check_unused_retirement_verdict (expect FAIL)", not ok))
+    ok, _ = check_unused_retirement_verdict(_UNUSED_REPINNED_PATH, _PASSING_REF)
+    cases.append(("unused-repinned-path: check_unused_retirement_verdict (expect FAIL)", not ok))
     ok, _ = check_unused_retirement_verdict(_UNUSED_PINNED_PATH, _PASSING_REF)
     cases.append(("unused-pinned-path (pre-#740 wording): check_unused_retirement_verdict (expect FAIL)", not ok))
 
