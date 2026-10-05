@@ -150,7 +150,13 @@ def load_schema(path):
     E13 renders computed:false. Shape: {"schemas": [{"name", "when": {field: value},
     "required": [field], "enum": {field: [value]}, "optional": [field]}]}.
     """
-    if path is None or not path.is_file():
+    # exists() is False for a broken symlink; that is an unusable file, not an absent one.
+    if path is None or not (path.exists() or path.is_symlink()):
+        # The issue's own example named a YAML file; one written that way must not pass
+        # silently as "no schema" (#764).
+        for alt in ((".vault-schema.yaml", ".vault-schema.yml") if path is not None else ()):
+            if (path.parent / alt).exists():
+                return None, f"found {alt}; write the schema as JSON in {path.name}"
         return None, None
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -450,6 +456,13 @@ def _raises(fn, *args) -> bool:
     return False
 
 
+def _yaml_only() -> Path:
+    import tempfile
+    d = Path(tempfile.mkdtemp())
+    (d / ".vault-schema.yaml").write_text("schemas: []\n", encoding="utf-8")
+    return d / ".vault-schema.json"
+
+
 def self_test() -> int:
     """Fixture-free check of every predicate + the truncation signal (#614).
 
@@ -600,6 +613,11 @@ def self_test() -> int:
          summarize(sfm, [], {}, today, sch)["E13"] == [
              {"path": "notes/work-gap.md", "schema": "업무 항목", "missing": ["track"],
               "invalid": {"status": ["끝"]}}]),
+        ("a directory named like the schema file is unusable, not absent",
+         load_schema(Path(__file__).resolve().parent)[1] is not None),
+        ("a YAML schema with no JSON beside it is reported, not treated as absent",
+         "write the schema as JSON" in (load_schema(_yaml_only()) [1] or "")),
+        ("an absent schema file is simply absent", load_schema(Path("/nonexistent/x.json")) == (None, None)),
         ("an unusable schema renders computed:false with its reason",
          cap(summarize(sfm, [], {}, today, None, "unusable --schema file: x"), 2)["E13"]
          == {"computed": False, "reason": "unusable --schema file: x"}),

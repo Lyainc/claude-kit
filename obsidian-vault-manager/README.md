@@ -61,6 +61,8 @@ provenance: "{출처 — URL, 세션 토픽, 대화, 책, 회의}"  # 필수 —
 
 E1–E3·E5–E6·E9–E13 오류(frontmatter 누락, stale sources, orphan 노트, 태그 혼용 등)를 P0-P2 우선순위로 정렬해 보고해요. REPORT에 지난 7일 git 활동 요약도 포함됩니다.
 
+vault 루트에 `.vault-schema.json`을 두면 E13이 켜져서, Bases 뷰가 쓰는 커스텀 속성이 빠졌거나 허용 값 밖인 노트를 표시만 해요(자동 수정 없음). 형식은 [vault-audit-rules.md → E13](reference/vault-audit-rules.md)에 있어요.
+
 ## vault-bridge와의 관계
 
 | 영역 | obsidian-vault-manager | vault-bridge |
