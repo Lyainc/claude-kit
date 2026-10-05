@@ -180,7 +180,8 @@ def load_schema(path):
 
 
 def _values(value) -> list:
-    """A frontmatter value as a list of non-empty strings (`key:` parses to [])."""
+    """A frontmatter value as a list of non-empty strings (`key:` parses to [], an unquoted
+    YAML null to None — both empty here, so `required` reports them like an absent key)."""
     items = value if isinstance(value, list) else [value]
     return [v for v in items if isinstance(v, str) and v.strip()]
 
@@ -621,6 +622,18 @@ def self_test() -> int:
         ("an unusable schema renders computed:false with its reason",
          cap(summarize(sfm, [], {}, today, None, "unusable --schema file: x"), 2)["E13"]
          == {"computed": False, "reason": "unusable --schema file: x"}),
+    ]
+
+    # YAML null / missing: scan-frontmatter emits JSON null for an unquoted null, which is
+    # empty for `required` exactly like an absent key or `track:`; the STRING "null" is data.
+    nfm = [{"path": "notes/n.md", "has_frontmatter": True, "missing_required": [],
+            "frontmatter": {"tags": ["업무지도"], "track": None, "status": "완료"}},
+           {"path": "notes/s.md", "has_frontmatter": True, "missing_required": [],
+            "frontmatter": {"tags": ["업무지도"], "track": "null", "status": "완료"}}]
+    cases += [
+        ("E13 reads a JSON-null required field as missing, not the string 'null'",
+         summarize(nfm, [], {}, today, sch)["E13"] == [
+             {"path": "notes/n.md", "schema": "업무 항목", "missing": ["track"]}]),
     ]
 
     failed = [name for name, ok in cases if not ok]

@@ -940,7 +940,9 @@ python3 obsidian-vault-manager/scripts/test/audit-validate.py --infer-self-test
 bash obsidian-vault-manager/scripts/test/test-infer-tags-batch.sh
 # Expected: OK: all infer-tags batch cases passed
 
-# E9 vocabulary pairs unit test + ovm-primitives↔audit-validate parser parity gate (#165)
+# E9 vocabulary pairs unit test + ovm-primitives↔audit-validate parser parity gate (#165); also
+# pins that detect-vocabulary's copy of the frontmatter parser agrees with scan-frontmatter's on
+# trailing comments and null.
 python3 obsidian-vault-manager/scripts/test/test-vocabulary-pairs.py
 # Expected: OK: all cases passed
 
@@ -1118,9 +1120,12 @@ python3 obsidian-vault-manager/scripts/scan-summary.py --self-test
 # no schema file = byte-identical output with no E13 key; conforming notes = count 0; absent or
 # empty required field -> `missing`; out-of-enum value -> `invalid`; non-matching notes never
 # reported; an unusable schema = `computed: false` + reason (exit 0, never a silent zero); and
-# audit/SKILL.md Step 7b passes `--schema "$VAULT_ROOT/.vault-schema.json"`.
+# audit/SKILL.md Step 7b passes `--schema "$VAULT_ROOT/.vault-schema.json"`. Case g drives the
+# scanner's comment/null contract through that same pipeline: `tags: [x] # c` still matches `when`,
+# `track: null`/`~`/`track: # note` are missing, `status: 완료 # done` is not an invalid enum value,
+# while a quoted "null" and a `#` inside quotes or glued to a word (`C#`) stay data.
 python3 obsidian-vault-manager/scripts/test/test-audit-custom-schema.py
-# Expected: OK: all 11 custom-schema cases passed
+# Expected: OK: all 22 custom-schema cases passed
 
 # audit DoD 측정 (mechanical reference impl). Folded into ONE registered command
 # (#660) — check-test-exitcode.py runs each registered command in its own `bash -c`,

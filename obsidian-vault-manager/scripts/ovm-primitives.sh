@@ -53,6 +53,52 @@ cmd_scan_frontmatter() {
   python3 - "$abs_dir" "$VAULT_ROOT" <<'PYEOF'
 import sys, os, re, json
 
+# The scalar/comment/null contract: every consumer of this parser (scan-summary E1-E13,
+# detect-vocabulary) reads these values as data, so the normalization lives HERE, once, not in
+# each consumer. Deliberately not full YAML — only what a trailing comment or a null changes:
+#   - a `#` starts a comment only at the start of a value or after whitespace, outside quotes and
+#     outside a `[...]` flow list (so `C#`, `http://x#frag`, `"a # b"` and `[#a, #b]` are data);
+#   - YAML null (`null`/`Null`/`NULL`/`~`) is JSON null, whereas a QUOTED "null" stays a string;
+#   - an empty value (`key:` / `key: # note`) stays `[]`, as before.
+# Keep this block identical in scan-frontmatter and detect-vocabulary.
+_NULLS = ('null', 'Null', 'NULL', '~')
+
+def strip_comment(s):
+    quote = None
+    depth = 0
+    i = 0
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if quote:
+            if ch == '\\' and quote == '"':
+                i += 2
+                continue
+            if ch == "'" and quote == "'" and s[i + 1:i + 2] == "'":  # '' escapes a single quote
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in '"\'' and (i == 0 or s[i - 1] in ' \t[,'):
+            quote = ch
+        elif ch == '[' and (i == 0 or depth):
+            depth += 1
+        elif ch == ']' and depth:
+            depth -= 1
+        elif ch == '#' and depth == 0 and (i == 0 or s[i - 1] in ' \t'):
+            return s[:i].rstrip()
+        i += 1
+    return s
+
+def scalar(raw):
+    """Comment-stripped scalar -> str, or None for an unquoted YAML null."""
+    v = strip_comment(raw).strip()
+    if v in _NULLS:
+        return None
+    if len(v) >= 2 and v[0] == v[-1] == "'":
+        return v[1:-1].replace("''", "'")
+    return v.strip('"\'')
+
 def parse_frontmatter(content):
     """Parse YAML frontmatter from markdown content. Returns dict of key:value."""
     lines = content.split('\n')
@@ -74,27 +120,33 @@ def parse_frontmatter(content):
         if not line.strip():
             continue
         stripped = line.lstrip()
+        if stripped.startswith('#'):  # a whole-line comment never breaks a list
+            continue
         # List item continuation (any indent level)
         if stripped.startswith('- '):
-            item = stripped[2:].strip().strip('"\'')
-            if current_key and current_list is not None:
+            item = scalar(stripped[2:])
+            if item not in (None, '') and current_key and current_list is not None:
                 current_list.append(item)
                 result[current_key] = current_list
             continue
         m = re.match(r'^(\w[\w\-_]*)\s*:\s*(.*)', line)
         if m:
             current_key = m.group(1)
-            val = m.group(2).strip()
+            val = strip_comment(m.group(2)).strip()
             if val == '' or val == '[]':
                 current_list = []
                 result[current_key] = current_list
+            elif val in _NULLS:
+                result[current_key] = None
+                current_list = None
             elif val.startswith('[') and val.endswith(']'):
                 inner = val[1:-1]
-                items = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
+                items = [x.strip().strip('"\'') for x in inner.split(',')
+                         if x.strip() and x.strip() not in _NULLS]
                 result[current_key] = items
                 current_list = None
             else:
-                result[current_key] = val.strip('"\'')
+                result[current_key] = scalar(val)
                 current_list = None
         else:
             current_list = None
@@ -599,6 +651,52 @@ import sys, os, re, json
 E9_MIN_FILES = 3
 CAMEL_RE = re.compile(r'[a-z][A-Z]')
 
+# The scalar/comment/null contract: every consumer of this parser (scan-summary E1-E13,
+# detect-vocabulary) reads these values as data, so the normalization lives HERE, once, not in
+# each consumer. Deliberately not full YAML — only what a trailing comment or a null changes:
+#   - a `#` starts a comment only at the start of a value or after whitespace, outside quotes and
+#     outside a `[...]` flow list (so `C#`, `http://x#frag`, `"a # b"` and `[#a, #b]` are data);
+#   - YAML null (`null`/`Null`/`NULL`/`~`) is JSON null, whereas a QUOTED "null" stays a string;
+#   - an empty value (`key:` / `key: # note`) stays `[]`, as before.
+# Keep this block identical in scan-frontmatter and detect-vocabulary.
+_NULLS = ('null', 'Null', 'NULL', '~')
+
+def strip_comment(s):
+    quote = None
+    depth = 0
+    i = 0
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if quote:
+            if ch == '\\' and quote == '"':
+                i += 2
+                continue
+            if ch == "'" and quote == "'" and s[i + 1:i + 2] == "'":  # '' escapes a single quote
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in '"\'' and (i == 0 or s[i - 1] in ' \t[,'):
+            quote = ch
+        elif ch == '[' and (i == 0 or depth):
+            depth += 1
+        elif ch == ']' and depth:
+            depth -= 1
+        elif ch == '#' and depth == 0 and (i == 0 or s[i - 1] in ' \t'):
+            return s[:i].rstrip()
+        i += 1
+    return s
+
+def scalar(raw):
+    """Comment-stripped scalar -> str, or None for an unquoted YAML null."""
+    v = strip_comment(raw).strip()
+    if v in _NULLS:
+        return None
+    if len(v) >= 2 and v[0] == v[-1] == "'":
+        return v[1:-1].replace("''", "'")
+    return v.strip('"\'')
+
 def parse_frontmatter(content):
     """Parse YAML frontmatter — tags list + scalar keys. Mirrors scan-frontmatter."""
     lines = content.split('\n')
@@ -619,26 +717,32 @@ def parse_frontmatter(content):
         if not line.strip():
             continue
         stripped = line.lstrip()
+        if stripped.startswith('#'):  # a whole-line comment never breaks a list
+            continue
         if stripped.startswith('- '):
-            item = stripped[2:].strip().strip('"\'')
-            if current_key and current_list is not None:
+            item = scalar(stripped[2:])
+            if item not in (None, '') and current_key and current_list is not None:
                 current_list.append(item)
                 result[current_key] = current_list
             continue
         m = re.match(r'^(\w[\w\-_]*)\s*:\s*(.*)', line)
         if m:
             current_key = m.group(1)
-            val = m.group(2).strip()
+            val = strip_comment(m.group(2)).strip()
             if val == '' or val == '[]':
                 current_list = []
                 result[current_key] = current_list
+            elif val in _NULLS:
+                result[current_key] = None
+                current_list = None
             elif val.startswith('[') and val.endswith(']'):
                 inner = val[1:-1]
-                items = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
+                items = [x.strip().strip('"\'') for x in inner.split(',')
+                         if x.strip() and x.strip() not in _NULLS]
                 result[current_key] = items
                 current_list = None
             else:
-                result[current_key] = val.strip('"\'')
+                result[current_key] = scalar(val)
                 current_list = None
         else:
             current_list = None
