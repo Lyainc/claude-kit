@@ -65,7 +65,7 @@ python3 scripts/check-error-label-drift.py --self-test
 # Expected: OK: all check-error-label-drift self-test cases passed
 python3 scripts/check-error-label-drift.py
 # Expected: OK: error-label-drift clean — N file(s) checked, every E1-EN label matches
-#   source-of-truth max E12 (obsidian-vault-manager/reference/vault-audit-rules.md)
+#   source-of-truth max E13 (obsidian-vault-manager/reference/vault-audit-rules.md)
 # #385: E1-EN audit-error-type range guard. obsidian-vault-manager/reference/vault-audit-rules.md's
 # `## E<N> —` headers are the single source of truth; every other E1-E<N> range label in the
 # repo must match its max, judged per-paragraph so a partial range that mentions the current
