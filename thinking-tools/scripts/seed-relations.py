@@ -738,6 +738,8 @@ class _Node:
         self.came_from = came_from  # identity of the node this one was reached from
         self.error = None
         self.sha = None
+        self.expanded = set(WALK_EDGES[relation])  # edges queued for expansion from this node
+        self.todo = None            # a re-expansion shadow: only these edges are followed
 
 
 def _sha8(raw):
@@ -765,6 +767,7 @@ def walk(seed_file, max_depth=3, max_nodes=25):
     by_loc = {self_res: start}
     by_orig = {(None, rel): start}
     dups, cycles, stops, seen = [], [], [], set()
+    work = [start]  # expansion queue: nodes, plus re-expansions of a node found by another route
 
     def record(bucket, rec):
         ident = (id(bucket),) + tuple(rec.values())
@@ -786,6 +789,25 @@ def walk(seed_file, max_depth=3, max_nodes=25):
     def stop(src, edge, nloc, reason):
         record(stops, {"from": src.key, "edge": edge, "target": key(nloc), "reason": reason})
 
+    def reexpand(src, edge, tgt):
+        # A Seed found again by a different route keeps its first relation/via/depth in the
+        # output (the shortest, first-seen path), but the new route may allow edges the first
+        # one did not (a `predecessor` only follows depends_on; as a `descendant` it also
+        # follows children). Those edges are followed once, from a shadow of the node carrying
+        # the new route's relation, depth and path, so depth/node caps and cycle checks hold
+        # for that route. Each (node, edge) is expanded at most once, so this stays bounded.
+        if tgt.status != "ok" or src.depth + 1 > max_depth:
+            return
+        rel_ = WALK_NEXT[(src.relation, edge)]
+        extra = [e for e in WALK_EDGES[rel_] if e not in tgt.expanded]
+        if not extra:
+            return
+        tgt.expanded.update(extra)
+        shadow = _Node(tgt.key, tgt.loc, src.depth + 1, rel_, src.via + [[edge, tgt.key]],
+                       src.path + [tgt.loc], tgt.status, tgt.seed, src.loc)
+        shadow.todo = extra
+        work.append(shadow)
+
     def follow(src, edge, text):
         nloc = rd.norm(text, None)
         rloc = rd.resolve_quiet(nloc) if nloc[0] is None else None
@@ -797,6 +819,7 @@ def walk(seed_file, max_depth=3, max_nodes=25):
             tgt = by_loc.get(rloc)
         if tgt is not None:
             seen_target(src, edge, tgt)
+            reexpand(src, edge, tgt)
             return
         if src.depth + 1 > max_depth:
             stop(src, edge, nloc, "depth")
@@ -809,6 +832,7 @@ def walk(seed_file, max_depth=3, max_nodes=25):
         if tgt is not None:
             by_orig[nloc] = tgt
             seen_target(src, edge, tgt)
+            reexpand(src, edge, tgt)
             return
         external = ld.loc[0] is not None
         if ld.status == "failed":
@@ -828,16 +852,17 @@ def walk(seed_file, max_depth=3, max_nodes=25):
             except OSError:
                 pass
         nodes.append(node)
+        work.append(node)
         by_loc[ld.loc] = node
         by_orig[nloc] = node
 
     i = 0
-    while i < len(nodes):
-        src = nodes[i]
+    while i < len(work):
+        src = work[i]
         i += 1
         if src.status != "ok":
             continue  # notfound / other-repo nodes are never expanded
-        for edge in WALK_EDGES[src.relation]:
+        for edge in (src.todo or WALK_EDGES[src.relation]):
             for text in _edge_texts(src.seed, edge):
                 follow(src, edge, text)
 
