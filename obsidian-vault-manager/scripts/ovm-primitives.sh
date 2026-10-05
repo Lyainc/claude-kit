@@ -1213,6 +1213,17 @@ PYEOF
 SUBCOMMAND="${1:-}"
 shift || true
 
+# #763: say why a scan comes back empty instead of failing on a path error. The userConfig
+# setting exists only in Claude Code; the env var is the one documented for Codex too.
+case "$SUBCOMMAND" in
+  ""|metrics) ;;
+  *)
+    _howto="Set VAULT_BRIDGE_VAULT_ROOT (or, in Claude Code, the vault-bridge plugin setting vault_path)."
+    [[ -d "$VAULT_ROOT" ]] || die "vault root not found: $VAULT_ROOT. $_howto"
+    [[ -d "$VAULT_ROOT/.obsidian" ]] || log "WARNING: $VAULT_ROOT has no .obsidian/ and may not be an Obsidian vault. $_howto"
+    ;;
+esac
+
 case "$SUBCOMMAND" in
   scan-frontmatter)   cmd_scan_frontmatter "$@" ;;
   scan-filename)      cmd_scan_filename "$@" ;;

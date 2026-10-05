@@ -463,9 +463,10 @@ python3 vault-bridge/scripts/test/test-pre-write-guard.py
 # > ~/vault must resolve identically across pre-write-guard.sh, the Python helpers, and
 # obsidian-vault-manager's ovm-primitives.sh (the one place that used to fall straight to
 # $HOME/vault, ignoring both env vars — breaking /audit for non-default vaults and writing
-# audit state to the wrong one).
+# audit state to the wrong one). Case 9 (#763): a missing or non-Obsidian vault root gets a
+# one-line notice from session-start-manifest.sh (still exit 0) and ovm-primitives.sh.
 python3 vault-bridge/scripts/test/test-vault-path.py
-# Expected: OK: all 8 vault-path cases passed
+# Expected: OK: all 9 vault-path cases passed
 
 # vault-bridge manifest atomic-write self-test (#582) — manifest.json is written via
 # temp-file + os.replace so a hard kill mid-write can never leave a torn manifest on
