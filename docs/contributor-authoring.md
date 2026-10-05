@@ -33,6 +33,15 @@ allowed-tools: Read Write Bash  # 필수: 스킬이 사용하는 도구 목록
 
 `effort:`의 캐시 영향은 실행 환경마다 달라요 (#751, #770). Claude Code 문서(2026-09-30 확인)를 보면 Sonnet 5.5·Opus 5.5를 Claude 구독이나 Anthropic API 키로 쓸 때는 effort를 바꿔도 캐시가 유지돼요. Amazon Bedrock·Google Cloud Agent Platform·Claude apps gateway, `CLAUDE_CODE_DISABLE_EXPERIMENTAL_BETAS`, HIPAA 구성은 예외라서, 여기서는 SKILL.md `effort:`가 세션 ambient와 다르면 메인 messages 캐시가 다시 만들어질 수 있어요. #751의 캐시 붕괴 측정은 Opus 5·Sonnet 5 시절 기록이라 5.5에 그대로 옮기지 않아요. 그래서 일반 5.5 환경에서는 캐시 보호만을 이유로 SKILL.md `effort:`를 빼거나 서브에이전트로 옮기지 않고, 품질과 전체 사용량으로 정해요. 예외 환경이면 모델 전환·TTL 만료·압축 같은 다른 원인을 통제하고 확인한 다음에 정해요. 에이전트 정의(`*/agents/*.md`)의 `effort:`와 Workflow `agent()`의 `opts.effort`는 서브에이전트 자체 컨텍스트라 어느 환경에서든 메인 캐시와 무관해요.
 
+**Codex invoked-skill byte cap (#750).** An explicit `$plugin:skill` call on Codex injects only
+the first 8,000 UTF-8 bytes of SKILL.md, frontmatter included; Hangul costs 3 bytes per
+character. `scripts/check-skill-token-budget.py` fails any plugin SKILL.md over that cap. Keep
+the executable contract in SKILL.md (ordered steps, every approval gate, fallbacks and
+prohibitions, output fields, the Codex section, and a prose mention of each `allowed-tools`
+entry). Move rationale, history and long examples to the skill's `reference.md`, and point to it
+at the step that needs it, saying when to read it and what it defines. A tool-less invocation
+cannot follow that pointer, so a reference may refine the procedure but never carry a safeguard.
+
 ## Vault File Conventions
 
 Files written to `~/vault/` by OVM or vault-bridge follow a unified convention (vault second brain v4, extended by v5 — see `docs/design/vault-second-brain-v4.md` and `docs/design/vault-second-brain-v5.md`). Folder layout, filename pattern, and the frontmatter schema table: [docs/REFERENCE.md](REFERENCE.md#vault-file-conventions).

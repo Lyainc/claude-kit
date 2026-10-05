@@ -304,11 +304,15 @@ python3 scripts/check-skill-catalogue-drift.py
 # listing-cap FAIL per SKILL.md description:. Agents remain outside the Codex skill listing and
 # aggregate total. No new .github/workflows/validate.yml entry: both commands below were already
 # registered/run there, so the new output rides the same CI line.
+# + #750: every plugin SKILL.md must also fit Codex's 8,000-byte invoked-skill cap (whole file,
+# frontmatter included, UTF-8 bytes). An explicit `$plugin:skill` call injects only that prefix,
+# so this is a FAIL, independent of the token budget; `--list` prints each file's bytes.
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py --self-test
-# Expected: OK: all 73 check-skill-token-budget self-test cases passed
+# Expected: OK: all 79 check-skill-token-budget self-test cases passed
 uv run --with tiktoken python3 scripts/check-skill-token-budget.py
 # Expected: OK: skill-token-budget clean — N file(s) checked (SKILL.md/agents/*.md/AGENTS.md/CLAUDE.md),
-#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...)
+#   every one within 5000 tokens, SKILL.md gates inside the window [o200k_base] (largest ...);
+#   every SKILL.md within 8000 bytes
 # To verify a known host/model window: append `--context-window-chars N`; the description total
 # is then capped at `floor(N * 2 / 100)` instead of 8,000.
 # #758: alongside the repo-wide description total, the same run also prints a per-plugin
