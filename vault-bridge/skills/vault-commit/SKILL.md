@@ -41,7 +41,7 @@ elif [ ! -d "$_vr/.obsidian" ]; then echo "VAULT_NO_OBSIDIAN"; fi
 
 Use the first line as `{vault_root}` for all subsequent steps. Then (#763):
 
-- `VAULT_ABSENT` → output the following and stop (Step 2's "not a git repository" would misname the cause):
+- `VAULT_ABSENT` → output the following and stop:
 
   > `{vault_root}`에 볼트 디렉토리가 없습니다. 볼트가 다른 곳에 있다면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 경로를 지정해 주세요.
 
@@ -101,10 +101,7 @@ Capture the output as `{auto_msg}`. If the command fails or returns empty output
 
 Use **AskUserQuestion** to present the change summary and get user approval.
 
-Show the user:
-1. The list of changed files (grouped by status: modified / added / deleted / untracked)
-2. The auto-generated commit message
-3. Four options
+Show the changed files (grouped by status), the auto-generated message, and four options. Run the commit and git commands with Bash.
 
 **AskUserQuestion options**:
 
@@ -120,72 +117,37 @@ Show the user:
 }
 ```
 
-Where `{file_list}` lists each file on its own line with a status prefix (`수정:`, `추가:`, `삭제:`, `미추적:`).
+`{file_list}`: one file per line with a status prefix (`수정:`, `추가:`, `삭제:`, `미추적:`).
 
-**When `{N}` ≥ 10, list the counts per path group above the file list** — a 30-line
-file list is scrolled past, not read, and the approval stops being a real one:
-
-```
-wiki/ 23 · notes/ 2 · sources/ 4 · .obsidian/ 2 · 기타 1
-```
+When `{N}` ≥ 10, list per-path-group counts above the file list (`wiki/ 23 · notes/ 2 · 기타 1`) so the approval is a real one; see `reference.md` §Step 5.
 
 ### Step 6 — Handle user choice
 
 **Option A — "이 메시지로 커밋"** (index 0):
 
-Run the commit with Bash:
 ```bash
 git -C "{vault_root}" commit -m "{auto_msg}"
 ```
 
 **Option B — "그룹별로 나눠서 커밋"** (index 1):
 
-Split the staged changes into one commit per path group. Grouping is **deterministic —
-the first path segment, nothing else** (`wiki/`, `notes/`, `sources/`, `assets/`, `.obsidian/`,
-…). Never group by reading file *content*: the same staged set must produce the same
-commits on every run.
+Split the staged changes into one commit per path group. Before step 1, read `reference.md` §Step 6 Option B — it defines the grouping (first path segment only, never content), the `기타` group for top-level files (pathspec = its explicit quoted member paths, never the label), and the exact per-group `add` forms.
 
-**A top-level file (no `/` in its path) has no directory prefix**, so it cannot be staged
-by one. Those files form a final group named `기타` whose pathspec is the **explicit list of
-its members**, never the label itself — `add -- 기타` fails with `fatal: pathspec '기타' did
-not match any files` and, by the stop-on-failure rule below, aborts the whole split.
-
-1. **Read the groups off the still-staged set**, before anything un-stages it — this
-   listing is the only place the membership exists, and every later step consumes it:
+1. **Read the groups off the still-staged set first**, before anything un-stages it:
    ```bash
    git -C "{vault_root}" -c core.quotepath=false diff --cached --name-only
    ```
-   Group each path by its first segment; paths with no `/` are the `기타` members. Record
-   `기타`'s member paths verbatim. Running this *after* step 2 returns nothing, and the
-   `기타` group then vanishes from the plan with no error — top-level files would be
-   silently left out of every commit.
-2. Un-stage everything Step 4a staged, so each group can be staged alone:
+   Group each path by its first segment; paths with no `/` are `기타` members (record them verbatim).
+2. Un-stage everything Step 4a staged:
    ```bash
    git -C "{vault_root}" reset HEAD
    ```
-3. For each group, in the order listed in step 1 (git emits sorted paths, so it is stable),
-   stage only that group and generate its own message with the Step 4c helper.
-   `{group_pathspec}` is the directory prefix for a normal group; for `기타` it is the
-   recorded member paths, **each passed as its own quoted argument** — vault filenames
-   contain spaces and Hangul, and an unquoted list splits one name into two bad pathspecs:
-   ```bash
-   # the add line takes ONE of these two forms, depending on the group:
-   git -C "{vault_root}" add -A -- "wiki/"                      # normal group: the prefix
-   git -C "{vault_root}" add -A -- "README.md" "2026 계획.md"    # 기타: each member, quoted
-
-   git -C "{vault_root}" -c core.quotepath=false diff --cached --name-status \
-     | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/vault-commit-message.py" "{vault_root}"
-   git -C "{vault_root}" reset HEAD
-   ```
-   Collect `{group} → {group_msg}` pairs. Do not commit yet.
-4. Show the full plan (every group, its file count, and its message) and get **one**
-   confirmation covering all of them. The approval must name each message — an approval
-   of "커밋해줘" that never displayed the messages does not authorize them.
+3. For each group in step 1 order, stage only that group (`add -A -- {group_pathspec}`), generate its message with the Step 4c helper from `-c core.quotepath=false diff --cached --name-status`, then `reset HEAD`. Collect `{group} → {group_msg}`. Do not commit yet.
+4. Show the full plan (every group, its file count, and its message) and get **one** confirmation covering all of them. The approval must name each message — "커밋해줘" without the messages displayed does not authorize them.
 5. On approval, run per group: `add -A -- {group_pathspec}` then `commit -m "{group_msg}"`.
 6. Report every commit hash in Step 7, one line each.
 
-If any group's commit fails, **stop** — do not continue to the next group. Report which
-groups committed and which did not, so the partial state is visible rather than guessed at.
+If any group's commit fails, **stop** — do not continue. Report which groups committed and which did not.
 
 **Option C — "메시지 직접 입력 후 커밋"** (index 2):
 
@@ -229,14 +191,9 @@ Output the stderr content and:
 
 ## Rules
 
-- NEVER run `git commit` without explicit user approval in Step 5.
-- Step 4a runs `git add -A` before generating the diff — this is staging-for-preview only. The commit itself requires user approval.
-- **Grouping is by path prefix only** (Option B). Content-based classification would make two runs of the same staged set produce different commits.
-- **This skill does not filter derived or generated files.** Regenerable indexes (`.ovm/`, `.vault-bridge/manifest.json`) are excluded by the vault's `.gitignore`, so they never reach the staged set. Do not add an exclusion list here — a second list drifts from the first.
-- If the command is interrupted after Step 4a (timeout, crash, context limit) before Step 6 cleanup runs, the vault git index is left staged. Restore with `git -C {vault_root} reset HEAD`.
-- NEVER leave a partial state: if `commit` fails, report the failure clearly.
+- NEVER run `git commit` without explicit user approval in Step 5 (Step 4a's `git add -A` is staging-for-preview only).
+- **Grouping is by path prefix only** (Option B). Do not filter derived/generated files; the vault's `.gitignore` owns exclusions (`reference.md` §Rules).
+- If interrupted after Step 4a before Step 6 cleanup, restore with `git -C {vault_root} reset HEAD`.
+- NEVER leave a partial state: if `commit` fails, report the failure clearly. Handle git errors (permissions, detached HEAD, locked index) by reporting stderr verbatim.
 - Respect `VAULT_BRIDGE_DISABLE=1` (Step 0).
-- Handle git errors gracefully: permission errors, detached HEAD, locked index — report stderr verbatim.
-- This command only commits. It does not push. Never run `git push`.
-- Do not modify any vault files — only git operations.
-- This command is fully independent of `.vault-link` and the vault manifest subsystem.
+- This command only commits. Never run `git push`. Do not modify any vault files — only git operations.
