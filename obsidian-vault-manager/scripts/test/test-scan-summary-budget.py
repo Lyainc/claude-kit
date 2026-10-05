@@ -22,6 +22,13 @@ Test matrix:
      whole vault, and SKILL.md Step 7 uses that call rather than a per-file loop.
   4. fidelity: the records that survive the filter still reproduce the fixture's seeded
      detections — per-type `count` matches what gen-fixture.sh seeded.
+  5. input handling: an absent scan input exits 3 with empty stdout.
+  6. budget WITH a schema: E13 records name every missing field, so a record-count cap alone
+     let a schema push the bundle past the preview (1,802 B -> 2,114 B on this fixture, and
+     the first 2,048 B no longer parsed as JSON). The default line must hold its real byte
+     budget with several schemas and long values, keep every `count`, account for every lost
+     record in `omitted`, and flag the trim — while an explicit --max-per-type (the file
+     re-run) stays unbudgeted.
 
 Run: python3 obsidian-vault-manager/scripts/test/test-scan-summary-budget.py
 Exit 0 on pass, 1 on fail. Builds its own fixture under a fresh mktemp dir (never a fixed
@@ -41,7 +48,8 @@ _HERE = Path(__file__).resolve().parent
 _SCRIPTS = _HERE.parent
 _SKILL_MD = _SCRIPTS.parent / "skills" / "audit" / "SKILL.md"
 
-PREVIEW_LIMIT = 2048  # the harness's Bash-output preview — the whole budget
+PREVIEW_LIMIT = 2048  # the ~2 KB preview the audit docs assume; runtimes may differ
+BUDGET_LIMIT = 2000   # scan-summary.py's own default --max-bytes (newline included)
 
 # What gen-fixture.sh --with-audit-errors seeds, PLUS the legacy defect files the base
 # fixture already carried (no-frontmatter-*, missing-fields-*, 2026-04-bad-name-*, and the
@@ -252,6 +260,94 @@ def case_missing_input_exit_code(fm, fn, vault, workdir: Path, errors: list) -> 
             f"absent scan input exits 3 with empty stdout (rc={rc}, stdout={out!r})", errors)
 
 
+# ---------------------------------------------------------------------------
+# Case 6: the budget holds with a schema present (several schemas, long values)
+# ---------------------------------------------------------------------------
+
+LONG = "장기-업무-항목-스키마-" + "가" * 40
+
+BIG_SCHEMAS = {"schemas": [
+    {"name": LONG + "-1", "when": {"type": "note"},
+     "required": ["track", "track_order", "item", "item_order", "status", "status_since",
+                  "output_at", "long_required_field_name_" + "x" * 30],
+     "enum": {"created": ["never-matches-" + "y" * 40]}},
+    {"name": LONG + "-2", "when": {"type": "wiki"},
+     "required": ["owner", "reviewer", "review_cycle", "audience"],
+     "enum": {"verified": ["no-such-value-" + "z" * 40]}},
+    {"name": LONG + "-3", "when": {"type": "session"},
+     "required": ["project", "ticket", "participants"]},
+]}
+
+
+def schema_summary(fm, fn, links, vault, schema, extra=()) -> tuple:
+    args = [sys.executable, str(_SCRIPTS / "scan-summary.py"), "--frontmatter", str(fm),
+            "--filename", str(fn), "--index", str(links), "--schema", str(schema), *extra]
+    return _run(args, vault)
+
+
+def case_budget_with_schema(fm, fn, links, vault, errors: list) -> None:
+    print("\ncase: budget_with_schema")
+    schema = vault / ".vault-schema.json"
+    schema.write_text(json.dumps(BIG_SCHEMAS, ensure_ascii=False), encoding="utf-8")
+    try:
+        # Reference: the same schemas with no budget (explicit cap, as the file re-run uses).
+        rc, full_out, err = schema_summary(fm, fn, links, vault, schema,
+                                           ["--max-per-type", "5000"])
+        _assert(rc == 0, f"unbudgeted schema run exits 0 (stderr: {err!r})", errors)
+        full = json.loads(full_out)["errors"]
+        _assert(len(full_out.encode("utf-8")) > PREVIEW_LIMIT and "budget" not in json.loads(full_out),
+                "an explicit --max-per-type run is big and carries no budget key (file path)", errors)
+
+        rc, out, err = schema_summary(fm, fn, links, vault, schema)
+        _assert(rc == 0, f"default schema run exits 0 (stderr: {err!r})", errors)
+        size = len(out.encode("utf-8"))
+        _assert(size <= BUDGET_LIMIT and size < PREVIEW_LIMIT,
+                f"default bundle WITH schemas is {size} B, within the {BUDGET_LIMIT} B budget", errors)
+        try:
+            json.loads(out.encode("utf-8")[:PREVIEW_LIMIT])
+            parses = True
+        except ValueError:
+            parses = False
+        _assert(parses, f"the first {PREVIEW_LIMIT} B of the line still parse as JSON", errors)
+        data = json.loads(out)
+        got = data["errors"]
+        _assert(data.get("budget") == {"max_bytes": BUDGET_LIMIT, "trimmed": True},
+                "a trimmed bundle flags budget.trimmed", errors)
+        _assert(got["E13"]["count"] == full["E13"]["count"] and got["E13"]["count"] > 0,
+                f"E13 keeps its full count ({got['E13']['count']}) — a cut never reads as zero",
+                errors)
+        _assert(set(got) == set(full), "every error type survives the trim", errors)
+        for code, entry in got.items():
+            listed = len(entry.get("paths", entry.get("records", [])))
+            _assert(entry["count"] == full[code]["count"]
+                    and entry.get("omitted", 0) == entry["count"] - listed,
+                    f"{code}: count {entry['count']} intact, omitted == count - listed ({listed})",
+                    errors)
+        names = {r["schema"] for r in got["E13"]["records"]}
+        _assert(len(names) >= 1 and all(n.startswith(LONG) for n in names),
+                "kept E13 records are real records (long schema names intact)", errors)
+        kept_total = sum(len(e.get("paths", e.get("records", []))) for e in got.values())
+        _assert(kept_total >= 5, f"the budget is used, not just met ({kept_total} records kept)",
+                errors)
+
+        # A budget the caller sets is honoured in both directions.
+        rc, out0, _ = schema_summary(fm, fn, links, vault, schema, ["--max-bytes", "0"])
+        _assert(rc == 0 and len(out0.encode("utf-8")) > BUDGET_LIMIT
+                and "budget" not in json.loads(out0), "--max-bytes 0 removes the budget", errors)
+        rc, out1, _ = schema_summary(fm, fn, links, vault, schema, ["--max-bytes", "1500"])
+        _assert(rc == 0 and len(out1.encode("utf-8")) <= 1500
+                and json.loads(out1)["budget"]["max_bytes"] == 1500,
+                "--max-bytes 1500 is enforced and recorded", errors)
+        rc, _, err = schema_summary(fm, fn, links, vault, schema, ["--max-bytes", "-1"])
+        _assert(rc == 2, f"a negative --max-bytes is a usage error (rc={rc})", errors)
+    finally:
+        schema.unlink()
+
+    # A vault with no schema is untouched: nothing trimmed, no budget key.
+    rc, plain, _ = summary(fm, fn, links, vault)
+    _assert("budget" not in json.loads(plain), "no schema, nothing to trim: no budget key", errors)
+
+
 def main() -> None:
     errors: list = []
     workdir = Path(tempfile.mkdtemp(prefix="scan-summary-budget-"))
@@ -264,6 +360,7 @@ def main() -> None:
         case_batch_wikilinks(vault, md_files, batch_stdout, errors)
         case_seeded_detections(fm, fn, links, vault, errors)
         case_missing_input_exit_code(fm, fn, vault, workdir, errors)
+        case_budget_with_schema(fm, fn, links, vault, errors)
     finally:
         shutil.rmtree(workdir, ignore_errors=True)
 
@@ -273,7 +370,7 @@ def main() -> None:
         for e in errors:
             print(f"  - {e}", file=sys.stderr)
         sys.exit(1)
-    print("OK: all 5 scan-summary budget/batching cases passed")
+    print("OK: all 6 scan-summary budget/batching cases passed")
 
 
 if __name__ == "__main__":

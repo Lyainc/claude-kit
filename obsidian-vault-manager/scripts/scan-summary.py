@@ -24,9 +24,21 @@ TRUNCATION IS EXPLICIT. `--max-per-type` caps the records emitted per error type
 type that hits the cap carries `"omitted": N` alongside its records. A cut is always
 visible in the output; nothing is ever dropped silently — that silence is the whole bug.
 
+THE BYTE BUDGET IS REAL. A record-count cap does not bound bytes: one E13 record names up to
+every `required` field, so a schema alone pushed the 530-file fixture from 1,802 B to 2,114 B,
+past the ~2 KB preview the audit docs assume. Without an explicit `--max-per-type`, the whole
+line is therefore held to `--max-bytes` (default 2000, which includes the trailing newline):
+records are added round-robin across types until the next one would not fit, every type keeps
+its full `count`, and a type that lost records carries `omitted` (the same signal as the cap).
+A trimmed payload also carries a top-level `"budget": {"max_bytes": N, "trimmed": true}`; it is
+absent when nothing was trimmed, so a payload that already fits is byte-identical to before.
+Passing `--max-per-type` means the caller sized the output for a file (the documented re-run
+for a long tail), so no budget applies unless `--max-bytes` is also given; `--max-bytes 0`
+removes it. 2000 is this script's contract, not a claim about where any runtime cuts.
+
 Usage:
     scan-summary.py --frontmatter <fm.json> --filename <fn.json> [--index <index.json>]
-                    [--schema <.vault-schema.json>] [--max-per-type N]
+                    [--schema <.vault-schema.json>] [--max-per-type N] [--max-bytes N]
     scan-summary.py --self-test            # rule + truncation-signal check, no fixture
 
     fm.json    <- ovm-primitives.sh scan-frontmatter "$scan_dir"
@@ -106,6 +118,14 @@ EXPECTED_FOLDER = {
 # The long tail is NOT lost: raise --max-per-type for a run, redirect that bigger bundle to
 # a file, and Read it — Read paginates, Bash stdout truncates. `omitted` says when to.
 DEFAULT_MAX_PER_TYPE = 2
+
+# The contractual size of the default stdout line, in bytes (newline included). Sits under the
+# ~2 KB preview the audit docs assume with margin, but it is OUR budget: nothing here asserts
+# that any runtime cuts at exactly 2,048 bytes.
+DEFAULT_MAX_BYTES = 2000
+# The one string that is not a droppable record — an E13 `computed:false` reason (often an
+# exception message). Cut to this many characters only when the budget needs the room.
+REASON_MAX_CHARS = 200
 
 # Types whose entire finding is the path — they list bare strings, not one-key objects.
 PATH_ONLY_TYPES = {"E1", "E5", "E11"}
@@ -449,6 +469,76 @@ def build_payload(fm_records: list, fn_records: list, inbound, max_per_type: int
     return payload
 
 
+def _line_size(payload: dict) -> int:
+    """Bytes `main` writes for this payload: compact UTF-8 JSON plus print's newline."""
+    return len(json.dumps(payload, ensure_ascii=False,
+                          separators=(",", ":")).encode("utf-8")) + 1
+
+
+def fit_budget(payload: dict, max_bytes: int) -> dict:
+    """Hold the printed line to `max_bytes` without ever making a cut look like a result.
+
+    Returns `payload` untouched when it already fits (or max_bytes <= 0). Otherwise rebuilds
+    it from a skeleton that keeps every type's FULL `count` and `computed:false` entry, then
+    adds the already-capped records back round-robin (one per type per round, in type order)
+    while the line still fits. A type stops at its first record that does not fit, so what it
+    keeps is always a prefix of its list; every type that kept less than `count` carries
+    `omitted = count - kept`, and the top level carries `budget.trimmed`. The skeleton itself
+    (counts, link_index, computed:false reasons) is never dropped; if it alone is over
+    `max_bytes` (an absurdly small value), `budget.exceeded` says so rather than hiding it.
+    """
+    if max_bytes <= 0 or _line_size(payload) <= max_bytes:
+        return payload
+    skeleton: dict = {}
+    pending: dict = {}  # code -> (list key, full capped list)
+    for code, entry in payload["errors"].items():
+        if "computed" in entry:
+            entry = dict(entry)
+            reason = entry.get("reason")
+            if isinstance(reason, str) and len(reason) > REASON_MAX_CHARS:
+                entry["reason"] = reason[:REASON_MAX_CHARS] + "…"
+            skeleton[code] = entry
+            continue
+        key = "paths" if "paths" in entry else "records"
+        skeleton[code] = {"count": entry["count"], key: []}
+        if entry["count"]:
+            skeleton[code]["omitted"] = entry["count"]
+        pending[code] = (key, entry[key])
+    out = {**payload, "errors": skeleton,
+           "budget": {"max_bytes": max_bytes, "trimmed": True}}
+
+    done: set = set()
+    kept = {code: 0 for code in pending}
+    while True:
+        progressed = False
+        for code, (key, full) in pending.items():
+            if code in done:
+                continue
+            n = kept[code]
+            if n >= len(full):
+                done.add(code)
+                continue
+            entry = skeleton[code]
+            entry[key] = full[:n + 1]
+            omitted = entry["count"] - (n + 1)
+            entry.pop("omitted", None)
+            if omitted:
+                entry["omitted"] = omitted
+            if _line_size(out) > max_bytes:
+                entry[key] = full[:n]
+                entry.pop("omitted", None)
+                if entry["count"] - n:
+                    entry["omitted"] = entry["count"] - n
+                done.add(code)
+                continue
+            kept[code] = n + 1
+            progressed = True
+        if not progressed:
+            if _line_size(out) > max_bytes:  # even the skeleton does not fit: say so
+                out["budget"]["exceeded"] = True
+            return out
+
+
 def _raises(fn, *args) -> bool:
     try:
         fn(*args)
@@ -636,6 +726,34 @@ def self_test() -> int:
              {"path": "notes/n.md", "schema": "업무 항목", "missing": ["track"]}]),
     ]
 
+    # The byte budget: a payload over it is rebuilt with every count intact and every lost
+    # record accounted for by `omitted`; one that fits is returned untouched.
+    big = {"total_files": 9, "max_per_type": 50, "link_index": None, "errors": {
+        "E1": {"count": 40, "paths": [f"notes/{'p' * 60}-{i}.md" for i in range(40)]},
+        "E13": {"count": 3, "records": [
+            {"path": f"notes/{'q' * 80}-{i}.md", "schema": "s" * 40,
+             "missing": ["f" * 30, "g" * 30]} for i in range(3)]},
+        "E5": {"computed": False, "reason": "r" * 900}}}
+    fit = fit_budget(big, 1200)
+    fe = fit["errors"]
+    kept = {k: len(v.get("paths", v.get("records", []))) for k, v in fe.items() if "count" in v}
+    cases += [
+        ("a payload under the budget is returned untouched", fit_budget(big, 10 ** 6) is big),
+        ("an over-budget payload is rebuilt to fit, newline included", _line_size(fit) <= 1200),
+        ("trimming flags itself at the top level", fit["budget"] == {"max_bytes": 1200,
+                                                                      "trimmed": True}),
+        ("trimming keeps every full count and accounts for each lost record in omitted",
+         fe["E1"]["count"] == 40 and fe["E13"]["count"] == 3
+         and all(fe[c].get("omitted", 0) == fe[c]["count"] - kept[c] for c in kept)
+         and kept["E1"] < 40),
+        ("trimming spreads records across types rather than starving one", kept["E13"] >= 1),
+        ("trimming cuts a computed:false reason instead of dropping the entry",
+         fe["E5"]["computed"] is False and 0 < len(fe["E5"]["reason"]) <= REASON_MAX_CHARS + 1),
+        ("max_bytes 0 means no budget", fit_budget(big, 0) is big),
+        ("a budget below the skeleton says it could not be met",
+         fit_budget(big, 50)["budget"].get("exceeded") is True),
+    ]
+
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
@@ -654,7 +772,8 @@ def main(argv: list) -> int:
         return self_test()
 
     opts = {"--frontmatter": None, "--filename": None, "--index": None, "--schema": None,
-            "--max-per-type": str(DEFAULT_MAX_PER_TYPE)}
+            "--max-per-type": str(DEFAULT_MAX_PER_TYPE), "--max-bytes": None}
+    explicit_cap = "--max-per-type" in argv
     i = 0
     while i < len(argv):
         if argv[i] not in opts or i + 1 >= len(argv):
@@ -673,6 +792,16 @@ def main(argv: list) -> int:
     except ValueError as e:
         print(f"bad --max-per-type: {e}", file=sys.stderr)
         return 2
+    try:
+        # No explicit cap -> the default stdout line, held to the budget. An explicit cap means
+        # the caller sized the output for a file (the documented long-tail re-run): no budget.
+        max_bytes = (int(opts["--max-bytes"]) if opts["--max-bytes"] is not None
+                     else (0 if explicit_cap else DEFAULT_MAX_BYTES))
+        if max_bytes < 0:
+            raise ValueError("must be >= 0 (0 = no budget)")
+    except ValueError as e:
+        print(f"bad --max-bytes: {e}", file=sys.stderr)
+        return 2
 
     try:
         fm_records = load(Path(opts["--frontmatter"]))
@@ -688,6 +817,7 @@ def main(argv: list) -> int:
     schemas, schema_problem = load_schema(Path(opts["--schema"]) if opts["--schema"] else None)
     payload = build_payload(fm_records, fn_records, inbound, max_per_type, date.today(),
                             schemas, schema_problem)
+    payload = fit_budget(payload, max_bytes)
     print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
     return 0
 

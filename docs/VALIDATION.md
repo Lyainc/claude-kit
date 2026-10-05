@@ -1100,9 +1100,13 @@ python3 obsidian-vault-manager/scripts/test/test-audit-provenance-autofix-pin.py
 # which bites always emits `omitted: N` (a cut is never silent), that Step 7 extracts
 # wikilinks in ONE batch process instead of one per file (528 round trips / ~110s → 0.14s,
 # the #152 infer-tags batching applied to the last per-file loop), and that the surviving
-# defect records still reproduce the fixture's seeded per-type counts.
+# defect records still reproduce the fixture's seeded per-type counts. Case 6 holds the byte
+# budget WITH `--schema` (three schemas, long names/values): a count cap alone let one schema
+# push the line past 2 KB; the default line now stays within `--max-bytes` (2000), keeps every
+# `count`, accounts for each lost record in `omitted`, flags `budget.trimmed`, and an explicit
+# `--max-per-type` (the file re-run) stays unbudgeted.
 python3 obsidian-vault-manager/scripts/test/test-scan-summary-budget.py
-# Expected: OK: all 5 scan-summary budget/batching cases passed
+# Expected: OK: all 6 scan-summary budget/batching cases passed
 
 # The rules half of the same fix, fixture-free (#614): which predicate fires on what,
 # which fields survive the reduction, that a cut always announces itself, and that a file

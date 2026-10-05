@@ -288,7 +288,7 @@ the defect-bearing records, with only the fields each rule in
 
 ```bash
 python3 scan-summary.py --frontmatter fm.json --filename fn.json [--index index.json] \
-                        [--schema .vault-schema.json] [--max-per-type N]
+                        [--schema .vault-schema.json] [--max-per-type N] [--max-bytes N]
 python3 scan-summary.py --self-test    # rule + truncation-signal cases, no fixture
 # {"total_files":528,"max_per_type":2,"errors":{"E1":{"count":10,"paths":[...],"omitted":8}, ...}}
 ```
@@ -302,6 +302,14 @@ frontmatter". Exit 3 — with nothing on stdout — when an input is absent or u
 "unreadable scan" is never mistaken for "clean vault". `--schema` (#764) adds E13
 (`{path, schema, missing?, invalid?}`) only when the named file exists; an unusable one
 renders `{"computed": false, "reason": ...}`. Format: `reference/vault-audit-rules.md` → `## E13`.
+
+`--max-bytes` (default 2000, newline included) is the real size budget of the default stdout line
+(#799 follow-up): a count cap does not bound bytes, and one E13 record can name every required
+field. It applies only when `--max-per-type` is not given (an explicit cap means the caller sized
+the output for a file); `--max-bytes 0` removes it. An over-budget payload keeps every `count`,
+adds records back round-robin across types while they fit, marks each shortened type with
+`omitted`, and carries top-level `"budget": {"max_bytes": N, "trimmed": true}`
+(`"exceeded": true` if even the counts do not fit); a payload that already fits is unchanged.
 
 ---
 
