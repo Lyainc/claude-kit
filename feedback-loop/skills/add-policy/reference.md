@@ -289,8 +289,12 @@ empties into one of the three sites of SKILL.md §3 — **not a fourth site**; a
 - **On a content-match hit → surface it in the §3 confirmation** ("memory에도 있어요 — 매립 후
   memory 항목은 지울게요"), and after the write remove that memory file **and its
   `MEMORY.md` index line — the line whose markdown link target is that file's basename** (never
-  the title; those repeat). Same confirmation, no second prompt. Use `/usr/bin/trash`; if
-  unavailable, leave the file and report it — **never force-delete, never `rm`**.
+  the title; those repeat). Same confirmation, no second prompt. Remove the file **recoverably**:
+  move it to the OS trash with a trash tool you confirmed exists on this machine (e.g.
+  `/usr/bin/trash` on macOS 26+, Homebrew `macos-trash`, `gio trash` on Linux). Bare `rm` is
+  not one: it reaches the trash only where a personal wrapper wins `PATH`, which neither this
+  plugin nor a hook can guarantee. No confirmed tool → leave the file and its index line and
+  report it — **never force-delete, never `rm`**.
 
 
 ## §6-memory — why the memory scan is two steps

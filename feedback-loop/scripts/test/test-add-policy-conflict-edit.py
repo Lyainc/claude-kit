@@ -31,7 +31,7 @@ The pinned claims:
 6. (#609) §6 names the never-fired retirement as its own outcome, offering BOTH choices
    (delete / narrow the firing condition) under the recommends-only ceiling and on the same
    confirmation, triggered by positive evidence only (never silence) and routing its delete
-   through `/usr/bin/trash`. Supersede only removes what a NEW rule absorbs, and
+   through a recoverable path (never `rm`). Supersede only removes what a NEW rule absorbs, and
    `lint-catalogue.sh` caps the framing but deliberately not the row count, so without this an
    entry that was simply never needed has no exit at all.
 7. (#609) §3's hook site names BOTH forms with the mechanism each actually has — blocking =
@@ -424,9 +424,11 @@ def check_unused_retirement_verdict(text: str, _ref: str = "") -> tuple[bool, st
     if "never silence" not in bullet_text and "not silence" not in bullet_text:
         return False, "unused retirement doesn't exclude silence — absence of evidence is not evidence"
     # The delete is irreversible, so the recovery route is part of the verdict, not a detail.
-    if "/usr/bin/trash" not in bullet_text:
-        return False, "unused retirement doesn't route its delete through /usr/bin/trash"
-    return True, "unused retirement named with both choices, recommends-only, one confirmation, silence excluded, /usr/bin/trash"
+    if "recoverabl" not in bullet_text:
+        return False, "unused retirement doesn't require a recoverable delete"
+    if "never `rm`" not in " ".join(bullet_text.split()):  # the bullet wraps mid-phrase
+        return False, "unused retirement doesn't forbid a bare `rm` delete"
+    return True, "unused retirement named with both choices, recommends-only, one confirmation, silence excluded, recoverable delete never `rm`"
 
 
 
@@ -721,7 +723,7 @@ _PASSING = """\
   outright the entry never came up, never silence. Reminder-site entries only, never a
   user-authored skill. Surfaces
   in the §3 은퇴 field with two choices — delete it, or narrow its firing condition: same
-  confirmation, no second prompt, recommends only, no answer means keep, `/usr/bin/trash` never
+  confirmation, no second prompt, recommends only, no answer means keep, delete recoverably, never
   `rm`.
 - **Contradiction**: if it conflicts with an existing rule and the request does NOT target
   that rule as an explicit edit, do NOT write — report and stop.
@@ -839,9 +841,17 @@ _UNUSED_SILENCE_TRIGGER = _mutate(
 # #609 review: the irreversible half left un-routed. A delete that reaches for `rm` is the
 # one failure this verdict cannot walk back (machine-rule P4).
 _UNUSED_RM_DELETE = _mutate(
-    """no answer means keep, `/usr/bin/trash` never
+    """no answer means keep, delete recoverably, never
   `rm`.""",
     "no answer means keep. Remove it with `rm`.",
+)
+
+# #740: the pre-fix wording pinned one macOS-26-only absolute path instead of the property.
+_UNUSED_PINNED_PATH = _mutate(
+    """no answer means keep, delete recoverably, never
+  `rm`.""",
+    """no answer means keep, `/usr/bin/trash` never
+  `rm`.""",
 )
 
 
@@ -1198,6 +1208,8 @@ def _self_test() -> int:
     cases.append(("unused-silence-trigger: check_unused_retirement_verdict (expect FAIL)", not ok))
     ok, _ = check_unused_retirement_verdict(_UNUSED_RM_DELETE, _PASSING_REF)
     cases.append(("unused-rm-delete: check_unused_retirement_verdict (expect FAIL)", not ok))
+    ok, _ = check_unused_retirement_verdict(_UNUSED_PINNED_PATH, _PASSING_REF)
+    cases.append(("unused-pinned-path (pre-#740 wording): check_unused_retirement_verdict (expect FAIL)", not ok))
 
     ok, _ = check_hook_site_two_forms(_SITE_NO_FORMS, _PASSING_REF)
     cases.append(("site-no-forms: check_hook_site_two_forms (expect FAIL)", not ok))

@@ -41,7 +41,7 @@ The pinned claims:
 6. (#377) The scan LISTS candidates; a Duplicate is a CONTENT match. Conflating the two turns
    "land any rule" into "delete every `feedback` memory on the machine". Scan scope follows
    the chosen site (a project-scoped CLAUDE.md is not duplicated by another project's memory).
-7. (#377) The new delete path is recoverable (`/usr/bin/trash`), never forced, and the MEMORY.md
+7. (#377) The new delete path is recoverable (a confirmed trash tool, never a pinned path), never forced, and the MEMORY.md
    index line is keyed by the deleted file's link target — not by its title.
 8. (#377) Vanilla machine with no ~/.claude/projects memory directory -> the memory scan is
    SILENTLY SKIPPED, never a scan failure. Zero hits is likewise not a failure. But an ERRORED
@@ -270,15 +270,21 @@ def check_memory_scan_fails_loud(text: str) -> tuple[bool, str]:
 def check_memory_delete_safety(text: str) -> tuple[bool, str]:
     """#377 review: this PR introduces a DELETE path — pin its recoverable-delete clause."""
     lower = _prose(text)
-    if "/usr/bin/trash" not in lower:
-        return False, "memory-duplicate removal does not mandate a recoverable delete (/usr/bin/trash)"
+    if "recoverabl" not in lower:
+        return False, "memory-duplicate removal does not mandate a recoverable delete"
+    if "confirmed" not in lower:
+        return False, "the trash tool is not required to be confirmed to exist on this machine"
+    if "leave the file and its index line" not in lower:
+        return False, "with no confirmed trash tool the fallback must leave the file AND its MEMORY.md index line"
+    if "use `/usr/bin/trash`" in lower or "use /usr/bin/trash" in lower:
+        return False, "the memory delete still mandates the single macOS-26-only path /usr/bin/trash"
     # The combined literal, not "never `rm`" alone — that one already appears in pre-#377
     # prose (§2's HARD/SOFT example), so on its own it pins nothing. Proven in review.
     if "never force-delete, never `rm`" not in lower:
         return False, "the never-force-delete / never-`rm` guarantee on the memory delete path is missing"
     if "link target" not in lower:
         return False, "MEMORY.md index-line removal has no join key — an LLM could delete the wrong line"
-    return True, "memory delete is recoverable (/usr/bin/trash), never forced; index line keyed by link target"
+    return True, "memory delete is recoverable via a confirmed tool, never forced; fallback leaves file and index line; index keyed by link target"
 
 
 def check_memory_vanilla_skip(text: str) -> tuple[bool, str]:
@@ -697,8 +703,12 @@ empties into one of the three sites of SKILL.md §3 — **not a fourth site**; a
 - **On a content-match hit → surface it in the §3 confirmation** ("memory에도 있어요 — 매립 후
   memory 항목은 지울게요"), and after the write remove that memory file **and its
   `MEMORY.md` index line — the line whose markdown link target is that file's basename** (never
-  the title; those repeat). Same confirmation, no second prompt. Use `/usr/bin/trash`; if
-  unavailable, leave the file and report it — **never force-delete, never `rm`**.
+  the title; those repeat). Same confirmation, no second prompt. Remove the file **recoverably**:
+  move it to the OS trash with a trash tool you confirmed exists on this machine (e.g.
+  `/usr/bin/trash` on macOS 26+, Homebrew `macos-trash`, `gio trash` on Linux). Bare `rm` is
+  not one: it reaches the trash only where a personal wrapper wins `PATH`, which neither this
+  plugin nor a hook can guarantee. No confirmed tool → leave the file and its index line and
+  report it — **never force-delete, never `rm`**.
 """)
 
 _REF_SNIPPET_SECTION = _normalise("""\
@@ -960,7 +970,7 @@ failure. But an errored scan is not an empty one: anything on stderr means the s
 INCONCLUSIVE, never `none` — "memory 스캔 실패" in the confirmation. On a
 hit, surface it in the 1-click confirmation ("매립 후 memory 항목은 지울게요") and delete the
 duplicate memory file after the landfill write — its MEMORY.md index line is the one whose
-markdown link target is that file's basename. Use /usr/bin/trash; never force-delete, never `rm`.
+markdown link target is that file's basename. Delete recoverably with a confirmed trash tool; with none, leave the file and its index line. Never force-delete, never `rm`.
 Memory is an input, never a destination: an input queue, not a fourth site.
 
 ## §6-snippet — the runnable scan command
@@ -1142,6 +1152,15 @@ def _self_test() -> int:
     assert orphaned != _PASSING_REF, "fixture no-opped: the §6-snippet heading moved"
     ok, _ = check_memory_snippet_runs(orphaned)
     cases.append(("orphaned §6-snippet heading — block present, pointer dangling (expect FAIL)", not ok))
+
+    # #740: the pre-fix wording pinned one macOS-26-only absolute path; the property checks must
+    # reject it, and the passing fixture must satisfy them.
+    prefix_delete = (
+        "Use `/usr/bin/trash`; if\n  unavailable, leave the file and report it — "
+        "**never force-delete, never `rm`**."
+    )
+    ok, _ = check_memory_delete_safety(prefix_delete)
+    cases.append(("memory delete pinned to /usr/bin/trash (pre-#740 wording) (expect FAIL)", not ok))
 
     # #663: the whole-region pins + adjacency, against the real files and mutations of them.
     for desc, skill_text, ref_text, expect_pass in _CANONICAL_CASES:
