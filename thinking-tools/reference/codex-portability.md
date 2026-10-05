@@ -20,3 +20,6 @@ Claude-only mechanics while preserving its decision rules and safety gates.
    rather than empty. Read runtime-specific references only for the branch being executed.
 7. Do not emit Claude slash-command, hook, model-routing, or tool-call syntax. Render the source
    skill's user-facing result directly in the requested language.
+8. When a skill tells the user how to set the vault root, name only the `VAULT_BRIDGE_VAULT_ROOT`
+   environment variable. Drop the plugin setting `vault_path`/`VAULT_BRIDGE_VAULT_PATH`: it is
+   Claude `userConfig`, which has no verified Codex equivalent.
