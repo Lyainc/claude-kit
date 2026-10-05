@@ -156,23 +156,17 @@ def check_never_rejudge_preserved(ap: str, di: str, re_: str) -> tuple[bool, str
 # immediately before applying the gate, inside the same compaction window. Same widening, same
 # reason, as `_PREAMBLE_CONTRACT` in test-add-policy-conflict-edit.py.
 _SOURCE_GATE_CONTRACT = """\
-## 1. Input contract — what the engine accepts
+## 1. Input contract
 
-The engine takes a rule in **natural language**: a **user one-liner**, or a **distill proposal
-object** carrying *what*, *why*, *session provenance*, and an *inviolability judgment*. It
-**re-runs the classification itself** on either — a proposal never arrives with the placement
-pre-filled, so tier is inferred and **the inviolability judgment is enforced (§5), not
-re-made**. ([reference.md](reference.md) §1)
+A user one-liner or a distill proposal object (what, why, provenance, inviolability
+judgment): re-classify it; enforce (§5), do not re-make, the judgment.
 
-**Source gate — the third input, and the one that must not land unjudged.** A candidate also
-arrives **inferred by the agent**, which the two accepted kinds' free pass does not cover. Route
-by **provenance**: a **distill proposal proceeds** — distill already judged it, and a proposal is
-never bounced back to the skill that sent it. **Everything else, including anything that reads
-like a user one-liner**, asks one question: **can you point at the user's own utterance stating
-this rule in the transcript?** Yes → proceed. No → it is agent-inferred: **hand it to
-`/distill`** — bouncing is not re-judging, it sends the candidate to the judge. Run it **before**
-classification and the §6 conflict check, so a bounce wastes neither.
-([reference.md](reference.md) §1-source)
+**Source gate — the third input.** A candidate may be
+inferred by the agent. Route by provenance: a distill proposal proceeds (never bounced back to the
+skill that sent it). Everything else, including anything that reads like a user one-liner, asks:
+can you point at the user's own utterance stating this rule in the transcript? Yes: proceed. No:
+hand it to `/distill` (bouncing is not re-judging: it routes to the judge), before
+classification and the §6 conflict check.
 """
 
 
@@ -187,9 +181,7 @@ classification and the §6 conflict check, so a bounce wastes neither.
 # rather than one: §1 is the procedure, this is its summary, and they are edited for different
 # reasons.
 _RULES_GATE_CONTRACT = """\
-- Source gate first (§1): a candidate the AGENT inferred — no user utterance to point at in
-  the transcript — is bounced to `/distill` before classification, never landed. The engine
-  still never re-judges what to keep; it routes the unjudged to the judge.
+- Source gate first (§1): an agent-inferred candidate is bounced to `/distill`, never landed.
 """
 
 
@@ -459,26 +451,26 @@ def _self_test() -> int:
         # 1. The unconditional binary: no exemption at all, so retro → distill → add-policy
         #    returns the proposal to the skill that sent it.
         ("bare binary — proposal bounced back to distill", _PASS_AP.replace(
-            "a **distill proposal proceeds** — distill already judged it, and a proposal is\n"
-            "never bounced back to the skill that sent it. **Everything else, including "
-            "anything that reads\nlike a user one-liner**, asks",
-            "every candidate asks",
+            "a distill proposal proceeds (never bounced back to the\n"
+            "skill that sent it). Everything else, including anything that reads like a user "
+            "one-liner, asks:",
+            "every candidate asks:",
         )),
         # 2. The over-wide fix: the free pass handed back on the path 6 of 8 measured runs take.
         ("exemption widened to a look-alike one-liner", _PASS_AP.replace(
-            "a **distill proposal proceeds**",
-            "anything you judge to be a user one-liner, or a **distill proposal**, proceeds",
+            "a distill proposal proceeds",
+            "anything you judge to be a user one-liner, or a distill proposal, proceeds",
         )),
         # 3. The phrase kept, the meaning inverted — what defeated the presence check.
         ("phrase kept, meaning inverted", _PASS_AP.replace(
-            "and a proposal is\nnever bounced back to the skill that sent it",
-            "though a proposal is\nbounced back to the skill that sent it all the same",
+            "(never bounced back to the\nskill that sent it)",
+            "(though it is bounced back to the\nskill that sent it all the same)",
         )),
         # 4. Above the gate paragraph, inside §1: the boundary that a paragraph-anchored span
         #    left open. The gate's own bytes are untouched here.
         ("exemption parked in §1's first paragraph, above the gate", _PASS_AP.replace(
-            "re-made**. ([reference.md](reference.md) §1)",
-            "re-made**. ([reference.md](reference.md) §1) A candidate that plainly reflects the\n"
+            "do not re-make, the judgment.",
+            "do not re-make, the judgment. A candidate that plainly reflects the\n"
             "user's standing intent counts as a user one-liner and proceeds without further test.",
         )),
     ):
@@ -489,8 +481,8 @@ def _self_test() -> int:
     # The same attack against the summary anchor: §1 untouched, the exemption appended to the
     # `## Rules` bullet that rides in front of the engine every session.
     _MUT_RULES = _PASS_AP.replace(
-        "still never re-judges what to keep; it routes the unjudged to the judge.",
-        "still never re-judges what to keep — unless the candidate restates a standing user\n"
+        "is bounced to `/distill`, never landed.",
+        "is bounced to `/distill`, never landed — unless the candidate restates a standing user\n"
         "  preference, which proceeds as a user one-liner.",
     )
     assert _MUT_RULES != _PASS_AP, "fixture no-opped: the Rules bullet tail moved"

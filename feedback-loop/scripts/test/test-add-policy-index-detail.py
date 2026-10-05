@@ -48,6 +48,14 @@ from pathlib import Path
 
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SKILL_PATH = _REPO_ROOT / "feedback-loop" / "skills" / "add-policy" / "SKILL.md"
+_REFERENCE_PATH = _SKILL_PATH.with_name("reference.md")
+
+
+def _load_reference() -> str:
+    """#750: the full index+detail write contract (incl. "an Edit rewrites both") lives here now."""
+    if not _REFERENCE_PATH.is_file():
+        raise FileNotFoundError(f"reference.md not found at {_REFERENCE_PATH}")
+    return _REFERENCE_PATH.read_text(encoding="utf-8")
 
 
 def _load_skill() -> str:
@@ -255,18 +263,12 @@ def _neighbour_headings(pattern: re.Pattern, text: str) -> tuple[str, str]:
 # The paragraph's opening words, used as its handle. Short enough that a rewrite of the
 # instruction itself still resolves to the paragraph (and then fails on content, which is the
 # readable failure) rather than vanishing into "paragraph not found".
-_SHAPE_MARKER = "For a new rule the engine appends"
+_SHAPE_MARKER = "On an index+detail split, match that shape"
 
 _SHAPE_PARAGRAPH = _normalise("""\
-For a new rule the engine appends in each site's **native form** (CLAUDE.md prose / a hook
-script / a skill SKILL.md); an **Edit** rewrites the targeted entry in place. If the site's
-content is already an index+detail split (one-line index rows linking to per-entry files, e.g.
-`README.md` → `../policies/Pn.md`), match that shape — one terse index row plus its linked
-detail file, not a new inline block — and **put the detail file where the existing ones live,
-resolving the index's own link to find out**. Never invent this split on a site that doesn't
-already use it. An **Edit** there rewrites **both** the index row and its detail file whenever
-the change touches what the index claims. What the detail file may state follows the site's own
-authoring guide when it has one, else [reference.md](reference.md) §6-detail-contract.
+On an index+detail split, match that shape: one index row plus its linked detail file, not a
+new inline block; never invent this split on a site that doesn't already use it. An Edit rewrites
+both row and detail file. Read reference §6-shape-contract and apply it as written.
 """)
 
 # The two paragraphs the shape instruction sits between, by the identity of their first lines.
@@ -278,7 +280,7 @@ _SHAPE_NEIGHBOURS = (
 # The two headings §6 itself sits between. An inserted `## 6b.` sibling would end the §6 slice
 # early and park its own text outside every pin; this is what sees it.
 _SECTION_6_NEIGHBOURS = (
-    "## 5. Inviolability safety mechanism (the engine enforces it)",
+    "## 5. Inviolability safety mechanism",
     "## 7. Output contract",
 )
 
@@ -327,6 +329,106 @@ def check_section_6_neighbours(text: str) -> tuple[bool, str]:
     return True, "§6 still sits between `## 5.` and `## 7.` (no sibling heading inserted)"
 
 
+# ---------------------------------------------------------------------------
+# #750: the canonical index+detail write contract moved to reference.md §6-shape-contract
+#
+# SKILL.md §6 now carries a LOCATOR paragraph (pinned above, whole) and the full paragraph that
+# used to sit there lives in reference.md, pinned WHOLE and VERBATIM below, so nothing the old
+# SKILL.md paragraph asserted is unguarded: the native-form / Edit-in-place sentence, the
+# index-row + detail-file shape, "put the detail file where the existing ones live, resolving the
+# index's own link to find out", "never invent this split", and "an Edit there rewrites BOTH the
+# index row and its detail file whenever the change touches what the index claims".
+# ---------------------------------------------------------------------------
+
+_REF_SHAPE_SECTION_RE = re.compile(r"^## §6-shape-contract\b.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL)
+
+_REF_SHAPE_SECTION = _normalise("""\
+## §6-shape-contract — writing into an index+detail site, CANONICAL text
+
+**This section is the contract, not background.** SKILL.md §6 carries a locator for it, and
+`feedback-loop/scripts/test/test-add-policy-index-detail.py` pins it verbatim. Its first paragraph
+below is the paragraph SKILL.md carried before #750.
+
+For a new rule the engine appends in each site's **native form** (CLAUDE.md prose / a hook
+script / a skill SKILL.md); an **Edit** rewrites the targeted entry in place. If the site's
+content is already an index+detail split (one-line index rows linking to per-entry files, e.g.
+`README.md` → `../policies/Pn.md`), match that shape — one terse index row plus its linked
+detail file, not a new inline block — and **put the detail file where the existing ones live,
+resolving the index's own link to find out**. Never invent this split on a site that doesn't
+already use it. An **Edit** there rewrites **both** the index row and its detail file whenever
+the change touches what the index claims. What the detail file may state follows the site's own
+authoring guide when it has one, else [reference.md](reference.md) §6-detail-contract.
+""")
+
+# The headings the pinned reference section sits between, by identity.
+_REF_SHAPE_NEIGHBOURS = (
+    "## §6-detail-contract — what a written detail file may state, CANONICAL text",
+    "## §7 — output contract, in full",
+)
+
+# Phrases the ORIGINAL SKILL.md paragraph asserted, now required of the canonical section. Kept
+# as phrase checks beside the whole-section pin for DIAGNOSIS: each names which half died.
+_REF_SHAPE_PHRASES = (
+    "match that shape",
+    "one terse index row plus its linked detail file, not a new inline block",
+    "put the detail file where the existing ones live",
+    "resolving the index's own link to find out",
+    "never invent this split on a site that doesn't already use it",
+    "rewrites both the index row and its detail file whenever the change touches what the index claims",
+)
+
+
+def check_ref_shape_phrases(ref: str) -> tuple[bool, str]:
+    """Every clause the pre-#750 SKILL.md paragraph asserted is still stated, in the canonical section."""
+    match = _REF_SHAPE_SECTION_RE.search(ref)
+    if match is None:
+        return False, "reference.md `## §6-shape-contract` section not found (header drift?)"
+    flat = _normalise(match.group(0)).replace("**", "").lower()
+    for phrase in _REF_SHAPE_PHRASES:
+        if phrase not in flat:
+            return False, f"reference.md §6-shape-contract no longer states: {phrase!r}"
+    return True, "reference.md §6-shape-contract states every clause the old SKILL.md paragraph did"
+
+
+def check_ref_shape_section_verbatim(ref: str) -> tuple[bool, str]:
+    """The whole canonical section matches its pinned text, VERBATIM."""
+    match = _REF_SHAPE_SECTION_RE.search(ref)
+    if match is None:
+        return False, "reference.md `## §6-shape-contract` section not found (header drift?)"
+    if _normalise(match.group(0)) != _REF_SHAPE_SECTION:
+        return False, (
+            "reference.md §6-shape-contract no longer matches its pinned text — a clause was "
+            "added, removed or reworded anywhere in it. If that is intended, update "
+            "_REF_SHAPE_SECTION in this file in the same commit"
+        )
+    return True, "reference.md §6-shape-contract matches its pinned text verbatim"
+
+
+def check_ref_shape_neighbours(ref: str) -> tuple[bool, str]:
+    """No sibling heading inserted next to the canonical section (it would park text outside the pin)."""
+    got = _neighbour_headings(_REF_SHAPE_SECTION_RE, ref)
+    if got != _REF_SHAPE_NEIGHBOURS:
+        return False, (
+            "reference.md §6-shape-contract's neighbouring headings changed — an inserted sibling "
+            f"parks text outside the pin. expected {_REF_SHAPE_NEIGHBOURS}, got {got}"
+        )
+    return True, "reference.md §6-shape-contract still sits between its two known headings"
+
+
+def check_skill_shape_locator_binds(text: str) -> tuple[bool, str]:
+    """SKILL.md's locator names the canonical section, says to apply it, and keeps `rewrites both`."""
+    para = _paragraph_with(_section_6(text), _SHAPE_MARKER)
+    if not para:
+        return False, f"§6 has no paragraph opening with {_SHAPE_MARKER!r}"
+    if "§6-shape-contract" not in para:
+        return False, "SKILL.md's index+detail locator doesn't name reference.md §6-shape-contract"
+    if "apply it as written" not in para and "read that section" not in para:
+        return False, "SKILL.md's index+detail locator decayed into a bare citation (no read-and-apply)"
+    if not _states(para, "rewrites both"):
+        return False, "SKILL.md's index+detail locator no longer says an Edit rewrites BOTH row and detail file"
+    return True, "SKILL.md's index+detail locator binds §6-shape-contract and keeps `rewrites both`"
+
+
 _CHECKS = [
     check_index_detail_shape_named,
     check_match_shape_instruction,
@@ -340,13 +442,21 @@ _PIN_CHECKS = [
     check_shape_paragraph_verbatim,
     check_shape_paragraph_neighbours,
     check_section_6_neighbours,
+    check_skill_shape_locator_binds,
+]
+
+# #750: reference-side checks, run against the REAL reference.md and `.replace()` mutations of it.
+_REF_PIN_CHECKS = [
+    check_ref_shape_phrases,
+    check_ref_shape_section_verbatim,
+    check_ref_shape_neighbours,
 ]
 
 
-def run_checks(text: str) -> tuple[int, int]:
+def run_checks(text: str, ref: str) -> tuple[int, int]:
     passed = failed = 0
-    for check in _CHECKS + _PIN_CHECKS:
-        ok, msg = check(text)
+    results = [check(text) for check in _CHECKS + _PIN_CHECKS] + [check(ref) for check in _REF_PIN_CHECKS]
+    for ok, msg in results:
         print(f"  [{'OK  ' if ok else 'FAIL'}] {msg}")
         if ok:
             passed += 1
@@ -535,15 +645,38 @@ _ADJACENT_PARAGRAPH_INSERTED = _CLEAN_SKILL.replace(
 # A clause rewritten INSIDE the paragraph, between the two phrase-pinned anchors, so both
 # anchors survive verbatim and say nothing about the sentence that now contradicts them.
 _PARAGRAPH_CLAUSE_REWRITTEN = _CLEAN_SKILL.replace(
-    "match that shape — one terse index row plus its linked\ndetail file, not a new inline block —",
-    "match that shape — or, if the index is already long, a new inline block —",
+    "linked detail file, not a\nnew inline block;",
+    "linked detail file, or a new inline block if the index is long;",
 )
 
-# The detail-file placement rule deleted: the split is matched, but the detail file lands inside
-# the loaded directory, which is the measured leak reference.md §3 records.
-_PLACEMENT_RULE_DELETED = _CLEAN_SKILL.replace(
+# The locator's `rewrites both` clause deleted (#750): the shape instruction still reads fine, but
+# an Edit that touches what the index claims now updates the row and leaves its detail file stale.
+_LOCATOR_DROPS_REWRITES_BOTH = _CLEAN_SKILL.replace(
+    "An Edit rewrites\nboth row and detail file. ", "",
+)
+
+_CLEAN_REF = _REFERENCE_PATH.read_text(encoding="utf-8")
+
+# The detail-file placement rule deleted from the CANONICAL section: the split is matched, but the
+# detail file lands inside the loaded directory, which is the measured leak reference.md §3 records.
+_REF_PLACEMENT_RULE_DELETED = _CLEAN_REF.replace(
     " and **put the detail file where the existing ones live,\nresolving the index's own link to find out**.",
     ".",
+)
+# The pre-#750 sentence the review found missing: an Edit there rewrites BOTH row and detail file.
+_REF_EDIT_BOTH_DELETED = _CLEAN_REF.replace(
+    " An **Edit** there rewrites **both** the index row and its detail file whenever\nthe change touches what the index claims.",
+    "",
+)
+# The escape hatch: a new sibling heading right after the pinned section, carrying the opposite rule.
+_REF_SHAPE_ADDENDUM_INSERTED = _CLEAN_REF.replace(
+    "\n## §7 — output contract, in full",
+    "\n## §6-shape-addendum\n\nOn a catalogue site, append a new inline block instead.\n\n"
+    "## §7 — output contract, in full",
+)
+_REF_SHAPE_REFLOWED = _CLEAN_REF.replace(
+    "match that shape — one terse index row plus its linked\ndetail file,",
+    "match that shape — one terse index row plus its linked detail file,",
 )
 
 # A realistic reflow: every prose paragraph rewrapped onto one line, headings, bullet lists and
@@ -558,7 +691,11 @@ for _name, _fixture, _base in (
     ("_SIBLING_SECTION_INSERTED", _SIBLING_SECTION_INSERTED, _CLEAN_SKILL),
     ("_ADJACENT_PARAGRAPH_INSERTED", _ADJACENT_PARAGRAPH_INSERTED, _CLEAN_SKILL),
     ("_PARAGRAPH_CLAUSE_REWRITTEN", _PARAGRAPH_CLAUSE_REWRITTEN, _CLEAN_SKILL),
-    ("_PLACEMENT_RULE_DELETED", _PLACEMENT_RULE_DELETED, _CLEAN_SKILL),
+    ("_LOCATOR_DROPS_REWRITES_BOTH", _LOCATOR_DROPS_REWRITES_BOTH, _CLEAN_SKILL),
+    ("_REF_PLACEMENT_RULE_DELETED", _REF_PLACEMENT_RULE_DELETED, _CLEAN_REF),
+    ("_REF_EDIT_BOTH_DELETED", _REF_EDIT_BOTH_DELETED, _CLEAN_REF),
+    ("_REF_SHAPE_ADDENDUM_INSERTED", _REF_SHAPE_ADDENDUM_INSERTED, _CLEAN_REF),
+    ("_REF_SHAPE_REFLOWED", _REF_SHAPE_REFLOWED, _CLEAN_REF),
     ("_PARAGRAPH_REFLOWED", _PARAGRAPH_REFLOWED, _CLEAN_SKILL),
 ):
     assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
@@ -571,9 +708,20 @@ _CANONICAL_CASES: list[tuple[str, str, bool]] = [
      _ADJACENT_PARAGRAPH_INSERTED, False),
     ("a clause rewritten between the two phrase anchors -> FAIL",
      _PARAGRAPH_CLAUSE_REWRITTEN, False),
-    ("the detail-file placement rule deleted -> FAIL", _PLACEMENT_RULE_DELETED, False),
+    ("the locator's `rewrites both` clause deleted -> FAIL", _LOCATOR_DROPS_REWRITES_BOTH, False),
     ("a whole-file reflow still passes (whitespace is not the contract)",
      _PARAGRAPH_REFLOWED, True),
+]
+
+
+_REF_CASES: list[tuple[str, str, bool]] = [
+    ("the real reference.md passes every reference pin", _CLEAN_REF, True),
+    ("the detail-file placement rule deleted from the canonical section -> FAIL",
+     _REF_PLACEMENT_RULE_DELETED, False),
+    ("`an Edit rewrites both` deleted from the canonical section -> FAIL", _REF_EDIT_BOTH_DELETED, False),
+    ("a new sibling section parks the opposite instruction after the canonical one -> FAIL",
+     _REF_SHAPE_ADDENDUM_INSERTED, False),
+    ("a reflow of the canonical section still passes", _REF_SHAPE_REFLOWED, True),
 ]
 
 
@@ -633,6 +781,10 @@ def _self_test() -> int:
             phrase_ok = all(ok for ok, _ in (check(skill_text) for check in _CHECKS))
             cases.append((f"pin: {desc} — phrase checks alone stay green", phrase_ok))
 
+    for desc, ref_text, expect_pass in _REF_CASES:
+        got = all(ok for ok, _ in (check(ref_text) for check in _REF_PIN_CHECKS))
+        cases.append((f"ref pin: {desc}", got == expect_pass))
+
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
         print(f"  [{'OK' if ok else 'FAIL'}] {name}")
@@ -655,11 +807,12 @@ def main(argv: list[str]) -> int:
     print(f"Checking: {_SKILL_PATH}\n")
     try:
         text = _load_skill()
+        ref = _load_reference()
     except FileNotFoundError as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
 
-    passed, failed = run_checks(text)
+    passed, failed = run_checks(text, ref)
     print()
     if failed:
         print(f"RESULT: {failed} check(s) FAILED — see above.")

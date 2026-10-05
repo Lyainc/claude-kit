@@ -588,48 +588,22 @@ _REF_SNIPPET_SECTION_RE = _SNIPPET_SECTION_RE
 _MEMORY_LOCATOR_MARKER = "**The Duplicate scan also covers native auto-memory**"
 
 _SKILL_SECTION_3 = _normalise("""\
-## 3. The three landfill sites (+ tier absorbed, 1-click UX)
+## 3. The three landfill sites
 
-There are exactly **three** native places a rule lands (the small count keeps classification
-reliable and the engine portable):
+- **reminder** (CLAUDE.md or `~/.claude/rules`): always-read, SOFT, one prose line.
+- **hook**: deterministic, HARD; guard script + `hooks` entry, working tree only, never
+  self-activated. Blocking = PreToolUse + `permissionDecision: "deny"`; recovery = PostToolUse +
+  `exit 2`, reports only.
+- **skill**: `~/.claude/skills/<name>/SKILL.md`.
 
-- **reminder** (CLAUDE.md or `~/.claude/rules`) — an always-read rule, **SOFT**: one prose line
-  appended to the layer's channel, **layer-determined** (below).
-- **hook** — deterministic auto-enforcement, **HARD**: a guard script + a `hooks` registration
-  entry, working tree only, never self-activated. **Two forms** (#609), by *when* the violation
-  becomes visible: **blocking** = PreToolUse + `hookSpecificOutput.permissionDecision: "deny"`;
-  **recovery** = PostToolUse + `exit 2`, stderr back to Claude — reports only
-  (PostToolUse carries neither `permissionDecision` nor `updatedInput`).
-- **skill** — an invocable procedure: `~/.claude/skills/<name>/SKILL.md` (patch > extend > new).
+Tier folds into the site (HARD ⇒ hook, SOFT ⇒ reminder), inferred per reference §3-tier, never
+asked; HARD means "deterministically enforced", not "a guard blocks".
 
-**Tier folds into the site, so the user never picks an axis** (**HARD ⇒ hook, SOFT ⇒
-reminder**); the hook's *form* folds the same way, never a second axis — **HARD means
-"deterministically enforced", not "a guard blocks"** (#609), since recovery auto-fires like
-blocking but cannot undo. The scope/channel question is the site choice itself.
-
-**Layer → tier default (engine inference):** *judgment* and *expression* are **always SOFT**
-(not deterministically guardable); a *work-rule* is **HARD (→ hook) iff its violation is
-deterministically detectable**, else SOFT — detectable **before** the act → blocking, only
-**after** (from what the act leaves behind) → recovery. Examples: [reference.md](reference.md)
-§3-tier.
-
-**SOFT reminder channel — routed by layer (one mapping, NOT a fourth site):** *judgment /
-expression* (stance·voice) → the top-level **`~/.claude/CLAUDE.md`** persona block; *work-rule*
-→ the machine **work-rule catalogue `~/.claude/rules`** *if it exists*, **otherwise fall back to
-`~/.claude/CLAUDE.md`**. It routes by the layer §2 already computed — no new site, no new axis.
-The fallback is **non-negotiable: never hardcode the machine's `rules/` structure**: detect it
-(`[ -d "$HOME/.claude/rules" ]`) and degrade to CLAUDE.md where it is absent. Per-site
-conflict target, and why the fallback is non-negotiable: [reference.md](reference.md) §3-sites.
-
-**Thin pointer + backing detail (catalogue channel):** machine-level reminders ride in *every*
-session, so the catalogue holds the detail and `~/.claude/CLAUDE.md` gets at most a one-line
-pointer — none if it already points at the catalogue, never full rule prose. And **everything
-under `~/.claude/rules/` is loaded, not just its index**, so write the new detail file where the
-index's own links point, outside that directory; never add a second `.md` there. (Measured leak:
-[reference.md](reference.md) §3)
-
-**1-click confirmation**: present the *decision*, not the grid — where it lands, the exact
-text/diff, one line of why-here — then one confirmation:
+SOFT channel by layer (not a fourth site): judgment/expression → `~/.claude/CLAUDE.md`; work-rule →
+`~/.claude/rules` if it exists, else fall back to CLAUDE.md. Never hardcode the machine's `rules/`
+structure: detect it (`[ -d "$HOME/.claude/rules" ]`). Catalogue: a thin pointer in CLAUDE.md at
+most (none if it already points there), never full rule prose; `~/.claude/rules/` is loaded whole,
+so never add a second `.md` there.
 
 ```
 ## 분류 결과
@@ -642,22 +616,15 @@ text/diff, one line of why-here — then one confirmation:
 - memory 중복: <none | memory에도 있어요: <path...> — 매립 후 그 항목은 지울게요 (§6)>
 ```
 
-Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" — with two exceptions. 필요성 not
-통과, and then the gate's recommendation is the first option and the question carries **that**
-recommendation, never a generic refusal: 기존 항목으로 충분 asks about folding it into that
-entry, 안 넣는 게 나음 asks whether to land it at all. And 은퇴 = 미발동, a three-way pick rather
-than a yes/no (#609). Wordings: [reference.md](reference.md) §3-gate-question. **Never write without confirmation.** If any axis
-cannot be settled, hold the classification and report what is ambiguous instead of placing it
-arbitrarily ("don't know" beats a confident-wrong placement).
+Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" If 필요성 is 기존 항목으로 충분 /
+안 넣는 게 나음 or 은퇴 is 미발동, first read reference §3-gate-question (binding): the
+recommendation is the first option, never a generic refusal; 미발동 is a three-way pick, not
+yes/no. Never write without confirmation; hold an unsettled axis.
 """)
 
 _SKILL_MEMORY_LOCATOR = _normalise("""\
-**The Duplicate scan also covers native auto-memory** (`~/.claude/projects/<proj>/memory/*.md`
-`feedback` entries), in two steps whose conflation is a data-loss bug. **Its canonical, binding
-text is [reference.md](reference.md) §6-memory-contract: Read that section and apply it as
-written, then read §6-snippet and run the command it ships — this paragraph is a locator, not
-the contract.** Memory is an input queue that empties into a §3 site — **never a fourth site**,
-never a write destination. Why two steps: [reference.md](reference.md) §6-memory.
+**The Duplicate scan also covers native auto-memory**: read reference §6-memory-contract and apply it as written, then read
+§6-snippet and run the command it ships.
 """)
 
 _REF_MEMORY_SECTION = _normalise("""\
@@ -747,11 +714,11 @@ SCAN_ROOT="$HOME/.claude/projects"
 
 # Each pinned region's two immediate neighbours, by identity.
 _SKILL_SECTION_3_NEIGHBOURS = (
-    "## 2. Classification grid (default taxonomy — editable, replaceable)",
-    "## 4. User-shell receiver — the destination outside the three sites",
+    "## 2. Classification grid",
+    "## 4. User-shell receiver",
 )
 _MEMORY_LOCATOR_NEIGHBOURS = (
-    "- **Duplicate**: if the site already states the same rule, strengthen that entry",
+    "- **Duplicate**: the site already states the rule → strengthen that entry, no se",
     "**Necessity gate — runs here, after the conflict check and before the §3 confirm",
 )
 _REF_NEIGHBOURS = {
@@ -885,6 +852,43 @@ def check_ref_section_neighbours(skill: str, ref: str) -> tuple[bool, str]:
     )
 
 
+# #750: what the pre-trim §3 asserted outside the channel-routing claims, kept as explicit
+# diagnostic checks beside the whole-§3 pin — the full `## 분류 결과` field set (it is the OUTPUT
+# CONTRACT the user confirms against), the second-`.md` prohibition and the thin-pointer limits.
+_TEMPLATE_FIELD_LINES = (
+    "- 규칙: <one-line summary>",
+    "- 들어갈 곳: <CLAUDE.md | hook | skill> — <HARD라 자동강제 / SOFT라 리마인드 / 절차라 호출형>",
+    "- 추가/변경될 내용: <exact prose/guard/skill stub, or the entry's before → after on an Edit>",
+    "- 충돌: <none | sibling | edits an existing entry (before→after) | contradicts an existing rule (explain)>",
+    "- 필요성: <통과 | 기존 항목으로 충분 | 안 넣는 게 나음 — <이유 한 줄>>",
+    "- 은퇴: <none | Pn 흡수 — 같은 쓰기에서 은퇴 | Pn 미발동 — 삭제 / 조건 좁히기?>",
+    "- memory 중복: <none | memory에도 있어요: <path...> — 매립 후 그 항목은 지울게요 (§6)>",
+)
+
+
+def check_skill_template_fields(skill: str, ref: str = "") -> tuple[bool, str]:
+    """Every `## 분류 결과` field, with its options and why-here clause, is in the loaded SKILL.md."""
+    section = _section(_SKILL_SECTION_3_RE, skill)
+    flat = " ".join(section.split())
+    for line in _TEMPLATE_FIELD_LINES:
+        if " ".join(line.split()) not in flat:
+            return False, f"SKILL.md §3's confirmation template lost a field line: {line!r}"
+    for needed in ("Never write without confirmation", "§3-gate-question", "never a generic refusal",
+                   "three-way pick"):
+        if needed not in flat:
+            return False, f"SKILL.md §3's confirmation gate lost: {needed!r}"
+    return True, "SKILL.md §3 carries the full confirmation template and the gate-question binding"
+
+
+def check_skill_rules_dir_prohibition(skill: str, ref: str = "") -> tuple[bool, str]:
+    """The loaded-directory prohibition and the thin-pointer limits stay in the loaded body."""
+    flat = " ".join(_section(_SKILL_SECTION_3_RE, skill).split()).lower()
+    for needed in ("never add a second `.md`", "never full rule prose", "none if it already points there"):
+        if needed not in flat:
+            return False, f"SKILL.md §3 lost the catalogue-channel limit: {needed!r}"
+    return True, "SKILL.md §3 keeps the second-.md prohibition and the thin-pointer limits"
+
+
 # Which source each phrase check reads. Two sources on purpose (#469/#663): passing one
 # concatenated blob would let a SKILL.md claim be satisfied by the reference — the file
 # compaction does *not* re-attach, which is the whole thing being guarded.
@@ -907,6 +911,8 @@ _REF_CHECKS = [
 ]
 _PIN_CHECKS = [
     check_skill_section_3_verbatim,
+    check_skill_template_fields,
+    check_skill_rules_dir_prohibition,
     check_skill_section_3_neighbours,
     check_skill_memory_locator_verbatim,
     check_skill_memory_locator_neighbours,
@@ -1044,8 +1050,8 @@ _REF_SKIP_BECOMES_STOP = _CLEAN_REF.replace(
     "skip the memory scan and STOP the landing, as no site can be conflict-checked without it",
 )
 _SKILL_FALLBACK_INVERTED = _CLEAN_SKILL.replace(
-    "**otherwise fall back to\n`~/.claude/CLAUDE.md`**",
-    "**otherwise create it**",
+    "else fall back to CLAUDE.md",
+    "else create it (never fall back to CLAUDE.md)",
 )
 # The `2>/dev/null` ban's reasoning stripped out of §6-snippet while the command still runs
 # correctly — the execution test cannot tell the difference, the section pin can.
@@ -1055,9 +1061,15 @@ _REF_SNIPPET_RATIONALE_STRIPPED = _CLEAN_REF.replace(
 )
 # The locator decayed into a bare citation: the contract still exists, nothing routes to it.
 _SKILL_LOCATOR_DECAYED = _CLEAN_SKILL.replace(
-    "**Its canonical, binding\ntext is [reference.md](reference.md) §6-memory-contract: Read that section and apply it as\nwritten, then read §6-snippet and run the command it ships — this paragraph is a locator, not\nthe contract.**",
-    "For background, see [reference.md](reference.md) §6-memory-contract and §6-snippet.",
+    "read reference §6-memory-contract and apply it as written, then read\n§6-snippet and run the command it ships.",
+    "see reference §6-memory-contract and §6-snippet for background.",
 )
+
+# #750: output-contract and prohibition losses the pre-trim §3 pin would have caught.
+_SKILL_TEMPLATE_FIELD_DROPPED = _CLEAN_SKILL.replace("- 규칙: <one-line summary>\n", "")
+_SKILL_WHY_HERE_DROPPED = _CLEAN_SKILL.replace(" — <HARD라 자동강제 / SOFT라 리마인드 / 절차라 호출형>", "")
+_SKILL_SECOND_MD_PROHIBITION_DROPPED = _CLEAN_SKILL.replace(
+    ", never full rule prose; `~/.claude/rules/` is loaded whole,\nso never add a second `.md` there.", ".")
 
 # Realistic reflows: prose rewrapped onto one line, headings, bullet lists and fenced blocks
 # left alone. Whitespace is not the contract, so both must stay green.
@@ -1081,6 +1093,9 @@ for _name, _fixture, _base in (
     ("_SKILL_FALLBACK_INVERTED", _SKILL_FALLBACK_INVERTED, _CLEAN_SKILL),
     ("_REF_SNIPPET_RATIONALE_STRIPPED", _REF_SNIPPET_RATIONALE_STRIPPED, _CLEAN_REF),
     ("_SKILL_LOCATOR_DECAYED", _SKILL_LOCATOR_DECAYED, _CLEAN_SKILL),
+    ("_SKILL_TEMPLATE_FIELD_DROPPED", _SKILL_TEMPLATE_FIELD_DROPPED, _CLEAN_SKILL),
+    ("_SKILL_WHY_HERE_DROPPED", _SKILL_WHY_HERE_DROPPED, _CLEAN_SKILL),
+    ("_SKILL_SECOND_MD_PROHIBITION_DROPPED", _SKILL_SECOND_MD_PROHIBITION_DROPPED, _CLEAN_SKILL),
     ("_SKILL_REFLOWED", _SKILL_REFLOWED, _CLEAN_SKILL),
     ("_REF_REFLOWED", _REF_REFLOWED, _CLEAN_REF),
 ):
@@ -1107,6 +1122,11 @@ _CANONICAL_CASES: list[tuple[str, str, str, bool]] = [
     # reads the seam directly), so it is exempted from the phrase-blind assertion below.
     ("the §6 locator decayed into a bare citation -> FAIL",
      _SKILL_LOCATOR_DECAYED, _CLEAN_REF, False),
+    ("a `## 분류 결과` field line deleted -> FAIL", _SKILL_TEMPLATE_FIELD_DROPPED, _CLEAN_REF, False),
+    ("the why-here clause deleted from the 들어갈 곳 field -> FAIL",
+     _SKILL_WHY_HERE_DROPPED, _CLEAN_REF, False),
+    ("the second-`.md` prohibition and thin-pointer limit deleted -> FAIL",
+     _SKILL_SECOND_MD_PROHIBITION_DROPPED, _CLEAN_REF, False),
     ("both files reflowed still pass (whitespace is not the contract)",
      _SKILL_REFLOWED, _REF_REFLOWED, True),
 ]

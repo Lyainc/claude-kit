@@ -1,14 +1,20 @@
 # add-policy — reference
 
-Rationale, worked examples, and measured background for `SKILL.md`. Split out (#447) so the skill
-body fits inside the 5,000-token window auto-compaction re-attaches. Everything here is *why* a
-rule reads the way it does — never a rule the engine must not miss. Read a section when the
-SKILL.md line pointing at it is the one you are acting on.
+Companion to `SKILL.md`, split out (#447, #750) so the skill body fits both the 5,000-token window
+auto-compaction re-attaches and Codex's 8,000-byte invoked-skill limit. **Two kinds of section:**
+
+- **Binding** — the text a `SKILL.md` pointer says to "read and apply as written", or that defines
+  an output the engine must produce: §0, §3, §3-gate-question, §3-sites, §3-tier, §4, §5, §7, §8,
+  §6-new-site, §6-memory-contract, §6-snippet, §6-gate-contract, §6-supersede-contract,
+  §6-unused-contract, §6-shape-contract, §6-detail-contract. When SKILL.md points at one, read it
+  before acting; it is not optional background.
+- **Rationale** — every other section: why a rule reads the way it does, with measurements. Read it
+  when changing the rule, not when applying it.
 
 
 ## §0 — written-artifact language, per site
 
-The SKILL.md preamble states the rule; this is the full reasoning for the CLAUDE.md exception.
+BINDING. SKILL.md's preamble points here for the written-artifact language: read `~/.claude/CLAUDE.md` first and write the new line in the language it is already in; everything else the engine writes is English.
 
 **User language: Korean for dialogue; written-artifact language depends on the site.** All
 user-facing DIALOGUE (the classification readout, AskUserQuestion prompts, confirmation
@@ -92,7 +98,7 @@ SKILL.md §2 ships the partition; this is the argument for shipping one at all.
 
 ## §3 — the loaded-directory leak, as measured
 
-SKILL.md §3 states the rule (`never add a second .md inside ~/.claude/rules/`); this is what happened when it was broken.
+BINDING. SKILL.md §3 carries the short prohibition (`never add a second .md inside ~/.claude/rules/`, thin pointer only); this section is its full form and the measurement behind it.
 
 - **Everything under `~/.claude/rules/` is loaded, not just its index.** Claude Code reads
   *every* `.md` in that directory into every session, so a catalogue that splits a thin index
@@ -106,7 +112,7 @@ SKILL.md §3 states the rule (`never add a second .md inside ~/.claude/rules/`);
 
 ## §3-gate-question — the confirmation question when the gate did not pass
 
-SKILL.md §3 states the rule: the gate's own recommendation is the first option and the question
+BINDING (SKILL.md §3 points here before the confirmation question when the gate did not pass). The gate's own recommendation is the first option and the question
 carries *that* recommendation. §3's default question ("여기에 이렇게 넣을게요 — 맞아요?") only fits
 the 통과 case — asked after a "기존 항목으로 충분" verdict it offers the user a yes/no on a landing
 the gate did not recommend, and a generic refusal wording would misreport an absorb verdict as a
@@ -130,7 +136,7 @@ what no answer means, so the default option and the no-answer default agree.
 
 ## §3-sites — the conflict-check target per site, and why the fallback is non-negotiable
 
-SKILL.md §3 ships the site table without a per-site conflict-target column; §6 states the rule
+BINDING. SKILL.md §3 ships the site table without a per-site conflict-target column; §6 states the rule
 generically ("read the current contents of the chosen site"). What that resolves to:
 
 | Site | What §6 reads before writing |
@@ -146,7 +152,7 @@ it is running on has the same private structure as the one it was written on.
 
 ## §3-tier — worked examples of the layer → tier inference
 
-SKILL.md §3 states the rule; these are the cases it was derived from.
+BINDING for inferring tier and hook form (SKILL.md §3 points here). These are the cases the rule was derived from.
 
 **Layer → tier default (engine inference, reduces variance):** *judgment* and *expression*
 are **always SOFT** (a reminder — they are not deterministically guardable). A *work-rule*
@@ -188,7 +194,7 @@ Worked cases, checked against local-harness's own policy docs and this repo's sh
 
 ## §4 — user-shell receiver, in full
 
-SKILL.md §4 keeps the rule; this is the original section with its receiver/audience reasoning.
+BINDING. SKILL.md §4 carries the short form; this is the full section with its receiver/audience rule.
 
 ### 4. User-shell receiver — the destination outside the three sites
 
@@ -210,7 +216,7 @@ three, per §3); it is an out-of-band destination handled by emission only:
 
 ## §5 — provenance inspection and the old `metadata.provenance` fail-safe
 
-SKILL.md §5 keeps the three provenance gates and the existence check.
+BINDING. SKILL.md §5 carries the three provenance gates and the existence check; this adds the inspection procedure and the fail-safe.
 
 The engine respects the discovery judgment; it does not re-run it, but it *does* execute
 the block. Verify before writing: read the target's frontmatter and confirm provenance.
@@ -474,6 +480,21 @@ are easy to forget later, which is why the disclaimer is in the skill body and n
   changes the rule the user is offered, it does not withhold it.
 
 
+## §6-unused-contract — the never-fired exit, CANONICAL text (#609)
+
+**This section is the contract, not background.** SKILL.md §6 lists this verdict and points here;
+the verdict's own text is below, and the phrase checks in
+`feedback-loop/scripts/test/test-add-policy-conflict-edit.py` (`check_unused_retirement_verdict`)
+read it here. Rationale lives in §6-unused, immediately after.
+
+- **Unused retirement (the other exit, #609)**: absorption above is otherwise the only way an
+  entry leaves. Positive evidence only — the **user says outright the entry never came up**,
+  never silence. **Reminder-site entries only, never a user-authored skill** (§5). Surfaces in the
+  §3 은퇴 field with **two choices — delete it, or narrow its firing condition**: **recommends
+  only**, no second prompt (§3 carries the pick), no answer means keep; delete recoverably with a
+  confirmed trash tool, else keep it and report — never force, never `rm`.
+
+
 ## §6-unused — the never-fired exit, and how it differs from a usage threshold (#609)
 
 SKILL.md §6 ships the verdict. Why the catalogue needs a second exit:
@@ -572,9 +593,25 @@ guard described as active that was not wired, a test count, checklist labels and
 drifted, two files grown to 14 KB of inline investigation log with corrections nested inside, and
 a pushed "0 of 87,611 syllables" from a check that could never fire.
 
+## §6-shape-contract — writing into an index+detail site, CANONICAL text
+
+**This section is the contract, not background.** SKILL.md §6 carries a locator for it, and
+`feedback-loop/scripts/test/test-add-policy-index-detail.py` pins it verbatim. Its first paragraph
+below is the paragraph SKILL.md carried before #750.
+
+For a new rule the engine appends in each site's **native form** (CLAUDE.md prose / a hook
+script / a skill SKILL.md); an **Edit** rewrites the targeted entry in place. If the site's
+content is already an index+detail split (one-line index rows linking to per-entry files, e.g.
+`README.md` → `../policies/Pn.md`), match that shape — one terse index row plus its linked
+detail file, not a new inline block — and **put the detail file where the existing ones live,
+resolving the index's own link to find out**. Never invent this split on a site that doesn't
+already use it. An **Edit** there rewrites **both** the index row and its detail file whenever
+the change touches what the index claims. What the detail file may state follows the site's own
+authoring guide when it has one, else [reference.md](reference.md) §6-detail-contract.
+
 ## §7 — output contract, in full
 
-SKILL.md §7 keeps the working-tree rule and the closing line; this holds the written-content language rule and the hook registration fragment.
+BINDING. SKILL.md §7 keeps the working-tree rule and the closing line; this holds the written-content language rule and the hook registration fragment the engine must emit.
 
 ### 7. Output contract
 

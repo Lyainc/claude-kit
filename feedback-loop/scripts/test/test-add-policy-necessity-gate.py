@@ -460,16 +460,14 @@ _SKILL_SECTION_6_BOUNDED_RE = re.compile(r"^## 6\.\s.*?(?=^## \d)", re.MULTILINE
 _GATE_LOCATOR_MARKER = "**Necessity gate — runs here"
 
 _SKILL_GATE_LOCATOR = _normalise("""\
-**Necessity gate — runs here, after the conflict check and before the §3 confirmation.** Four
-questions, three outcomes; it **recommends only** and weighs the artifact's cost, never the
-rule's **reuse value** (distill's). **Its canonical, binding text is
-[reference.md](reference.md) §6-gate-contract — read that section and apply it as written; this
-line is a locator, not the contract.** Why it exists: [reference.md](reference.md) §6-gate.
+**Necessity gate — runs here, after the conflict check and before the §3 confirmation.**
+Recommends only and weighs the artifact's cost, never the rule's reuse value (distill's). Read
+reference §6-gate-contract and apply it as written.
 """)
 
 _GATE_LOCATOR_NEIGHBOURS = (
-    "**The Duplicate scan also covers native auto-memory** (`~/.claude/projects/<proj",
-    "For a new rule the engine appends in each site's **native form** (CLAUDE.md pros",
+    "**The Duplicate scan also covers native auto-memory**: read reference §6-memory-",
+    "On an index+detail split, match that shape: one index row plus its linked detail",
 )
 
 _REF_GATE_NEIGHBOURS = (
@@ -478,7 +476,7 @@ _REF_GATE_NEIGHBOURS = (
 )
 
 _SKILL_SECTION_6_NEIGHBOURS = (
-    "## 5. Inviolability safety mechanism (the engine enforces it)",
+    "## 5. Inviolability safety mechanism",
     "## 7. Output contract",
 )
 
@@ -807,9 +805,9 @@ _REF_GATE_ADDENDUM_INSERTED = _CLEAN_REF.replace(
 # The same trick on the always-loaded side: a contradicting paragraph inside §6, immediately
 # after the locator, and a whole sibling section immediately after §6.
 _SKILL_ADJACENT_PARAGRAPH = _CLEAN_SKILL.replace(
-    "\nFor a new rule the engine appends",
+    "\nOn an index+detail split, match that shape",
     "\nWhen the gate's verdict is not 통과, hold the write and report instead of confirming.\n\n"
-    "For a new rule the engine appends",
+    "On an index+detail split, match that shape",
 )
 _SKILL_SIBLING_SECTION = _CLEAN_SKILL.replace(
     "\n## 7. Output contract",
@@ -821,13 +819,13 @@ _SKILL_SIBLING_SECTION = _CLEAN_SKILL.replace(
 # §6-gate-contract and still says to apply it as written, so
 # `check_gate_present_and_positioned` stays green — the recommends-only ceiling is what dies.
 _SKILL_LOCATOR_GRANTS_A_VETO = _CLEAN_SKILL.replace(
-    "it **recommends only** and weighs the artifact's cost",
-    "it **blocks the landing** when unnecessary and weighs the artifact's cost",
+    "Recommends only and weighs the artifact's cost",
+    "blocks the landing when unnecessary and weighs the artifact's cost",
 )
 # The distill boundary deleted from the loaded body: the locator now invites the engine to
 # re-judge reuse value, which its own `description` forbids.
 _SKILL_LOCATOR_DROPS_BOUNDARY = _CLEAN_SKILL.replace(
-    ", never the\nrule's **reuse value** (distill's)", "",
+    ", never the rule's reuse value (distill's)", "",
 )
 
 # Realistic reflows: prose rewrapped onto one line, headings, bullet lists and fenced blocks

@@ -136,6 +136,9 @@ def _verdict_scope(text: str) -> str:
 # scoping rationale carries over unchanged and is if anything more load-bearing here —
 # reference.md §8's self-check checklist has its own `- **Supersede**:` bullet, so an unscoped
 # marker search would silently retarget there the moment the verdict itself went missing.
+_REF_UNUSED_SECTION_RE = re.compile(
+    r"^## §6-unused-contract\b.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL
+)
 _REF_SUPERSEDE_SECTION_RE = re.compile(
     r"^## §6-supersede-contract\b.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL
 )
@@ -192,19 +195,12 @@ def _bullet_scope(lower: str, marker: str) -> str | None:
 # covers what it spans, so the span now includes the text above the bullets. The memory-scan
 # mechanics further down §6 stay unpinned — test-add-policy-routing.py phrase-pins those.
 _PREAMBLE_CONTRACT = """\
-## 6. Conflict check (target = the landfill site's current rules + native auto-memory)
+## 6. Conflict check
 
-**New site**: check the target **exists** first (`[ -f "$TARGET" ]`, as §5 does for the skill
-site). Never infer "missing" from a read *error* — that **overwrites existing content**. Absent
-→ **`Write`**, not append; exists but unreadable → stop and report.
-([reference.md](reference.md) §6-new-site)
-
-Otherwise read the **current contents of the chosen site** first (read-only `Bash`/`Grep`):
-that channel's own rules, or the existing hook matchers and guard scripts (so a new guard
-doesn't fire on an event one already covers), or existing skills.
-**If the site is an index+detail split, follow the index's links and read the detail files
-too** — they may sit outside the indexed directory (§3), and scanning that directory alone
-downgrades the check to a title comparison:
+New site: check the target exists first (`[ -f "$TARGET" ]`); a read *error* is not "missing" (it
+overwrites existing content): absent → `Write`, unreadable → stop and report.
+Otherwise read the site's current rules, hook matchers and guard scripts, or skills (read-only
+`Bash`/`Grep`), following an index+detail split's links to its detail files (§3):
 """
 
 
@@ -406,7 +402,30 @@ def check_unused_retirement_verdict(text: str, _ref: str = "") -> tuple[bool, st
     dropping the recommends-only ceiling turns a suggestion into an automatic deletion —
     the one direction this engine must never fail in.
     """
-    bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**unused retirement")
+    # #750: SKILL.md carries a LOCATOR bullet and the canonical text lives in reference.md
+    # §6-unused-contract (the same split as Supersede, #663). When that section exists, the phrase
+    # checks below read IT, and SKILL.md's bullet must still name the section, say to apply it as
+    # written, and keep the two safeguards that must not depend on opening a file. Bare fixtures
+    # (no such section in `_ref`) keep the inline form, so the mutations below still bite.
+    ref_section = _REF_UNUSED_SECTION_RE.search(_ref)
+    if ref_section is not None:
+        skill_bullet = _bullet_scope(_verdict_scope(text).lower(), "**unused retirement")
+        if skill_bullet is None:
+            return False, "the never-fired retirement is not named as its own §6 outcome"
+        flat_skill = " ".join(skill_bullet.split())
+        if "§6-unused-contract" not in flat_skill or not (
+                "apply it as written" in flat_skill or "read that section" in flat_skill):
+            return False, "SKILL.md's unused-retirement locator doesn't bind §6-unused-contract (read and apply as written)"
+        if "recommends only" not in flat_skill or "never `rm`" not in flat_skill:
+            return False, "SKILL.md's unused-retirement locator dropped the recommends-only / never-`rm` safeguards"
+        if "never silence" not in flat_skill and "not silence" not in flat_skill:
+            return False, "SKILL.md's unused-retirement locator doesn't exclude silence as a trigger"
+        bullet_text = _bullet_slice(ref_section.group(0), "- **Unused retirement")
+        # The canonical bullet is hard-wrapped and bold-marked ("**recommends\n  only**"), so
+        # normalise both before the substring checks below.
+        bullet_text = " ".join(bullet_text.replace("**", "").lower().split()) if bullet_text else None
+    else:
+        bullet_text = _bullet_scope(_verdict_scope(text).lower(), "**unused retirement")
     if bullet_text is None:
         return False, "the never-fired retirement is not named as its own §6 outcome"
     if "delete" not in bullet_text:
@@ -586,16 +605,15 @@ _SKILL_SECTION_6_BOUNDED_RE = re.compile(r"^## 6\.\s.*?(?=^## \d)", re.MULTILINE
 _SUPERSEDE_MARKER = "- **Supersede (the catalogue's exit path)**"
 
 _SKILL_SUPERSEDE_LOCATOR = _normalise("""\
-- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant
-  absorbs it and retires it in the **same write**, on the same confirmation — never a separate
-  prompt. **Its canonical, binding text is [reference.md](reference.md) §6-supersede-contract —
-  read that section and apply it as written; this bullet is a locator, not the contract.**
-  Rationale: [reference.md](reference.md) §6-supersede.
+- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant absorbs
+  it and retires it in the same write, on the same confirmation, never a separate prompt. Read
+  reference §6-supersede-contract and apply it as written; this bullet is a locator, not the
+  contract.
 """)
 
 _SUPERSEDE_LOCATOR_NEIGHBOURS = (
-    "- **Edit (explicit modification of an existing entry)**: if the request clearly ",
-    "- **Unused retirement (the other exit, #609)**: absorption above is otherwise th",
+    "- **Edit (explicit modification of an existing entry)**: edit in place, showing ",
+    "- **Unused retirement (#609)**: only when the user says outright the entry never",
 )
 
 _REF_SUPERSEDE_NEIGHBOURS = (
@@ -604,7 +622,7 @@ _REF_SUPERSEDE_NEIGHBOURS = (
 )
 
 _SKILL_SECTION_6_NEIGHBOURS = (
-    "## 5. Inviolability safety mechanism (the engine enforces it)",
+    "## 5. Inviolability safety mechanism",
     "## 7. Output contract",
 )
 
@@ -714,10 +732,10 @@ def run_checks(skill: str, ref: str) -> tuple[int, int]:
 # The pointer bullet as SKILL.md now carries it, kept as a constant so the decay fixtures below
 # cannot silently no-op against a reworded copy.
 _SUPERSEDE_POINTER = """\
-- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant
-  absorbs it and retires it in the **same write**, on the same confirmation — never a separate
-  prompt. **Its canonical, binding text is [reference.md](reference.md) §6-supersede-contract —
-  read that section and apply it as written; this bullet is a locator, not the contract.**
+- **Supersede (the catalogue's exit path)**: a rule that makes an existing entry redundant absorbs
+  it and retires it in the same write, on the same confirmation, never a separate prompt. Read
+  reference §6-supersede-contract and apply it as written; this bullet is a locator, not the
+  contract.
 """
 
 _PASSING = """\
@@ -1000,13 +1018,13 @@ _REF_HEADING_DRIFT = (_REFERENCE_TITLE + "\n\n" + _SCOPED_OK).replace(
 # The #663 seam, from the SKILL.md side: the pointer bullet is the only thing left in the body
 # that reaches the contract, so its decay modes get fixtures of their own.
 _POINTER_DROPPED = _PASSING.replace(
-    "**Its canonical, binding text is [reference.md](reference.md) §6-supersede-contract —\n"
-    "  read that section and apply it as written; this bullet is a locator, not the contract.**",
-    "**A retired number is never reused.**",
+    "Read\n  reference §6-supersede-contract and apply it as written; this bullet is a locator, not the\n"
+    "  contract.",
+    "A retired number is never reused.",
 )
 _POINTER_BARE_CITATION = _PASSING.replace(
-    "—\n  read that section and apply it as written; this bullet is a locator, not the contract.**",
-    "(background reading).**",
+    " and apply it as written; this bullet is a locator, not the\n  contract.",
+    " (background reading).",
 )
 _POINTER_BULLET_DELETED = _PASSING.replace(_SUPERSEDE_POINTER, "")
 
@@ -1045,9 +1063,9 @@ _PREAMBLE_SPLIT_BULLET = _PREAMBLE_OK.replace(
 # The other insertion point: directly under the `## 6.` heading, above the contract's first
 # paragraph. Also an insertion, and it must not be reported as a stale constant.
 _PREAMBLE_PREPENDED = _PREAMBLE_OK.replace(
-    "**New site**:",
+    "New site:",
     "A verdict that *removes* an entry is confirmed on its own second question.\n\n"
-    "**New site**:",
+    "New site:",
 )
 
 
@@ -1093,10 +1111,10 @@ _REF_SUPERSEDE_ADDENDUM_INSERTED = _CLEAN_REF.replace(
 # The same trick on the always-loaded side: a new verdict bullet inserted right after the
 # Supersede locator, and a whole sibling section right after §6.
 _SKILL_ADJACENT_BULLET = _CLEAN_SKILL.replace(
-    "\n- **Unused retirement (the other exit, #609)**",
+    "\n- **Unused retirement (#609)**",
     "\n- **Deferred retirement**: when the absorption is large, retire the old entry on a\n"
     "  follow-up confirmation instead.\n"
-    "- **Unused retirement (the other exit, #609)**",
+    "- **Unused retirement (#609)**",
 )
 _SKILL_SIBLING_SECTION = _CLEAN_SKILL.replace(
     "\n## 7. Output contract",
@@ -1108,13 +1126,13 @@ _SKILL_SIBLING_SECTION = _CLEAN_SKILL.replace(
 # §6-supersede-contract and still says to apply it as written, so
 # `check_supersede_verdict_named` stays green — the 1-click invariant is what dies.
 _SKILL_LOCATOR_GRANTS_SECOND_PROMPT = _CLEAN_SKILL.replace(
-    "absorbs it and retires it in the **same write**, on the same confirmation — never a separate\n  prompt.",
-    "absorbs it and retires it in a follow-up write, on its own second confirmation.",
+    "retires it in the same write, on the same confirmation, never a separate prompt.",
+    "retires it in a follow-up write, on its own second confirmation.",
 )
 # The locator's caveat deleted: the bullet reads as a usable summary rather than a locator, so
 # an engine acts from it and never opens the contract.
 _SKILL_LOCATOR_CAVEAT_DELETED = _CLEAN_SKILL.replace(
-    "; this bullet is a locator, not the contract.", ".",
+    "; this bullet is a locator, not the\n  contract.", ".",
 )
 
 # Realistic reflows: prose rewrapped onto one line, headings, bullet lists and fenced blocks
@@ -1263,6 +1281,30 @@ def _self_test() -> int:
     ok, msg = check_supersede_bullet_verbatim(_PASSING, _REF_HEADING_DRIFT)
     cases.append(("header-drift (§6-supersede-contract renamed): names the boundary (expect FAIL)",
                   (not ok) and "boundary not found" in msg))
+
+    # #750: the Unused-retirement verdict's canonical text is reference.md §6-unused-contract; the
+    # real files must pass, and each way the split can rot must red.
+    _unused_ref_ok = _CLEAN_REF
+    _unused_ref_auto = _CLEAN_REF.replace("**recommends\n  only**, no second prompt", "**decides**, no second prompt")
+    _unused_ref_rm = _CLEAN_REF.replace("never force, never `rm`.", "force it if needed.")
+    _unused_skill_nopointer = _CLEAN_SKILL.replace(
+        "Read reference §6-unused-contract and apply it as written.", "See the reference.")
+    _unused_skill_norm = _CLEAN_SKILL.replace("recommends only, never `rm`", "never silence it")
+    for _label, _fx in (("ref drops recommends-only", _unused_ref_auto), ("ref drops never-`rm`", _unused_ref_rm)):
+        assert _fx != _CLEAN_REF, f"fixture no-opped: {_label}"
+    for _label, _fx in (("skill locator drops the pointer", _unused_skill_nopointer),
+                        ("skill locator drops recommends-only", _unused_skill_norm)):
+        assert _fx != _CLEAN_SKILL, f"fixture no-opped: {_label}"
+    ok, _ = check_unused_retirement_verdict(_CLEAN_SKILL, _unused_ref_ok)
+    cases.append(("real files: check_unused_retirement_verdict (still OK)", ok))
+    ok, _ = check_unused_retirement_verdict(_CLEAN_SKILL, _unused_ref_auto)
+    cases.append(("reference.md unused contract drops recommends-only (expect FAIL)", not ok))
+    ok, _ = check_unused_retirement_verdict(_CLEAN_SKILL, _unused_ref_rm)
+    cases.append(("reference.md unused contract drops never-rm (expect FAIL)", not ok))
+    ok, _ = check_unused_retirement_verdict(_unused_skill_nopointer, _unused_ref_ok)
+    cases.append(("SKILL.md unused locator drops its pointer (expect FAIL)", not ok))
+    ok, _ = check_unused_retirement_verdict(_unused_skill_norm, _unused_ref_ok)
+    cases.append(("SKILL.md unused locator drops the recommends-only safeguard (expect FAIL)", not ok))
 
     # #663: adjacency + the loaded-body locator, against the real files and mutations of them.
     # The second assertion per case is the point of the layer — every one of these is INVISIBLE
