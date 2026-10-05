@@ -73,13 +73,13 @@ _DASH_LINE = re.compile(r"^(\s*)-(?:\s|$)")
 _INLINE_COMMENT = re.compile(r"(?:^|\s+)#.*$")
 
 
-def key_paths(text: str) -> set[tuple[str, ...]]:
-    """Key paths of a YAML document ("[]" = a list item), read by indentation alone.
+def _walk_keys(text: str):
+    """Yield (key path, rest of the line after `key:`) for every real key of a YAML document.
 
-    Minimal on purpose (no PyYAML): it only has to tell "a key at this position" from "text
-    inside a scalar", so block scalars and plain multi-line scalars are skipped.
+    "[]" in a path = a list item. Read by indentation alone. Minimal on purpose (no PyYAML): it
+    only has to tell "a key at this position" from "text inside a scalar", so block scalars and
+    plain multi-line scalars are skipped.
     """
-    paths: set[tuple[str, ...]] = set()
     stack: list[tuple[int, str]] = []
     scalar: tuple[int, bool] | None = None  # (key column, is block scalar)
     for line in text.splitlines():
@@ -105,27 +105,32 @@ def key_paths(text: str) -> set[tuple[str, ...]]:
             continue
         col = len(m.group(1)) + len(m.group(2) or "")
         stack.append((col, m.group(3)))
-        paths.add(tuple(name for _, name in stack))
-        value = _INLINE_COMMENT.sub("", line[m.end():]).strip()
+        rest = line[m.end():]
+        yield tuple(name for _, name in stack), rest
+        value = _INLINE_COMMENT.sub("", rest).strip()
         if value:
             scalar = (col, value[0] in "|>")
-    return paths
 
 
-_ID_LINE = re.compile(r"""^\s*(?:-\s+)?id:\s*["']?([\w-]+)""")
+def key_paths(text: str) -> set[tuple[str, ...]]:
+    """Key paths of a YAML document ("[]" = a list item); see _walk_keys."""
+    return {path for path, _ in _walk_keys(text)}
+
+
+_ID_VALUE = re.compile(r"""^\s*["']?([\w-]+)""")
 _ID_SECTIONS = ("constraints", "success_criteria")
 
 
 def item_ids(text: str) -> set[str]:
-    """`id:` values of constraints[] and success_criteria[] items (top-level sections only)."""
+    """`id:` values of constraints[] and success_criteria[] items (the item's own id key only).
+
+    Walks the same structure as key_paths, so an `id:` line inside a block scalar or a nested
+    mapping/list under an item is not mistaken for an item id.
+    """
     ids: set[str] = set()
-    section = ""
-    for line in text.splitlines():
-        if line[:1] not in ("", " ", "\t", "#", "-"):
-            section = line.split(":", 1)[0].strip()
-            continue
-        if section in _ID_SECTIONS:
-            m = _ID_LINE.match(line)
+    for path, rest in _walk_keys(text):
+        if len(path) == 3 and path[0] in _ID_SECTIONS and path[1:] == ("[]", "id"):
+            m = _ID_VALUE.match(rest)
             if m:
                 ids.add(m.group(1))
     return ids
@@ -269,6 +274,10 @@ SEED_ITEM = SEED_HEAD + "  - id: c1\n    type: technical\n    description: 기�
 SEED_ITEM_BODY = SEED_ITEM[len(SEED_HEAD):]
 SEED_COMPACT = SEED_HEAD + "- id: c1\n  type: technical\n  description: 기존 제약.\n  hard: true\n  rationale: 기존 근거.\n"
 SEED_CUSTOM = SEED_ITEM + "custom_note: x\n"
+SEED_BLOCK = (
+    SEED_HEAD + "  - id: c1\n    type: technical\n    description: Config is required.\n    hard: true\n"
+    "    rationale: |\n      Example API config:\n      id: customer_id\n"
+)
 
 
 def _self_test() -> int:
@@ -538,6 +547,31 @@ def _self_test() -> int:
                 "new_string": "custom_note: y",
             }}, lambda _: SEED_CUSTOM, False,
         ),
+        # --- id lookalikes inside scalars are not item ids ---
+        (
+            "editing an `id:` line inside a block scalar is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "      id: customer_id\n",
+                "new_string": "      identifier: customer_id\n",
+            }}, lambda _: SEED_BLOCK, False,
+        ),
+        (
+            "renumbering the real c1 of a Seed with a block scalar is still denied",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "  - id: c1\n",
+                "new_string": "  - id: c2\n",
+            }}, lambda _: SEED_BLOCK, True,
+        ),
+        (
+            "deleting the whole c1 item (block scalar and all) is still denied",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": SEED_BLOCK[len(SEED_HEAD):],
+                "new_string": "",
+            }}, lambda _: SEED_BLOCK, True,
+        ),
     ]
     failed = 0
     # Span alignment (no verdict flips here — both spans carry the same words — so the span
@@ -573,6 +607,23 @@ def _self_test() -> int:
         if got != want:
             failed += 1
             print(f"FAIL: key_paths {name} — expected {sorted(want)}, got {sorted(got)}", file=sys.stderr)
+    id_checks = [
+        ("real item ids", "constraints:\n  - id: c1\n  - id: c2\nsuccess_criteria:\n  - id: ac1\n", {"c1", "c2", "ac1"}),
+        ("literal |- scalar body", "constraints:\n  - id: c1\n    rationale: |-\n      id: x1\n", {"c1"}),
+        ("folded > scalar body", "constraints:\n  - id: c1\n    rationale: >\n      id: x1\n      - id: x2\n", {"c1"}),
+        ("nested mapping under an item", "constraints:\n  - id: c1\n    meta:\n      id: x1\n", {"c1"}),
+        ("nested list under an item", "constraints:\n  - id: c1\n    refs:\n      - id: x1\n", {"c1"}),
+        ("quoted ids", "constraints:\n  - id: \"c1\"\n  - id: 'c2'\n", {"c1", "c2"}),
+        ("real id after a block scalar ends", "constraints:\n  - id: c1\n    rationale: |\n      id: x1\n  - id: c2\n", {"c1", "c2"}),
+        ("id key after a block scalar dedent in the same item", "constraints:\n  - rationale: |\n      id: x1\n    id: c1\n", {"c1"}),
+        ("compact sequence", "constraints:\n- id: c1\n  rationale: |\n    id: x1\n- id: c2\n", {"c1", "c2"}),
+        ("other top-level keys are ignored", "constraints:\n  - id: c1\nblindspots:\n  - id: b1\ncontext:\n  id: z\n", {"c1"}),
+    ]
+    for name, text, want in id_checks:
+        got = item_ids(text)
+        if got != want:
+            failed += 1
+            print(f"FAIL: item_ids {name} — expected {sorted(want)}, got {sorted(got)}", file=sys.stderr)
     foreign_checks = [
         ("names the offending paths", SEED_ITEM,
          SEED_ITEM.replace("    hard: true\n", "    hard: true\n    status: done\n") + "status: x\n",
@@ -589,7 +640,7 @@ def _self_test() -> int:
         if got != want_deny:
             failed += 1
             print(f"FAIL: {name} — expected deny={want_deny}, got deny={got}", file=sys.stderr)
-    total = len(cases) + len(spans) + len(key_checks) + len(foreign_checks)
+    total = len(cases) + len(spans) + len(key_checks) + len(id_checks) + len(foreign_checks)
     if failed:
         print(f"FAIL: {failed}/{total} seed-append-check case(s) failed", file=sys.stderr)
         return 1
