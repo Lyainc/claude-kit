@@ -26,7 +26,7 @@ visible in the output; nothing is ever dropped silently — that silence is the 
 
 Usage:
     scan-summary.py --frontmatter <fm.json> --filename <fn.json> [--index <index.json>]
-                    [--max-per-type N]
+                    [--schema <.vault-schema.json>] [--max-per-type N]
     scan-summary.py --self-test            # rule + truncation-signal check, no fixture
 
     fm.json    <- ovm-primitives.sh scan-frontmatter "$scan_dir"
@@ -55,12 +55,19 @@ types firing, vs 291 KB of raw scan + 13 KB of index:
        "E12_unverified": {"count": N, "records": [{path, verified}]},
        "E12_near_dup":   {"count": N, "records": [{path, other_path, shared_tags, shared_title_tokens}]},
        "unreadable":     {"count": N, "records": [{path, error}]},   # only when it fires
+       "E13":            {"count": N, "records": [{path, schema, missing?, invalid?}]},
+                                                                     # only with a schema file
      }}
 
 Every type additionally carries `"omitted": N` whenever the cap cut its list. `unreadable`
 appears only when scan-frontmatter could not read a file: those records are kept OUT of
 every other type (E1/E3/E5/E6/E10/E11/E12), because "we could not look" is not the same
 finding as "there is no frontmatter" or any other content-based judgment.
+
+E13 (#764) exists only when `--schema` names a file that exists: a vault with no schema file
+gets the exact payload it got before. A schema file that is not valid JSON or not the documented
+shape renders E13 as `computed: false` with the reason, never as zero violations, and never
+stops the audit. Format: `reference/vault-audit-rules.md` → `## E13`.
 
 E9 (vault-wide vocabulary pairs) and the E5 connection candidates are NOT here — they come
 from their own primitives (`detect-vocabulary`, `e5-candidates`), already small on stdout.
@@ -136,6 +143,64 @@ def validate_index(inbound: dict) -> None:
             raise ValueError(f"--index entry {key!r} is not a list of strings: {value!r}")
 
 
+def load_schema(path):
+    """`.vault-schema.json` (#764) -> (schemas | None, problem | None).
+
+    Absent file -> (None, None): E13 is not emitted at all. Unusable file -> (None, reason):
+    E13 renders computed:false. Shape: {"schemas": [{"name", "when": {field: value},
+    "required": [field], "enum": {field: [value]}, "optional": [field]}]}.
+    """
+    if path is None or not path.is_file():
+        return None, None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+        schemas = data["schemas"]
+        if not isinstance(schemas, list) or not schemas:
+            raise ValueError("schemas must be a non-empty list")
+        for i, sc in enumerate(schemas):
+            when, req, enum = sc.get("when"), sc.get("required", []), sc.get("enum", {})
+            if not (isinstance(when, dict) and when
+                    and all(isinstance(v, str) for v in when.values())):
+                raise ValueError(f"schemas[{i}].when must map fields to string values")
+            if not (isinstance(req, list) and all(isinstance(f, str) for f in req)):
+                raise ValueError(f"schemas[{i}].required must be a list of field names")
+            if not (isinstance(enum, dict) and all(
+                    isinstance(v, list) and all(isinstance(x, str) for x in v)
+                    for v in enum.values())):
+                raise ValueError(f"schemas[{i}].enum must map fields to lists of strings")
+    except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
+        return None, f"unusable --schema file: {e}"
+    return schemas, None
+
+
+def _values(value) -> list:
+    """A frontmatter value as a list of non-empty strings (`key:` parses to [])."""
+    items = value if isinstance(value, list) else [value]
+    return [v for v in items if isinstance(v, str) and v.strip()]
+
+
+def schema_violations(fm_records: list, schemas: list) -> list:
+    """E13 (#764): for each schema whose `when` matches a note, report required fields that
+    are absent or empty and enum fields holding a value outside the allowed list."""
+    out = []
+    for r in fm_records:
+        fm = r.get("frontmatter") or {}
+        for i, sc in enumerate(schemas):
+            if not all(want in _values(fm.get(k)) for k, want in sc["when"].items()):
+                continue
+            missing = [f for f in sc.get("required", []) if not _values(fm.get(f))]
+            invalid = {f: bad for f, allowed in sc.get("enum", {}).items()
+                       if (bad := [v for v in _values(fm.get(f)) if v not in allowed])}
+            if missing or invalid:
+                rec = {"path": r["path"], "schema": sc.get("name") or f"schemas[{i}]"}
+                if missing:
+                    rec["missing"] = missing
+                if invalid:
+                    rec["invalid"] = invalid
+                out.append(rec)
+    return out
+
+
 def top_folder(rel: str) -> str:
     return rel.split("/", 1)[0] if "/" in rel else ""
 
@@ -157,7 +222,8 @@ def _tag_set(fm: dict) -> frozenset:
     return frozenset(t.strip().lower() for t in tags if isinstance(t, str) and t.strip())
 
 
-def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
+def summarize(fm_records: list, fn_records: list, inbound, today: date,
+              schemas=None, schema_problem=None) -> dict:
     """Apply each error type's deterministic predicate; keep only what fires."""
     errors: dict = {}
 
@@ -329,6 +395,13 @@ def summarize(fm_records: list, fn_records: list, inbound, today: date) -> dict:
                               "shared_title_tokens": sorted(shared)})
     emit("E12_near_dup", near_dup)
 
+    # E13 — vault-declared custom schema (#764). Absent schema file: no key at all, so a vault
+    # without one gets byte-identical output. Unusable file: the reason, never a silent zero.
+    if schema_problem:
+        errors["E13"] = schema_problem
+    elif schemas is not None:
+        emit("E13", schema_violations(fm_records, schemas))
+
     return errors
 
 
@@ -341,8 +414,8 @@ def cap(errors: dict, max_per_type: int) -> dict:
     """
     out = {}
     for code, found in errors.items():
-        if found is None:
-            out[code] = {"computed": False, "reason": "no --index input"}
+        if found is None or isinstance(found, str):
+            out[code] = {"computed": False, "reason": found or "no --index input"}
             continue
         key = "paths" if code in PATH_ONLY_TYPES else "records"
         entry = {"count": len(found), key: found[:max_per_type]}
@@ -353,7 +426,7 @@ def cap(errors: dict, max_per_type: int) -> dict:
 
 
 def build_payload(fm_records: list, fn_records: list, inbound, max_per_type: int,
-                  today: date) -> dict:
+                  today: date, schemas=None, schema_problem=None) -> dict:
     payload = {
         "total_files": len(fm_records),
         "max_per_type": max_per_type,
@@ -363,7 +436,8 @@ def build_payload(fm_records: list, fn_records: list, inbound, max_per_type: int
         "link_index": ({"targets": len(inbound),
                         "sources": len({s for v in inbound.values() for s in v})}
                        if inbound is not None else None),
-        "errors": cap(summarize(fm_records, fn_records, inbound, today), max_per_type),
+        "errors": cap(summarize(fm_records, fn_records, inbound, today,
+                                schemas, schema_problem), max_per_type),
     }
     return payload
 
@@ -509,6 +583,28 @@ def self_test() -> int:
                                                           "reason": "no --index input"}),
     ]
 
+    # E13 (#764): a vault-declared schema. No schema -> no E13 key; required = absent or empty.
+    sfm = [
+        {"path": "notes/work-ok.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"tags": ["업무지도"], "track": "A", "status": "진행중"}},
+        {"path": "notes/work-gap.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"tags": ["업무지도"], "track": [], "status": "끝"}},
+        {"path": "notes/other.md", "has_frontmatter": True, "missing_required": [],
+         "frontmatter": {"tags": ["etc"]}},
+    ]
+    sch = [{"name": "업무 항목", "when": {"tags": "업무지도"}, "required": ["track", "status"],
+            "enum": {"status": ["대기", "진행중", "완료"]}}]
+    cases += [
+        ("no schema means no E13 key", "E13" not in summarize(sfm, [], {}, today)),
+        ("E13 flags an empty required field and an out-of-enum value, only where `when` matches",
+         summarize(sfm, [], {}, today, sch)["E13"] == [
+             {"path": "notes/work-gap.md", "schema": "업무 항목", "missing": ["track"],
+              "invalid": {"status": ["끝"]}}]),
+        ("an unusable schema renders computed:false with its reason",
+         cap(summarize(sfm, [], {}, today, None, "unusable --schema file: x"), 2)["E13"]
+         == {"computed": False, "reason": "unusable --schema file: x"}),
+    ]
+
     failed = [name for name, ok in cases if not ok]
     for name, ok in cases:
         print(f"  {'ok  ' if ok else 'FAIL'} {name}")
@@ -526,7 +622,7 @@ def main(argv: list) -> int:
     if argv and argv[0] == "--self-test":
         return self_test()
 
-    opts = {"--frontmatter": None, "--filename": None, "--index": None,
+    opts = {"--frontmatter": None, "--filename": None, "--index": None, "--schema": None,
             "--max-per-type": str(DEFAULT_MAX_PER_TYPE)}
     i = 0
     while i < len(argv):
@@ -558,7 +654,9 @@ def main(argv: list) -> int:
         print(f"scan input unusable: {e}", file=sys.stderr)
         return 3
 
-    payload = build_payload(fm_records, fn_records, inbound, max_per_type, date.today())
+    schemas, schema_problem = load_schema(Path(opts["--schema"]) if opts["--schema"] else None)
+    payload = build_payload(fm_records, fn_records, inbound, max_per_type, date.today(),
+                            schemas, schema_problem)
     print(json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
     return 0
 

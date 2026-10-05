@@ -7,7 +7,7 @@ a fixture or live vault. Outputs per-type finding counts and a flat list of
 finding records as JSON. Stdlib only.
 
 v4 layout: sources/ + notes/ + assets/  (no 00_Inbox, 20_Projects, 30_Notes)
-Error types: E1-E3, E5-E6, E9-E12 (E4 retired #482; E7/E8 retired #480). E9 (#119) = tag/property vocabulary inconsistency, a
+Error types: E1-E3, E5-E6, E9-E13 (E4 retired #482; E7/E8 retired #480). E9 (#119) = tag/property vocabulary inconsistency, a
 vault-LEVEL check (findings carry path:""); only deterministic sub-checks ship
 (E9a singular/plural, E9b camel/snake property naming). E9c (semantic synonyms)
 is out of scope, deferred to a separate issue.
@@ -79,6 +79,9 @@ PRIORITY_BY_TYPE = {
     "E12_wiki_stale": "P1",
     "E12_wiki_unverified": "P1",
     "E12_wiki_near_dup": "P1",
+    # E13 (#764) is opt-in per vault (.vault-schema.json); the DoD fixture declares no schema,
+    # so it is pinned by scan-summary.py --self-test and test-audit-custom-schema.py instead.
+    "E13_custom_schema_violation": "P1",
 }
 # E9 (#119) frequency threshold: report a vocabulary pair only when BOTH forms
 # appear in this many files or more (per-form file count). Suppresses one-off

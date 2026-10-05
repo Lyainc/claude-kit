@@ -2,7 +2,7 @@
 
 Detection rules for the `audit` skill's CLASSIFY phase. The skill body (`skills/audit/SKILL.md`) summarizes these as a table; this file is the canonical pseudocode reference.
 
-Nine error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention). A tenth item, `unreadable`, is not a rule-driven error type — it is `scan-summary.py`'s report of a file it could not read at all (see the Priority Mapping table and `## SCAN output budget` below).
+Ten error types cover v4's three-folder vault layout (`sources/`, `notes/`, `assets/`) plus v5's `wiki/`. Severity buckets: **Critical** (data integrity risk), **Warning** (quality / navigation risk), **Info** (style / convention). A tenth item, `unreadable`, is not a rule-driven error type — it is `scan-summary.py`'s report of a file it could not read at all (see the Priority Mapping table and `## SCAN output budget` below).
 
 > **Reading `**Source**` below (#614)**: each type's `**Source**` names what `scan-summary.py` reads OFF DISK to apply that predicate (`frontmatter_records`/`filename_records`/`inbound_links` — the untruncated raw scans). It is NOT what CLASSIFY itself receives — CLASSIFY only ever sees the reduced `scan_summary.errors.<code>` bundle these predicates compute into (`skills/audit/SKILL.md`'s CLASSIFY table `Source` column), same as `## SCAN output budget` below describes. Use this file for the RULE definitions; use the CLASSIFY table for what is actually in context.
 
@@ -27,10 +27,11 @@ Every finding carries a `priority` field independent of severity. Priority drive
 | E10  | P1       | Misplaced file → `type` lives in the wrong canonical folder; moving affects inbound links (display-only warning). |
 | E11  | P1       | Unstructured path → file outside `sources/notes/assets`; structural drift, moving affects inbound links (display-only warning). |
 | E12  | P1       | Wiki self-audit (v5 §7 U3) → a `wiki/` page whose `verified:` age exceeds `STALE_WIKI_DAYS`; staleness is the abandonment risk for the LLM wiki. E12a (staleness) is display-only; its companion `E12_wiki_unverified` (#494) flags a `wiki/` page whose `verified:` is missing or unparseable — staleness is uncomputable, so it is reported for a different reason instead of being skipped forever; E12b cross-page semantic contradiction ships as the skill-only `--deep` LLM opt-in (#336, see the `## E12 — wiki_self_audit` section below); E12c (#698, #645 F1) flags a deterministic near-duplicate — two wiki pages sharing the exact same `tags` set plus an overlapping title token. |
+| E13  | P1       | Custom schema violation (#764) → a note the vault's own `.vault-schema.json` covers is missing a required property or holds an out-of-enum value; a missing Bases filter key silently hides the note from its view. The value is the owner's call → display-only, no auto-fix. |
 | `unreadable` (#614) | P0 | Not an error type — no rule fired, the file's frontmatter was never examined (permission denied, encoding error, etc). Ranked ahead of E1: "we could not look" is a worse integrity signal than any judgment made ON content that WAS read. Kept OUT of every content-based type (E1/E3/E5/E6/E10/E11/E12) so a file that could not be read is never laundered into a finding about content nobody saw. See `## SCAN output budget` below. |
 
 > **P0 = 무결성 (integrity)**: All three E1–E3 types are in v4 §6.1 Step 1 "무결성", which outputs P0 items first and gates OPTIONAL-FIX on user confirmation.
-> **P1 = 정체/구조 (stagnation / structure)**: E6 surfaces unprocessed inputs; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages. All are visible signal only, never auto-fixed (each requires a semantic decision: process / archive / move / recompile).
+> **P1 = 정체/구조 (stagnation / structure)**: E6 surfaces unprocessed inputs; E10 and E11 surface folder-structure drift; E12 surfaces stale wiki pages; E13 surfaces notes that break the vault's declared schema. All are visible signal only, never auto-fixed (each requires a semantic decision: process / archive / move / recompile).
 > **P2 = quality**: E5 orphan notes and E9 vocabulary inconsistencies are quality signals, not integrity defects.
 
 > **Code numbering**: E9 (#119, #167) is the tag/property vocabulary check below. Its deterministic sub-checks (E9a singular/plural, E9b camel/snake property naming) ship in `audit-validate.py`; E9c (semantic synonyms) ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` (see the E9 section). E10/E11 are the structural checks per #128/#129. E12 (#330, #336, #698) is the wiki self-audit: E12a staleness and E12c near-dup both ship deterministically in `audit-validate.py`; E12b cross-page contradiction ships as a skill-only `--deep` LLM opt-in in `audit/SKILL.md` Phase 2.5 stub, full procedure in `reference/audit-deep.md` — the same deterministic/semantic split E9 draws around E9c, and both now ship behind the same `--deep` flag.
@@ -454,7 +455,7 @@ for (A, B) in unordered_pairs(wiki_pages):
  "path": "wiki/a.md ↔ wiki/b.md", "detail": "<reason>", "auto_fix_eligible": false}
 ```
 
-**Out of `--dod` scope**: `--dod` (`obsidian-vault-manager/scripts/test/assert-dod.py`) measures `audit-validate.py`'s deterministic detection against seeded fixtures (`seeded_detected`, `fp_on_clean`). E12b has no reference-impl function to measure and cannot be seeded/detected deterministically (its output depends on live LLM judgment), so it is not a `--dod` target and never will be — that gate stays scoped to E1–E11 + E12a exactly as it was before #336. Acceptance for E12b instead is a fixture demonstration: see `obsidian-vault-manager/scripts/test/fixtures/e12b-deep-demo/`.
+**Out of `--dod` scope**: `--dod` (`obsidian-vault-manager/scripts/test/assert-dod.py`) measures `audit-validate.py`'s deterministic detection against seeded fixtures (`seeded_detected`, `fp_on_clean`). E12b has no reference-impl function to measure and cannot be seeded/detected deterministically (its output depends on live LLM judgment), so it is not a `--dod` target and never will be — that gate stays scoped to E1–E11 + E12a exactly as it was before #336 (E13, opt-in per vault, is outside it too). Acceptance for E12b instead is a fixture demonstration: see `obsidian-vault-manager/scripts/test/fixtures/e12b-deep-demo/`.
 
 **Never auto-fixed**: like E12a, recompiling/reconciling a genuine contradiction is a semantic decision — display-only, same as every other E12 finding.
 
@@ -517,6 +518,45 @@ for (A, B) in unordered_pairs(wiki_pages):
 
 **Rationale**: wiki duplicates accumulate when `/wiki` DEDUP degrades to slug-only matching on a manifest exit-3 — #645 §4 F1 follow-up, independent of the `/wiki` deployment-unit migration itself (that migration *lowers* the exit-3 rate by co-locating `/wiki` with the manifest-generating hook, but does not eliminate the existing debt; F1 is deliberately NOT bundled with the migration PR so a one-line rollback of the migration stays possible — #645 §4). Regression-covered by the DoD fixture (1 seeded near-dup pair under a `dup-fixture` tag distinct from every other wiki seed group above, so it never exact-tag-matches them → `seeded_detected.E12_wiki_near_dup == 1`; `fp_on_clean.E12_wiki_near_dup == 0`, guarded by giving every other wiki seed group its own per-file tag suffix so this fixture's shared `audit-e12-*` filename convention never manufactures an accidental cross-group match) plus a scoping/matching unit test (`test-wiki-near-dup.py`).
 
+## E13 — `custom_schema_violation` [Warning]
+
+**Rule**: a vault-root `.vault-schema.json` declares schemas; for each schema whose `when` matches
+a note, a `required` field is absent or empty, or an `enum` field holds a value outside its list.
+**Source**: `frontmatter_records` + `$VAULT_ROOT/.vault-schema.json` (`scan-summary.py --schema`).
+**Reports**: `{path, schema, missing?, invalid?}` — one record per note × schema that fails.
+
+The v4 universal fields (E2) say nothing about the properties a vault adds for its own purposes.
+Once a `.base` view filters or groups on such a property, the vault has a schema of its own, and
+a note missing the filter key silently drops out of the view (#764) — worse than a blank cell,
+because nothing shows the row is gone. E13 lets the vault state that schema and has audit hold it.
+
+**Format** (JSON, so the stdlib parser reads it — no YAML dependency):
+
+```json
+{"schemas": [
+  {"name": "업무 항목",
+   "when": {"tags": "업무지도"},
+   "required": ["track", "track_order", "item", "item_order", "status", "status_since", "output_at"],
+   "optional": ["depends_on", "related"],
+   "enum": {"status": ["대기", "진행중", "보류", "완료", "폐기"]}}
+]}
+```
+
+- `when` (required, non-empty): field → value. A note matches when every listed field equals
+  the value, or is a list containing it. Values compare as exact strings.
+- `required`: a field counts as missing when the key is absent **or empty** (`track:` with no
+  value parses to an empty list) — a Bases filter drops both alike.
+- `enum`: every value present must be in the list; an absent field is `required`'s concern, not
+  this one's. `optional` is documentation only and is never checked.
+
+**No schema file → no E13 at all**: `scan-summary.py` emits no `E13` key, so a vault without the
+file gets byte-identical audit output. A file that is not valid JSON or not this shape renders
+`E13: {computed: false, reason}` — reported, never read as zero violations, and never a reason to
+stop the audit.
+
+**Never auto-fixed**: audit cannot know what `track` should be for a note — the value is the
+vault owner's decision. Display-only, P1 (the same navigation-risk tier as E10/E11).
+
 ## Auto-fix eligibility
 
 Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
@@ -525,7 +565,7 @@ Only the following are mutated by Phase 4 OPTIONAL-FIX (frontmatter-only edits):
 |------|-----------------|
 | `missing_required_fields` (E2) | Add missing `tags`, `type`, `created` fields. For `tags:`, propose a deterministic 3-tier inference (type → filename slug → first segment under `notes/`; see the E2 **Tag inference** section above) — never an empty `tags: []` — and preview it in the confirmation gate before applying. `provenance` (#477 item 4) is required but NOT auto-fillable — unlike `tags`, there is no safe deterministic inference for "where did this come from." When it's among the missing fields, surface it in the confirmation gate per-file and ask the user for the actual origin instead of writing a placeholder. |
 
-Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, reconciling a confirmed E12b contradiction, or merging a confirmed E12c near-duplicate pair, is a semantic decision — display-only warning).
+Never auto-fixed: E1 (body structure unknown), E3 (rename affects inbound links — suggestion only), E5 (content value judgment — connection candidates are suggestions only), E6 (stagnation requires semantic decision: process / archive), E9 (canonical-form choice + multi-file rewrite is the user's decision — display-only), E10/E11 (moving a file affects inbound links — display-only warning, user decides the destination), E12 (recompiling/re-verifying a stale wiki page, reconciling a confirmed E12b contradiction, or merging a confirmed E12c near-duplicate pair, is a semantic decision — display-only warning), E13 (a custom property's value cannot be inferred — display-only).
 
 ## Manifest Summary (display-only)
 
@@ -675,7 +715,7 @@ file, and open it with `Read`.
   scan_summary {           // Step 7b — reduces raw frontmatter/filename records + link index
     total_files, max_per_type,
     link_index {targets, sources},   // size only — the Step 7 index itself never enters context
-    errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified E12_near_dup, defect-bearing
+    errors {               // E1 E2 E3 E5 E6 E10 E11 E12_stale E12_unverified E12_near_dup E13?, defect-bearing
                            // only; {count, paths[] | records[], omitted?}. Field set:
                            // scripts/README.md → scan-summary.py.
     }

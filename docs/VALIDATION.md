@@ -1110,6 +1110,18 @@ python3 obsidian-vault-manager/scripts/test/test-scan-summary-budget.py
 python3 obsidian-vault-manager/scripts/scan-summary.py --self-test
 # Expected: OK: all N scan-summary self-test cases passed
 
+# audit E13 `custom_schema_violation` end to end (#764). A vault declares its own note schema in
+# `<vault>/.vault-schema.json` (`when` / `required` / `enum`); before this, audit could not check
+# vault-specific frontmatter contracts, so a note missing `track:` or carrying an off-list `status:`
+# passed every scan. Drives the REAL Steps 5-7b pipeline (ovm-primitives scan-frontmatter/
+# scan-filename/extract-wikilinks-batch -> scan-summary.py --schema) over a temp vault and pins:
+# no schema file = byte-identical output with no E13 key; conforming notes = count 0; absent or
+# empty required field -> `missing`; out-of-enum value -> `invalid`; non-matching notes never
+# reported; an unusable schema = `computed: false` + reason (exit 0, never a silent zero); and
+# audit/SKILL.md Step 7b passes `--schema "$VAULT_ROOT/.vault-schema.json"`.
+python3 obsidian-vault-manager/scripts/test/test-audit-custom-schema.py
+# Expected: OK: all 11 custom-schema cases passed
+
 # audit DoD 측정 (mechanical reference impl). Folded into ONE registered command
 # (#660) — check-test-exitcode.py runs each registered command in its own `bash -c`,
 # so shell state (e.g. a per-run `mktemp -d`) does not survive across separate lines.

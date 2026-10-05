@@ -85,10 +85,11 @@ _AUTOFIX_SECTION = _normalise(
     "file affects inbound links — display-only warning, user decides the destination), E12 "
     "(recompiling/re-verifying a stale wiki page, reconciling a confirmed E12b "
     "contradiction, or merging a confirmed E12c near-duplicate pair, is a semantic decision "
-    "— display-only warning).\n"
+    "— display-only warning), E13 (a custom property's value cannot be inferred — "
+    "display-only).\n"
 )
 _AUTOFIX_NEIGHBOURS = (
-    "### E12c — near-duplicate wiki pages (#698, #645 F1 follow-up)",
+    "## E13 — `custom_schema_violation` [Warning]",
     "## Manifest Summary (display-only)",
 )
 
