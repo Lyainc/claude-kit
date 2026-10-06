@@ -28,7 +28,7 @@ goal:
   clarity_score: 0.90
 
 constraints:
-  - id: c1
+  - id: constraint-1
     type: technical
     description: >
       새 플러그인이나 새 스킬을 신설하지 않는다. 네 변경 모두 기존 build-spec
@@ -39,7 +39,7 @@ constraints:
       "3번째 저작 primitive → doc-authoring 플러그인 신설" 트리거가 발동해
       #140과 정면 충돌한다. 기존 스킬에 얹으면 충돌 자체가 발생하지 않는다.
 
-  - id: c2
+  - id: constraint-2
     type: technical
     description: >
       Seed 코어는 특정 실행 런타임을 가정하지 않는다. Phase 3의 산출물은
@@ -49,7 +49,7 @@ constraints:
       SKILL.md Phase 4 원문이 지목하는 vendor-neutral의 실제 대상이 execution
       runtime이다. 이 제약은 유지된다.
 
-  - id: c3
+  - id: constraint-3
     type: other
     description: >
       이슈 트래커 중립성은 제약이 아니다. GitHub 이슈 저작을 어댑터로 붙이는 것은
@@ -61,7 +61,7 @@ constraints:
       gap → §4 issue-authoring"으로 이 자리를 비워둔 것으로 명시한다. vendor-neutral
       원칙을 이슈 트래커까지 확장 적용한 것은 범위 혼동이었다.
 
-  - id: c4
+  - id: constraint-4
     type: technical
     description: >
       인터뷰 라운드 수를 늘리지 않는다. 맹점 패스는 게이트 통과 직후 Seed 방출 직전
@@ -72,7 +72,7 @@ constraints:
       맹점 패스를 넣으면 라운드가 두 배가 되고, 게이트 후 1회는 선명해진 스펙을
       입력으로 받아 질문이 더 날카로워진다.
 
-  - id: c5
+  - id: constraint-5
     type: resource
     description: >
       게이트 독립 판정은 매 라운드가 아니라 게이트가 열릴 것 같은 라운드에만 건다.
@@ -81,7 +81,7 @@ constraints:
       서브에이전트 spawn 비용. vault plan-2026-04-19-thinking-tools-ouroboros-execution
       §13이 같은 완화책(기본 저비용 + 고비용은 opt-in)을 이미 채택했다.
 
-  - id: c6
+  - id: constraint-6
     type: technical
     description: >
       기존에 등록된 가드와 테스트를 깨뜨리지 않는다.
@@ -89,7 +89,7 @@ constraints:
     rationale: 불변 제약. scripts/check-*.py 전수가 회귀 신호다.
 
 success_criteria:
-  - id: ac1
+  - id: acceptance-1
     description: >
       고친 build-spec으로 새 이슈를 하나 저작해 gh issue create까지 완료하고,
       그 이슈 URL이 존재한다.
@@ -99,27 +99,27 @@ success_criteria:
       전부의 통과를 함의한다 — 어댑터가 없으면 본문이 안 나오고, 맹점 패스와 독립
       판정이 없으면 게이트가 안 열리고, 백로그 조회가 없으면 충돌 기록이 비어 있다.
 
-  - id: ac2
+  - id: acceptance-2
     description: >
       그 이슈 본문에 Seed의 goal / constraints / success_criteria가 각각 배경·스코프 /
       제약 / Acceptance로 매핑돼 있다.
     verifiable: true
     measurable_via: 이슈 본문과 Seed YAML 대조
 
-  - id: ac3
+  - id: acceptance-3
     description: >
       저작 과정에서 Phase 0이 열린 이슈 백로그를 조회했고, 기존 이슈와의 충돌 또는
       무충돌 판정이 본문에 기록됐다.
     verifiable: true
     measurable_via: 이슈 본문의 기존 이슈 참조 항목 존재 여부
 
-  - id: ac4
+  - id: acceptance-4
     description: >
       게이트 판정이 격리 서브에이전트에서 나왔고 STATE 블록에 그 사실이 기록됐다.
     verifiable: true
     measurable_via: STATE 블록의 판정 출처 필드
 
-  - id: ac5
+  - id: acceptance-5
     description: 등록된 가드와 테스트가 전수 통과한다.
     verifiable: true
     measurable_via: scripts/check-test-exitcode.py 단일 exit code

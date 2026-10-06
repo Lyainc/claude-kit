@@ -8,7 +8,7 @@ tails) and provides a runner that executes each command, asserts it exits 0, and
 command is immediately followed by a `# Expected: ...` comment — asserts its stdout matches
 that text too. Reports every command whose exit code is nonzero or whose stdout diverges.
 
-OBJECTIVE DAMAGE (c6): a test that is *registered* in docs/VALIDATION.md but has silently
+OBJECTIVE DAMAGE (claude-kit-work-rules/constraint-6): a test that is *registered* in docs/VALIDATION.md but has silently
 broken (nonzero exit) is a dead regression guard — the protection it documents no longer
 holds, yet the docs still claim it does. That divergence is objective damage, not taste:
 the claimed safety net is a lie. CI already runs these tests directly; this script is a

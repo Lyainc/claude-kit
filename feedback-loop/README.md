@@ -150,7 +150,7 @@ next `session_start` (#514), so `.session-model/` stays bounded to recent sessio
 
 `outcome` values: `started` (PreToolUse), `success` / `error` / `blocked`
 (PostToolUse), `fired` (rule_fire). All inner `meta` keys are optional — only the
-`meta: {}` envelope is required. `rule_fire` (#216 c8) is owned here as a schema
+`meta: {}` envelope is required. `rule_fire` (#216 claude-kit-work-rules/constraint-8) is owned here as a schema
 (data contract); emitters only *emit* to it — they never import feedback-loop code,
 so CON-5 (one-way dependency) is preserved.
 

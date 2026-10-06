@@ -11,7 +11,7 @@ addresses a human reader directly.
 > **정책(policy)** 이라 결정론 스크립트로 막고, 취향·회색지대면 **선호(preference)**
 > 라 외부 린터 설정에 위임해요. 하드코딩으로 자기 스타일을 강요하지 않아요.
 
-## 0. Why this file exists — stance / voice / work-rule (c1)
+## 0. Why this file exists — stance / voice / work-rule (claude-kit-work-rules/constraint-1)
 
 claude-kit's main-agent **persona** lives in the developer's *personal*
 `~/.claude/CLAUDE.md`, and it is itself two independent layers: **voice**
@@ -21,7 +21,7 @@ The third layer — **work-rule** (작업 규율 — how code/docs in this repo 
 traced, and enforced) — lives **here in `rules/`**, physically separate from the
 persona.
 
-That is the c1 trichotomy: **stance · voice · work-rule** are three independent
+That is the claude-kit-work-rules/constraint-1 trichotomy: **stance · voice · work-rule** are three independent
 layers. A lively *voice* must never soften a *stance* judgment, and neither may bend a
 *work-rule*; and a work rule must never depend on who is at the keyboard or on their
 tone or judgment style. Anyone (or any agent) working on claude-kit follows `rules/`;
@@ -147,7 +147,7 @@ guidance lives in `AGENTS.md`, imported by `CLAUDE.md`; this section captures th
   write local IDs letter+digit with no hyphen (`C2`, not `C-2`). Before introducing a
   new global prefix, register it in the glossary first.
 
-## 2. POLICY vs PREFERENCE (c6)
+## 2. POLICY vs PREFERENCE (claude-kit-work-rules/constraint-6)
 
 This is the classifier that keeps the repo from hardcoding one person's taste onto
 everyone who works in it.
@@ -201,7 +201,7 @@ demonstrating objective damage. When unsure, it stays PREFERENCE.
    formatting. Delegate to a markdown linter config if desired; not a claude-kit
    policy.
 
-## 3. The 3-tier enforcement model (c5)
+## 3. The 3-tier enforcement model (claude-kit-work-rules/constraint-5)
 
 Enforcement has exactly three tiers. Heavier tiers cost more and are reserved for
 where they are actually warranted.
@@ -234,7 +234,7 @@ where they are actually warranted.
   revertible). Everything safely automatable lives in HARD or SOFT; the HUMAN tier
   stays small on purpose.
 
-**Deferred (YAGNI, c5): the haiku verifier.** A native haiku sub-agent verifier (to
+**Deferred (YAGNI, claude-kit-work-rules/constraint-5): the haiku verifier.** A native haiku sub-agent verifier (to
 guard against self-approval, following the `vault-searcher` haiku pattern) is **not**
 built in v1. Self-approval in a single context is a *potential* problem, not a
 demonstrated one. The verifier is added only **if self-approval proves to be a real
@@ -251,10 +251,10 @@ deterministic script cannot fairly decide:
 - [ ] **Identifiers (#214)**: no new parallel global tracking scheme was invented;
       local tracking IDs (`U/P/W/D/C`) stayed local or carried their source on
       cross-reference; any new global prefix was registered in `docs/design/glossary.md`.
-- [ ] **Stance/voice/work-rule separation (c1)**: no persona content (voice *or* stance)
+- [ ] **Stance/voice/work-rule separation (claude-kit-work-rules/constraint-1)**: no persona content (voice *or* stance)
       leaked into repo files; work rules stayed in `rules/`, tone and judgment-posture
       stayed in personal config.
-- [ ] **POLICY vs PREFERENCE (c6)**: no subjective style constant was hardcoded; any
+- [ ] **POLICY vs PREFERENCE (claude-kit-work-rules/constraint-6)**: no subjective style constant was hardcoded; any
       style concern was delegated to external linter config, not baked in.
 - [ ] **MECE / no reimplementation**: no external-linter behavior was reimplemented;
       claude-kit only delegates to and requires linters, it does not rebuild them.
@@ -277,7 +277,7 @@ deterministic script cannot fairly decide:
       checkout while a sibling session is live — is still only this self-check (#594).
 - [ ] **HARD checks green**: the relevant `scripts/check-*.py` and external linters
       were run and pass (or are wired so CI will run them).
-- [ ] **Recurrence (c7)**: if this violation looks like a *repeat pattern*, enter the
+- [ ] **Recurrence (claude-kit-work-rules/constraint-7)**: if this violation looks like a *repeat pattern*, enter the
       RCA flow (§5) before closing out.
 
 **How the reminder hook is wired.** The task-end reminder is a deterministic Claude
@@ -296,7 +296,7 @@ Revise flow, gated on recurrence and stopping at the level expressible as a
 deterministic code change (so RCA does not regress into endless re-analysis). A
 one-off slip does **not** trigger RCA; only a repeat pattern does.
 
-## 6. Coverage of the 11 initial expectations (ac1)
+## 6. Coverage of the 11 initial expectations (claude-kit-work-rules/acceptance-1)
 
 The work-rules effort started from 11 expected items. Each is covered by a mechanism
 in this minimal core. SOFT and DEFERRED rows mark **intended limits**, not gaps.
@@ -305,21 +305,21 @@ in this minimal core. SOFT and DEFERRED rows mark **intended limits**, not gaps.
 |---|---------------|-----------|------|
 | 1 | Style hygiene | `ruff.toml` / `.prettierrc` injected, run via `scripts/run-linters.py` (delegation, never hardcoded) | HARD-when-present / else exit 2 (#456) |
 | 2 | Domain conventions | §1 + `check-type-optin` (vault `type:`) + `check-banned-words` | HARD + SOFT |
-| 3 | No new plugin/skill | c2: zero new `plugin.json`/`SKILL.md`; rules live in `scripts/` + `rules/` + `.claude/` only | by-design (ac5 grep) |
-| 4 | Persona separation | §0 — persona (voice + stance) in personal `~/.claude/CLAUDE.md`, work rules in `rules/` | SOFT (c1) |
+| 3 | No new plugin/skill | claude-kit-work-rules/constraint-2: zero new `plugin.json`/`SKILL.md`; rules live in `scripts/` + `rules/` + `.claude/` only | by-design (claude-kit-work-rules/acceptance-5 grep) |
+| 4 | Persona separation | §0 — persona (voice + stance) in personal `~/.claude/CLAUDE.md`, work rules in `rules/` | SOFT (claude-kit-work-rules/constraint-1) |
 | 5 | Enforcement | §3 three-tier model (HARD scripts + linters / SOFT hook / HUMAN gate) | structural |
 | 6 | Procedure omission | §4 task-end checklist + `scripts/rules-checklist-hook.sh` reminder; `check-test-exitcode` | SOFT + HARD |
-| 7 | Verification evidence | Deterministic scripts emit real exit-code evidence; `check-test-exitcode` runs registered tests; CI. No external-orchestrator dependency (c3) | HARD |
-| 8 | Expression hygiene | claude-kit-specific banned terms → `check-banned-words` (HARD); general prose hygiene → external linters (delegation, c4) | HARD + delegated |
+| 7 | Verification evidence | Deterministic scripts emit real exit-code evidence; `check-test-exitcode` runs registered tests; CI. No external-orchestrator dependency (claude-kit-work-rules/constraint-3) | HARD |
+| 8 | Expression hygiene | claude-kit-specific banned terms → `check-banned-words` (HARD); general prose hygiene → external linters (delegation, claude-kit-work-rules/constraint-4) | HARD + delegated |
 | 9 | Consistency / traceability | §1 (issue = canonical, trace-to-root) + `check-version-sync` + `check-ci-coverage` | HARD + SOFT |
-| 10 | Telemetry | Reuse existing `telemetry/` (event-logger, `report.py` lifecycle). Rule-fire event schema **DEFERRED to #217** (telemetry external-distribution owner) — c8 | DEFERRED (soft) |
-| 11 | Violation correction | §5 + `rules/rca-checklist.md` (4-step RCA, stop-at-determinism, recurrence gate) | reference (c7) |
+| 10 | Telemetry | Reuse existing `telemetry/` (event-logger, `report.py` lifecycle). Rule-fire event schema **DEFERRED to #217** (telemetry external-distribution owner) — claude-kit-work-rules/constraint-8 | DEFERRED (soft) |
+| 11 | Violation correction | §5 + `rules/rca-checklist.md` (4-step RCA, stop-at-determinism, recurrence gate) | reference (claude-kit-work-rules/constraint-7) |
 
 **Intended limits.** Rows 4, 6 (checklist part) and 9 (traceability part) are SOFT by
-design — judgment-type rules a deterministic script cannot fairly decide (c5). Row 10
+design — judgment-type rules a deterministic script cannot fairly decide (claude-kit-work-rules/constraint-5). Row 10
 (telemetry rule-fire) is DEFERRED: #217 owns telemetry external distribution, so the
-rule-fire event schema is added there to avoid a split owner (c8 is the only non-hard
+rule-fire event schema is added there to avoid a split owner (claude-kit-work-rules/constraint-8 is the only non-hard
 constraint). Row 1 is latent on a repo with no linter installed — the delegation
-mechanism is committed and activates the moment a linter is present (c4). Latent is not
+mechanism is committed and activates the moment a linter is present (claude-kit-work-rules/constraint-4). Latent is not
 silent: since #456 a run where every linter skipped exits 2 and reports no verdict, so
 "nothing was inspected" can no longer be read as "the tree is clean".

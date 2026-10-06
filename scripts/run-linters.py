@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""run-linters.py — thin delegation to external linters/formatters (#216 c4).
+"""run-linters.py — thin delegation to external linters/formatters (#216 claude-kit-work-rules/constraint-4).
 
 claude-kit does NOT reimplement linting. This script only DELEGATES: "if a linter is
 present (tool on PATH + its repo config), run it and enforce that it passes; otherwise
 skip gracefully." All style/taste lives in the linter's repo-owned config (ruff.toml,
-.prettierrc, ...), per #216 c6/ac4 — never hardcoded here.
+.prettierrc, ...), per #216 claude-kit-work-rules/constraint-6, claude-kit-work-rules/acceptance-4 — never hardcoded here.
 
 Contract (per linter):
   - tool absent (not on PATH)                  -> SKIP, contributes exit 0 (graceful)
@@ -265,7 +265,7 @@ def run_self_test():
 
 
 def main(argv=None):
-    parser = argparse.ArgumentParser(description="Thin external-linter delegation (#216 c4)")
+    parser = argparse.ArgumentParser(description="Thin external-linter delegation (#216 claude-kit-work-rules/constraint-4)")
     parser.add_argument("--root", default=None, help="repo root (default: git toplevel else CWD)")
     parser.add_argument("--json", action="store_true", help="emit JSON report")
     parser.add_argument("--self-test", action="store_true", help="run injected-fake delegation cases")

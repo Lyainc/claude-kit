@@ -30,7 +30,7 @@ goal:
   clarity_score: 0.90
 
 constraints:
-  - id: c1
+  - id: constraint-1
     type: technical
     description: >
       새 플러그인이나 새 스킬을 신설하지 않는다. 페르소나 풀은 thinking-tools/reference/
@@ -41,7 +41,7 @@ constraints:
       reference/state-contract.md가 이미 "여러 스킬이 공유하는 참조 파일" 자리를
       정의해뒀으므로 새로 만들 구조가 없다.
 
-  - id: c2
+  - id: constraint-2
     type: technical
     description: >
       풀은 고정 목록이 아니라 기본값이다. 주제가 풀 밖일 때 스킬은 여전히 즉석 페르소나를
@@ -51,18 +51,18 @@ constraints:
       thinking-tools는 도메인 무관 사고 도구다. 고정 목록으로 닫으면 도메인 밖 주제에서
       스킬 자체가 못 쓰게 된다.
 
-  - id: c3
+  - id: constraint-3
     type: technical
     description: >
       풀에서 페르소나를 고르는 규칙은 결정론적이어야 한다 — 주제의 도메인·키워드를 풀
       항목의 태그에 맞추는 방식. 매 호출마다 LLM이 자유롭게 3-5개를 고르는 형태는 안 된다.
     hard: true
     rationale: >
-      맹점 패스 발견. 선택이 자유 판단이면 ac2("두 번 돌려 같은 집합")는 검증이 아니라
+      맹점 패스 발견. 선택이 자유 판단이면 acceptance-2("두 번 돌려 같은 집합")는 검증이 아니라
       동전 던지기가 된다. 재현성이 목표인데 선택 단계가 비결정론이면 목표 자체가 성립하지
       않는다.
 
-  - id: c4
+  - id: constraint-4
     type: technical
     description: >
       공유 대상은 도메인 전문가 페르소나뿐이다. adversarial-review의 고정 역할
@@ -75,14 +75,14 @@ constraints:
       adversarial-review 쪽 접점은 Attacker가 *어느 각도에서* 공격하느냐(스탠스)이지
       역할 레이블이 아니다.
 
-  - id: c5
+  - id: constraint-5
     type: resource
     description: 페르소나는 풀에 10개 안팎으로 둔다.
     hard: false
     rationale: >
       파일이 커지면 매 호출마다 읽는 비용이 늘어난다. 한 세션이 실제로 쓰는 건 3-5개다.
 
-  - id: c6
+  - id: constraint-6
     type: technical
     description: 기존에 등록된 가드와 테스트를 깨뜨리지 않는다.
     hard: true
@@ -91,39 +91,39 @@ constraints:
       trigger-regression 검사. scripts/check-test-exitcode.py 전수가 회귀 신호다.
 
 success_criteria:
-  - id: ac1
+  - id: acceptance-1
     description: >
       thinking-tools/reference/personas.md가 존재하고, expert-panel과 adversarial-review의
       SKILL.md가 둘 다 그 경로를 인용한다.
     verifiable: true
     measurable_via: grep 2건
 
-  - id: ac2
+  - id: acceptance-2
     description: >
       같은 주제로 expert-panel을 두 번 돌리면 선택된 페르소나 레이블 집합이 같다.
     verifiable: true
     measurable_via: 두 세션 STATE 블록의 페르소나 레이블 대조
 
-  - id: ac3
+  - id: acceptance-3
     description: >
       풀에 없는 도메인의 주제를 주면 스킬이 즉석 페르소나로 진행하고, 그 사실이 출력에
       표기된다.
     verifiable: true
     measurable_via: 도메인 밖 주제 1회 실행
 
-  - id: ac4
+  - id: acceptance-4
     description: 등록된 가드와 테스트가 전수 통과한다.
     verifiable: true
     measurable_via: python3 scripts/check-test-exitcode.py 단일 exit code
 
-  - id: ac5
+  - id: acceptance-5
     description: >
       같은 주제를 adversarial-review에 넣었을 때 Attacker의 공격 스탠스가 expert-panel이
       같은 주제에서 고른 풀 항목 중 하나를 가리킨다. 고정 역할 레이블은 대조 대상이 아니다.
     verifiable: true
-    measurable_via: 두 스킬 출력의 풀 항목 ID 대조 (c4로 범위 축소된 형태)
+    measurable_via: 두 스킬 출력의 풀 항목 ID 대조 (constraint-4로 범위 축소된 형태)
 
-  - id: ac6
+  - id: acceptance-6
     description: >
       thinking-tools/docs/improvement-matrix.md의 W8·M1 행이 status resolved +
       resolved_in 기재로 갱신된다.
@@ -152,19 +152,19 @@ blindspots:
   - area: assumptions
     question: >
       풀 10개 중 주제별 3-5개를 고르는 것이 결정론적 규칙인가, 매 호출 LLM 판단인가?
-      후자면 ac2는 검증이 아니라 동전 던지기다.
-    resolution: c3으로 접었다 — 선택 규칙은 태그 매칭으로 결정론이어야 한다.
+      후자면 acceptance-2는 검증이 아니라 동전 던지기다.
+    resolution: constraint-3으로 접었다 — 선택 규칙은 태그 매칭으로 결정론이어야 한다.
   - area: blind-spots
     question: >
       adversarial-review의 역할이 주제 무관 고정인데, "같은 주제에 두 스킬이 같은 풀
       항목을 가리킨다"가 원리적으로 성립하는가?
-    resolution: c4 + ac5로 접었다 — 공유 대상을 도메인 전문가로 좁히고, adversarial-review
+    resolution: constraint-4 + acceptance-5로 접었다 — 공유 대상을 도메인 전문가로 좁히고, adversarial-review
       쪽 접점은 Attacker 스탠스로 재정의했다.
   - area: edge-cases
     question: >
       improvement-matrix W8·M1 행이 affected에 있는데 이를 검증하는 성공 기준이 없다.
       요구되는 최종 상태가 무엇인가?
-    resolution: ac6으로 접었다 — resolved + resolved_in 기재.
+    resolution: acceptance-6으로 접었다 — resolved + resolved_in 기재.
 
 ambiguity:
   overall: 0.14
@@ -185,5 +185,5 @@ metadata:
     백로그 조회에서 왔다(운영자 자기적용). 게이트는 격리 서브에이전트가 판정했고
     (scoring_isolated: true) Success 0.75는 그 판정이 잡아낸 값이다 — 원안은 목표가
     재현성·일관성 두 축인데 ac가 재현성만 검증하고 있었다(S3=N). Phase 2.5 맹점 패스
-    3건 전부 스펙에 접었다(c3 · c4/ac5 · ac6).
+    3건 전부 스펙에 접었다(constraint-3 · constraint-4/acceptance-5 · acceptance-6).
 ---

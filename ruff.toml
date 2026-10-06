@@ -1,9 +1,9 @@
-# ruff.toml — repo-owned Python lint config (config injection per #216 c6/ac4).
+# ruff.toml — repo-owned Python lint config (config injection per #216 claude-kit-work-rules/constraint-6, claude-kit-work-rules/acceptance-4).
 #
 # Style/taste for Python lives HERE, not hardcoded in scripts/check-*.py. scripts/run-linters.py
 # only DELEGATES to ruff (if installed) and enforces that it passes — it never reimplements rules.
 #
-# Only OBJECTIVE-DAMAGE rules are selected (the c6 promotion criterion: "does a violation cause
+# Only OBJECTIVE-DAMAGE rules are selected (the claude-kit-work-rules/constraint-6 promotion criterion: "does a violation cause
 # objective damage?"). Pure stylistic/formatting rules are left to ruff defaults / opt-in so this
 # config does not impose taste on contributors. Promote a rule into `select` only when a violation
 # is a real defect, not a preference.

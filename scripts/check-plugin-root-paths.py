@@ -5,7 +5,7 @@ RULE (narrow, deterministic): inside a SKILL.md fenced code block, a command tha
 a bundled script (`bash`/`sh`/`python`/`python3` followed by a path containing `scripts/`
 or `hooks/`) MUST anchor that path on `${CLAUDE_PLUGIN_ROOT}`.
 
-OBJECTIVE DAMAGE (c6 — policy, not taste): a SKILL.md body is injected and its code blocks
+OBJECTIVE DAMAGE (claude-kit-work-rules/constraint-6 — policy, not taste): a SKILL.md body is injected and its code blocks
 run with CWD = the CONSUMER's project, not the claude-kit checkout. So a repo-relative
 invocation like
 
