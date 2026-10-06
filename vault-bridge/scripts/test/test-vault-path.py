@@ -24,6 +24,8 @@ Run: python3 vault-bridge/scripts/test/test-vault-path.py
 Exit 0 on pass, 1 on fail.
 """
 
+from __future__ import annotations
+
 import datetime
 import json
 import os
