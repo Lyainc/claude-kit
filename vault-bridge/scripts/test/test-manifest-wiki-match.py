@@ -199,7 +199,7 @@ def main() -> int:
     if errors:
         print(f"\nFAILED: {len(errors)} check(s) failed")
         return 1
-    print(f"\nOK: all wiki-match checks passed")
+    print("\nOK: all wiki-match checks passed")
     return 0
 
 

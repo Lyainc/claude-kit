@@ -1047,7 +1047,7 @@ def case_token_cost_view_end_to_end(errors: list[str]) -> None:
     tout = _run_main_with(priced, ["report.py", "--since=all", "--format=table"])
     _assert("Token/cost breakdown" in tout, "table renders token/cost section", errors)
     _assert("cost=$3.0000" in tout or "cost=$3.00" in tout or "$3.0000" in tout,
-            f"table shows priced cost for input (excerpt not found in output)", errors)
+            "table shows priced cost for input (excerpt not found in output)", errors)
 
     # No model anywhere → cost omitted with an explicit reason, tokens still shown.
     unpriced = [
