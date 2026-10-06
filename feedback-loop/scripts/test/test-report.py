@@ -19,6 +19,8 @@ Run: python3 feedback-loop/scripts/test/test-report.py
 Exit 0 on pass, 1 on fail.
 """
 
+from __future__ import annotations
+
 import contextlib
 import io
 import json
