@@ -8,10 +8,14 @@
 # config does not impose taste on contributors. Promote a rule into `select` only when a violation
 # is a real defect, not a preference.
 line-length = 100
+# Hooks and skills run these scripts with the system python3, which is 3.9 on macOS (#807, #779).
+target-version = "py39"
 
 [lint]
 select = [
     "F",    # pyflakes — undefined names, unused imports/vars, f-string bugs (real defects)
     "E9",   # syntax / IndentationError / IOError on parse (broken code)
     "B",    # flake8-bugbear — likely-bug patterns (mutable defaults, etc.)
+    "FA102",# PEP 604/585 annotations without `from __future__ import annotations` — TypeError
+            # at import on 3.9 (#807)
 ]
