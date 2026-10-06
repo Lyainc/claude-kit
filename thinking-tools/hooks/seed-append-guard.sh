@@ -7,7 +7,8 @@
 # only added) AND the added part reads like a work log (a date, past-tense reporting, review
 # provenance). Replacing a field's value — the amendment the Seed template's header actually
 # sanctions — matches neither, so correcting the spec stays frictionless while journaling in
-# it stops. (3) A constraints[]/success_criteria[] c*/ac* id vanishing (#780 c3).
+# it stops. (3) A constraints[]/success_criteria[] item id vanishing, duplicated or reused
+# (seed-relations-graph/constraint-3; reference/identifiers.md). Renames go through seed-id-migrate.py.
 # This is a Claude Code hook only; on Codex the Seed's header contract is all there is.
 #
 # Why a hook and not another sentence in a SKILL.md: the session doing the appending is a
