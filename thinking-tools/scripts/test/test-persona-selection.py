@@ -46,7 +46,7 @@ def parse_pool(text: str) -> list[tuple[str, list[str]]]:
     """Return [(id, tags)] from the Pool table rows, in file order."""
     pool: list[tuple[str, list[str]]] = []
     for line in text.splitlines():
-        m = re.match(r"^\|\s*`(P\d+)`\s*\|(.*)\|\s*$", line)
+        m = re.match(r"^\|\s*`([a-z][a-z-]*-expert)`\s*\|(.*)\|\s*$", line)
         if not m:
             continue
         tags = [t.strip().lower() for t in m.group(2).split("|")[-1].split(",")]
@@ -92,13 +92,13 @@ _DECOY_WORDS = [
 
 _FIXTURES = [
     # (topic, must-include, must-exclude)
-    ("로그인 토큰 만료를 어떻게 처리할까", ["P1"], ["P3", "P6"]),
-    ("quick build pipeline 개선", [], ["P3"]),          # `ui` must not hit "build"
-    ("user feedback loop 설계", [], ["P5"]),            # `db` must not hit "feedback"
-    ("docker 배포 롤백 절차", ["P4"], ["P10"]),          # `doc` must not hit "docker"
-    ("latest release 자동화", [], ["P6"]),              # `test` must not hit "latest"
-    ("캐시 도입으로 p99 latency 개선", ["P2"], []),
-    ("이 문서의 네이밍이 헷갈려요", ["P10"], []),
+    ("로그인 토큰 만료를 어떻게 처리할까", ["security-expert"], ["ux-expert", "maintainability-expert"]),
+    ("quick build pipeline 개선", [], ["ux-expert"]),          # `ui` must not hit "build"
+    ("user feedback loop 설계", [], ["data-expert"]),            # `db` must not hit "feedback"
+    ("docker 배포 롤백 절차", ["reliability-expert"], ["communication-expert"]),          # `doc` must not hit "docker"
+    ("latest release 자동화", [], ["maintainability-expert"]),              # `test` must not hit "latest"
+    ("캐시 도입으로 p99 latency 개선", ["performance-expert"], []),
+    ("이 문서의 네이밍이 헷갈려요", ["communication-expert"], []),
 ]
 
 
@@ -106,21 +106,21 @@ _FIXTURES = [
 # user submitted it, and after Steelman construction. The selected sets differ — which is the
 # whole reason both skills must run the rule on the submitted text and never on the Steelman.
 # `topic` is verbatim from the run log; the Steelman text was not captured there, so `steelman`
-# is reconstructed to reproduce the recorded set (P6 out, P3/P7 in).
+# is reconstructed to reproduce the recorded set (maintainability-expert out, ux-expert/cost-expert in).
 _DIVERGENCE = {
     "topic": (
         "사내 API 게이트웨이에 OAuth 토큰 캐시를 도입해 인증 지연을 줄일지 결정한다. "
         "로그인 요청마다 인증 서버를 호출하는 현재 구조는 p99 지연이 크고, 캐시를 두면 "
         "성능은 좋아지지만 토큰 무효화가 늦어져 보안 위험이 생긴다."
     ),
-    "topic_expected": ["P1", "P2", "P6"],
+    "topic_expected": ["security-expert", "performance-expert", "maintainability-expert"],
     "steelman": (
         "토큰 캐시 도입은 정당하다. 인증 서버 왕복을 없애 로그인 응답의 p99 지연을 줄이면 "
         "사용자가 체감하는 대기가 짧아지고, 인증 서버 호출 비용도 함께 내려간다. 캐시 TTL을 "
         "짧게 잡으면 토큰 무효화 지연은 그 TTL 안으로 갇히므로 보안 노출은 제한적이고, "
         "남는 이득은 성능과 비용 양쪽에서 크다."
     ),
-    "steelman_expected": ["P1", "P2", "P3", "P7"],
+    "steelman_expected": ["security-expert", "performance-expert", "ux-expert", "cost-expert"],
 }
 
 # Files that define or invoke the rule. Each must name the shared input and must not aim the
@@ -324,8 +324,8 @@ def check_shared_input(pool) -> list[str]:
 
 def run_self_test() -> int:
     """In-memory: a planted-violation pool must fail, a clean one must pass."""
-    dirty = "| `P1` | X | s | c | v | ui, db, doc, 글 |\n"
-    clean = "| `P1` | X | s | c | v | security, 보안 |\n"
+    dirty = "| `security-expert` | X | s | c | v | ui, db, doc, 글 |\n"
+    clean = "| `security-expert` | X | s | c | v | security, 보안 |\n"
 
     cases = [
         ("planted collisions are caught", dirty, False),

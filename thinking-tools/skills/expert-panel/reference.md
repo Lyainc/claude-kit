@@ -99,7 +99,7 @@ override.
 |----------|---------------|
 | Panel size | 3–5 (the Selection Rule's floor and ceiling); above 5 the added expert repeats an existing criterion |
 | Domain overlap | Guaranteed by tag matching — each selected entry carries a distinct evaluation criterion |
-| Perspective balance | Carried by the tags themselves — a topic with strategy vocabulary matches `P9`. Never top up the panel because the selection *looks* implementation-heavy: "is this implementation-focused" is an LLM judgment, and one applied inconsistently makes two runs of one topic emit different `adhoc:{n}` (#423) |
+| Perspective balance | Carried by the tags themselves — a topic with strategy vocabulary matches `product-strategy-expert`. Never top up the panel because the selection *looks* implementation-heavy: "is this implementation-focused" is an LLM judgment, and one applied inconsistently makes two runs of one topic emit different `adhoc:{n}` (#423) |
 | Rotation | Automatic — the rule re-runs per topic, so a multi-topic session rotates experts by topic text, not by hand |
 
 ### 3. 토픽 분할
@@ -294,7 +294,7 @@ dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). Th
 Topic: {idx}/{total} | Phase: {0|1|2}
 Mode: [isolated:{on|off}] [summary-only:{on|off}]
 Backlog: {scanned|partial|skipped}
-Personas: [{P-id} ...] adhoc:{n}
+Personas: [{persona-id} ...] adhoc:{n}
 Independent: {k}/{N}
 Rebuttal: [t{n}:e{i}:{k}/{N}]
 Collected: [t{n}:e{i}:{expert-id},...]

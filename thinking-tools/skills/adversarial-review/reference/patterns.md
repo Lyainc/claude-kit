@@ -12,8 +12,8 @@ Use these templates per vector in Phase 1. Adapt bracketed values to the claim u
 Every bracketed slot is filled from the Attacker's **domain angle** — the rank-1 entry of
 [../../../reference/personas.md](../../../reference/personas.md) selected once per claim (see
 [SKILL.md → Phase 1](../SKILL.md#phase-1-attack-rounds)). That entry's evaluation criterion decides
-*what kind* of gap, evidence, scenario, or boundary is asked for: a `P1` angle demands threat-model
-evidence and a worst-case breach scenario, a `P7` angle demands unit-cost evidence and a 10x-spend
+*what kind* of gap, evidence, scenario, or boundary is asked for: a `security-expert` angle demands threat-model
+evidence and a worst-case breach scenario, a `cost-expert` angle demands unit-cost evidence and a 10x-spend
 scenario. The vectors and role labels are unchanged — only the angle varies by claim.
 
 ```
@@ -149,7 +149,7 @@ verdicts:
   survived: {N}
   collapsed: {N}
   pending: {N}
-angle: {P-id|adhoc}        # Attacker domain angle — thinking-tools/reference/personas.md rank 1
+angle: {persona-id|adhoc}        # Attacker domain angle — thinking-tools/reference/personas.md rank 1
 backlog_scan: {scanned|partial|skipped}  # Phase 0 backlog-prefilter result, #524 (partial: #561)
                                          # Scan is per claim, this field is document-level: emit the
                                          # LEAST clean value across claims (any skipped → skipped;
@@ -238,7 +238,7 @@ After user defense (or the auto-generated Defender response in 자동 방어 mod
 
 <!-- STATE:CHECKPOINT -->
 Target: {name} | Claims: {N} | Phase: {0|1|2}
-Current Claim: {idx}/{N} | Round: {r}/5 | Angle: {P-id|adhoc}
+Current Claim: {idx}/{N} | Round: {r}/5 | Angle: {persona-id|adhoc}
 Survival: [logic:{score}%] [evidence:{score}%] [counter:{score}%] [scope:{score}%]
 Resilience: {탄탄|보통|취약} | Weighted Score: {weighted_avg}% | Attacks: {count} | Defenses: {success}/{total}
 judge_isolated: {true|false}
@@ -448,7 +448,7 @@ Numeric fields (dimension scores, Weighted Score) serve compaction restoration a
 ```
 <!-- STATE:CHECKPOINT -->
 Target: {name} | Claims: {N} | Phase: {0|1|2}
-Current Claim: {idx}/{N} | Round: {r}/5 | Angle: {P-id|adhoc}
+Current Claim: {idx}/{N} | Round: {r}/5 | Angle: {persona-id|adhoc}
 Survival: [logic:{score}%] [evidence:{score}%] [counter:{score}%] [scope:{score}%]
 Resilience: {탄탄|보통|취약} | Weighted Score: {weighted_avg}% | Attacks: {count} | Defenses: {success}/{total}
 judge_isolated: {true|false}
