@@ -23,16 +23,16 @@ matching is defined in [Selection Rule](#selection-rule) step 2.
 
 | ID | Label | Stance | Evaluation criterion (the measurable axis) | Voice | Tags |
 |----|-------|--------|--------------------------------------------|-------|------|
-| `P1` | Security Expert | Assumes an adversary is already inside | Threat model coverage, attack surface, CVSS severity | Suspicious, worst-case-first | security, 보안, login, oauth, authentication, authorization, 인증, 암호, encryption, vulnerability, 취약점, 권한, permission, privacy, 개인정보, 토큰, token |
-| `P2` | Performance Expert | Every abstraction has a runtime bill | p99 latency, throughput, complexity class (O(n)) | Measurement-demanding, numeric | performance, 성능, latency, 지연, throughput, 처리량, 속도, 부하, load, 캐시, cache, 최적화, optimization |
-| `P3` | UX Expert | The user's confusion is the system's defect | Task-completion rate, error rate, time-to-first-success | User-anecdotal, concrete | ux, ui, 사용성, usability, 사용자, user, 인터페이스, interface, 디자인, design, 접근성, accessibility, 온보딩, onboarding |
-| `P4` | Reliability Expert | Assumes it will fail in production at 3am | Error budget / SLO burn, blast radius, MTTR | Incident-driven, procedural | 안정성, reliability, 장애, incident, 운영, ops, 배포, deploy, 롤백, rollback, 모니터링, monitoring, 가용성, availability, 재시도, retry |
-| `P5` | Data Expert | Bad data outlives the code that wrote it | Schema integrity, migration reversibility, consistency guarantees | Precise, invariant-focused | 데이터, data, db, 데이터베이스, database, 스키마, schema, 마이그레이션, migration, 정합성, consistency, 쿼리, query, 인덱스, index |
-| `P6` | Maintainability Expert | Optimizes for the next person to open this file | Change cost, coupling/fan-out, review-diff size | Dry, structure-first | 유지보수, maintainability, 리팩터, refactor, 아키텍처, architecture, 구조, 기술부채, tech debt, 복잡도, complexity, 테스트, test, 모듈, module |
-| `P7` | Cost Expert | Nothing is free at scale | Unit cost, TCO, spend per request/token | Budget-anchored, blunt | 비용, cost, 예산, budget, 가격, pricing, 요금, infra, 인프라, roi, 과금, billing |
-| `P8` | Legal/Compliance Expert | The regulator reads it differently than you do | Regulatory exposure, license terms, audit-trail completeness | Formal, precedent-citing | 법무, legal, 규제, regulation, compliance, 라이선스, license, 약관, terms, 감사추적, audit, gdpr, 계약, contract, 저작권, copyright |
-| `P9` | Product Strategy Expert | Shipping the wrong thing well is still failure | Adoption/retention, differentiation, opportunity cost | Big-picture, trade-off-framing | 전략, strategy, 제품, product, 시장, market, 경쟁, competition, 우선순위, priority, 로드맵, roadmap, 가치, value, 채택, adoption |
-| `P10` | Communication Expert | If it is misread, it is mis-written | Misread rate, audience fit, time-to-comprehension | Plain-spoken, editing-minded | 문서, docs, document, 글쓰기, writing, 카피, 메시지, message, 설명, explain, 네이밍, naming, tone, 콘텐츠, content, 번역, translation |
+| `security-expert` | Security Expert | Assumes an adversary is already inside | Threat model coverage, attack surface, CVSS severity | Suspicious, worst-case-first | security, 보안, login, oauth, authentication, authorization, 인증, 암호, encryption, vulnerability, 취약점, 권한, permission, privacy, 개인정보, 토큰, token |
+| `performance-expert` | Performance Expert | Every abstraction has a runtime bill | p99 latency, throughput, complexity class (O(n)) | Measurement-demanding, numeric | performance, 성능, latency, 지연, throughput, 처리량, 속도, 부하, load, 캐시, cache, 최적화, optimization |
+| `ux-expert` | UX Expert | The user's confusion is the system's defect | Task-completion rate, error rate, time-to-first-success | User-anecdotal, concrete | ux, ui, 사용성, usability, 사용자, user, 인터페이스, interface, 디자인, design, 접근성, accessibility, 온보딩, onboarding |
+| `reliability-expert` | Reliability Expert | Assumes it will fail in production at 3am | Error budget / SLO burn, blast radius, MTTR | Incident-driven, procedural | 안정성, reliability, 장애, incident, 운영, ops, 배포, deploy, 롤백, rollback, 모니터링, monitoring, 가용성, availability, 재시도, retry |
+| `data-expert` | Data Expert | Bad data outlives the code that wrote it | Schema integrity, migration reversibility, consistency guarantees | Precise, invariant-focused | 데이터, data, db, 데이터베이스, database, 스키마, schema, 마이그레이션, migration, 정합성, consistency, 쿼리, query, 인덱스, index |
+| `maintainability-expert` | Maintainability Expert | Optimizes for the next person to open this file | Change cost, coupling/fan-out, review-diff size | Dry, structure-first | 유지보수, maintainability, 리팩터, refactor, 아키텍처, architecture, 구조, 기술부채, tech debt, 복잡도, complexity, 테스트, test, 모듈, module |
+| `cost-expert` | Cost Expert | Nothing is free at scale | Unit cost, TCO, spend per request/token | Budget-anchored, blunt | 비용, cost, 예산, budget, 가격, pricing, 요금, infra, 인프라, roi, 과금, billing |
+| `legal-compliance-expert` | Legal/Compliance Expert | The regulator reads it differently than you do | Regulatory exposure, license terms, audit-trail completeness | Formal, precedent-citing | 법무, legal, 규제, regulation, compliance, 라이선스, license, 약관, terms, 감사추적, audit, gdpr, 계약, contract, 저작권, copyright |
+| `product-strategy-expert` | Product Strategy Expert | Shipping the wrong thing well is still failure | Adoption/retention, differentiation, opportunity cost | Big-picture, trade-off-framing | 전략, strategy, 제품, product, 시장, market, 경쟁, competition, 우선순위, priority, 로드맵, roadmap, 가치, value, 채택, adoption |
+| `communication-expert` | Communication Expert | If it is misread, it is mis-written | Misread rate, audience fit, time-to-comprehension | Plain-spoken, editing-minded | 문서, docs, document, 글쓰기, writing, 카피, 메시지, message, 설명, explain, 네이밍, naming, tone, 콘텐츠, content, 번역, translation |
 
 ## Selection Rule
 
@@ -43,7 +43,7 @@ submitted, *before* Steelman construction.
 Never run the rule on model-authored derived text. A Steelman is written by the LLM, so feeding it
 in re-opens the free choice this file exists to close: two runs of the same claim produce two
 Steelmans and can select two different entries. Measured 2026-07-22 (#423) — one claim scored
-`[P1 P2 P6]` as submitted and `[P1 P2 P3 P7]` after Steelman construction, a different set from the
+`[security-expert performance-expert maintainability-expert]` as submitted and `[security-expert performance-expert ux-expert cost-expert]` after Steelman construction, a different set from the
 same source claim. `scripts/test/test-persona-selection.py` carries that pair as a fixture.
 
 1. **Normalize**: lowercase the topic text. This is the match string.
@@ -61,8 +61,8 @@ same source claim. `scripts/test/test-persona-selection.py` carries that pair as
    (`글` matches "구글", `톤` matches "버튼") for the same reason.
 
 3. **Score**: `hits` = the number of an entry's distinct tags that match. `hits = 0` means unmatched.
-4. **Rank** the matched entries by `hits` descending, then by ID ascending (`P1` before `P2`). Ties
-   are broken by ID only — never by judgment.
+4. **Rank** the matched entries by `hits` descending, then by pool order (table order: `security-expert` before `performance-expert`). Ties
+   are broken by pool order only — never by judgment.
 5. **Cut**, by how many entries matched:
 
    | Matched | Take |
@@ -89,8 +89,8 @@ The selection must be visible in the consuming skill's STATE block, so a second 
 against the first and the ad-hoc fallback is never silent:
 
 ```
-Personas: [P1 P4 P6] adhoc:0
-Personas: [P3] adhoc:2
+Personas: [security-expert reliability-expert maintainability-expert] adhoc:0
+Personas: [ux-expert] adhoc:2
 Personas: [] adhoc:3
 ```
 
