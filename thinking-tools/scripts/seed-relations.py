@@ -2,19 +2,23 @@
 """seed-relations.py — read a build-spec Seed's edges to other Seeds (#780).
 
 Why this exists: Seeds had no machine-readable edges. When a child Seed finished, next-goal
-could not follow the parent, the sibling Seeds or the parent's still-open c*/ac* items — a
-person had to find them by hand. Seeds now carry a `relations:` block (parent, refines,
-depends_on, children; see thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml). This
-script reads those edges and prints them, deterministically, with no LLM.
+could not follow the parent, the sibling Seeds or the parent's still-open constraint and
+acceptance items — a person had to find them by hand. Seeds now carry a `relations:` block
+(parent, refines, depends_on, children; see
+thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml). This script reads those edges and
+prints them, deterministically, with no LLM.
 
 What it does not do, on purpose:
-  - It never judges whether a Seed is finished or a parent item is satisfied (c1). Relations
-    hold no status; whether something is done is a judgment about the repository, and that
-    stays with next-goal. Output carries edges and ids, never a done/pending value.
-  - It never writes anything (c6). Another repo's Seed is only read, through `gh api`; a
-    missing child in another repo's `children` is reported, not fixed.
-  - It never runs without a named Seed (c7). The old "never glob a spec directory" rule stays;
-    the only Seeds reached are the ones the named Seed's explicit edges point to.
+  - It never judges whether a Seed is finished or a parent item is satisfied
+    (seed-relations-graph/constraint-1). Relations hold no status; whether something is done
+    is a judgment about the repository, and that stays with next-goal. Output carries edges
+    and ids, never a done/pending value.
+  - It never writes anything (seed-relations-graph/constraint-6). Another repo's Seed is only
+    read, through `gh api`; a missing child in another repo's `children` is reported, not
+    fixed.
+  - It never runs without a named Seed (seed-relations-graph/constraint-7). The old "never
+    glob a spec directory" rule stays; the only Seeds reached are the ones the named Seed's
+    explicit edges point to.
 
 Usage:
     seed-relations.py tree  <seed-path>   # parent / refines / siblings / children / items both ways
@@ -48,8 +52,19 @@ expanded. Text output is tab-separated records (WALK, NODE, ITEM, DUP, CYCLE, ST
 SUMMARY); --json prints the same data as one object. `walk(seed_file, max_depth, max_nodes)`
 returns that object, so another script can import this file and call it.
 
+Item ids follow thinking-tools/reference/identifiers.md: a Seed stores `constraint-N` /
+`acceptance-N`, and `tree` shows the full identifier `<seed-slug>/<id> · <description>`
+(`owner/repo:<seed-slug>/<id>` for another repo's Seed). The `walk` records keep the bare ids
+and add an `item_desc` map to each JSON node, so a consumer can render the full identifier.
+Seeds written before the convention use `c<N>`/`ac<N>`; they are still read as plain strings.
+`check` prints an informational `LEGACY` line for each read Seed that still has such ids (the
+named Seed, its parent and its children) and, when a `refines` entry fails only because the
+parent uses the other id form, appends a hint naming `seed-id-migrate.py`, the only rename
+path. A Seed that defines the same item id twice is a MISMATCH.
+
 Exit codes: tree 0 (data, not a verdict; the FAILED line is the signal), 2 on bad usage.
             check 0 consistent, 1 any MISMATCH, 2 any FAILED with no MISMATCH (or bad usage).
+                  LEGACY and UNRECORDED lines never change the code.
             walk 0 (data, not a verdict), 2 on bad usage.
 
 Stdlib only; runs on Python 3.9 (the hook and next-goal use the system python3).
@@ -231,7 +246,13 @@ class Seed:
         self.depends_on = depends_on
         self.children = children
         self.items = items  # [(id, description)] constraints first, then success_criteria
-        self.item_map = dict(items)
+        self.item_map = dict(items)  # a repeated id collapses here; duplicate_ids reports it
+        seen, dups = set(), []
+        for iid, _ in items:
+            if iid in seen and iid not in dups:
+                dups.append(iid)
+            seen.add(iid)
+        self.duplicate_ids = dups
         self.link_reason = link_reason  # None = not recorded (or an old Seed)
         self.source = source            # issues.source, None = not recorded
         self.tracking = tracking or []  # issues.tracking
@@ -299,6 +320,58 @@ def pick_latest(names, path):
 def key(loc):
     repo, path = loc
     return path if repo is None else f"{repo}:{path}"
+
+
+# Item ids follow thinking-tools/reference/identifiers.md: `constraint-N` / `acceptance-N` in the
+# file, `<slug>/<id>` (or `owner/repo:<slug>/<id>`) whenever shown outside it. `c<N>`/`ac<N>` is
+# the pre-convention form: still read as a plain string, reported by `check`, renamed only by
+# seed-id-migrate.py. The number is kept, so the rename needs no mapping table.
+LEGACY_ID = re.compile(r"^(c|ac)(\d+)$")
+LEGACY_KIND = {"c": "constraint", "ac": "acceptance"}
+
+
+def canonical_id(item_id):
+    """`c3` -> `constraint-3`, `ac2` -> `acceptance-2`; any other id is returned unchanged."""
+    m = LEGACY_ID.match(item_id)
+    return f"{LEGACY_KIND[m.group(1)]}-{m.group(2)}" if m else item_id
+
+
+def seed_slug(path):
+    """`docs/specs/foo-v3.yaml` -> `foo`: the affiliation of a Seed's items."""
+    stem = posixpath.splitext(posixpath.basename(path))[0]
+    return VERSION_SUFFIX.sub("", stem)
+
+
+def qualified_id(seed_key, item_id):
+    """Full identifier of a Seed item: `foo/constraint-1`, or `owner/repo:foo/constraint-1`.
+
+    `seed_key` is a walk/tree key — a repo-relative path or an `owner/repo:path` coordinate.
+    """
+    m = COORD.match(seed_key)
+    if m:
+        return f"{m.group(1)}:{seed_slug(m.group(2))}/{item_id}"
+    return f"{seed_slug(seed_key)}/{item_id}"
+
+
+CANONICAL_ID = re.compile(r"^(constraint|acceptance)-(\d+)$")
+
+
+def legacy_form(item_id):
+    """`constraint-3` -> `c3`, `acceptance-2` -> `ac2`; any other id is returned unchanged."""
+    m = CANONICAL_ID.match(item_id)
+    return ("c" if m.group(1) == "constraint" else "ac") + m.group(2) if m else item_id
+
+
+def other_id_form(item_id, defined):
+    """The same item under the other id form, when `defined` (an id container) has it."""
+    for cand in (canonical_id(item_id), legacy_form(item_id)):
+        if cand != item_id and cand in defined:
+            return cand
+    return None
+
+
+def legacy_ids(seed):
+    return [iid for iid, _ in seed.items if LEGACY_ID.match(iid)]
 
 
 def disp(orig, resolved):
@@ -536,14 +609,15 @@ def cmd_tree(rd, rel, seed):
 
     for rid in seed.refines:
         if parent is None:
-            note = "[no parent]"
-        elif parent.seed is None:
+            out.append(_row("REFINES", f"{rid} · [no parent]"))
+            continue
+        if parent.seed is None:
             note = "[parent unreadable]"
         elif rid in parent.seed.item_map:
             note = _short(parent.seed.item_map[rid])
         else:
             note = "[missing in parent]"
-        out.append(_row("REFINES", f"{rid} — {note}"))
+        out.append(_row("REFINES", f"{qualified_id(key(parent.loc), rid)} · {note}"))
 
     if seed.parent:
         if seed.link_reason:
@@ -597,7 +671,8 @@ def cmd_tree(rd, rel, seed):
         if ld.status == "notfound":
             line += "  [file not found]"
         elif ld.seed is not None:
-            line += f"  refines: {', '.join(ld.seed.refines) or '(none)'}"
+            line += ("  refines: " + (", ".join(qualified_id(rel, r) for r in ld.seed.refines)
+                                          or "(none)"))
         out.append(line)
         out += rd.failure_lines(ld)
         if ld.loc not in kid_seen:
@@ -609,7 +684,7 @@ def cmd_tree(rd, rel, seed):
         for iid, desc in seed.items:
             who = [ld for ld in readable if iid in ld.seed.refines]
             mark = LINK_ONLY if any(ld.loc[0] is not None for ld in who) else ""
-            out.append(_row("ITEM", f"{iid} — {_short(desc)}  refined by: "
+            out.append(_row("ITEM", f"{qualified_id(rel, iid)} · {_short(desc)}  refined by: "
                             f"{', '.join(key(ld.loc) for ld in who) if who else '(none)'}{mark}"))
         for ld in kids:
             if ld.seed is None:
@@ -626,7 +701,7 @@ def cmd_tree(rd, rel, seed):
         mark = LINK_ONLY if parent.loc[0] is not None else ""
         for iid, desc in parent.seed.items:
             who = [name for name, refs in refiners if iid in refs]
-            out.append(_row("PARENT-ITEM", f"{iid} — {_short(desc)}  refined by: "
+            out.append(_row("PARENT-ITEM", f"{qualified_id(key(parent.loc), iid)} · {_short(desc)}  refined by: "
                             f"{', '.join(who) if who else '(none)'}{mark}"))
     return out, 0
 
@@ -641,16 +716,37 @@ def cmd_check(rd, rel, seed):
     edges = 0
     self_res = rd.resolve_quiet((None, rel))
     out = _newer_note(rel, self_res)
-    # Unrecorded values are reported, never guessed, and are not mismatches (exit code unchanged).
-    if seed.parent and seed.link_reason is None:
-        out.append(_row("UNRECORDED", f"{rel} link_reason is not recorded (미확인 — 추측해 채우지 않음)"))
-    if seed.source is None:
-        out.append(_row("UNRECORDED", f"{rel} issues.source is not recorded"))
+    legacy_lines, legacy_seen = [], set()
 
     def mismatch(text):
         nonlocal mismatches
         mismatches += 1
         out.append(_row("MISMATCH", text))
+
+    def note_legacy(loc, sd):
+        """Informational only: a Seed that still carries c<N>/ac<N> ids (never a mismatch)."""
+        ids = legacy_ids(sd)
+        if not ids or loc in legacy_seen:
+            return
+        legacy_seen.add(loc)
+        if loc[0] is None:
+            how = f"run: seed-id-migrate.py {loc[1]}"
+        else:
+            how = f"migrate it in that repo (seed-id-migrate.py {loc[1]})"
+        legacy_lines.append(_row("LEGACY", f"{key(loc)} still uses legacy item ids "
+                                           f"{', '.join(ids)} — {how}"))
+
+    def dup_mismatch(name, sd):
+        for iid in sd.duplicate_ids:
+            mismatch(f"{name} defines item id {iid} more than once")
+
+    # Unrecorded values are reported, never guessed, and are not mismatches (exit code unchanged).
+    if seed.parent and seed.link_reason is None:
+        out.append(_row("UNRECORDED", f"{rel} link_reason is not recorded (미확인 — 추측해 채우지 않음)"))
+    if seed.source is None:
+        out.append(_row("UNRECORDED", f"{rel} issues.source is not recorded"))
+    note_legacy((None, rel), seed)
+    dup_mismatch(rel, seed)
 
     def fail(ld):
         nonlocal failed
@@ -667,6 +763,8 @@ def cmd_check(rd, rel, seed):
             mismatch(f"{rel} parent {key(parent.orig)} does not exist")
         else:
             edges += 1
+            note_legacy(parent.loc, parent.seed)
+            dup_mismatch(pname, parent.seed)
             kids = {rd.resolve_quiet(rd.norm(c, parent.loc[0])) for c in parent.seed.children}
             if self_res not in kids:
                 if parent.loc[0] is None:
@@ -677,7 +775,13 @@ def cmd_check(rd, rel, seed):
             for rid in seed.refines:
                 edges += 1
                 if rid not in parent.seed.item_map:
-                    mismatch(f"{rel} refines {rid}, which {pname} does not define")
+                    text = f"{rel} refines {rid}, which {pname} does not define"
+                    alt = other_id_form(rid, parent.seed.item_map)
+                    if alt:
+                        where = parent.loc[1] + (f" (in {parent.loc[0]})" if parent.loc[0] else "")
+                        text += (f" — {pname} has {alt}: the id form differs, "
+                                 f"run seed-id-migrate.py {where}")
+                    mismatch(text)
 
     for c in seed.children:
         child = rd.load(rd.norm(c, None))
@@ -688,11 +792,14 @@ def cmd_check(rd, rel, seed):
         if child.status == "notfound":
             mismatch(f"{rel} children names {key(child.orig)}, which does not exist")
             continue
+        note_legacy(child.loc, child.seed)
+        dup_mismatch(key(child.loc), child.seed)
         back = child.seed.parent
         back_res = rd.resolve_quiet(rd.norm(back, child.loc[0])) if back else None
         if back_res != self_res:
             mismatch(f"{key(child.loc)} parent does not point back to {rel}")
 
+    out.extend(legacy_lines)
     if mismatches:
         out.append(f"FOUND: {mismatches} mismatch(es)")
         return out, 1
@@ -890,6 +997,9 @@ def walk(seed_file, max_depth=3, max_nodes=25):
             "source": s.source if s else None,
             "tracking": list(s.tracking) if s else [],
             "items": [iid for iid, _ in s.items] if s else [],
+            # Descriptions ride along so a consumer can show `<slug>/<id> · <description>`
+            # without re-reading the Seed (identifiers.md).
+            "item_desc": {iid: desc for iid, desc in s.items} if s else {},
             "children": [key(loc) for loc in kids],
         })
         visited = [by_loc[loc] for loc in kids if loc in by_loc and by_loc[loc].seed is not None]

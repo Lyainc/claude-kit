@@ -21,6 +21,7 @@ These name a *kind* of thing, are globally consistent, and are healthy. Keep the
 | `POL-N` | Policy (constitutional / policy rule) | `docs/design/claude-kit-boundary.md` |
 | `E1`–`E12` | Vault audit error type (E12a/E12b = wiki staleness, #330/#336) | `obsidian-vault-manager/reference/vault-audit-rules.md` |
 | `GN` | Goal-doc ID (closed series, G1–G29 — retired concept #282/#283, docs deleted 2026-07-21) | GitHub issues |
+| `<kind>-N`, `<affiliation>/<kind>-N` | Items thinking-tools generates (Seed `constraint-N`/`acceptance-N`, `finding-N`, rubric `*-check-N`, …) and how they are cited outside their file (#805) | `thinking-tools/reference/identifiers.md` |
 
 **Notation.** Each global code is written in its canonical form verbatim, including
 the hyphen that is part of the prefix — `CON-2`, `POL-1` — while E/G-series
@@ -29,7 +30,7 @@ codes carry no hyphen: `E8`, `G16`.
 ## 2. Local tracking IDs (NOT globally registered — disciplined)
 
 `U` / `P` / `W` / `D` / `C` and similar per-document running numbers — a discussion's
-`UNRESOLVED.md` `U1, U2…`, the work-rules constraints `c1…c8` in #216 / `RULES.md`,
+`UNRESOLVED.md` `U1, U2…`,
 priority sub-tiers, strangler phases — are **local**: valid only inside the document
 that defines them. They are **not** registered here and MUST NOT be treated as global
 handles.
@@ -47,7 +48,9 @@ The discipline (per #214):
    is the essence use a distinct phase prefix, otherwise a meaningful slug.
 4. **Opaque number < meaningful slug.** Use a number only when sequence is the point.
 5. **One notation, no hyphen drift.** Local IDs are written letter+digit with no
-   separator: `C2` not `C-2`, `U1` not `U-1`, `c1` not `c-1`.
+   separator: `C2` not `C-2`, `U1` not `U-1`. Items thinking-tools generates are the
+   exception (#805): they spell the kind out (`constraint-1`, not `c1`) and are cited as
+   `<affiliation>/<kind>-N` — see `thinking-tools/reference/identifiers.md`.
 
 ## 3. Maintaining this glossary
 

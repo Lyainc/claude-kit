@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """Unit tests for seed-relations.py (#780) — tree/check over fixture Seeds.
 
-Covers the fixtures the design names: same-repo parent + two children with the refines
-mapping (ac1), `-vN` resolution (ac3), the three mismatch kinds plus a refines pointing at a
-missing id (ac4, ac8), a failing `gh` (ac6), and depends_on same-repo vs cross-repo (ac7).
+Covers the fixtures the design names (acceptance items of docs/specs/seed-relations-graph.yaml):
+same-repo parent + two children with the refines mapping (acceptance-1), `-vN` resolution
+(acceptance-3), the three mismatch kinds plus a refines pointing at a missing id (acceptance-4,
+acceptance-8), a failing `gh` (acceptance-6), and depends_on same-repo vs cross-repo
+(acceptance-7).
 Cross-repo reads go through a `gh` shim written into the temp dir (GH_BIN); every run
 defaults GH_BIN to a path that does not exist, so an unintended remote read shows up as a
 FAILED line instead of passing silently.
@@ -11,6 +13,12 @@ FAILED line instead of passing silently.
 The #792 additions: SOURCE/TRACKING/LINK/ITEM lines in tree, UNRECORDED lines in check (never a
 mismatch), and the `walk` subcommand (relation kinds, depth/node caps, cycles, duplicates,
 other-repo nodes, JSON/text agreement, walk id and fingerprint).
+
+The identifier convention (thinking-tools/reference/identifiers.md): fixtures use the new
+`constraint-N`/`acceptance-N` ids, tree prints `<seed-slug>/<id> · <description>`, and the
+explicit legacy fixtures prove an unmigrated `c<N>`/`ac<N>` Seed still tree/check/walks, that
+check prints an informational LEGACY line, a refines mismatch caused only by the id form carries
+a seed-id-migrate.py hint, and a duplicate item id is a MISMATCH.
 
 Usage: python3 thinking-tools/scripts/test/test-seed-relations.py
 Exit codes: 0 all passed, 1 one or more failed
@@ -165,26 +173,26 @@ def _gh_fail_shim():
     return str(shim)
 
 
-LONG = ("The parent constraint c1 is deliberately long so that the tree output has to cut its "
+LONG = ("The parent constraint is deliberately long so that the tree output has to cut its "
         "description at one hundred characters and mark the cut")
 
 PARENT_FIXTURE = dict(
     target="Parent feature",
     children=["docs/specs/child-a.yaml", "docs/specs/child-b.yaml"],
-    constraints=[("c1", LONG), ("c2", "Second constraint")],
-    criteria=[("ac1", "First criterion"), ("ac2", "Second criterion")],
+    constraints=[("constraint-1", LONG), ("constraint-2", "Second constraint")],
+    criteria=[("acceptance-1", "First criterion"), ("acceptance-2", "Second criterion")],
 )
 
 
 def check_tree_same_repo() -> list[str]:
-    """ac1: one named child yields parent, refines mapping, sibling, and PARENT-ITEM refiners."""
+    """acceptance-1: one named child yields parent, refines mapping, sibling, and PARENT-ITEM refiners."""
     failures = []
     repo = _repo()
     _write(repo, "parent.yaml", **PARENT_FIXTURE)
     _write(repo, "child-a.yaml", target="Child A", parent="docs/specs/parent.yaml",
-           refines=["c1", "ac1", "c9"])
+           refines=["constraint-1", "acceptance-1", "constraint-9"])
     _write(repo, "child-b.yaml", target="Child B", parent="docs/specs/parent.yaml",
-           refines=["c2"], block_lists=True)
+           refines=["constraint-2"], block_lists=True)
     before = _snapshot(repo)
     code, out, err = _run(repo, "tree", "docs/specs/child-a.yaml")
     long_cut = LONG[:100] + "..."
@@ -193,15 +201,15 @@ def check_tree_same_repo() -> list[str]:
         "SOURCE    #1",
         "TRACKING  (없음)",
         "PARENT    docs/specs/parent.yaml",
-        f"REFINES   c1 — {long_cut}",
-        "REFINES   ac1 — First criterion",
-        "REFINES   c9 — [missing in parent]",
+        f"REFINES   parent/constraint-1 · {long_cut}",
+        "REFINES   parent/acceptance-1 · First criterion",
+        "REFINES   parent/constraint-9 · [missing in parent]",
         "LINK      because",
         "SIBLING   docs/specs/child-b.yaml  (target: Child B)",
-        f"PARENT-ITEM c1 — {long_cut}  refined by: docs/specs/child-a.yaml",
-        "PARENT-ITEM c2 — Second constraint  refined by: docs/specs/child-b.yaml",
-        "PARENT-ITEM ac1 — First criterion  refined by: docs/specs/child-a.yaml",
-        "PARENT-ITEM ac2 — Second criterion  refined by: (none)",
+        f"PARENT-ITEM parent/constraint-1 · {long_cut}  refined by: docs/specs/child-a.yaml",
+        "PARENT-ITEM parent/constraint-2 · Second constraint  refined by: docs/specs/child-b.yaml",
+        "PARENT-ITEM parent/acceptance-1 · First criterion  refined by: docs/specs/child-a.yaml",
+        "PARENT-ITEM parent/acceptance-2 · Second criterion  refined by: (none)",
     ]
     if code != 0 or out != expected:
         failures.append(f"tree same repo: exit {code}, err {err!r}\nexpected:\n  " +
@@ -213,8 +221,8 @@ def check_tree_same_repo() -> list[str]:
 
     # Block-list child seen from the other side: block lists parse the same as flow lists.
     code, out, _ = _run(repo, "tree", "docs/specs/child-b.yaml")
-    if "REFINES   c2 — Second constraint" not in out:
-        failures.append(f"tree block-list child: REFINES c2 missing: {out}")
+    if "REFINES   parent/constraint-2 · Second constraint" not in out:
+        failures.append(f"tree block-list child: REFINES constraint-2 missing: {out}")
     if "SIBLING   docs/specs/child-a.yaml  (target: Child A)" not in out:
         failures.append(f"tree block-list child: sibling child-a missing: {out}")
 
@@ -243,17 +251,17 @@ def check_tree_no_relations_block() -> list[str]:
 
 
 def check_version_resolution() -> list[str]:
-    """ac3: foo.yaml + foo-v2.yaml both present, the child's parent edge resolves to -v2."""
+    """acceptance-3: foo.yaml + foo-v2.yaml both present, the child's parent edge resolves to -v2."""
     failures = []
     repo = _repo()
     _write(repo, "foo.yaml", target="Foo v1", children=["docs/specs/kid.yaml"],
-           constraints=[("c1", "Old wording")])
+           constraints=[("constraint-1", "Old wording")])
     _write(repo, "foo-v2.yaml", target="Foo v2", children=["docs/specs/kid.yaml"],
-           constraints=[("c1", "New wording")])
-    _write(repo, "kid.yaml", target="Kid", parent="docs/specs/foo.yaml", refines=["c1"])
+           constraints=[("constraint-1", "New wording")])
+    _write(repo, "kid.yaml", target="Kid", parent="docs/specs/foo.yaml", refines=["constraint-1"])
     code, out, _ = _run(repo, "tree", "docs/specs/kid.yaml")
     for want in ("PARENT    docs/specs/foo.yaml -> docs/specs/foo-v2.yaml",
-                 "REFINES   c1 — New wording"):
+                 "REFINES   foo/constraint-1 · New wording"):
         if want not in out:
             failures.append(f"version resolution: missing {want!r} in {out}")
     code, out, _ = _run(repo, "check", "docs/specs/kid.yaml")
@@ -279,18 +287,18 @@ def _cross_fixture():
     """A repo whose origin is acme/child-repo, plus a Seed naming a cross-repo parent."""
     repo = _repo(origin="https://github.com/acme/child-repo.git")
     _write(repo, "c3.yaml", target="Cross child", parent="acme/parent-repo:docs/specs/p.yaml",
-           refines=["c1"])
+           refines=["constraint-1"])
     return repo
 
 
 def check_mismatch_kinds() -> list[str]:
-    """ac4, ac8: the three mismatch kinds and a refines pointing at a missing id."""
+    """acceptance-4, acceptance-8: the three mismatch kinds and a refines pointing at a missing id."""
     failures = []
     repo = _cross_fixture()
 
     # 1. child names parent, parent's children lacks the child.
-    _write(repo, "p1.yaml", target="P1", children=[], constraints=[("c1", "x")])
-    _write(repo, "c1.yaml", target="C1", parent="docs/specs/p1.yaml", refines=["c1"])
+    _write(repo, "p1.yaml", target="P1", children=[], constraints=[("constraint-1", "x")])
+    _write(repo, "c1.yaml", target="C1", parent="docs/specs/p1.yaml", refines=["constraint-1"])
     code, out, _ = _run(repo, "check", "docs/specs/c1.yaml")
     want = ["MISMATCH  docs/specs/p1.yaml children is missing docs/specs/c1.yaml",
             "FOUND: 1 mismatch(es)"]
@@ -308,7 +316,7 @@ def check_mismatch_kinds() -> list[str]:
 
     # 3. cross-repo parent whose children lacks this child (read through the gh shim).
     p_text = _seed_text("Remote parent", children=["docs/specs/other.yaml"],
-                        constraints=[("c1", "Remote c1")])
+                        constraints=[("constraint-1", "Remote c1")])
     gh, calls = _gh_shim({"acme/parent-repo:docs/specs/p.yaml": p_text})
     code, out, _ = _run(repo, "check", "docs/specs/c3.yaml", gh=gh)
     want = ["MISMATCH  acme/parent-repo:docs/specs/p.yaml children is missing "
@@ -322,26 +330,26 @@ def check_mismatch_kinds() -> list[str]:
 
     # ...and the same parent, once it lists the child by coordinate, is consistent.
     p_ok = _seed_text("Remote parent", children=["acme/child-repo:docs/specs/c3.yaml"],
-                      constraints=[("c1", "Remote c1")])
+                      constraints=[("constraint-1", "Remote c1")])
     gh, _ = _gh_shim({"acme/parent-repo:docs/specs/p.yaml": p_ok})
     code, out, _ = _run(repo, "check", "docs/specs/c3.yaml", gh=gh)
     if (code, out) != (0, ["OK: 2 edge(s) consistent"]):
         failures.append(f"cross-repo consistent: expected (0, OK 2), got ({code}, {out})")
 
-    # 4. refines pointing at an id the parent does not define (ac8).
+    # 4. refines pointing at an id the parent does not define (acceptance-8).
     _write(repo, "p4.yaml", target="P4", children=["docs/specs/c4.yaml"],
-           constraints=[("c1", "x")])
-    _write(repo, "c4.yaml", target="C4", parent="docs/specs/p4.yaml", refines=["c1", "c9"])
+           constraints=[("constraint-1", "x")])
+    _write(repo, "c4.yaml", target="C4", parent="docs/specs/p4.yaml", refines=["constraint-1", "constraint-9"])
     code, out, _ = _run(repo, "check", "docs/specs/c4.yaml")
-    want = ["MISMATCH  docs/specs/c4.yaml refines c9, which docs/specs/p4.yaml does not define",
+    want = ["MISMATCH  docs/specs/c4.yaml refines constraint-9, which docs/specs/p4.yaml does not define",
             "FOUND: 1 mismatch(es)"]
     if (code, out) != (1, want):
         failures.append(f"mismatch refines: expected (1, {want}), got ({code}, {out})")
 
     # A consistent same-repo pair is OK with exit 0.
     _write(repo, "p5.yaml", target="P5", children=["docs/specs/c5.yaml"],
-           constraints=[("c1", "x")])
-    _write(repo, "c5.yaml", target="C5", parent="docs/specs/p5.yaml", refines=["c1"])
+           constraints=[("constraint-1", "x")])
+    _write(repo, "c5.yaml", target="C5", parent="docs/specs/p5.yaml", refines=["constraint-1"])
     for name in ("c5", "p5"):
         code, out, _ = _run(repo, "check", f"docs/specs/{name}.yaml")
         n = 2 if name == "c5" else 1
@@ -351,7 +359,7 @@ def check_mismatch_kinds() -> list[str]:
 
 
 def check_gh_failure() -> list[str]:
-    """ac6: a failing gh prints an explicit FAILED line; the section is never empty."""
+    """acceptance-6: a failing gh prints an explicit FAILED line; the section is never empty."""
     failures = []
     repo = _cross_fixture()
     _write(repo, "sib.yaml", target="Sibling", parent="docs/specs/local-parent.yaml")
@@ -365,7 +373,7 @@ def check_gh_failure() -> list[str]:
             "TRACKING  (없음)",
             "PARENT    acme/parent-repo:docs/specs/p.yaml" + sr.LINK_ONLY,
             line,
-            "REFINES   c1 — [parent unreadable]",
+            "REFINES   acme/parent-repo:p/constraint-1 · [parent unreadable]",
             "LINK      because"]
     if code != 0 or out != want:
         failures.append(f"gh failure tree: exit {code}\nexpected:\n  " + "\n  ".join(want) +
@@ -391,7 +399,7 @@ def check_gh_failure() -> list[str]:
 
 
 def check_depends_on() -> list[str]:
-    """ac7: a sibling's depends_on prints `requires`, tagged same-repo or cross-repo."""
+    """acceptance-7: a sibling's depends_on prints `requires`, tagged same-repo or cross-repo."""
     failures = []
     repo = _repo()
     kids = [f"docs/specs/child-{c}.yaml" for c in "abcd"]
@@ -430,8 +438,8 @@ def check_self_repo_detection() -> list[str]:
     failures = []
     repo = _repo(origin="git@github-work:Owner/Repo.git")
     _write(repo, "p.yaml", target="Local parent", children=["docs/specs/kid.yaml"],
-           constraints=[("c1", "Parent c1")])
-    _write(repo, "kid.yaml", target="Kid", parent="owner/repo:docs/specs/p.yaml", refines=["c1"])
+           constraints=[("constraint-1", "Parent c1")])
+    _write(repo, "kid.yaml", target="Kid", parent="owner/repo:docs/specs/p.yaml", refines=["constraint-1"])
     code, out, err = _run(repo, "check", "docs/specs/kid.yaml")
     if (code, out) != (0, ["OK: 2 edge(s) consistent"]):
         failures.append(f"ssh alias origin check: expected (0, OK 2), got ({code}, {out}) {err!r}")
@@ -488,7 +496,7 @@ def check_cross_repo_link_only() -> list[str]:
     repo = _cross_fixture()
     p_text = _seed_text("Remote parent",
                         children=["acme/child-repo:docs/specs/c3.yaml", "docs/specs/sib.yaml"],
-                        constraints=[("c1", "Remote c1")])
+                        constraints=[("constraint-1", "Remote c1")])
     sib_text = _seed_text("Remote sibling", parent="docs/specs/p.yaml")
     gh, _ = _gh_shim({"acme/parent-repo:docs/specs/p.yaml": p_text,
                       "acme/parent-repo:docs/specs/sib.yaml": sib_text})
@@ -497,7 +505,7 @@ def check_cross_repo_link_only() -> list[str]:
     want = [
         f"PARENT    acme/parent-repo:docs/specs/p.yaml{mark}",
         f"SIBLING   acme/parent-repo:docs/specs/sib.yaml  (target: Remote sibling){mark}",
-        f"PARENT-ITEM c1 — Remote c1  refined by: docs/specs/c3.yaml{mark}",
+        f"PARENT-ITEM acme/parent-repo:p/constraint-1 · Remote c1  refined by: docs/specs/c3.yaml{mark}",
     ]
     for w in want:
         if w not in out:
@@ -508,8 +516,8 @@ def check_cross_repo_link_only() -> list[str]:
     # Same-repo lines never carry it.
     local = _repo()
     _write(local, "parent.yaml", target="Parent", children=["docs/specs/kid.yaml", "docs/specs/sib.yaml"],
-           constraints=[("c1", "x")])
-    _write(local, "kid.yaml", target="Kid", parent="docs/specs/parent.yaml", refines=["c1"])
+           constraints=[("constraint-1", "x")])
+    _write(local, "kid.yaml", target="Kid", parent="docs/specs/parent.yaml", refines=["constraint-1"])
     _write(local, "sib.yaml", target="Sib", parent="docs/specs/parent.yaml")
     code, out, _ = _run(local, "tree", "docs/specs/kid.yaml")
     if any(sr.LINK_ONLY in ln for ln in out):
@@ -521,8 +529,8 @@ def check_newer_generation_note() -> list[str]:
     """Naming foo.yaml while foo-v2.yaml exists: a NOTE line, and foo.yaml stays the Seed described."""
     failures = []
     repo = _repo()
-    _write(repo, "foo.yaml", target="Foo v1", constraints=[("c1", "Old")])
-    _write(repo, "foo-v2.yaml", target="Foo v2", constraints=[("c1", "New")])
+    _write(repo, "foo.yaml", target="Foo v1", constraints=[("constraint-1", "Old")])
+    _write(repo, "foo-v2.yaml", target="Foo v2", constraints=[("constraint-1", "New")])
     want = "NOTE      newer generation exists: docs/specs/foo-v2.yaml"
     code, out, _ = _run(repo, "tree", "docs/specs/foo.yaml")
     if code != 0 or out[:5] != ["SEED      docs/specs/foo.yaml  (target: Foo v1)", want,
@@ -538,7 +546,7 @@ def check_newer_generation_note() -> list[str]:
 
 
 def check_usage_and_parser() -> list[str]:
-    """A named Seed is required (c7); the reader handles comments, quotes and block scalars."""
+    """A named Seed is required (seed-relations-graph/constraint-7); the reader handles comments, quotes and block scalars."""
     failures = []
     repo = _repo()
     for argv in ([], ["tree"], ["bogus", "x"], ["tree", "docs/specs/missing.yaml"],
@@ -604,18 +612,19 @@ def check_tree_item_mapping() -> list[str]:
     repo = _repo()
     _write(repo, "parent.yaml", target="Parent",
            children=["docs/specs/child-a.yaml", "docs/specs/child-b.yaml", "docs/specs/gone.yaml"],
-           constraints=[("c1", "First"), ("c2", "Second")], criteria=[("ac1", "Third")])
-    _write(repo, "child-a.yaml", target="A", parent="docs/specs/parent.yaml", refines=["c1"])
-    _write(repo, "child-b.yaml", target="B", parent="docs/specs/parent.yaml", refines=["c1", "ac1"])
+           constraints=[("constraint-1", "First"), ("constraint-2", "Second")], criteria=[("acceptance-1", "Third")])
+    _write(repo, "child-a.yaml", target="A", parent="docs/specs/parent.yaml", refines=["constraint-1"])
+    _write(repo, "child-b.yaml", target="B", parent="docs/specs/parent.yaml", refines=["constraint-1", "acceptance-1"])
     before = _snapshot(repo)
     code, out, err = _run(repo, "tree", "docs/specs/parent.yaml")
     want = [
-        "CHILD     docs/specs/child-a.yaml  refines: c1",
-        "CHILD     docs/specs/child-b.yaml  refines: c1, ac1",
+        "CHILD     docs/specs/child-a.yaml  refines: parent/constraint-1",
+        "CHILD     docs/specs/child-b.yaml  refines: parent/constraint-1, parent/acceptance-1",
         "CHILD     docs/specs/gone.yaml  [file not found]",
-        "ITEM      c1 — First  refined by: docs/specs/child-a.yaml, docs/specs/child-b.yaml",
-        "ITEM      c2 — Second  refined by: (none)",
-        "ITEM      ac1 — Third  refined by: docs/specs/child-b.yaml",
+        "ITEM      parent/constraint-1 · First  refined by: docs/specs/child-a.yaml, "
+        "docs/specs/child-b.yaml",
+        "ITEM      parent/constraint-2 · Second  refined by: (none)",
+        "ITEM      parent/acceptance-1 · Third  refined by: docs/specs/child-b.yaml",
         "ITEM      (unreadable child docs/specs/gone.yaml — 대응 미확인)",
     ]
     got = [ln for ln in out if ln.startswith(("CHILD", "ITEM"))]
@@ -638,16 +647,16 @@ def check_tree_link_source_tracking() -> list[str]:
     """Tree from a child: SOURCE, TRACKING and LINK are printed; a missing reason says 미확인."""
     failures = []
     repo = _repo()
-    _write(repo, "parent.yaml", target="Parent", constraints=[("c1", "x")],
+    _write(repo, "parent.yaml", target="Parent", constraints=[("constraint-1", "x")],
            children=["docs/specs/ok.yaml", "docs/specs/noreason.yaml", "docs/specs/empty.yaml"])
-    _write(repo, "ok.yaml", target="Ok", parent="docs/specs/parent.yaml", refines=["c1"],
-           source="#12", tracking=["#13", "acme/x#4"], link_reason="spells out c1 for the API")
+    _write(repo, "ok.yaml", target="Ok", parent="docs/specs/parent.yaml", refines=["constraint-1"],
+           source="#12", tracking=["#13", "acme/x#4"], link_reason="spells out constraint-1 for the API")
     _write(repo, "noreason.yaml", target="NoReason", parent="docs/specs/parent.yaml",
-           refines=["c1"], link_reason=None, source=None)
+           refines=["constraint-1"], link_reason=None, source=None)
     _write(repo, "empty.yaml", target="Empty", parent="docs/specs/parent.yaml", link_reason=None)
 
     code, out, _ = _run(repo, "tree", "docs/specs/ok.yaml")
-    for want in ("SOURCE    #12", "TRACKING  #13, acme/x#4", "LINK      spells out c1 for the API"):
+    for want in ("SOURCE    #12", "TRACKING  #13, acme/x#4", "LINK      spells out constraint-1 for the API"):
         if want not in out:
             failures.append(f"tree link/source: missing {want!r} in {out}")
 
@@ -672,13 +681,13 @@ def check_unrecorded() -> list[str]:
     """check reports unrecorded link_reason / issues.source, and the exit code is unchanged."""
     failures = []
     repo = _repo()
-    _write(repo, "p.yaml", target="P", children=["docs/specs/c.yaml"], constraints=[("c1", "x")])
-    _write(repo, "c.yaml", target="C", parent="docs/specs/p.yaml", refines=["c1"])
+    _write(repo, "p.yaml", target="P", children=["docs/specs/c.yaml"], constraints=[("constraint-1", "x")])
+    _write(repo, "c.yaml", target="C", parent="docs/specs/p.yaml", refines=["constraint-1"])
     code, base, _ = _run(repo, "check", "docs/specs/c.yaml")
     if (code, base) != (0, ["OK: 2 edge(s) consistent"]):
         failures.append(f"unrecorded baseline: expected a clean OK, got {code} {base}")
 
-    _write(repo, "c.yaml", target="C", parent="docs/specs/p.yaml", refines=["c1"],
+    _write(repo, "c.yaml", target="C", parent="docs/specs/p.yaml", refines=["constraint-1"],
            link_reason=None, source=None)
     code, out, _ = _run(repo, "check", "docs/specs/c.yaml")
     want = ["UNRECORDED docs/specs/c.yaml link_reason is not recorded (미확인 — 추측해 채우지 않음)",
@@ -698,7 +707,7 @@ def check_unrecorded() -> list[str]:
         failures.append(f"unrecorded old seed: got {code} {out}")
 
     # With a real mismatch the exit code is still 1, and the UNRECORDED lines are still there.
-    _write(repo, "p.yaml", target="P", children=[], constraints=[("c1", "x")])
+    _write(repo, "p.yaml", target="P", children=[], constraints=[("constraint-1", "x")])
     code, out, _ = _run(repo, "check", "docs/specs/c.yaml")
     if code != 1 or out[-1] != "FOUND: 1 mismatch(es)" or sum(
             ln.startswith("UNRECORDED") for ln in out) != 2:
@@ -719,12 +728,12 @@ def _walk_specs():
         return [f"{SP}{n}.yaml" for n in names]
 
     return {
-        "gp": dict(target="Grandparent", children=at("p", "aunt"), constraints=[("g1", "gp item")]),
-        "p": dict(target="Parent", parent=SP + "gp.yaml", refines=["g1"], children=at("s", "sib"),
-                  constraints=[("c1", "p c1")], criteria=[("ac1", "p ac1")]),
-        "s": dict(target="Start", parent=SP + "p.yaml", refines=["c1"], children=at("gc"),
-                  depends_on=at("pre"), constraints=[("c1", "s c1")], criteria=[("ac1", "s ac1")]),
-        "gc": dict(target="Grandchild", parent=SP + "s.yaml", refines=["ac1"],
+        "gp": dict(target="Grandparent", children=at("p", "aunt"), constraints=[("constraint-1", "gp item")]),
+        "p": dict(target="Parent", parent=SP + "gp.yaml", refines=["constraint-1"], children=at("s", "sib"),
+                  constraints=[("constraint-1", "p c1")], criteria=[("acceptance-1", "p ac1")]),
+        "s": dict(target="Start", parent=SP + "p.yaml", refines=["constraint-1"], children=at("gc"),
+                  depends_on=at("pre"), constraints=[("constraint-1", "s c1")], criteria=[("acceptance-1", "s ac1")]),
+        "gc": dict(target="Grandchild", parent=SP + "s.yaml", refines=["acceptance-1"],
                    depends_on=at("pre3")),
         "sib": dict(target="Sibling", parent=SP + "p.yaml", depends_on=at("pre2"), link_reason=None),
         "aunt": dict(target="Aunt", parent=SP + "gp.yaml", depends_on=at("pre")),
@@ -809,8 +818,8 @@ def check_walk_kinds() -> list[str]:
         failures.append(f"walk kinds: start must come first and 10 nodes expected: {r['NODE']}")
 
     start = nodes[n("s")]
-    if start[6:] != ["target=Start", "refines=c1", "link_reason=because", "source=#1", "tracking=-",
-                     "items=c1,ac1", "children=" + n("gc")]:
+    if start[6:] != ["target=Start", "refines=constraint-1", "link_reason=because", "source=#1", "tracking=-",
+                     "items=constraint-1,acceptance-1", "children=" + n("gc")]:
         failures.append(f"walk kinds: start node fields wrong: {start[6:]}")
     if nodes[n("gp")][8] != "link_reason=-":
         failures.append(f"walk kinds: a root has no link to explain, so '-': {nodes[n('gp')]}")
@@ -820,9 +829,9 @@ def check_walk_kinds() -> list[str]:
 
     items = [tuple(f[1:]) for f in r["ITEM"]]
     want_items = [
-        (n("s"), "c1", "refined_by=(none)"), (n("s"), "ac1", "refined_by=" + n("gc")),
-        (n("p"), "c1", "refined_by=" + n("s")), (n("p"), "ac1", "refined_by=(none)"),
-        (n("gp"), "g1", "refined_by=" + n("p")),
+        (n("s"), "constraint-1", "refined_by=(none)"), (n("s"), "acceptance-1", "refined_by=" + n("gc")),
+        (n("p"), "constraint-1", "refined_by=" + n("s")), (n("p"), "acceptance-1", "refined_by=(none)"),
+        (n("gp"), "constraint-1", "refined_by=" + n("p")),
     ]
     if items != want_items:
         failures.append(f"walk ITEM mapping: expected {want_items}, got {items}")
@@ -845,7 +854,7 @@ def check_walk_kinds() -> list[str]:
     # Walking from the child shows the parent-side mapping too (parent item -> child Seed).
     code, out, _ = _walk(repo, SP + "gc.yaml")
     items = [tuple(f[1:]) for f in _recs(out)["ITEM"]]
-    if (n("s"), "ac1", "refined_by=" + n("gc")) not in items:
+    if (n("s"), "acceptance-1", "refined_by=" + n("gc")) not in items:
         failures.append(f"walk from child: the parent's item mapping is missing: {items}")
     return failures
 
@@ -1016,7 +1025,7 @@ def check_walk_notfound_and_external() -> list[str]:
     # Readable other-repo parent: status external, never expanded (no read of its children).
     p_text = _seed_text("Remote parent", children=["acme/child-repo:docs/specs/c3.yaml",
                                                     "docs/specs/sib.yaml"],
-                        constraints=[("c1", "Remote c1")])
+                        constraints=[("constraint-1", "Remote c1")])
     sib_text = _seed_text("Remote sibling", parent="docs/specs/p.yaml")
     gh, calls = _gh_shim({"acme/parent-repo:docs/specs/p.yaml": p_text,
                           "acme/parent-repo:docs/specs/sib.yaml": sib_text})
@@ -1212,6 +1221,162 @@ def check_walk_reexpand_second_route() -> list[str]:
     return failures
 
 
+def check_identifier_helpers() -> list[str]:
+    """canonical_id / legacy_form / seed_slug / qualified_id are the code form of identifiers.md."""
+    failures = []
+    cases = [
+        (sr.canonical_id("c3"), "constraint-3"), (sr.canonical_id("ac12"), "acceptance-12"),
+        (sr.canonical_id("constraint-3"), "constraint-3"), (sr.canonical_id("g1"), "g1"),
+        (sr.canonical_id("cx1"), "cx1"), (sr.legacy_form("constraint-3"), "c3"),
+        (sr.legacy_form("acceptance-2"), "ac2"), (sr.legacy_form("c1"), "c1"),
+        (sr.seed_slug("docs/specs/foo-v3.yaml"), "foo"), (sr.seed_slug("docs/specs/foo.yaml"), "foo"),
+        (sr.seed_slug("foo-v2-x.yaml"), "foo-v2-x"),
+        (sr.qualified_id("docs/specs/foo-v3.yaml", "constraint-1"), "foo/constraint-1"),
+        (sr.qualified_id("acme/repo:docs/specs/foo.yaml", "acceptance-2"),
+         "acme/repo:foo/acceptance-2"),
+    ]
+    for got, want in cases:
+        if got != want:
+            failures.append(f"identifier helper: expected {want!r}, got {got!r}")
+    return failures
+
+
+def _legacy_pair(repo, parent_ids=("c1", "ac1"), child_refines=("c1", "ac1")):
+    crit = [i for i in parent_ids if i.startswith(("ac", "acceptance"))]
+    cons = [i for i in parent_ids if i not in crit]
+    _write(repo, "parent.yaml", target="Parent", children=[SP + "kid.yaml"],
+           constraints=[(i, f"desc {i}") for i in cons], criteria=[(i, f"desc {i}") for i in crit])
+    _write(repo, "kid.yaml", target="Kid", parent=SP + "parent.yaml", refines=list(child_refines))
+
+
+def check_legacy_compat() -> list[str]:
+    """An unmigrated c<N>/ac<N> Seed still tree/check/walks; check adds an informational LEGACY."""
+    failures = []
+    repo = _repo()
+    _legacy_pair(repo)
+    legacy = ("LEGACY    docs/specs/parent.yaml still uses legacy item ids c1, ac1 — "
+              "run: seed-id-migrate.py docs/specs/parent.yaml")
+
+    code, out, err = _run(repo, "check", SP + "kid.yaml")
+    if code != 0 or out != [legacy, "OK: 3 edge(s) consistent"]:
+        failures.append(f"legacy check (child): LEGACY must not change the exit code: {code} {out} {err!r}")
+    code, out, _ = _run(repo, "check", SP + "parent.yaml")
+    if code != 0 or out != [legacy, "OK: 1 edge(s) consistent"] or out.count(legacy) != 1:
+        failures.append(f"legacy check (parent): the named Seed's LEGACY once, exit 0: {code} {out}")
+
+    code, out, _ = _run(repo, "tree", SP + "kid.yaml")
+    for want in ("REFINES   parent/c1 · desc c1", "REFINES   parent/ac1 · desc ac1",
+                 "PARENT-ITEM parent/c1 · desc c1  refined by: docs/specs/kid.yaml"):
+        if want not in out:
+            failures.append(f"legacy tree: missing {want!r} in {out}")
+    code, data, _ = _walk_json(repo, SP + "parent.yaml")
+    node = data["nodes"][0]
+    if code != 0 or node["items"] != ["c1", "ac1"] or node["item_desc"] != {
+            "c1": "desc c1", "ac1": "desc ac1"}:
+        failures.append(f"legacy walk: items/item_desc must read the old ids: {node}")
+    if [(i["id"], i["refined_by"]) for i in data["items"]] != [
+            ("c1", [SP + "kid.yaml"]), ("ac1", [SP + "kid.yaml"])]:
+        failures.append(f"legacy walk: ITEM mapping: {data['items']}")
+
+    # A new-form Seed never prints LEGACY.
+    new = _repo()
+    _legacy_pair(new, ("constraint-1", "acceptance-1"), ("constraint-1", "acceptance-1"))
+    code, out, _ = _run(new, "check", SP + "kid.yaml")
+    if (code, out) != (0, ["OK: 3 edge(s) consistent"]):
+        failures.append(f"new-form check must stay quiet: {code} {out}")
+
+    # A legacy Seed read through another repo: the LEGACY line says to migrate it there.
+    cross = _cross_fixture()
+    _write(cross, "c3.yaml", target="Cross child", parent="acme/parent-repo:docs/specs/p.yaml",
+           refines=["c1"])
+    p_text = _seed_text("Remote parent", children=["acme/child-repo:docs/specs/c3.yaml"],
+                        constraints=[("c1", "Remote c1")])
+    gh, _ = _gh_shim({"acme/parent-repo:docs/specs/p.yaml": p_text})
+    code, out, _ = _run(cross, "check", SP + "c3.yaml", gh=gh)
+    want = ["LEGACY    acme/parent-repo:docs/specs/p.yaml still uses legacy item ids c1 — "
+            "migrate it in that repo (seed-id-migrate.py docs/specs/p.yaml)",
+            "OK: 2 edge(s) consistent"]
+    if (code, out) != (0, want):
+        failures.append(f"legacy cross-repo check: expected (0, {want}), got ({code}, {out})")
+    return failures
+
+
+def check_refines_form_hint() -> list[str]:
+    """A refines that fails only on the id form stays a MISMATCH and names seed-id-migrate.py."""
+    failures = []
+    repo = _repo()
+    _legacy_pair(repo, ("constraint-1",), ("c1",))  # parent migrated, child not
+    code, out, _ = _run(repo, "check", SP + "kid.yaml")
+    want = [f"MISMATCH  {SP}kid.yaml refines c1, which {SP}parent.yaml does not define — "
+            f"{SP}parent.yaml has constraint-1: the id form differs, "
+            f"run seed-id-migrate.py {SP}parent.yaml",
+            "FOUND: 1 mismatch(es)"]
+    if (code, out) != (1, want):
+        failures.append(f"hint (parent migrated): expected (1, {want}), got ({code}, {out})")
+
+    repo = _repo()
+    _legacy_pair(repo, ("c1",), ("constraint-1",))  # child migrated, parent not
+    code, out, _ = _run(repo, "check", SP + "kid.yaml")
+    want = [f"MISMATCH  {SP}kid.yaml refines constraint-1, which {SP}parent.yaml does not define — "
+            f"{SP}parent.yaml has c1: the id form differs, run seed-id-migrate.py {SP}parent.yaml",
+            f"LEGACY    {SP}parent.yaml still uses legacy item ids c1 — "
+            f"run: seed-id-migrate.py {SP}parent.yaml",
+            "FOUND: 1 mismatch(es)"]
+    if (code, out) != (1, want):
+        failures.append(f"hint (child migrated): expected (1, {want}), got ({code}, {out})")
+
+    # A genuinely missing id gets no hint.
+    repo = _repo()
+    _legacy_pair(repo, ("constraint-1",), ("constraint-7",))
+    code, out, _ = _run(repo, "check", SP + "kid.yaml")
+    if code != 1 or any("seed-id-migrate" in ln for ln in out):
+        failures.append(f"hint: a refines missing in both forms must carry no hint: {out}")
+    return failures
+
+
+def check_duplicate_item_ids() -> list[str]:
+    """The same item id twice in one Seed is a MISMATCH (item_map would collapse it silently)."""
+    failures = []
+    repo = _repo()
+    _write(repo, "dup.yaml", target="Dup", constraints=[("constraint-1", "one"),
+                                                         ("constraint-1", "again")])
+    code, out, _ = _run(repo, "check", SP + "dup.yaml")
+    want = [f"MISMATCH  {SP}dup.yaml defines item id constraint-1 more than once",
+            "FOUND: 1 mismatch(es)"]
+    if (code, out) != (1, want):
+        failures.append(f"duplicate ids (named): expected (1, {want}), got ({code}, {out})")
+    s = sr.parse_seed(_seed_text("Dup", constraints=[("constraint-1", "a"), ("constraint-2", "b"),
+                                                      ("constraint-1", "c")]))
+    if s.duplicate_ids != ["constraint-1"]:
+        failures.append(f"duplicate ids: parse_seed.duplicate_ids {s.duplicate_ids}")
+
+    # A duplicated parent id is reported against the parent, as the child reads it.
+    _write(repo, "parent.yaml", target="Parent", children=[SP + "kid.yaml"],
+           constraints=[("constraint-1", "one"), ("constraint-1", "again")])
+    _write(repo, "kid.yaml", target="Kid", parent=SP + "parent.yaml", refines=["constraint-1"])
+    code, out, _ = _run(repo, "check", SP + "kid.yaml")
+    if code != 1 or f"MISMATCH  {SP}parent.yaml defines item id constraint-1 more than once" not in out:
+        failures.append(f"duplicate ids (parent): {code} {out}")
+    return failures
+
+
+def check_walk_item_desc() -> list[str]:
+    """walk JSON carries item_desc; the text records keep their fields (seed-board parses them)."""
+    failures = []
+    repo = _walk_fixture()
+    _, data, _ = _walk_json(repo, SP + "s.yaml")
+    start = data["nodes"][0]
+    if start["item_desc"] != {"constraint-1": "s c1", "acceptance-1": "s ac1"}:
+        failures.append(f"walk item_desc: {start['item_desc']}")
+    if any(isinstance(n["item_desc"], dict) is False for n in data["nodes"]):
+        failures.append("walk item_desc: every node carries an item_desc object")
+    code, out, _ = _walk(repo, SP + "s.yaml")
+    node = _recs(out)["NODE"][0]
+    if len(node) != 13 or "item_desc" in "\t".join(node):
+        failures.append(f"walk text: NODE record must keep its 13 fields, got {node}")
+    return failures
+
+
 def main() -> int:
     checks = [
         check_tree_same_repo,
@@ -1236,6 +1401,11 @@ def main() -> int:
         check_walk_identification,
         check_walk_value_cleaning,
         check_walk_reexpand_second_route,
+        check_identifier_helpers,
+        check_legacy_compat,
+        check_refines_form_hint,
+        check_duplicate_item_ids,
+        check_walk_item_desc,
     ]
     failures = []
     for check in checks:
