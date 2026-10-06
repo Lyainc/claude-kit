@@ -907,8 +907,11 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # #792: tree의 SOURCE/TRACKING/LINK·부모 출발 ITEM 대응, check의 UNRECORDED(종료 코드 불변), walk의
 # 관계 종류·깊이·경로, -vN, DUP과 같은 종류 엣지 순환(CYCLE), 깊이·개수 상한 STOP, 없는 파일,
 # 다른 레포 실패·미확장, 텍스트↔JSON 일치, walk id·fingerprint 변화를 함께 핀한다.
+# 식별자 규약(thinking-tools/reference/identifiers.md): 픽스처는 constraint-N/acceptance-N, tree는
+# `<slug>/<id> · <설명>`으로 보여 주고, 옛 c<N>/ac<N> Seed도 그대로 tree/check/walk되며 check는 종료 코드를
+# 바꾸지 않는 LEGACY 줄·id 형식 차이 MISMATCH의 seed-id-migrate.py 힌트·중복 id MISMATCH를 낸다.
 python3 thinking-tools/scripts/test/test-seed-relations.py
-# Expected: OK: all 22 test-seed-relations checks passed
+# Expected: OK: all 27 test-seed-relations checks passed
 
 # next-goal-render.py 회귀 (#792) — next-goal의 판단 JSON에서 NEXT/FROM/SKIPPED(+Seed가 있으면 TRACE)를
 # 렌더한다. FROM의 엣지 경로와 TRACE의 방문·실패 수는 JSON이 아니라 다시 돌린 walk에서 나오고, walk가
