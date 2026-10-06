@@ -40,6 +40,14 @@ jobs:
           python3 -m json.tool .agents/plugins/marketplace.json > /dev/null
           echo "All JSON manifests valid"
 
+      - name: Lint Python for the 3.9 runtime (ruff)
+        run: |
+          # Hooks and skills run on the system python3 (3.9 on macOS) while this job runs 3.12,
+          # so a 3.10-only annotation passes every test here (#779, #807). ruff.toml targets
+          # py39 with FA102 and catches it statically across every file (#809). Only ruff runs:
+          # run-linters.py would also pick up the runner's preinstalled shellcheck.
+          uv tool run ruff check .
+
       - name: Check marketplace governance guards
         run: |
           # version-sync is a BLOCK guard: drift between marketplace.json, Claude manifests,

@@ -351,6 +351,14 @@ python3 scripts/run-linters.py --self-test
 # only `--self-test` is registered here: the self-test pins the refusal (verdict function +
 # its wiring through main(), including --json) without needing a linter installed. Same
 # refuse-rather-than-degrade shape as check-skill-token-budget.py's exit 2 above (#454).
+uv tool run ruff check .
+# Expected: All checks passed!
+# #809: hooks and skills run on the system python3 (3.9 on macOS) but CI runs 3.12, so a
+# 3.10-only annotation (`dict | None`) passed CI twice (#779, #807). ruff.toml targets py39
+# with FA102, which flags such an annotation in any file, not only the paths a test imports.
+# CI runs ruff alone rather than real-mode run-linters.py because the ubuntu runner ships
+# shellcheck, which run-linters.py would then enforce too. Not caught: runtime-only 3.10 APIs
+# such as `isinstance(x, int | str)` or `zip(strict=True)`.
 
 # claude-review 침묵 방지 가드 회귀 (#451): 리뷰 job이 코멘트를 0개 남기고도 초록불이던
 # 문제 — Checks 탭에서 "리뷰했는데 지적이 없음"과 "리뷰가 안 돎"이 같은 체크로 보였다.
