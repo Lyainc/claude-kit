@@ -21,7 +21,7 @@ findings_count:
   important: <N>
   nice_to_have: <N>
 findings:
-  - id: f1
+  - id: finding-1
     priority: critical|important|nice-to-have
     category: assumption|blindspot|trade-off|edge-case|dependency
     title: <short title>

@@ -7,7 +7,7 @@ candidates. The corpus itself never reaches the model — same shape as
 obsidian-vault-manager/skills/audit Phase 1.
 
 Why closed issues (#489): a repo's *decided-but-unbuilt* constraints — the ones
-X3 (conflicts) has to score against — mostly live in issues that were closed as
+context-check-3 (conflicts) has to score against — mostly live in issues that were closed as
 COMPLETED. A scan restricted to `--state open` cannot see them, which is how
 build-spec's own scan failed to find #407/#140, the two decisions governing
 build-spec itself.
@@ -49,7 +49,7 @@ MIN_TERM = 2
 
 SKIP_NO_CORPUS = (
     "[backlog-scan SKIPPED] gh 부재 · GitHub 리모트 없음 · 또는 조회 실패 — "
-    "백로그를 못 읽었어요. X3(conflicts)는 코드만 보고 채점했고, 결정된-미빌드 제약은 "
+    "백로그를 못 읽었어요. context-check-3(conflicts)는 코드만 보고 채점했고, 결정된-미빌드 제약은 "
     "확인되지 않았어요."
 )
 SKIP_NO_TERMS = (

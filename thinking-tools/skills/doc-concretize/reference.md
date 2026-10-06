@@ -170,9 +170,9 @@ Fires only on an isolated-Verify failure — never per segment (see SKILL.md Pha
 
 ```
 Isolated Verify Result → Branch
-├─ All S{n} passed → Document done
-├─ 1-2 S{n} failed → Revise failing segment(s), re-run isolated Verify (max 3 attempts)
-└─ 3+ S{n} failed → Rewrite failing segment(s) entirely
+├─ All segment-{n} passed → Document done
+├─ 1-2 segment-{n} failed → Revise failing segment(s), re-run isolated Verify (max 3 attempts)
+└─ 3+ segment-{n} failed → Rewrite failing segment(s) entirely
 ```
 
 `Fact uncertain` is a [Build]-time trigger (call AskUserQuestion or WebFetch while drafting),

@@ -33,7 +33,8 @@ optional marker, labels, and title shape come from what the repo ships, read at 
 
 1. **Entry mode** — decides the *kind*, never the filename:
    - **Seed handoff** — input names a Seed YAML path, or the caller is build-spec. `Read` the
-     Seed; its `goal`/`constraints`/`success_criteria`/`context` fields are the source data.
+     Seed; its `goal`/`constraints`/`success_criteria`/`context` fields are the source data. List constraints and success criteria by full identifier
+     (`<seed-slug>/constraint-1 · 설명`, convention: `reference/identifiers.md`), never with an invented issue number.
      Kind = **proposal** (a Seed crystallizes something to build, never a defect).
    - **Freeform** — a natural-language line. Classify **defect** (observed vs. expected
      mismatch) vs **proposal** (a capability that doesn't exist yet). Ambiguous → one

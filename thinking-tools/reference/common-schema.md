@@ -2,6 +2,8 @@
 
 All thinking-tools skills that produce structured output files should include this YAML frontmatter block. This enables machine parsing, inter-skill chaining, and vault metadata.
 
+Item identifiers and their display form are defined once in [identifiers.md](identifiers.md).
+
 ## Schema
 
 ```yaml
@@ -61,7 +63,7 @@ verdicts:
   survived: <N>
   collapsed: <N>
   pending: <N>
-angle: <P-id|adhoc>           # Attacker domain angle — a personas.md entry ID
+angle: <persona-id|adhoc>     # Attacker domain angle — persona ids are role slugs from reference/personas.md
 backlog_scan: <scanned|partial|skipped>  # Phase 0 backlog-prefilter result, #524 (partial: #561)
                                          # The scan runs per claim, this field is document-level:
                                          # report the LEAST clean value across all claims
