@@ -11,6 +11,8 @@ Run: python3 vault-bridge/scripts/test/test-pre-write-guard.py
 Exit 0 on pass, 1 on fail.
 """
 
+from __future__ import annotations
+
 import json
 import os
 import subprocess

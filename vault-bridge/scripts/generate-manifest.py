@@ -35,6 +35,8 @@ mid-write never leaves a torn manifest.json on disk. --self-test pins that invar
 simulating the kill at each write boundary.
 """
 
+from __future__ import annotations
+
 import argparse
 import datetime
 import json
