@@ -25,10 +25,15 @@ an existing Seed may introduce only key paths that templates/SEED_SPEC.yaml defi
 position; keys the file already carried are never flagged, so old Seeds with custom keys keep
 working. If the template cannot be read the key check is skipped (fail open).
 
-**Ids are never deleted (#780 c3).** Other Seeds' `relations.refines` point at a parent's
-constraints[].id / success_criteria[].id, so an edit that makes an id present before the edit
-vanish would silently orphan those edges. A dropped requirement keeps its id and has its entry
-rewritten; a new one takes the next unused id. Same template-path exemption as the key check.
+**Ids are never deleted, duplicated or reused (seed-relations-graph/constraint-3).** Other Seeds'
+`relations.refines` point at a parent's constraints[].id / success_criteria[].id, so an edit that
+makes an id present before the edit vanish would silently orphan those edges. A dropped
+requirement keeps its id and has its entry rewritten; a new one takes the next unused number.
+Also denied: an edit that introduces a duplicate item id, and one that adds `constraint-N` /
+`acceptance-N` while the Seed still carries the legacy `cN` / `acN` with that number (or vice
+versa). Ids follow reference/identifiers.md; a legacy Seed stays protected as plain strings, and
+its ids are renamed only by `scripts/seed-id-migrate.py <seed> --apply` - a hand rename shows up
+here as a vanished id and is denied with that pointer. Same template-path exemption as the key check.
 """
 
 from __future__ import annotations
@@ -121,24 +126,65 @@ _ID_VALUE = re.compile(r"""^\s*["']?([\w-]+)""")
 _ID_SECTIONS = ("constraints", "success_criteria")
 
 
-def item_ids(text: str) -> set[str]:
-    """`id:` values of constraints[] and success_criteria[] items (the item's own id key only).
+def item_id_list(text: str) -> list[tuple[str, str]]:
+    """(section, id) of every constraints[] / success_criteria[] item, in file order.
 
     Walks the same structure as key_paths, so an `id:` line inside a block scalar or a nested
     mapping/list under an item is not mistaken for an item id.
     """
-    ids: set[str] = set()
+    out: list[tuple[str, str]] = []
     for path, rest in _walk_keys(text):
         if len(path) == 3 and path[0] in _ID_SECTIONS and path[1:] == ("[]", "id"):
             m = _ID_VALUE.match(rest)
             if m:
-                ids.add(m.group(1))
-    return ids
+                out.append((path[0], m.group(1)))
+    return out
+
+
+def item_ids(text: str) -> set[str]:
+    """`id:` values of constraints[] and success_criteria[] items (the item's own id key only)."""
+    return {i for _, i in item_id_list(text)}
 
 
 def missing_ids(existing: str, result: str) -> list[str]:
     """Ids the existing Seed holds that the edited text no longer does."""
     return sorted(item_ids(existing) - item_ids(result))
+
+
+# Same rule as seed-relations.py canonical_id (kept here so the hook imports nothing but stdlib):
+# `c3` -> `constraint-3`, `ac2` -> `acceptance-2`; the number is kept.
+_LEGACY = re.compile(r"^(c|ac)(\d+)$")
+_LEGACY_KIND = {"c": "constraint", "ac": "acceptance"}
+
+
+def canonical(item_id: str) -> str:
+    m = _LEGACY.match(item_id)
+    return f"{_LEGACY_KIND[m.group(1)]}-{m.group(2)}" if m else item_id
+
+
+def new_duplicates(existing: str, result: str) -> list[str]:
+    """Ids that occur more than once across constraints/success_criteria in the result and did not before."""
+    def dups(text: str) -> set[str]:
+        # One namespace across constraints and success_criteria, like seed-relations.py.
+        seen: set[str] = set()
+        out: set[str] = set()
+        for _, i in item_id_list(text):
+            if i in seen:
+                out.add(i)
+            seen.add(i)
+        return out
+    return sorted(dups(result) - dups(existing))
+
+
+def new_reused_numbers(existing: str, result: str) -> list[str]:
+    """Canonical ids the result carries in both the legacy and the new form (and did not before)."""
+    def mixed(text: str) -> dict[str, set[str]]:
+        groups: dict[str, set[str]] = {}
+        for _, i in item_id_list(text):
+            groups.setdefault(canonical(i), set()).add(i)
+        return {c: ids for c, ids in groups.items() if len(ids) > 1}
+    before = mixed(existing)
+    return sorted(c for c in mixed(result) if c not in before)
 
 
 # The template documents blindspots' item fields only in a comment (its default is `[]`).
@@ -218,6 +264,24 @@ def added_text(tool: str, ti: dict, existing: str) -> str:
     return new.replace(old, "", 1)
 
 
+def _id_number_reason(path: str, existing: str, result: str) -> str:
+    """Deny reason for a duplicate id or a reused number the edit introduces, else ''."""
+    dup = new_duplicates(existing, result)
+    if dup:
+        return (
+            f"Seed에 같은 item id가 두 번 생기게 하려고 했어요 ({os.path.basename(path)}: {', '.join(dup)}). "
+            "id는 constraints/success_criteria를 통틀어 하나뿐이어야 해요 — 새 요구사항은 아직 안 쓴 다음 번호를 쓰세요."
+        )
+    reused = new_reused_numbers(existing, result)
+    if reused:
+        return (
+            f"이미 쓴 번호를 다른 형태로 다시 쓰려고 했어요 ({os.path.basename(path)}: {', '.join(reused)}). "
+            "이 Seed에는 같은 번호의 옛 id(c<N>/ac<N>)와 새 id(constraint-<N>/acceptance-<N>)가 함께 있게 돼요 — "
+            "번호는 재사용하지 말고 아직 안 쓴 다음 번호를 쓰세요. 옛 id는 `scripts/seed-id-migrate.py <seed> --apply`로 옮겨요."
+        )
+    return ""
+
+
 def decide(payload: dict, read_file=None) -> str:
     """Return a deny reason, or '' to allow."""
     read_file = read_file or _read_file
@@ -231,16 +295,34 @@ def decide(payload: dict, read_file=None) -> str:
     if not os.path.isabs(path):
         path = os.path.join(payload.get("cwd") or "", path)
     existing = read_file(path)
+    if not existing and tool == "Write" and not is_template_path(path):
+        # New file: only the id-number checks apply (no baseline for vanish/keys/log).
+        content = ti.get("content") or ""
+        return _id_number_reason(path, "", content) if reads_as_seed(content) else ""
     if not existing or not reads_as_seed(existing):
         return ""
     result = result_text(tool, ti, existing)
     lost = missing_ids(existing, result) if result is not None and not is_template_path(path) else []
     if lost:
+        after = item_ids(result)
+        renamed = [i for i in lost if canonical(i) != i and canonical(i) in after]
+        hint = ""
+        if renamed:
+            hint = (
+                f" ({', '.join(f'{i}→{canonical(i)}' for i in renamed)}) 이름을 바꾸려던 거라면 손으로 고치지 말고 "
+                "`scripts/seed-id-migrate.py <seed> --apply`로만 바꾸세요 — 그 스크립트가 이 Seed와 자식 Seed의 "
+                "relations.refines를 함께 옮겨요."
+            )
         return (
             f"Seed의 id를 지우려고 했어요 ({os.path.basename(path)}: {', '.join(lost)}). "
-            "c*/ac* id는 다른 Seed의 relations.refines가 가리키니까 재사용하거나 지우면 안 돼요 — "
+            "item id는 다른 Seed의 relations.refines가 가리키니까 지우거나 바꾸면 안 돼요 — "
             "빠진 요구사항도 id는 두고 그 항목의 내용만 고쳐 쓰고, 새 요구사항은 아직 안 쓴 다음 번호를 쓰세요."
+            + hint
         )
+    if result is not None and not is_template_path(path):
+        reason = _id_number_reason(path, existing, result)
+        if reason:
+            return reason
     # The template defines the allowlist, so widening it must not be judged against itself.
     keys = foreign_keys(existing, result) if result is not None and not is_template_path(path) else []
     if keys:
@@ -270,19 +352,21 @@ def _read_file(path: str) -> str:
 
 
 SEED_HEAD = "skill: build-spec\nspec_version: 1\nconstraints:\n"
-SEED_ITEM = SEED_HEAD + "  - id: c1\n    type: technical\n    description: 기존 제약.\n    hard: true\n    rationale: 기존 근거.\n"
+SEED_ITEM = SEED_HEAD + "  - id: constraint-1\n    type: technical\n    description: 기존 제약.\n    hard: true\n    rationale: 기존 근거.\n"
 SEED_ITEM_BODY = SEED_ITEM[len(SEED_HEAD):]
-SEED_COMPACT = SEED_HEAD + "- id: c1\n  type: technical\n  description: 기존 제약.\n  hard: true\n  rationale: 기존 근거.\n"
+SEED_COMPACT = SEED_HEAD + "- id: constraint-1\n  type: technical\n  description: 기존 제약.\n  hard: true\n  rationale: 기존 근거.\n"
+SEED_LEGACY = SEED_ITEM.replace("constraint-1", "c1")
+SEED_LEGACY_AC = SEED_LEGACY + "success_criteria:\n  - id: ac1\n    description: 관찰 가능한 결과.\n"
 SEED_CUSTOM = SEED_ITEM + "custom_note: x\n"
 SEED_BLOCK = (
-    SEED_HEAD + "  - id: c1\n    type: technical\n    description: Config is required.\n    hard: true\n"
+    SEED_HEAD + "  - id: constraint-1\n    type: technical\n    description: Config is required.\n    hard: true\n"
     "    rationale: |\n      Example API config:\n      id: customer_id\n"
 )
 
 
 def _self_test() -> int:
     seed = lambda _: SEED_HEAD  # noqa: E731 — every path reads as a Seed unless a case says otherwise
-    item = lambda _: SEED_ITEM  # noqa: E731 — a Seed that already holds constraint c1
+    item = lambda _: SEED_ITEM  # noqa: E731 — a Seed that already holds constraint constraint-1
     cases = [
         (
             "dated note appended to a rationale",
@@ -305,15 +389,15 @@ def _self_test() -> int:
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "constraints:\n",
-                "new_string": "constraints:\n  - id: c18\n    description: 역할 필터는 deny-by-default다.\n",
+                "new_string": "constraints:\n  - id: constraint-18\n    description: 역할 필터는 deny-by-default다.\n",
             }}, seed, False,
         ),
         (
             "new constraint carrying a provenance date (structural growth)",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
-                "old_string": "  - id: c1\n",
-                "new_string": "  - id: c1\n  - id: c2\n    rationale: 매체는 GAS로 확정한다(2026-09-16 사용자 결정).\n",
+                "old_string": "  - id: constraint-1\n",
+                "new_string": "  - id: constraint-1\n  - id: constraint-2\n    rationale: 매체는 GAS로 확정한다(2026-09-16 사용자 결정).\n",
             }}, seed, False,
         ),
         (
@@ -405,7 +489,7 @@ def _self_test() -> int:
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "    rationale: 기존 근거.\n",
                 "new_string": "    rationale: 기존 근거.\nrelations:\n  parent: docs/specs/p.yaml\n"
-                              "  refines: [c1]\n  depends_on: []\n  children: []\n",
+                              "  refines: [constraint-1]\n  depends_on: []\n  children: []\n",
             }}, item, False,
         ),
         (
@@ -438,12 +522,12 @@ def _self_test() -> int:
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "    rationale: 기존 근거.\n",
                 "new_string": "    rationale: 기존 근거.\nrelations:\n  parent: docs/specs/p.yaml\n"
-                              "  refines: [c1]\n  link_reason: 부모가 비워 둔 인증 경로를 정한다.\n",
+                              "  refines: [constraint-1]\n  link_reason: 부모가 비워 둔 인증 경로를 정한다.\n",
             }}, item, False,
         ),
-        # --- id invariance (#780 c3) ---
+        # --- id invariance (seed-relations-graph/constraint-3) ---
         (
-            "deleting the c1 item is denied",
+            "deleting the constraint-1 item is denied",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": SEED_ITEM_BODY,
@@ -451,11 +535,11 @@ def _self_test() -> int:
             }}, item, True,
         ),
         (
-            "renumbering c1 to c2 is denied (c1 vanished)",
+            "renumbering constraint-1 to constraint-2 is denied (constraint-1 vanished)",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
-                "old_string": "  - id: c1\n",
-                "new_string": "  - id: c2\n",
+                "old_string": "  - id: constraint-1\n",
+                "new_string": "  - id: constraint-2\n",
             }}, item, True,
         ),
         (
@@ -463,10 +547,10 @@ def _self_test() -> int:
             {"tool_name": "Write", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "content": SEED_ITEM,
-            }}, lambda _: SEED_ITEM + "success_criteria:\n  - id: ac1\n    description: 관찰 가능한 결과.\n", True,
+            }}, lambda _: SEED_ITEM + "success_criteria:\n  - id: acceptance-1\n    description: 관찰 가능한 결과.\n", True,
         ),
         (
-            "rewriting c1's description while keeping the id is allowed",
+            "rewriting constraint-1's description while keeping the id is allowed",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "description: 기존 제약.",
@@ -474,18 +558,18 @@ def _self_test() -> int:
             }}, item, False,
         ),
         (
-            "adding a new c2 while keeping c1 is allowed",
+            "adding a new constraint-2 while keeping constraint-1 is allowed",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "    rationale: 기존 근거.\n",
-                "new_string": "    rationale: 기존 근거.\n  - id: c2\n    description: 새 제약.\n",
+                "new_string": "    rationale: 기존 근거.\n  - id: constraint-2\n    description: 새 제약.\n",
             }}, item, False,
         ),
         (
-            "the same c1 deletion on the template path is allowed",
+            "the same constraint-1 deletion on the template path is allowed",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml",
-                "old_string": "  - id: c1\n    type: technical|resource|legal|temporal|other\n",
+                "old_string": "  - id: constraint-1\n    type: technical|resource|legal|temporal|other\n",
                 "new_string": "",
             }}, lambda _: _TEMPLATE.read_text(encoding="utf-8"), False,
         ),
@@ -506,11 +590,11 @@ def _self_test() -> int:
             }}, lambda _: _TEMPLATE.read_text(encoding="utf-8"), True,
         ),
         (
-            "new c2 item with every template field",
+            "new constraint-2 item with every template field",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "    rationale: 기존 근거.\n",
-                "new_string": "    rationale: 기존 근거.\n  - id: c2\n    type: legal\n    description: 새 제약.\n"
+                "new_string": "    rationale: 기존 근거.\n  - id: constraint-2\n    type: legal\n    description: 새 제약.\n"
                               "    hard: false\n    rationale: 새 근거.\n",
             }}, item, False,
         ),
@@ -535,7 +619,7 @@ def _self_test() -> int:
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "  rationale: 기존 근거.\n",
-                "new_string": "  rationale: 기존 근거.\n- id: c2\n  type: other\n  description: 새 제약.\n"
+                "new_string": "  rationale: 기존 근거.\n- id: constraint-2\n  type: other\n  description: 새 제약.\n"
                               "  hard: true\n  rationale: 새 근거.\n",
             }}, lambda _: SEED_COMPACT, False,
         ),
@@ -557,20 +641,150 @@ def _self_test() -> int:
             }}, lambda _: SEED_BLOCK, False,
         ),
         (
-            "renumbering the real c1 of a Seed with a block scalar is still denied",
+            "renumbering the real constraint-1 of a Seed with a block scalar is still denied",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
-                "old_string": "  - id: c1\n",
-                "new_string": "  - id: c2\n",
+                "old_string": "  - id: constraint-1\n",
+                "new_string": "  - id: constraint-2\n",
             }}, lambda _: SEED_BLOCK, True,
         ),
         (
-            "deleting the whole c1 item (block scalar and all) is still denied",
+            "deleting the whole constraint-1 item (block scalar and all) is still denied",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": SEED_BLOCK[len(SEED_HEAD):],
                 "new_string": "",
             }}, lambda _: SEED_BLOCK, True,
+        ),
+        # --- legacy Seeds stay protected as plain strings ---
+        (
+            "legacy: deleting c1 is denied",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": SEED_LEGACY[len(SEED_HEAD):],
+                "new_string": "",
+            }}, lambda _: SEED_LEGACY, True,
+        ),
+        (
+            "legacy: rewriting c1's description is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "description: 기존 제약.",
+                "new_string": "description: 고쳐 쓴 제약.",
+            }}, lambda _: SEED_LEGACY, False,
+        ),
+        (
+            "legacy: hand rename c1 -> constraint-1 is denied (no edit-path exemption)",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "  - id: c1\n",
+                "new_string": "  - id: constraint-1\n",
+            }}, lambda _: SEED_LEGACY, True,
+        ),
+        (
+            "legacy: adding the next number c2 is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\n  - id: c2\n    description: 새 제약.\n",
+            }}, lambda _: SEED_LEGACY, False,
+        ),
+        (
+            "legacy: Write that drops ac1 is denied",
+            {"tool_name": "Write", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml", "content": SEED_LEGACY,
+            }}, lambda _: SEED_LEGACY_AC, True,
+        ),
+        # --- duplicate and reused numbers ---
+        (
+            "new: adding a second constraint-1 is denied (duplicate)",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\n  - id: constraint-1\n    description: 중복.\n",
+            }}, item, True,
+        ),
+        (
+            "legacy: adding a second c1 is denied (duplicate)",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\n  - id: c1\n    description: 중복.\n",
+            }}, lambda _: SEED_LEGACY, True,
+        ),
+        (
+            "same id in constraints and success_criteria is a duplicate (one namespace)",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\nsuccess_criteria:\n  - id: constraint-1\n    description: 다른 목록.\n",
+            }}, item, True,
+        ),
+        (
+            "legacy Seed gains constraint-1 beside c1 (reused number) is denied",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\n  - id: constraint-1\n    description: 번호 재사용.\n",
+            }}, lambda _: SEED_LEGACY, True,
+        ),
+        (
+            "new Seed gains c1 beside constraint-1 (reused number) is denied",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\n  - id: c1\n    description: 번호 재사용.\n",
+            }}, item, True,
+        ),
+        (
+            "legacy Seed gains acceptance-1 beside ac1 (reused number) is denied",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    description: 관찰 가능한 결과.\n",
+                "new_string": "    description: 관찰 가능한 결과.\n  - id: acceptance-1\n    description: 번호 재사용.\n",
+            }}, lambda _: SEED_LEGACY_AC, True,
+        ),
+        (
+            "legacy Seed gains constraint-2 (next unused number, new form) is allowed",
+            {"tool_name": "Edit", "tool_input": {
+                "file_path": "/r/docs/specs/x.yaml",
+                "old_string": "    rationale: 기존 근거.\n",
+                "new_string": "    rationale: 기존 근거.\n  - id: constraint-2\n    description: 새 제약.\n",
+            }}, lambda _: SEED_LEGACY, False,
+        ),
+        # --- Write that creates a new Seed: id-number checks only ---
+        (
+            "new Seed with duplicate ids is denied",
+            {"tool_name": "Write", "tool_input": {
+                "file_path": "/r/docs/specs/new.yaml",
+                "content": SEED_ITEM + "  - id: constraint-1\n    description: 중복.\n",
+            }}, lambda _: "", True,
+        ),
+        (
+            "new Seed with c1 beside constraint-1 is denied",
+            {"tool_name": "Write", "tool_input": {
+                "file_path": "/r/docs/specs/new.yaml",
+                "content": SEED_ITEM + "  - id: c1\n    description: 재사용.\n",
+            }}, lambda _: "", True,
+        ),
+        (
+            "new clean Seed is allowed",
+            {"tool_name": "Write", "tool_input": {
+                "file_path": "/r/docs/specs/new.yaml", "content": SEED_ITEM,
+            }}, lambda _: "", False,
+        ),
+        (
+            "new Seed with a custom key and a dated note is not judged (id checks only)",
+            {"tool_name": "Write", "tool_input": {
+                "file_path": "/r/docs/specs/new.yaml",
+                "content": SEED_ITEM + "status: x\n# 2026-09-18 구현 완료\n",
+            }}, lambda _: "", False,
+        ),
+        (
+            "new file that is not a Seed is ignored",
+            {"tool_name": "Write", "tool_input": {
+                "file_path": "/r/ci/p.yaml", "content": "jobs:\n  - id: c1\n  - id: c1\n",
+            }}, lambda _: "", False,
         ),
     ]
     failed = 0
@@ -596,10 +810,10 @@ def _self_test() -> int:
          "context:\n  backlog_scan: first line\n    next-goal: foo\n  dependencies: []\n",
          {("context",), ("context", "backlog_scan"), ("context", "dependencies")}),
         ("compact sequence path",
-         "constraints:\n- id: c1\n  hard: true\n- id: c2\nnext: 1\n",
+         "constraints:\n- id: constraint-1\n  hard: true\n- id: constraint-2\nnext: 1\n",
          {("constraints",), ("constraints", "[]", "id"), ("constraints", "[]", "hard"), ("next",)}),
         ("indented sequence path",
-         "constraints:\n  - id: c1\n    hard: true\n",
+         "constraints:\n  - id: constraint-1\n    hard: true\n",
          {("constraints",), ("constraints", "[]", "id"), ("constraints", "[]", "hard")}),
     ]
     for name, text, want in key_checks:
@@ -608,16 +822,17 @@ def _self_test() -> int:
             failed += 1
             print(f"FAIL: key_paths {name} — expected {sorted(want)}, got {sorted(got)}", file=sys.stderr)
     id_checks = [
-        ("real item ids", "constraints:\n  - id: c1\n  - id: c2\nsuccess_criteria:\n  - id: ac1\n", {"c1", "c2", "ac1"}),
-        ("literal |- scalar body", "constraints:\n  - id: c1\n    rationale: |-\n      id: x1\n", {"c1"}),
-        ("folded > scalar body", "constraints:\n  - id: c1\n    rationale: >\n      id: x1\n      - id: x2\n", {"c1"}),
-        ("nested mapping under an item", "constraints:\n  - id: c1\n    meta:\n      id: x1\n", {"c1"}),
-        ("nested list under an item", "constraints:\n  - id: c1\n    refs:\n      - id: x1\n", {"c1"}),
-        ("quoted ids", "constraints:\n  - id: \"c1\"\n  - id: 'c2'\n", {"c1", "c2"}),
-        ("real id after a block scalar ends", "constraints:\n  - id: c1\n    rationale: |\n      id: x1\n  - id: c2\n", {"c1", "c2"}),
-        ("id key after a block scalar dedent in the same item", "constraints:\n  - rationale: |\n      id: x1\n    id: c1\n", {"c1"}),
-        ("compact sequence", "constraints:\n- id: c1\n  rationale: |\n    id: x1\n- id: c2\n", {"c1", "c2"}),
-        ("other top-level keys are ignored", "constraints:\n  - id: c1\nblindspots:\n  - id: b1\ncontext:\n  id: z\n", {"c1"}),
+        ("real item ids", "constraints:\n  - id: constraint-1\n  - id: constraint-2\nsuccess_criteria:\n  - id: acceptance-1\n", {"constraint-1", "constraint-2", "acceptance-1"}),
+        ("literal |- scalar body", "constraints:\n  - id: constraint-1\n    rationale: |-\n      id: x1\n", {"constraint-1"}),
+        ("folded > scalar body", "constraints:\n  - id: constraint-1\n    rationale: >\n      id: x1\n      - id: x2\n", {"constraint-1"}),
+        ("nested mapping under an item", "constraints:\n  - id: constraint-1\n    meta:\n      id: x1\n", {"constraint-1"}),
+        ("nested list under an item", "constraints:\n  - id: constraint-1\n    refs:\n      - id: x1\n", {"constraint-1"}),
+        ("legacy ids read as plain strings", "constraints:\n  - id: c1\nsuccess_criteria:\n  - id: ac1\n", {"c1", "ac1"}),
+        ("quoted ids", "constraints:\n  - id: \"constraint-1\"\n  - id: 'constraint-2'\n", {"constraint-1", "constraint-2"}),
+        ("real id after a block scalar ends", "constraints:\n  - id: constraint-1\n    rationale: |\n      id: x1\n  - id: constraint-2\n", {"constraint-1", "constraint-2"}),
+        ("id key after a block scalar dedent in the same item", "constraints:\n  - rationale: |\n      id: x1\n    id: constraint-1\n", {"constraint-1"}),
+        ("compact sequence", "constraints:\n- id: constraint-1\n  rationale: |\n    id: x1\n- id: constraint-2\n", {"constraint-1", "constraint-2"}),
+        ("other top-level keys are ignored", "constraints:\n  - id: constraint-1\nblindspots:\n  - id: b1\ncontext:\n  id: z\n", {"constraint-1"}),
     ]
     for name, text, want in id_checks:
         got = item_ids(text)
@@ -640,7 +855,25 @@ def _self_test() -> int:
         if got != want_deny:
             failed += 1
             print(f"FAIL: {name} — expected deny={want_deny}, got deny={got}", file=sys.stderr)
-    total = len(cases) + len(spans) + len(key_checks) + len(id_checks) + len(foreign_checks)
+    migrate_hint = "seed-id-migrate.py <seed> --apply"
+    reason_checks = [
+        ("hand rename carries the migration pointer", {"tool_name": "Edit", "tool_input": {
+            "file_path": "/r/docs/specs/x.yaml", "old_string": "  - id: c1\n",
+            "new_string": "  - id: constraint-1\n"}}, SEED_LEGACY, migrate_hint, True),
+        ("a plain deletion carries no rename hint", {"tool_name": "Edit", "tool_input": {
+            "file_path": "/r/docs/specs/x.yaml", "old_string": SEED_LEGACY[len(SEED_HEAD):],
+            "new_string": ""}}, SEED_LEGACY, migrate_hint, False),
+        ("reused number points at the migration script", {"tool_name": "Edit", "tool_input": {
+            "file_path": "/r/docs/specs/x.yaml", "old_string": "    rationale: 기존 근거.\n",
+            "new_string": "    rationale: 기존 근거.\n  - id: constraint-1\n    description: x.\n"}},
+         SEED_LEGACY, "constraint-1", True),
+    ]
+    for name, payload, text, needle, want in reason_checks:
+        got = needle in decide(payload, read_file=lambda _, t=text: t)
+        if got != want:
+            failed += 1
+            print(f"FAIL: reason {name}", file=sys.stderr)
+    total = len(reason_checks) + len(cases) + len(spans) + len(key_checks) + len(id_checks) + len(foreign_checks)
     if failed:
         print(f"FAIL: {failed}/{total} seed-append-check case(s) failed", file=sys.stderr)
         return 1
