@@ -31,7 +31,7 @@ goal:
   clarity_score: 0.9
 
 constraints:
-  - id: c1
+  - id: constraint-1
     type: technical
     description: 단일 패스로 실행한다. 서브에이전트 fan-out을 하지 않는다.
     hard: true
@@ -39,7 +39,7 @@ constraints:
       이 에이전트를 만드는 이유가 비용이다 — 네이티브 /code-review는 세션 모델·effort
       그대로 서브에이전트를 30개씩 부르는데, 그 대안으로 단일 패스 저비용 에이전트를 만든다.
 
-  - id: c2
+  - id: constraint-2
     type: technical
     description: >-
       인라인 스킬이 아니라 격리 Agent로 구현한다. 리뷰 대상 diff를 만든 세션과 같은
@@ -47,7 +47,7 @@ constraints:
     hard: true
     rationale: "#134의 \"격리 critique·self-approval 금지\" 불변조건을 따른다."
 
-  - id: c3
+  - id: constraint-3
     type: other
     description: >-
       구체 패치를 내지 않는다. 발견마다 방향을 2-3개만 제시하고, 실제 코드 수정은 하지 않는다.
@@ -56,7 +56,7 @@ constraints:
       구체 해결은 세션 맥락을 가진 메인 컨텍스트가 소화해야 한다. 격리 에이전트는 diff와
       Seed만 보고 세션의 나머지 맥락을 모르므로, 패치를 내면 맥락 없는 수정이 된다.
 
-  - id: c4
+  - id: constraint-4
     type: other
     description: >-
       OMC(oh-my-claudecode) 시절 code-reviewer agentType 계약과 하위호환하지 않는다.
@@ -64,21 +64,21 @@ constraints:
     hard: true
     rationale: "#268에서 그 계약을 부활이 아니라 네이티브 재배선으로 해소하기로 결정했다."
 
-  - id: c5
+  - id: constraint-5
     type: other
     description: 타 레포에 남은 OMC code-reviewer 잔재 정리는 이 작업 범위 밖이다.
     hard: true
     rationale: >-
       claude-kit 레포 내 신규 에이전트 추가만이 이 Seed의 스코프다. 범위 밖 정리를
-      끌어들이면 c4의 "동명이인, 계약 무관" 판단 자체가 타 레포 상태에 좌우되게 된다.
+      끌어들이면 constraint-4의 "동명이인, 계약 무관" 판단 자체가 타 레포 상태에 좌우되게 된다.
 
-  - id: c6
+  - id: constraint-6
     type: technical
     description: 모델은 sonnet으로 고정한다.
     hard: true
-    rationale: c1과 같은 이유 — 비용이 이 에이전트를 만드는 동기이므로 상위 티어를 쓰지 않는다.
+    rationale: constraint-1과 같은 이유 — 비용이 이 에이전트를 만드는 동기이므로 상위 티어를 쓰지 않는다.
 
-  - id: c7
+  - id: constraint-7
     type: technical
     description: >-
       훅·CI 배선을 만들지 않는다. 강제는 대화 레벨로 한다 — HIGH 발견이 남아 있으면
@@ -86,7 +86,7 @@ constraints:
     hard: true
     rationale: 배선은 별도 스코프다. #134의 프리푸시 게이트 설계·구현은 이 이슈가 대신하지 않는다.
 
-  - id: c8
+  - id: constraint-8
     type: other
     description: >-
       baseline 체크리스트는 정확히 3항목으로 고정한다 — (1) 신뢰 경계 입력 검증,
@@ -97,17 +97,17 @@ constraints:
       항목 수를 고정하지 않으면 매 세션 baseline이 표류해 채점 기준의 일관성이 깨진다.
       3항목은 ponytail(과설계)·CI 일반 품질과 겹치지 않는 최소 교집합이다.
 
-  - id: c9
+  - id: constraint-9
     type: technical
     description: >-
       단일 패스로 다 읽지 못할 만큼 큰 diff는 PASS 대신 BLOCK — 범위 초과, 분할 필요로
       판정한다. fail-closed.
     hard: true
     rationale: >-
-      c1이 fan-out을 막으므로 큰 변경은 부분 읽기로 열화된다. 그 상태에서 PASS가 나가면
+      constraint-1이 fan-out을 막으므로 큰 변경은 부분 읽기로 열화된다. 그 상태에서 PASS가 나가면
       가장 큰 변경, 즉 가장 위험한 변경에서 게이트가 fail-open 한다. 맹점 패스에서 승격됨.
 
-  - id: c10
+  - id: constraint-10
     type: other
     description: >-
       success_criteria 각 항목을 충족 / 미충족 / diff로 판단 불가의 3상태로 판정한다.
@@ -118,7 +118,7 @@ constraints:
       2상태(충족/미충족)면 그런 기준이 매번 미충족=HIGH로 판정돼 영구 블로킹되거나,
       반대로 판정 자체가 조용히 무시된다. 맹점 패스에서 승격됨.
 
-  - id: c11
+  - id: constraint-11
     type: other
     description: >-
       심각도 규칙 — HIGH는 (a) Seed hard:true 제약 위반, (b) success_criteria 미충족,
@@ -127,16 +127,16 @@ constraints:
       판정은 BLOCK이다.
     hard: true
     rationale: >-
-      HIGH를 넓게 잡으면 매 리뷰가 블로킹돼 c7의 대화 레벨 강제가 무력화되고, 좁게 잡으면
+      HIGH를 넓게 잡으면 매 리뷰가 블로킹돼 constraint-7의 대화 레벨 강제가 무력화되고, 좁게 잡으면
       게이트가 아무 의미가 없어진다. 세 조건은 이 이슈가 채우려는 "명세 부합" 축과
       직접 연결되는 것만 HIGH로 남긴다.
 
-  - id: c12
+  - id: constraint-12
     type: other
     description: >-
       출력은 고정 토큰 BLOCK/PASS + 심각도 카운트 헤더, 심각도/위치/결함/근거 4열 스캔 표,
       발견별 상세(시나리오/근거/방향)로 구성된 Markdown이다. 발견이 없으면
-      "판정: PASS — 발견 없음" 한 줄로 끝낸다. c9로 스캔 자체가 시작 전에 중단되는 경우
+      "판정: PASS — 발견 없음" 한 줄로 끝낸다. constraint-9로 스캔 자체가 시작 전에 중단되는 경우
       (범위 초과)는 카운트 헤더가 전제하는 "완료된 스캔"이 아예 없으므로 이 두 형태와
       별도인 세 번째 출력으로 "판정: BLOCK — 범위 초과, 분할 필요" 한 줄로 끝낸다 —
       HIGH: 0건 헤더를 붙이면 스캔을 건너뛴 걸 스캔해서 깨끗했다고 오독시킨다.
@@ -147,39 +147,39 @@ constraints:
       이 설계의 전부라, 도구와 싸우는 대신 Markdown으로 직접 낸다.
 
 success_criteria:
-  - id: ac1
+  - id: acceptance-1
     description: check-agent-tools-field.py를 통과한다.
     verifiable: true
     measurable_via: python3 scripts/check-agent-tools-field.py 실행 결과
 
-  - id: ac2
+  - id: acceptance-2
     description: check-version-sync.py를 통과한다.
     verifiable: true
     measurable_via: python3 scripts/check-version-sync.py 실행 결과
 
-  - id: ac3
+  - id: acceptance-3
     description: HIGH 결함이 심긴 diff를 넣으면 판정이 BLOCK으로 나온다.
     verifiable: true
     measurable_via: 에이전트를 실제 호출한 스모크 — HIGH급 결함(예 - 에러 삼킴으로 데이터 손실)이 든 diff 입력, 출력 판정 토큰 확인
 
-  - id: ac4
+  - id: acceptance-4
     description: 깨끗한 diff를 넣으면 판정이 PASS로 나온다.
     verifiable: true
     measurable_via: 에이전트를 실제 호출한 스모크 — baseline 3항목·Seed 위반이 없는 diff 입력, 출력 판정 토큰 확인
 
-  - id: ac5
+  - id: acceptance-5
     description: 단일 패스로 다 읽지 못할 만큼 과대한 diff에서는 PASS가 나오지 않는다.
     verifiable: true
-    measurable_via: 에이전트를 실제 호출한 스모크 — 대용량 diff 입력, 출력 판정이 PASS가 아님을 확인 (c9)
+    measurable_via: 에이전트를 실제 호출한 스모크 — 대용량 diff 입력, 출력 판정이 PASS가 아님을 확인 (constraint-9)
 
-  - id: ac6
+  - id: acceptance-6
     description: >-
       Seed 제약을 어기지 않으면서 테스트 없이 20줄짜리 파서를 추가한 diff는 MED로
       리포트되고 비블로킹(PASS)이다.
     verifiable: true
     measurable_via: >-
       워크샘플 회귀 — baseline 항목(3) "논트리비얼 로직에 실행 가능한 체크 부재"에는 걸리지만
-      hard 제약 위반도 success_criteria 미충족도 아니므로 c11에 따라 MED로만 리포트되고
+      hard 제약 위반도 success_criteria 미충족도 아니므로 constraint-11에 따라 MED로만 리포트되고
       판정은 PASS임을 확인
 
 context:
@@ -190,18 +190,18 @@ context:
     - "네이티브 /code-review — 범용 무거운 리뷰, 세션 모델·effort 그대로 서브에이전트 다수 fan-out"
   dependencies:
     - "build-spec Seed YAML 스키마 (thinking-tools/reference/common-schema.md) — 이 에이전트가 채점 기준으로 참조하는 입력 포맷"
-    - "ReportFindings 도구 — 서브에이전트에서 호출 가능함을 실측 확인했으나 심각도 필드가 없어 이 에이전트는 사용하지 않고 Markdown 직접 출력으로 대체 (c12)"
+    - "ReportFindings 도구 — 서브에이전트에서 호출 가능함을 실측 확인했으나 심각도 필드가 없어 이 에이전트는 사용하지 않고 Markdown 직접 출력으로 대체 (constraint-12)"
   integration_points:
     - "thinking-tools/agents/code-reviewer.md (신규)"
     - "thinking-tools/.claude-plugin/plugin.json (keywords + description)"
     - ".claude-plugin/marketplace.json (check-version-sync.py --fix로 동기화)"
   backlog_scan: >-
     #268 — OMC 시절 code-reviewer agentType을 부활이 아니라 네이티브 재배선으로 해소한 결정.
-    이 에이전트는 그 계약과 무관한 동명의 신규 에이전트이므로 비충돌 (c4로 명시).
+    이 에이전트는 그 계약과 무관한 동명의 신규 에이전트이므로 비충돌 (constraint-4로 명시).
     #134 — 4지점 게이트 체인 설계. 프리푸시 quality 게이트가 설계만 있고 구현이 없으며,
     이 이슈가 그 자리를 leaf 레이어에서 채운다. 비충돌, 오히려 해당 설계의 부분 구현.
     #433 — 격리 채점 실패를 침묵으로 흡수하지 말라는 선례. 이 에이전트도 격리 호출이라
-    같은 실패류에 해당 — 호출 실패를 PASS로 취급 금지 (c9 fail-closed와 같은 방향).
+    같은 실패류에 해당 — 호출 실패를 PASS로 취급 금지 (constraint-9 fail-closed와 같은 방향).
 
 blindspots:
   - area: scoring-authority

@@ -3,7 +3,7 @@
 `unknown-discovery`(UD)와 `build-spec`(BS)은 엔진이 사실상 같다 — 인터뷰 루프, Y/N 체크리스트
 채점, 최저 영역 자동 타게팅, 격리 Agent 채점, 게이트, STATE, Quick Mode, 종료 조건 6종. 다른 건
 질문 축 이름 4개와 산출물뿐이라, 실제 세션에서 스킬 선택이 갈린다. 이 파일이 두 스킬이 공유하는
-단일 계약이다 — `docs/specs/thinking-tools-ud-bs-boundary.yaml` c1(hard): 이 계약은 파일 하나를
+단일 계약이다 — `thinking-tools-ud-bs-boundary/constraint-1`(hard): 이 계약은 파일 하나를
 넘지 않는다.
 
 ## 축 — 인터뷰가 끝났을 때 답의 모양
@@ -56,7 +56,7 @@ feedback preamble 경로가 이미 지원). 답이 나오면 constraint/success�
 격리)**다:
 
 - unknown-discovery: `unknown-discovery/reference.md` §6 — 인라인 점수가 이미
-  `Depth ≥ 65% AND 전 영역 D4=Y`를 만족하는 체크포인트
+  `Depth ≥ 65% AND 전 영역 depth-check-4=Y`를 만족하는 체크포인트
 - build-spec: `build-spec/reference.md` §2, `build-spec/SKILL.md` Phase 2 — 인라인 점수가 이미
   `Ambiguity ≤ 0.20 AND 전 dimension floor 충족`을 만족하는 라운드
 

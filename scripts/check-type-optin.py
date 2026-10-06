@@ -5,7 +5,7 @@ RULE (vault second-brain v4 §2.2): a committed Markdown file whose YAML frontma
 carries the *vault signal* — it declares BOTH `created:` AND `tags:` at the top level,
 i.e. it represents a vault note — MUST also declare a top-level `type:` field.
 
-OBJECTIVE DAMAGE (c6 — policy, not taste): v4 §2.2 makes `type:` the opt-in marker for
+OBJECTIVE DAMAGE (claude-kit-work-rules/constraint-6 — policy, not taste): v4 §2.2 makes `type:` the opt-in marker for
 claude-kit management. A vault file WITHOUT `type:` is INVISIBLE to claude-kit — it is
 silently dropped from the manifest and from audit (never surfaced, never managed). So a
 template, fixture, or doc that emits vault-style frontmatter but forgets `type:` is a real

@@ -34,7 +34,7 @@ goal:
 # 따라서 감지 대상은 "오래된 것"이 아니라 "복사된 것"이다.
 
 constraints:
-  - id: c1
+  - id: constraint-1
     type: technical
     description: 결정적 셸/스크립트만 사용. LLM 호출 0, per-turn 비용 0.
     hard: true
@@ -42,7 +42,7 @@ constraints:
       SessionStart에 상시로 붙는 물건이라 LLM 비용이 붙으면 첫 번째로 꺼진다.
       기존 rm-guard.sh / session-start-manifest.sh 선례와 동일한 계열.
 
-  - id: c2
+  - id: constraint-2
     type: technical
     description: >-
       존재 확인이 아니라 내용 해시 대조로 판정한다. 마커/파일 존재만 보는 멱등
@@ -53,7 +53,7 @@ constraints:
       보고 "already installed"를 반환하는 바람에, 1,856B(0.4.1) 훅이 9,432B
       템플릿으로 영영 갱신되지 않았다. "already installed"는 "최신"이 아니다.
 
-  - id: c3
+  - id: constraint-3
     type: technical
     description: 드리프트가 없으면 완전 침묵. 깨끗한 상태에서 출력 0바이트.
     hard: true
@@ -62,7 +62,7 @@ constraints:
       수백 번 출력했지만 아무도 읽지 않았다 — 탐지가 아니라 신호 희석이 실패 원인.
       드리프트는 드물어야 정상이므로, 울리면 진짜라는 신뢰를 유지한다.
 
-  - id: c4
+  - id: constraint-4
     type: technical
     description: 탐지는 자동, 수정은 수동. 자동 수정(--fix)을 넣지 않는다.
     hard: true
@@ -71,7 +71,7 @@ constraints:
       파일명 폴백으로 되돌렸다. 백업이 있어 복구했지만, 자동 적용이었다면 알아채지
       못했을 것. 대신 복사·붙여넣기 가능한 수정 명령을 출력해 마찰을 줄인다.
 
-  - id: c5
+  - id: constraint-5
     type: technical
     description: >-
       실행 예산 상한 200ms. 초과하면 조용히 건너뛰고 그 사실만 기록한다.
@@ -79,10 +79,10 @@ constraints:
       "결과가 지난번과 같으면 침묵"하는 캐시는 금지.
     hard: true
     rationale: >-
-      세션 시작을 늦추는 순간 꺼진다. 결과 기반 침묵 캐시는 c3의 취지를 뒤집어
+      세션 시작을 늦추는 순간 꺼진다. 결과 기반 침묵 캐시는 constraint-3의 취지를 뒤집어
       무시를 학습시킨다.
 
-  - id: c6
+  - id: constraint-6
     type: technical
     description: >-
       스캔 대상을 하드코딩 목록이 아니라 자동 발견으로 구한다
@@ -93,7 +93,7 @@ constraints:
       목록 자체가 노후화하는 것이 바로 지금 고치려는 병이다. 새 레포에서
       예상 못한 경고가 나올 수 있으나, 그건 침묵 실패보다 나은 방향의 오류다.
 
-  - id: c7
+  - id: constraint-7
     type: technical
     description: >-
       local-harness `rules/`에만 산다. claude-kit 레포는 이 스크립트에 런타임/빌드
@@ -106,14 +106,14 @@ constraints:
       #209(서브에이전트 git 계약) 선례와 동일한 배치 — 추상 what+why는 머신 레벨,
       구체 강제는 필요한 프로젝트에.
 
-  - id: c8
+  - id: constraint-8
     type: other
     description: 작업은 local-harness에서 하되 추적 이슈는 claude-kit에 등록한다.
     hard: false
     rationale: local-harness는 자체 이슈 트래커가 없다 (#229 / #234 / #298 선례).
 
 success_criteria:
-  - id: ac1
+  - id: acceptance-1
     description: >-
       2026-07-22에 실제로 발생한 드리프트 4건을 픽스처로 고정하고, 감지기가 네 건을
       모두 잡는다.
@@ -125,24 +125,24 @@ success_criteria:
       (3) installed_plugins.json에 한 플러그인의 버전이 2개 이상,
       (4) ~/.claude/skills/*/.graphify_version 스탬프가 패키지 버전과 불일치.
 
-  - id: ac2
+  - id: acceptance-2
     description: 드리프트가 없는 깨끗한 머신 상태에서 출력이 0바이트다(오탐 0).
     verifiable: true
     measurable_via: 정상 상태 픽스처에서 stdout/stderr 길이 == 0 이고 exit 0.
 
-  - id: ac3
+  - id: acceptance-3
     description: 각 드리프트 항목이 복사·붙여넣기 가능한 수정 명령을 동반한다.
     verifiable: true
     measurable_via: >-
       드리프트 픽스처 4종 각각의 출력에 실행 가능한 명령 문자열이 1개 이상 포함되고,
       그 명령을 실행하면 다음 스캔에서 해당 항목이 사라진다(왕복 검증).
 
-  - id: ac4
+  - id: acceptance-4
     description: SessionStart에서 실행해도 체감 지연이 없다.
     verifiable: true
     measurable_via: 전체 스캔 실행시간 < 200ms (캐시 워밍 후), 초과 시 스킵 경로 동작 확인.
 
-  - id: ac5
+  - id: acceptance-5
     description: >-
       추상 규칙이 local-harness rules/ 카탈로그에 P12로 등재되고, README 표에서
       참조된다.
@@ -167,7 +167,7 @@ context:
 
 # 명시적 비목표 (스코프 크립 방지)
 non_goals:
-  - 자동 업데이트/자동 수정 — c4에서 배제
+  - 자동 업데이트/자동 수정 — constraint-4에서 배제
   - 참조 기반 설치(플러그인 훅)의 감시 — 자가치유되므로 감시 불필요, 핀 분산만 본다
   - claude-kit 쪽 구체 가드 — claude-kit 훅·가드는 전부 ${CLAUDE_PLUGIN_ROOT} 참조 기반이라 복사 결함 부재(2026-07-22 확인)
   - graphify PreToolUse 훅 도입 여부 — 별개 판단, 이 스펙 밖

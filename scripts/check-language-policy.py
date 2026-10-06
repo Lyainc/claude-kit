@@ -9,7 +9,7 @@ codepoints (Hangul Syllables U+AC00..U+D7A3, plus the Jamo blocks: U+1100..U+11F
 Hangul Jamo, U+3130..U+318F Compatibility Jamo, U+A960..U+A97F Jamo Extended-A,
 U+D7B0..U+D7FF Jamo Extended-B).
 
-OBJECTIVE DAMAGE (c6 — policy, not taste): these are the cross-marketplace,
+OBJECTIVE DAMAGE (claude-kit-work-rules/constraint-6 — policy, not taste): these are the cross-marketplace,
 English-mandated descriptions. CLAUDE.md's Language Policy states "README descriptions:
 English by default" and the Version Sync Rule treats `description`/`keywords` as synced
 fields enforced across plugin.json ↔ marketplace.json. Korean leaking into this public
@@ -27,7 +27,7 @@ flag ONLY Hangul codepoints, which is the precise signal the policy mandates aga
 SOFT REMAINDER (deferred to RULES.md, NOT enforced here): body-language — the policy's
 "Skill instructions / Agent instructions: English for LLM-optimized parsing" for
 SKILL.md and agents/*.md BODIES — is a GRAY ZONE. Those bodies contain sanctioned Korean
-zones (Korean I/O directives, trigger examples, Korean template content). Per c6, a check
+zones (Korean I/O directives, trigger examples, Korean template content). Per claude-kit-work-rules/constraint-6, a check
 there would be either FP-laden or require taste-laden zone carve-outs, so body-language
 stays a SOFT rule documented in RULES.md, not a hard gate in this script.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # claude-kit work-rules — deterministic task-end checklist reminder (Stop hook).
 #
-# #216 c5 tier-2 (SOFT): at task end, remind the main agent to run the rules/ checklist
+# #216 claude-kit-work-rules/constraint-5 tier-2 (SOFT): at task end, remind the main agent to run the rules/ checklist
 # before finishing, so the self-check can't be silently skipped. This is the honest soft
 # form of "skip 차단": a reminder that ALWAYS fires when rule-governed work is pending —
 # not a hard block (hard enforcement is the CI tier: scripts/check-*.py + external linters).
@@ -11,7 +11,7 @@
 # systemMessage ONLY when governed files are dirty — no LLM call, no decision:block, no loop.
 #
 # Wiring (per-developer, by design): .claude/ is gitignored in this repo, so this handler is
-# committed under scripts/ (shared, no external-orchestrator dependency — c3) but activated locally by adding to your own
+# committed under scripts/ (shared, no external-orchestrator dependency — claude-kit-work-rules/constraint-3) but activated locally by adding to your own
 # .claude/settings.json (see rules/RULES.md §4 "How the reminder hook is wired"):
 #   { "hooks": { "Stop": [ { "hooks": [ { "type": "command",
 #       "command": "bash \"$CLAUDE_PROJECT_DIR/scripts/rules-checklist-hook.sh\"" } ] } ] } }

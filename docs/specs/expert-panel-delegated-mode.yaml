@@ -34,7 +34,7 @@ goal:
   clarity_score: 0.9
 
 constraints:
-  - id: c1
+  - id: constraint-1
     type: technical
     description: >-
       위임 모드가 SKILL.md `## Execution Modes`의 선언된 트리거 불릿으로 존재한다.
@@ -44,7 +44,7 @@ constraints:
     rationale: >-
       선언되지 않은 자유문구는 매 호출 모델 재량으로 해석된다. 실측 2회에서 같은 스킬이
       822,864 대 27,865(약 30배)로 갈렸고, 싼 쪽은 사용자가 우연히 적은 문구였다.
-  - id: c2
+  - id: constraint-2
     type: technical
     description: >-
       위임 에이전트 정의에 Final_Response_Contract 블록을 넣는다 — 마지막 메시지가 산출물이고
@@ -57,12 +57,12 @@ constraints:
       Workflow schema 방어는 dev-harness로 이관되고 그 dev-harness가 2026-06-29 CUT으로
       철회됐으므로, 이 레포에 남은 방어는 반환 계약뿐이다. 현재 에이전트 5개가 모두 같은 문구를
       갖고 있어 새 발명이 아니라 기존 관례다.
-  - id: c3
+  - id: constraint-3
     type: technical
     description: SKILL.md가 5,000 토큰 예산 안에 남는다. 넘으면 산문을 reference.md로 옮기고 본문엔 locator만 남긴다.
     hard: true
     rationale: 현재 4,320 토큰으로 여유가 680이다. 초과 시 산문 이동은 #447·#663이 세운 기존 관례다.
-  - id: c4
+  - id: constraint-4
     type: technical
     description: >-
       test-mode-compose.py의 모드 required 세트에 새 모드를 추가한다. verbatim 핀 상수
@@ -71,29 +71,29 @@ constraints:
     rationale: >-
       required 세트는 화이트리스트가 아니라 하한이라, 새 모드를 넣지 않으면 통과는 하지만 그 모드가
       게이트를 안 받는다. 핀 상수 둘은 격리 계약 텍스트를 잠그는데 이 Seed는 격리 계약을 바꾸지 않는다.
-  - id: c5
+  - id: constraint-5
     type: technical
     description: 신규 에이전트는 `tools:`를 명시하고, 본문이 선언한 도구를 이름으로 언급한다.
     hard: true
     rationale: >-
       #472 — 생략하면 하네스에 연결된 도구 전부를 상속한다. check-agent-tools-usage.py가
       선언과 본문 사용을 양방향으로 검사하고 코드펜스 안은 근거로 안 쳐준다.
-  - id: c6
+  - id: constraint-6
     type: technical
     description: plugin.json keywords에 에이전트명을 추가하고 marketplace.json을 동기화한다. 버전은 올리지 않는다.
     hard: true
     rationale: check-version-sync.py가 CI block 가드다. 버전은 lockstep 릴리스 소관이다.
-  - id: c7
+  - id: constraint-7
     type: technical
     description: 약 27,900이라는 수치는 하드 임계값이 아니라 자릿수 수준의 방향 지표다.
     hard: false
     rationale: 기준은 "메인 컨텍스트 실행과 자릿수가 달라진다"이지 특정 값 도달이 아니다.
-  - id: c8
+  - id: constraint-8
     type: technical
     description: 위임 모드의 트리거 한국어 문구 표현은 기존 넷과 충돌하지 않는 한 조정 가능하다.
     hard: false
     rationale: hard인 것은 모드가 선언된다는 사실이고, 어떤 문구를 고르는지는 아니다.
-  - id: c9
+  - id: constraint-9
     type: other
     description: >-
       Workflow fan-out이 훗날 별도 이슈를 거쳐 들어올 경우 Claude 전용 추가 경로로 표기하고,
@@ -104,19 +104,19 @@ constraints:
       이 Seed 범위 밖이므로 이 제약은 선행 결정 기록이다.
 
 success_criteria:
-  - id: ac1
+  - id: acceptance-1
     description: >-
       위임 모드로 패널을 1회 실호출한 뒤 이후 25턴의 cache_creation이 기존 싼 케이스 수준
       (약 27,900)에 근사하게 잡힌다. 대조군은 같은 스킬의 메인 컨텍스트 실행 822,864다.
     verifiable: true
     measurable_via: 호출 직후 25턴의 cache_creation_input_tokens 집계, 또는 /usage의 Prompt cache (main) 줄
-  - id: ac2
+  - id: acceptance-2
     description: >-
       위임 반환값이 "Complete." 류 sign-off가 아니고 SUMMARY 본문(합의 항목·권고·미해결)을
       실제로 담았음을 확인한다.
     verifiable: true
     measurable_via: 실호출 1회의 반환 메시지 육안 확인 — #227이 측정한 실패 모양의 재현 여부
-  - id: ac3
+  - id: acceptance-3
     description: 가드 전수 green.
     verifiable: true
     measurable_via: >-
@@ -138,7 +138,7 @@ context:
     - >-
       experimental.cacheTtl 1h는 Phase 2.5 발견으로 이 Seed에서 제외됐다 — 위임 호출 1회는
       5분 안에 끝날 가능성이 커서 1시간 TTL의 쓰기 프리미엄만 지불하고 읽기 절감은 실현되지
-      않으며, 그 프리미엄이 ac1이 재는 cache_creation을 악화시키는 방향으로 나타난다. 원래 근거는
+      않으며, 그 프리미엄이 acceptance-1이 재는 cache_creation을 악화시키는 방향으로 나타난다. 원래 근거는
       격리 모드의 re-spawn 간격이었으므로 격리 이슈로 함께 넘긴다.
     - reference.md 다양성 원천 ADR — 패널 다양성은 역할 프롬프트 차별화에서만 나오고 spawn 수나 temperature가 아니다
   integration_points:
@@ -149,7 +149,7 @@ context:
     - thinking-tools/.claude-plugin/plugin.json / .claude-plugin/marketplace.json
   backlog_scan: >-
     open 23건 · closed 382건 전량 스캔. 충돌 2건 — #227(CLOSED) 위임 반환 빈 sign-off 19회
-    실측, 문서화된 완화책이 "inline SUMMARY path"라 이 Seed의 위임 방향과 정면으로 겹침 → c2
+    실측, 문서화된 완화책이 "inline SUMMARY path"라 이 Seed의 위임 방향과 정면으로 겹침 → constraint-2
     반환 계약으로 완화. #143(CLOSED) 격리 모드 E2+를 "재spawn"으로 고정 → 이 Seed는 격리 계약을
     바꾸지 않으므로 무충돌(resume이 범위 밖으로 나가면서 해소). 참조 2건 — #211(CLOSED) 반환 계약
     원출처, #201(CLOSED) Workflow schema 방어가 dev-harness로 이관 후 CUT되어 이 레포 밖.

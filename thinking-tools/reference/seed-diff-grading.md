@@ -26,4 +26,4 @@ diff를 Seed `<Seed 경로>`와 대조해 채점해줘:
 ```
 
 이 3상태 판정은 2상태(충족/미충족)로는 실행 기반 기준이 매번 미충족=차단으로 잘못 승격되거나,
-조용히 무시되는 두 실패 모드를 피하려는 것이다(원 설계 rationale, `docs/specs/thinking-tools-code-reviewer.yaml` c10 참고).
+조용히 무시되는 두 실패 모드를 피하려는 것이다(원 설계 rationale, `thinking-tools-code-reviewer/constraint-10` 참고).

@@ -3,13 +3,13 @@
 A thin **reference** for root-cause analysis in claude-kit. This is a doc, not a skill and
 not a workflow. Nothing executes it; the `retro` skill (feedback-loop) stays a *thin
 consumer* — when retro routes a finding to the `rule` output, it may link here, but it does
-not embed this procedure (spec `claude-kit-work-rules.yaml` constraint **c7**). Read this
+not embed this procedure (**claude-kit-work-rules/constraint-7**). Read this
 when a defect or rule-violation is a **repeat**, decide the fix, and stop.
 
 Scope: claude-kit work itself (plugins, scripts, hooks, docs, CI). Style and expression
 hygiene are out of scope — those are delegated to external linters/formatters
-(`.prettierrc`, `ruff.toml`, etc.) per **c4**. RCA here targets claude-kit-specific policy
-where a violation causes *objective damage*, never taste (**c6**).
+(`.prettierrc`, `ruff.toml`, etc.) per **claude-kit-work-rules/constraint-4**. RCA here targets claude-kit-specific policy
+where a violation causes *objective damage*, never taste (**claude-kit-work-rules/constraint-6**).
 
 ---
 
@@ -30,7 +30,7 @@ drift); a typo in one file and a logic bug in another are *different classes*.
 
 If you are unsure whether something is a repeat, treat it as a first occurrence (direct fix)
 — the gate is biased toward *less* guard-building, because a guard that never fires is dead
-weight that telemetry will later flag (spec **c8**).
+weight that telemetry will later flag (spec **claude-kit-work-rules/constraint-8**).
 
 ---
 
@@ -54,7 +54,7 @@ the origin — the earliest point where a different decision would have prevente
 chain. The point of tracing past the immediate symptom is to fix the cause once instead of
 patching every downstream copy.
 
-**STOP-AT-DETERMINISM (c7).** Stop tracing the moment the cause is expressible as a
+**STOP-AT-DETERMINISM (claude-kit-work-rules/constraint-7).** Stop tracing the moment the cause is expressible as a
 *deterministic code or config change*: a new or tightened `scripts/check-*.py` rule, a CI
 step in `validate.yml`, or an entry in an external linter config. That expressible point
 *is* the root cause for our purposes. Do **not** keep tracing into unfalsifiable territory
@@ -67,7 +67,7 @@ change makes this impossible to reintroduce silently?" is itself mechanical:
 
 - a check script that exits non-zero on the bad state (block) or warns (soft);
 - a config entry handed to an external linter (style/expression — delegated, not
-  reimplemented per **c4**);
+  reimplemented per **claude-kit-work-rules/constraint-4**);
 - a CI wiring change that makes an existing check actually run.
 
 If the only honest answer is "a human should remember to…", you have **over-traced** — back

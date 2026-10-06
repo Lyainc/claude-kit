@@ -28,7 +28,7 @@ goal:
   clarity_score: 0.9
 
 constraints:
-  - id: c1
+  - id: constraint-1
     type: technical
     description: >-
       두 스킬이 공유하는 계약(축 표 + 세 경로 + findings→blindspots 매핑)은
@@ -38,7 +38,7 @@ constraints:
       계약 파일이 여러 개로 늘면 이번 범위에서 제외한 드리프트 문제(INTERVIEW_STATE.md 두 벌,
       격리 채점 정책 불일치)를 그대로 재생산한다.
 
-  - id: c2
+  - id: constraint-2
     type: other
     description: UD 인터뷰 길이(라운드 수·단계 수)가 현재 대비 늘어나면 안 된다.
     hard: true
@@ -46,7 +46,7 @@ constraints:
       UD가 회피되는 원인이 체감 무거움이다. 출구와 감지를 붙이면서 라운드가 늘면 개선이
       역효과가 되어, 고치려던 문제를 더 키운다.
 
-  - id: c3
+  - id: constraint-3
     type: other
     description: >-
       범위 제외 — (a) 격리 채점 정책 드리프트와 INTERVIEW_STATE.md 두 벌 통합 → #432,
@@ -57,7 +57,7 @@ constraints:
       새로 만들어야 해서 순수 복사가 안 된다. 넣으면 스코프가 "경계 정리"에서
       "두 스킬 리팩터"로 번진다.
 
-  - id: c4
+  - id: constraint-4
     type: technical
     description: 기존 트리거 문구는 삭제하지 않고 추가만 한다.
     hard: false
@@ -65,14 +65,14 @@ constraints:
       thinking-tools/scripts/test/check-trigger-regression.py가 드롭을 CI에서 차단한다.
       규약이 이미 강제되므로 제약으로 다시 세울 필요는 없다.
 
-  - id: c5
+  - id: constraint-5
     type: technical
     description: plugin.json 버전을 직접 올리지 않는다. description 변경 시 marketplace.json만 동기화.
     hard: false
     rationale: claude-kit은 lockstep 릴리스라 버전은 릴리스 워크플로가 일괄 범프한다.
 
 success_criteria:
-  - id: ac1
+  - id: acceptance-1
     description: >-
       샘플 입력 ↔ 기대 스킬 판정 기준표가 공통 reference 파일에 존재하고, 각 항목에
       왜 그 스킬인지가 한 줄로 붙어 있다. 자동 CI 검증은 하지 않는다.
@@ -83,19 +83,19 @@ success_criteria:
       문자열이 있는지만 볼 수 있고 런타임 오라우팅은 통과시킨다. 그런 테스트는 라우팅
       테스트가 아니라 문서 린트이며, 없는 것보다 나쁜 거짓 안전감을 만든다.
 
-  - id: ac2
+  - id: acceptance-2
     description: >-
       UD→BS 왕복이 실제로 1회 성립한다 — 기존 seed 파일을 대상으로 UD를 돌리고, 나온
       Discovery Report를 BS refine mode에 넣어 seed v2(refine_generation: 1)가 산출된다.
     verifiable: true
     measurable_via: docs/specs/ 아래 refine_generation이 1 이상인 seed 파일의 존재
 
-  - id: ac3
+  - id: acceptance-3
     description: >-
       UD를 거쳐 들어온 BS 세션에서 Phase 2.5 blind-spot pass가 건너뛰어지고, STATE에
       blindspot_pass: skipped와 그 사유가 남는다.
     verifiable: true
-    measurable_via: build-spec SKILL.md Phase 2.5의 스킵 조건 문구 + ac2 왕복 시 STATE 확인
+    measurable_via: build-spec SKILL.md Phase 2.5의 스킵 조건 문구 + acceptance-2 왕복 시 STATE 확인
 
 context:
   existing_stack:
