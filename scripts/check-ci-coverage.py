@@ -32,6 +32,9 @@ _PATTERNS = [
     (re.compile(r"python3\s+(\S+\.py)"), "py:{}"),
     (re.compile(r"bash\s+-n\s+(\S+)"), "bash-n:{}"),
     (re.compile(r"bash\s+(\S+\.sh)"), "sh:{}"),
+    # A linter run has no test file of its own; its id is the tool, so a dropped CI step
+    # still shows up as missing_in_ci (#809).
+    (re.compile(r"\b(ruff)\s+check\b"), "lint:{}"),
 ]
 
 
@@ -108,11 +111,12 @@ def extract_validation_section(validation_md_text):
 
 def _referenced_paths(ids):
     """Strip the id prefix (`py:`, `sh:`, ...) down to a bare path, skipping glob
-    patterns (`bash -n hooks/*.sh`) since those have no single file to check."""
+    patterns (`bash -n hooks/*.sh`) and linter ids (`lint:ruff`) since those have no
+    single file to check."""
     paths = []
     for i in ids:
-        _, _, path = i.partition(":")
-        if any(c in path for c in "*?["):
+        kind, _, path = i.partition(":")
+        if kind == "lint" or any(c in path for c in "*?["):
             continue
         paths.append(path)
     return paths
@@ -167,6 +171,7 @@ def run_self_test():
         "OVM=/tmp bash dir/test/bar.sh --with-x\n"
         "bash -n hooks/*.sh\n"
         "python3 dir/test/only-in-claude.py\n"
+        "uv tool run ruff check .\n"
         "# python3 dir/test/commented-out.py\n"
         "```\n\n## Next\npython3 dir/test/outside-section.py\n"
     )
@@ -176,6 +181,7 @@ def run_self_test():
         "          python3 dir/test/foo.py\n"
         "          bash dir/test/bar.sh\n"
         "          bash -n hooks/*.sh\n"
+        "          uv tool run ruff check .\n"
     )
     reg = extract_test_ids(extract_validation_section(claude))
     ci = extract_test_ids(yml)
@@ -184,7 +190,7 @@ def run_self_test():
     failures = []
     expected_reg = {
         "json.tool:a.json", "py:dir/test/foo.py", "sh:dir/test/bar.sh",
-        "bash-n:hooks/*.sh", "py:dir/test/only-in-claude.py",
+        "bash-n:hooks/*.sh", "py:dir/test/only-in-claude.py", "lint:ruff",
     }
     if reg != expected_reg:
         failures.append(f"  registered: expected {sorted(expected_reg)}, got {sorted(reg)}")
@@ -197,8 +203,8 @@ def run_self_test():
 
     # #618: a registered path that no longer exists on disk is stale drift, and a glob
     # pattern (no single file to check) must not be flagged.
-    if _referenced_paths({"py:dir/test/foo.py", "bash-n:hooks/*.sh"}) != ["dir/test/foo.py"]:
-        failures.append("  _referenced_paths: glob pattern should be skipped")
+    if _referenced_paths({"py:dir/test/foo.py", "bash-n:hooks/*.sh", "lint:ruff"}) != ["dir/test/foo.py"]:
+        failures.append("  _referenced_paths: glob pattern and linter id should be skipped")
     with tempfile.TemporaryDirectory() as tmp:
         os.makedirs(os.path.join(tmp, "docs"))
         os.makedirs(os.path.join(tmp, ".github", "workflows"))
