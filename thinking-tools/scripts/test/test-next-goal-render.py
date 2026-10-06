@@ -18,6 +18,7 @@ import atexit
 import importlib.util
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -97,7 +98,11 @@ def main():
           and "조회 실패 1곳" in out, out)
     check("not stale on a fresh walk", "근거 변경됨" not in out, out)
     code2, out2, _ = _render(repo, _judgment(wid))
-    check("same JSON renders identically", (code2, out2) == (code, out))
+    # TRACE ends with the walk's own clock (`@ <UTC second>`), taken afresh on every render, so a
+    # second boundary between the two runs is not a rendering difference.
+    def no_clock(text):
+        return re.sub(r" @ \d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$", " @ <at>", text, flags=re.M)
+    check("same JSON renders identically", (code2, no_clock(out2)) == (code, no_clock(out)))
 
     p1 = subprocess.run([sys.executable, str(_RELATIONS), "walk", "docs/specs/c.yaml", "--max-depth",
                          "1", "--max-nodes", "2"], cwd=repo, capture_output=True, encoding="utf-8",
