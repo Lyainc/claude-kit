@@ -28,7 +28,7 @@ Goal (floor 0.75); Phase 3 abbreviated Seed (Goal + best-effort Constraints). Re
 (binding: Quick output block) before emitting. (§N = `reference.md`.)
 
 **Refine** ("이 스펙 다듬어줘" + prior seed path): `Read` it; restore scores, content and the
-`issues`/`relations` blocks (incl. `link_reason`) verbatim (§8); keep the prior `c*`/`ac*` ids; skip
+`issues`/`relations` blocks (incl. `link_reason`) verbatim (§8); keep prior item ids, legacy too; skip
 Phase 0; start at the lowest-clarity dimension; `<feedback>` (a path → `Read` first, §6) is Phase 1
 preamble.
 

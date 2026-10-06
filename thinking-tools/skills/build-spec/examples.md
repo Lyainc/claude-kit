@@ -16,10 +16,10 @@
 > "터미널에서 todo를 관리하고 싶어요. 기존 앱들이 너무 무거워서."
 
 **Scoring**:
-- G1: 단일 문장 표현 가능 → Y
-- G2: 측정 가능/관찰 가능 → N (무엇이 "가벼운가" 불명확)
-- G3: 주요 수혜자 → Y (개발자/터미널 사용자)
-- G4: 동기 이해 가능 → Y (기존 앱 무거움)
+- goal-check-1: 단일 문장 표현 가능 → Y
+- goal-check-2: 측정 가능/관찰 가능 → N (무엇이 "가벼운가" 불명확)
+- goal-check-3: 주요 수혜자 → Y (개발자/터미널 사용자)
+- goal-check-4: 동기 이해 가능 → Y (기존 앱 무거움)
 - Goal clarity: 3/4 = 0.75 ✓
 
 **Phase 1 Round 2** [Success, Q: "어떤 상태가 되면 완성됐다고 할 수 있나요?"]:
@@ -27,10 +27,10 @@
 > "task add '할 일', task list, task done 1 이 세 가지 커맨드가 동작하면 돼요."
 
 **Scoring**:
-- S1: verifiable AC → Y
-- S2: 범위 명확 → Y (세 커맨드로 한정)
-- S3: 목표와 연결 → Y
-- S4: 측정 방법 → Y (커맨드 실행 테스트)
+- success-check-1: verifiable AC → Y
+- success-check-2: 범위 명확 → Y (세 커맨드로 한정)
+- success-check-3: 목표와 연결 → Y
+- success-check-4: 측정 방법 → Y (커맨드 실행 테스트)
 - Success clarity: 4/4 = 1.0 → capped at 0.90
 
 **Phase 1 Round 3** [Constraint, Q: "기술 스택이나 환경 제약이 있나요?"]:
@@ -38,9 +38,9 @@
 > "Python이면 좋겠어요. pip install로 배포하고 싶어서요."
 
 **Scoring**:
-- C1: hard constraint → Y (Python)
-- C2: hard/soft 구분 → Y (pip = hard, 다른 배포 방식 = soft)
-- C3: 근거 → Y (pip 배포)
+- constraint-check-1: hard constraint → Y (Python)
+- constraint-check-2: hard/soft 구분 → Y (pip = hard, 다른 배포 방식 = soft)
+- constraint-check-3: 근거 → Y (pip 배포)
 - Constraint clarity: 3/3 = 1.0 → capped at 0.90
 
 **Gate Check** (Round 3):
@@ -55,7 +55,7 @@
 
 > "네, ~/.tasks.json 같은 파일이면 충분해요."
 
-Goal clarity: 0.90 (G2 Y로 전환 → 4/4 = 1.0 → cap 0.90)
+Goal clarity: 0.90 (goal-check-2 Y로 전환 → 4/4 = 1.0 → cap 0.90)
 
 **Gate Check** (Round 4):
 ```
@@ -94,27 +94,27 @@ goal:
   clarity_score: 0.90
 
 constraints:
-  - id: c1
+  - id: constraint-1
     type: technical
     description: Python으로 구현
     hard: true
     rationale: pip install로 배포 목적
-  - id: c2
+  - id: constraint-2
     type: technical
     description: 데이터 저장소는 ~/.tasks.json
     hard: true
     rationale: 단순성, 외부 DB 없음
 
 success_criteria:
-  - id: ac1
+  - id: acceptance-1
     description: "`task add '할 일'` 명령으로 항목 추가"
     verifiable: true
     measurable_via: 커맨드 실행 후 파일 확인
-  - id: ac2
+  - id: acceptance-2
     description: "`task list`로 전체 목록 출력"
     verifiable: true
     measurable_via: stdout 확인
-  - id: ac3
+  - id: acceptance-3
     description: "`task done 1`로 항목 완료 처리"
     verifiable: true
     measurable_via: 상태 변경 확인

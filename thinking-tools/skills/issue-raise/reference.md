@@ -18,7 +18,7 @@ list; never map onto a heading named here that the live template doesn't have.
 | Seed field | heading in this repo's `feature.md` |
 |---|---|
 | `goal.statement` | `## 무엇을 / 왜` |
-| `constraints[]` (description, `hard` first) + `success_criteria[]` (as a checklist) | `## 제안 (선택)` |
+| `constraints[]` (description, `hard` first) + `success_criteria[]` (as a checklist), each listed as `<seed-slug>/constraint-1 · 설명` / `<seed-slug>/acceptance-1 · 설명` | `## 제안 (선택)` |
 | `context.integration_points` | `## 영향 범위 (선택)` |
 | `context.backlog_scan` (Seed's own) + this skill's own Phase 1 result + `context.dependencies` | `## 관련 이슈·문서 (선택)` |
 
@@ -27,6 +27,9 @@ honest consequence of reading the template as the single source rather than inve
 Success criteria fold into `## 제안` as a checklist under the proposal instead. That folding
 generalizes: a Seed field with no matching section goes into the closest section that can
 carry it, never into a heading this skill adds.
+
+Items are listed with their full identifier (`reference/identifiers.md`): the affiliation is the Seed's
+file slug, never a guessed issue number — the issue being drafted does not exist yet.
 
 ### Freeform defect → a defect template (this repo: `bug.md`)
 

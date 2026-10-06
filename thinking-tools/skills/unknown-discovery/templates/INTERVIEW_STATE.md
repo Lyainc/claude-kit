@@ -32,7 +32,7 @@ State Management 섹션이 유일 소스다 — 필드가 바뀔 때마다 이 �
 
 ## Termination Gate
 
-- **Depth ≥ 65% AND 진입한 모든 Core 영역에서 D4=Y**: Phase 2 진입 가능 (사용자 동의 필요, 상세: [reference.md](../reference.md) §6)
+- **Depth ≥ 65% AND 진입한 모든 Core 영역에서 depth-check-4=Y**: Phase 2 진입 가능 (사용자 동의 필요, 상세: [reference.md](../reference.md) §6)
 - **Depth < 65% + Saturation**: 사용자에게 경고 후 진행 가능
 - 기존 포화 감지는 보조 지표로 유지
 

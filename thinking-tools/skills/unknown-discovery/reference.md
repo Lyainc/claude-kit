@@ -94,7 +94,7 @@
 부르는 건 바뀌지도 않을 결과에 매번 비용을 쓰는 것이다.
 
 **게이트 임박 라운드의 정의**: 방금 계산한 인라인 점수가 이미 아래 Termination Gate 조건
-(`Depth ≥ 65% AND 진입한 모든 Core 영역에서 D4 = Y`)을 만족하는 체크포인트 — 인라인 숫자로
+(`Depth ≥ 65% AND 진입한 모든 Core 영역에서 depth-check-4 = Y`)을 만족하는 체크포인트 — 인라인 숫자로
 게이트가 열리는 바로 그 라운드다. 거기서만 같은 체크리스트를 격리 재채점해서, 실제로 게이트를
 여는 건 인라인 값이 아니라 이 재채점 결과다.
 
@@ -112,16 +112,16 @@ SKILL.md가 지정한 1줄 경고(`[격리 채점 실패 — 자체 채점, 신�
 
 **정책 차단도 "호출 실패"의 한 형태다** (#433 잔여 스코프): 세션 정책이 `Agent` 호출 자체를 막아도(예: "요청 없이는 서브에이전트 금지") 위 fallback을 그대로 탄다 — 인라인 채점 + 한 줄 고지, 승인을 다시 묻는 `AskUserQuestion`은 추가하지 않는다. 정책 차단은 harness 권한 게이트를 이미 한 번 거친 결과라 다시 물으면 방금 난 결정을 재확인하는 셈이고, 무인 실행 중엔 응답 없이 저위험 분기(=지금 동작)로 귀결되며(`P6`), `#430`이 못박은 인터뷰 길이 제약상 메타 질문도 라운드 하나를 늘리는 비용이다. `scoring_isolated`는 체크포인트 출력의 고지 한 줄로 이미 노출되므로, STATE 블록 외에 별도 표시(예: Depth 진행 표기줄)에 추가로 얹지 않는다 — 같은 정보를 두 번 보여줄 뿐이다.
 
-### 점수 산정 체크리스트 (D1-D6)
+### 점수 산정 체크리스트 (depth-check-1 to depth-check-6)
 
 | # | 체크 항목 | Y 판정 기준 | 가중치 |
 |---|-----------|------------|--------|
-| D1 | 기본 질문 완료 | 해당 영역의 base question이 모두 나갔고 답변을 받았다 | 30% |
-| D2 | 구체적 답변 확보 | 답변에 숫자·고유명사·구체적 사례가 최소 1개 있다 (일반론만이면 N) | 15% |
-| D3 | Why chain 완료 | "왜"를 최소 1회 되물었고 그에 대한 답을 받았다 | 20% |
-| D4 | 발견 1건 이상 도출 | 사용자가 인터뷰 전에는 말하지 않았던 항목이 1건 이상 나왔다 (기존 진술 재서술은 N) | 15% |
-| D5 | 불확실성 신호 없음 | 마지막 라운드에 §3 불확실성 신호가 없었다 (감지 시 N = 기존 10% 차감과 동일) | 10% |
-| D6 | 사용자 자체 인사이트 발현 | 사용자가 질문받지 않은 함의를 스스로 꺼냈다 | 10% |
+| depth-check-1 | 기본 질문 완료 | 해당 영역의 base question이 모두 나갔고 답변을 받았다 | 30% |
+| depth-check-2 | 구체적 답변 확보 | 답변에 숫자·고유명사·구체적 사례가 최소 1개 있다 (일반론만이면 N) | 15% |
+| depth-check-3 | Why chain 완료 | "왜"를 최소 1회 되물었고 그에 대한 답을 받았다 | 20% |
+| depth-check-4 | 발견 1건 이상 도출 | 사용자가 인터뷰 전에는 말하지 않았던 항목이 1건 이상 나왔다 (기존 진술 재서술은 N) | 15% |
+| depth-check-5 | 불확실성 신호 없음 | 마지막 라운드에 §3 불확실성 신호가 없었다 (감지 시 N = 기존 10% 차감과 동일) | 10% |
+| depth-check-6 | 사용자 자체 인사이트 발현 | 사용자가 질문받지 않은 함의를 스스로 꺼냈다 | 10% |
 
 ```
 area_score = Σ (weight of items marked Y)     # 0% ~ 100%, 6개 다 Y면 100%
@@ -151,22 +151,22 @@ Depth = Σ (dimension_score × weight) × 100%
 게이트는 **두 조건을 모두** 만족해야 열린다:
 
 ```
-gate_open = (Depth ≥ 65%) AND (진입한 모든 Core 영역에서 D4 = Y)
+gate_open = (Depth ≥ 65%) AND (진입한 모든 Core 영역에서 depth-check-4 = Y)
 ```
 
 - **둘 다 충족**: Phase 2 진입 가능 (사용자 동의 필요)
 - **Depth 미달**: 가장 낮은 영역에 추가 질문 권장
-- **D4 미충족**: Depth가 65%를 넘었더라도 D4가 N인 영역을 다시 타겟팅한다
+- **depth-check-4 미충족**: Depth가 65%를 넘었더라도 depth-check-4가 N인 영역을 다시 타겟팅한다
 - 기존 포화 감지(3연속 신호)는 **보조 지표**로 유지: 게이트가 닫혀 있어도 포화 시 사용자에게 확인 후 진행 가능. Explicit Done도 그대로 사용자 의사를 존중한다 (경고만 표시)
 - Quick Discovery 모드는 타겟 영역 1개만 채점하므로, 그 영역에 대해서만 같은 두 조건을 본다
 
-**D4를 별도 전제로 둔 이유**: D1(30) + D2(15) + D3(20) = 정확히 65%다. 가중치 합산만으로 게이트를 걸면 네 영역 전부가 "기본 질문 던지고, 구체적으로 들리는 답을 받고, 왜를 한 번 되물었다"만으로 65%에 도달해서, **발견이 0건인 채로** Phase 2 진입이 제안된다. Unknown Unknown을 찾는 게 목적인 스킬에서 그건 게이트가 아니라 통과 의식이라, D4는 가중치 항목이면서 동시에 하드 전제로 둔다 (build-spec의 dimension floor가 Ambiguity 합산과 별개로 하드 게이트인 것과 같은 구조).
+**depth-check-4를 별도 전제로 둔 이유**: depth-check-1(30) + depth-check-2(15) + depth-check-3(20) = 정확히 65%다. 가중치 합산만으로 게이트를 걸면 네 영역 전부가 "기본 질문 던지고, 구체적으로 들리는 답을 받고, 왜를 한 번 되물었다"만으로 65%에 도달해서, **발견이 0건인 채로** Phase 2 진입이 제안된다. Unknown Unknown을 찾는 게 목적인 스킬에서 그건 게이트가 아니라 통과 의식이라, depth-check-4는 가중치 항목이면서 동시에 하드 전제로 둔다 (build-spec의 dimension floor가 Ambiguity 합산과 별개로 하드 게이트인 것과 같은 구조).
 
-**65% 임계값 근거**: D1+D2+D3에 해당하는 수준 — 기본 질문 완료, 구체적 답변 확보, Why chain 1회 완료 — 이 네 영역에 고르게 깔린 상태다. 여기에 D4 전제가 얹히므로 실제 게이트 통과 지점은 "모든 영역이 심화 탐색을 마쳤고, 각 영역에서 인터뷰 전에 없던 항목이 최소 1건씩 나왔다"가 된다.
+**65% 임계값 근거**: depth-check-1 + depth-check-2 + depth-check-3에 해당하는 수준 — 기본 질문 완료, 구체적 답변 확보, Why chain 1회 완료 — 이 네 영역에 고르게 깔린 상태다. 여기에 depth-check-4 전제가 얹히므로 실제 게이트 통과 지점은 "모든 영역이 심화 탐색을 마쳤고, 각 영역에서 인터뷰 전에 없던 항목이 최소 1건씩 나왔다"가 된다.
 
 ### 점수 하락 조건
 
-불확실성 신호 감지 시 **D5를 N으로 표시**한다 (= 기존의 10% 차감과 같은 효과).
+불확실성 신호 감지 시 **depth-check-5를 N으로 표시**한다 (= 기존의 10% 차감과 같은 효과).
 체크리스트 합산이라 점수는 구조적으로 0% 미만이 될 수 없으므로 별도 클램핑이 필요 없다.
 
 ## 7. Dynamic Area Targeting
@@ -387,7 +387,7 @@ Domain 확인 후, 성숙도를 AskUserQuestion으로 확인:
 | Why chain 생략 | 표면적 답변을 수용 | 최소 1회 후속 질문 수행 |
 | STATE 체크포인트 누락 | 컴팩션 시 진행 상태 유실 | 매 영역 완료 후 STATE 블록 출력 |
 | 복수 질문 동시 제시 | 얕은 답변 유도 | 한 번에 하나씩 질문 |
-| 불확실성 신호 무시 | 발견 기회 놓침 | 신호 감지 시 D5를 N으로 + 심화 (§3, §6) |
+| 불확실성 신호 무시 | 발견 기회 놓침 | 신호 감지 시 depth-check-5를 N으로 + 심화 (§3, §6) |
 | 자기 인터뷰 자기 채점 | 자기 점수를 자기가 매겨 게이트가 조기 개방 | Depth 채점은 별도 Agent에서 (§6 격리 채점) |
 | repo 무시하고 추상 질문 | 코드에 이미 답이 있는 걸 되물음 | Phase 0에서 repo 인테이크 먼저 (§15) |
 
@@ -512,12 +512,12 @@ Quick Mode output format:
 
 1. Per area: base question 1 → follow-up 1 → Why chain 1 (3Q total)
 2. Checkpoint: on completing each area, output a progress summary + STATE block (including Exploration Depth)
-3. On detecting an uncertainty signal, mark that area's checklist item D5 as N (that is the 10% deduction) and add 1Q (detail: [reference.md](reference.md) §3, §6)
-4. When the Core 4 clear the Depth Gate (≥ 65% **and** D4 = Y in every entered area — [reference.md](reference.md) §6), ask the user whether to enter Extended areas
+3. On detecting an uncertainty signal, mark that area's checklist item depth-check-5 as N (that is the 10% deduction) and add 1Q (detail: [reference.md](reference.md) §3, §6)
+4. When the Core 4 clear the Depth Gate (≥ 65% **and** depth-check-4 = Y in every entered area — [reference.md](reference.md) §6), ask the user whether to enter Extended areas
 
 **Exploration Depth Scoring** (checklist-based): at each checkpoint, score the just-completed area via the **6-item Y/N checklist** in [reference.md](reference.md) §6 — `area_score = Σ(weight of each Y item)`, never a free 0-100% judgement — and record each item's Y/N plus a one-line reason in the STATE block's `scoring_rationale`. Scoring stays inline by default; only a **gate-imminent round** escalates to isolated re-scoring — same cheap-by-default shape as `build-spec` Phase 2 (`build-spec/reference.md` §2).
 
-**Gate-imminent round**: the checkpoint whose own inline scores already satisfy the Depth Gate (Depth ≥ 65% AND D4=Y in every entered Core area — [reference.md](reference.md) §6) — the same test as the Termination Gate itself, evaluated one step early against inline numbers.
+**Gate-imminent round**: the checkpoint whose own inline scores already satisfy the Depth Gate (Depth ≥ 65% AND depth-check-4=Y in every entered Core area — [reference.md](reference.md) §6) — the same test as the Termination Gate itself, evaluated one step early against inline numbers.
 
 - **Gate-imminent round only**: re-score the same checklist in a **separate Agent subagent** — the interviewer scoring its own interview is the same self-verification bias that isolated Judge removes in `adversarial-review`. Pass the subagent `{each entered Core area's Q&A transcript + the §6 checklist + the findings claimed for each area}`; it returns the 6 Y/N marks, the reasons, and the area score, per area. The same call verifies the "발견 1건 이상 도출" item, so a claimed finding is confirmed by a context that never saw it being produced. It is this recomputed result, not the inline one, that actually opens the gate.
 - Every other checkpoint: `scoring_isolated: false` in STATE — inline by design, not a failure.
@@ -569,7 +569,7 @@ Round N | Area: {current_area} (targeting lowest area) | 진행 중/충분
 
 | Condition | Detection | Action |
 |-----------|-----------|--------|
-| **Depth Gate** | Exploration Depth ≥ 65% **AND** D4(발견 1건 이상 도출) = Y in every entered Core area | Phase 2 진입 제안 (사용자 동의 필요) |
+| **Depth Gate** | Exploration Depth ≥ 65% **AND** depth-check-4(발견 1건 이상 도출) = Y in every entered Core area | Phase 2 진입 제안 (사용자 동의 필요) |
 | **Explicit Done** | "done", "stop", "enough", "완료", "충분해", "끝", "그만" | Depth 경고 표시 후 Phase 2 진행 |
 | **Saturation** | 3 consecutive: short response + repetition + avoidance | Depth 표시 + confirm |
 | **Depth Limit** | Each Core 4 area at 2-depth | Ask about Extended areas |

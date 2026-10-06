@@ -47,9 +47,9 @@ Each round targets the lowest-Depth area ([reference.md](reference.md) §7); fir
 
 **Core Areas** (2-3 questions each): Assumptions, Trade-offs, Edge Cases, Blindspots; base Korean question patterns: [reference.md](reference.md) §16.
 
-**Interview Rules**: (1) per area: base question → follow-up → Why chain (3Q); (2) after each area, output a progress summary + STATE block; (3) an uncertainty signal marks that area's D5 as N and adds 1Q ([reference.md](reference.md) §3, §6); (4) when the Core 4 clear the Depth Gate (≥ 65% **and** D4 = Y in every entered area, §6), ask the user whether to enter Extended areas ([reference.md](reference.md) §12).
+**Interview Rules**: (1) per area: base question → follow-up → Why chain (3Q); (2) after each area, output a progress summary + STATE block; (3) an uncertainty signal marks that area's depth-check-5 as N and adds 1Q ([reference.md](reference.md) §3, §6); (4) when the Core 4 clear the Depth Gate (≥ 65% **and** depth-check-4 = Y in every entered area, §6), ask the user whether to enter Extended areas ([reference.md](reference.md) §12).
 
-**Exploration Depth Scoring**: at each checkpoint score the just-completed area with the **6-item Y/N checklist** in [reference.md](reference.md) §6 (`area_score = Σ weight of Y items`, never a free 0-100% judgement), recording each item's Y/N plus a one-line reason in STATE `scoring_rationale`. Scoring is inline by default (`scoring_isolated: false`). **Gate-imminent round** (inline scores already satisfy the Depth Gate): re-score the same checklist in a **separate Agent subagent**, since the interviewer scoring its own interview is self-verification bias. Pass it `{each entered Core area's Q&A transcript + the §6 checklist + the findings claimed per area}`; its Y/N marks, reasons and area scores (and D4 check), not the inline ones, open the gate. Agent call fails / unavailable / no response (including a policy denial) → score inline, keep `scoring_isolated: false`, and add one line `[격리 채점 실패 — 자체 채점, 신뢰도 낮음]` before the progress summary (no new round, no `AskUserQuestion`), then proceed exactly as isolated mode would (#433). A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further.
+**Exploration Depth Scoring**: at each checkpoint score the just-completed area with the **6-item Y/N checklist** in [reference.md](reference.md) §6 (`area_score = Σ weight of Y items`, never a free 0-100% judgement), recording each item's Y/N plus a one-line reason in STATE `scoring_rationale`. Scoring is inline by default (`scoring_isolated: false`). **Gate-imminent round** (inline scores already satisfy the Depth Gate): re-score the same checklist in a **separate Agent subagent**, since the interviewer scoring its own interview is self-verification bias. Pass it `{each entered Core area's Q&A transcript + the §6 checklist + the findings claimed per area}`; its Y/N marks, reasons and area scores, not the inline ones, open the gate. Agent call fails / unavailable / no response (including a policy denial) → score inline, keep `scoring_isolated: false`, and add one line `[격리 채점 실패 — 자체 채점, 신뢰도 낮음]` before the progress summary (no new round, no `AskUserQuestion`), then proceed exactly as isolated mode would (#433). A subagent that returns only idle notifications and no final text after one re-request counts as unavailable and takes this same fallback (#647) — never wait on it further.
 
 **Challenge Modes** (once each, 1-2Q, [reference.md](reference.md) §8): Inverter (Round 3+), Outsider (Round 5+), Pre-mortem (Round 7+ / Depth 60%+).
 
@@ -64,7 +64,7 @@ Organize the Unknown Unknowns, tag each Critical (could cause project failure) /
 
 ## Termination Conditions
 
-**Depth Gate** (primary): Depth ≥ 65% AND D4 = Y in every entered Core area → propose Phase 2 (user consent required). **Explicit Done** ("done", "stop", "enough", "완료", "충분해", "끝", "그만") → Depth warning if under 65%, then Phase 2. **Saturation** (3 consecutive: short response + repetition + avoidance) → show Depth + confirm. **Depth Limit** (each Core area at 2-depth) → ask about Extended areas. **Gap Check** (end of Phase 1): "Anything important we haven't covered?" **Early Exit** ("skip to results", "요약해줘", "결과만") → save state, Phase 2 with current findings. Soft Landing: Depth summary → Confirm → Close.
+**Depth Gate** (primary): Depth ≥ 65% AND depth-check-4 = Y in every entered Core area → propose Phase 2 (user consent required). **Explicit Done** ("done", "stop", "enough", "완료", "충분해", "끝", "그만") → Depth warning if under 65%, then Phase 2. **Saturation** (3 consecutive: short response + repetition + avoidance) → show Depth + confirm. **Depth Limit** (each Core area at 2-depth) → ask about Extended areas. **Gap Check** (end of Phase 1): "Anything important we haven't covered?" **Early Exit** ("skip to results", "요약해줘", "결과만") → save state, Phase 2 with current findings. Soft Landing: Depth summary → Confirm → Close.
 
 ## State Management
 
@@ -78,7 +78,7 @@ Depth: {weighted_avg}% | Q: {count} | CP: {count}
 Challenges: [inverter:{done|pending}] [outsider:{done|pending}] [pre-mortem:{done|pending}]
 scoring_isolated: {true|false}
 scoring_rationale:
-  assumptions: "[D1:Y][D2:Y][D3:N][D4:Y][D5:Y][D6:N] — {one-line reason}"
+  assumptions: "[depth-check-1:Y]…[depth-check-6:N] — {one-line reason}"
   trade-offs|edge-cases|blindspots: "{same shape}"
 
 Discoveries:

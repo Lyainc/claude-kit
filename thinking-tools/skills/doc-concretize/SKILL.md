@@ -93,25 +93,25 @@ never the drafting rationale:
 □ Reference style maintained? (if applicable)
 ```
 
-Prefix each segment in that document with its own marker — `[S1] {segment title}`,
-`[S2] ...` — because without them the subagent guesses segment boundaries from headings, which is
-not the same partition. It returns pass/fail per `S{n}` plus the failing line. One call per
+Prefix each segment in that document with its own marker — `[segment-1] {segment title}`,
+`[segment-2] ...` — because without them the subagent guesses segment boundaries from headings, which is
+not the same partition. It returns pass/fail per `segment-{n}` plus the failing line. One call per
 document, not per segment. **Agent call fails / no response** → verify inline against the same
 checklist and tell the user the final pass was not isolated. A subagent that returns only idle
 notifications and no final text after one re-request counts as unavailable and takes this same
 fallback (#647) — never wait on it further.
 
 **[Reflect]** — fires only on an isolated-Verify failure, never per segment:
-- All `S{n}` passed → document is done
-- 1-2 `S{n}` failed → revise the failing segment(s) and re-run the isolated Verify (max 3 attempts)
-- 3+ `S{n}` failed → rewrite the failing segment(s) entirely
+- All `segment-{n}` passed → document is done
+- 1-2 `segment-{n}` failed → revise the failing segment(s) and re-run the isolated Verify (max 3 attempts)
+- 3+ `segment-{n}` failed → rewrite the failing segment(s) entirely
 
 **Critical Issues** (require user approval):
 - Core premise has multiple interpretations
 - Conflicting information discovered
 - Sensitive claims or judgments involved
 
-**Quality Gate**: All segments drafted + isolated Verify passed for all `S{n}` → proceed
+**Quality Gate**: All segments drafted + isolated Verify passed for all `segment-{n}` → proceed
 
 ### Phase 4: Completeness Check
 

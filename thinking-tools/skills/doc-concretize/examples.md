@@ -71,15 +71,15 @@ but it's the fastest path to building long-term trust.
 
 **Isolated final Verify** (one `Agent` subagent call, whole document, once — not per segment):
 ```
-[S1] Customer Focus / [S2] Fast Execution / [S3] Transparency
+[segment-1] Customer Focus / [segment-2] Fast Execution / [segment-3] Transparency
 □ Logical connection between sections: Passed
 □ No contradictions or redundancy: Passed
 □ Consistent tone and manner: Passed (plain declarative throughout)
 □ Reference style maintained: N/A (no style reference given)
 ```
-Result: S1 pass, S2 pass, S3 pass → document done, no [Reflect] revision needed.
+Result: segment-1 pass, segment-2 pass, segment-3 pass → document done, no [Reflect] revision needed.
 
-*[Internal: all 3 segments built, isolated Verify passed for all S{n}]*
+*[Internal: all 3 segments built, isolated Verify passed for all segment-{n}]*
 
 **Completeness Review** (integrated in Phase 3):
 - Weak evidence claims? → "fastest path to building trust" - abstract but acceptable for values document
