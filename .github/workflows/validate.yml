@@ -377,6 +377,13 @@ jobs:
           python3 thinking-tools/scripts/test/test-seed-relations.py
           echo "seed-relations unit tests OK"
 
+      - name: Run seed-id-migrate unit tests
+        run: |
+          # #805 — the only rename path for legacy c<N>/ac<N> Seed ids: Seed and local children's
+          # refines move together, content preserved, re-run safe, refusals write nothing.
+          python3 thinking-tools/scripts/test/test-seed-id-migrate.py
+          echo "seed-id-migrate unit tests OK"
+
       - name: Run next-goal-render unit tests
         run: |
           # #792 — next-goal's pick rendered from its judgment JSON; paths and counts come
