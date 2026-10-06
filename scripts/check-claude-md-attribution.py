@@ -63,7 +63,7 @@ def script_ownership(root, plugins):
         scripts_dir = os.path.join(root, plugin, "scripts")
         if not os.path.isdir(scripts_dir):
             continue
-        for dirpath, _dirnames, filenames in os.walk(scripts_dir):
+        for _dirpath, _dirnames, filenames in os.walk(scripts_dir):
             for name in filenames:
                 if name.endswith(SCRIPT_EXT):
                     ownership.setdefault(name, set()).add(plugin)

@@ -248,7 +248,7 @@ def main(argv=None):
         for v in report.get("violations", []):
             print(f"ERROR: {v}")
     else:
-        reg, ci = len(report["registered"]), len(report["ci"])
+        reg = len(report["registered"])
         covered = reg - len(report["missing_in_ci"])
         print(f"CI coverage: {covered}/{reg} docs/VALIDATION.md-registered tests run in validate.yml.")
         if report["missing_in_ci"]:

@@ -89,7 +89,7 @@ def check_multi_area_branching() -> list[str]:
     """Consecutive same-area commits count; the first non-overlapping commit stops the chain."""
     failures = []
     cwd = _repo()
-    c1 = _commit(cwd, ["docs/a.md"], "c1")
+    _commit(cwd, ["docs/a.md"], "c1")
     c2 = _commit(cwd, ["thinking-tools/x.py"], "c2")
     c3 = _commit(cwd, ["thinking-tools/y.py"], "c3")
     depth, areas, shas = nc.chain_depth(cwd, 3)

@@ -432,7 +432,7 @@ def main() -> int:
     if errors:
         print(f"\nFAILED: {len(errors)} check(s) failed")
         return 1
-    print(f"\nOK: all wiki frontmatter contract checks passed")
+    print("\nOK: all wiki frontmatter contract checks passed")
     return 0
 
 

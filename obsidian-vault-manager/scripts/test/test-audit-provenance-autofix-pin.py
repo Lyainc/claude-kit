@@ -385,7 +385,7 @@ def main() -> int:
     if errors:
         print(f"\nFAILED: {len(errors)} check(s) failed")
         return 1
-    print(f"\nOK: all provenance-autofix checks passed")
+    print("\nOK: all provenance-autofix checks passed")
     return 0
 
 

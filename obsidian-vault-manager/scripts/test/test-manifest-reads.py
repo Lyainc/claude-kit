@@ -457,7 +457,7 @@ def main() -> int:
     if errors:
         print(f"\nFAILED: {len(errors)} check(s) failed")
         return 1
-    print(f"\nOK: all manifest-read checks passed")
+    print("\nOK: all manifest-read checks passed")
     return 0
 
 

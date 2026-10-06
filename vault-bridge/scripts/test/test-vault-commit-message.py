@@ -58,7 +58,7 @@ def _write_note(vault_root: Path, rel_path: str, ftype: str, status: str | None 
     """Write a vault note with frontmatter."""
     full = vault_root / rel_path
     full.parent.mkdir(parents=True, exist_ok=True)
-    fm_lines = ["---", f"type: {ftype}", f"created: 2026-05-28"]
+    fm_lines = ["---", f"type: {ftype}", "created: 2026-05-28"]
     if status:
         fm_lines.append(f"status: {status}")
     fm_lines.append("---")

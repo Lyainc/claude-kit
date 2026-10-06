@@ -116,7 +116,7 @@ def case_schema_version_inplace_upgrade_v1(errors: list[str]) -> None:
         if "legacy/orphan.md" not in paths:
             print("  ok   v1 orphan entry dropped during full rescan")
         else:
-            print(f"  FAIL v1 orphan entry survived v2 rescan", file=sys.stderr)
+            print("  FAIL v1 orphan entry survived v2 rescan", file=sys.stderr)
             errors.append("v1 orphan entry survived")
 
 
