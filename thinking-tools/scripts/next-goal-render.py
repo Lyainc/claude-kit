@@ -23,7 +23,7 @@ Input (stdin, JSON):
                                                 #   no path was handed over (not "no candidate")
       "pick": null | {
         "title": str, "via": "<walked Seed key>" | "session" | "backlog" | "issue:#N",
-        "targets": ["c1", "ac2"], "evidence": str,
+        "targets": ["constraint-1", "acceptance-2"], "evidence": str,
         "startable": "yes" | "unknown", "startable_reason": str,
         "user_change": str, "note": str (optional, e.g. the maintenance streak)
       },
@@ -32,6 +32,13 @@ Input (stdin, JSON):
                         "reason": str}],
       "unverified": [str]
     }
+
+`targets` are LOCAL item ids of the `via` Seed (reference/identifiers.md). For a walked Seed
+`via` each renders as its full identifier plus the Seed's own description
+(`foo/constraint-1 · DB 스키마 생성`, `owner/repo:foo/constraint-1 · ...` across repos); a target the
+Seed does not define is refused, as is a legacy `c1`/`ac1` that matches only by canonical form
+(the Seed needs `seed-id-migrate.py`, or the target needs the Seed's own spelling). For
+`session`, `backlog` and `issue:#N` the targets are free text and print as given.
 
 Usage:
     next-goal-render.py [--cwd <repo>] < judgment.json
@@ -157,7 +164,29 @@ def _check_vias(j, nodes):
             raise Refused(f"'{c['title']}': 다른 레포 Seed의 decision은 external이어야 해요")
 
 
-def _from_line(j, nodes):
+def _render_targets(rel, via, node, targets):
+    """Free text for non-Seed via; for a walked Seed, `<qualified id> · <description>` per target."""
+    if not _is_seed_via(via):
+        return [str(t) for t in targets]
+    defined = node.get("item_desc") or {}
+    out = []
+    for t in targets:
+        if not isinstance(t, str) or not t.strip():
+            raise Refused("pick.targets: 비어 있지 않은 문자열 목록이어야 해요")
+        t = t.strip()
+        if t not in defined:
+            twin = next((i for i in defined if rel.canonical_id(i) == rel.canonical_id(t)), None)
+            if twin is not None:
+                raise Refused(f"target {t}: {via} Seed는 이 항목을 '{twin}'로 정의해요 — 그대로 적어 주세요. "
+                              f"옛 id(c<N>/ac<N>) Seed는 scripts/seed-id-migrate.py <seed> --apply로 옮겨요")
+            raise Refused(f"target {t}: {via} Seed에 없는 항목이에요 — 정의된 id: "
+                          f"{', '.join(defined) or '(없음)'}. 없는 항목은 적지 않아요")
+        desc = " ".join(str(defined[t] or "").split())
+        out.append(rel.qualified_id(via, t) + (f" · {desc}" if desc else ""))
+    return out
+
+
+def _from_line(j, nodes, rel):
     pick = j.get("pick")
     if pick is None:
         return "없음 — 가치 있는 후속 후보가 없어요" if j["handoff"] != "missing" else \
@@ -171,8 +200,8 @@ def _from_line(j, nodes):
         src = via[len("issue:"):]
     else:
         src = f"Seed edge: {_edge_path(nodes[via])}"
-    targets = pick.get("targets") or []
-    out = src + (f" ({', '.join(targets)})" if targets else "")
+    targets = _render_targets(rel, via, nodes.get(via, {}), pick.get("targets") or [])
+    out = src + (f" ({'; '.join(targets)})" if targets else "")
     out += f" — 미충족 근거: {pick['evidence']}"
     out += f" · 착수 {'가능' if pick['startable'] == 'yes' else '미확인'}: {pick['startable_reason']}"
     out += f" · 사용자 변화: {pick['user_change']}"
@@ -216,14 +245,15 @@ def render(j, cwd):
     validate(j)
     lines = []
     data, nodes, current_id = None, {}, None
+    rel = _load_relations()
     if j["handoff"] == "named":
-        data = _walk(_load_relations(), j, cwd)
+        data = _walk(rel, j, cwd)
         nodes = {n["key"]: n for n in data["nodes"]}
         current_id = data["walk"]["id"]
         _check_vias(j, nodes)
     pick = j.get("pick")
     lines.append(f"NEXT     · {pick['title'] if pick else '없음'}")
-    lines.append(f"FROM     · {_from_line(j, nodes)}")
+    lines.append(f"FROM     · {_from_line(j, nodes, rel)}")
     lines.append(f"SKIPPED  · {_skipped_line(j)}")
     if j["handoff"] != "none":
         lines.append(f"TRACE    · {_trace_line(j, data, current_id)}")

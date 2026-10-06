@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Tests for next-goal-render.py (#792) — the pick rendered from next-goal's judgment JSON.
 
-Covers: FROM's edge path and TRACE's counts come from a fresh walk, never from the JSON; a `via`
+Covers: pick targets render as `<seed slug>/<id> · description` from the via Seed's own items
+(an unknown or canonical-only target is refused; the same id in two walked Seeds is told apart by
+affiliation; a cross-repo key keeps its `owner/repo:` prefix; a legacy Seed still renders); FROM's edge path and TRACE's counts come from a fresh walk, never from the JSON; a `via`
 the walk never visited is refused; another repo's Seed cannot be the pick; a Seed or HEAD change
 after the walk marks the judgment stale; a missing Seed handoff reads differently from "no
 candidate"; no Seed in play keeps the three-line shape; the same JSON renders identically twice.
@@ -13,6 +15,7 @@ Exit codes: 0 all passed, 1 one or more failed
 from __future__ import annotations
 
 import atexit
+import importlib.util
 import json
 import os
 import shutil
@@ -25,7 +28,7 @@ _SCRIPT = Path(__file__).resolve().parents[1] / "next-goal-render.py"
 _RELATIONS = Path(__file__).resolve().parents[1] / "seed-relations.py"
 
 
-def _repo():
+def _repo(ac="acceptance-1"):
     d = tempfile.mkdtemp(prefix="test-next-goal-render-")
     atexit.register(shutil.rmtree, d, ignore_errors=True)
     subprocess.run(["git", "init", "-q"], cwd=d, check=True)
@@ -34,11 +37,11 @@ def _repo():
     (specs / "p.yaml").write_text(
         "skill: build-spec\ntarget: parent\nrelations:\n  parent: null\n  refines: []\n"
         "  depends_on: []\n  children: [docs/specs/c.yaml, other/repo:docs/specs/x.yaml]\n"
-        "success_criteria:\n  - id: ac1\n    description: parent outcome\n", encoding="utf-8")
+        "success_criteria:\n  - id: %s\n    description: parent outcome\n" % ac, encoding="utf-8")
     (specs / "c.yaml").write_text(
         "skill: build-spec\ntarget: child\nrelations:\n  parent: docs/specs/p.yaml\n"
-        "  refines: [ac1]\n  link_reason: settles ac1\n  depends_on: []\n  children: []\n"
-        "success_criteria:\n  - id: ac1\n    description: child outcome\n", encoding="utf-8")
+        "  refines: [%s]\n  link_reason: settles %s\n  depends_on: []\n  children: []\n"
+        "success_criteria:\n  - id: %s\n    description: child outcome\n" % (ac, ac, ac), encoding="utf-8")
     return d
 
 
@@ -62,8 +65,8 @@ def _render(repo, judgment):
 def _judgment(walk_id, pick_via="docs/specs/p.yaml", **over):
     j = {
         "seed": "docs/specs/c.yaml", "walk_id": walk_id, "handoff": "named",
-        "pick": {"title": "부모 ac1 마무리", "via": pick_via, "targets": ["ac1"],
-                 "evidence": "ac1 검사 스크립트가 아직 없음", "startable": "yes",
+        "pick": {"title": "부모 acceptance-1 마무리", "via": pick_via, "targets": ["acceptance-1"],
+                 "evidence": "acceptance-1 검사 스크립트가 아직 없음", "startable": "yes",
                  "startable_reason": "선행 없음", "user_change": "부모 목표를 끝까지 확인할 수 있음"},
         "alternatives": [{"title": "x Seed", "via": "other/repo:docs/specs/x.yaml",
                           "decision": "external", "reason": "다른 레포"}],
@@ -89,7 +92,7 @@ def main():
     lines = out.splitlines()
     check("named renders four lines", code == 0 and [ln[:8] for ln in lines] ==
           ["NEXT    ", "FROM    ", "SKIPPED ", "TRACE   "], f"{code} {out!r} {err!r}")
-    check("FROM path comes from the walk", "Seed edge: 출발 →parent docs/specs/p.yaml (ac1)" in out, out)
+    check("FROM path comes from the walk", "Seed edge: 출발 →parent docs/specs/p.yaml (p/acceptance-1 · parent outcome)" in out, out)
     check("TRACE counts come from the walk", "출발 docs/specs/c.yaml" in out and "방문 " in out
           and "조회 실패 1곳" in out, out)
     check("not stale on a fresh walk", "근거 변경됨" not in out, out)
@@ -148,6 +151,48 @@ def main():
     c.write_text(c.read_text(encoding="utf-8") + "\n# edited\n", encoding="utf-8")
     code, out, err = _render(repo, _judgment(wid))
     check("Seed change after the walk marks stale", code == 0 and "근거 변경됨" in out, f"{out!r} {err!r}")
+
+    # targets: affiliation disambiguates the same local id in two walked Seeds.
+    code, out, err = _render(repo, _judgment(wid, pick_via="docs/specs/c.yaml"))
+    check("same id in another walked Seed shows its own affiliation and description",
+          code == 0 and "(c/acceptance-1 · child outcome)" in out and "p/acceptance-1" not in out,
+          f"{code} {out!r} {err!r}")
+    code, out, err = _render(repo, _judgment(wid, pick_via="session"))
+    check("session via keeps targets as free text", code == 0 and "이번 세션 후속 (acceptance-1)" in out,
+          f"{code} {out!r} {err!r}")
+    bad = _judgment(wid)
+    bad["pick"]["targets"] = ["acceptance-9"]
+    code, out, err = _render(repo, bad)
+    check("target the via Seed does not define is refused", code == 1 and out == ""
+          and "acceptance-9" in err and "docs/specs/p.yaml" in err, f"{code} {out!r} {err!r}")
+    bad["pick"]["targets"] = ["acceptance-1", "constraint-4"]
+    code, out, err = _render(repo, bad)
+    check("one unknown target refuses the whole pick", code == 1 and out == "" and "constraint-4" in err, err)
+    bad["pick"]["targets"] = ["ac1"]
+    code, out, err = _render(repo, bad)
+    check("legacy spelling of a migrated item is refused with a hint", code == 1
+          and "acceptance-1" in err and "seed-id-migrate.py" in err, f"{code} {err!r}")
+
+    # cross-repo key keeps its coordinate prefix (an external Seed cannot be a pick, so call directly).
+    spec = importlib.util.spec_from_file_location("ngr", str(_SCRIPT))
+    ngr = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(ngr)
+    rel = ngr._load_relations()
+    got = ngr._render_targets(rel, "other/repo:docs/specs/x.yaml",
+                              {"item_desc": {"constraint-1": "DB 스키마\n생성"}}, ["constraint-1"])
+    check("cross-repo key shows owner/repo: prefix", got == ["other/repo:x/constraint-1 · DB 스키마 생성"], str(got))
+
+    # a legacy Seed still renders; a canonical-only match is refused.
+    legacy = _repo(ac="ac1")
+    lwid = _walk_id(legacy)
+    j = _judgment(lwid)
+    j["pick"]["targets"] = ["ac1"]
+    code, out, err = _render(legacy, j)
+    check("legacy Seed still renders", code == 0 and "(p/ac1 · parent outcome)" in out, f"{code} {out!r} {err!r}")
+    j["pick"]["targets"] = ["acceptance-1"]
+    code, out, err = _render(legacy, j)
+    check("new-form target on a legacy Seed is refused with a hint", code == 1 and "'ac1'" in err
+          and "seed-id-migrate.py" in err, f"{code} {err!r}")
 
     if failures:
         print("\n".join("FAIL " + f for f in failures))

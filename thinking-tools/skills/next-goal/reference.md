@@ -150,12 +150,16 @@ fabricated goal, issue, or repeated search.
 judgment once as JSON and print what
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --cwd <repo> <<'JSON' ... JSON` returns,
 via Bash, verbatim — its docstring holds the schema. Each candidate names its `via` (a walked Seed
-key, `session`, `backlog` or `issue:#N`), and the pick carries its target ids, the observable unmet
+key, `session`, `backlog` or `issue:#N`), and the pick carries its `targets`, the observable unmet
 evidence, whether it is startable and why, and the user-facing change; each main alternative carries
 its decision (`held`, `below-floor`, `done`, `external`, `unverified`) and reason. The script re-walks
 the Seed: FROM's edge path and the extra `TRACE` line (start, visited scope, stops, failures,
 unverified, evidence id and time) come from that walk, never from the JSON, and a `via` the walk did
-not visit is refused — fix the judgment, never the path. A `[근거 변경됨 ...]` mark means the Seed
+not visit is refused — fix the judgment, never the path. For a Seed `via`, `targets` are that
+Seed's local item ids exactly as the walk lists them (`constraint-1`, `acceptance-2`; an unmigrated Seed's
+`c1` stays `c1`); the script shows each as its full identifier with the description, and refuses an id the
+Seed does not define. Name Seed items to the user the way `reference/identifiers.md` says, never by a bare
+`c1`/`ac1`. For `session`, `backlog` or `issue:#N`, `targets` is free text. A `[근거 변경됨 ...]` mark means the Seed
 or HEAD moved after the walk: walk again and re-judge before writing the condition. Without a Seed
 in play, render the three lines directly as before; no extra call. The same JSON is what the
 optional seed-board mod shows, so the choice and the condition never depend on whether a UI is on.
