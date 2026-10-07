@@ -14,7 +14,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | --- | --- | --- |
 | `thinking-facilitator` | — | Auto-route requests to the optimal thinking skill |
 | `requirement-gap-reviewer` | sonnet | Grade a diff against this session's own issue/Seed/completion condition — not correctness or CLAUDE.md compliance, which native `/code-review` already covers |
-| `expert-panel-worker` | inherit | Run one whole expert-panel discussion in a single subagent and return only its SUMMARY (opt-in `위임 실행` mode) |
+| `expert-panel-worker` | inherit | Run one whole expert-panel discussion in a single subagent and return only its SUMMARY and 진행 기록 audit trail (opt-in `위임 실행` mode) |
 
 ## 포함된 스킬
 
