@@ -19,7 +19,7 @@
 
 > 비고 칸에는 표결·보류 결과를 한 줄로 적어요 (예: `가중 투표 A 6 : B 5 (조건부)`, `가중 투표 A 6 : B 3`, `보류 (동점 6:6)`, `보류 (정족수 미달)`). 보류 토픽은 승자 없이 `UNRESOLVED.md`로 가요.
 >
-> 표결과 정족수는 선택된 도메인 전문가만 대상이에요. Optimistic/Critical Practitioner는 투표하지 않고 정족수에도 포함되지 않아요. inline 모드의 `[Moderator]` 결론은 진행자의 종합이며 독립 검토가 아니에요 (격리 모드의 Moderator subagent만 독립 최종 검토).
+> 표결과 정족수는 선택된 도메인 전문가만 대상이에요. Optimistic/Critical Practitioner는 투표하지 않고 정족수에도 포함되지 않아요. inline·위임 모드의 `[Moderator — 진행자 종합]` 결론은 진행자(위임에서는 worker)의 종합이며 독립 검토가 아니에요 (격리 모드의 Moderator subagent만 `독립 최종 검토`).
 
 ---
 
