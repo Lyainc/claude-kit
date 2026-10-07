@@ -1,6 +1,6 @@
 # thinking-tools
 
-Claude Code용 **사고 도구 스킬 플러그인**. 분석, 문서 작성, 품질 검증을 위한 9개 스킬과 2개 에이전트를 제공합니다.
+Claude Code용 **사고 도구 스킬 플러그인**. 분석, 문서 작성, 품질 검증을 위한 9개 스킬과 3개 에이전트를 제공합니다.
 
 ## 설치
 
@@ -14,6 +14,7 @@ claude plugin install thinking-tools@Lyainc-claude-kit
 | --- | --- | --- |
 | `thinking-facilitator` | — | Auto-route requests to the optimal thinking skill |
 | `requirement-gap-reviewer` | sonnet | Grade a diff against this session's own issue/Seed/completion condition — not correctness or CLAUDE.md compliance, which native `/code-review` already covers |
+| `expert-panel-worker` | inherit | Run one whole expert-panel discussion in a single subagent and return only its SUMMARY (opt-in `위임 실행` mode) |
 
 ## 포함된 스킬
 
