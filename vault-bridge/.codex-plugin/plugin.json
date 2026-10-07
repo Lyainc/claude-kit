@@ -1,6 +1,6 @@
 {
   "name": "vault-bridge",
-  "version": "5.8.0",
+  "version": "5.9.0",
   "description": "Obsidian vault capture, project binding, manifest, commit, and wiki skills for Codex.",
   "author": {
     "name": "Lyainc",
