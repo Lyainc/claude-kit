@@ -27,7 +27,7 @@ first. Its Codex rules override Claude-only mechanics below; Claude Code ignores
 Output Korean (English if the user writes English); moved detail: reference.md § Procedure Detail. Modes (natural language):
 - **격리 실행** ("엄격하게", "격리해서"): experts and Moderator are separate Agent subagents
 - **요약 출력** ("요약만", "transcript 없이"): no transcripts; SUMMARY.md + UNRESOLVED.md only
-- **위임 실행** ("위임해서", "워커에게 맡겨"): opt-in; one `expert-panel-worker` Agent runs the panel, returns SUMMARY only. Apply reference.md § Delegated execution
+- **위임 실행** ("위임해서", "워커에게 맡겨"): opt-in; one `expert-panel-worker` Agent runs the panel; relay its SUMMARY + 진행 기록. Apply reference.md § Delegated execution
 
 Modes compose silently with each other and citation grounding, except 위임 vs 격리 (alternatives: clear intent wins, else ask); Phase 2 then picks the inline-summary path or files (isolated: always files).
 
