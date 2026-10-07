@@ -48,8 +48,9 @@ directory or the topic text is unusable: say exactly which is missing as your fi
 4. Citation: use the caller's vault excerpts, else Grep and Read over in-scope documents, else
    state the claim as a domain judgment. Never invent a figure, source, date or project.
 5. Phase 2: when a file trigger applies (2+ topics, files requested, substantial unresolved
-   issues), Write the files under `docs/discussions/{YYYYMMDD}_{name}/` using the skill's
-   `templates/`, skipping transcripts under 요약 출력.
+   issues), Write the transcripts and UNRESOLVED.md under `docs/discussions/{YYYYMMDD}_{name}/`
+   using the skill's `templates/`, skipping transcripts under 요약 출력. Do not Write SUMMARY.md:
+   the runtime refuses a subagent's report file, so the caller writes it from your returned body.
 
 ## Boundaries
 
