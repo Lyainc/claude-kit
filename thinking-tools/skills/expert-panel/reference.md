@@ -4,15 +4,61 @@
 
 ## Table of Contents
 
+- [Role Contract](#role-contract)
 - [Phase 0: 토론 준비 (상세)](#phase-0-토론-준비-상세)
 - [Phase 1: 토픽별 라운드 진행 (상세)](#phase-1-토픽별-라운드-진행-상세)
 - [STATE Block 복원 상세](#state-block-복원-상세)
 - [Phase 2: 기록 관리 (상세)](#phase-2-기록-관리-상세)
-- [Phase 3: 모더레이터 권한 (상세)](#phase-3-모더레이터-권한-상세)
+- [Phase 3: 진행자·Moderator 권한 (상세)](#phase-3-진행자moderator-권한-상세)
 - [Output Structure](#output-structure)
 - [Troubleshooting](#troubleshooting)
-- [Moderator Checklist](#moderator-checklist)
+- [Synthesis Checklist](#synthesis-checklist)
 - [Procedure Detail](#procedure-detail)
+
+---
+
+## Role Contract
+
+**Canonical text (#793).** SKILL.md § Participants points here; this section is the binding
+contract for who runs the panel, who synthesizes, and what the practitioners are. Its whole text
+— heading to the next heading — is pinned VERBATIM by `_ROLE_CONTRACT_SECTION` in
+`thinking-tools/scripts/test/test-mode-compose.py`; editing it is a deliberate contract change and
+updates that constant in the same commit (a reflow is free).
+
+- **Facilitator** — whoever runs the panel: the main context in inline and isolated mode (the
+  *orchestrator* of the exchange-loop contract). It selects experts, prepares inputs, writes the
+  neutral briefing and the practitioner review, spawns and relays (isolated), keeps the records,
+  judges *no new argument*, and ends the exchange loop only by the stop conditions. Fact requests
+  and decisions go to the user through it; a mid-discussion expert is only *proposed* by it and
+  needs the user's explicit yes. It never ends a topic outside the stop conditions and
+  SKILL.md § Topic Conclusion.
+- **Moderator** — the final synthesis role only; no vote, no facilitation power. In isolated mode
+  it is a separate subagent spawned once per topic after the loop stops, the independent final
+  reviewer: it receives each expert's final position summary (position, evidence source,
+  conditions, objection reason, vote) plus the practitioner review — never the full Q&A. In inline
+  mode the facilitator writes the synthesis under the Moderator label with the same
+  [Synthesis Checklist](#synthesis-checklist) and never calls it an independent review. Either
+  way the Moderator checks unsupported evidence and omissions and may set `held:evidence`, but
+  never changes an expert's vote, re-runs the loop past its cap, or adds experts.
+- **Optimistic Practitioner / Critical Practitioner** — required review perspectives, not
+  separate agents and not participants: the facilitator writes them, and no extra agent is spawned
+  by default. The Optimistic Practitioner gives the **implementation review** (minimal viable
+  plan, resources, prerequisites, rollout order, how success is checked); the Critical
+  Practitioner gives the **failure review** (failure scenarios, operating burden, stop/abort
+  conditions, recovery, alternatives). They never vote and never count toward quorum — only the
+  selected domain experts do.
+
+**Order per topic**: (1) a neutral facts-and-constraints briefing by the facilitator, with no
+pro/con framing; (2) the experts' independent statements; (3) Q&A/Rebuttal, opened by the
+practitioner review written after the independent statements; (4) dialectic; (5) conclusion. The
+review adds no exchange: in isolated mode it rides in the E2/E3 packets. Inline independence is a
+prompt-level contract only; isolated E1 enforces it by input boundary.
+
+**Evidence honesty**: a claim is a fact with its source, an assumption, an estimate, or a
+verification plan, and is labeled as such. Never invent anecdotes, improvement rates, failure
+probabilities, dates or projects, and never present simulated roles as verified facts or
+independent runs. The final output carries the conclusion, evidence, implementation plan,
+failure and stop conditions, dissent, and unresolved items.
 
 ---
 
@@ -28,7 +74,7 @@
 
 - 유저가 지정한 전문가 집단 확인
 - 각 전문가의 관점 및 평가 기준 정의
-- 실무자 2인(찬성/반대) 역할 확립
+- 실무 검토 관점 2개(실행안 / 실패 조건) 확인 — 진행자가 작성하며 별도 에이전트·투표자가 아님
 
 **전문가 페르소나 강화 원칙**:
 
@@ -40,8 +86,8 @@
 2. **측정 가능한 지표**: 정량적 수치, 성능 기준, 위험도 평가
    - 예: 성능 전문가 → O(n) 복잡도, 보안 전문가 → CVSS 점수, UX 전문가 → 클릭 수
 
-3. **선례/사례**: 과거 성공/실패 사례, 업계 모범 사례, 판례
-   - 예: "2023년 X 사고", "Y 프로젝트 실패 사례", "Z 판례"
+3. **선례/사례**: 출처를 댈 수 있는 사례, 공개 표준, 판례만 사실로 인용
+   - 출처가 없으면 가정·추정으로 표시하고 검증 계획을 붙임 — 사례·수치를 지어내지 않음
 
 **역할 프롬프트 차별화 (다양성의 유일한 원천)**:
 
@@ -58,7 +104,7 @@
 3. **고유 어조(voice)**: 발언의 결. 같은 결론도 다른 역할은 다른 화법으로 말합니다.
    - 예: 보안 → 위협 시나리오 단정조 / 성능 → 수치·벤치마크 인용조 / 법률 → 조항·판례 인용조 / UX → 사용자 행동 관찰조
 
-**충돌 강제**: 두 전문가가 같은 결론에 너무 쉽게 동의하면, 모더레이터(또는 격리 모드의 오케스트레이터)는 각자의 *고유 기준*으로 그 결론을 재검증하도록 요구합니다 — 동의가 기준 일치가 아니라 conformity 수렴일 수 있기 때문입니다 (이것이 [Phase 1 anti-conformity directive](SKILL.md)와 격리 모드 early-stop의 "새 논점 없음" 판정의 근거예요).
+**충돌 강제**: 두 전문가가 같은 결론에 너무 쉽게 동의하면, 진행자(오케스트레이터)는 각자의 *고유 기준*으로 그 결론을 재검증하도록 요구합니다 — 동의가 기준 일치가 아니라 conformity 수렴일 수 있기 때문입니다 (이것이 [Phase 1 anti-conformity directive](SKILL.md)와 격리 모드 early-stop의 "새 논점 없음" 판정의 근거예요).
 
 **치열한 토론 유도**:
 - 구체적 근거 요구: "이 주장의 데이터는?", "어떤 사례가 있나?"
@@ -118,31 +164,29 @@ override.
 
 - 토픽 시작 시: 이전 토픽 결론 요약 확인, 현재 토픽과의 연관성 검토
 - 논의 중: 이전 합의와 모순되는 주장 발생 시 해당 결론 인용
-- 방향 이탈 시: 모더레이터가 원본 문서 및 이전 결론 참조하여 본질로 복귀
+- 방향 이탈 시: 진행자가 원본 문서 및 이전 결론 참조하여 본질로 복귀
 
-### Step 1.1: 실무자 브리핑
+### Step 1.1: 브리핑 — 사실·제약 (진행자)
 
-**긍정적 실무자 (실현 가능성 옹호자)**:
-- 해당 토픽의 핵심 내용 설명
-- 기대 효과 및 장점 제시
-- **구현 경험 기반 근거**: "지난 프로젝트에서 이 방식으로 X% 개선했습니다"
-- **구체적 수치**: "3주 내 구현 가능", "비용 Y만큼 절감"
-- **실무적 실현 가능성**: "현재 팀 역량으로 충분히 가능합니다"
+진행자가 찬반 프레이밍 없이 토픽의 사실·제약·미확인 사항만 정리합니다. 이 브리핑이 독립 발언(E1)의
+유일한 공통 입력이므로 결론 방향을 암시하지 않습니다. 각 항목은 사실(출처)·가정·미확인으로 구분합니다.
 
-**부정적 실무자 (리스크 식별자)**:
-- **과거 실패 사례 인용**: "2023년 A 프로젝트가 이 방식으로 실패했습니다"
-- **구체적 리스크 수치**: "장애 발생 확률 N%", "기술 부채 M 시간 증가"
-- **잠재적 문제점 시나리오**: "사용자가 X 행동을 하면 Y 오류 발생"
-- **대안적 접근법 제안**: 단순 반대가 아닌 "대신 이렇게 하면..."
+### 실무 검토 (독립 발언 이후, 진행자 작성)
 
-**중요**: 실무자는 추상적 찬반이 아니라 **현장 경험과 데이터**로 논쟁합니다.
+**실행안 검토 (Optimistic Practitioner)**: 최소 실행안, 필요한 자원, 전제 조건, 도입 순서, 성공 확인 방법.
+
+**실패 검토 (Critical Practitioner)**: 실패 시나리오, 운영 부담, 중단·철회 조건, 복구 방법, 대안.
+
+실무 검토는 독립 발언을 모두 모은 뒤 한 번 작성해 Q&A/Rebuttal의 첫 입력으로 씁니다. 투표·정족수에
+포함되지 않고, 별도 에이전트를 만들지 않으며, 수치·사례는 출처가 없으면 가정·추정으로 표시합니다
+([Role Contract](#role-contract)).
 
 ### Step 1.2: 전문가 질의응답 (Q&A / Rebuttal)
 
 ```
 [전문가 A, B, C, ...]
-- 각 전문가 관점에서 질문
-- 실무자들의 응답
+- 실무 검토(실행안·실패 조건)를 첫 입력으로
+- 각 전문가 관점에서 질문·반박
 - 추가 clarification
 ```
 
@@ -168,9 +212,9 @@ independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 e
 once per topic — there is no outer topic-round loop around it.
 
 **Orchestrator vs. Moderator**: in isolated mode the mechanical work — spawning experts,
-assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition —
-is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator
-subagent. The Moderator subagent stays visibility-limited (position summaries only) and is spawned
+assembling per-expert prompt packets, writing the practitioner review, relaying between exchanges,
+and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator
+subagent. The Moderator subagent stays visibility-limited (position summaries and the practitioner review only) and is spawned
 only for Synthesis/Conclusion. This keeps the Moderator Visibility Contract intact: the
 orchestrator already holds every statement, so it is the one allowed to summarize and relay.
 
@@ -184,13 +228,16 @@ orchestrator already holds every statement, so it is the one allowed to summariz
    this it cannot "hold/defend"), (b) a *summary* of the other experts' **prior-exchange**
    statements (never within-exchange statements — parallel re-spawn means no expert sees another's
    current-exchange turn, preserving anti-anchoring), and (c) the re-applied **Anti-conformity
-   directive** (defined at the top of SKILL.md § Phase 1: Topic Rounds). Each expert then (a)
+   directive** (defined at the top of SKILL.md § Phase 1: Topic Rounds), and (d) the practitioner
+   review (implementation and failure review), which the orchestrator writes once after E1 from
+   the E1 statements — it is neither a spawn nor an exchange. Each expert then (a)
    holds and defends, (b) rebuts a specific point with new evidence, or (c) revises.
 
 **Exchange records (restore source)**: the moment an expert's statement is collected, the
 orchestrator Writes it — before touching STATE — to
 `{discussion-dir}/_exchanges/t{n}-e{i}-{expert-id}.md` (`{discussion-dir}` =
-`docs/discussions/{YYYYMMDD}_{name}/`; the topic briefing goes to `t{n}-briefing.md`), then adds
+`docs/discussions/{YYYYMMDD}_{name}/`; the topic briefing goes to `t{n}-briefing.md` and the
+practitioner review to `t{n}-review.md`), then adds
 the expert to `Collected` and advances `Rebuttal`. These are internal restore records, not the
 user-facing transcript: they are written in every isolated session, including summary-only,
 which skips only the Phase 2 transcripts. STATE holds only the counters, the collected-expert
@@ -211,6 +258,10 @@ set, and the `Records` directory — never statement prose. Restore rules: [STAT
 
 After the loop stops, the orchestrator spawns the Moderator subagent with the final exchange's
 position summaries to compute Synthesis → Conclusion. Stopping — by the cap or by *no new argument* — is not itself a verdict: the outcome follows SKILL.md § Topic Conclusion.
+Each position summary carries the expert's final position, evidence source, conditions, objection
+reason and vote; the practitioner review goes with them, the full Q&A never does. The Moderator is
+the independent final reviewer: it may set `held:evidence` but never changes a vote, re-runs the
+loop, or adds experts.
 
 **Degenerate cases**:
 
@@ -226,7 +277,8 @@ position summaries to compute Synthesis → Conclusion. Stopping — by the cap 
 
 **Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) +
 1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop
-fires — plus 1 Moderator subagent for Synthesis.
+fires — plus 1 Moderator subagent for Synthesis. The practitioner review is written by the
+orchestrator and adds no subagent.
 Every expert run is a new spawn (a re-spawned subagent is stateless), so on this path runs and
 spawns are equal: at most `3N` expert spawns + 1 Moderator per topic for N experts. Counted
 separately, never folded into that ceiling: **added experts** (a mid-added expert costs 1
@@ -243,30 +295,29 @@ exchange matter more than speed — inline mode stays the default for quick revi
 ### Step 1.3: 변증법적 논의
 
 ```
-정(Thesis): 긍정적 실무자 주장
-반(Antithesis): 부정적 실무자 + 전문가 반론
-합(Synthesis): 절충안 도출 시도
+정(Thesis): 우세한 전문가 입장 + 실행안 검토
+반(Antithesis): 반대 전문가 논거 + 실패 검토
+합(Synthesis): 조건부 절충안 도출 시도
 ```
 
 ### Step 1.4: 합의 또는 보류
 
 **합의 도달 시**:
 
-- 모더레이터가 합의 내용 정리
-- 전원 동의 확인
+- Moderator 종합으로 합의 내용 정리 (격리: 독립 subagent / inline: 진행자가 같은 체크리스트 적용, 독립 검토로 표시하지 않음)
+- 투표권 있는 전문가 전원 동의 확인 (실무 검토는 제외)
 - 토픽 종료 선언
 
 **합의 불가 시** (판정 규칙은 [SKILL.md § Topic Conclusion](SKILL.md#topic-conclusion)):
 
 - 가중 투표로 승자가 있으면 `tie-broken` — 차이가 1점이면 SUMMARY.md에 조건부로 표시
 - 동점(차이 0점) → `held:tie`, 근거 부족 → `held:evidence`, 유효 전문가 3명 미만 → `held:quorum` (투표 없음). 보류는 승자를 만들지 않고 UNRESOLVED.md에 사유와 함께 남김
-- 팩트체크·의사결정이 필요하면 유저 개입 요청
+- 팩트체크·의사결정이 필요하면 진행자가 유저 개입 요청
 
-**실무자 절충**:
+**실무 검토 반영**:
 
-- 긍정적 실무자: 반대 논거가 우세하다고 판단 시 절충안 제시
-- 부정적 실무자: 찬성 논거가 우세하다고 판단 시 절충안 제시
-- 양측 모두 합리적 선에서 양보하되, 구조적 한계면 논의 종료
+- 결론에는 실행안 검토의 최소 실행안·성공 확인 방법과 실패 검토의 실패·중단 조건을 함께 붙임
+- 실무 검토는 투표·정족수에 들어가지 않으며 결론을 대신 정하지 않음
 
 **논의 종료 조건**:
 
@@ -331,7 +382,7 @@ Backlog → `skipped` (mirrors the `Citation` default — a missing value must n
 In isolated mode the in-progress exchange is restored from the exchange records — not from the conversation, and not from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode). For topic `t{n}`:
 
 1. List `Records` for `t{n}-*`. An expert with a record for an exchange is done for it — take its statement from the record, never re-collect it and never count it twice. An expert without a record is not done, even if `Collected` or `k` says it is.
-2. Find the earliest exchange of the topic with a missing record. Re-spawn only its missing experts, with the packet that exchange used: topic + `t{n}-briefing.md` for `e1`; for `e2`/`e3`, the records of the exchange before it. Other experts' records from the same exchange never go into a packet.
+2. Find the earliest exchange of the topic with a missing record. Re-spawn only its missing experts, with the packet that exchange used: topic + `t{n}-briefing.md` for `e1`; for `e2`/`e3`, the records of the exchange before it plus `t{n}-review.md` (re-written from the `e1` records first if it is missing). Other experts' records from the same exchange never go into a packet.
 3. Records of any later exchange were built from the lost statement, so discard them and re-collect that later exchange after step 2. If `t{n}-briefing.md` itself is missing, or the records directory is gone, restart the topic at `e1` with a fresh briefing.
 4. If the retries leave fewer than 3 valid experts, the topic is `held:quorum`.
 
@@ -369,24 +420,28 @@ Never mark an expert, an exchange, or a topic complete from a counter alone.
 ```markdown
 ## [Topic Name] Transcript
 
-### Briefing: 브리핑
+### Briefing: 브리핑 (사실·제약)
 
-**[긍정적 실무자]**: ...
-**[부정적 실무자]**: ...
+**[진행자]**: 사실(출처)... / 제약... / 미확인...
 
-### Q&A: 질의응답
+### Independent: 독립 발언
 
-**[전문가 A]**: 질문...
-**[긍정적 실무자]**: 응답...
+**[전문가 A — independent]**: ...
+**[전문가 B — independent]**: ...
 
-### Dialectic: 논의
+### Review: 실무 검토 (투표 없음)
 
-**[부정적 실무자]**: 반론...
+**[Optimistic Practitioner — 실행안 검토]**: ...
+**[Critical Practitioner — 실패 검토]**: ...
+
+### Q&A / Dialectic: 반박·논의
+
+**[전문가 A]**: 반박...
 **[전문가 B]**: 추가 의견...
 
 ### 결론
 
-**[모더레이터]**: 합의 내용... / 보류 사유...
+**[Moderator]**: 결론·근거... / 보류 사유... (inline: 진행자 종합)
 ```
 
 ### 최종본 형식
@@ -399,6 +454,18 @@ Never mark an expert, an exchange, or a topic complete from a counter alone.
 | 토픽 | 결론 | 근거 | 출처 / 인용 |
 |------|------|------|------------|
 | ... | ... | ... | ... |
+
+### 실행안 · 실패·중단 조건
+
+| 토픽 | 최소 실행안 / 성공 확인 | 실패·중단 조건 |
+|------|------|----------|
+| ... | ... | ... |
+
+### 소수 의견
+
+| 토픽 | 전문가 | 반대 이유 |
+|------|------|----------|
+| ... | ... | ... |
 
 ### 미해결 이슈
 
@@ -413,24 +480,32 @@ Never mark an expert, an exchange, or a topic complete from a counter alone.
 
 ---
 
-## Phase 3: 모더레이터 권한 (상세)
+## Phase 3: 진행자·Moderator 권한 (상세)
 
-### 토론 중단 조건
+### 진행자: 사용자 확인이 필요한 경우
 
-1. **팩트체크 필요**: 객관적 사실 확인 없이 진행 불가
-2. **의견 교착**: 양측 주장이 평행선, 외부 판단 필요
-3. **범위 이탈**: 논의가 본질에서 벗어남
+1. **팩트체크 필요**: 객관적 사실 확인 없이 결론을 낼 수 없음
+2. **의사결정 필요**: 결론이 사용자만 정할 수 있는 선택에 달림
+3. **범위 이탈**: 논의가 원래 토픽에서 벗어남
 
-### 중단 시 행동
+진행자는 토론을 잠시 멈추고 사용자에게 묻습니다. 토픽을 끝내는 것은 stop conditions와
+SKILL.md § Topic Conclusion뿐이며, 진전이 없다는 이유로 강제 종료하지 않습니다 — 진전 없음은
+*no new argument* 조기 종료이고, 근거 부족은 `held:evidence` 보류입니다.
 
 ```
-[모더레이터]
-현재 토론을 잠시 중단합니다.
+[진행자]
+현재 토론을 잠시 멈춥니다.
 
-**중단 사유**: [팩트체크 필요 / 의사결정 필요 / 범위 조정 필요]
+**사유**: [팩트체크 필요 / 의사결정 필요 / 범위 조정 필요]
 **필요 정보**: [구체적으로 유저에게 요청할 내용]
 **재개 조건**: [정보 제공 후 진행 방향]
 ```
+
+### Moderator: 최종 종합의 한계
+
+- `held:evidence`를 판정할 수 있음
+- 전문가의 표를 바꾸지 않고, 반박 상한을 넘겨 다시 돌리지 않으며, 전문가를 추가하지 않음
+- inline 모드의 종합은 진행자가 쓰므로 독립 검토로 표시하지 않음
 
 ### 미해결 이슈 기록 형식
 
@@ -473,21 +548,24 @@ CONCLUSION: [합의 내용 또는 보류 상태]
 
 | 문제 | 해결 |
 |------|------|
-| 토론이 특정 토픽에서 무한 루프 | 모더레이터가 논의 발전 없음 판단 시 강제 종료, 미해결 이슈로 기록 |
-| 실무자 간 감정적 대립 | 모더레이터가 논점 재정리, 객관적 사실 기반으로 리프레이밍 |
+| 토론이 특정 토픽에서 맴돎 | 진행자가 *no new argument* 조기 종료 또는 2-반박 상한 적용, 결론은 Topic Conclusion(보류 시 UNRESOLVED.md) |
+| 실무 검토가 반박을 지배 | 진행자가 실무 검토를 사실·가정·추정으로 재정리, 투표·결론에는 전문가 입장만 반영 |
 | 전문가 의견이 너무 상충 | 각 입장의 전제 조건 명시, 조건부 합의 도출 시도 |
 
 ---
 
-## Moderator Checklist
+## Synthesis Checklist
 
-토론 종료 전 확인:
+Moderator(격리) 또는 종합을 쓰는 진행자(inline)가 토픽 결론 전 확인:
 
 - [ ] 모든 토픽 논의 완료 또는 명시적 보류
-- [ ] 합의 사항 전원 동의 확인
+- [ ] 결론마다 근거 출처가 있거나 가정·추정으로 표시됨
+- [ ] 실행안(최소 실행안·성공 확인)과 실패·중단 조건이 결론에 붙음
+- [ ] 투표·정족수는 선택된 분야 전문가만 — 실무 검토·Moderator 제외
+- [ ] 소수 의견과 반대 이유 보존
 - [ ] 미해결 이슈 목록화 완료
-- [ ] 속기록 누락 없음
-- [ ] 다음 단계 액션 아이템 정리
+- [ ] 속기록 누락 없음 (전체 파일 모드)
+- [ ] inline 종합을 독립 검토로 표시하지 않음
 
 ---
 
@@ -527,6 +605,7 @@ Use clean, professional formatting without emoji:
 
 | Korean | English |
 |--------|---------|
+| 진행자 | Facilitator |
 | 긍정적 실무자 | Optimistic Practitioner |
 | 부정적 실무자 | Critical Practitioner |
 | 모더레이터 | Moderator |
@@ -549,7 +628,7 @@ Pool-selected experts use the `Label` column of [../../reference/personas.md](..
 User: "이 API 설계 문서를 보안/성능/UX 전문가 관점에서 검토해줘"
 
 → Phase 0: 토픽 분할 (인증, 페이지네이션, 에러처리)
-→ Phase 1: 각 토픽별 찬반 토론 진행
+→ Phase 1: 토픽별 중립 브리핑 → 독립 발언 → 실무 검토 → 반박 → 결론
 → Phase 2: 합의사항 및 미해결 이슈 기록
 → Output: SUMMARY.md + transcripts/
 ```
@@ -577,17 +656,18 @@ Express mode preferences in natural language — no flags needed:
 - **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation). Enables real multi-turn rebuttal — experts are re-spawned for each rebuttal exchange with prior-exchange statements injected, instead of one simulated pass (see [Isolated Execution: Rebuttal Exchanges](SKILL.md#isolated-execution-rebuttal-exchanges))
 - **요약 출력** ("요약만", "transcript 없이"): Skip transcript generation; produce SUMMARY.md + UNRESOLVED.md only
 
-All combinations compose silently — including any combination with citation grounding (see [Citation Contract](SKILL.md#citation-contract)) and the Phase 2 inline-summary path (see [Phase 2: Recording](SKILL.md#phase-2-recording)).
+All mode combinations compose silently with each other and with citation grounding (see [Citation Contract](SKILL.md#citation-contract)); Phase 2 then picks the inline-summary path or the files by its own triggers, and isolated mode always takes the files (see [Phase 2: Recording](SKILL.md#phase-2-recording)).
 
 ### Participants
 
-#### Fixed (Always Present)
+#### Fixed roles (binding: [Role Contract](#role-contract))
 
-| Role | Stance | Distinct evaluation criteria | Voice |
-|------|--------|------------------------------|-------|
-| **Moderator** | Neutral facilitation (no position) | Open/close authority, fact-check requests, unresolved-issue tracking | Procedural, summarizing |
-| **Optimistic Practitioner** | Advocates benefits + feasibility | Implementation experience, delivery numbers ("3주 내 가능", "X% 개선") | Forward-leaning, solution-first |
-| **Critical Practitioner** | Identifies risk + limitations, proposes alternatives | Failure precedents, risk probabilities, tech-debt cost | Skeptical, evidence-demanding |
+| Role | Function | Votes / quorum |
+|------|----------|----------------|
+| **Facilitator** | Runs the panel: selection, neutral briefing, practitioner review, relay, records, stop judgment, user questions | No |
+| **Moderator** | Final synthesis only — independent subagent in isolated mode; the facilitator's checklist synthesis inline | No |
+| **Optimistic Practitioner** | Implementation review: minimal plan, resources, prerequisites, rollout order, success check | No |
+| **Critical Practitioner** | Failure review: failure scenarios, operating burden, stop/abort conditions, recovery, alternatives | No |
 
 #### Variable (Selected from the shared pool)
 
@@ -622,7 +702,8 @@ When an expert states a **numeric or factual claim** (statistics, performance fi
 | Item | Rule |
 |------|------|
 | Principle | Unanimity (allows up to 1 minority dissent) |
-| Moderator | No voting rights, facilitation authority only |
+| Moderator | No voting rights, final synthesis only (facilitation belongs to the facilitator) |
+| Practitioners | No voting rights, not counted toward quorum |
 | Experts | Minimum 3 valid experts; below 3 the topic is held (see [Topic Conclusion](SKILL.md#topic-conclusion)) |
 | Objection | 2+ experts objecting means no consensus — the topic goes to the weighted vote, never to a repeat cycle |
 
@@ -643,9 +724,9 @@ When an expert states a **numeric or factual claim** (statistics, performance fi
 **Anti-conformity directive** (applied to every expert turn): "You are not required to reach the same conclusions as other panel members. Maintain your position if your domain evidence supports it."
 
 For each topic (one cycle per topic — see Cycle Limits):
-1. **Briefing**: Practitioners present pro/con perspectives
+1. **Briefing**: the facilitator states facts and constraints neutrally, no pro/con framing
 2. **Independent Statements**: Each expert generates a position statement independently — labeled **[{Expert} — independent]** — before seeing others' views. All independent statements are collected before any expert sees others' positions (prevents anchoring / echo chamber). In default (inline) mode this is best-effort via prompt contract; isolated execution mode enforces it mechanically via subagent context boundaries.
-3. **Q&A / Rebuttal**: Experts question and rebut each other. Inline mode renders this as one simulated pass; isolated mode runs it as a real exchange loop — 1 independent exchange + up to 2 rebuttal exchanges (see [Isolated Execution: Rebuttal Exchanges](SKILL.md#isolated-execution-rebuttal-exchanges))
+3. **Q&A / Rebuttal**: opened by the practitioner review (implementation and failure review, written once after the independent statements, no vote); experts then question and rebut each other. Inline mode renders this as one simulated pass; isolated mode runs it as a real exchange loop — 1 independent exchange + up to 2 rebuttal exchanges (see [Isolated Execution: Rebuttal Exchanges](SKILL.md#isolated-execution-rebuttal-exchanges))
 4. **Dialectic**: Thesis → Antithesis → Synthesis
 5. **Conclusion**: consensus, vote result, or hold (see [Topic Conclusion](SKILL.md#topic-conclusion))
 
@@ -659,7 +740,7 @@ For each topic (one cycle per topic — see Cycle Limits):
 After all topics are discussed, produce output according to session scope:
 
 **Lightweight / single-topic sessions** (default path when none of the triggers below apply):
-- Produce an **inline SUMMARY** in the current conversation — consensus items, recommendations, action items, unresolved issues. No files written.
+- Produce an **inline SUMMARY** in the current conversation — conclusion, evidence, implementation plan, failure and stop conditions, dissent, unresolved issues. No files written.
 - This is sufficient for quick, single-topic reviews and avoids unnecessary file I/O for routine use.
 
 **Backlog scan carry-over (#524)**: state the Phase 0 backlog result in the output — the
@@ -679,7 +760,7 @@ When full generation is required, Write each of these three files:
    - **Skipped in summary output mode**
 
 2. **Summary**: `docs/discussions/{YYYYMMDD}_{name}/SUMMARY.md`
-   - Consensus items, recommendations, action items (template: `templates/SUMMARY_TEMPLATE.md`)
+   - Conclusion and evidence, implementation plan, failure and stop conditions, dissent, unresolved items, recommendations, action items (template: `templates/SUMMARY_TEMPLATE.md`)
 
 3. **Unresolved issues**: `docs/discussions/{YYYYMMDD}_{name}/UNRESOLVED.md`
    - Detailed record of held topics (template: `templates/UNRESOLVED_TEMPLATE.md`)
@@ -692,16 +773,15 @@ Proceed to Phase 2 immediately after all topics are discussed. In the inline pat
 
 #### Moderator Visibility Contract
 
-- **Default**: Moderator receives expert position summaries only (full Q&A transcript blocked during synthesis)
-- **Isolated execution mode**: Moderator spawned as separate Agent subagent; pass the final exchange's expert position summaries only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
-- **Rebuttal relay (isolated)**: between exchanges the **orchestrator** (not the Moderator subagent) assembles and forwards per-expert summary packets; the Moderator subagent is spawned only for Synthesis and still sees position summaries only (see [Isolated Execution: Rebuttal Exchanges](SKILL.md#isolated-execution-rebuttal-exchanges))
+- **Default (inline)**: the facilitator writes the synthesis from expert position summaries and the practitioner review, applying the [Synthesis Checklist](#synthesis-checklist); it is not labeled an independent review
+- **Isolated execution mode**: Moderator spawned as separate Agent subagent, the independent final reviewer; pass the final exchange's expert position summaries (position, evidence source, conditions, objection reason, vote) and the practitioner review only as the subagent prompt (experts also spawned as subagents — see Execution Modes)
+- **Rebuttal relay (isolated)**: between exchanges the **orchestrator** (not the Moderator subagent) assembles and forwards per-expert summary packets; the Moderator subagent is spawned only for Synthesis and still sees only position summaries and the practitioner review (see [Isolated Execution: Rebuttal Exchanges](SKILL.md#isolated-execution-rebuttal-exchanges))
 
-This prevents the Moderator from being anchored by the Q&A thread and ensures independent synthesis.
+This prevents the synthesis from being anchored by the Q&A thread; only in isolated mode is it also an independent review.
 
-#### Phase 3: Moderator Authority
-- Request information from user when fact-checking is needed
-- Force-close discussion when no further progress is possible
-- Record unresolved issues separately
+#### Phase 3: Authority
+- Facilitator: request information from the user when fact-checking or a decision is needed; record unresolved issues separately; end a topic only by the stop conditions and Topic Conclusion
+- Moderator: may set `held:evidence`; never changes a vote, re-runs past the cap, or adds experts
 
 ### Output Format
 #### Output Format details

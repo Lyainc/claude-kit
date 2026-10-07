@@ -216,6 +216,10 @@ _EXCHANGE_LOOP_SECTION_RE = re.compile(
     r"^#### Isolated execution: exchange-loop contract\b.*?(?=^#{2,4} |\Z)",
     re.MULTILINE | re.DOTALL,
 )
+_ROLE_CONTRACT_SECTION_RE = re.compile(
+    r"^## Role Contract\b.*?(?=^#{2,4} |\Z)",
+    re.MULTILINE | re.DOTALL,
+)
 _SELECTION_GUIDE_SECTION_RE = re.compile(
     r"^### Expert Selection Guide: what the Selection Rule enforces\b.*?(?=^#{2,4} |\Z)",
     re.MULTILINE | re.DOTALL,
@@ -251,9 +255,9 @@ independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)**, capped at 3 e
 once per topic — there is no outer topic-round loop around it.
 
 **Orchestrator vs. Moderator**: in isolated mode the mechanical work — spawning experts,
-assembling per-expert prompt packets, relaying between exchanges, and judging the stop condition —
-is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator
-subagent. The Moderator subagent stays visibility-limited (position summaries only) and is spawned
+assembling per-expert prompt packets, writing the practitioner review, relaying between exchanges,
+and judging the stop condition — is done by the **parent orchestrator** (the facilitating main context), NOT by the Moderator
+subagent. The Moderator subagent stays visibility-limited (position summaries and the practitioner review only) and is spawned
 only for Synthesis/Conclusion. This keeps the Moderator Visibility Contract intact: the
 orchestrator already holds every statement, so it is the one allowed to summarize and relay.
 
@@ -267,13 +271,16 @@ orchestrator already holds every statement, so it is the one allowed to summariz
    this it cannot "hold/defend"), (b) a *summary* of the other experts' **prior-exchange**
    statements (never within-exchange statements — parallel re-spawn means no expert sees another's
    current-exchange turn, preserving anti-anchoring), and (c) the re-applied **Anti-conformity
-   directive** (defined at the top of SKILL.md § Phase 1: Topic Rounds). Each expert then (a)
+   directive** (defined at the top of SKILL.md § Phase 1: Topic Rounds), and (d) the practitioner
+   review (implementation and failure review), which the orchestrator writes once after E1 from
+   the E1 statements — it is neither a spawn nor an exchange. Each expert then (a)
    holds and defends, (b) rebuts a specific point with new evidence, or (c) revises.
 
 **Exchange records (restore source)**: the moment an expert's statement is collected, the
 orchestrator Writes it — before touching STATE — to
 `{discussion-dir}/_exchanges/t{n}-e{i}-{expert-id}.md` (`{discussion-dir}` =
-`docs/discussions/{YYYYMMDD}_{name}/`; the topic briefing goes to `t{n}-briefing.md`), then adds
+`docs/discussions/{YYYYMMDD}_{name}/`; the topic briefing goes to `t{n}-briefing.md` and the
+practitioner review to `t{n}-review.md`), then adds
 the expert to `Collected` and advances `Rebuttal`. These are internal restore records, not the
 user-facing transcript: they are written in every isolated session, including summary-only,
 which skips only the Phase 2 transcripts. STATE holds only the counters, the collected-expert
@@ -294,6 +301,10 @@ set, and the `Records` directory — never statement prose. Restore rules: [STAT
 
 After the loop stops, the orchestrator spawns the Moderator subagent with the final exchange's
 position summaries to compute Synthesis → Conclusion. Stopping — by the cap or by *no new argument* — is not itself a verdict: the outcome follows SKILL.md § Topic Conclusion.
+Each position summary carries the expert's final position, evidence source, conditions, objection
+reason and vote; the practitioner review goes with them, the full Q&A never does. The Moderator is
+the independent final reviewer: it may set `held:evidence` but never changes a vote, re-runs the
+loop, or adds experts.
 
 **Degenerate cases**:
 
@@ -309,7 +320,8 @@ position summaries to compute Synthesis → Conclusion. Stopping — by the cap 
 
 **Cost**: per topic, `(exchanges × experts)` expert subagents — `exchanges` = 1 (independent) +
 1–2 (rebuttal), i.e. up to `3 × experts` when both rebuttal exchanges run, fewer when early-stop
-fires — plus 1 Moderator subagent for Synthesis.
+fires — plus 1 Moderator subagent for Synthesis. The practitioner review is written by the
+orchestrator and adds no subagent.
 Every expert run is a new spawn (a re-spawned subagent is stateless), so on this path runs and
 spawns are equal: at most `3N` expert spawns + 1 Moderator per topic for N experts. Counted
 separately, never folded into that ceiling: **added experts** (a mid-added expert costs 1
@@ -322,6 +334,56 @@ re-request the full record — add one full-panel context reload to the effectiv
 recovery overhead is avoided by the inline SUMMARY path (lightweight sessions) and by the full
 3-file output (multi-topic sessions). Choose isolated mode when independence and genuine turn
 exchange matter more than speed — inline mode stays the default for quick reviews.
+""")
+
+# #793: who runs the panel, who synthesizes, and what the practitioners are. Pinned whole for
+# the same reason as the exchange loop: a one-word flip ("never vote" -> "vote") would pass any
+# clause pin that sat a sentence away.
+_ROLE_CONTRACT_SECTION = _normalise("""\
+## Role Contract
+
+**Canonical text (#793).** SKILL.md § Participants points here; this section is the binding
+contract for who runs the panel, who synthesizes, and what the practitioners are. Its whole text
+— heading to the next heading — is pinned VERBATIM by `_ROLE_CONTRACT_SECTION` in
+`thinking-tools/scripts/test/test-mode-compose.py`; editing it is a deliberate contract change and
+updates that constant in the same commit (a reflow is free).
+
+- **Facilitator** — whoever runs the panel: the main context in inline and isolated mode (the
+  *orchestrator* of the exchange-loop contract). It selects experts, prepares inputs, writes the
+  neutral briefing and the practitioner review, spawns and relays (isolated), keeps the records,
+  judges *no new argument*, and ends the exchange loop only by the stop conditions. Fact requests
+  and decisions go to the user through it; a mid-discussion expert is only *proposed* by it and
+  needs the user's explicit yes. It never ends a topic outside the stop conditions and
+  SKILL.md § Topic Conclusion.
+- **Moderator** — the final synthesis role only; no vote, no facilitation power. In isolated mode
+  it is a separate subagent spawned once per topic after the loop stops, the independent final
+  reviewer: it receives each expert's final position summary (position, evidence source,
+  conditions, objection reason, vote) plus the practitioner review — never the full Q&A. In inline
+  mode the facilitator writes the synthesis under the Moderator label with the same
+  [Synthesis Checklist](#synthesis-checklist) and never calls it an independent review. Either
+  way the Moderator checks unsupported evidence and omissions and may set `held:evidence`, but
+  never changes an expert's vote, re-runs the loop past its cap, or adds experts.
+- **Optimistic Practitioner / Critical Practitioner** — required review perspectives, not
+  separate agents and not participants: the facilitator writes them, and no extra agent is spawned
+  by default. The Optimistic Practitioner gives the **implementation review** (minimal viable
+  plan, resources, prerequisites, rollout order, how success is checked); the Critical
+  Practitioner gives the **failure review** (failure scenarios, operating burden, stop/abort
+  conditions, recovery, alternatives). They never vote and never count toward quorum — only the
+  selected domain experts do.
+
+**Order per topic**: (1) a neutral facts-and-constraints briefing by the facilitator, with no
+pro/con framing; (2) the experts' independent statements; (3) Q&A/Rebuttal, opened by the
+practitioner review written after the independent statements; (4) dialectic; (5) conclusion. The
+review adds no exchange: in isolated mode it rides in the E2/E3 packets. Inline independence is a
+prompt-level contract only; isolated E1 enforces it by input boundary.
+
+**Evidence honesty**: a claim is a fact with its source, an assumption, an estimate, or a
+verification plan, and is labeled as such. Never invent anecdotes, improvement rates, failure
+probabilities, dates or projects, and never present simulated roles as verified facts or
+independent runs. The final output carries the conclusion, evidence, implementation plan,
+failure and stop conditions, dissent, and unresolved items.
+
+---
 """)
 
 _SELECTION_GUIDE_SECTION = _normalise("""\
@@ -378,7 +440,7 @@ _SKILL_ISOLATED_SECTION = _normalise("""\
 
 Isolated mode runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e2, e3)** in a topic's Q&A/Rebuttal step, capped at 3 exchanges total.
 
-**Orchestrator vs. Moderator**: spawning experts, assembling packets, relaying between exchanges, and judging the stop condition is done by the **parent orchestrator**, NOT by the Moderator subagent, which sees position summaries only and is spawned only for Synthesis/Conclusion.
+**Orchestrator vs. Moderator**: spawning experts, assembling packets, relaying between exchanges, and judging the stop condition is done by the **parent orchestrator**, NOT by the Moderator subagent, which sees final position summaries and the practitioner review only and is spawned only for Synthesis/Conclusion.
 
 **Apply § Isolated execution: exchange-loop contract in [reference.md](reference.md) as written — that section is the binding contract** for packets, exchange records, stop conditions (2-rebuttal cap, *no new argument* test), degenerate cases and **Cost**. Load it before running isolated mode; the two paragraphs above are a locator, not a summary you may act from alone.
 """)
@@ -390,7 +452,7 @@ Each topic ends in exactly one outcome after the rebuttal stage stops:
 
 1. **Consensus** — unanimity allowing up to 1 minority dissent → `consensus-reached`.
 2. **Weighted vote** (no consensus): each valid expert votes High = 3, Medium = 2, Low = 1 points; `margin` = the top option's points minus the runner-up's. `margin ≥ 2` → the top option wins, `tie-broken`. `margin = 1` → `tie-broken`, and SUMMARY.md marks the winner "Conditional — requires validation".
-3. **Hold** — no winner is invented: `held:tie` when `margin = 0`, `held:evidence` when the Moderator judges the deciding claims unverifiable without facts the user must supply ([Phase 3](#phase-3-moderator-authority)), `held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all. A held topic is never recorded as `tie-broken` or Conditional.
+3. **Hold** — no winner is invented: `held:tie` when `margin = 0`, `held:evidence` when the Moderator judges the deciding claims unverifiable without facts the user must supply ([Phase 3](#phase-3-authority)), `held:quorum` when fewer than 3 valid experts remain after retries — then no vote runs at all. A held topic is never recorded as `tie-broken` or Conditional.
 
 SUMMARY.md records the outcome, vote breakdown and dissent; held topics also go to UNRESOLVED.md with the reason; STATE `Topic-status`, SUMMARY.md and UNRESOLVED.md name the same outcome.
 """)
@@ -400,7 +462,7 @@ _SKILL_SELECTION_SECTION = _normalise("""\
 
 **Apply § Expert Selection Guide: what the Selection Rule enforces in [reference.md](reference.md) as written — that section is the binding contract** for panel size (3–5) and the ban on topping up a panel that merely *looks* implementation-heavy (#423). This paragraph is a locator, not a summary you may act from alone.
 
-**When to add experts mid-discussion**: for an uncovered domain, Moderator may propose an expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`; without an explicit yes the rule's output stands.
+**When to add experts mid-discussion**: for an uncovered domain, the facilitator may propose an expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`; without an explicit yes the rule's output stands.
 """)
 
 
@@ -420,6 +482,10 @@ _NEIGHBOURS = {
     "§ Isolated execution: exchange-loop contract": (
         _EXCHANGE_LOOP_SECTION_RE,
         ("### Step 1.2: 전문가 질의응답 (Q&A / Rebuttal)", "### Step 1.3: 변증법적 논의"),
+    ),
+    "§ Role Contract": (
+        _ROLE_CONTRACT_SECTION_RE,
+        ("## Table of Contents", "## Phase 0: 토론 준비 (상세)"),
     ),
     "§ Expert Selection Guide": (
         _SELECTION_GUIDE_SECTION_RE,
@@ -476,6 +542,8 @@ def reference_checks(skill_text: str, ref_text: str) -> list[tuple[bool, str]]:
         # --- total: the whole section, verbatim ---
         (_section(_EXCHANGE_LOOP_SECTION_RE, ref_text) == _EXCHANGE_LOOP_SECTION,
          "reference.md § Isolated execution: exchange-loop contract matches VERBATIM"),
+        (_section(_ROLE_CONTRACT_SECTION_RE, ref_text) == _ROLE_CONTRACT_SECTION,
+         "reference.md § Role Contract matches VERBATIM"),
         (_section(_SELECTION_GUIDE_SECTION_RE, ref_text) == _SELECTION_GUIDE_SECTION,
          "reference.md § Expert Selection Guide matches VERBATIM"),
         (_section(_SKILL_ISOLATED_SECTION_RE, skill_text) == _SKILL_ISOLATED_SECTION,
@@ -516,6 +584,19 @@ def reference_checks(skill_text: str, ref_text: str) -> list[tuple[bool, str]]:
          "reference.md pins no consensus from 1 or 0 experts"),
         (_normalise("Counted separately, never folded into that ceiling") in ref,
          "reference.md cost keeps retries/added/restore outside the 3N ceiling"),
+        (_normalise("outside votes and quorum") in skill,
+         "SKILL.md keeps the practitioners outside votes and quorum (#793)"),
+        (_normalise("independent subagent only in isolated mode") in skill,
+         "SKILL.md calls the Moderator independent only in isolated mode (#793)"),
+        (_normalise("(1) **Briefing**: neutral facts and constraints, no pro/con") in skill,
+         "SKILL.md keeps the briefing neutral, before the independent statements (#793)"),
+        (_normalise("not separate agents") in skill,
+         "SKILL.md keeps the practitioners from being spawned as agents (#793)"),
+        (_normalise("a topic ends only via stop conditions and Topic Conclusion") in skill
+         and _normalise("never alters votes, re-runs or adds experts") in skill,
+         "SKILL.md Phase 3 gives no force-close and no vote/re-run power to the Moderator (#793)"),
+        (_normalise("Apply reference.md § Role Contract (binding)") in skill,
+         "SKILL.md binds the Role Contract by section name (#793)"),
         # --- the seam: the pointers that make the canonical copies binding ---
         (_POINTER_EXCHANGE_LOOP in skill,
          "SKILL.md binds the exchange-loop contract by section name (read-and-apply, not a cite)"),
@@ -669,6 +750,26 @@ _REF_NO_CATCH_UP = _CLEAN_REF.replace(
 _REF_UNBOUNDED_COST = _CLEAN_REF.replace(
     "i.e. up to `3 × experts` when both rebuttal exchanges run",
     "i.e. as many as the discussion needs")
+# --- #793: the role contract ---
+# Practitioners turned into voters, inflating every tally and quorum.
+_REF_PRACTITIONERS_VOTE = _CLEAN_REF.replace(
+    "They never vote and never count toward quorum", "They vote and count toward quorum")
+_SKILL_PRACTITIONERS_VOTE = _CLEAN_SKILL.replace("outside votes and quorum", "voting members")
+# The loaded body turns the briefing back into pro/con framing before E1.
+_SKILL_FRAMED_BRIEFING = _CLEAN_SKILL.replace(
+    "(1) **Briefing**: neutral facts and constraints, no pro/con", "(1) **Briefing** by the practitioners (pro/con)")
+# The loaded body spawns the practitioners as agents.
+_SKILL_PRACTITIONER_AGENTS = _CLEAN_SKILL.replace("not separate agents", "spawned as separate agents")
+# The loaded body hands force-close back to the Moderator.
+_SKILL_MODERATOR_FORCE_CLOSE = _CLEAN_SKILL.replace(
+    "a topic ends only via stop conditions and Topic Conclusion", "the Moderator may force-close a topic")
+# The Moderator allowed to overrule the experts it summarizes.
+_REF_MODERATOR_REVOTES = _CLEAN_REF.replace(
+    "never changes an expert's vote", "may change an expert's vote")
+# The practitioner review turned into an extra exchange, breaking the 3N ceiling.
+_REF_REVIEW_IS_EXCHANGE = _CLEAN_REF.replace(
+    "it is neither a spawn nor an exchange", "it runs as one more exchange")
+
 # --- the ALWAYS-LOADED body corrupted to contradict the canonical section it points at ---
 # All four of these were verified green before the body sections were pinned whole.
 _SKILL_NO_CAP = _CLEAN_SKILL.replace("capped at 3 exchanges total", "with no fixed cap")
@@ -721,7 +822,7 @@ _REF_SEQUENTIAL_RESPAWN = _CLEAN_REF.replace(
     "re-spawns all experts **in parallel**", "re-spawns all experts one after another")
 # The Moderator's visibility limit deleted — a Moderator spawned with the full statements.
 _REF_NO_MODERATOR_VISIBILITY = _CLEAN_REF.replace(
-    " The Moderator subagent stays visibility-limited (position summaries only) and is spawned\nonly for Synthesis/Conclusion.", "")
+    " The Moderator subagent stays visibility-limited (position summaries and the practitioner review only) and is spawned\nonly for Synthesis/Conclusion.", "")
 # Packet part (b)'s substance deleted: rebuttal exchanges degenerate into repeated E1s.
 _REF_NO_PACKET_B = _CLEAN_REF.replace(
     "(b) a *summary* of the other experts' **prior-exchange**\n   statements ", "")
@@ -816,6 +917,13 @@ for _name, _fixture, _base in (
     ("_REF_INFER_DONE", _REF_INFER_DONE, _CLEAN_REF),
     ("_REF_QUORUM_PROCEEDS", _REF_QUORUM_PROCEEDS, _CLEAN_REF),
     ("_REF_RETRIES_FOLDED", _REF_RETRIES_FOLDED, _CLEAN_REF),
+    ("_REF_PRACTITIONERS_VOTE", _REF_PRACTITIONERS_VOTE, _CLEAN_REF),
+    ("_SKILL_PRACTITIONERS_VOTE", _SKILL_PRACTITIONERS_VOTE, _CLEAN_SKILL),
+    ("_REF_MODERATOR_REVOTES", _REF_MODERATOR_REVOTES, _CLEAN_REF),
+    ("_SKILL_FRAMED_BRIEFING", _SKILL_FRAMED_BRIEFING, _CLEAN_SKILL),
+    ("_SKILL_PRACTITIONER_AGENTS", _SKILL_PRACTITIONER_AGENTS, _CLEAN_SKILL),
+    ("_SKILL_MODERATOR_FORCE_CLOSE", _SKILL_MODERATOR_FORCE_CLOSE, _CLEAN_SKILL),
+    ("_REF_REVIEW_IS_EXCHANGE", _REF_REVIEW_IS_EXCHANGE, _CLEAN_REF),
 ):
     assert _fixture != _base, f"{_name} is identical to its base — its .replace() no-opped"
 
@@ -889,6 +997,20 @@ _CANONICAL_CASES: list[tuple[str, str, str, bool]] = [
      _CLEAN_SKILL, _REF_QUORUM_PROCEEDS, False),
     ("retries/added/restore folded into the 3N ceiling -> FAIL",
      _CLEAN_SKILL, _REF_RETRIES_FOLDED, False),
+    ("practitioners made voters in the Role Contract -> FAIL",
+     _CLEAN_SKILL, _REF_PRACTITIONERS_VOTE, False),
+    ("loaded body makes the practitioners voting members -> FAIL",
+     _SKILL_PRACTITIONERS_VOTE, _CLEAN_REF, False),
+    ("loaded body frames the briefing pro/con -> FAIL",
+     _SKILL_FRAMED_BRIEFING, _CLEAN_REF, False),
+    ("loaded body spawns the practitioners as agents -> FAIL",
+     _SKILL_PRACTITIONER_AGENTS, _CLEAN_REF, False),
+    ("loaded body gives the Moderator force-close -> FAIL",
+     _SKILL_MODERATOR_FORCE_CLOSE, _CLEAN_REF, False),
+    ("Moderator allowed to change an expert's vote -> FAIL",
+     _CLEAN_SKILL, _REF_MODERATOR_REVOTES, False),
+    ("practitioner review run as an extra exchange -> FAIL",
+     _CLEAN_SKILL, _REF_REVIEW_IS_EXCHANGE, False),
     ("reflowed reference.md still passes (whitespace is not the contract)",
      _CLEAN_SKILL, _REF_REFLOWED, True),
 ]
