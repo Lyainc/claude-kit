@@ -137,7 +137,8 @@ success_criteria:
   - id: acceptance-2
     description: >-
       위임 반환값이 "Complete." 류 sign-off가 아니고 SUMMARY 본문(결론·근거·권고·반대(소수) 의견·적용
-      조건(실행안·실패/중단 조건)·불확실성·미해결)을 실제로 담았음을 확인한다.
+      조건(실행안·실패/중단 조건)·불확실성·미해결)과, 독립 실행이 아님을 표시한 진행 기록(토픽별 독립 발언
+      요지·실무 검토·반박 횟수와 중단 사유)을 실제로 담았음을 확인한다.
     verifiable: true
     measurable_via: 실호출 1회의 반환 메시지 육안 확인 — #227이 측정한 실패 모양의 재현 여부
   - id: acceptance-3
