@@ -822,11 +822,13 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/mai
 # invoked-skill limit and re-pinned each whole; the long forms stay canonical in reference.md.
 # #793 added the role contract (facilitator / Moderator / non-voting practitioner review) as a
 # whole-section pin plus loaded-body checks for the neutral briefing, practitioners not spawned
-# as agents, and no Moderator force-close.
+# as agents, and no Moderator force-close. #768 added the opt-in 위임 실행 mode: a third required
+# bullet, the compose line's `except 위임 vs 격리` exception (citation/inline combinations kept),
+# and clause pins on reference.md § Delegated execution, judged against six mutations.
 python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
-# Expected: OK: all 59 self-test cases passed
+# Expected: OK: all 67 self-test cases passed
 python3 thinking-tools/scripts/test/test-mode-compose.py
-# Expected: OK: all 37 mode-compose checks passed.
+# Expected: OK: all 46 mode-compose checks passed.
 # (static check against the live SKILL.md)
 
 # persona-pool selection guard (#418) — executes reference/personas.md's Selection Rule

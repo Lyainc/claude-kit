@@ -343,7 +343,7 @@ dialectic prose lives in Phase 2 files (`docs/discussions/.../transcripts/`). Th
 ```
 <!-- STATE:CHECKPOINT -->
 Topic: {idx}/{total} | Phase: {0|1|2}
-Mode: [isolated:{on|off}] [summary-only:{on|off}]
+Mode: [isolated:{on|off}] [summary-only:{on|off}] [delegated:{on|off}]
 Backlog: {scanned|partial|skipped}
 Personas: [{persona-id} ...] adhoc:{n}
 Independent: {k}/{N}
@@ -361,7 +361,7 @@ Tie-break: [t{n}:margin:{n|—}] ...
 
 **Field write/read points**:
 - `Backlog` (#524) — written once at Phase 0 step 2, before the panel is composed: `scanned` if `backlog-prefilter.py` returned a clean digest, `partial` if it prefixed the digest with `[backlog-scan PARTIAL]` (#561 — one side's `gh` fetch failed while the other rendered normally), `skipped` if it printed `[backlog-scan SKIPPED]` instead. Read at Phase 2 to decide the carried-over line (SKILL.md → Phase 2: Recording, the backlog-result line) — a session-level field, not per-topic (the scan runs once on the original topic text, before topic-splitting). Zero LLM cost: `backlog-prefilter.py` is a deterministic shell scan of the open+closed issue corpus, the same script `build-spec` Phase 0 uses (#489) — the corpus itself never enters context, only the budgeted digest does. The digest is fed to experts as grounding at the same status as the Citation Contract's vault excerpts (SKILL.md → Citation Contract): material an expert may cite or override, never a verdict the panel is bound to, since the point is to make an existing decision *visible* to the debate, not to pre-decide it.
-- `Mode` — set at Phase 0 (mode detection); read at Phase 2 item 1 (transcript skip in summary-only mode).
+- `Mode` — set at Phase 0 (mode detection); read at Phase 2 item 1 (transcript skip in summary-only mode). `delegated:on` appears only in the worker's own block; the caller keeps no STATE for a delegated run.
 - `Personas` — written at Phase 0 step 3 (the [`../../reference/personas.md`](../../reference/personas.md) Selection Rule) and re-written whenever the panel changes (a mid-discussion addition, a per-topic re-run). Pool IDs in ranked order plus `adhoc:{n}`; `adhoc:{n}` is required even at `0`, since a silent ad-hoc fallback is the failure this field exists to expose. On restore, a missing value is recomputed by re-running the rule on the same topic text — it is deterministic, so it returns the identical set; ad-hoc personas are session-local and recover from the transcript instead.
 - `Independent` — updated during Phase 1 Independent Statements; `k==N` means collection complete (single format; no separate "complete" token). Inline mode only for restore; in isolated mode it is a mirror of `e1`.
 - `Rebuttal` (isolated mode only) — topic `n`, exchange index `e{i}` (`e1` = independent, `e2`/`e3` = up to 2 rebuttal exchanges), and `{k}/{N}` experts collected in the current exchange — updated after each expert is collected, so `k` may be partial mid-exchange (e.g. `e1:1/3` after the first of three). Bounded counters only — never statement prose. Empty/omitted in inline mode. In isolated mode the `Rebuttal` cursor is the authoritative loop-position source — recorded in the STATE block in **all** modes (including isolated + summary-only, since it is not a transcript); `Independent` is the inline-mode tracker and only a redundant mirror at `e1`. On any divergence (e.g. a partial write interrupted by compaction), `Rebuttal` wins (it also distinguishes `e2`/`e3`).
@@ -376,7 +376,7 @@ Tie-break: [t{n}:margin:{n|—}] ...
 
 **Compaction restore fallback**: restore from the most recent STATE block. Defaults for missing fields —
 Topic-status → `pending`; Votes → no vote; Independent → `0` (inline mode: re-collect, preserves anti-anchoring);
-Mode flags → both `off` (full output — over-producing transcripts is safer than losing user content);
+Mode flags → all `off` (full output — over-producing transcripts is safer than losing user content);
 Citation → `skipped` (a missing citation state most often means grounding was never attempted this session — e.g. no vault-bridge — so defaulting to `skipped` avoids spuriously escalating every restored topic; if vault-searcher IS available this session, re-attempt grounding on the resumed topic instead of trusting the default);
 Backlog → `skipped` (mirrors the `Citation` default — a missing value must not read as a clean scan; the script is zero-LLM-cost, so re-run it on the resumed topic text instead of trusting the default when a corpus is reachable this session).
 In isolated mode the in-progress exchange is restored from the exchange records — not from the conversation, and not from transcripts (those are written only in Phase 2, and skipped entirely in summary-only mode). For topic `t{n}`:
@@ -656,7 +656,20 @@ Express mode preferences in natural language — no flags needed:
 - **격리 실행** ("엄격하게", "격리해서"): Each expert and Moderator spawned as separate Agent subagents (stronger isolation). Enables real multi-turn rebuttal — experts are re-spawned for each rebuttal exchange with prior-exchange statements injected, instead of one simulated pass (see [Isolated Execution: Rebuttal Exchanges](SKILL.md#isolated-execution-rebuttal-exchanges))
 - **요약 출력** ("요약만", "transcript 없이"): Skip transcript generation; produce SUMMARY.md + UNRESOLVED.md only
 
-All mode combinations compose silently with each other and with citation grounding (see [Citation Contract](SKILL.md#citation-contract)); Phase 2 then picks the inline-summary path or the files by its own triggers, and isolated mode always takes the files (see [Phase 2: Recording](SKILL.md#phase-2-recording)).
+- **위임 실행** ("위임해서", "워커에게 맡겨"): opt-in; one `thinking-tools:expert-panel-worker` subagent runs the whole panel and only its SUMMARY returns to the main context (see [Delegated execution](#delegated-execution-위임-실행) below)
+
+All mode combinations compose silently with each other and with citation grounding (see [Citation Contract](SKILL.md#citation-contract)), except 위임 실행 and 격리 실행, which are alternative paths and never combined (see below); Phase 2 then picks the inline-summary path or the files by its own triggers, and isolated mode always takes the files (see [Phase 2: Recording](SKILL.md#phase-2-recording)).
+
+#### Delegated execution (위임 실행)
+
+Opt-in path that keeps a long panel's transcript out of the main context: the caller dispatches **one** `thinking-tools:expert-panel-worker` subagent (Agent tool), the worker runs the whole panel by this skill, and only its SUMMARY comes back. The inline path stays the default; a request that does not trigger 위임 실행 runs exactly as before. Whether delegation is cheaper or as good is measured in #768, not assumed here.
+
+- **Roles** (binding: [Role Contract](#role-contract)): the worker is the *facilitator* — it runs the panel and writes the final synthesis under the Moderator label with the [Synthesis Checklist](#synthesis-checklist). Its personas share one context, so this is the inline shape inside a subagent: the synthesis is never labeled an independent review, and the worker writes the practitioner review as a non-voting perspective outside quorum. Every inline rule holds unchanged — E1 once per topic, at most 2 rebuttal passes, `held:tie` / `held:evidence` / `held:quorum`, and the STATE block (records before counters on restore), kept in the worker's own context with `Mode: [delegated:on]`.
+- **Caller packet**: the skill directory path, the user's original topic text verbatim, in-scope file paths, user-named experts if any, the other requested modes (요약 출력, file output), and any vault-searcher excerpts the caller already holds. The caller does not pre-select experts or frame the topic.
+- **Inside the worker**: no Agent tool, so no nested subagents — citation uses the caller's excerpts, else Read/Grep of in-scope documents, else a stated domain judgment (`Citation: skipped` when vault-searcher was never reachable). The worker cannot ask the user: a fact only the user can supply makes the topic `held:evidence`, and a proposed extra expert is listed under 미해결 for the caller to confirm, never added.
+- **Return**: the worker's final message IS the SUMMARY body — 결론, 근거, 권고(실행안), 소수 의견, 적용 조건(실행안·실패/중단 조건), 불확실성, 미해결 — plus the Phase 0 backlog line. When a Phase 2 file trigger applies (2+ topics, files requested, substantial unresolved issues) the worker also Writes the files (transcripts skipped under 요약 출력) and lists their paths; the SUMMARY body still comes back in the message. The caller relays it to the user as one worker's simulated panel.
+- **Missing return**: if the final message lacks the SUMMARY body — a content-free sign-off such as "Complete.", or only idle notifications and no final text after one re-request — re-request it once; if the reply still lacks it, report the delegated run as failed. Never reconstruct a SUMMARY the worker did not return; offer an inline run instead.
+- **Isolated vs delegated**: alternative paths, never combined. Isolated spawns per-expert subagents from the main context; a worker never spawns experts. If one request carries both triggers, take the path its intent makes clear (each expert reasoning independently → isolated; keeping the main context small → delegated), else ask the user with AskUserQuestion before running. 요약 출력 and citation grounding compose with either path.
 
 ### Participants
 
