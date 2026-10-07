@@ -5,10 +5,10 @@ A default pool of **domain-expert personas** shared by `expert-panel` (panel com
 same topic text yields the same persona set on every run — that reproducibility is the whole point
 of this file.
 
-**Scope**: domain experts only. `expert-panel`'s fixed Moderator / Optimistic Practitioner /
+**Scope**: domain experts only. `expert-panel`'s fixed facilitator / Moderator / Optimistic Practitioner /
 Critical Practitioner and `adversarial-review`'s fixed Attacker / Judge / Steelman Coach are
-**role** labels, not domain personas — they stay in their own SKILL.md and are never selected from
-here. `adversarial-review`'s contact point with this pool is *which angle the Attacker attacks
+**role** labels, not domain personas — they stay in their own skill (expert-panel: reference.md
+§ Role Contract) and are never selected from here, nor counted as panel experts. `adversarial-review`'s contact point with this pool is *which angle the Attacker attacks
 from*, not who attacks.
 
 **The pool is a default, not a closed list.** A topic outside every entry's tags proceeds with
