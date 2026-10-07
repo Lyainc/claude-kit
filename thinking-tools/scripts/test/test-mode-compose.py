@@ -38,6 +38,7 @@ from pathlib import Path
 _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SKILL_PATH = _REPO_ROOT / "thinking-tools" / "skills" / "expert-panel" / "SKILL.md"
 _REFERENCE_PATH = _REPO_ROOT / "thinking-tools" / "skills" / "expert-panel" / "reference.md"
+_WORKER_PATH = _REPO_ROOT / "thinking-tools" / "agents" / "expert-panel-worker.md"
 
 
 # ---------------------------------------------------------------------------
@@ -655,6 +656,32 @@ def delegated_reference_checks(skill_text: str, ref_text: str) -> list[tuple[boo
          "reference.md § Delegated execution: the inline path stays the default (opt-in only)"),
         (_normalise("Apply reference.md § Delegated execution") in skill,
          "SKILL.md binds the delegated-execution section by name (read-and-apply, not a cite)"),
+        (_normalise("The 진행 기록 is kept under 요약 출력 too; it is the caller's only way to audit the procedure.") in section,
+         "reference.md § Delegated execution: the return carries a 진행 기록, kept under 요약 출력 too"),
+    ]
+
+
+# The worker's panel never leaves its context, so its return is the only audit trail: the 2026-10-07
+# n=1 run returned a SUMMARY with no text block anywhere in the worker transcript, and nothing showed
+# whether the independent statements, practitioner review or rebuttals happened (#768). These pin
+# the trail's required items inside the worker's Final Response Contract, not elsewhere in the file.
+_WORKER_CONTRACT_RE = re.compile(r"^## Final Response Contract\b.*?(?=^## |\Z)", re.MULTILINE | re.DOTALL)
+_WORKER_TRAIL_ITEMS = (
+    ("진행 기록 (한 컨텍스트 시뮬레이션, 독립 실행 아님)", "the 진행 기록 section, labeled as one context's simulation"),
+    ("kept even under 요약 출력", "the 진행 기록 survives 요약 출력"),
+    ("`[{Expert} — independent] {position} — {key reason}`", "each expert's independent statement gist"),
+    ("one 실행안 line and one 실패 line (no vote)", "the practitioner review, non-voting"),
+    ("`반박: {0|1|2}회`", "the rebuttal count, capped at 2"),
+    ("(`2회 상한` or `새 논점 없음: {why}`)", "the rebuttal stop reason"),
+)
+
+
+def worker_audit_checks(worker_text: str) -> list[tuple[bool, str]]:
+    """The worker's Final Response Contract requires an auditable 진행 기록 (#768)."""
+    contract = _section(_WORKER_CONTRACT_RE, worker_text)
+    return [(bool(contract), "expert-panel-worker.md has a '## Final Response Contract' section")] + [
+        (_normalise(item) in contract, f"worker Final Response Contract requires {why}")
+        for item, why in _WORKER_TRAIL_ITEMS
     ]
 
 
@@ -677,7 +704,8 @@ def run_checks(text: str, ref_text: str) -> tuple[int, int]:
         check_citation_state_field(text),
         check_phase2_inline_path(text),
         check_delegated_isolated_exclusive(text),
-    ] + reference_checks(text, ref_text) + delegated_reference_checks(text, ref_text)
+    ] + reference_checks(text, ref_text) + delegated_reference_checks(text, ref_text) + worker_audit_checks(
+        _WORKER_PATH.read_text(encoding="utf-8"))
 
     passed = failed = 0
     for ok, msg in checks:
@@ -949,8 +977,19 @@ _REF_REFLOWED = "\n\n".join(
     for block in _CLEAN_REF.split("\n\n")
 )
 
+_CLEAN_WORKER = _WORKER_PATH.read_text(encoding="utf-8")
+# The audit trail dropped from the worker contract, or its rebuttal count un-capped.
+_WORKER_NO_TRAIL = _CLEAN_WORKER.replace("진행 기록 (한 컨텍스트 시뮬레이션, 독립 실행 아님)", "진행 메모")
+_WORKER_TRAIL_UNCAPPED = _CLEAN_WORKER.replace("`반박: {0|1|2}회`", "`반박: {n}회`")
+# The trail made optional under summary-only output.
+_REF_TRAIL_DROPPED_IN_SUMMARY = _CLEAN_REF.replace(
+    "The 진행 기록 is kept under 요약 출력 too;", "The 진행 기록 is skipped under 요약 출력;")
+
 for _name, _fixture, _base in (
     ("_REF_REFLOWED", _REF_REFLOWED, _CLEAN_REF),
+    ("_WORKER_NO_TRAIL", _WORKER_NO_TRAIL, _CLEAN_WORKER),
+    ("_WORKER_TRAIL_UNCAPPED", _WORKER_TRAIL_UNCAPPED, _CLEAN_WORKER),
+    ("_REF_TRAIL_DROPPED_IN_SUMMARY", _REF_TRAIL_DROPPED_IN_SUMMARY, _CLEAN_REF),
     ("_SKILL_NO_EXCEPTION", _SKILL_NO_EXCEPTION, _CLEAN_SKILL),
     ("_REF_PATHS_COMPOSE", _REF_PATHS_COMPOSE, _CLEAN_REF),
     ("_REF_WORKER_SPAWNS", _REF_WORKER_SPAWNS, _CLEAN_REF),
@@ -1099,6 +1138,8 @@ _CANONICAL_CASES: list[tuple[str, str, str, bool]] = [
      _SKILL_NO_DELEGATED_BULLET, _CLEAN_REF, False),
     ("delegated trigger colliding with an existing trigger -> FAIL",
      _SKILL_DELEGATED_COLLISION, _CLEAN_REF, False),
+    ("delegated 진행 기록 made optional under 요약 출력 -> FAIL",
+     _CLEAN_SKILL, _REF_TRAIL_DROPPED_IN_SUMMARY, False),
     ("reflowed reference.md still passes (whitespace is not the contract)",
      _CLEAN_SKILL, _REF_REFLOWED, True),
 ]
@@ -1176,6 +1217,13 @@ def _self_test() -> int:
             and check_delegated_isolated_exclusive(skill_text)[0]
         )
         cases.append((f"canonical: {desc}", got == expect_pass))
+
+    # --- #768: the worker's audit trail, judged on the worker file itself ---
+    cases.append(("worker: clean contract carries the 진행 기록 items",
+                  all(ok for ok, _ in worker_audit_checks(_CLEAN_WORKER))))
+    for desc, worker_text in (("진행 기록 section dropped", _WORKER_NO_TRAIL),
+                              ("rebuttal count un-capped", _WORKER_TRAIL_UNCAPPED)):
+        cases.append((f"worker: {desc} -> FAIL", not all(ok for ok, _ in worker_audit_checks(worker_text))))
 
     failed = [name for name, passed in cases if not passed]
     for name, passed in cases:

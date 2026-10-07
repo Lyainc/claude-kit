@@ -70,6 +70,12 @@ Only your last assistant message returns to the caller, and that message is the 
   fact-with-source, assumption, estimate, or verification plan), 권고 (실행안), 소수 의견,
   적용 조건 (실행안의 전제·실패/중단 조건), 불확실성, 미해결 — plus the Phase 0 backlog line,
   each topic's outcome (and vote breakdown when a vote ran), and the paths of any files written.
+- It MUST also carry a **진행 기록 (한 컨텍스트 시뮬레이션, 독립 실행 아님)** section, kept even
+  under 요약 출력 (it is an audit trail, not a transcript). Per topic: the briefing in one line;
+  each expert's independent statement as `[{Expert} — independent] {position} — {key reason}`;
+  the practitioner review as one 실행안 line and one 실패 line (no vote); `반박: {0|1|2}회` with
+  the stop reason (`2회 상한` or `새 논점 없음: {why}`); and the outcome. This is what lets the
+  caller check the procedure ran, since nothing else of your panel leaves this context.
 - Never end on a content-free sign-off ("Complete.", "Done", "패널 종료") or a pointer to an
   earlier message or a file in place of the body. Files are additive; the body still comes
   back in the message.
