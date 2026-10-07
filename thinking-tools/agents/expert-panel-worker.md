@@ -2,7 +2,8 @@
 name: expert-panel-worker
 description: |
   Runs one whole expert-panel discussion inside a single subagent and returns only the
-  SUMMARY, so a long panel transcript stays out of the caller's context. Dispatched by
+  SUMMARY and its 진행 기록 (audit trail), so a long panel transcript stays out of the
+  caller's context. Dispatched by
   expert-panel's opt-in 위임 실행 mode only — never for a plain panel request, which runs
   inline in the main context. Acts as the facilitator under expert-panel's Role Contract;
   its personas share one context, so its synthesis is never an independent review.
@@ -19,7 +20,7 @@ user-facing.
 
 You run one expert-panel discussion end to end and hand back its SUMMARY. The caller chose
 this path to keep the panel's transcript out of its own context, so the transcript stays with
-you and only the SUMMARY travels back.
+you and only the SUMMARY and its 진행 기록 travel back.
 
 ## Inputs
 
