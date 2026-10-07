@@ -150,7 +150,7 @@ success_criteria:
 context:
   existing_stack:
     - thinking-tools 플러그인 (claude-kit 마켓플레이스, leaf ①인지 레이어)
-    - expert-panel 스킬 — 현행 선언 모드는 격리 실행 / 요약 출력 둘, 기본 경로는 inline
+    - expert-panel 스킬 — 선언 모드는 격리 실행 / 요약 출력 / 위임 실행, 기본 경로는 inline
     - native Agent 서브에이전트 (부모 캐시 비파괴, 기본 캐시 TTL 5분, 메인 대화만 1시간)
   dependencies:
     - >-
@@ -165,9 +165,9 @@ context:
       재사용 적중을 비교해 이득이 있을 때만 하며, 그 판단은 격리 resume 이슈로 넘긴다.
     - reference.md 다양성 원천 ADR — 패널 다양성은 역할 프롬프트 차별화에서만 나오고 spawn 수나 temperature가 아니다
   integration_points:
-    - thinking-tools/skills/expert-panel/SKILL.md — Execution Modes 불릿, Phase 2 산출 분기, STATE 블록 Mode 필드
-    - thinking-tools/skills/expert-panel/reference.md
-    - thinking-tools/agents/ — 신규 위임 에이전트 정의
+    - thinking-tools/skills/expert-panel/SKILL.md — Execution Modes 위임 실행 불릿과 compose 줄의 위임 vs 격리 예외
+    - thinking-tools/skills/expert-panel/reference.md — § Procedure Detail → Delegated execution (반환·회수·Phase 2 산출), STATE 템플릿 Mode 필드
+    - thinking-tools/agents/expert-panel-worker.md — 위임 worker 정의
     - thinking-tools/scripts/test/test-mode-compose.py — 모드 required 세트
     - thinking-tools/.claude-plugin/plugin.json / .claude-plugin/marketplace.json
   backlog_scan: >-
@@ -189,7 +189,7 @@ blindspots:
       호출 패턴은 어떤 것인가 — 그 패턴이 실제로 존재하는지 무엇으로 확인하는가?
   - area: edge-cases
     question: >-
-      SKILL.md가 "All combinations compose silently"를 선언하는데, 위임 + 격리처럼 의미가
+      SKILL.md가 "Modes compose silently with each other"를 선언하는데, 위임 + 격리처럼 의미가
       서로 부딪히는 조합의 실행 결과는 어떻게 정의되는가 — 트리거 충돌 가드는 문구만 보므로
       의미 합성은 누가 막는가?
 
