@@ -37,8 +37,9 @@ directory or the topic text is unusable: say exactly which is missing as your fi
    delegated worker changes.
 2. Run Phase 0 as the skill says. The backlog prefilter runs through Bash:
    `python3 "{skill directory}/../../scripts/backlog-prefilter.py" --intent "{topic text}"`.
-   Select experts with the personas Selection Rule (Read `../../reference/personas.md` from
-   the skill directory) on the topic text alone.
+   Select experts with the personas Selection Rule (Read
+   `${CLAUDE_PLUGIN_ROOT}/reference/personas.md`, two levels above the skill directory) on the
+   topic text alone.
 3. Run Phase 1 in the inline shape: neutral briefing, independent statements collected before
    any rebuttal, the practitioner review (implementation and failure review, no vote, outside
    quorum), at most 2 rebuttal passes, then Topic Conclusion — consensus, weighted vote, or
