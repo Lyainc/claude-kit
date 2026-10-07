@@ -46,6 +46,8 @@ CLAUSE = "only idle notifications and no final text after one re-request"
 # looked for once: build-spec waits twice (Phase 2 gate, Phase 2.5 blind-spot) and
 # adversarial-review three times (vault grounding, Judge, 자동 방어 Defender), so a
 # file-level "is it in here somewhere" check passes while one site loses its fallback.
+# expert-panel reference.md: 3 = the exchange-loop and Citation Contract fallbacks plus the #768
+# 위임 실행 worker return, so the delegated site cannot lose its clause unnoticed.
 FILES = {
     "thinking-tools/skills/build-spec/SKILL.md": 2,
     "thinking-tools/skills/build-spec/reference.md": 1,
@@ -53,7 +55,7 @@ FILES = {
     "thinking-tools/skills/unknown-discovery/SKILL.md": 1,
     "thinking-tools/skills/adversarial-review/SKILL.md": 3,
     "thinking-tools/skills/expert-panel/SKILL.md": 1,
-    "thinking-tools/skills/expert-panel/reference.md": 1,
+    "thinking-tools/skills/expert-panel/reference.md": 3,
 }
 
 

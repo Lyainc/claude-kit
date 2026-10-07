@@ -27,12 +27,13 @@ first. Its Codex rules override Claude-only mechanics below; Claude Code ignores
 Output Korean (English if the user writes English); moved detail: reference.md § Procedure Detail. Modes (natural language):
 - **격리 실행** ("엄격하게", "격리해서"): experts and Moderator are separate Agent subagents
 - **요약 출력** ("요약만", "transcript 없이"): no transcripts; SUMMARY.md + UNRESOLVED.md only
+- **위임 실행** ("위임해서", "워커에게 맡겨"): opt-in; one `expert-panel-worker` Agent runs the panel, returns SUMMARY only. Apply reference.md § Delegated execution
 
-Modes compose silently with each other and citation grounding; Phase 2 then picks the inline-summary path or files (isolated: always files).
+Modes compose silently with each other and citation grounding, except 위임 vs 격리 (alternatives: clear intent wins, else ask); Phase 2 then picks the inline-summary path or files (isolated: always files).
 
 ## Participants
 
-Apply reference.md § Role Contract (binding): the **facilitator** (the orchestrator) owns selection, inputs, relay, records, the stop and user questions; the **Moderator** only synthesizes, no vote (independent subagent only in isolated mode); **Optimistic / Critical Practitioner** = implementation / failure review, not separate agents, outside votes and quorum. Experts: 3–5 per topic by the `../../reference/personas.md` Selection Rule on the **user's original topic text** alone; IDs in STATE `Personas`; no match or a user-named outsider → `{Domain} Expert (ad-hoc)`, counted in `adhoc:{n}`.
+Apply reference.md § Role Contract (binding): the **facilitator** (the orchestrator) owns selection, inputs, relay, records, the stop and user questions; the **Moderator** only synthesizes, no vote (independent subagent only in isolated mode); **Optimistic / Critical Practitioner** = implementation / failure review, not separate agents, outside votes and quorum. Experts: 3–5 per topic by the `../../reference/personas.md` Selection Rule on the **user's original topic text** alone; no match or a user-named outsider → `{Domain} Expert (ad-hoc)`, counted in `adhoc:{n}`.
 
 ### Expert Selection Guide
 
@@ -49,7 +50,7 @@ An expert's **numeric or factual claim** cites one source: `vault-searcher` (Age
 ### Phase 0: Preparation
 
 1. Split the target into topics; generate the agenda.
-2. **Backlog prefilter (#524)**: before any expert speaks, run once via Bash on the user's original topic text: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{review target text}"`. `[backlog-scan SKIPPED]` / `[backlog-scan PARTIAL]` → `Backlog: skipped` / `partial` (digest still given), line carried verbatim into Phase 2; else `scanned`. The digest grounds, never binds, the panel.
+2. **Backlog prefilter (#524)**: before any expert speaks, run once via Bash on the user's original topic text: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{review target text}"`. Statuses and carry-over: reference.md § Procedure Detail → Phase 0; the digest grounds, never binds.
 3. Run the Selection Rule per topic (confirm only if the user picks experts).
 
 ### Phase 1: Topic Rounds
@@ -80,9 +81,9 @@ Isolated mode runs **1 independent exchange (e1) + up to 2 rebuttal exchanges (e
 
 ### Phase 2: Recording
 
-Default (single topic): an **inline SUMMARY** in the conversation (conclusion, evidence, plan, failure/stop conditions, dissent, unresolved), no files. **Full 3-file generation** when ANY applies: 2+ topics; the user asks for files; substantial unresolved issues; isolated mode. Write under `docs/discussions/{YYYYMMDD}_{name}/` (`templates/`): `transcripts/{순번}_{topic}.md`, `SUMMARY.md`, `UNRESOLVED.md`.
+Default (single topic): an **inline SUMMARY** in the conversation (conclusion, evidence, plan, failure/stop conditions, dissent, unresolved), no files. **Full 3-file generation** when ANY applies: 2+ topics; the user asks for files; substantial unresolved issues; isolated mode. Write them per reference.md § Procedure Detail → Phase 2.
 
-Output states the Phase 0 backlog result (the `[backlog-scan SKIPPED]` line verbatim, else conflicts or no-conflict; empty is not a pass). For a GitHub-issue discussion, offer a SUMMARY comment with a `#N` backlink, posted only after user confirmation. Never end without output.
+Output states the Phase 0 backlog result (SKIPPED line verbatim; empty is not a pass). For a GitHub-issue discussion, offer a SUMMARY comment with a `#N` backlink, posted only after user confirmation. Never end without output.
 
 ### Phase 3: Authority
 

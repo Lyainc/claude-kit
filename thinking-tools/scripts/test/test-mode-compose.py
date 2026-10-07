@@ -13,6 +13,10 @@ parsing the SKILL.md mode-toggle declarations and asserting:
 6. (#663) The isolated-mode exchange-loop contract and the Expert Selection Guide, whose
    canonical text moved to reference.md, are still present THERE verbatim, and SKILL.md
    still binds each by section name with read-and-apply wording (not a bare citation).
+7. (#768) The opt-in delegated mode is declared as a third bullet, the compose line names
+   위임 vs 격리 as the one excepted pair (citation/inline combinations stay allowed), and
+   reference.md § Delegated execution keeps its clause pins (alternative paths, no worker-spawned
+   experts, no independent-review label, one re-request then failure, inline stays default).
 
 This is a structural / static check — it does not execute any LLM logic.
 
@@ -99,13 +103,13 @@ def _find_compose_line(text: str) -> str:
 # ---------------------------------------------------------------------------
 
 def check_modes_declared(modes: list[dict]) -> tuple[bool, str]:
-    """At least the two canonical modes must be declared."""
+    """The canonical modes (incl. the opt-in delegated mode) must be declared."""
     names = {m["name"] for m in modes}
     # COUPLED to the bold mode labels in expert-panel/SKILL.md "## Execution Modes"
-    # (the `- **격리 실행** (...)` / `- **요약 출력** (...)` bullets). If a mode is
+    # (the `- **격리 실행** (...)` / `- **요약 출력** (...)` / `- **위임 실행** (...)` bullets). If a mode is
     # intentionally renamed there, update this set too — otherwise this gate silently
     # stops checking that mode (a rename without an update here is a false-OK).
-    required = {"격리 실행", "요약 출력"}
+    required = {"격리 실행", "요약 출력", "위임 실행"}
     missing = required - names
     if missing:
         return False, f"Missing declared modes: {missing}"
@@ -157,6 +161,22 @@ def check_inline_summary_compose_referenced(text: str) -> tuple[bool, str]:
             "add reference to inline SUMMARY path in the compose declaration"
         )
     return True, "Phase 2 inline-summary path referenced in compose declaration"
+
+
+def check_delegated_isolated_exclusive(text: str) -> tuple[bool, str]:
+    """위임 vs 격리 is declared as an EXCEPTION to silent composition (#768); the rest stay allowed."""
+    compose = _find_compose_line(text)
+    # Order-insensitive on the pair, but `except` must introduce it: a bare mention of both
+    # modes would also pass if the line merely listed them as composing.
+    excepted = re.search(r"except\s+(위임\s+vs\s+격리|격리\s+vs\s+위임)", compose)
+    if not excepted:
+        return False, (
+            "compose line does not declare 위임 vs 격리 as an exception "
+            "('except 위임 vs 격리') — the two paths must not compose silently"
+        )
+    if "citation" not in compose.lower() or "inline" not in compose.lower():
+        return False, "compose line dropped citation grounding / inline path while adding the exception"
+    return True, "compose line excepts 위임 vs 격리 and keeps citation/inline combinations"
 
 
 def check_citation_contract_section(text: str) -> tuple[bool, str]:
@@ -605,6 +625,39 @@ def reference_checks(skill_text: str, ref_text: str) -> list[tuple[bool, str]]:
     ]
 
 
+# --- #768: delegated execution (opt-in worker path) ------------------------------------
+# Clause pins, not a whole-section pin: the section carries measured-cost prose that will be
+# reworded once #768 reports, so only the invariants that keep the two paths from blending are
+# pinned, each with its own diagnosis.
+_DELEGATED_SECTION_RE = re.compile(
+    r"^#### Delegated execution \(위임 실행\).*?(?=^#{2,4} |\Z)",
+    re.MULTILINE | re.DOTALL,
+)
+
+
+def delegated_reference_checks(skill_text: str, ref_text: str) -> list[tuple[bool, str]]:
+    """Guards over reference.md § Delegated execution and the SKILL.md pointer that binds it (#768)."""
+    section = _section(_DELEGATED_SECTION_RE, ref_text)
+    skill = _normalise(skill_text)
+    return [
+        (bool(section), "reference.md has the '#### Delegated execution (위임 실행)' section"),
+        (_normalise("alternative paths, never combined") in section,
+         "reference.md § Delegated execution: isolated and delegated are alternative paths, never combined"),
+        (_normalise("a worker never spawns experts") in section,
+         "reference.md § Delegated execution: a worker never spawns experts (no nested subagents)"),
+        (_normalise("요약 출력 and citation grounding compose with either path") in section,
+         "reference.md § Delegated execution: 요약 출력 and citation grounding compose with either path"),
+        (_normalise("the synthesis is never labeled an independent review") in section,
+         "reference.md § Delegated execution: the synthesis is never labeled an independent review"),
+        (_normalise("re-request it once; if the reply still lacks it, report the delegated run as failed") in section,
+         "reference.md § Delegated execution: one re-request, then the run is reported failed"),
+        (_normalise("The inline path stays the default") in section,
+         "reference.md § Delegated execution: the inline path stays the default (opt-in only)"),
+        (_normalise("Apply reference.md § Delegated execution") in skill,
+         "SKILL.md binds the delegated-execution section by name (read-and-apply, not a cite)"),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -623,7 +676,8 @@ def run_checks(text: str, ref_text: str) -> tuple[int, int]:
         check_citation_contract_section(text),
         check_citation_state_field(text),
         check_phase2_inline_path(text),
-    ] + reference_checks(text, ref_text)
+        check_delegated_isolated_exclusive(text),
+    ] + reference_checks(text, ref_text) + delegated_reference_checks(text, ref_text)
 
     passed = failed = 0
     for ok, msg in checks:
@@ -655,8 +709,9 @@ allowed-tools: Read Write Agent
 Express mode preferences in natural language:
 - **격리 실행** ("엄격하게", "격리해서"): Isolated spawn.
 - **요약 출력** ("요약만", "transcript 없이"): Summary only.
+- **위임 실행** ("위임해서", "워커에게 맡겨"): opt-in; one worker runs the panel.
 
-All combinations compose silently — including any combination with citation grounding (see Citation Contract) and the Phase 2 inline-summary path.
+Modes compose silently with each other and citation grounding (see Citation Contract), except 위임 vs 격리; Phase 2 then picks the inline-summary path or files.
 
 ## Citation Contract
 
@@ -870,6 +925,21 @@ _SKILL_EXCHANGE_POINTER_DECAYED = _CLEAN_SKILL.replace(
 _SKILL_SELECTION_POINTER_DECAYED = _CLEAN_SKILL.replace(
     "Apply § Expert Selection Guide:", "For background, see the notes on")
 
+# --- #768: delegated execution ---
+# The compose line loses the exception: 위임 and 격리 would compose silently (nested spawning).
+_SKILL_NO_EXCEPTION = _CLEAN_SKILL.replace("except 위임 vs 격리", "including 위임 and 격리")
+# The two paths flipped into a combination.
+_REF_PATHS_COMPOSE = _CLEAN_REF.replace("alternative paths, never combined", "paths that combine freely")
+# The worker allowed to spawn per-expert subagents.
+_REF_WORKER_SPAWNS = _CLEAN_REF.replace("a worker never spawns experts", "a worker spawns experts")
+# The single-context synthesis dressed up as an independent review.
+_REF_SYNTHESIS_INDEPENDENT = _CLEAN_REF.replace(
+    "the synthesis is never labeled an independent review", "the synthesis is labeled an independent review")
+# The delegated bullet removed from the loaded body: a required mode goes missing.
+_SKILL_NO_DELEGATED_BULLET = re.sub(r"^- \*\*위임 실행\*\*.*\n", "", _CLEAN_SKILL, flags=re.MULTILINE)
+# A delegated trigger colliding with an existing one: ambiguous routing.
+_SKILL_DELEGATED_COLLISION = _CLEAN_SKILL.replace('("위임해서",', '("엄격하게",')
+
 # A realistic reflow: every paragraph rewrapped onto one line, headings left where they are
 # (an editor rewraps prose, it does not fold a `####` into the paragraph above it — and the
 # section slices are heading-delimited, so folding the headings away would test the slicer,
@@ -881,6 +951,12 @@ _REF_REFLOWED = "\n\n".join(
 
 for _name, _fixture, _base in (
     ("_REF_REFLOWED", _REF_REFLOWED, _CLEAN_REF),
+    ("_SKILL_NO_EXCEPTION", _SKILL_NO_EXCEPTION, _CLEAN_SKILL),
+    ("_REF_PATHS_COMPOSE", _REF_PATHS_COMPOSE, _CLEAN_REF),
+    ("_REF_WORKER_SPAWNS", _REF_WORKER_SPAWNS, _CLEAN_REF),
+    ("_REF_SYNTHESIS_INDEPENDENT", _REF_SYNTHESIS_INDEPENDENT, _CLEAN_REF),
+    ("_SKILL_NO_DELEGATED_BULLET", _SKILL_NO_DELEGATED_BULLET, _CLEAN_SKILL),
+    ("_SKILL_DELEGATED_COLLISION", _SKILL_DELEGATED_COLLISION, _CLEAN_SKILL),
     ("_REF_CAP_REMOVED", _REF_CAP_REMOVED, _CLEAN_REF),
     ("_REF_MODERATOR_ORCHESTRATES", _REF_MODERATOR_ORCHESTRATES, _CLEAN_REF),
     ("_SKILL_NO_CAP", _SKILL_NO_CAP, _CLEAN_SKILL),
@@ -1011,6 +1087,18 @@ _CANONICAL_CASES: list[tuple[str, str, str, bool]] = [
      _CLEAN_SKILL, _REF_MODERATOR_REVOTES, False),
     ("practitioner review run as an extra exchange -> FAIL",
      _CLEAN_SKILL, _REF_REVIEW_IS_EXCHANGE, False),
+    ("compose line without the `except 위임 vs 격리` clause -> FAIL",
+     _SKILL_NO_EXCEPTION, _CLEAN_REF, False),
+    ("delegated and isolated paths declared combinable -> FAIL",
+     _CLEAN_SKILL, _REF_PATHS_COMPOSE, False),
+    ("delegated worker allowed to spawn experts -> FAIL",
+     _CLEAN_SKILL, _REF_WORKER_SPAWNS, False),
+    ("delegated synthesis labeled an independent review -> FAIL",
+     _CLEAN_SKILL, _REF_SYNTHESIS_INDEPENDENT, False),
+    ("delegated bullet removed from the loaded body -> FAIL",
+     _SKILL_NO_DELEGATED_BULLET, _CLEAN_REF, False),
+    ("delegated trigger colliding with an existing trigger -> FAIL",
+     _SKILL_DELEGATED_COLLISION, _CLEAN_REF, False),
     ("reflowed reference.md still passes (whitespace is not the contract)",
      _CLEAN_SKILL, _REF_REFLOWED, True),
 ]
@@ -1047,6 +1135,9 @@ def _self_test() -> int:
     ok, _ = check_phase2_inline_path(_PASSING_FIXTURE)
     cases.append(("passing: phase2 inline path", ok))
 
+    ok, _ = check_delegated_isolated_exclusive(_PASSING_FIXTURE)
+    cases.append(("passing: 위임 vs 격리 excepted in compose line", ok))
+
     # --- failing fixture: trigger collision and missing features should fail ---
     failing_modes_block = _extract_execution_modes_block(_FAILING_FIXTURE)
     failing_modes = _extract_declared_modes(failing_modes_block)
@@ -1069,9 +1160,21 @@ def _self_test() -> int:
     ok, _ = check_phase2_inline_path(_FAILING_FIXTURE)
     cases.append(("failing: inline path absent (expect FAIL)", not ok))
 
+    ok, _ = check_delegated_isolated_exclusive(_FAILING_FIXTURE)
+    cases.append(("failing: 위임 vs 격리 exception absent (expect FAIL)", not ok))
+
     # --- #663: corrupt the CANONICAL text in reference.md, the guards must still FAIL ---
+    # --- #768: the delegated-mode guards run beside them (declaration, compose line, trigger
+    # collision, delegated reference clauses), so every mutation is judged by the full set ---
     for desc, skill_text, ref_text, expect_pass in _CANONICAL_CASES:
-        got = all(cond for cond, _ in reference_checks(skill_text, ref_text))
+        modes = _extract_declared_modes(_extract_execution_modes_block(skill_text))
+        got = (
+            all(cond for cond, _ in reference_checks(skill_text, ref_text))
+            and all(cond for cond, _ in delegated_reference_checks(skill_text, ref_text))
+            and check_modes_declared(modes)[0]
+            and check_no_trigger_collision(modes)[0]
+            and check_delegated_isolated_exclusive(skill_text)[0]
+        )
         cases.append((f"canonical: {desc}", got == expect_pass))
 
     failed = [name for name, passed in cases if not passed]
