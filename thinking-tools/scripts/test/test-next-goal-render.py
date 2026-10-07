@@ -36,11 +36,11 @@ def _repo(ac="acceptance-1"):
     specs = Path(d) / "docs" / "specs"
     specs.mkdir(parents=True)
     (specs / "p.yaml").write_text(
-        "skill: build-spec\ntarget: parent\nrelations:\n  parent: null\n  refines: []\n"
+        "skill: build-spec\ntarget: parent\nlifecycle:\n  state: active\n  outcome: null\n  reason: requested\n  approved_by: fixture user request\n  evidence:\n    commit: null\n    items: []\n  withdrawn: []\nrelations:\n  parent: null\n  refines: []\n"
         "  depends_on: []\n  children: [docs/specs/c.yaml, other/repo:docs/specs/x.yaml]\n"
         "success_criteria:\n  - id: %s\n    description: parent outcome\n" % ac, encoding="utf-8")
     (specs / "c.yaml").write_text(
-        "skill: build-spec\ntarget: child\nrelations:\n  parent: docs/specs/p.yaml\n"
+        "skill: build-spec\ntarget: child\nlifecycle:\n  state: active\n  outcome: null\n  reason: requested\n  approved_by: fixture user request\n  evidence:\n    commit: null\n    items: []\n  withdrawn: []\nrelations:\n  parent: docs/specs/p.yaml\n"
         "  refines: [%s]\n  link_reason: settles %s\n  depends_on: []\n  children: []\n"
         "success_criteria:\n  - id: %s\n    description: child outcome\n" % (ac, ac, ac), encoding="utf-8")
     return d
@@ -177,6 +177,15 @@ def main():
     code, out, err = _render(repo, bad)
     check("legacy spelling of a migrated item is refused with a hint", code == 1
           and "acceptance-1" in err and "seed-id-migrate.py" in err, f"{code} {err!r}")
+    for missing in (False, True):
+        bad = _judgment(wid)
+        if missing:
+            del bad["pick"]["targets"]
+        else:
+            bad["pick"]["targets"] = []
+        code, out, err = _render(repo, bad)
+        check("Seed pick must name its item scope", code == 1 and out == ""
+              and "pick.targets" in err, f"{code} {out!r} {err!r}")
 
     # cross-repo key keeps its coordinate prefix (an external Seed cannot be a pick, so call directly).
     spec = importlib.util.spec_from_file_location("ngr", str(_SCRIPT))
@@ -186,6 +195,52 @@ def main():
     got = ngr._render_targets(rel, "other/repo:docs/specs/x.yaml",
                               {"item_desc": {"constraint-1": "DB 스키마\n생성"}}, ["constraint-1"])
     check("cross-repo key shows owner/repo: prefix", got == ["other/repo:x/constraint-1 · DB 스키마 생성"], str(got))
+
+    # Missing eligibility from an older walker never authorizes a pick.
+    for name, eligibility in [
+        ("missing eligibility", None),
+        ("paused Seed", {"eligible": False, "reason": "paused", "excluded_items": [], "review_required": False}),
+        ("unknown lifecycle", {"eligible": False, "reason": "unknown", "excluded_items": [], "review_required": True}),
+        ("review required", {"eligible": True, "reason": "review", "excluded_items": [], "review_required": True}),
+        ("malformed exclusions", {"eligible": True, "reason": "active", "excluded_items": "acceptance-1", "review_required": False}),
+        ("excluded target", {"eligible": True, "reason": "active", "excluded_items": ["acceptance-1"], "review_required": False}),
+    ]:
+        node = {"key": "docs/specs/p.yaml", "status": "ok"}
+        if eligibility is not None:
+            node["eligibility"] = eligibility
+        refused = False
+        try:
+            ngr._check_vias(_judgment(wid, alternatives=[]), {node["key"]: node})
+        except ngr.Refused:
+            refused = True
+        check(name + " refuses pick", refused)
+        held = _judgment(wid, pick=None, alternatives=[
+            {"title": "held", "via": node["key"], "decision": "held", "reason": "review"}])
+        ngr._check_vias(held, {node["key"]: node})
+    padded = _judgment(wid, alternatives=[])
+    padded["pick"]["targets"] = [" acceptance-1 "]
+    try:
+        ngr._check_vias(padded, {node["key"]: node})
+        check("whitespace cannot bypass excluded target", False)
+    except ngr.Refused:
+        pass
+
+    # Stale judgments recheck current on-disk lifecycle and withdrawn items.
+    for label, lifecycle in [
+        ("paused", "  state: paused\n  outcome: null\n  reason: waiting\n"),
+        ("closed", "  state: closed\n  outcome: discontinued\n  reason: stopped\n"),
+        ("withdrawn", "  state: active\n  outcome: null\n  reason: no longer needed\n  withdrawn:\n    - id: acceptance-1\n      reason: no longer needed\n"),
+    ]:
+        replacement = lifecycle + "  approved_by: fixture transition request\n  evidence:\n    commit: null\n    items: []\n"
+        if label != "withdrawn":
+            replacement += "  withdrawn: []\n"
+        p.write_text(original.replace("  state: active\n  outcome: null\n  reason: requested\n  approved_by: fixture user request\n  evidence:\n    commit: null\n    items: []\n  withdrawn: []\n", replacement), encoding="utf-8")
+        code, out, err = _render(repo, _judgment(wid))
+        check(label + " after judgment refuses pick before printing", code == 1 and out == "", f"{code} {out!r} {err!r}")
+    p.write_text(original.replace("lifecycle:\n  state: active\n  outcome: null\n  reason: requested\n  approved_by: fixture user request\n  evidence:\n    commit: null\n    items: []\n  withdrawn: []\n", ""), encoding="utf-8")
+    code, out, err = _render(repo, _judgment(wid))
+    check("absent lifecycle refuses legacy pick", code == 1 and out == "", f"{code} {out!r} {err!r}")
+    p.write_text(original, encoding="utf-8")
 
     # a legacy Seed still renders; a canonical-only match is refused.
     legacy = _repo(ac="ac1")

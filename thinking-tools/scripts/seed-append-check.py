@@ -39,6 +39,7 @@ here as a vanished id and is denied with that pointer. Same template-path exempt
 from __future__ import annotations
 
 import json
+import importlib.util
 import os
 import re
 import sys
@@ -189,6 +190,16 @@ def new_reused_numbers(existing: str, result: str) -> list[str]:
 
 # The template documents blindspots' item fields only in a comment (its default is `[]`).
 _COMMENT_ONLY_PATHS = {("blindspots", "[]", "area"), ("blindspots", "[]", "question")}
+_COMMENT_ONLY_PATHS.update({
+    ("lifecycle","evidence","items","[]","id"),
+    ("lifecycle","evidence","items","[]","refs"),
+    ("lifecycle","withdrawn","[]","id"), ("lifecycle","withdrawn","[]","reason"),
+    ("relations","refines_map","[]","parent_item"),
+    ("relations","refines_map","[]","child_items"),
+    ("relations","provenance","[]","seed"), ("relations","provenance","[]","commit"),
+    ("relations","provenance","[]","items"),
+    ("relations","transfers","[]","seed"), ("relations","transfers","[]","items"),
+})
 _TEMPLATE = Path(__file__).resolve().parent.parent / "skills/build-spec/templates/SEED_SPEC.yaml"
 _template_paths_cache: set[tuple[str, ...]] | None = None
 
@@ -240,7 +251,7 @@ def is_seed_path(path: str) -> bool:
 
 
 def reads_as_seed(text: str) -> bool:
-    return any(m in text[:4000] for m in SEED_MARKERS)
+    return any(m in text[:4000] for m in SEED_MARKERS) or bool(re.search(r"(?m)^\s*(?:skill:\s*[\"\']build-spec[\"\']|generated_by:\s*[\"\']thinking-tools/build-spec[\"\'])\s*(?:#.*)?$",text))
 
 
 def added_text(tool: str, ti: dict, existing: str) -> str:
@@ -282,6 +293,27 @@ def _id_number_reason(path: str, existing: str, result: str) -> str:
     return ""
 
 
+def lifecycle_reason(existing: str, result: str, path: str) -> str:
+    """Validate represented lifecycle changes using the same parser as graph discovery."""
+    spec = importlib.util.spec_from_file_location("seed_relations_guard",Path(__file__).with_name("seed-relations.py"))
+    sr = importlib.util.module_from_spec(spec)
+    try:
+        spec.loader.exec_module(sr)
+        before,after = sr.parse_seed(existing),sr.parse_seed(result)
+        changed_parent = before.parent != after.parent
+        if before.lifecycle is None and after.lifecycle is None and not changed_parent and not before.relations_version and not after.relations_version and "lifecycle:" not in existing+result:
+            return ""
+        errors = sr.lifecycle.validate(after, sr.find_root(path))
+        errors += sr.validate_provenance(sr.Reader(sr.find_root(path)),after,None)
+        if existing:
+            errors += sr.lifecycle.transition(before,after)
+        if errors:
+            return "Seed 수명주기 변경이 유효하지 않아요: " + "; ".join(errors)
+    except (OSError,ValueError,TypeError,AttributeError) as exc:
+        return "Seed 수명주기 검증에 실패했어요: " + str(exc)
+    return ""
+
+
 def decide(payload: dict, read_file=None) -> str:
     """Return a deny reason, or '' to allow."""
     read_file = read_file or _read_file
@@ -298,7 +330,9 @@ def decide(payload: dict, read_file=None) -> str:
     if not existing and tool == "Write" and not is_template_path(path):
         # New file: only the id-number checks apply (no baseline for vanish/keys/log).
         content = ti.get("content") or ""
-        return _id_number_reason(path, "", content) if reads_as_seed(content) else ""
+        if not reads_as_seed(content):
+            return ""
+        return _id_number_reason(path,"",content) or lifecycle_reason("",content,path)
     if not existing or not reads_as_seed(existing):
         return ""
     result = result_text(tool, ti, existing)
@@ -316,11 +350,15 @@ def decide(payload: dict, read_file=None) -> str:
         return (
             f"Seed의 id를 지우려고 했어요 ({os.path.basename(path)}: {', '.join(lost)}). "
             "item id는 다른 Seed의 relations.refines가 가리키니까 지우거나 바꾸면 안 돼요 — "
-            "빠진 요구사항도 id는 두고 그 항목의 내용만 고쳐 쓰고, 새 요구사항은 아직 안 쓴 다음 번호를 쓰세요."
+            "철회한 요구사항도 원문과 id를 보존하고 lifecycle.withdrawn에 이유를 남기세요. 새 요구사항은 아직 안 쓴 다음 번호를 쓰세요."
             + hint
         )
     if result is not None and not is_template_path(path):
         reason = _id_number_reason(path, existing, result)
+        if reason:
+            return reason
+    if result is not None and not is_template_path(path):
+        reason = lifecycle_reason(existing,result,path)
         if reason:
             return reason
     # The template defines the allowlist, so widening it must not be judged against itself.
@@ -328,7 +366,7 @@ def decide(payload: dict, read_file=None) -> str:
     if keys:
         return (
             f"Seed 템플릿에 없는 키를 추가하려고 했어요 ({os.path.basename(path)}: {', '.join(keys)}). "
-            "Seed는 templates/SEED_SPEC.yaml이 정의한 필드만 가져요 — 진행·완료 상태는 Seed가 아니라 "
+            "Seed는 templates/SEED_SPEC.yaml이 정의한 필드만 가져요 — 수명주기는 lifecycle에, 작업 기록은 "
             "이슈에 남기고, 새 필드가 정말 필요하면 템플릿부터 넓히세요."
         )
     added = added_text(tool, ti, existing)
@@ -484,13 +522,13 @@ def _self_test() -> int:
             }}, item, True,
         ),
         (
-            "relations: block with the template's shape is allowed",
+            "legacy parent addition requires represented user approval",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "    rationale: 기존 근거.\n",
                 "new_string": "    rationale: 기존 근거.\nrelations:\n  parent: docs/specs/p.yaml\n"
                               "  refines: [constraint-1]\n  depends_on: []\n  children: []\n",
-            }}, item, False,
+            }}, item, True,
         ),
         (
             "relations.status is still a foreign key",
@@ -517,13 +555,13 @@ def _self_test() -> int:
             }}, item, True,
         ),
         (
-            "relations.link_reason is allowed",
+            "link_reason alone does not authorize adding a parent",
             {"tool_name": "Edit", "tool_input": {
                 "file_path": "/r/docs/specs/x.yaml",
                 "old_string": "    rationale: 기존 근거.\n",
                 "new_string": "    rationale: 기존 근거.\nrelations:\n  parent: docs/specs/p.yaml\n"
                               "  refines: [constraint-1]\n  link_reason: 부모가 비워 둔 인증 경로를 정한다.\n",
-            }}, item, False,
+            }}, item, True,
         ),
         # --- id invariance (seed-relations-graph/constraint-3) ---
         (

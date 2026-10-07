@@ -410,6 +410,29 @@ test('a long walk is capped to the viewport and says how many nodes are left', a
   await ui.unmount()
 })
 
+for (const surface of SURFACES) {
+  test(`closed and review-required Seeds stay discoverable with observed lifecycle details (${surface})`, async ($, on) => {
+    const b = bench(on)
+    const text = walkText({ id: 'w1', at: '2026-10-01T10:00:00Z' }).split('\n').map(line => {
+      if (line.includes(`\t${PARENT}\tok\t`)) return `${line}\tlifecycle_state=closed\tlifecycle_outcome=discontinued\tlifecycle_reason=방향 변경\teligible=false\teligibility_reason=closed: discontinued\texcluded_items=c1\treview_required=false`
+      if (line.includes(`\t${CHILD}\tok\t`)) return `${line}\tlifecycle_state=active\tlifecycle_outcome=-\tlifecycle_reason=-\teligible=false\teligibility_reason=parent discontinued; child review required\texcluded_items=ac1\treview_required=true`
+      return line
+    }).join('\n')
+    await bash($, b, WALK_CMD, text)
+    const ui = await mountPane($, surface)
+    await ui.press({ key: `node:${PARENT}` })
+    await ui.press({ key: `node:${CHILD}` })
+    const all = await texts(ui)
+    expect(all).toContain('상태: closed · 결과: discontinued · 이유: 방향 변경')
+    expect(all).toContain('후보 자격: 보류 · 이유: closed: discontinued')
+    expect(all).toContain('제외 항목: c1 · 검토 필요: 아니요')
+    expect(all).toContain('제외 항목: ac1 · 검토 필요: 예')
+    expect(b.forbidden).toEqual([])
+    expect(b.fills).toEqual([])
+    await ui.unmount()
+  })
+}
+
 test('7 malformed output or heredoc leaves the tool result unchanged and does not throw', async ($, on) => {
   const b = bench(on)
   const cases: [string, string][] = [

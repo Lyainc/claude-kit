@@ -524,6 +524,17 @@ def run(seed_file, apply):
     named_fn = own_fn
 
     # -- verify everything before any write ---------------------------------------
+    # #814: this line-preserving migrator predates structured lifecycle evidence and
+    # item maps. Never rename one side and strand those references. Legacy ids remain
+    # readable; migrate before lifecycle adoption, not through a frozen historical record.
+    for doc, _ in docs:
+        relation_block = doc.blocks.get("relations")
+        relation_keys = {name for name, _, _ in sr._mapping_blocks(
+            doc.bodies[relation_block[1]:relation_block[2]])} if relation_block else set()
+        if doc.new_text() != doc.text and ("lifecycle" in doc.blocks or
+                relation_keys & {"refines_map", "provenance", "transfers", "replaces"}):
+            problems.append(f"{doc.rel}: lifecycle/structured relations need coordinated id migration; "
+                            "keep these legacy ids, or migrate before lifecycle adoption")
     if not problems:
         for doc, fn in docs:
             problems += verify(doc, named_fn if doc is named else fn)

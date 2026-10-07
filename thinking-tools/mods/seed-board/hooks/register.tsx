@@ -311,6 +311,9 @@ export const register: Register = on => {
           tree.push(d(`refines: ${n.refines.length === 0 ? '-' : n.refines.join(', ')}`))
           tree.push(d(`링크 이유: ${n.linkReason}`))
           tree.push(d(`출처: ${n.source}`))
+          tree.push(d(`상태: ${n.lifecycle?.state ?? 'unknown'} · 결과: ${n.lifecycle?.outcome ?? '-'} · 이유: ${n.lifecycle?.reason ?? '미확인'}`))
+          tree.push(d(`후보 자격: ${n.eligibility?.eligible === true ? '가능' : '보류'} · 이유: ${n.eligibility?.reason ?? '미확인'}`))
+          tree.push(d(`제외 항목: ${n.eligibility?.excludedItems.join(', ') || '-'} · 검토 필요: ${n.eligibility?.reviewRequired === false ? '아니요' : '예'}`))
           for (const item of shown.items.filter(i => i.owner === n.key)) {
             tree.push(d(`${item.id} → refined by ${item.refinedBy.length === 0 ? '(none)' : item.refinedBy.join(', ')}`))
           }

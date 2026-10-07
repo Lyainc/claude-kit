@@ -14,7 +14,7 @@ adapters are tracked separately in [local-harness #23](https://github.com/Lyainc
 | expert-panel | Weighing multiple positions for a decision | Idea generation → diverse-sampling; one-claim attack → adversarial-review |
 | adversarial-review | Stress-testing a specific claim through adversarial rounds | Routine code review; multi-position consensus; whole-document mechanical checks |
 | unknown-discovery | Surfacing unknowns and blind spots through interview | A settled build target's Seed → build-spec; every mention of “missing” |
-| build-spec | Main-agent interview crystallizing a chosen build target into a YAML Seed | Whole-workflow delegation; open-ended discovery; prose document; implementation |
+| build-spec | Main-agent interview crystallizing a chosen build target into a YAML Seed; approved lifecycle authoring | Whole-workflow delegation; open-ended discovery; prose document; implementation |
 | doc-concretize | Authoring a new structured Markdown document | Existing-document inspection → doc-polish; substantive rewrite → ordinary editing |
 | doc-polish | Inspecting existing Markdown; optional nonsemantic --fix | Rewriting meaning/structure; design verdicts; code/configuration changes |
 | issue-raise | Authoring and filing one requested work issue | Spec discovery; retro's observed-waste issue workflow; filing without authority |
@@ -35,6 +35,13 @@ The vault-save `--type discussion` path preserves a thinking-tools discussion ar
 wiki compiles domain knowledge. Sharing wiki/ as a destination does not make these the same
 operation. The manifest and Git helpers likewise compose with content work without owning it.
 
+Seed lifecycle ownership (#814): [the shared contract](../thinking-tools/reference/seed-lifecycle.md)
+owns state, approval, withdrawal and historical reuse rules. build-spec writes approved decisions;
+next-goal reads current eligibility and never resumes work by selecting a candidate; unknown-discovery
+may examine historical decisions without applying them. A closed source stays frozen, with selected
+reuse authored into a newly approved Seed and pinned provenance. An optional external session-close
+uses the same contract for authorized closure; its implementation remains outside this repository.
+
 ## Scenario checks for boundary changes
 
 These are review cases, not claims of measured model behavior. Keep them alongside edits so
@@ -42,6 +49,9 @@ reviewers can evaluate plausible misroutes without relying on word-match tests.
 
 | Request | Expected entry / reason |
 |---|---|
+| “종료된 Seed에서 배울 점을 찾아줘” | unknown-discovery may examine historical material; no activation or automatic reuse |
+| “paused 후보로 바꿔줘” | next-goal holds it until approved resume; switching alone changes no lifecycle |
+| “종료된 Seed의 이 항목으로 새 작업을 명세화해줘” | build-spec creates a new approved Seed with pinned provenance; preserves the closed source |
 | “다음 세션 프롬프트만 써줘” | next-goal; no cleanup authority |
 | “세션 마무리하고 다음 목표도 정해줘” | session-close → next-goal |
 | “이 초안 문단을 더 구체적으로 써줘” | ordinary editing; no alternative-generation request |

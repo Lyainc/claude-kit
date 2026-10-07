@@ -68,8 +68,9 @@ lookup: disclose the gap and rank only the known pool.
 ## Seed walk
 
 **A build-spec Seed is a third pool, when one is in play.** A Seed states `success_criteria[]` as
-observable outcomes, so a criterion this repo does not satisfy yet is already a ranked candidate —
-it was specified as required, which is the floor test answered in advance. Treat a Seed as in play
+observable outcomes. Start with metadata and [the shared lifecycle contract](../../reference/seed-lifecycle.md):
+only active, eligible, non-withdrawn items within the current request can become candidates.
+Historical requirements do not answer the floor test for new work. Treat a Seed as in play
 only when the session or the caller names one, or an issue already in the pool references its path;
 never glob a spec directory to find one. A Seed reached from the named Seed by a `relations` edge
 is in play too, and the only way to reach it is
@@ -79,21 +80,26 @@ here — it is listed as a link only, because its evidence lives in that repo's 
 have none, and an unrelated stale Seed is a worse pool than no pool.
 
 Read the `walk` output this way (`seed-relations.py walk <named-seed-path>`: tab-separated
-records, latest `-vN` already resolved, depth ≤ 3 and ≤ 25 Seeds by default). Whether anything is
+records, depth ≤ 3 and ≤ 25 Seeds by default). Version-2 paths are exact; only lifecycle-free
+legacy relations retain latest-generation resolution under the shared contract. Whether anything is
 satisfied is judged by observing the repo; the script never says, and graph distance never ranks.
 Open only the Seeds the walk visited — never list or read `docs/specs/` to look for others.
 
 - `NODE` records are the Seeds actually visited, each with its relation to the named Seed and the
-  edge path that reached it. `start`'s own criteria and `ancestor` items are candidates (an
+  edge path that reached it. Apply `eligibility` before reading requirement bodies: missing/false
+  eligibility, unknown/paused/closed lifecycle, required review and excluded items stay held.
+  Discovery keeps closed nodes visible without making them current requirements. Eligible
+  `start` criteria and `ancestor` items can be candidates (an
   `ancestor` item is what `PARENT-ITEM` was). `ancestor-child` nodes are sibling Seeds and
-  `descendant` nodes are child Seeds — both candidates when this repo does not satisfy them yet; a
+  `descendant` nodes are child Seeds — eligible nodes can be candidates when this repo does not satisfy them yet; a
   child that already satisfies its criteria is `done`, never re-proposed.
 - `ITEM <owner> <id> refined_by=<children>` maps a Seed's item to the child Seeds that spell it out,
   so starting from a parent shows which child carries which item. An item refined by a child is
   judged through that child; one with `refined_by=(none)` is judged directly.
 - `predecessor` nodes are what another node `depends_on`. A candidate whose same-repo predecessor
   is not finished is `held`; that predecessor itself becomes a candidate when it is startable. A
-  predecessor in another repo stays unverified and the hold says so.
+  predecessor in another repo stays unverified and the hold says so. A closed predecessor's
+  recorded outcome/evidence stays historical; do not silently reopen or regrade it against HEAD.
 - `external` / `external-failed` nodes are another repo's Seeds: links only, never ranked or judged
   here (`decision: external`).
 - `STOP`, `CYCLE`, `FAILED` and `notfound` mark where the walk ended or could not read. They are
@@ -103,11 +109,12 @@ Open only the Seeds the walk visited — never list or read `docs/specs/` to loo
 handed over, do not search for one: set `handoff: "missing"` so the result reads as a missing
 handoff, not as "no candidate".
 
-A Seed carries no status field by design — its amendment contract makes it a spec, not a work log —
-so "not met yet" is a judgment about the repository, never a value read out of the file. Check the
-criterion's `measurable_via` against current state before ranking it. One that no longer resolves
-(a renamed script, a deleted module) is a stale spec fact rather than a follow-up: report it as
-unresolved instead of proposing work against it.
+Lifecycle records an approved decision, not a work log. `metadata <seed> --json` and `walk`
+come first; use `read <seed> --json` or relevant file ranges only when the body is needed. Apply
+partial exclusions from withdrawals and parent impact; missing mappings mean review, never a
+content-based guess. For remaining eligible items check `measurable_via` against current code.
+Unresolvable evidence stays unresolved. Historical closed evidence remains tied to its recorded
+commit and cannot be automatically recomputed into a new outcome.
 
 ## Maintenance streak
 
@@ -125,7 +132,7 @@ actual diffs, not a verdict on its own.
 
 ## Step detail
 
-Step 0 addition: A Seed's unmet `success_criteria[]` are already such a group — they share the Seed's goal by
+Step 0 addition: A Seed's eligible unmet `success_criteria[]` within current scope are such a group — they share the Seed's goal by
 construction. Group them with the session's own follow-ups that touch the same files rather than
 ranking criteria one at a time.
 
@@ -137,7 +144,7 @@ artifact that resolves the problem, not just a promise to look.
 Step 3 (Widen to the backlog): Fires when the candidate fails either bar above, **or** when chain depth ≥ 3. Rank the backlog by
 (1) issues that combine with what just shipped, (2) label and staleness priority. Take the wider
 unit — several backlog issues sharing one theme are one unit here. With a Seed in play, its
-remaining criteria rank ahead of unrelated backlog issues: they are the declared scope of the
+eligible remaining criteria within the current request rank ahead of unrelated backlog issues: they are the declared scope of the
 thread that just ran, not a new one.
 
 If, after widening, nothing clears the floor, output `NEXT · 없음`, then the `FROM` and
@@ -158,7 +165,8 @@ unverified, evidence id and time) come from that walk, never from the JSON, and 
 not visit is refused — fix the judgment, never the path. For a Seed `via`, `targets` are that
 Seed's local item ids exactly as the walk lists them (`constraint-1`, `acceptance-2`; an unmigrated Seed's
 `c1` stays `c1`); the script shows each as its full identifier with the description, and refuses an id the
-Seed does not define. Name Seed items to the user the way `reference/identifiers.md` says, never by a bare
+Seed does not define or that current eligibility excludes. Missing eligibility, a blocked Seed or
+required review refuses the whole pick even when the judgment is stale. Name Seed items to the user the way `reference/identifiers.md` says, never by a bare
 `c1`/`ac1`. For `session`, `backlog` or `issue:#N`, `targets` is free text. A `[근거 변경됨 ...]` mark means the Seed
 or HEAD moved after the walk: walk again and re-judge before writing the condition. Without a Seed
 in play, render the three lines directly as before; no extra call. The same JSON is what the
@@ -167,9 +175,11 @@ optional seed-board mod shows, so the choice and the condition never depend on w
 ## User switch
 
 **User switch.** When the user names a different candidate — typed, or a prompt the seed-board mod
-pre-filled (`next-goal: 후보를 <title> (via <key>)로 바꿔줘 [walk <id>]`) — make it the pick, render
+pre-filled (`next-goal: 후보를 <title> (via <key>)로 바꿔줘 [walk <id>]`) — recheck eligibility, then make an eligible candidate the pick, render
 again, and rewrite the condition for it. Keep the original only when repository evidence shows the
-named one already satisfied, not startable, or in another repo, and say which. If the request's walk
+named one already satisfied, not startable, ineligible, review-required, excluded, or in another repo, and say which.
+A switch is not approval to resume paused work, activate unknown requirements or reuse closed
+requirements; closed reuse belongs in a newly approved Seed with pinned provenance. If the request's walk
 id is not the current one, walk again first. A pick change never starts work, edits an issue,
 commits, or pushes by itself.
 
@@ -190,8 +200,8 @@ claims requiring their own evidence when the task concerns installation or runti
 **When the work follows a build-spec Seed** (identified by the Input contract's rule — named or
 referenced, never found by scanning): name the Seed's path inside the condition, and say
 to attach `thinking-tools/reference/seed-diff-grading.md`'s instruction to the requirement-gap review
-call. The reviewer grades the Seed's `constraints[]`/`success_criteria[]` only when the prompt names
-one, so an unnamed Seed is an ungraded Seed. In the same clause, state that the Seed is a spec, not a
+call. Name the approved active Seed and eligible item scope explicitly; withdrawn or historical
+items are excluded under the lifecycle contract, and closed reuse is graded through the new Seed. In the same clause, state that the Seed is a spec, not a
 work log: a fact it states wrongly gets that field's value replaced, while progress, dated
 corrections, and review findings go to the issue or ledger the repo already keeps — never appended to
 the Seed. Omit this clause entirely when no Seed is in play; most sessions have none.
@@ -275,8 +285,8 @@ Phase 2, work that follows a build-spec Seed:
 **When the work follows a build-spec Seed** (identified by the Input contract's rule — named or
 referenced, never found by scanning): name the Seed's path inside the condition, and say
 to attach `thinking-tools/reference/seed-diff-grading.md`'s instruction to the requirement-gap review
-call. The reviewer grades the Seed's `constraints[]`/`success_criteria[]` only when the prompt names
-one, so an unnamed Seed is an ungraded Seed. In the same clause, state that the Seed is a spec, not a
+call. Name the approved active Seed and eligible item scope explicitly; withdrawn or historical
+items are excluded under the lifecycle contract, and closed reuse is graded through the new Seed. In the same clause, state that the Seed is a spec, not a
 work log: a fact it states wrongly gets that field's value replaced, while progress, dated
 corrections, and review findings go to the issue or ledger the repo already keeps — never appended to
 the Seed. Omit this clause entirely when no Seed is in play; most sessions have none.

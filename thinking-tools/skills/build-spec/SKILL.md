@@ -13,38 +13,37 @@ allowed-tools: AskUserQuestion Read Write Edit Glob Grep Agent Bash Skill
 
 # Build Spec
 
-Output Korean (English if the user writes English); STATE keys and YAML fields stay English.
+Korean output (English for English input); English STATE/YAML keys.
 
 ## Codex Portability
 
-On Codex, first read [the portability contract](../../reference/codex-portability.md);
-it overrides Claude-only mechanics. Claude Code ignores this section.
+Codex: first read [the overriding portability contract](../../reference/codex-portability.md).
 
 ## Execution Ownership
 
-Main agent only: interview, STATE, gate transitions and Seed writes, in every mode.
-Never delegate the whole skill, even to save cost. As a subagent, stop before Phase 0;
-return `MAIN_AGENT_REQUIRED`, facts and unanswered questions in your final response.
-In that case, never invent answers or emit a Seed.
+Main owns interview, STATE, gate transitions and Seed writes in every mode; never delegate all.
+As a subagent, stop before Phase 0: final response = `MAIN_AGENT_REQUIRED`, facts, unanswered
+questions. Never invent answers or emit a Seed.
 
-Delegate only research, Phase 2 verdict and Phase 2.5 findings; outputs are evidence/proposals,
-never user answers. Phase 1: `AskUserQuestion`, wait for user input; reuse explicit prior answers.
-Missing input/tool → pending interview, never completion. Codex: portability question path.
+Delegate only research, Phase 2 verdict and Phase 2.5 findings, never user answers.
+Phase 1: `AskUserQuestion`, await input; reuse explicit prior answers. Missing input/tool → pending,
+never completion. Codex: portability question path.
 
 ## Core Workflow
 
-**Quick Mode** ("빠르게"/"스펙만"/"quick"; start only): Phase 0 skips brownfield detection, keeps
-backlog scan (#489); Phase 1 asks 3-5 Goal questions; gate: Goal ≥ 0.75; abbreviated Seed:
-Goal + best-effort Constraints. Read `reference.md` §11.2 before emitting (binding output).
-§N below = `reference.md`.
+§N = `reference.md`. **Quick Mode** ("빠르게"/"스펙만"/"quick"; start only): skip brownfield,
+keep backlog scan; ask 3-5 Goal questions; gate Goal ≥ 0.75. Emit Goal + best-effort Constraints
+(binding format §11.2).
 
-**Refine** ("이 스펙 다듬어줘" + prior Seed): `Read`; restore scores/content and verbatim
-`issues`/`relations` (including `link_reason`, §8); retain ids, including legacy. Skip Phase 0;
-start at lowest clarity. `<feedback>` is Phase 1 preamble (path → `Read` first, §6).
+**Seed use / Refine**: before Seed `Read`/cat, `Bash`: `seed-relations.py metadata <seed> --json`.
+Never bulk-read YAML for discovery. Read relevant content only. Apply unknown only with approval;
+resume paused only with approval; closed needs a new Seed with pinned provenance. No withdrawn
+items or scope expansion. Read `../../reference/seed-lifecycle.md` before changes. Restore scores, ids,
+`issues`/`relations` (§8); skip Phase 0, start at lowest clarity; `<feedback>` → Phase 1 (§6).
 
 ### Phase 0: Context Analysis
 
-1. **Domain**: infer Tech/Biz/Creative (`AskUserQuestion` if unclear).
+1. **Domain**: infer Tech/Biz/Creative; ask if unclear.
 2. **Brownfield**: `Glob` the manifest list (§3). ≥1 match → `AskUserQuestion` "기존 프로젝트에 추가하는
    건가요, 새 프로젝트인가요?" (brownfield → Context Clarity active); none → greenfield, no question.
    Brownfield `Grep` intake: §11.
@@ -77,7 +76,7 @@ floor for 2 consecutive rounds; else keep interviewing.
 
 ### Phase 2: Gate Check
 
-Show `[Gate Check] 게이트: {all ✓ → "통과 임박" | else "진행 중 — ✗ 항목 보완 필요"}` + ✓/✗ per dimension.
+Show `[Gate Check] 게이트: {all ✓ → "통과 임박" | else "진행 중 — ✗ 항목 보완 필요"}` + each dimension's ✓/✗.
 
 **Isolated verdict** (§2): when inline Ambiguity ≤ 0.20 and all floors pass, give an `Agent`
 only Q&A + §1 checklist (no scores). Return per-item `Y/N` + reason and **per-dimension**
@@ -97,7 +96,7 @@ Output with only idle notifications and no final text after one re-request → u
 
 ### Phase 3: Seed Emit
 
-On gate open or explicit exit:
+On gate/exit:
 
 1. `Write` `docs/specs/{slug}.yaml` (kebab-case; collision → `-v2`, `-v3`) using
    `templates/SEED_SPEC.yaml`. `relations` only with a parent; `issues.source`: stated origin
@@ -106,8 +105,10 @@ On gate open or explicit exit:
    the user, never write there. Then `Bash`:
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" check <new-seed-path>`; show
    `MISMATCH`/`FAILED` lines (`UNRECORDED` = 미확인; §8).
-3. Show summary, path, 연결 block. Emit the template's `AMENDMENT CONTRACT` header verbatim
-   (corrections *replace* a field's value; never append progress, notes, findings or status; §7).
+3. Emit the template header; show summary/path/연결. Activate only on user approval; no answer
+   means no transition. Preserve withdrawn ids/content; reparenting needs separate approval.
+   No journals. Validate `seed-lifecycle.py check <seed> --before <prior-file>` (omit before
+   for new files) and relations. Closed evidence/outcome stays frozen (§7).
 4. Offer once "이 Seed로 GitHub 이슈를 열까요?": yes → `Skill(skill: "issue-raise", args: "<seed-path>")`,
    then `Edit` the number into `issues.tracking`; no → end.
 
@@ -121,8 +122,8 @@ On gate open or explicit exit:
 
 ## STATE Block Contract
 
-Emit each round/gate check; restore after compaction (missing → Phase 0).
-Ambiguity, clarity, consecutive_gate stay hidden.
+Emit each round/gate; restore after compaction (missing → Phase 0).
+Hide Ambiguity, clarity, consecutive_gate.
 
 ```
 <!-- STATE:CHECKPOINT -->
@@ -139,7 +140,7 @@ scoring_rationale: {last rationale per dimension; context may be N/A}
 
 ## Output Format
 
-Decorations: footer/Gate Check/STATE only (except user input/requested emoji).
+Decorations: footer/Gate/STATE only unless requested.
 Seed summary order: `## Seed
 Spec 생성 완료`, `**파일**`, `**상태**` (게이트 통과|조기 종료), `### Goal`, `### Key Constraints ({count}개)`,
 `### Success Criteria ({count}개)`, `### 연결`, `───`, `*build-spec 완료 · Round {N}*`. Exact block: §11.10 (binding).

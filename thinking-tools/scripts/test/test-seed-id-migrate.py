@@ -614,6 +614,19 @@ def check_unwritable_refines_reported_as_such() -> list[str]:
     return failures
 
 
+def check_lifecycle_migration_refusal():
+    failures = []
+    for structured in ("lifecycle:\n  state: paused\n",
+                       "relations:\n  refines_map: []\n"):
+        repo = _repo()
+        rel = put(repo, "old.yaml", seed("Old", cons=["c1"]) + structured)
+        before = snapshot(repo)
+        code, out, _ = run(repo, rel, "--apply")
+        if code != 1 or not any("coordinated id migration" in line for line in out) or snapshot(repo) != before:
+            failures.append(f"structured references must not be orphaned: {code} {out}")
+    return failures
+
+
 def main() -> int:
     checks = [
         check_basic_migration,
@@ -629,6 +642,7 @@ def main() -> int:
         check_nothing_to_migrate_leaf,
         check_children_with_own_legacy_items,
         check_unwritable_refines_reported_as_such,
+        check_lifecycle_migration_refusal,
     ]
     failures = []
     for check in checks:

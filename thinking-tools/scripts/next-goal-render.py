@@ -9,10 +9,12 @@ The terminal and the mod read the same JSON, so the UI can never change what was
 
 What it does not do, on purpose:
   - It never judges. Candidates, decisions and reasons come from next-goal; this only checks the
-    judgment's shape and that every Seed path it cites was really walked.
+    judgment's shape, that every Seed path it cites was really walked, and the selected Seed's
+    current eligibility. Missing eligibility, required review, or an excluded target refuse a pick.
   - It never trusts a path or a count the judgment states. It re-runs `seed-relations.py walk`
     on the judgment's Seed: FROM's edge path and TRACE's counts come from that walk, and a `via`
     naming a Seed the walk never visited is refused (exit 1) instead of being printed.
+    A stale judgment cannot select a Seed or item that became ineligible after its original walk.
   - It never writes anything.
 
 Input (stdin, JSON):
@@ -109,6 +111,8 @@ def validate(j):
             raise Refused("pick.startable: yes | unknown — 착수할 수 없는 후보는 pick이 아니라 held예요")
         if not isinstance(pick.get("targets", []), list):
             raise Refused("pick.targets: 목록이어야 해요")
+        if _is_seed_via(pick["via"]) and not pick.get("targets"):
+            raise Refused("pick.targets: Seed 후보에는 적용할 항목 id가 하나 이상 필요해요")
     alts = j.get("alternatives", [])
     if not isinstance(alts, list):
         raise Refused("alternatives: 목록이어야 해요")
@@ -160,6 +164,20 @@ def _check_vias(j, nodes):
         external = node.get("status", "").startswith("external")
         if c is pick and external:
             raise Refused(f"'{c['title']}': 다른 레포 Seed는 여기서 판정하지 않아요 (pick 불가)")
+        if c is pick:
+            eligibility = node.get("eligibility")
+            if not isinstance(eligibility, dict):
+                raise Refused(f"'{c['title']}': {via} 후보 자격 미확인 — 다시 탐색하고 검토해 주세요")
+            excluded = eligibility.get("excluded_items")
+            if (eligibility.get("eligible") is not True
+                    or eligibility.get("review_required") is not False
+                    or not isinstance(excluded, list)
+                    or any(not isinstance(i, str) for i in excluded)):
+                reason = eligibility.get("reason") or "후보 자격 미확인"
+                raise Refused(f"'{c['title']}': {via}는 후보로 고를 수 없어요 — {reason}")
+            for target in c.get("targets", []):
+                if isinstance(target, str) and target.strip() in excluded:
+                    raise Refused(f"target {target}: {via}의 제외된 항목은 후보로 고를 수 없어요")
         if c is not pick and external and c["decision"] != "external":
             raise Refused(f"'{c['title']}': 다른 레포 Seed의 decision은 external이어야 해요")
 

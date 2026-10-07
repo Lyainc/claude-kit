@@ -3,7 +3,7 @@
 `unknown-discovery`(UD)와 `build-spec`(BS)은 엔진이 사실상 같다 — 인터뷰 루프, Y/N 체크리스트
 채점, 최저 영역 자동 타게팅, 격리 Agent 채점, 게이트, STATE, Quick Mode, 종료 조건 6종. 다른 건
 질문 축 이름 4개와 산출물뿐이라, 실제 세션에서 스킬 선택이 갈린다. 이 파일이 두 스킬이 공유하는
-단일 계약이다 — `thinking-tools-ud-bs-boundary/constraint-1`(hard): 이 계약은 파일 하나를
+역할 경계 계약이다. Seed 적용·전이·재사용은 [생애주기 계약](seed-lifecycle.md)이 소유해요 — `thinking-tools-ud-bs-boundary/constraint-1`(hard): 이 계약은 파일 하나를
 넘지 않는다.
 
 ## 축 — 인터뷰가 끝났을 때 답의 모양
@@ -32,7 +32,10 @@ diverse-sampling(창의적 대안 생성) / expert-panel(다관점 평가) / adv
 3. **UD → BS** — 만들 건 정해졌는데 위험이 커서 먼저 훑을 때만.
 
 왕복은 같은 세션에서 하지 않는다 — seed 파일을 경유하는 비동기 경로다:
-`seed v1` → (세션 분리) UD가 seed를 대상으로 인터뷰 → BS refine → `seed v2`.
+`seed v1` → (세션 분리) UD가 metadata부터 읽고 관련 내용을 대상으로 인터뷰 → BS가 승인된
+현재 범위를 Refine하거나 선택한 과거 내용을 새 Seed로 재사용 → 새 파일. 파일 발견이나 리포트
+전달은 활성화·재개 승인이 아니에요. closed 원본은 동결하고 정확한 파일·커밋·항목을 출처로
+남겨요. 새 파일 생성만으로 기존 자식 연결을 옮기지 않아요.
 
 ## findings → blindspots 매핑
 

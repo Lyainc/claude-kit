@@ -38,3 +38,39 @@ test('real walk with migrated ids parses the same from text and JSON', () => {
     ['docs/specs/p.yaml', 'acceptance-3'],
   ])
 })
+
+test('legacy observations keep metadata but require lifecycle review', () => {
+  const node = parseWalk(REAL_JSON).nodes[0]
+  expect(node?.target).toBe('csv-parser')
+  expect(node?.lifecycle).toEqual({ state: 'unknown', outcome: null, reason: null })
+  expect(node?.eligibility).toEqual({ eligible: false, reason: '미확인', excludedItems: [], reviewRequired: true })
+})
+
+test('lifecycle and eligibility normalize identically from text and JSON', () => {
+  const root = JSON.parse(REAL_JSON_MIGRATED)
+  const statuses = [
+    { lifecycle: { state: 'active', outcome: null, reason: null }, eligibility: { eligible: true, reason: 'active', excluded_items: ['acceptance-3'], review_required: false } },
+    { lifecycle: { state: 'closed', outcome: 'completed', reason: 'verified' }, eligibility: { eligible: false, reason: 'closed: completed', excluded_items: [], review_required: false } },
+    { lifecycle: { state: 'paused', outcome: null, reason: 'waiting' }, eligibility: { eligible: false, reason: 'paused', excluded_items: [], review_required: false } },
+    { lifecycle: { state: 'active', outcome: null, reason: null }, eligibility: { eligible: false, reason: 'parent discontinued; child review required', excluded_items: ['acceptance-1'], review_required: true } },
+  ]
+  root.nodes.forEach((n: Record<string, unknown>, i: number) => Object.assign(n, statuses[i]))
+  let index = 0
+  const text = REAL_TEXT_MIGRATED.split('\n').map(line => {
+    if (!line.startsWith('NODE\t')) return line
+    const s = statuses[index++]!
+    return `${line}\tlifecycle_state=${s.lifecycle.state}\tlifecycle_outcome=${s.lifecycle.outcome ?? '-'}\tlifecycle_reason=${s.lifecycle.reason ?? '-'}\teligible=${s.eligibility.eligible}\teligibility_reason=${s.eligibility.reason}\texcluded_items=${s.eligibility.excluded_items.join(',') || '-'}\treview_required=${s.eligibility.review_required}`
+  }).join('\n')
+  const fromText = parseWalk(text)
+  expect(parseWalk(JSON.stringify(root))).toEqual(fromText)
+  expect(fromText.nodes).toHaveLength(4)
+  expect(fromText.nodes[1]?.lifecycle?.outcome).toBe('completed')
+  expect(fromText.nodes[3]?.eligibility?.reviewRequired).toBe(true)
+})
+
+test('malformed eligibility never becomes selectable metadata', () => {
+  const root = JSON.parse(REAL_JSON)
+  root.nodes[0].eligibility = { eligible: 'true', excluded_items: [], review_required: false }
+  expect(parseWalk(JSON.stringify(root)).nodes[0]?.eligibility?.eligible).toBe(false)
+  expect(parseWalk(JSON.stringify(root)).nodes[0]?.eligibility?.reviewRequired).toBe(true)
+})
