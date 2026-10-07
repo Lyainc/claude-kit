@@ -441,8 +441,10 @@ Never mark an expert, an exchange, or a topic complete from a counter alone.
 
 ### 결론
 
-**[Moderator]**: 결론·근거... / 보류 사유... (inline: 진행자 종합)
+**[Moderator — {모드 라벨}]**: 결론·근거... / 보류 사유...
 ```
+
+The Moderator label names the actual mode: `진행자 종합` inline and in 위임 실행 (the worker is the facilitator), `독립 최종 검토` only for the isolated Moderator subagent. A transcript never carries another mode's wording.
 
 ### 최종본 형식
 
@@ -664,7 +666,7 @@ All mode combinations compose silently with each other and with citation groundi
 
 Opt-in path that keeps a long panel's transcript out of the main context: the caller dispatches **one** `thinking-tools:expert-panel-worker` subagent (Agent tool), the worker runs the whole panel by this skill, and only its SUMMARY and 진행 기록 come back. The inline path stays the default; a request that does not trigger 위임 실행 runs exactly as before. Whether delegation is cheaper or as good is measured in #768, not assumed here.
 
-- **Roles** (binding: [Role Contract](#role-contract)): the worker is the *facilitator* — it runs the panel and writes the final synthesis under the Moderator label with the [Synthesis Checklist](#synthesis-checklist). Its personas share one context, so this is the inline shape inside a subagent: the synthesis is never labeled an independent review, and the worker writes the practitioner review as a non-voting perspective outside quorum. Every inline rule holds unchanged — E1 once per topic, at most 2 rebuttal passes, `held:tie` / `held:evidence` / `held:quorum`, and the STATE block (records before counters on restore), kept in the worker's own context with `Mode: [delegated:on]`.
+- **Roles** (binding: [Role Contract](#role-contract)): the worker is the *facilitator* — it runs the panel and writes the final synthesis under the Moderator label with the [Synthesis Checklist](#synthesis-checklist). Its personas share one context, so this is the inline shape inside a subagent: the synthesis is never labeled an independent review — the transcript labels it `[Moderator — 진행자 종합]`, never inline-only wording — and the worker writes the practitioner review as a non-voting perspective outside quorum. Every inline rule holds unchanged — E1 once per topic, at most 2 rebuttal passes, `held:tie` / `held:evidence` / `held:quorum`, and the STATE block (records before counters on restore), kept in the worker's own context with `Mode: [delegated:on]`.
 - **Caller packet**: the skill directory path, the user's original topic text verbatim, in-scope file paths, user-named experts if any, the other requested modes (요약 출력, file output), and any vault-searcher excerpts the caller already holds. The caller does not pre-select experts or frame the topic.
 - **Inside the worker**: no Agent tool, so no nested subagents — citation uses the caller's excerpts, else Read/Grep of in-scope documents, else a stated domain judgment (`Citation: skipped` when vault-searcher was never reachable). The worker cannot ask the user: a fact only the user can supply makes the topic `held:evidence`, and a proposed extra expert is listed under 미해결 for the caller to confirm, never added.
 - **Return**: the worker's final message IS the SUMMARY body — 결론, 근거, 권고(실행안), 소수 의견, 적용 조건(실행안·실패/중단 조건), 불확실성, 미해결 — plus the Phase 0 backlog line and a **진행 기록** labeled as one context's simulation, not independent runs: per topic the briefing, each expert's independent statement gist, the practitioner review (실행안 and 실패, no vote), the rebuttal count (0–2) with its stop reason, and the outcome. The 진행 기록 is kept under 요약 출력 too; it is the caller's only way to audit the procedure. When a Phase 2 file trigger applies (2+ topics, files requested, substantial unresolved issues) the worker Writes the transcripts (skipped under 요약 출력) and UNRESOLVED.md and lists their paths, and the caller Writes SUMMARY.md from the returned SUMMARY body: Claude Code refuses a subagent's Write of a report file such as SUMMARY.md (observed in all three 2026-10-07 delegated runs, #768). The caller relays the SUMMARY and the 진행 기록 to the user as one worker's simulated panel.

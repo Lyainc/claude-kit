@@ -826,11 +826,14 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/mai
 # bullet, the compose line's `except 위임 vs 격리` exception (citation/inline combinations kept),
 # and clause pins on reference.md § Delegated execution, judged against six mutations; the
 # worker's Final Response Contract must also require an auditable 진행 기록 (independent-statement
-# gists, non-voting practitioner review, a 0–2 rebuttal count with its stop reason).
+# gists, non-voting practitioner review, a 0–2 rebuttal count with its stop reason). #793 then
+# pinned the Moderator label to the actual mode in both templates, the reference.md transcript
+# format, the delegated section and the worker (`진행자 종합` inline/delegated, `독립 최종 검토`
+# isolated only), judged against six mutations: delegated transcripts had copied an inline-only label.
 python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
-# Expected: OK: all 74 self-test cases passed
+# Expected: OK: all 81 self-test cases passed
 python3 thinking-tools/scripts/test/test-mode-compose.py
-# Expected: OK: all 56 mode-compose checks passed.
+# Expected: OK: all 63 mode-compose checks passed.
 # (static check against the live SKILL.md)
 
 # persona-pool selection guard (#418) — executes reference/personas.md's Selection Rule

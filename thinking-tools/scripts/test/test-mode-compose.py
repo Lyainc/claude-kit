@@ -17,6 +17,9 @@ parsing the SKILL.md mode-toggle declarations and asserting:
    위임 vs 격리 as the one excepted pair (citation/inline combinations stay allowed), and
    reference.md § Delegated execution keeps its clause pins (alternative paths, no worker-spawned
    experts, no independent-review label, one re-request then failure, inline stays default).
+8. (#793) The Moderator label names the actual mode in the transcript/summary templates, the
+   reference.md transcript format, the delegated section and the worker: `진행자 종합` inline and
+   delegated, `독립 최종 검토` isolated only — never one mode's wording hard-coded for all.
 
 This is a structural / static check — it does not execute any LLM logic.
 
@@ -39,6 +42,9 @@ _REPO_ROOT = Path(__file__).resolve().parents[3]
 _SKILL_PATH = _REPO_ROOT / "thinking-tools" / "skills" / "expert-panel" / "SKILL.md"
 _REFERENCE_PATH = _REPO_ROOT / "thinking-tools" / "skills" / "expert-panel" / "reference.md"
 _WORKER_PATH = _REPO_ROOT / "thinking-tools" / "agents" / "expert-panel-worker.md"
+_TEMPLATES_DIR = _REPO_ROOT / "thinking-tools" / "skills" / "expert-panel" / "templates"
+_TRANSCRIPT_TEMPLATE_PATH = _TEMPLATES_DIR / "TRANSCRIPT_TEMPLATE.md"
+_SUMMARY_TEMPLATE_PATH = _TEMPLATES_DIR / "SUMMARY_TEMPLATE.md"
 
 
 # ---------------------------------------------------------------------------
@@ -691,6 +697,39 @@ def worker_audit_checks(worker_text: str) -> list[tuple[bool, str]]:
     ]
 
 
+# Two of three delegated transcripts in the 2026-10-07 #768 3x3 runs copied the template's
+# "(inline 모드에서는 …)" Moderator wording verbatim, so the label named a mode that was not running.
+# The label is now a placeholder resolved per mode, with the same pair of labels examples.md uses.
+# Bounded by the next format heading: the fenced sample inside carries its own `###` headings.
+_TRANSCRIPT_FORMAT_RE = re.compile(r"^### 속기록 형식\b.*?(?=^### 최종본 형식|\Z)", re.MULTILINE | re.DOTALL)
+_MODERATOR_LINE_RE = re.compile(r"^\*\*\[Moderator[^\n]*$", re.MULTILINE)
+
+
+def role_label_checks(transcript: str, summary: str, ref_text: str, worker_text: str) -> list[tuple[bool, str]]:
+    """The Moderator label follows the actual mode wherever a transcript is shaped (#793)."""
+    fmt_match = _TRANSCRIPT_FORMAT_RE.search(ref_text)
+    fmt = fmt_match.group(0) if fmt_match else ""
+    delegated = _section(_DELEGATED_SECTION_RE, ref_text)
+    return [
+        (_MODERATOR_LINE_RE.findall(transcript) == ["**[Moderator — {모드 라벨}]**:"],
+         "TRANSCRIPT_TEMPLATE's Moderator line is a mode placeholder, not one mode's wording"),
+        (_normalise("inline·위임 실행은 `진행자 종합`") in _normalise(transcript)
+         and _normalise("격리 실행만 `독립 최종 검토`") in _normalise(transcript),
+         "TRANSCRIPT_TEMPLATE resolves the placeholder: 진행자 종합 inline/delegated, 독립 최종 검토 isolated"),
+        (_normalise("inline·위임 모드의 `[Moderator — 진행자 종합]` 결론은 진행자(위임에서는 worker)의 종합")
+         in _normalise(summary),
+         "SUMMARY_TEMPLATE's note covers the delegated synthesis as the facilitator's, not independent"),
+        (_MODERATOR_LINE_RE.findall(fmt) == ["**[Moderator — {모드 라벨}]**: 결론·근거... / 보류 사유..."],
+         "reference.md § 속기록 형식 shows the Moderator line as a mode placeholder"),
+        (_normalise("`독립 최종 검토` only for the isolated Moderator subagent") in _normalise(fmt),
+         "reference.md § 속기록 형식 reserves 독립 최종 검토 for the isolated Moderator subagent"),
+        (_normalise("the transcript labels it `[Moderator — 진행자 종합]`, never inline-only wording") in delegated,
+         "reference.md § Delegated execution labels the worker's synthesis 진행자 종합"),
+        (_normalise("label the synthesis `[Moderator — 진행자 종합]`") in _normalise(worker_text),
+         "expert-panel-worker.md labels its synthesis 진행자 종합"),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -711,7 +750,9 @@ def run_checks(text: str, ref_text: str) -> tuple[int, int]:
         check_phase2_inline_path(text),
         check_delegated_isolated_exclusive(text),
     ] + reference_checks(text, ref_text) + delegated_reference_checks(text, ref_text) + worker_audit_checks(
-        _WORKER_PATH.read_text(encoding="utf-8"))
+        _WORKER_PATH.read_text(encoding="utf-8")) + role_label_checks(
+        _TRANSCRIPT_TEMPLATE_PATH.read_text(encoding="utf-8"), _SUMMARY_TEMPLATE_PATH.read_text(encoding="utf-8"),
+        ref_text, _WORKER_PATH.read_text(encoding="utf-8"))
 
     passed = failed = 0
     for ok, msg in checks:
@@ -988,6 +1029,20 @@ _CLEAN_WORKER = _WORKER_PATH.read_text(encoding="utf-8")
 _WORKER_NO_TRAIL = _CLEAN_WORKER.replace("진행 기록 (한 컨텍스트 시뮬레이션, 독립 실행 아님)", "진행 메모")
 _WORKER_TRAIL_UNCAPPED = _CLEAN_WORKER.replace("`반박: {0|1|2}회`", "`반박: {n}회`")
 _WORKER_TRAIL_OPTIONAL_IN_SUMMARY = _CLEAN_WORKER.replace("kept even\n  under 요약 출력", "skipped\n  under 요약 출력")
+_CLEAN_TRANSCRIPT = _TRANSCRIPT_TEMPLATE_PATH.read_text(encoding="utf-8")
+_CLEAN_SUMMARY = _SUMMARY_TEMPLATE_PATH.read_text(encoding="utf-8")
+# The pre-#793-fix template wording that delegated workers copied verbatim, and its siblings.
+_TRANSCRIPT_INLINE_ONLY = re.sub(
+    r"^\*\*\[Moderator — \{모드 라벨\}\]\*\*:$", "**[Moderator]** (inline 모드에서는 진행자의 종합이며 독립 검토가 아님):",
+    _CLEAN_TRANSCRIPT, flags=re.MULTILINE)
+_TRANSCRIPT_ISOLATED_FOR_ALL = _CLEAN_TRANSCRIPT.replace("격리 실행만 `독립 최종 검토`", "모든 모드에서 `독립 최종 검토`")
+_SUMMARY_INLINE_ONLY = _CLEAN_SUMMARY.replace("inline·위임 모드의", "inline 모드의")
+_REF_FORMAT_INLINE_ONLY = _CLEAN_REF.replace(
+    "**[Moderator — {모드 라벨}]**: 결론·근거... / 보류 사유...",
+    "**[Moderator]**: 결론·근거... / 보류 사유... (inline: 진행자 종합)")
+_REF_DELEGATED_NO_LABEL = _CLEAN_REF.replace(
+    " — the transcript labels it `[Moderator — 진행자 종합]`, never inline-only wording —", ",")
+_WORKER_NO_LABEL = _CLEAN_WORKER.replace("; label the synthesis `[Moderator — 진행자 종합]`.", ".")
 # The loaded bullet back to "SUMMARY only", which made a live caller drop the trail.
 _SKILL_BULLET_SUMMARY_ONLY = _CLEAN_SKILL.replace("relay its SUMMARY + 진행 기록", "returns SUMMARY only")
 # The caller allowed to present a SUMMARY without its trail as verified.
@@ -1245,6 +1300,25 @@ def _self_test() -> int:
                               ("rebuttal count un-capped", _WORKER_TRAIL_UNCAPPED),
                               ("trail made optional under 요약 출력", _WORKER_TRAIL_OPTIONAL_IN_SUMMARY)):
         cases.append((f"worker: {desc} -> FAIL", not all(ok for ok, _ in worker_audit_checks(worker_text))))
+
+    # --- #793: the Moderator label follows the actual mode, judged on each shaping file ---
+    cases.append(("role label: clean templates/reference/worker pass",
+                  all(ok for ok, _ in role_label_checks(_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _CLEAN_REF, _CLEAN_WORKER))))
+    for desc, args in (
+        ("transcript Moderator line back to inline-only wording",
+         (_TRANSCRIPT_INLINE_ONLY, _CLEAN_SUMMARY, _CLEAN_REF, _CLEAN_WORKER)),
+        ("transcript gives 독립 최종 검토 to every mode",
+         (_TRANSCRIPT_ISOLATED_FOR_ALL, _CLEAN_SUMMARY, _CLEAN_REF, _CLEAN_WORKER)),
+        ("summary note drops the delegated mode",
+         (_CLEAN_TRANSCRIPT, _SUMMARY_INLINE_ONLY, _CLEAN_REF, _CLEAN_WORKER)),
+        ("reference transcript format back to inline-only",
+         (_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _REF_FORMAT_INLINE_ONLY, _CLEAN_WORKER)),
+        ("reference delegated section drops the label",
+         (_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _REF_DELEGATED_NO_LABEL, _CLEAN_WORKER)),
+        ("worker drops the label",
+         (_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _CLEAN_REF, _WORKER_NO_LABEL)),
+    ):
+        cases.append((f"role label: {desc} -> FAIL", not all(ok for ok, _ in role_label_checks(*args))))
 
     failed = [name for name, passed in cases if not passed]
     for name, passed in cases:
