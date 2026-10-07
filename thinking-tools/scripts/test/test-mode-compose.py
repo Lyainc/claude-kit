@@ -658,6 +658,8 @@ def delegated_reference_checks(skill_text: str, ref_text: str) -> list[tuple[boo
          "SKILL.md binds the delegated-execution section by name (read-and-apply, not a cite)"),
         (_normalise("The 진행 기록 is kept under 요약 출력 too; it is the caller's only way to audit the procedure.") in section,
          "reference.md § Delegated execution: the return carries a 진행 기록, kept under 요약 출력 too"),
+        (_normalise("relay the SUMMARY marked `절차 확인 불가` rather than presenting the procedure as verified") in section,
+         "reference.md § Delegated execution: a missing 진행 기록 is re-requested once, then marked 절차 확인 불가"),
     ]
 
 
@@ -981,6 +983,11 @@ _CLEAN_WORKER = _WORKER_PATH.read_text(encoding="utf-8")
 # The audit trail dropped from the worker contract, or its rebuttal count un-capped.
 _WORKER_NO_TRAIL = _CLEAN_WORKER.replace("진행 기록 (한 컨텍스트 시뮬레이션, 독립 실행 아님)", "진행 메모")
 _WORKER_TRAIL_UNCAPPED = _CLEAN_WORKER.replace("`반박: {0|1|2}회`", "`반박: {n}회`")
+_WORKER_TRAIL_OPTIONAL_IN_SUMMARY = _CLEAN_WORKER.replace("kept even\n  under 요약 출력", "skipped\n  under 요약 출력")
+# The caller allowed to present a SUMMARY without its trail as verified.
+_REF_TRAIL_UNCHECKED = _CLEAN_REF.replace(
+    "relay the SUMMARY marked `절차 확인 불가` rather than presenting the procedure as verified",
+    "relay the SUMMARY as is")
 # The trail made optional under summary-only output.
 _REF_TRAIL_DROPPED_IN_SUMMARY = _CLEAN_REF.replace(
     "The 진행 기록 is kept under 요약 출력 too;", "The 진행 기록 is skipped under 요약 출력;")
@@ -989,6 +996,8 @@ for _name, _fixture, _base in (
     ("_REF_REFLOWED", _REF_REFLOWED, _CLEAN_REF),
     ("_WORKER_NO_TRAIL", _WORKER_NO_TRAIL, _CLEAN_WORKER),
     ("_WORKER_TRAIL_UNCAPPED", _WORKER_TRAIL_UNCAPPED, _CLEAN_WORKER),
+    ("_WORKER_TRAIL_OPTIONAL_IN_SUMMARY", _WORKER_TRAIL_OPTIONAL_IN_SUMMARY, _CLEAN_WORKER),
+    ("_REF_TRAIL_UNCHECKED", _REF_TRAIL_UNCHECKED, _CLEAN_REF),
     ("_REF_TRAIL_DROPPED_IN_SUMMARY", _REF_TRAIL_DROPPED_IN_SUMMARY, _CLEAN_REF),
     ("_SKILL_NO_EXCEPTION", _SKILL_NO_EXCEPTION, _CLEAN_SKILL),
     ("_REF_PATHS_COMPOSE", _REF_PATHS_COMPOSE, _CLEAN_REF),
@@ -1138,6 +1147,8 @@ _CANONICAL_CASES: list[tuple[str, str, str, bool]] = [
      _SKILL_NO_DELEGATED_BULLET, _CLEAN_REF, False),
     ("delegated trigger colliding with an existing trigger -> FAIL",
      _SKILL_DELEGATED_COLLISION, _CLEAN_REF, False),
+    ("caller relays a trail-less SUMMARY as verified -> FAIL",
+     _CLEAN_SKILL, _REF_TRAIL_UNCHECKED, False),
     ("delegated 진행 기록 made optional under 요약 출력 -> FAIL",
      _CLEAN_SKILL, _REF_TRAIL_DROPPED_IN_SUMMARY, False),
     ("reflowed reference.md still passes (whitespace is not the contract)",
@@ -1222,7 +1233,8 @@ def _self_test() -> int:
     cases.append(("worker: clean contract carries the 진행 기록 items",
                   all(ok for ok, _ in worker_audit_checks(_CLEAN_WORKER))))
     for desc, worker_text in (("진행 기록 section dropped", _WORKER_NO_TRAIL),
-                              ("rebuttal count un-capped", _WORKER_TRAIL_UNCAPPED)):
+                              ("rebuttal count un-capped", _WORKER_TRAIL_UNCAPPED),
+                              ("trail made optional under 요약 출력", _WORKER_TRAIL_OPTIONAL_IN_SUMMARY)):
         cases.append((f"worker: {desc} -> FAIL", not all(ok for ok, _ in worker_audit_checks(worker_text))))
 
     failed = [name for name, passed in cases if not passed]
