@@ -35,6 +35,8 @@ The mod only watches Bash output that the skills already produce:
   start, ancestor, ancestor-child, descendant, predecessor, then external. Press a node to expand
   its path, target, refines, link reason (`미확인` when unknown), source, the items it owns and any
   stop/cycle/duplicate/failure records.
+  Lifecycle, closure outcome/reason, excluded items and review holds come from the same walk.
+  Closed Seeds stay visible as history; an older cache without lifecycle is shown as unknown.
 - `next-goal-render.py` (its judgment JSON is read from the command's `<<'JSON'` heredoc):
   the rendered NEXT/FROM/SKIPPED/TRACE lines verbatim, the pick and the alternatives, each
   expandable. A judgment whose `walk_id` is not the latest walk of its Seed carries a badge

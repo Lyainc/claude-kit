@@ -3,15 +3,19 @@
 # Usage: copy this template; fill in fields during Phase 3 Seed Emit.
 #
 # AMENDMENT CONTRACT — keep these lines in the emitted file.
-# This is a functional spec, not a work log. When reality changes, REPLACE the affected
-# field's value. Never append progress notes, dated corrections, round records, review
-# findings, or implementation status to it: git history and the issue timeline already
-# carry those, and a spec carrying both stops being readable as a spec.
-# Keys: only the fields this template defines — no status/progress field. Claude Code's
-# seed-append-guard hook denies any other new key; on Codex no hook runs, so this contract
-# is the only enforcement.
-# Ids: a constraint-N/acceptance-N id is never reused or deleted — a dropped requirement keeps its
-# id and its entry is rewritten, a new one takes the next unused number. Other Seeds' `refines`
+# Read metadata first. Apply only active, non-withdrawn requirements within the user's current
+# request. Unknown/paused/closed Seeds are reference material, never automatic work candidates.
+# A named path or graph edge is not permission to resume. Resume paused only with user approval;
+# closed work continues in a NEW Seed with selected requirements and pinned provenance.
+# This is a functional spec, not a work log: REPLACE incorrect field values; never append
+# progress, execution logs or review notes. Minimal lifecycle decisions and evidence below are
+# allowed; missing lifecycle means unknown, never implicitly active or completed.
+# Preserve withdrawn items' ids AND original contents; record withdrawal separately. No response
+# is no approval. Explicit withdrawal does not approve child reparenting. Validate changes with
+# seed-lifecycle.py check <seed> --before <prior-file> and seed-relations.py check <seed>.
+# Claude's hook checks edits; Codex uses these same commands explicitly, without hook enforcement.
+# Ids: a constraint-N/acceptance-N id is never reused or deleted; new items take the next unused
+# number. Other Seeds' `refines`
 # point at them. Legacy c<N>/ac<N> ids are renamed only via scripts/seed-id-migrate.py; the
 # convention is defined in reference/identifiers.md.
 ---
@@ -34,6 +38,18 @@ target: <idea/project name>
 domain: <tech|biz|creative|custom>
 brownfield: <true|false>
 refine_generation: <0 if first run, N if refining ("이 스펙 다듬어줘")>
+
+# Authoring approval activates a new Seed; early exit without activation approval stays paused.
+# This is a current decision record, not a transition log. See reference/seed-lifecycle.md.
+lifecycle:
+  state: active
+  outcome: null         # closed only: completed | discontinued
+  reason: <why this state was authorized>
+  approved_by: <user instruction or confirmation reference, never an agent assertion>
+  evidence:
+    commit: null        # verified Git commit, independent of the later recording commit
+    items: []           # entries: {id: acceptance-1, refs: [test or code location/result URL]}
+  withdrawn: []         # entries: {id: constraint-1, reason: user-authorized withdrawal reason}
 
 goal:
   statement: <single-sentence goal — what changes for whom>
@@ -65,12 +81,17 @@ issues:               # GitHub issues tied to this Seed — references only, nev
   source: null        # the issue this Seed was created from: "#N" (same repo) or "owner/repo#N"; null = not recorded
   tracking: []        # issues that implement this Seed (same notation) — kept distinct from source
 
-relations:            # edges to other Seeds — never a status/progress value (seed-relations-graph/constraint-1)
+relations:            # edges, separate from the lifecycle decision above
+  version: 2         # exact paths; no implicit latest -vN redirection
   parent: null        # parent Seed, or null. Same repo: repo-root relative path; other repo: owner/repo:docs/specs/x.yaml
   refines: []         # parent item ids this Seed spells out, e.g. [constraint-3, acceptance-2]
   link_reason: null   # why this Seed hangs off the parent: what the refined items leave open; with a parent and empty refines, why no parent item maps. null = not recorded — shown as 미확인, never guessed
   depends_on: []      # sibling Seeds that must be finished before this one (same path/coordinate rules)
   children: []        # child Seeds (the parent side of each child's `parent` edge)
+  refines_map: []     # entries: {parent_item: constraint-3, child_items: [constraint-1, acceptance-1]}
+  provenance: []      # entries: {seed: exact path/coordinate, commit: full Git SHA, items: [source id]}
+  replaces: []        # explicit exact paths; replacement alone never marks its source completed
+  transfers: []       # entries: {seed: exact destination path/coordinate, items: [own id]}
 
 blindspots: []   # Phase 2.5 findings the user kept — each: {area, question}. [] when none kept or the pass was skipped
 

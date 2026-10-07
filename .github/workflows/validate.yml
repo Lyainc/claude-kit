@@ -385,6 +385,11 @@ jobs:
           python3 thinking-tools/scripts/test/test-seed-relations.py
           echo "seed-relations unit tests OK"
 
+      - name: Run Seed lifecycle unit tests
+        run: |
+          # #814: transitions, pinned evidence, withdrawals and descendant eligibility.
+          python3 thinking-tools/scripts/test/test-seed-lifecycle.py
+
       - name: Run seed-id-migrate unit tests
         run: |
           # #805 — the only rename path for legacy c<N>/ac<N> Seed ids: Seed and local children's

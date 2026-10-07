@@ -122,7 +122,7 @@ def _run(repo, cmd, rel, gh=NO_GH):
     env = dict(os.environ, GH_BIN=gh)
     p = subprocess.run([sys.executable, str(_SCRIPT_PATH), cmd, rel], cwd=repo, env=env,
                        capture_output=True, text=True)
-    return p.returncode, p.stdout.splitlines(), p.stderr
+    return p.returncode, [ln for ln in p.stdout.splitlines() if not ln.startswith(("LIFECYCLE", "ELIGIBILITY"))], p.stderr
 
 
 def _snapshot(repo):
@@ -756,7 +756,7 @@ def _walk(repo, rel, *flags, gh=NO_GH):
     env = dict(os.environ, GH_BIN=gh)
     p = subprocess.run([sys.executable, str(_SCRIPT_PATH), "walk", rel, *flags], cwd=repo,
                        env=env, capture_output=True, text=True)
-    return p.returncode, p.stdout.splitlines(), p.stderr
+    return p.returncode, [ln for ln in p.stdout.splitlines() if not ln.startswith(("LIFECYCLE", "ELIGIBILITY"))], p.stderr
 
 
 def _recs(lines):
@@ -818,7 +818,7 @@ def check_walk_kinds() -> list[str]:
         failures.append(f"walk kinds: start must come first and 10 nodes expected: {r['NODE']}")
 
     start = nodes[n("s")]
-    if start[6:] != ["target=Start", "refines=constraint-1", "link_reason=because", "source=#1", "tracking=-",
+    if start[6:13] != ["target=Start", "refines=constraint-1", "link_reason=because", "source=#1", "tracking=-",
                      "items=constraint-1,acceptance-1", "children=" + n("gc")]:
         failures.append(f"walk kinds: start node fields wrong: {start[6:]}")
     if nodes[n("gp")][8] != "link_reason=-":
@@ -1163,7 +1163,7 @@ def check_walk_value_cleaning() -> list[str]:
     _write(repo, "c.yaml", target="T\tab " + "y" * 150, parent=SP + "p.yaml", link_reason=reason)
     code, out, _ = _walk(repo, SP + "c.yaml")
     node = next(ln.split("\t") for ln in out if ln.startswith("NODE\t0"))
-    if len(node) != 13:
+    if len(node) != 20:
         failures.append(f"walk cleaning: a tab inside a value must not add fields: {node}")
     link = node[8]
     if not link.startswith("link_reason=tab here x") or not link.endswith("...") or len(
@@ -1271,9 +1271,8 @@ def check_legacy_compat() -> list[str]:
             failures.append(f"legacy tree: missing {want!r} in {out}")
     code, data, _ = _walk_json(repo, SP + "parent.yaml")
     node = data["nodes"][0]
-    if code != 0 or node["items"] != ["c1", "ac1"] or node["item_desc"] != {
-            "c1": "desc c1", "ac1": "desc ac1"}:
-        failures.append(f"legacy walk: items/item_desc must read the old ids: {node}")
+    if code != 0 or node["items"] != ["c1", "ac1"] or node["item_desc"] != {}:
+        failures.append(f"legacy walk: legacy ids remain visible while requirement bodies are omitted: {node}")
     if [(i["id"], i["refined_by"]) for i in data["items"]] != [
             ("c1", [SP + "kid.yaml"]), ("ac1", [SP + "kid.yaml"])]:
         failures.append(f"legacy walk: ITEM mapping: {data['items']}")
@@ -1366,14 +1365,14 @@ def check_walk_item_desc() -> list[str]:
     repo = _walk_fixture()
     _, data, _ = _walk_json(repo, SP + "s.yaml")
     start = data["nodes"][0]
-    if start["item_desc"] != {"constraint-1": "s c1", "acceptance-1": "s ac1"}:
+    if start["item_desc"] != {}:
         failures.append(f"walk item_desc: {start['item_desc']}")
     if any(isinstance(n["item_desc"], dict) is False for n in data["nodes"]):
         failures.append("walk item_desc: every node carries an item_desc object")
     code, out, _ = _walk(repo, SP + "s.yaml")
     node = _recs(out)["NODE"][0]
-    if len(node) != 13 or "item_desc" in "\t".join(node):
-        failures.append(f"walk text: NODE record must keep its 13 fields, got {node}")
+    if len(node) != 20 or "item_desc" in "\t".join(node):
+        failures.append(f"walk text: NODE record must carry its 20 fields, got {node}")
     return failures
 
 

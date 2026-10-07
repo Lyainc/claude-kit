@@ -1,79 +1,31 @@
 #!/usr/bin/env python3
-"""seed-relations.py — read a build-spec Seed's edges to other Seeds (#780).
+"""Read-only Seed relationship and lifecycle discovery (#780, #814).
 
-Why this exists: Seeds had no machine-readable edges. When a child Seed finished, next-goal
-could not follow the parent, the sibling Seeds or the parent's still-open constraint and
-acceptance items — a person had to find them by hand. Seeds now carry a `relations:` block
-(parent, refines, depends_on, children; see
-thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml). This script reads those edges and
-prints them, deterministically, with no LLM.
+Usage: tree|check <seed>; walk <seed> [--max-depth N] [--max-nodes N] [--json];
+       metadata|read <seed> [--json]. A named file is always required.
 
-What it does not do, on purpose:
-  - It never judges whether a Seed is finished or a parent item is satisfied
-    (seed-relations-graph/constraint-1). Relations hold no status; whether something is done
-    is a judgment about the repository, and that stays with next-goal. Output carries edges
-    and ids, never a done/pending value.
-  - It never writes anything (seed-relations-graph/constraint-6). Another repo's Seed is only
-    read, through `gh api`; a missing child in another repo's `children` is reported, not
-    fixed.
-  - It never runs without a named Seed (seed-relations-graph/constraint-7). The old "never
-    glob a spec directory" rule stays; the only Seeds reached are the ones the named Seed's
-    explicit edges point to.
+metadata returns title, short goal, lifecycle/reason and eligibility without requirement
+bodies. read explicitly returns requirement bodies. walk preserves bounded BFS and all
+visited nodes, including closed/unknown Seeds; inactive nodes omit item_desc. Every node
+has lifecycle {state,outcome,reason} and eligibility {eligible,reason,excluded_items,
+review_required}. These are represented decision gates, never a judgment of fulfillment.
 
-Usage:
-    seed-relations.py tree  <seed-path>   # parent / refines / siblings / children / items both ways
-    seed-relations.py check <seed-path>   # do the named Seed's edges agree in both directions?
-    seed-relations.py walk  <seed-path> [--max-depth N] [--max-nodes N] [--json]
-                                          # bounded BFS over the edges, as records (or one JSON object)
+relations.version 2 and lifecycle-bearing edges pin exact files. Only unversioned legacy
+edges to legacy targets retain latest -vN resolution. Provenance reads the exact recorded
+file at its full Git commit, or reports historical source unavailable. Other-repo reads
+use gh api, GH_BIN may override the executable; external walk nodes are not expanded.
 
-`<seed-path>` is a local file. Same-repo edges are repo-root-relative paths; another repo's
-Seed is a coordinate `owner/repo:docs/specs/x.yaml`. An edge names the file as written and is
-followed to the latest `-vN` of the same slug (`foo.yaml` -> `foo-v3.yaml`; the unsuffixed
-file counts as v1). `GH_BIN` overrides the `gh` executable (tests use a shim).
-
-This repo's own `owner/repo` (so a coordinate that points here is read from disk, not `gh`) comes
-from the origin URL in any form (https, ssh://, scp-like `git@alias:o/r`, any host), else from
-`gh repo view`; owner/repo compare case-insensitively. If the named file has a newer `-vN`, it is
-still the Seed described, and a `NOTE      newer generation exists: <path>` line says so.
-
-If `gh api` fails, an explicit `[seed-relations FAILED] ...` line is printed instead of an
-empty section, and the remaining edges are still read.
-
-A Seed may also record `issues:` (source, tracking) and `relations.link_reason`. They are
-printed as written; a null/absent value is shown as "미확인" (not recorded) and never guessed
-(check prints an UNRECORDED line for it; that is not a mismatch and does not change the exit code).
-
-`walk` starts at the named Seed and follows parent / children / depends_on breadth-first, with
-the relation kinds start, ancestor, ancestor-child (a sibling/aunt: only its depends_on is
-followed), descendant and predecessor. It stops at --max-depth (default 3) and --max-nodes
-(default 25) and records each cut as STOP; an already-seen target is a DUP, or a CYCLE when it is on
-the current node's own path. A node in another repo is read (to surface gh failures) but never
-expanded. Text output is tab-separated records (WALK, NODE, ITEM, DUP, CYCLE, STOP, FAILED,
-SUMMARY); --json prints the same data as one object. `walk(seed_file, max_depth, max_nodes)`
-returns that object, so another script can import this file and call it.
-
-Item ids follow thinking-tools/reference/identifiers.md: a Seed stores `constraint-N` /
-`acceptance-N`, and `tree` shows the full identifier `<seed-slug>/<id> · <description>`
-(`owner/repo:<seed-slug>/<id>` for another repo's Seed). The `walk` records keep the bare ids
-and add an `item_desc` map to each JSON node, so a consumer can render the full identifier.
-Seeds written before the convention use `c<N>`/`ac<N>`; they are still read as plain strings.
-`check` prints an informational `LEGACY` line for each read Seed that still has such ids (the
-named Seed, its parent and its children) and, when a `refines` entry fails only because the
-parent uses the other id form, appends a hint naming `seed-id-migrate.py`, the only rename
-path. A Seed that defines the same item id twice is a MISMATCH.
-
-Exit codes: tree 0 (data, not a verdict; the FAILED line is the signal), 2 on bad usage.
-            check 0 consistent, 1 any MISMATCH, 2 any FAILED with no MISMATCH (or bad usage).
-                  LEGACY and UNRECORDED lines never change the code.
-            walk 0 (data, not a verdict), 2 on bad usage.
-
-Stdlib only; runs on Python 3.9 (the hook and next-goal use the system python3).
+check validates lifecycle and relationships; failed reads are visible. Exit codes: check
+0 consistent, 1 mismatch, 2 read failure; metadata/read 1 malformed input; tree/walk are
+read-only data (0), bad usage is 2. Stdlib only; unsupported YAML fails visibly.
 """
 
 from __future__ import annotations
 
 import base64
 import hashlib
+import importlib.util
+from pathlib import Path
 import json
 import os
 import posixpath
@@ -82,6 +34,10 @@ import subprocess
 import sys
 from datetime import datetime, timezone
 from urllib.parse import quote
+
+_lc_spec = importlib.util.spec_from_file_location("seed_lifecycle", Path(__file__).with_name("seed-lifecycle.py"))
+lifecycle = importlib.util.module_from_spec(_lc_spec)
+_lc_spec.loader.exec_module(lifecycle)
 
 TRUNC = 100
 COORD = re.compile(r"^([A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+):(.+)$")
@@ -97,6 +53,7 @@ NAME_WITH_OWNER = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 LINK_ONLY = " (다른 레포 — 여기서 판정 안 함, 링크만)"
 UNRECORDED = "(기록 없음 — 미확인)"
 USAGE = ("usage: seed-relations.py tree|check <seed-path>\n"
+         "       seed-relations.py metadata|read <seed-path> [--json]\n"
          "       seed-relations.py walk <seed-path> [--max-depth N] [--max-nodes N] [--json]\n"
          "(a named Seed is required)")
 _UNSET = object()
@@ -287,8 +244,73 @@ def parse_seed(text):
     for key in ("constraints", "success_criteria"):
         if key in top:
             items += _items(top[key][1])
-    return Seed(target, parent, lst("refines"), lst("depends_on"), lst("children"), items,
+    seed = Seed(target, parent, lst("refines"), lst("depends_on"), lst("children"), items,
                 link_reason=link_reason, source=source, tracking=tracking)
+    seed.format_errors = []
+    seed.lifecycle = None
+    seed.relations_version = None
+    seed.relations_data = {}
+    seed.requirements = {}
+    seed.semantic = {}
+    seed.title = _short(target)
+    goal = {k: (v,b) for k,v,b in _mapping_blocks(top.get("goal", ("",[]))[1])}
+    seed.short_goal = _short(_scalar(*goal["statement"])) if "statement" in goal else ""
+    strict = "lifecycle" in top or any(k in rel for k in ("version","refines_map","provenance","replaces","transfers"))
+    for name in ("relations", "lifecycle"):
+        if name in top:
+            try:
+                value = lifecycle.parse_block(*top[name])
+                if not isinstance(value, dict):
+                    raise lifecycle.FormatError(name + " must be a mapping")
+                if name == "relations":
+                    seed.relations_data = value
+                    seed.relations_version = value.get("version")
+                    if strict:
+                        for field in ("parent", "refines", "children", "depends_on"):
+                            if field in value:
+                                setattr(seed, field, value[field])
+                else:
+                    seed.lifecycle = value
+            except lifecycle.FormatError as exc:
+                if strict:
+                    seed.format_errors.append(str(exc))
+    if strict:
+        blocks = _mapping_blocks(text.splitlines())
+        if len(blocks) != len(top):
+            seed.format_errors.append("duplicate top-level key")
+        for name, inline, body in blocks:
+            try:
+                value = lifecycle.parse_block(inline, body)
+                seed.semantic[name] = value
+                if name in ("constraints", "success_criteria"):
+                    if value is not None and not isinstance(value, list):
+                        raise lifecycle.FormatError(name + " must be a sequence")
+                    for item in value or []:
+                        if not isinstance(item,dict) or not lifecycle.text(item.get("id")):
+                            raise lifecycle.FormatError(name + " items must have an id")
+                        seed.requirements[item["id"]] = item
+            except lifecycle.FormatError as exc:
+                seed.format_errors.append(name + ": " + str(exc))
+    else:
+        # A legacy baseline can be compared during its first lifecycle adoption.
+        for name in ("constraints", "success_criteria"):
+            if name in top:
+                try:
+                    for item in lifecycle.parse_block(*top[name]) or []:
+                        if isinstance(item,dict) and "id" in item:
+                            seed.requirements[item["id"]] = item
+                except lifecycle.FormatError:
+                    seed.format_errors.append("requirements cannot be parsed for transition")
+    # Invalid shapes remain visible to validation; prevent traversal from crashing.
+    for field in ("refines", "children", "depends_on"):
+        value = getattr(seed,field)
+        if not isinstance(value,list) or any(not isinstance(v,str) for v in value):
+            seed.format_errors.append("relations." + field + " must be a string list")
+            setattr(seed,field,[])
+    if seed.parent is not None and not isinstance(seed.parent,str):
+        seed.format_errors.append("relations.parent must be a path or null")
+        seed.parent = None
+    return seed
 
 
 # ---------------------------------------------------------------------------
@@ -395,6 +417,8 @@ class Reader:
         self._lists = {}
         self._loaded = {}
         self._reported = set()
+        self._raw_cache = {}
+        self.invalid_incoming = set()
 
     # -- this repo's own `owner/repo` (looked up once, and only when an edge needs it) ----
     @property
@@ -461,49 +485,68 @@ class Reader:
                     self._lists[k] = ([], None)
         return self._lists[k]
 
-    def resolve(self, loc):
-        """-> (resolved_loc, error). error only for a failed gh listing."""
-        repo, path = loc
-        names, err = self._list_dir(repo, posixpath.dirname(path))
-        if err:
-            return loc, err
-        return (repo, pick_latest(names, path)), None
-
-    def resolve_quiet(self, loc):
-        """Resolve for comparison only; a listing failure falls back to the path as written."""
-        return self.resolve(loc)[0]
-
-    # -- loading ------------------------------------------------------------
-    def load(self, loc):
-        if loc in self._loaded:
-            return self._loaded[loc]
-        rloc, err = self.resolve(loc)
-        if err:
-            res = Loaded(loc, loc, None, "failed", self._fail_line(loc, err), err)
-        else:
-            repo, path = rloc
-            if repo is None:
-                try:
-                    with open(os.path.join(self.root, path), encoding="utf-8") as f:
-                        res = Loaded(loc, rloc, parse_seed(f.read()), "ok")
-                except OSError:
-                    res = Loaded(loc, rloc, None, "notfound")
+    def raw(self, loc, commit=None):
+        """Read an exact file, optionally at a historical commit; never list or redirect."""
+        cache_key = (loc,commit)
+        if cache_key in self._raw_cache:
+            return self._raw_cache[cache_key]
+        repo,path = loc
+        if repo is None:
+            if commit:
+                value = _run_git(self.root,"show",f"{commit}:{path}")
+                result = (value,None) if value is not None else (None,"historical source unavailable")
             else:
-                data, err = self._gh_api(self._endpoint(repo, path))
-                text = None
-                if not err:
-                    try:
-                        if isinstance(data, dict) and data.get("encoding") == "base64":
-                            text = base64.b64decode(data.get("content", "")).decode("utf-8")
-                        else:
-                            err = "response had no base64 content"
-                    except (ValueError, UnicodeDecodeError):
-                        err = "content was not valid base64 UTF-8"
-                if err:
-                    res = Loaded(loc, rloc, None, "failed", self._fail_line(loc, err), err)
+                try:
+                    result = (Path(self.root,path).read_text(encoding="utf-8"),None)
+                except (OSError,UnicodeError):
+                    result = (None,"file not found or unreadable")
+        else:
+            endpoint = self._endpoint(repo,path)
+            if commit:
+                endpoint += "?ref=" + quote(commit,safe="")
+            data,err = self._gh_api(endpoint)
+            try:
+                if not err and isinstance(data,dict) and data.get("encoding") == "base64":
+                    result = (base64.b64decode(data.get("content","")).decode("utf-8"),None)
                 else:
-                    res = Loaded(loc, rloc, parse_seed(text), "ok")
-        self._loaded[loc] = res
+                    result = (None,err or "response had no base64 content")
+            except (ValueError,UnicodeError):
+                result = (None,"content was not valid base64 UTF-8")
+        self._raw_cache[cache_key] = result
+        return result
+
+    def resolve(self, loc, exact=False):
+        """v2/lifecycle targets pin exact files; only legacy targets resolve latest."""
+        if exact:
+            return loc,None
+        raw,_ = self.raw(loc)
+        if raw is not None:
+            sd = parse_seed(raw)
+            if sd.lifecycle is not None or sd.relations_version is not None or sd.format_errors:
+                return loc,None
+        repo,path = loc
+        names,err = self._list_dir(repo,posixpath.dirname(path))
+        return (loc,err) if err else ((repo,pick_latest(names,path)),None)
+
+    def resolve_quiet(self, loc, exact=False):
+        return self.resolve(loc,exact)[0]
+
+    def load(self, loc, exact=False):
+        cache_key = (loc,exact)
+        if cache_key in self._loaded:
+            return self._loaded[cache_key]
+        rloc,err = self.resolve(loc,exact)
+        raw = None
+        if not err:
+            raw,err = self.raw(rloc)
+        if raw is None:
+            status = "failed" if rloc[0] is not None or err != "file not found or unreadable" else "notfound"
+            res = Loaded(loc,rloc,None,status,self._fail_line(loc,err),err)
+        else:
+            res = Loaded(loc,rloc,parse_seed(raw),"ok")
+        if res.seed is not None:
+            res.seed.location = rloc
+        self._loaded[cache_key] = res
         return res
 
     @staticmethod
@@ -582,13 +625,117 @@ def _newer_note(rel, self_res):
     return [_row("NOTE", f"newer generation exists: {key(self_res)}")]
 
 
+def exact_edges(seed):
+    return seed.relations_version == 2 or seed.lifecycle is not None
+
+
+def lifecycle_summary(seed):
+    lc = seed.lifecycle if seed and isinstance(seed.lifecycle,dict) else {}
+    return {"state":lc.get("state","unknown"), "outcome":lc.get("outcome"),
+            "reason":lc.get("reason")}
+
+
+def validate_provenance(rd, seed, ctx_repo):
+    errors = []
+    rows = seed.relations_data.get("provenance",[])
+    if not isinstance(rows,list):
+        return errors  # structural validator names the malformed shape
+    for row in rows:
+        if not isinstance(row,dict) or not lifecycle.path(row.get("seed")) or not isinstance(row.get("commit"),str) or not lifecycle.SHA.fullmatch(row["commit"]):
+            continue
+        loc = rd.norm(row["seed"],ctx_repo)
+        raw,err = rd.raw(loc,row["commit"])
+        if raw is None:
+            errors.append(f"provenance historical source unavailable: {key(loc)}@{row['commit']} ({err})")
+            continue
+        source = parse_seed(raw)
+        ids = row.get("items",[])
+        if isinstance(ids,list) and all(isinstance(i,str) for i in ids):
+            missing = set(ids)-set(source.item_map)
+            if missing:
+                errors.append("provenance historical source lacks items: " + ", ".join(sorted(missing)))
+        if source.format_errors or source.duplicate_ids:
+            errors.append("provenance historical source malformed: " + key(loc))
+    return errors
+
+
+def eligibility(rd, seed, ctx_repo=None, trail=None):
+    """Deterministic candidate gate; excluded items are never evidence of fulfillment."""
+    def result(eligible,reason,excluded=(),review=False):
+        return {"eligible":eligible,"reason":reason,"excluded_items":sorted(set(excluded)),
+                "review_required":review}
+    if seed is None:
+        return result(False,"Seed unavailable",review=True)
+    if getattr(seed,"location",None) in rd.invalid_incoming:
+        return result(False,"incoming child relation invalid",seed.item_map,True)
+    errors = lifecycle.validate(seed,rd.root if ctx_repo is None else None)
+    errors += validate_provenance(rd,seed,ctx_repo)
+    if errors:
+        return result(False,"invalid lifecycle",review=True)
+    lc = lifecycle_summary(seed)
+    if lc["state"] != "active":
+        reason = "closed: " + str(lc["outcome"]) if lc["state"] == "closed" else "unknown lifecycle" if lc["state"] == "unknown" else lc["state"]
+        return result(False,reason)
+    own = set(seed.item_map)
+    excluded = {r["id"] for r in seed.lifecycle.get("withdrawn",[])}
+    if seed.parent:
+        loc = rd.norm(seed.parent,ctx_repo)
+        trail = set(trail or ())
+        if loc in trail:
+            return result(False,"parent cycle",own,True)
+        trail.add(loc)
+        parent = rd.load(loc,exact_edges(seed))
+        if parent.seed is None:
+            return result(False,"parent unavailable",own,True)
+        ps = parent.seed
+        if hasattr(seed,"location"):
+            back = {rd.resolve_quiet(rd.norm(c,parent.loc[0]),exact_edges(ps)) for c in ps.children}
+            if seed.location not in back:
+                return result(False,"parent backlink missing",own,True)
+        pe = lifecycle.validate(ps,rd.root if parent.loc[0] is None else None)
+        if pe or validate_provenance(rd,ps,parent.loc[0]):
+            return result(False,"parent lifecycle invalid",own,True)
+        pl = lifecycle_summary(ps)
+        if pl["state"] == "closed" and pl["outcome"] == "discontinued" and set(ps.item_map) and {r["id"] for r in (ps.lifecycle or {}).get("withdrawn",[])} == set(ps.item_map):
+            return result(False,"parent discontinued; child review required",own,True)
+        withdrawn = {r["id"] for r in (ps.lifecycle or {}).get("withdrawn",[])}
+        # A legacy/unknown parent cannot substantiate a child's automatic candidacy.
+        if pl["state"] == "unknown":
+            return result(False,"parent lifecycle unknown",own,True)
+        if not seed.refines and withdrawn:
+            return result(False,"withdrawn parent items need mapping",own,True)
+        if set(seed.refines)-set(ps.item_map):
+            return result(False,"parent mapping invalid",own,True)
+        impacted = withdrawn & set(seed.refines)
+        if impacted:
+            maps = {r["parent_item"]:r["child_items"] for r in seed.relations_data.get("refines_map",[])}
+            if impacted-set(maps):
+                return result(False,"withdrawn parent items need mapping",own,True)
+            excluded.update(i for rid in impacted for i in maps[rid])
+        # Ancestor withdrawal holds propagate through item mappings without pruning traversal.
+        if pl["state"] == "active":
+            gate = eligibility(rd,ps,parent.loc[0],trail)
+            if gate["review_required"]:
+                return result(False,"ancestor review required",own,True)
+            if gate["excluded_items"]:
+                impacted = set(gate["excluded_items"]) & set(seed.refines)
+                if not gate["excluded_items"] or not seed.refines:
+                    return result(False,"ancestor review required",own,True)
+                maps = {r["parent_item"]:r["child_items"] for r in seed.relations_data.get("refines_map",[])}
+                if impacted-set(maps):
+                    return result(False,"withdrawn parent items need mapping",own,True)
+                excluded.update(i for rid in impacted for i in maps[rid])
+    mapped_hold = bool(excluded - {r["id"] for r in seed.lifecycle.get("withdrawn",[])})
+    return result(bool(own-excluded),"mapped parent items withdrawn" if mapped_hold else "withdrawn items" if excluded else "active",excluded,False)
+
+
 # ---------------------------------------------------------------------------
 # tree
 # ---------------------------------------------------------------------------
 
 def cmd_tree(rd, rel, seed):
     out = [_row("SEED", f"{rel}  (target: {seed.target or '(none)'})")]
-    self_res = rd.resolve_quiet((None, rel))
+    self_res = rd.resolve_quiet((None, rel), seed.relations_version == 2 or seed.lifecycle is not None)
     out += _newer_note(rel, self_res)
     out.append(_row("SOURCE", seed.source or UNRECORDED))
     out.append(_row("TRACKING", ", ".join(seed.tracking) or "(없음)"))
@@ -596,7 +743,7 @@ def cmd_tree(rd, rel, seed):
     parent = None
     if seed.parent:
         ploc = rd.norm(seed.parent, None)
-        parent = rd.load(ploc)
+        parent = rd.load(ploc, exact_edges(seed))
         line = _row("PARENT", disp(parent.orig, parent.loc))
         if parent.status == "notfound":
             line += "  [file not found]"
@@ -632,7 +779,7 @@ def cmd_tree(rd, rel, seed):
     seen = set()
     if parent is not None and parent.seed is not None:
         for c in parent.seed.children:
-            ld = rd.load(rd.norm(c, parent.loc[0]))
+            ld = rd.load(rd.norm(c, parent.loc[0]), exact_edges(parent.seed))
             if ld.loc in seen:
                 continue
             seen.add(ld.loc)
@@ -640,7 +787,7 @@ def cmd_tree(rd, rel, seed):
     siblings = [ld for ld in family if ld.loc != self_res]
     listed = {ld.loc for ld in siblings} | {self_res}
     for d in seed.depends_on:
-        ld = rd.load(rd.norm(d, None))
+        ld = rd.load(rd.norm(d, None), exact_edges(seed))
         if ld.loc not in listed:
             listed.add(ld.loc)
             siblings.append(ld)
@@ -659,14 +806,14 @@ def cmd_tree(rd, rel, seed):
             continue
         for dep in ld.seed.depends_on:
             dloc = rd.norm(dep, ld.loc[0])
-            dres = rd.resolve_quiet(dloc) if dloc[0] is None else dloc
+            dres = rd.resolve_quiet(dloc, exact_edges(ld.seed)) if dloc[0] is None else dloc
             note = ("same repo — next-goal judges whether it is finished" if dres[0] is None
                     else "다른 레포 — 확인 못 함")
             out.append(_row("SIBLING", f"{disp(ld.orig, ld.loc)}  requires {disp(dloc, dres)} ({note})"))
 
     kids, kid_seen = [], set()  # the named Seed's children, deduplicated by resolved location
     for c in seed.children:
-        ld = rd.load(rd.norm(c, None))
+        ld = rd.load(rd.norm(c, None), exact_edges(seed))
         line = _row("CHILD", disp(ld.orig, ld.loc))
         if ld.status == "notfound":
             line += "  [file not found]"
@@ -714,7 +861,7 @@ def cmd_check(rd, rel, seed):
     mismatches = 0
     failed = 0
     edges = 0
-    self_res = rd.resolve_quiet((None, rel))
+    self_res = rd.resolve_quiet((None, rel), seed.relations_version == 2 or seed.lifecycle is not None)
     out = _newer_note(rel, self_res)
     legacy_lines, legacy_seen = [], set()
 
@@ -747,6 +894,11 @@ def cmd_check(rd, rel, seed):
         out.append(_row("UNRECORDED", f"{rel} issues.source is not recorded"))
     note_legacy((None, rel), seed)
     dup_mismatch(rel, seed)
+    out.append(_row("LIFECYCLE", json.dumps(lifecycle_summary(seed),ensure_ascii=False)))
+    out.append(_row("ELIGIBILITY", json.dumps(eligibility(rd,seed),ensure_ascii=False)))
+    for error in lifecycle.validate(seed,rd.root) + validate_provenance(rd,seed,None):
+        if error != "item IDs must be unique":
+            mismatch(error)
 
     def fail(ld):
         nonlocal failed
@@ -754,7 +906,7 @@ def cmd_check(rd, rel, seed):
         out.extend(rd.failure_lines(ld))
 
     if seed.parent:
-        parent = rd.load(rd.norm(seed.parent, None))
+        parent = rd.load(rd.norm(seed.parent, None), exact_edges(seed))
         pname = key(parent.loc)
         if parent.status == "failed":
             fail(parent)
@@ -765,7 +917,9 @@ def cmd_check(rd, rel, seed):
             edges += 1
             note_legacy(parent.loc, parent.seed)
             dup_mismatch(pname, parent.seed)
-            kids = {rd.resolve_quiet(rd.norm(c, parent.loc[0])) for c in parent.seed.children}
+            for error in lifecycle.validate(parent.seed,rd.root if parent.loc[0] is None else None):
+                mismatch(pname + ": " + error)
+            kids = {rd.resolve_quiet(rd.norm(c, parent.loc[0]), exact_edges(parent.seed)) for c in parent.seed.children}
             if self_res not in kids:
                 if parent.loc[0] is None:
                     mismatch(f"{pname} children is missing {rel}")
@@ -784,7 +938,7 @@ def cmd_check(rd, rel, seed):
                     mismatch(text)
 
     for c in seed.children:
-        child = rd.load(rd.norm(c, None))
+        child = rd.load(rd.norm(c, None), exact_edges(seed))
         if child.status == "failed":
             fail(child)
             continue
@@ -794,10 +948,52 @@ def cmd_check(rd, rel, seed):
             continue
         note_legacy(child.loc, child.seed)
         dup_mismatch(key(child.loc), child.seed)
+        for error in lifecycle.validate(child.seed,rd.root if child.loc[0] is None else None):
+            mismatch(key(child.loc) + ": " + error)
         back = child.seed.parent
-        back_res = rd.resolve_quiet(rd.norm(back, child.loc[0])) if back else None
+        back_res = rd.resolve_quiet(rd.norm(back, child.loc[0]), exact_edges(child.seed)) if back else None
         if back_res != self_res:
             mismatch(f"{key(child.loc)} parent does not point back to {rel}")
+        else:
+            for rid in child.seed.refines:
+                if rid not in seed.item_map:
+                    mismatch(f"{key(child.loc)} refines {rid}, which {rel} does not define")
+
+    # New relationship kinds are read exactly; provenance has its own historical loader.
+    for edge in (("depends_on","replaces","transfers") if exact_edges(seed) else ()):
+        entries = seed.relations_data.get(edge,[])
+        if not isinstance(entries,list):
+            continue
+        for entry in entries:
+            target = entry.get("seed") if isinstance(entry,dict) else entry
+            if not lifecycle.path(target):
+                continue
+            ld = rd.load(rd.norm(target,None),exact_edges(seed) or edge != "depends_on")
+            edges += 1
+            if ld.status == "failed":
+                fail(ld)
+            elif ld.seed is None:
+                mismatch(f"{rel} {edge} names {key(ld.orig)}, which does not exist")
+            else:
+                for error in lifecycle.validate(ld.seed,rd.root if ld.loc[0] is None else None):
+                    mismatch(key(ld.loc) + ": " + error)
+                if edge == "transfers":
+                    for error in validate_provenance(rd,ld.seed,ld.loc[0]):
+                        mismatch(key(ld.loc) + ": " + error)
+                    provenance = ld.seed.relations_data.get("provenance",[])
+                    covered = set()
+                    for row in provenance if isinstance(provenance,list) else []:
+                        if isinstance(row,dict) and lifecycle.path(row.get("seed")) and isinstance(row.get("items"),list) and all(isinstance(i,str) for i in row["items"]):
+                            if rd.norm(row["seed"],ld.loc[0]) == (None,rel) and isinstance(row.get("commit"),str) and lifecycle.SHA.fullmatch(row["commit"]):
+                                covered.update(row["items"])
+                    transferred = entry.get("items",[]) if isinstance(entry,dict) else []
+                    if isinstance(transferred,list) and all(isinstance(i,str) for i in transferred) and set(transferred)-covered:
+                        mismatch(f"{key(ld.loc)} transfer destination lacks pinned provenance for {rel} selected items")
+                elif edge == "replaces":
+                    provenance = seed.relations_data.get("provenance",[])
+                    matches = [row for row in provenance if isinstance(row,dict) and lifecycle.path(row.get("seed")) and rd.norm(row["seed"],None) == ld.loc] if isinstance(provenance,list) else []
+                    if not matches:
+                        mismatch(f"{rel} replaces {key(ld.loc)} without pinned provenance")
 
     out.extend(legacy_lines)
     if mismatches:
@@ -867,8 +1063,10 @@ def walk(seed_file, max_depth=3, max_nodes=25):
     with open(seed_file, "rb") as f:
         raw = f.read()
     rd = Reader(root)
-    self_res = rd.resolve_quiet((None, rel))
+    seed = parse_seed(raw.decode("utf-8"))
+    self_res = rd.resolve_quiet((None, rel), exact_edges(seed))
     start = _Node(rel, self_res, 0, "start", [], [self_res], "ok", parse_seed(raw.decode("utf-8")))
+    start.seed.location = (None,rel)
     start.sha = _sha8(raw)
     nodes = [start]
     by_loc = {self_res: start}
@@ -916,8 +1114,8 @@ def walk(seed_file, max_depth=3, max_nodes=25):
         work.append(shadow)
 
     def follow(src, edge, text):
-        nloc = rd.norm(text, None)
-        rloc = rd.resolve_quiet(nloc) if nloc[0] is None else None
+        nloc = rd.norm(text, src.loc[0])
+        rloc = rd.resolve_quiet(nloc, exact_edges(src.seed)) if nloc[0] is None else None
         if rloc is not None and src.relation == "ancestor" and edge == "children" \
                 and rloc == src.came_from:
             return  # the node we came up from is not its own sibling
@@ -934,7 +1132,7 @@ def walk(seed_file, max_depth=3, max_nodes=25):
         if len(nodes) >= max_nodes:
             stop(src, edge, nloc, "nodes")
             return
-        ld = rd.load(nloc)
+        ld = rd.load(nloc, exact_edges(src.seed))
         tgt = by_loc.get(ld.loc)
         if tgt is not None:
             by_orig[nloc] = tgt
@@ -977,16 +1175,40 @@ def walk(seed_file, max_depth=3, max_nodes=25):
         out, got = [], set()
         for c in n.seed.children:
             nloc = rd.norm(c, n.loc[0])
-            loc = rd.resolve_quiet(nloc) if nloc[0] is None else nloc
+            loc = rd.resolve_quiet(nloc, exact_edges(n.seed)) if nloc[0] is None else nloc
             if loc not in got:
                 got.add(loc)
                 out.append(loc)
         return out
 
+    # Determine incoming-edge holds before evaluating any node, so recursive parent
+    # eligibility sees them too. Traversal order must not let grandchildren escape a hold.
+    for n in nodes:
+        s = n.seed
+        # Incoming children edges can be malformed even when the child's own parent is null
+        # or points elsewhere. Check every visited source, including duplicate routes.
+        if s is not None:
+            for owner in nodes:
+                if owner.seed is None:
+                    continue
+                linked = []
+                for c in owner.seed.children:
+                    loc = rd.norm(c,owner.loc[0])
+                    if loc[0] is None:
+                        loc = rd.resolve_quiet(loc,exact_edges(owner.seed))
+                    elif loc in by_orig:
+                        loc = by_orig[loc].loc
+                    linked.append(loc)
+                if n.loc in linked:
+                    back = rd.resolve_quiet(rd.norm(s.parent,n.loc[0]),exact_edges(s)) if s.parent else None
+                    if back != owner.loc:
+                        rd.invalid_incoming.add(n.loc)
+                        break
     node_dicts, items = [], []
     for n in nodes:
         s = n.seed
         kids = child_locs(n) if s is not None else []
+        gate = eligibility(rd,s,n.loc[0])
         node_dicts.append({
             "key": n.key, "depth": n.depth, "relation": n.relation, "status": n.status,
             "via": n.via,
@@ -999,7 +1221,13 @@ def walk(seed_file, max_depth=3, max_nodes=25):
             "items": [iid for iid, _ in s.items] if s else [],
             # Descriptions ride along so a consumer can show `<slug>/<id> · <description>`
             # without re-reading the Seed (identifiers.md).
-            "item_desc": {iid: desc for iid, desc in s.items} if s else {},
+            "item_desc": {iid: desc for iid, desc in s.items} if s and lifecycle_summary(s)["state"] == "active" else {},
+            "lifecycle": lifecycle_summary(s),
+            "eligibility": gate,
+            "refines_map": s.relations_data.get("refines_map",[]) if s else [],
+            "provenance": s.relations_data.get("provenance",[]) if s else [],
+            "replaces": s.relations_data.get("replaces",[]) if s else [],
+            "transfers": s.relations_data.get("transfers",[]) if s else [],
             "children": [key(loc) for loc in kids],
         })
         visited = [by_loc[loc] for loc in kids if loc in by_loc and by_loc[loc].seed is not None]
@@ -1060,7 +1288,14 @@ def render_walk_text(data):
                               else ("미확인" if loaded and n["parent"] else "-")),
             "source=" + (_clean(n["source"]) if n["source"] else ("미확인" if loaded else "-")),
             f"tracking={csv(n['tracking'])}", f"items={csv(n['items'])}",
-            f"children={csv(n['children'])}"]))
+            f"children={csv(n['children'])}",
+            "lifecycle_state="+_clean(n["lifecycle"]["state"]),
+            "lifecycle_outcome="+_clean(n["lifecycle"]["outcome"] or "-"),
+            "lifecycle_reason="+_clean(n["lifecycle"]["reason"] or "-"),
+            "eligible="+str(n["eligibility"]["eligible"]).lower(),
+            "eligibility_reason="+_clean(n["eligibility"]["reason"]),
+            "excluded_items="+csv(n["eligibility"]["excluded_items"]),
+            "review_required="+str(n["eligibility"]["review_required"]).lower()]))
     for it in data["items"]:
         refined = csv(it["refined_by"]) if it["refined_by"] else "(none)"
         out.append("\t".join(["ITEM", _clean(it["owner"]), _clean(it["id"]),
@@ -1114,7 +1349,7 @@ def _parse_walk_args(args):
 # ---------------------------------------------------------------------------
 
 def main(argv):
-    if len(argv) < 3 or argv[1] not in ("tree", "check", "walk") or argv[2].startswith("--"):
+    if len(argv) < 3 or argv[1] not in ("tree", "check", "walk", "metadata", "read") or argv[2].startswith("--"):
         print(USAGE, file=sys.stderr)
         return 2
     cmd, seed_file = argv[1], argv[2]
@@ -1124,7 +1359,7 @@ def main(argv):
         if opts is None:
             print(USAGE + "\n(--max-depth and --max-nodes take an integer >= 1)", file=sys.stderr)
             return 2
-    elif len(argv) != 3:
+    elif len(argv) != 3 and not (cmd in ("metadata","read") and argv[3:] == ["--json"]):
         print(USAGE, file=sys.stderr)
         return 2
     if not os.path.isfile(seed_file):
@@ -1143,6 +1378,15 @@ def main(argv):
     with open(seed_file, encoding="utf-8") as f:
         seed = parse_seed(f.read())
     rd = Reader(root)
+    seed.location = (None,rel)
+    if cmd in ("metadata","read"):
+        data = {"path":rel,"title":seed.title,"goal":seed.short_goal,
+                "lifecycle":lifecycle_summary(seed),"reason":lifecycle_summary(seed)["reason"],
+                "eligibility":eligibility(rd,seed)}
+        if cmd == "read":
+            data["requirements"] = seed.requirements or {i:{"id":i,"description":d} for i,d in seed.items}
+        print(json.dumps(data,ensure_ascii=False))
+        return 1 if seed.format_errors else 0
     lines, code = (cmd_tree if cmd == "tree" else cmd_check)(rd, rel, seed)
     print("\n".join(lines))
     return code

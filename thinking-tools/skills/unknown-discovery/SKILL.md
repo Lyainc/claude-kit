@@ -11,7 +11,7 @@ description: |
   빠르게 맹점만, 간단히 맹점, quick discovery.
   Routing: 만들 대상이 정해져 있고 명세로 굳혀야 하면 build-spec, 1:1 주장 공격은 adversarial-review,
   다관점 합의는 expert-panel.
-allowed-tools: AskUserQuestion Read Write Agent Grep Glob
+allowed-tools: AskUserQuestion Read Write Agent Grep Glob Bash
 effort: high
 ---
 
@@ -19,12 +19,12 @@ effort: high
 
 ## Codex Portability
 
-When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
-first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
+Codex: first read [the overriding portability contract](../../reference/codex-portability.md).
 
 ## Overview
 
-Discover the user's Unknown Unknowns through iterative interviews; output MUST match the input language (mixed: dominant). Moved detail: [reference.md](reference.md) §16. Quick Discovery triggers: '빠르게', '간단히', 'quick'.
+Discover Unknown Unknowns by interview; match input language (mixed: dominant). Detail: reference.md §16.
+Quick triggers: '빠르게', '간단히', 'quick'.
 
 ## Quick Discovery Mode
 
@@ -37,7 +37,11 @@ Discover the user's Unknown Unknowns through iterative interviews; output MUST m
 1. Analyze the target (project / document / idea).
 2. Confirm the domain (Tech/Biz/Creative/Custom) via AskUserQuestion.
    - **Repo Context Intake** (target is a codebase or an idea about one): `Glob` README/CLAUDE.md/manifests, `Grep` hits for the target's keywords, ground questions in them ([reference.md](reference.md) §15); no hits → skip silently.
-   - **Seed Detection** (from `build-spec`): `Glob("docs/specs/*.yaml")`; if the target names or matches a Seed, `Read` it and anchor the interview on its `goal`/`constraints`/`success_criteria` ([../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md)). No match → skip silently.
+   - **Seed Detection**: `Glob("docs/specs/*.yaml")`; matched target → `Bash` run
+     `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json` first.
+     No Seed `Read`/cat before metadata; no bulk discovery reads. Unknown needs approval; paused/closed/withdrawn content
+     is history, never automatically resumed. Active applies only within this request. Before
+     reuse read `../../reference/seed-lifecycle.md`; closed requires a new Seed. No match → skip.
 3. Detect maturity (Idea/Plan/Execution) from the input signals first ([reference.md](reference.md) §9); only when unclear, confirm via AskUserQuestion.
 4. Adjust Depth weights by maturity; build the interview plan.
 

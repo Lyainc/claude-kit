@@ -473,7 +473,7 @@ Quick Mode output format:
 1. Analyze the target (project / document / idea).
 2. Confirm the domain (Tech/Biz/Creative/Custom) → confirm with the user via AskUserQuestion.
 2a. **Repo Context Intake** (when the target is a codebase / an idea about one): `Glob("{README.md,CLAUDE.md,package.json,pyproject.toml,plugin.json,go.mod,Cargo.toml}")`, then `Grep` the hits for the target's own keywords. Feed what you find into the interview as *grounded* questions ("README says X is the only supported path — what happens when Y?") instead of abstract ones. Detail: [reference.md](reference.md) §15. No hits / not a codebase → skip silently, interview proceeds as a pure conversation.
-2b. **Seed Detection** (bridge from `build-spec`): `Glob("docs/specs/*.yaml")`. If the user's target names or matches an existing Seed file (by slug or explicit path), `Read` it and treat that Seed as the interview target — its `goal`/`constraints`/`success_criteria` anchor the interview, and each area's questions probe against fields the Seed already committed to instead of starting from a blank context. Findings from this interview are meant to fold into that Seed's `blindspots[]` later via a `build-spec` refine-mode session (see [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md)). No match → skip silently, interview proceeds as normal.
+2b. **Seed Detection** (bridge from `build-spec`): `Glob("docs/specs/*.yaml")`; a named or matched target → metadata first via `seed-relations.py metadata <seed> --json`, then read relevant body only. Use [the shared lifecycle contract](../../reference/seed-lifecycle.md) before applying or reusing requirements. Active, non-withdrawn content applies only within the current request. Unknown requires confirmation; paused requires approved resume. Closed or withdrawn material can anchor historical questions, conflict checks and design reuse, never automatic current requirements. Findings remain interview questions for a later build-spec session; closed reuse creates a new Seed with pinned provenance, preserving the original. No match → skip silently.
 3. Detect maturity (Idea/Plan/Execution):
    - **Auto-detect first**: infer maturity from signals in the user's input context (detail: [reference.md](reference.md) §9)
      - No concrete numbers/timeline, "~할 것 같다" hedging → Idea
@@ -563,7 +563,7 @@ Round N | Area: {current_area} (targeting lowest area) | 진행 중/충분
    - **Action Plan**: 발견 기반 구체적 실행 계획 작성
    - **Deep Dive**: 특정 Critical 항목에 대해 새 인터뷰 세션 시작
    - **Export**: 보고서를 `Write`로 파일에 저장
-   - **Seed로 넘기기** (대상 Seed가 있을 때만 노출 — Phase 0 Seed Detection §2b 참고): 리포트를 저장하고, 다음 세션에서 그 대상 Seed 경로 + 이 리포트를 `build-spec` refine mode(`"이 스펙 다듬어줘"`)에 넘기는 방법을 안내. 왕복은 같은 세션에서 하지 않는다 — [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md) 세 경로 참고
+   - **Seed로 넘기기** (대상 Seed가 있을 때만 노출 — Phase 0 Seed Detection §2b 참고): 리포트를 저장하고, 다음 세션에서 그 정확한 Seed 경로 + 이 리포트를 `build-spec`에 넘기는 방법을 안내. [생애주기 계약](../../reference/seed-lifecycle.md)에 따라 active의 현재 범위만 Refine하고, unknown/paused는 적용·재개 승인을 확인하며 closed는 선택 항목과 고정 출처를 가진 새 Seed로 재사용해요. 보고서나 경로 전달 자체는 재개·활성화 승인이 아니에요. 왕복은 같은 세션에서 하지 않는다 — [../../reference/ud-bs-boundary.md](../../reference/ud-bs-boundary.md) 세 경로 참고
 
 ### Termination Conditions
 

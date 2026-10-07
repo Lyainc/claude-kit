@@ -11,13 +11,12 @@ allowed-tools: Read Bash
 
 # Next Goal
 
-Output Korean. Read-only handoff: no file, issue, PR, commit, push, or merge. `reference.md` holds
-rationale and the binding detail behind each `§Name` below; read it at that point.
+Output Korean. Read-only: no file/issue/PR/commit/push/merge. Read each cited `reference.md` §Name
+at that step for binding detail.
 
 ## Input contract
 
-Use the conversation's candidates, state, evidence, protections, and resume point; unknown facts stay
-unknown, never invent issue numbers or status.
+Use conversation candidates, state, evidence, protections and resume point; never invent facts.
 
 **Hook data** (`hooks/next-goal-context.sh`: chain depth +
 open backlog). Read what arrived instead of fetching it again, but never assume it arrived (the hook
@@ -31,8 +30,10 @@ never explore other repositories; if unavailable, disclose the gap and rank the 
 **A build-spec Seed is a third pool, only when the session or caller names one or a pool issue
 references its path**: never glob or list/read `docs/specs/`; open only Seeds visited by
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" walk <named-seed-path>`; another repo's Seed
-is a link only. A Seed has no status: judge a criterion unmet from the repo, checking `measurable_via`
-first; one that no longer resolves is reported unresolved, never proposed. Before ranking read
+is a link only. Metadata first: lifecycle unknown/paused/closed and withdrawn items are excluded;
+honor walk `eligibility` and partial exclusions. Naming a Seed never resumes it. Read relevant
+active items only; verify unmet `measurable_via` in the repo. Unresolvable evidence stays unresolved.
+Before ranking read
 `reference.md` §Seed walk (binding record semantics): an unfinished same-repo predecessor → `held`; a
 child already satisfying its criteria → `done`, never re-proposed; `external` is never ranked;
 `STOP`/`CYCLE`/`FAILED`/`notfound` are never "no related Seeds" (name them in
@@ -47,8 +48,7 @@ child already satisfying its criteria → `done`, never re-proposed; `external` 
 nits almost always are). Also ask: **once done, what can the user do differently?** "Nothing" = maintenance:
 put the injected maintenance streak in `FROM`, never as a blocker (§Maintenance streak).
 
-**Step 2 — Size test.** No minimum size or spawn quota; bundle only related work; an investigation
-names its resolving evidence.
+**Step 2 — Size test.** No minimum size/spawn quota; bundle related work; investigations name evidence.
 
 **Step 3 — Widen to the backlog** when a candidate fails either bar or chain depth ≥ 3: rank by
 (1) issues combining with what just shipped, (2) label and staleness; one theme is one unit; a Seed in
@@ -69,7 +69,7 @@ and FROM's edge path come from that output; a `via` the walk did not visit is re
 judgment, never the path); on a `[근거 변경됨 ...]` mark walk again and re-judge before writing the
 condition. Without a Seed, render directly.
 
-**User switch**: a candidate the user names becomes the pick; a stale walk id → walk again first;
+**User switch**: an eligible candidate the user names becomes the pick; stale id → re-walk;
 render again, rewrite the condition. Read `reference.md` §User switch (binding) for the prefill form and
 when the original stays. A pick change never starts work, edits an issue, commits, or pushes.
 

@@ -921,7 +921,7 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # foo-v2.yaml), 불일치 3종 + 없는 id를 가리키는 refines, gh 실패 시 FAILED 줄(빈 결과 아님),
 # depends_on 같은 레포·다른 레포(`확인 못 함`), origin이 ssh 별칭·대소문자 다른 좌표일 때의 자기 레포 판정,
 # 다른 레포 줄의 `링크만` 표시, 이전 세대 파일을 지목했을 때의 NOTE 줄을 픽스처로 핀한다. 다른 레포 읽기는 GH_BIN shim으로
-# 네트워크 없이 돈다. 스크립트는 쓰지 않고 done/pending 값도 출력하지 않는다(seed-relations-graph/constraint-1, constraint-6).
+# 네트워크 없이 돈다. 스크립트는 읽기 전용이며 생애주기는 기록대로 표시하고 실제 충족 여부를 추정하지 않는다(#814).
 # #792: tree의 SOURCE/TRACKING/LINK·부모 출발 ITEM 대응, check의 UNRECORDED(종료 코드 불변), walk의
 # 관계 종류·깊이·경로, -vN, DUP과 같은 종류 엣지 순환(CYCLE), 깊이·개수 상한 STOP, 없는 파일,
 # 다른 레포 실패·미확장, 텍스트↔JSON 일치, walk id·fingerprint 변화를 함께 핀한다.
@@ -931,13 +931,19 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 python3 thinking-tools/scripts/test/test-seed-relations.py
 # Expected: OK: all 27 test-seed-relations checks passed
 
+# Seed 생애주기 (#814): 전이·완료 근거·철회 원문·고정 출처·부분 영향·소비자 후보 자격.
+# 임시 Git 픽스처로 검증하며 사용자 승인의 진위나 LLM 준수는 별도 실행 근거가 필요하다.
+python3 thinking-tools/scripts/test/test-seed-lifecycle.py
+# Expected: OK: all N Seed lifecycle regression fixtures passed
+
 # seed-id-migrate.py 회귀 — 옛 c<N>/ac<N> id를 constraint-<N>/acceptance-<N>로 바꾸는 유일한 경로.
+# 생애주기·구조화된 참조가 있는 파일은 부분 이름 변경을 거부하며 구형 ID 그대로 읽을 수 있다.
 # 이름 붙인 Seed와 로컬 자식의 refines를 함께 고치고(dry-run 기본, --apply로 기록), 쓰기 전에 재파싱으로
 # 내용 보존·refines 해석을 검증한다. 번호 재사용·해석 안 되는 refines·중복 id·되돌아 가리키지 않는 자식은
 # 아무것도 쓰지 않고 거부하고, 중간에 끊긴 실행(부모만/자식만 기록)은 재실행으로 수렴하며, 다른 레포
 # 부모/자식은 FOLLOW-UP 줄만 내고 쓰지 않는다. 주석·따옴표·블록 스칼라·CRLF 보존과 REF 후보 스캔도 핀한다.
 python3 thinking-tools/scripts/test/test-seed-id-migrate.py
-# Expected: OK: all 13 test-seed-id-migrate checks passed
+# Expected: OK: all 14 test-seed-id-migrate checks passed
 
 # next-goal-render.py 회귀 (#792) — next-goal의 판단 JSON에서 NEXT/FROM/SKIPPED(+Seed가 있으면 TRACE)를
 # 렌더한다. FROM의 엣지 경로와 TRACE의 방문·실패 수는 JSON이 아니라 다시 돌린 walk에서 나오고, walk가

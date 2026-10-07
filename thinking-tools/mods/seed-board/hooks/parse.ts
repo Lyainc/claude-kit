@@ -59,6 +59,29 @@ const csv = (v: unknown): string[] => {
   return s === '' || s === '-' || s === '(none)' ? [] : s.split(',').map(x => x.trim()).filter(Boolean)
 }
 
+// Old or malformed observations remain visible but cannot imply candidate eligibility.
+const lifecycleOf = (v: unknown): NonNullable<SeedBoardNode['lifecycle']> => {
+  const o = isObj(v) ? v : {}
+  const state = o.state === 'active' || o.state === 'paused' || o.state === 'closed' ? o.state : 'unknown'
+  const outcome = o.outcome === 'completed' || o.outcome === 'discontinued' ? o.outcome : null
+  return { state, outcome, reason: dash(o.reason) }
+}
+
+const eligibilityOf = (v: unknown): NonNullable<SeedBoardNode['eligibility']> => {
+  const o = isObj(v) ? v : {}
+  const valid = typeof o.eligible === 'boolean' && typeof o.review_required === 'boolean'
+    && Array.isArray(o.excluded_items) && o.excluded_items.every(x => typeof x === 'string')
+  return {
+    eligible: valid && o.eligible === true && o.review_required === false,
+    reason: textOrUnverified(o.reason),
+    excludedItems: strList(o.excluded_items),
+    reviewRequired: !valid || o.review_required !== false,
+  }
+}
+
+const textBool = (v: unknown): boolean | undefined =>
+  v === 'true' ? true : v === 'false' ? false : undefined
+
 /** `edge>key>edge>key`, or `-` for none. An odd tail is kept as an edge with an empty key. */
 const parseVia = (v: unknown): SeedBoardVia[] => {
   if (Array.isArray(v)) {
@@ -176,6 +199,12 @@ export const parseWalkText = (text: string): ParsedWalk => {
           refines: csv(o.refines),
           linkReason: textOrUnverified(o.link_reason),
           source: textOrUnverified(o.source),
+          lifecycle: lifecycleOf({ state: o.lifecycle_state, outcome: o.lifecycle_outcome, reason: o.lifecycle_reason }),
+          eligibility: eligibilityOf({
+            eligible: textBool(o.eligible), reason: o.eligibility_reason,
+            excluded_items: o.excluded_items === undefined ? undefined : csv(o.excluded_items),
+            review_required: textBool(o.review_required),
+          }),
         })
         break
       }
@@ -223,6 +252,8 @@ export const parseWalkJson = (text: string): ParsedWalk => {
       refines: strList(o.refines),
       linkReason: textOrUnverified(o.link_reason),
       source: textOrUnverified(o.source),
+      lifecycle: lifecycleOf(o.lifecycle),
+      eligibility: eligibilityOf(o.eligibility),
     }
   })
   const list = (v: unknown): unknown[] => (Array.isArray(v) ? v : [])

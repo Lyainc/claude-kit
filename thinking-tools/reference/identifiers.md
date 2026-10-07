@@ -14,8 +14,9 @@ to say whose it is.
 
 Inside its own source file an item carries a local id made of a spelled-out kind and a number:
 `constraint-1`, `acceptance-2`, `finding-3`. Numbers start at 1 per kind per file and are never
-reused: a dropped item keeps its id and its entry is rewritten, a new item takes the next unused
-number.
+reused: a withdrawn Seed item keeps its id and original content; withdrawal is recorded separately
+under [the lifecycle contract](seed-lifecycle.md). A new item takes the next unused number.
+Closed historical ids remain as recorded at the provenance commit.
 
 Kinds this plugin generates, and their owners:
 
@@ -63,7 +64,8 @@ affiliation. `scripts/seed-relations.py` `qualified_id()` is the code form of th
 
 Seeds written before this convention use `c<N>` (constraints) and `ac<N>` (success criteria).
 Readers keep accepting them — ids are compared as plain strings, so an unmigrated Seed still
-walks, checks and renders — but compatibility reading is not migration:
+walks and checks, and renders as a pick only when current lifecycle/eligibility permits it —
+but compatibility reading is not migration:
 
 - `seed-relations.py check` prints a `LEGACY` line for a Seed that still carries `c<N>`/`ac<N>`
   ids (informational, exit code unchanged), and a `refines` entry that does not resolve stays a
@@ -72,6 +74,8 @@ walks, checks and renders — but compatibility reading is not migration:
   `ac<N>` → `acceptance-<N>` (number kept, so no mapping table is needed), rewrites the named
   Seed and the `refines` of its local children together, verifies that every item's content and
   every relation survives, and is safe to re-run after a partial failure. Dry-run by default.
+  Check the script's supported fields before using it on lifecycle/relations-v2 data; never
+  rename frozen historical ids or rewrite pinned provenance as an incidental migration.
 - The Seed edit guard (`hooks/seed-append-guard.sh`) still denies an id vanishing in an ordinary
   edit, including a hand-made rename, and points to the migration script instead.
 - New Seeds use only the new form. Mixing `c1` and `constraint-1` for the same number in one

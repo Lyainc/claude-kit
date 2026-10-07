@@ -14,6 +14,9 @@ export type SeedBoardNode = {
   refines: string[]
   linkReason: string
   source: string
+  /** Observed walk metadata, never authority for selecting a candidate. */
+  lifecycle?: { state: 'active' | 'paused' | 'closed' | 'unknown'; outcome: 'completed' | 'discontinued' | null; reason: string | null }
+  eligibility?: { eligible: boolean; reason: string; excludedItems: string[]; reviewRequired: boolean }
 }
 
 export type SeedBoardItem = { owner: string; id: string; refinedBy: string[] }
