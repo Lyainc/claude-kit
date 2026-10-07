@@ -805,7 +805,7 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py --self-tes
 python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/main
 # Removals are reported (not hard-gated) — reviewer decides if intentional.
 
-# expert-panel mode-compose regression (#228) — verifies the SKILL.md's "all combinations
+# expert-panel mode-compose regression (#228) — verifies the SKILL.md's "modes
 # compose silently" claim: every declared mode toggle (격리/요약 + citation grounding +
 # Phase 2 inline path) is described and non-contradictory. Run after editing expert-panel
 # mode/Phase structure or the Citation Contract. #663 moved the isolated-mode exchange-loop
