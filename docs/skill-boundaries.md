@@ -14,7 +14,7 @@ adapters are tracked separately in [local-harness #23](https://github.com/Lyainc
 | expert-panel | Weighing multiple positions for a decision | Idea generation → diverse-sampling; one-claim attack → adversarial-review |
 | adversarial-review | Stress-testing a specific claim through adversarial rounds | Routine code review; multi-position consensus; whole-document mechanical checks |
 | unknown-discovery | Surfacing unknowns and blind spots through interview | A settled build target's Seed → build-spec; every mention of “missing” |
-| build-spec | Crystallizing a chosen build target into a YAML Seed | Open-ended discovery; prose document; implementation |
+| build-spec | Main-agent interview crystallizing a chosen build target into a YAML Seed | Whole-workflow delegation; open-ended discovery; prose document; implementation |
 | doc-concretize | Authoring a new structured Markdown document | Existing-document inspection → doc-polish; substantive rewrite → ordinary editing |
 | doc-polish | Inspecting existing Markdown; optional nonsemantic --fix | Rewriting meaning/structure; design verdicts; code/configuration changes |
 | issue-raise | Authoring and filing one requested work issue | Spec discovery; retro's observed-waste issue workflow; filing without authority |
@@ -54,6 +54,10 @@ reviewers can evaluate plausible misroutes without relying on word-match tests.
 | “이 링크를 볼트에 저장해줘” | vault-save |
 | “이번 반복 실패를 회고해줘” | retro; no automatic distill or session-close |
 | “내 기획의 맹점을 찾아줘” | unknown-discovery; no Seed until a build target is selected |
+| “스펙 만들고 Sonnet/Haiku에게 적절히 위임해줘” | Main agent runs build-spec and asks the user; delegates only supporting analysis |
+| A subagent receives the whole build-spec workflow | Returns MAIN_AGENT_REQUIRED with facts/questions, without inventing answers or writing a Seed |
+| thinking-facilitator selects build-spec in a chain | Returns context and proposed order to the main agent at the interview boundary |
+| Interview question has no answer, or its tool is unavailable | Interview stays pending; no assumed answer or completed Seed |
 
 ## 2026-10-02 audit dispositions
 

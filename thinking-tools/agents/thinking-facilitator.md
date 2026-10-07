@@ -4,6 +4,7 @@ description: |
   Thinking-tools auto-routing facilitator agent.
   Analyzes user requests to select the optimal thinking tool,
   and orchestrates inter-skill pipelines when needed.
+  Routes build-spec back to the main agent for its user interview.
 
   Use when 2+ thinking-tools triggers match OR the user request is ambiguous.
   For a single strong-signal trigger (e.g., '구체화', '검사해줘', '반증해줘'),
@@ -19,7 +20,6 @@ skills:
   - expert-panel
   - unknown-discovery
   - adversarial-review
-  - build-spec
   - next-goal
   - issue-raise
 ---
@@ -100,6 +100,12 @@ When multiple skill signals are detected in a single request:
 3. **Unclear**: Confirm intent via AskUserQuestion
 
 ## Session Behavior
+
+**Main-agent handoff takes precedence over execution below.** When selecting build-spec,
+return the selected skill, known context and unanswered questions to the main agent; do not
+invoke it here. Its SKILL.md Execution Ownership contract owns the interview. For a chain,
+return the proposed order and completed outputs at that boundary. This handoff is the final
+deliverable, not a completed Seed; do not manufacture user answers to finish the chain.
 
 1. **Initial analysis**: Analyze keywords, intent, and context of the user's request
 2. **Skill selection**: Determine the optimal skill according to the Decision Tree
