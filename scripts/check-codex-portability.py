@@ -18,6 +18,61 @@ PORTABLE_MARKER = "## Codex Portability"
 UNSUPPORTED_MARKER = "## Codex Availability"
 
 
+# Four identical copies can still all regress to the pre-#827 chat-only contract.
+QUESTION_RULES = {
+    "native preference": (
+        "use the available Codex native user-input tool before plain chat",
+    ),
+    "asynchronous reply gate": (
+        "request_user_input_async", "only queues the question",
+        "pending until the actual user reply arrives",
+    ),
+    "mode and purpose restrictions": (
+        "request_user_input", "current-mode and purpose restrictions",
+        "never invent a tool or switch modes to enable it",
+    ),
+    "independent choices": (
+        "If multi-select is unsupported",
+        "never silently turn independent keep/dismiss choices into a single-choice decision",
+    ),
+    "prior answers and non-answers": (
+        "Reuse explicit prior answers and approvals",
+        "preselected options", "elapsed time are not user answers or approval",
+    ),
+    "unavailable-tool fallback": (
+        "If no native tool is usable", "normal user turn",
+        "wait for the actual reply", "required unanswered questions pending",
+    ),
+}
+
+
+def check_question_contract(text: str) -> list[str]:
+    normalized = " ".join(text.split())
+    return [
+        f"missing question rule: {label}"
+        for label, phrases in QUESTION_RULES.items()
+        if any(phrase not in normalized for phrase in phrases)
+    ]
+
+
+def question_self_test() -> int:
+    lines = {label: " ".join(phrases) for label, phrases in QUESTION_RULES.items()}
+    fixture = "\n".join(lines.values())
+    cases = [("complete question contract passes", not check_question_contract(fixture))]
+    for label, line in lines.items():
+        cases.append((f"loss of {label} fails", bool(check_question_contract(fixture.replace(line, "")))))
+    cases.append(("legacy chat-only contract fails", bool(check_question_contract(
+        "For AskUserQuestion, ask a normal user-facing question and wait for the answer."))))
+    cases.append(("line wrapping preserves the contract", not check_question_contract(
+        fixture.replace(" ", "\n"))))
+    for label, ok in cases:
+        print(f"  [{'OK' if ok else 'FAIL'}] {label}")
+    if not all(ok for _, ok in cases):
+        return 1
+    print(f"OK: all {len(cases)} Codex native-question self-test cases passed")
+    return 0
+
+
 def check(root: Path) -> list[str]:
     errors = []
     expected = {(plugin, skill) for plugin, skills in PLUGINS.items() for skill in skills}
@@ -79,6 +134,7 @@ def check(root: Path) -> list[str]:
         except OSError:
             errors.append(f"{plugin}: missing Codex portability contract")
             continue
+        errors.extend(f"{plugin}: {error}" for error in check_question_contract(contract))
         if reference is None:
             reference = contract
         elif contract != reference:
@@ -108,14 +164,14 @@ def check(root: Path) -> list[str]:
         if ("caller's Git completion contract" not in text
                 or "exclusion does not by itself exclude local commits" not in text):
             errors.append("thinking-tools/next-goal: missing caller Git completion contract")
-    if issue_raise.is_file() and "normal user turn before `gh issue create`" not in issue_raise.read_text(encoding="utf-8"):
+    if issue_raise.is_file() and "approval gate before `gh issue create`" not in issue_raise.read_text(encoding="utf-8"):
         errors.append("thinking-tools/issue-raise: missing Codex approval contract")
     retro = root / "feedback-loop/skills/retro/SKILL.md"
     if retro.is_file():
         text = retro.read_text(encoding="utf-8")
         if ("Claude hook telemetry is unavailable in Codex." not in text
                 or "current conversation's observable waste" not in text
-                or "normal user confirmation before `gh issue create`" not in text):
+                or "require user confirmation before `gh issue create`" not in text):
             errors.append("feedback-loop/retro: missing Codex conversation-waste contract")
     distill = root / "feedback-loop/skills/distill/SKILL.md"
     if distill.is_file():
@@ -139,7 +195,10 @@ def check(root: Path) -> list[str]:
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--root", type=Path, default=Path.cwd())
+    parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args()
+    if args.self_test:
+        return question_self_test()
     errors = check(args.root.resolve())
     if errors:
         print("FAIL: Codex portability")

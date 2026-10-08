@@ -17,7 +17,7 @@ Korean output (English for English input); English STATE/YAML keys.
 
 ## Codex Portability
 
-Codex: first read [the overriding portability contract](../../reference/codex-portability.md).
+Codex: read [the native question contract](../../reference/codex-portability.md) first; await replies.
 
 ## Execution Ownership
 
@@ -27,7 +27,7 @@ questions. Never invent answers or emit a Seed.
 
 Delegate only research, Phase 2 verdict and Phase 2.5 findings, never user answers.
 Phase 1: `AskUserQuestion`, await input; reuse explicit prior answers. Missing input/tool → pending,
-never completion. Codex: portability question path.
+never completion.
 
 ## Core Workflow
 

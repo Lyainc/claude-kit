@@ -7,8 +7,24 @@ Claude-only mechanics while preserving its decision rules and safety gates.
 2. Resolve bundled files relative to the installed plugin directory that contains this skill.
    Codex supplies `CLAUDE_PLUGIN_ROOT`/`CLAUDE_PLUGIN_DATA` alongside `PLUGIN_ROOT`/`PLUGIN_DATA`;
    retain existing shell variables, using the resolved directory for direct script execution.
-3. Ask a normal user-facing question when the source says `AskUserQuestion`; keep its stated
-   approval gate and do not assume an answer.
+3. For every user interview, clarification or confirmation (including `AskUserQuestion`), use
+   the available Codex native user-input tool before plain chat. Follow its actual schema,
+   current-mode and purpose restrictions; never invent a tool or switch modes to enable it.
+   - Prefer `request_user_input_async` when available and permitted. A successful submission
+     only queues the question: keep dependent interview steps, scoring and approval gates
+     pending until the actual user reply arrives; continue only independent work meanwhile.
+   - Otherwise use `request_user_input` only when available and permitted for this question
+     in the current mode. A listed tool may still be restricted (for example to Plan mode,
+     optional clarification, or non-approval questions); its runtime contract wins.
+   - Preserve the question's meaning and choices within the tool's limits. If multi-select
+     is unsupported, use separate short choices or a free-text question accepting item IDs;
+     never silently turn independent keep/dismiss choices into a single-choice decision.
+   - Reuse explicit prior answers and approvals. Tool acceptance, preselected options,
+     missing/empty replies and elapsed time are not user answers or approval. Preserve each
+     skill's required-answer and approval gates; optional clarification may follow the
+     runtime's stated fallback, without inventing an interview answer or advancing its gate.
+   - If no native tool is usable, ask in a normal user turn and wait for the actual reply.
+     Keep required unanswered questions pending; never claim the interview completed.
 4. Use only tools available in the current Codex runtime. For `Agent` or `Skill`, do the work in
    the current context or delegate only through an available Codex subagent facility. Never name a
    Claude agent type, model, or workflow.

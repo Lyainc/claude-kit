@@ -55,6 +55,7 @@ jobs:
           # promoted in #175 once coverage reached 0 gaps): any docs/VALIDATION.md-registered
           # test missing from this workflow fails CI.
           python3 scripts/check-version-sync.py --self-test
+          python3 scripts/check-codex-portability.py --self-test
           python3 scripts/check-codex-portability.py
           
           ec=0
