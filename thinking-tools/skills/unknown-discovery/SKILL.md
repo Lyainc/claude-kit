@@ -19,7 +19,7 @@ effort: high
 
 ## Codex Portability
 
-Codex: first read [the overriding portability contract](../../reference/codex-portability.md).
+Codex: read [the native question contract](../../reference/codex-portability.md) first; await replies.
 
 ## Overview
 

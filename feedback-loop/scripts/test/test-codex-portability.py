@@ -16,12 +16,14 @@ _REQUIRED = {
         "current conversation's observable waste",
         "telemetry patterns were not collected, so it covers this conversation only",
         "Do not run `stamp`, `report.py`,\n`sequence.py`, or `emit`",
-        "normal user confirmation before `gh issue create`",
+        "require user confirmation before `gh issue create`",
+        "through the contract's native user-input path",
     ),
     "distill": (
         "never `~/.claude`",
         "continue with `add-policy`'s Codex storage branch",
         "separate one-click confirmation",
+        "confirmation follows the contract's native user-input path",
     ),
     "add-policy": (
         'CODEX_ROOT="${CODEX_HOME:-$HOME/.codex}"',
@@ -36,8 +38,8 @@ _REQUIRED = {
 }
 
 _FORBIDDEN = {
-    "retro": ("Unsupported in Codex:",),
-    "distill": ("Persistence unavailable in Codex:",),
+    "retro": ("Unsupported in Codex:", "use a normal user confirmation"),
+    "distill": ("Persistence unavailable in Codex:", "confirmation is a normal user turn"),
     "add-policy": ("Unsupported in Codex:",),
 }
 
@@ -79,6 +81,11 @@ def _self_test() -> int:
     for skill, phrase in (("retro", _REQUIRED["retro"][1]), ("distill", _REQUIRED["distill"][1]),
                           ("add-policy", _REQUIRED["add-policy"][1])):
         cases.append((f"{skill} contract loss fails", bool(check(skill, texts[skill].replace(phrase, "")))))
+    for skill, phrase in (("retro", _REQUIRED["retro"][-1]), ("distill", _REQUIRED["distill"][-1])):
+        cases.append((f"{skill} native question path loss fails", bool(check(skill, texts[skill].replace(phrase, "")))))
+    for skill in ("retro", "distill"):
+        legacy = texts[skill].replace("\n# body", "\n" + _FORBIDDEN[skill][-1] + "\n# body")
+        cases.append((f"{skill} legacy chat override fails", bool(check(skill, legacy))))
     for label, ok in cases:
         print(f"  [{'OK' if ok else 'FAIL'}] {label}")
     if not all(ok for _, ok in cases):

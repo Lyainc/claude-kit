@@ -14,7 +14,8 @@ first. Claude hook telemetry is unavailable in Codex. Do not run `stamp`, `repor
 `sequence.py`, or `emit`; collect only the current conversation's observable waste (repeated
 failed tool calls, review rounds, and same-error retries). Open the report by saying that
 telemetry patterns were not collected, so it covers this conversation only. Keep the within-session and cached
-open-issue deduplication from Phases 1–2, use a normal user confirmation before `gh issue create`,
+open-issue deduplication from Phases 1–2 and require user confirmation before `gh issue create`
+through the contract's native user-input path (plain chat only when no native tool is usable),
 and report no candidate when the conversation supplies no observable waste. Claude Code ignores
 this section.
 

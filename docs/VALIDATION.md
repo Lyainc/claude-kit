@@ -33,6 +33,8 @@ python3 scripts/check-version-sync.py --self-test
 # Expected: OK: all 7 version-sync self-test cases passed (+ missing-manifest mode + --fix reconcile check)
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (root: ...)
+python3 scripts/check-codex-portability.py --self-test
+# Expected: OK: all 9 Codex native-question self-test cases passed
 python3 scripts/check-codex-portability.py
 # Expected: OK: Codex portability clean — 19 skills classified (19 supported, 0 unsupported)
 # drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단.
@@ -781,7 +783,7 @@ python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
 # distill continues confirmed proposals into Codex storage, and add-policy uses only safe Codex
 # instruction/skill paths while leaving Claude-only hook enforcement unavailable.
 python3 feedback-loop/scripts/test/test-codex-portability.py --self-test
-# Expected: OK: all 4 Codex feedback-loop portability self-test cases passed
+# Expected: OK: all 8 Codex feedback-loop portability self-test cases passed
 python3 feedback-loop/scripts/test/test-codex-portability.py
 # Expected: OK: all 3 Codex feedback-loop portability contracts passed
 
@@ -1324,3 +1326,35 @@ still require the existing placement approval and native trust review.
 Keep list-budget proof separate from invocation-body proof: the budget self-test covers both
 axes, while live records must show the selected SKILL.md's final sentence and the selected
 session-close runtime reference through its final line, without a missing preview range.
+
+## Codex native user questions (#827)
+
+All 19 skills load their plugin-local `reference/codex-portability.md`; the four copies must
+remain identical. The shared question rule covers both explicit `AskUserQuestion` and ordinary
+clarification/confirmation instructions. Do not add Codex tool names to Claude `allowed-tools`.
+
+Explicit question consumers are thinking-tools' build-spec, unknown-discovery,
+adversarial-review, expert-panel, diverse-sampling, doc-concretize and issue-raise;
+feedback-loop's distill, add-policy and retro; vault-bridge's vault-link, vault-commit and wiki;
+and obsidian-vault-manager's audit and base. The other four skills still inherit the shared
+contract whenever their workflow needs user input. No skill is required to ask an extra question.
+
+After editing this contract, run `check-codex-portability.py`,
+`feedback-loop/scripts/test/test-codex-portability.py`, `check-agent-tools-usage.py`,
+`check-skill-reference-drift.py` and `check-skill-token-budget.py` (with tiktoken).
+These are source checks, not proof of runtime tool selection.
+
+For one bounded behavioral pass, use the edited source in a permitted Codex session and inspect
+its actual available tools and mode. Do not update the user's installed cache just to run this
+check. Record whether the result is an instruction-level scenario review or an actual tool call;
+never report a simulated or accepted submission as a human answer.
+
+| Scenario | Expected behavior |
+|---|---|
+| Async native input is available and permitted | Submit the question through it; await the human reply before dependent interview/scoring/gates |
+| Async submission accepted but no answer | Keep required input pending; only independent work continues |
+| Only a Plan-only input tool is listed in Default mode | Do not call it or change modes; ask in a normal user turn and wait |
+| No usable native tool | Normal user question; required input remains pending |
+| Multi-select keep/dismiss with only single-choice support | Separate item choices or free-text item IDs, preserving independent decisions |
+| Explicit prior answer/approval already covers the question | Reuse it within its scope without repeated confirmation |
+| Optional clarification versus required approval | Respect tool-purpose restrictions; optional runtime fallback is not an interview answer or approval |

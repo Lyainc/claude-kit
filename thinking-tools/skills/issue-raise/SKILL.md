@@ -14,9 +14,9 @@ allowed-tools: Read Write Bash AskUserQuestion
 
 ## Codex Portability
 
-When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
-first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
-Keep Phase 3's approval gate as a normal user turn before `gh issue create`.
+Codex: read [the portability contract](../../reference/codex-portability.md) first; it overrides
+Claude-only mechanics below. Keep Phase 3's approval gate before `gh issue create`; use the
+contract's native question path. Claude Code ignores this section.
 
 ## Prerequisites
 
