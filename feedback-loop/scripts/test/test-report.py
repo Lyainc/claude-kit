@@ -829,10 +829,10 @@ def case_token_cost_weighted_calculation(errors: list[str]) -> None:
     _assert(res["tokens"] == {"input": 1_000_000, "output": 100_000,
                                "cache_write": 50_000, "cache_read": 2_000_000},
             f"token totals match input (got: {res['tokens']})", errors)
-    # Sonnet 5 rates: input $3, output $15, cache_write $3.75, cache_read $0.30 per MTok
+    # Sonnet 5 current official rates, verified 2026-10-08: $2/$10/$2.50/$0.20 per MTok
     expected_cost = {
-        "input": 1.0 * 3.00, "output": 0.1 * 15.00,
-        "cache_write": 0.05 * 3.75, "cache_read": 2.0 * 0.30,
+        "input": 1.0 * 2.00, "output": 0.1 * 10.00,
+        "cache_write": 0.05 * 2.50, "cache_read": 2.0 * 0.20,
     }
     _assert(res["cost"] is not None, "cost computed when model is priced", errors)
     for kind, exp in expected_cost.items():
@@ -904,19 +904,15 @@ def case_token_cost_unregistered_model_excluded(errors: list[str]) -> None:
             errors)
 
 
-def case_token_cost_date_suffixed_model_matches_bare_key(errors: list[str]) -> None:
-    """#510 item 1 / #511: a real model id carrying a date suffix beyond a
-    registered bare key (e.g. Sonnet 5 gaining a future dated release) still
-    prices correctly via prefix match, instead of silently landing in
-    unpriced_models."""
-    print("\ncase: token_cost_date_suffixed_model_matches_bare_key")
-    events = [_meta_ev(model="claude-sonnet-5-20260601", input_tokens=1_000_000)]
-    res = report.token_cost_view(events)
-    _assert(res["cost"] is not None, "date-suffixed sonnet id still prices", errors)
-    _assert(abs(res["cost"]["input"] - 3.00) < 1e-9,
-            f"prefix match uses the bare sonnet rate (got: {res['cost']})", errors)
-    _assert(res["priced_events"] == 1 and res["excluded_events"] == 0,
-            "date-suffixed id counts as priced, not excluded/unpriced", errors)
+def case_token_cost_confirmed_date_suffix(errors: list[str]) -> None:
+    """Only an officially confirmed dated ID retains date-suffix support (#825)."""
+    print("\ncase: token_cost_confirmed_date_suffix")
+    for model in ("claude-haiku-4-5-20251001", "claude-haiku-4-5-20251001[1m]"):
+        res = report.token_cost_view([_meta_ev(model=model, input_tokens=1_000_000)])
+        _assert(res["cost"] is not None and res["cost"]["input"] == 1.0,
+                f"confirmed dated ID {model} uses $1/MTok", errors)
+        _assert(res["priced_events"] == 1 and res["excluded_events"] == 0,
+                f"confirmed dated ID {model} is priced", errors)
 
 
 def case_token_cost_bracket_variant_matches_bare_key(errors: list[str]) -> None:
@@ -931,6 +927,128 @@ def case_token_cost_bracket_variant_matches_bare_key(errors: list[str]) -> None:
             f"bracket variant uses the bare opus rate (got: {res['cost']})", errors)
     _assert(res["priced_events"] == 1 and res["excluded_events"] == 0,
             "bracket-variant id counts as priced, not excluded/unpriced", errors)
+
+
+def case_token_cost_exact_models(errors: list[str]) -> None:
+    """Check all token-kind prices independently of the implementation table."""
+    print("\ncase: token_cost_exact_models")
+    # Anthropic official pricing and model-ID docs, verified 2026-10-08.
+    # Sources are recorded next to MODEL_PRICING in report.py.
+    expected = {
+        "claude-fable-5": (10.0, 50.0, 12.5, 1.0),
+        "claude-opus-5": (5.0, 25.0, 6.25, 0.5),
+        "claude-sonnet-5": (2.0, 10.0, 2.5, 0.2),
+        "claude-haiku-4-5-20251001": (1.0, 5.0, 1.25, 0.1),
+        "claude-opus-5-5": (4.0, 20.0, 5.0, 0.2),
+        "claude-sonnet-5-5": (2.0, 10.0, 2.5, 0.1),
+    }
+    for model, prices in expected.items():
+        for variant in (model, model + "[1m]"):
+            res = report.token_cost_view([_meta_ev(
+                model=variant, input_tokens=1_000_000, output_tokens=1_000_000,
+                cache_creation_tokens=1_000_000, cache_read_tokens=1_000_000,
+            )])
+            cost = res["cost"]
+            _assert(cost is not None and tuple(cost.values()) == prices,
+                    f"{variant}: all four official prices (got: {cost})", errors)
+            _assert(res["priced_events"] == 1 and res["excluded_events"] == 0,
+                    f"{variant}: exactly one priced event", errors)
+
+
+def case_token_cost_invalid_extensions(errors: list[str]) -> None:
+    """New versions, invented dates and unknown context markers never fall back."""
+    print("\ncase: token_cost_invalid_extensions")
+    models = (
+        "claude-opus-5-6", "claude-sonnet-5-6", "claude-opus-5-5-1",
+        "claude-fable-5-1",  # A distinct release, not a Fable 5 suffix alias.
+        "claude-sonnet-5-20260601",  # Old test guessed this nonexistent snapshot.
+        "claude-opus-5-20261008", "claude-opus-5-20260230",
+        "claude-opus-5-2026100", "claude-opus-5-202610080",
+        "claude-haiku-4-5-20251002", "claude-haiku-4-5-20251001-extra",
+        "claude-sonnet-5-5-20260928", "claude-opus-5-garbage",
+        "claude-opus-5[]", "claude-opus-5[2m]", "claude-opus-5[garbage]",
+        "claude-opus-5[1m][1m]", "claude-opus-5[1m]-extra",
+        "claude-opus-5-6[1m]", "claude-made-up-9", "claude-made-up-9[1m]",
+        " claude-opus-5", "claude-opus-5\n", "", None, 5, True, [], {},
+    )
+    for model in models:
+        res = report.token_cost_view([_meta_ev(model=model, input_tokens=1000)])
+        _assert(report._pricing_for(model) is None and res["cost"] is None,
+                f"{model!r}: no fallback price", errors)
+        _assert(res["tokens"]["input"] == 1000 and res["excluded_events"] == 1,
+                f"{model!r}: tokens retained, one excluded event", errors)
+
+
+def case_token_cost_haiku_tier_uncertainty(errors: list[str]) -> None:
+    """Counters alone cannot establish a single request's 100K pricing tier."""
+    print("\ncase: token_cost_haiku_tier_uncertainty")
+    for model in ("claude-haiku-5-5", "claude-haiku-5-5[1m]"):
+        for length in (0, 99_999, 100_000, 100_001, 1_000_000):
+            # Test uncached input alone and the sum including cached input.
+            # Output length and [1m] capacity must not choose a pricing tier.
+            for counts in (
+                {"input_tokens": length},
+                {"input_tokens": length, "cache_creation_tokens": 0,
+                 "cache_read_tokens": 0, "output_tokens": 1_000_000},
+                {"input_tokens": 0, "cache_creation_tokens": 0,
+                 "cache_read_tokens": length, "output_tokens": 1},
+                {"input_tokens": 0, "cache_creation_tokens": length,
+                 "cache_read_tokens": 0},
+            ):
+                res = report.token_cost_view([_meta_ev(model=model, **counts)])
+                _assert(res["cost"] is None and res["priced_events"] == 0
+                        and res["excluded_events"] == 1,
+                        f"{model} prompt-counter sum={length}, {counts}: unresolved", errors)
+                _assert(sum(res["tokens"].values()) == sum(counts.values()),
+                        "tier uncertainty preserves all token counts", errors)
+                reason = res["exclusion_reasons"].get(model, "")
+                _assert("100K" in reason and "단일 요청" in reason
+                        and "비용 미확정" in reason,
+                        "known Haiku has a request-evidence reason, not unknown-model labeling",
+                        errors)
+    for counts in ({"output_tokens": 500}, {"input_tokens": True},
+                   {"input_tokens": "100000"}, {}):
+        res = report.token_cost_view([_meta_ev(model="claude-haiku-5-5", **counts)])
+        has_numeric = counts == {"output_tokens": 500}
+        _assert(res["cost"] is None and res["excluded_events"] == int(has_numeric),
+                f"Haiku missing/non-numeric prompt data {counts}: no fabricated tier", errors)
+
+
+def case_token_cost_uncertainty_output(errors: list[str]) -> None:
+    """Both output formats retain tokens, known costs and exclusion reasons."""
+    print("\ncase: token_cost_uncertainty_output")
+    haiku = _meta_ev(model="claude-haiku-5-5[1m]", input_tokens=100_000)
+    events = [
+        _meta_ev(model="claude-opus-5-5", input_tokens=1_000_000), haiku,
+        _meta_ev(model="claude-opus-5-6", input_tokens=200_000),
+        _meta_ev(input_tokens=300_000),
+        {}, {"meta": None}, _meta_ev(model="claude-opus-5-5", input_tokens=True),
+    ]
+    res = report.token_cost_view(events)
+    _assert(res["tokens"]["input"] == 1_600_000
+            and res["cost"]["input"] == 4.0,
+            "mixed tokens cover all events; cost is the priced subset only", errors)
+    _assert(res["priced_events"] == 1 and res["excluded_events"] == 3,
+            "mixed batch counts known tier uncertainty and unknown/missing models", errors)
+    for fixture in (events, [haiku]):
+        tc = json.loads(_run_main_with(
+            fixture, ["report.py", "--since=all", "--format=json"], catalog=[],
+        ))["token_cost"]
+        table = _run_main_with(
+            fixture, ["report.py", "--since=all", "--format=table"], catalog=[],
+        )
+        _assert("비용 미확정" in tc["exclusion_reasons"]["claude-haiku-5-5[1m]"]
+                and "claude-haiku-5-5[1m]" in table and "단일 요청" in table,
+                "JSON/table show the known model's missing request evidence", errors)
+        if fixture == [haiku]:
+            _assert(tc["cost"] is None and bool(tc["cost_omitted_reason"])
+                    and "비용 열 생략" in table and "events=" not in table,
+                    "all unresolved: null cost and omission reason, no duplicate excluded row",
+                    errors)
+        else:
+            _assert(tc["cost"]["input"] == 4.0 and tc["excluded_events"] == 3
+                    and "cost=$4.0000" in table and "excluded" in table,
+                    "mixed JSON/table retain the partial cost and exclusion count", errors)
 
 
 def case_token_cost_excluded_line_visible_in_table(errors: list[str]) -> None:
@@ -1038,15 +1156,15 @@ def case_token_cost_view_end_to_end(errors: list[str]) -> None:
     _assert(payload.get("token_cost") is not None, "json has non-null token_cost", errors)
     tc = payload["token_cost"]
     _assert(tc["tokens"]["input"] == 1_000_000, f"json tokens.input (got: {tc['tokens']})", errors)
-    _assert(tc["cost"] is not None and tc["cost"]["input"] == 3.0,
-            f"json cost.input priced at $3/MTok (got: {tc['cost']})", errors)
+    _assert(tc["cost"] is not None and tc["cost"]["input"] == 2.0,
+            f"json cost.input priced at current $2/MTok (got: {tc['cost']})", errors)
     _assert(bool(payload.get("token_cost_caveat")), "json carries token_cost_caveat", errors)
     _assert("순위" in (payload.get("token_cost_caveat") or ""),
             "caveat states token-rank != cost-rank", errors)
 
     tout = _run_main_with(priced, ["report.py", "--since=all", "--format=table"])
     _assert("Token/cost breakdown" in tout, "table renders token/cost section", errors)
-    _assert("cost=$3.0000" in tout or "cost=$3.00" in tout or "$3.0000" in tout,
+    _assert("cost=$2.0000" in tout,
             "table shows priced cost for input (excerpt not found in output)", errors)
 
     # No model anywhere → cost omitted with an explicit reason, tokens still shown.
@@ -1248,8 +1366,12 @@ def main() -> int:
     case_token_cost_ranking_inversion(errors)
     case_token_cost_missing_model_excluded(errors)
     case_token_cost_unregistered_model_excluded(errors)
-    case_token_cost_date_suffixed_model_matches_bare_key(errors)
+    case_token_cost_confirmed_date_suffix(errors)
     case_token_cost_bracket_variant_matches_bare_key(errors)
+    case_token_cost_exact_models(errors)
+    case_token_cost_invalid_extensions(errors)
+    case_token_cost_haiku_tier_uncertainty(errors)
+    case_token_cost_uncertainty_output(errors)
     case_token_cost_excluded_line_visible_in_table(errors)
     case_token_cost_all_unpriced_excluded_line_absent(errors)
     case_token_cost_mixed_priced_and_unpriced(errors)

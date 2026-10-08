@@ -70,15 +70,23 @@ def _git_toplevel() -> str | None:
 
 EVENTS_DIR = resolve_events_dir()
 
-# Cost-per-MTok ($) by model, standard (non-intro, non-1h-TTL) API rates.
-# cache_write = 1.25x input, cache_read = 0.1x input (5m TTL default) — the
-# Anthropic prompt-caching multiplier convention (shared/prompt-caching.md
-# "Economics"), not a per-model special case. Actual invoices may differ
-# (discounts, plan tiers, intro pricing, 1h TTL) — this is sticker price only.
+# Cost-per-MTok ($), standard API sticker prices with 5m cache writes.
+# Verified 2026-10-08 against Anthropic's official documentation:
+# https://platform.claude.com/docs/en/models/overview (5.5 API IDs)
+# https://platform.claude.com/docs/en/about-claude/pricing (all four rates)
+# https://platform.claude.com/docs/en/models/sonnet-5/overview (Sonnet 5 correction)
+# https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions
+# IDs from 4.6 onward are dateless pinned snapshots; do not invent date aliases.
+# Haiku 4.5's exact dated ID is confirmed by the model-ID documentation above.
+# Cache reads are 0.05x input on Opus/Sonnet 5.5, 0.1x on these older models.
+# Rates are current sticker prices, not historical invoices; discounts, fast
+# mode, residency, and 1h TTL are outside this view's standard-rate convention.
 MODEL_PRICING = {
     "claude-fable-5":            {"input": 10.00, "output": 50.00, "cache_write": 12.50, "cache_read": 1.00},
     "claude-opus-5":             {"input": 5.00,  "output": 25.00, "cache_write": 6.25,  "cache_read": 0.50},
-    "claude-sonnet-5":           {"input": 3.00,  "output": 15.00, "cache_write": 3.75,  "cache_read": 0.30},
+    "claude-sonnet-5":           {"input": 2.00,  "output": 10.00, "cache_write": 2.50,  "cache_read": 0.20},
+    "claude-opus-5-5":           {"input": 4.00,  "output": 20.00, "cache_write": 5.00,  "cache_read": 0.20},
+    "claude-sonnet-5-5":         {"input": 2.00,  "output": 10.00, "cache_write": 2.50,  "cache_read": 0.10},
     # Haiku 4.5's real runtime model ID carries a date suffix, unlike the other
     # three (#510 item 1 / #511) — keyed on the exact string the SessionStart
     # hook payload emits.
@@ -86,23 +94,35 @@ MODEL_PRICING = {
 }
 
 
-def _pricing_for(model: str | None) -> dict | None:
-    """MODEL_PRICING lookup that tolerates a registered bare key being extended
-    with a date suffix (#510 item 1) — e.g. 'claude-sonnet-5-20260601' against
-    the registered 'claude-sonnet-5' — or a bracketed context-window variant
-    (#650) — e.g. 'claude-opus-5[1m]', same pricing, different window. The
-    bracket suffix is stripped before matching so both extension styles funnel
-    through one exact/prefix check.
-    """
+# Verified 2026-10-08:
+# https://platform.claude.com/docs/en/models/haiku-5-5/overview
+# Prompt <=100,000 tokens: input/output/5m-write/read = $0.10/$0.50/$0.125/$0.01.
+# Prompt >100,000 tokens: input/output/5m-write/read = $0.50/$2.50/$0.625/$0.05.
+# event-logger.sh extracts tool_response.usage counters but records neither
+# single-request provenance nor a complete request prompt length. The free-form
+# event schema does not guarantee either. Even a sum of all three input counters
+# cannot certify the tier: aggregated short requests can exceed 100K. Do not
+# infer a tier from counters, output length, or the [1m] capacity marker.
+_UNRESOLVED_MODEL_PRICING = {
+    "claude-haiku-5-5": "요청별 전체 프롬프트 길이·단일 요청 여부 미확인: "
+                        "100K 이하/초과 차등 단가로 비용 미확정",
+}
+
+
+def _model_id(model: str | None) -> str | None:
+    """Accept exact IDs and the existing Claude Code [1m] capacity marker only."""
     if not isinstance(model, str) or not model:
         return None
-    base = re.sub(r"\[[^\]]*\]$", "", model)
-    if base in MODEL_PRICING:
-        return MODEL_PRICING[base]
-    for key in sorted(MODEL_PRICING, key=len, reverse=True):
-        if base.startswith(key + "-"):
-            return MODEL_PRICING[key]
-    return None
+    return model.removesuffix("[1m]")
+
+
+def _pricing_for(model: str | None) -> dict | None:
+    """Exact lookup: registered dated IDs work, arbitrary extensions never do.
+
+    A recognized tiered model returns None until the event contract can establish
+    its request-level tier; token_cost_view reports that reason separately.
+    """
+    return MODEL_PRICING.get(_model_id(model))
 
 # meta key -> token-kind label used throughout the cost view.
 _TOKEN_META_KEYS = {
@@ -119,13 +139,16 @@ _TOKEN_META_KEYS = {
 #    for the other.
 #  - cost is priced per-event from that event's meta.model; an event with no model or
 #    an unregistered model contributes to the token totals but NEVER to cost — there is
-#    no estimated/blended rate. If zero events carry a priced model, the cost column is
+#    no estimated/blended rate. Known tiered models without request-level evidence
+#    are excluded too, with a reason. If zero events carry a priced model, the cost column is
 #    omitted entirely rather than guessed.
 #  - rates are official sticker price (see MODEL_PRICING comment) — not the actual bill.
 _COST_CAVEAT = (
     "토큰 수 순위 ≠ 비용 순위(캐시읽기: 토큰 최대·비용 중간, 캐시쓰기: 토큰 최소·비용 상위권). "
     "비용은 event.meta.model이 있고 단가표에 등록된 이벤트에서만 계산 — 없으면 그 이벤트는 "
-    "비용 열에서 제외(추정치로 채우지 않음). 단가는 공식 sticker price로 실제 청구액과 다를 수 있음."
+    "비용 열에서 제외(추정치로 채우지 않음). 요청별 가격 구간을 확인할 수 없는 모델도 "
+    "비용 미확정으로 제외하며 사유를 표시. 비용은 계산 가능한 이벤트의 부분합. "
+    "단가는 현재 공식 sticker price(5분 캐시쓰기)로 과거·실제 청구액과 다를 수 있음."
 )
 
 
@@ -135,13 +158,15 @@ def token_cost_view(events: list[dict]) -> dict:
     Token totals sum every event carrying a numeric token field, regardless of model.
     Cost is priced per-event against MODEL_PRICING using that event's meta.model; an
     event with no model or an unregistered model contributes to tokens but is excluded
-    from cost — see _COST_CAVEAT. `cost` is None when no event could be priced at all.
+    from cost — see _COST_CAVEAT. Known models lacking request-level tier evidence
+    are also excluded, with reasons. `cost` is None when no event could be priced.
     """
     tokens = {"input": 0, "output": 0, "cache_write": 0, "cache_read": 0}
     cost = {"input": 0.0, "output": 0.0, "cache_write": 0.0, "cache_read": 0.0}
     priced_events = 0
     excluded_events = 0
     unpriced_models: set[str] = set()
+    exclusion_reasons: dict[str, str] = {}
 
     for e in events:
         meta = e.get("meta")
@@ -161,7 +186,11 @@ def token_cost_view(events: list[dict]) -> dict:
         rates = _pricing_for(model)
         if rates is None:
             excluded_events += 1
-            unpriced_models.add(model if isinstance(model, str) and model else "(model 없음)")
+            label = model if isinstance(model, str) and model else "(model 없음)"
+            unpriced_models.add(label)
+            exclusion_reasons[label] = _UNRESOLVED_MODEL_PRICING.get(
+                _model_id(model), "model 없음 또는 미등록",
+            )
             continue
         priced_events += 1
         for kind, v in present.items():
@@ -173,6 +202,7 @@ def token_cost_view(events: list[dict]) -> dict:
         "priced_events": priced_events,
         "excluded_events": excluded_events,
         "unpriced_models": sorted(unpriced_models),
+        "exclusion_reasons": dict(sorted(exclusion_reasons.items())),
     }
 
 
@@ -871,11 +901,12 @@ def main() -> int:
                 ),
                 "cost_omitted_reason": (
                     None if token_cost["cost"] is not None
-                    else "priced 이벤트 0건 (model 없음 또는 미등록: "
+                    else "priced 이벤트 0건 (model 없음·미등록 또는 비용 미확정: "
                          f"{', '.join(token_cost['unpriced_models']) or '해당 없음'})"
                 ),
                 "excluded_events": token_cost["excluded_events"],
                 "unpriced_models": token_cost["unpriced_models"],
+                "exclusion_reasons": token_cost["exclusion_reasons"],
             } if sum(token_cost["tokens"].values()) else None,
             "token_cost_caveat": _COST_CAVEAT if sum(token_cost["tokens"].values()) else None,
             "delegation": (
@@ -1005,13 +1036,16 @@ def main() -> int:
         if token_cost["excluded_events"] and token_cost["cost"] is not None:
             print(
                 f"  {'excluded':<12} events={token_cost['excluded_events']:>10}  "
-                f"model 없음/미등록: {', '.join(token_cost['unpriced_models'])}"
+                f"model 없음/미등록/비용 미확정: {', '.join(token_cost['unpriced_models'])}"
             )
         if token_cost["cost"] is None:
             print(
-                f"  ! 비용 열 생략: priced 이벤트 0건 (model 없음 또는 미등록: "
+                f"  ! 비용 열 생략: priced 이벤트 0건 (model 없음·미등록 또는 비용 미확정: "
                 f"{', '.join(token_cost['unpriced_models']) or '해당 없음'})"
             )
+        for model, reason in token_cost["exclusion_reasons"].items():
+            if reason != "model 없음 또는 미등록":
+                print(f"  ! {model}: {reason}")
         print(f"  ! {_COST_CAVEAT}")
     return 0
 
