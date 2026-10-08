@@ -499,7 +499,7 @@ tags: ["a \" # b", 'it''s # x'] # c''',
     with tempfile.TemporaryDirectory() as tmp:
         vault = Path(tmp)
         contents = {}
-        for name, body, expected in cases:
+        for name, body, _expected in cases:
             content = f"---\n{body}\n---\nbody\n"
             contents[name] = content
             (vault / f"{name}.md").write_text(content, encoding="utf-8")
