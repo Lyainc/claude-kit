@@ -135,6 +135,46 @@ def mask_code(text: str) -> str:
     return INLINE_CODE.sub("", UNCLOSED_FENCE.sub("", CODE_FENCE.sub("", text)))
 
 
+# Standalone DoD oracle: value semantics mirror the scanner's README contract.
+# Fence/key recognition stays unchanged; this is not a full YAML parser (#804).
+_NULLS = ('null', 'Null', 'NULL', '~')
+
+def strip_comment(s):
+    quote = None
+    depth = 0
+    i = 0
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if quote:
+            if ch == '\\' and quote == '"':
+                i += 2
+                continue
+            if ch == "'" and quote == "'" and s[i + 1:i + 2] == "'":  # '' escapes a single quote
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in '"\'' and (i == 0 or s[i - 1] in ' \t[,'):
+            quote = ch
+        elif ch == '[' and (i == 0 or depth):
+            depth += 1
+        elif ch == ']' and depth:
+            depth -= 1
+        elif ch == '#' and depth == 0 and (i == 0 or s[i - 1] in ' \t'):
+            return s[:i].rstrip()
+        i += 1
+    return s
+
+def scalar(raw):
+    """Comment-stripped scalar -> str, or None for an unquoted YAML null."""
+    v = strip_comment(raw).strip()
+    if v in _NULLS:
+        return None
+    if len(v) >= 2 and v[0] == v[-1] == "'":
+        return v[1:-1].replace("''", "'")
+    return v.strip('"\'')
+
 def parse_frontmatter(content: str) -> Optional[dict]:
     if not content.startswith("---\n"):
         return None
@@ -149,27 +189,34 @@ def parse_frontmatter(content: str) -> Optional[dict]:
         if not line.strip():
             continue
         stripped = line.lstrip()
+        if stripped.startswith("#"):
+            continue
         if stripped.startswith("- "):
-            item = stripped[2:].strip().strip("\"'")
-            if current_key and current_list is not None:
+            item = scalar(stripped[2:])
+            if item not in (None, '') and current_key and current_list is not None:
                 current_list.append(item)
                 result[current_key] = current_list
             continue
         m = re.match(r"^([a-zA-Z_][a-zA-Z0-9_]*)\s*:\s*(.*)$", line)
         if not m:
+            current_list = None
             continue
-        key, value = m.group(1), m.group(2).rstrip()
-        if value == "":
+        key, value = m.group(1), strip_comment(m.group(2)).strip()
+        if value == "" or value == "[]":
             current_key = key
             current_list = []
-            result[key] = []
-        elif value.startswith("["):
-            inner = value.strip().lstrip("[").rstrip("]")
-            items = [x.strip().strip("\"'") for x in inner.split(",") if x.strip()]
+            result[key] = current_list
+        elif value in _NULLS:
+            result[key] = None
+            current_key, current_list = None, None
+        elif value.startswith("[") and value.endswith("]"):
+            inner = value[1:-1]
+            items = [x.strip().strip("\"'") for x in inner.split(",")
+                     if x.strip() and x.strip() not in _NULLS]
             result[key] = items
             current_key, current_list = None, None
         else:
-            result[key] = value.strip().strip("\"'")
+            result[key] = scalar(value)
             current_key, current_list = None, None
     return result
 

@@ -230,6 +230,58 @@ def case_top3_cap(errors: list) -> None:
         _assert(paths == sorted(paths), f"tie-break is path-ascending (got {paths})", errors)
 
 
+def case_comment_null_tag_contract(errors: list) -> None:
+    """Each pair's expected shared tags is literal, never derived from another parser."""
+    cases = [
+        ("flow-comment", "tags: [a] # c", ["a"]),
+        ("block-comment", "tags: # c\n  - a # c\n  \n  # keep list\n  - b\n  - # c", ["a", "b"]),
+        ("hashes", 'tags: [#a, #b, C#, http://x/#frag, "a # b"] # c',
+         ["#a", "#b", "C#", "http://x/#frag", "a # b"]),
+        ("null-flow", 'tags: [null, Null, NULL, ~, "null", "~"] # c', ["null", "~"]),
+        ("null-block", 'tags:\n  - null\n  - Null\n  - NULL\n  - ~\n  - "null"\n  - "~"', ["null", "~"]),
+        ("single-escape", "tags:\n  - 'it''s # x' # c", ["it's # x"]),
+        ("double-escape", r'''tags: ["a \" # b"] # c''', [r'a \" # b']),
+        ("flow-single-escape", "tags: ['it''s # x'] # c", ["it''s # x"]),
+        ("null-only", "tags: [null, Null, NULL, ~] # c", []),
+        ("null-scalar", "tags: null # c", None),
+        ("empty", "tags: # c\n  - # c", []),
+        ("scalar", 'tags: "null" # c', "null"),
+        ("replace", "tags: [old]\ntags: ~ # c", None),
+        ("replace-block", "tags: [old]\ntags:\n  - new # c", ["new"]),
+        ("break-list", "tags:\n  - a\nunrecognized line\n  - b", ["a"]),
+        ("other-key", "tags:\n  - a\nother:\n  - b", ["a"]),
+        ("space-tag", 'tags: [" "] # c', [" "]),
+    ]
+    for name, body, expected_tags in cases:
+        with tempfile.TemporaryDirectory() as td:
+            vault = Path(td)
+            notes = vault / "notes"
+            notes.mkdir()
+            content = f"---\n{body}\n---\nbody\n"
+            (notes / "a.md").write_text(content, encoding="utf-8")
+            # A block list encodes literal expected tags; double-quoted backslashes
+            # deliberately stay literal under the existing scanner contract.
+            shared = sorted({t for t in expected_tags if t}) if isinstance(expected_tags, list) else []
+            control_body = "tags:\n" + "".join(f"  - \"{t}\"\n" for t in shared)
+            (notes / "b.md").write_text(f"---\n{control_body}---\nbody\n", encoding="utf-8")
+            write_note(vault, "notes/decoy.md", ['"null"', '"Null"', '"NULL"', '"~"', "old", "b"])
+            scan = {r["path"]: r["frontmatter"] for r in run_scan_frontmatter(vault)}
+            _assert(scan["notes/a.md"]["tags"] == expected_tags,
+                    f"{name}: scanner matches independent tag value", errors)
+            _assert((_mod.parse_frontmatter(content) or {}).get("tags") == expected_tags,
+                    f"{name}: validator matches independent tag value", errors)
+            out = {r["path"]: r for r in run_e5_candidates(vault, notes)}
+            # Null and non-list tags have no candidates. For populated lists the
+            # identical control always wins; decoy shares only the quoted nulls.
+            expected_candidates = ([{"path": "notes/b.md", "shared_tags": shared}] if shared else [])
+            decoy_shared = sorted(set(shared) & {"null", "Null", "NULL", "~", "old", "b"})
+            if decoy_shared:
+                expected_candidates.append({"path": "notes/decoy.md", "shared_tags": decoy_shared})
+            _assert(out["notes/a.md"] == {"path": "notes/a.md", "candidates": expected_candidates,
+                                            "floor_gated": False},
+                    f"{name}: E5 matches independent candidates (got {out['notes/a.md']})", errors)
+
+
 def main() -> int:
     errors: list = []
     for case in (
@@ -239,6 +291,7 @@ def main() -> int:
         case_no_shared_tags,
         case_index_md_excluded,
         case_top3_cap,
+        case_comment_null_tag_contract,
     ):
         case(errors)
     print()

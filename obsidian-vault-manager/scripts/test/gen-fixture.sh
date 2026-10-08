@@ -314,9 +314,10 @@ EOF
     write_file "$FIXTURE_DIR/notes/audit-e5-orphan-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2026-04-01
-tags: [note]
+tags: [note] # #804: same common tag after comment normalization
 type: note
-status: raw
+status: raw # existing scalar value
+track: null # unquoted null, not a string
 provenance: fixture-seed
 ---
 
@@ -579,7 +580,7 @@ EOF
     write_file "$FIXTURE_DIR/notes/audit-e9-tag-api-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2026-04-01
-tags: [note, api]
+tags: [note, api] # #804: flow list keeps its value
 type: note
 status: raw
 provenance: fixture-seed-e9-api-${i}
@@ -597,7 +598,10 @@ EOF
     write_file "$FIXTURE_DIR/notes/audit-e9-tag-apis-$(printf '%03d' $i).md" <<EOF
 ---
 created: 2026-04-01
-tags: [note, apis]
+tags: # #804: comments do not interrupt a block list
+  - note
+  # domain tag follows
+  - apis # plural
 type: note
 status: raw
 provenance: fixture-seed-e9-apis-${i}
