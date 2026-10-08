@@ -33,8 +33,36 @@ fi
 # Read the PreToolUse JSON payload from stdin
 payload=$(cat)
 
-# Extract tool_name
-tool_name=$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || true)
+# Parse ordinary single-object payloads once. NUL-delimited records preserve spaces,
+# quotes and embedded newlines without evaluating input as shell code. Each field
+# has the same trailing-newline trimming as the original command substitutions.
+# Unusual types, NUL-containing fields, multiple documents and malformed JSON use
+# the original per-field queries below, preserving their partial-output/failure rules.
+_payload_parsed=0
+if {
+  IFS= read -r -d '' tool_name &&
+  IFS= read -r -d '' agent_id &&
+  IFS= read -r -d '' raw_path &&
+  IFS= read -r -d '' command_str &&
+  IFS= read -r -d '' cwd
+} < <(printf '%s' "$payload" | jq -js '
+  if length == 1 and (.[0] | type) == "object" then
+    .[0] | try (
+      [.tool_name // "",
+       .agent_id // .agent_type // .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // "",
+       ((.tool_input // {}) | .file_path // ""),
+       ((.tool_input // {}) | .command // ""),
+       .cwd // ""] |
+      if all(.[]; type == "string" and (contains("\u0000") | not)) then
+        .[] | sub("\n+$"; "") + "\u0000"
+      else empty end
+    ) catch empty
+  else empty end
+' 2>/dev/null); then
+  _payload_parsed=1
+else
+  tool_name=$(printf '%s' "$payload" | jq -r '.tool_name // empty' 2>/dev/null || true)
+fi
 
 # Only act on Write, Edit and Bash
 case "$tool_name" in
@@ -82,9 +110,11 @@ flush_messages() {
 }
 trap flush_messages EXIT
 
-agent_id=$(printf '%s' "$payload" | jq -r '
+if [ "$_payload_parsed" = "0" ]; then
+  agent_id=$(printf '%s' "$payload" | jq -r '
   .agent_id // .agent_type // .agent_name // .subagent_type // .agent.name // .agent.type // .attributionAgent // empty
 ' 2>/dev/null || true)
+fi
 
 # Emit the contract decision (deny in enforce mode, systemMessage in warn mode).
 emit_contract_violation() {
@@ -116,10 +146,14 @@ if [ "$tool_name" = "Bash" ]; then
   [ "$contract_mode" = "off" ] && exit 0
   [ -n "$agent_id" ] || exit 0
 
-  command_str=$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
+  if [ "$_payload_parsed" = "0" ]; then
+    command_str=$(printf '%s' "$payload" | jq -r '.tool_input.command // empty' 2>/dev/null || true)
+  fi
   [ -n "$command_str" ] || exit 0
 
-  cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null || true)
+  if [ "$_payload_parsed" = "0" ]; then
+    cwd=$(printf '%s' "$payload" | jq -r '.cwd // empty' 2>/dev/null || true)
+  fi
 
   # There is deliberately NO cheap pre-filter here (#612). The one that used to sit at this
   # point matched the command string against `basename "$vault_abs"` — a REALPATH-resolved
@@ -305,8 +339,10 @@ sys.stdout.write(found)
 fi
 
 # Extract file_path from tool_input
-tool_input=$(printf '%s' "$payload" | jq -r '.tool_input // {}' 2>/dev/null || echo '{}')
-raw_path=$(printf '%s' "$tool_input" | jq -r '.file_path // empty' 2>/dev/null || true)
+if [ "$_payload_parsed" = "0" ]; then
+  tool_input=$(printf '%s' "$payload" | jq -r '.tool_input // {}' 2>/dev/null || echo '{}')
+  raw_path=$(printf '%s' "$tool_input" | jq -r '.file_path // empty' 2>/dev/null || true)
+fi
 
 if [ -z "${raw_path:-}" ]; then
   exit 0
@@ -331,7 +367,11 @@ esac
 
 # Derive relative path + top-level directory from vault root
 rel_path="${abs_path#"$vault_abs"/}"
-top_dir=$(printf '%s' "$rel_path" | cut -d'/' -f1)
+# cut processes embedded newlines as separate records; retain that rare-path behavior.
+case "$rel_path" in
+  *$'\n'*) top_dir=$(printf '%s' "$rel_path" | cut -d'/' -f1) ;;
+  *) top_dir="${rel_path%%/*}" ;;
+esac
 
 # ---------------------------------------------------------------------------
 # Write Role Contract enforcement (Write/Edit path — see the shared block above)
@@ -343,7 +383,8 @@ if [ "$contract_mode" != "off" ] && [ -n "$agent_id" ] && [ "$top_dir" != "asset
 fi
 
 # Extract filename (basename)
-filename=$(basename "$abs_path")
+filename="${abs_path##*/}"
+[ -n "$filename" ] || filename="/"
 
 # ---------------------------------------------------------------------------
 # Whitelist — always allowed regardless of directory
