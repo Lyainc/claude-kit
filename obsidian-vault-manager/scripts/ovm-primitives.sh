@@ -843,8 +843,48 @@ import sys, os, re, math, json
 
 E5_MIN_CANDIDATE_SCORE = 0.5
 
+# Value semantics mirror scan-frontmatter's README contract; keep this tag-only
+# reader standalone and pin parity with independent fixtures (#804).
+_NULLS = ('null', 'Null', 'NULL', '~')
+
+def strip_comment(s):
+    quote = None
+    depth = 0
+    i = 0
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if quote:
+            if ch == '\\' and quote == '"':
+                i += 2
+                continue
+            if ch == "'" and quote == "'" and s[i + 1:i + 2] == "'":  # '' escapes a single quote
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in '"\'' and (i == 0 or s[i - 1] in ' \t[,'):
+            quote = ch
+        elif ch == '[' and (i == 0 or depth):
+            depth += 1
+        elif ch == ']' and depth:
+            depth -= 1
+        elif ch == '#' and depth == 0 and (i == 0 or s[i - 1] in ' \t'):
+            return s[:i].rstrip()
+        i += 1
+    return s
+
+def scalar(raw):
+    """Comment-stripped scalar -> str, or None for an unquoted YAML null."""
+    v = strip_comment(raw).strip()
+    if v in _NULLS:
+        return None
+    if len(v) >= 2 and v[0] == v[-1] == "'":
+        return v[1:-1].replace("''", "'")
+    return v.strip('"\'')
+
 def parse_tags(content):
-    """Read only the `tags:` list from the frontmatter block."""
+    """Read only list-valued `tags:` using the scanner's value semantics."""
     lines = content.split('\n')
     if not lines or lines[0].strip() != '---':
         return []
@@ -860,20 +900,27 @@ def parse_tags(content):
     in_tags = False
     for line in fm_lines:
         stripped = line.lstrip()
-        if stripped.startswith('- ') and in_tags:
-            tags.append(stripped[2:].strip().strip('"\''))
+        if not line.strip() or stripped.startswith('#'):
+            continue
+        if stripped.startswith('- '):
+            if in_tags:
+                item = scalar(stripped[2:])
+                if item not in (None, ''):
+                    tags.append(item)
             continue
         in_tags = False
-        m = re.match(r'^tags\s*:\s*(.*)', line)
-        if not m:
+        m = re.match(r'^(\w[\w\-_]*)\s*:\s*(.*)', line)
+        if not m or m.group(1) != 'tags':
             continue
-        val = m.group(1).strip()
+        val = strip_comment(m.group(2)).strip()
+        tags = []  # a later tags key replaces the earlier value, even null/scalar
         if val == '' or val == '[]':
             in_tags = True
         elif val.startswith('[') and val.endswith(']'):
             inner = val[1:-1]
-            tags = [x.strip().strip('"\'') for x in inner.split(',') if x.strip()]
-    return [t for t in tags if isinstance(t, str) and t.strip()]
+            tags = [x.strip().strip('"\'') for x in inner.split(',')
+                    if x.strip() and x.strip() not in _NULLS]
+    return tags
 
 target_dir = sys.argv[1]
 # realpath, matching validate_vault_path's resolution of target_dir — otherwise a

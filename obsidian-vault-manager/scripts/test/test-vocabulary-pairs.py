@@ -447,6 +447,15 @@ def case_parity_comment_null_contract(errors: list) -> None:
             "---\ntitle: 'it''s # x'\nowner: 'a' # c\ntags:\n  - a\n  - #todo\n  -  # c\ntype: note\n---\nbody\n",
             encoding="utf-8")
         fm = {r["path"]: r["frontmatter"] for r in _run_prim("scan-frontmatter", str(vault))}
+        expected = {
+            **{f"notes/s{i}.md": {"tags": ["api"], "type": "note"} for i in range(E9_MIN_FILES)},
+            **{f"notes/p{i}.md": {"tags": ["apis"], "type": "note"} for i in range(E9_MIN_FILES)},
+            "notes/q.md": {"tags": ["null", "a # b"], "type": "note", "owner": None},
+            "notes/e.md": {"title": "it's # x", "owner": "a", "tags": ["a"], "type": "note"},
+        }
+        audit_fm = {r["rel"]: r["fm"] for r in collect(vault)["fm_records"]}
+        _assert(fm == expected, "comment contract: scanner matches independent values", errors)
+        _assert(audit_fm == expected, "comment contract: validator matches independent values", errors)
         e = fm["notes/e.md"]
         _assert(e.get("title") == "it's # x" and e.get("owner") == "a",
                 "comment parity: '' escapes a single quote, and # inside single quotes is data", errors)
@@ -463,6 +472,42 @@ def case_parity_comment_null_contract(errors: list) -> None:
         _assert(len(pairs) == 1 and (pairs[0]["a"], pairs[0]["b"]) == ("api", "apis"),
                 "comment parity: detect-vocabulary still pairs api/apis behind trailing comments",
                 errors)
+
+
+def case_value_contract_battery(errors: list) -> None:
+    """Independent expected values, including the scanner's limited escape semantics."""
+    cases = [
+        ("issue-804", "tags: [a] # c\ntrack: null\nstatus: 완료 # done",
+         {"tags": ["a"], "track": None, "status": "완료"}),
+        ("nulls", 'a: null\nb: Null\nc: NULL\nd: ~ # c\ne: "null"\nf: \'~\'',
+         {"a": None, "b": None, "c": None, "d": None, "e": "null", "f": "~"}),
+        ("hashes", 'a: C#\nb: http://x/#frag\nc: "a # b" # c\nd: [#a, #b] # c',
+         {"a": "C#", "b": "http://x/#frag", "c": "a # b", "d": ["#a", "#b"]}),
+        ("empty", "a:\nb: # comment\nc: [] # comment", {"a": [], "b": [], "c": []}),
+        ("block", "tags: # c\n  - a # c\n  \n  # keep list\n  - 'it''s # x' # c\n"
+         '  - "null"\n  - null\n  - ~\n  - # comment\n  - C#',
+         {"tags": ["a", "it's # x", "null", "C#"]}),
+        ("flow", 'tags: [null, Null, NULL, ~, "null", \'~\', "a # b", C#] # c',
+         {"tags": ["null", "~", "a # b", "C#"]}),
+        ("escapes", r'''title: "a \" # b" # c
+single: 'it''s # x' # c
+tags: ["a \" # b", 'it''s # x'] # c''',
+         {"title": r'a \" # b', "single": "it's # x", "tags": [r'a \" # b', "it''s # x"]}),
+        ("break-list", "tags:\n  - a\nunrecognized line\n  - b\nother:\n  - c",
+         {"tags": ["a"], "other": ["c"]}),
+    ]
+    with tempfile.TemporaryDirectory() as tmp:
+        vault = Path(tmp)
+        contents = {}
+        for name, body, expected in cases:
+            content = f"---\n{body}\n---\nbody\n"
+            contents[name] = content
+            (vault / f"{name}.md").write_text(content, encoding="utf-8")
+        scan = {r["path"]: r["frontmatter"] for r in _run_prim("scan-frontmatter", str(vault))}
+        for name, _, expected in cases:
+            _assert(scan[f"{name}.md"] == expected, f"contract [{name}]: scanner expected values", errors)
+            _assert(parse_frontmatter(contents[name]) == expected,
+                    f"contract [{name}]: validator expected values", errors)
 
 
 # ── runner ───────────────────────────────────────────────────────────────────
@@ -482,6 +527,7 @@ def main() -> int:
         case_parity_parser_unit_agreement,
         case_parity_parser_unit_divergences,
         case_parity_comment_null_contract,
+        case_value_contract_battery,
     ]
     for fn in cases:
         print(f"# {fn.__name__}")
