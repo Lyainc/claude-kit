@@ -15,6 +15,9 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import shlex
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -22,6 +25,30 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[3]
 HOOK = ROOT / "vault-bridge" / "hooks" / "pre-write-guard.sh"
+# Optional differential run: every invocation uses the same fixture/env for both hooks.
+BASELINE = os.environ.get("PRE_WRITE_GUARD_BASELINE")
+COMPARISONS = 0
+
+
+def _stderr_meaning(stderr: str) -> str:
+    # Shell diagnostics name the script and source line; those change with the diff.
+    return re.sub(r"[^\n]*?: line [0-9]+:", "HOOK: line N:", stderr)
+
+
+def _run_raw(payload: str, env: dict) -> subprocess.CompletedProcess:
+    global COMPARISONS
+    proc = subprocess.run(["bash", str(HOOK)], input=payload,
+                          capture_output=True, text=True, env=env)
+    if BASELINE:
+        before = subprocess.run(["bash", BASELINE], input=payload,
+                                capture_output=True, text=True, env=env)
+        def stdout_value(value: str):
+            return json.loads(value) if value.strip() else None
+        assert (proc.returncode, stdout_value(proc.stdout), _stderr_meaning(proc.stderr)) == (
+            before.returncode, stdout_value(before.stdout), _stderr_meaning(before.stderr)
+        ), f"baseline mismatch: {payload!r}\nbefore={before!r}\nafter={proc!r}"
+        COMPARISONS += 1
+    return proc
 
 
 def _assert(cond: bool, desc: str, errors: list[str]) -> bool:
@@ -55,13 +82,7 @@ def _run(payload: dict, env_overrides: dict | None = None, vault_root: str | Non
         env["VAULT_BRIDGE_VAULT_ROOT"] = vault_root
     if env_overrides:
         env.update(env_overrides)
-    return subprocess.run(
-        ["bash", str(HOOK)],
-        input=json.dumps(payload),
-        capture_output=True,
-        text=True,
-        env=env,
-    )
+    return _run_raw(json.dumps(payload), env)
 
 
 def _make_payload(
@@ -623,6 +644,141 @@ def case_non_vault_path(errors: list[str]) -> None:
     _assert(proc.stdout.strip() == "", f"stdout empty (got: {proc.stdout!r})", errors)
 
 
+
+def case_payload_parsing(errors: list[str], vault_root: str) -> None:
+    """Batch extraction preserves jq fallback semantics and shell field boundaries."""
+    print("\ncase: payload_parsing")
+    target = f"{vault_root}/notes/valid-note.md"
+    for field in ("agent_id", "agent_type", "agent_name", "subagent_type", "attributionAgent"):
+        proc = _run(_make_payload(target, "Edit", field, "executor"), vault_root=vault_root)
+        _assert(_denied(proc.stdout), f"Edit identity: {field}", errors)
+    for field in ("name", "type"):
+        payload = _make_payload(target)
+        payload["agent"] = {field: "executor"}
+        _assert(_denied(_run(payload, vault_root=vault_root).stdout), f"nested agent.{field}", errors)
+    for identity in ("executor\nwith spaces\n\n", "한국어 ' \" $() `x` \\ tab\t"):
+        proc = _run(_make_payload(target + "\n\n", "Edit", "agent_id", identity), vault_root=vault_root)
+        _assert(_denied(proc.stdout), "quoted/newline identity and trailing path newlines", errors)
+    payload = _make_payload(target)
+    payload.update(agent_id=False, agent_type="executor", subagent_type="ignored")
+    _assert(_denied(_run(payload, vault_root=vault_root).stdout), "false falls through; identity precedence", errors)
+    # Unusual jq values retain their existing -r rendering via the slow path.
+    for identity in (17, True, ["executor"], {"name": "executor"}):
+        proc = _run(_make_payload(target, agent_id_field="agent_id", agent_id_value=identity), vault_root=vault_root)
+        _assert(_denied(proc.stdout), f"non-string identity: {identity!r}", errors)
+    env = os.environ.copy()
+    for key in ("VAULT_BRIDGE_DISABLE", "VAULT_BRIDGE_STRICT_NAMING", "VAULT_BRIDGE_WRITE_CONTRACT",
+                "VAULT_BRIDGE_VAULT_PATH"):
+        env.pop(key, None)
+    env["VAULT_BRIDGE_VAULT_ROOT"] = vault_root
+    valid = json.dumps(_make_payload(target))
+    raw_cases = ("", "{", "null", "[]", '"Write"', valid + "\n" + valid, valid + "\n{",
+                 json.dumps({"tool_name": "Write", "tool_input": json.dumps({"file_path": target})}))
+    for raw in raw_cases:
+        proc = _run_raw(raw, env)
+        _assert(proc.returncode == 0 and not proc.stdout and not proc.stderr,
+                f"empty/malformed/alternate input: {raw!r}", errors)
+    for payload in ({"tool_name": "Read"}, {"tool_name": "Write"},
+                    {"tool_name": "Write", "tool_input": {"file_path": False}},
+                    {"tool_name": "Bash", "subagent_type": "executor"},
+                    _make_bash_payload("echo '", "executor")):
+        proc = _run(payload, vault_root=vault_root)
+        _assert(proc.returncode == 0 and not proc.stdout and not proc.stderr, "early exit/fail-open", errors)
+    payload = _make_payload(f"{vault_root}/sources/bad.md", "Edit", "agent_id", "executor")
+    proc = _run(payload, {"VAULT_BRIDGE_WRITE_CONTRACT": "warn", "VAULT_BRIDGE_STRICT_NAMING": "1"}, vault_root)
+    _assert(proc.returncode == 2 and "vault-bridge contract" in proc.stdout and
+            "NAMING VIOLATION" in proc.stderr, "warn + strict retains queued contract JSON on exit 2", errors)
+    proc = _run(payload, {"VAULT_BRIDGE_WRITE_CONTRACT": "custom-mode"}, vault_root)
+    _assert(proc.returncode == 0 and "CONTRACT WARNING" in proc.stderr,
+            "unknown contract mode retains warn behavior", errors)
+    payload = _make_bash_payload(f'printf "quoted >" > "{vault_root}/notes/x.md"\n\n',
+                                 "executor\n\n", vault_root + "\n\n")
+    _assert(_denied(_run(payload, vault_root=vault_root).stdout), "Bash fields trim trailing newlines", errors)
+    # Embedded NUL follows the legacy command-substitution behavior, including warnings.
+    payload = _make_payload(target, agent_id_field="agent_id", agent_id_value="ex\0ecutor")
+    _assert(_denied(_run(payload, vault_root=vault_root).stdout), "NUL fallback", errors)
+    # cut's line-oriented behavior on a path with an embedded newline is preserved.
+    payload = _make_payload(f"{vault_root}/notes/line\nbreak.md")
+    proc = _run(payload, vault_root=vault_root)
+    _assert(proc.returncode == 0 and not proc.stdout, "embedded newline path", errors)
+    proc = _run(_make_payload(target), vault_root=f"{vault_root}/missing")
+    _assert(proc.returncode == 0 and not proc.stdout, "missing vault", errors)
+
+
+def case_write_edit_symlinks(errors: list[str], vault_root: str) -> None:
+    """Write/Edit classify resolved destinations, including assets links in both directions."""
+    print("\ncase: write_edit_symlinks")
+    with tempfile.TemporaryDirectory() as tmp:
+        alias = Path(tmp, "vault-alias")
+        alias.symlink_to(vault_root)
+        inward = Path(vault_root, "assets", "into-notes")
+        inward.symlink_to(Path(vault_root, "notes"))
+        attachment = Path(vault_root, "notes", "into-assets")
+        attachment.symlink_to(Path(vault_root, "assets"))
+        outward = Path(vault_root, "notes", "outside")
+        outward.symlink_to(tmp)
+        for tool in ("Write", "Edit"):
+            for root in (vault_root, str(alias)):
+                paths = ((str(alias / "notes" / "valid.md"), True),
+                         (str(inward / "valid.md"), True),
+                         (str(attachment / "Photo.PNG"), False),
+                         (str(outward / "outside.md"), False))
+                for target, denied in paths:
+                    proc = _run(_make_payload(target, tool, "subagent_type", "executor"), vault_root=root)
+                    _assert(proc.returncode == 0 and _denied(proc.stdout) == denied,
+                            f"{tool}: resolved target denied={denied}: {target}", errors)
+
+
+def case_dependency_failures(errors: list[str], vault_root: str) -> None:
+    """Missing/failing jq and Python preserve the existing silent early exits."""
+    print("\ncase: dependency_failures")
+    with tempfile.TemporaryDirectory() as tmp:
+        bindir = Path(tmp)
+        for name in ("bash", "cat", "cut", "basename", "jq", "python3"):
+            real = shutil.which(name)
+            if real:
+                (bindir / name).symlink_to(real)
+        for name in ("jq", "python3"):
+            link = bindir / name
+            real = link.resolve()
+            link.unlink()
+            # A nonzero executable models missing/unusable dependency without touching PATH installs.
+            link.write_text("#!/bin/sh\nexit 127\n")
+            link.chmod(0o755)
+            for payload in (_make_payload(f"{vault_root}/notes/valid.md"),
+                            _make_bash_payload(f"echo x > {vault_root}/notes/x.md", "executor")):
+                proc = _run(payload, {"PATH": tmp}, vault_root)
+                _assert(proc.returncode == 0 and not proc.stdout and not proc.stderr,
+                        f"{name} failure: silent pass", errors)
+            link.unlink()
+            link.symlink_to(real)
+        # First Python resolves the path; a later validation failure is a naming violation.
+        real_python = shlex.quote(str((bindir / "python3").resolve()))
+        (bindir / "python3").unlink()
+        counter = shlex.quote(str(bindir / "called"))
+        (bindir / "python3").write_text(
+            f"#!/bin/sh\nif [ -e {counter} ]; then exit 127; fi\n"
+            f": > {counter}\nexec {real_python} \"$@\"\n")
+        (bindir / "python3").chmod(0o755)
+        # Reset the state per hook invocation so differential executions see the same failure.
+        payload = json.dumps(_make_payload(f"{vault_root}/notes/valid.md"))
+        env = os.environ.copy()
+        env.update(PATH=tmp, VAULT_BRIDGE_VAULT_ROOT=vault_root, VAULT_BRIDGE_STRICT_NAMING="1",
+                   VAULT_BRIDGE_WRITE_CONTRACT="off", VAULT_BRIDGE_DISABLE="0")
+        results = []
+        for hook in ([str(HOOK), BASELINE] if BASELINE else [str(HOOK)]):
+            state = bindir / "called"
+            if state.exists():
+                state.unlink()
+            results.append(subprocess.run([shutil.which("bash"), hook], input=payload,
+                                          capture_output=True, text=True, env=env))
+        _assert(results[0].returncode == 2 and "NAMING VIOLATION" in results[0].stderr,
+                "validation Python failure: strict naming blocks", errors)
+        if BASELINE:
+            _assert([(r.returncode, r.stdout, r.stderr) for r in results][0] ==
+                    [(r.returncode, r.stdout, r.stderr) for r in results][1],
+                    "validation failure matches baseline", errors)
+
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
@@ -647,6 +803,9 @@ def main() -> int:
         Path(vault_root, "notes", "diary").mkdir(parents=True, exist_ok=True)
         Path(vault_root, "wiki", "tools").mkdir(parents=True, exist_ok=True)
 
+        case_payload_parsing(errors, vault_root)
+        case_dependency_failures(errors, vault_root)
+        case_write_edit_symlinks(errors, vault_root)
         case_main_context_sources_write(errors, vault_root)
         case_subagent_enforce_default(errors, vault_root)
         case_subagent_enforce_agent_id_field(errors, vault_root)
@@ -692,6 +851,8 @@ def main() -> int:
     if errors:
         print(f"FAILED: {len(errors)} assertion(s) failed", file=sys.stderr)
         return 1
+    if BASELINE:
+        print(f"Baseline comparisons: {COMPARISONS} identical exit/stdout JSON/stderr meanings")
     print("OK: all cases passed")
     return 0
 
