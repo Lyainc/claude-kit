@@ -298,8 +298,9 @@ one-off slip does **not** trigger RCA; only a repeat pattern does.
 
 ## 6. Coverage of the 11 initial expectations (claude-kit-work-rules/acceptance-1)
 
-The work-rules effort started from 11 expected items. Each is covered by a mechanism
-in this minimal core. SOFT and DEFERRED rows mark **intended limits**, not gaps.
+The work-rules effort started from 11 expected items. Each is mapped to a mechanism
+in this minimal core. SOFT rows mark judgment limits; PARTIAL rows do not claim full
+coverage of the original expectation.
 
 | # | Expected item | Mechanism | Tier |
 |---|---------------|-----------|------|
@@ -312,14 +313,17 @@ in this minimal core. SOFT and DEFERRED rows mark **intended limits**, not gaps.
 | 7 | Verification evidence | Deterministic scripts emit real exit-code evidence; `check-test-exitcode` runs registered tests; CI. No external-orchestrator dependency (claude-kit-work-rules/constraint-3) | HARD |
 | 8 | Expression hygiene | claude-kit-specific banned terms → `check-banned-words` (HARD); general prose hygiene → external linters (delegation, claude-kit-work-rules/constraint-4) | HARD + delegated |
 | 9 | Consistency / traceability | §1 (issue = canonical, trace-to-root) + `check-version-sync` + `check-ci-coverage` | HARD + SOFT |
-| 10 | Telemetry | Reuse existing `telemetry/` (event-logger, `report.py` lifecycle). Rule-fire event schema **DEFERRED to #217** (telemetry external-distribution owner) — claude-kit-work-rules/constraint-8 | DEFERRED (soft) |
+| 10 | Telemetry | Reuse `feedback-loop/scripts/event-logger.sh`, `validate-schema.py` and `report.py`: opt-in `rule_fire` schema, emission and per-rule fire counts exist. Zero-fire/stale rule identification has no rule registry — claude-kit-work-rules/constraint-8 | PARTIAL (soft, opt-in) |
 | 11 | Violation correction | §5 + `rules/rca-checklist.md` (4-step RCA, stop-at-determinism, recurrence gate) | reference (claude-kit-work-rules/constraint-7) |
 
 **Intended limits.** Rows 4, 6 (checklist part) and 9 (traceability part) are SOFT by
 design — judgment-type rules a deterministic script cannot fairly decide (claude-kit-work-rules/constraint-5). Row 10
-(telemetry rule-fire) is DEFERRED: #217 owns telemetry external distribution, so the
-rule-fire event schema is added there to avoid a split owner (claude-kit-work-rules/constraint-8 is the only non-hard
-constraint). Row 1 is latent on a repo with no linter installed — the delegation
+(telemetry rule-fire) is PARTIAL: feedback-loop owns the implemented schema and fire
+counts, enabled only by `CLAUDE_KIT_TELEMETRY=1`. A fire records a caught violation,
+not compliance; zero fires cannot distinguish a dead rule from a perfectly followed
+one. `report.py` has no rule registry, so never-fired/stale **rule** identification
+remains unmet (claude-kit-work-rules/constraint-8 is the only non-hard constraint).
+Its skill lifecycle view does not establish rule liveness. Row 1 is latent on a repo with no linter installed — the delegation
 mechanism is committed and activates the moment a linter is present (claude-kit-work-rules/constraint-4). Latent is not
 silent: since #456 a run where every linter skipped exits 2 and reports no verdict, so
 "nothing was inspected" can no longer be read as "the tree is clean".
