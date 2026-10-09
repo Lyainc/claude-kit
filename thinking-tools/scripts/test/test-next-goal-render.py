@@ -101,7 +101,7 @@ def main():
     # Live consumer proof text can contain line endings; each rendered field stays one line.
     multiline = _judgment(wid)
     for key in ("title", "evidence", "startable_reason", "user_change", "note"):
-        multiline["pick"][key] = "첫 줄\n둘째 줄"
+        multiline["pick"][key] = "첫 줄\n\n  둘째 줄"
     multiline["alternatives"][0]["title"] = "외부\r\n선행"
     multiline["alternatives"][0]["reason"] = "ready\n과 실제 증거"
     multiline["unverified"] = ["미확인\n외부"]
@@ -110,7 +110,9 @@ def main():
           and [line[:8] for line in multiline_out.splitlines()] ==
           ["NEXT    ", "FROM    ", "SKIPPED ", "TRACE   "]
           and "ready 과 실제 증거" in multiline_out
-          and "첫 줄 둘째 줄" in multiline_out, f"{code} {multiline_out!r} {err!r}")
+          and "첫 줄 둘째 줄" in multiline_out and "  둘째" not in multiline_out
+          and "외부 선행" in multiline_out and "\r" not in multiline_out
+          and "미확인: 미확인 외부" in multiline_out, f"{code} {multiline_out!r} {err!r}")
     code2, out2, _ = _render(repo, _judgment(wid))
     # TRACE ends with the walk's own clock (`@ <UTC second>`), taken afresh on every render, so a
     # second boundary between the two runs is not a rendering difference.
@@ -153,10 +155,12 @@ def main():
     check("no Seed keeps three lines", code == 0 and len(out.splitlines()) == 3
           and "TRACE" not in out and "가치 있는 후속 후보가 없어요" in out, f"{code} {out!r} {err!r}")
 
-    code, _, err = _render(repo, {"handoff": "none", "pick": {"title": "t", "via": "docs/specs/c.yaml",
-                                  "evidence": "e", "startable": "yes", "startable_reason": "r",
+    code, _, err = _render(repo, {"handoff": "none", "pick": {"title": "외부\r\n선행", "via": "docs/specs/c.yaml",
+                                  "targets": ["acceptance-1"], "evidence": "e", "startable": "yes", "startable_reason": "r",
                                   "user_change": "u"}, "alternatives": []})
     check("Seed via without a walk refused", code == 1, err)
+    check("refusal names a multiline title on one line", "'외부 선행'" in err
+          and len(err.strip().splitlines()) == 1, err)
 
     p = Path(repo) / "docs" / "specs" / "p.yaml"
     original = p.read_text(encoding="utf-8")
