@@ -34,7 +34,7 @@ python3 scripts/check-version-sync.py --self-test
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (root: ...)
 python3 scripts/check-codex-portability.py --self-test
-# Expected: OK: all 9 Codex native-question self-test cases passed
+# Expected: OK: all 10 Codex native-question self-test cases passed
 python3 scripts/check-codex-portability.py
 # Expected: OK: Codex portability clean — 19 skills classified (19 supported, 0 unsupported)
 # drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단.
@@ -1336,8 +1336,8 @@ clarification/confirmation instructions. Do not add Codex tool names to Claude `
 Explicit question consumers are thinking-tools' build-spec, unknown-discovery,
 adversarial-review, expert-panel, diverse-sampling, doc-concretize and issue-raise;
 feedback-loop's distill, add-policy and retro; vault-bridge's vault-link, vault-commit and wiki;
-and obsidian-vault-manager's audit and base. The other four skills still inherit the shared
-contract whenever their workflow needs user input. No skill is required to ask an extra question.
+and obsidian-vault-manager's audit and base. The other four (doc-polish, next-goal, vault-save,
+vault-manifest-refresh) still inherit the shared contract whenever their workflow needs user input. No skill is required to ask an extra question.
 
 After editing this contract, run `check-codex-portability.py`,
 `feedback-loop/scripts/test/test-codex-portability.py`, `check-agent-tools-usage.py`,
