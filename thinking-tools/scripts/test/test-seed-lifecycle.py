@@ -215,6 +215,18 @@ class LifecycleTests(unittest.TestCase):
         obj = spec(); obj['relations']['children'] = ['docs/specs/x']
         self.invalid(obj,'exact Seed')
 
+    def test_independent_seed_cannot_keep_parent_item_references(self):
+        self.valid(spec())
+        for obj in (spec(refines=['constraint-1']),
+                    spec(mapping=[{'parent_item':'constraint-1','child_items':['constraint-2']}])):
+            self.invalid(obj,'require a parent')
+            gate = sr.eligibility(self.rd,parse(obj))
+            self.assertFalse(gate['eligible']); self.assertTrue(gate['review_required'])
+            lines,code = sr.cmd_check(self.rd,'docs/specs/s.yaml',parse(obj))
+            self.assertEqual(code,1); self.assertIn('require a parent',' '.join(lines))
+        self.valid(spec(parent='docs/specs/p.yaml',refines=['constraint-1'],
+                        mapping=[{'parent_item':'constraint-1','child_items':['constraint-2']}]))
+
     def test_partial_discontinued_and_grandchild_mapping(self):
         parent = spec('closed','discontinued',withdrawn=['constraint-1'],children=['docs/specs/c.yaml'])
         self.write('p.yaml',parent)

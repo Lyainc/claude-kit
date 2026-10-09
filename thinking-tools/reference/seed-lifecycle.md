@@ -60,6 +60,8 @@ active ↔ paused, active/paused → closed는 실제 승인에 따라 처리해
 
 `relations.refines`는 부모 항목을 가리켜요. `refines_map`의 각 `{parent_item, child_items}`는
 그 부모 항목이 자식의 어느 항목으로 구체화되는지 명시해요. 내용만으로 대응을 확정하지 않아요.
+부모가 없는 독립 Seed의 `refines`와 `refines_map`은 비워요. 이전 부모 항목은 고정된
+`provenance`로 보존하며, 현재 부모의 항목 참조로 남기지 않아요.
 
 - 부모 전체 철회는 연결된 자식 모두를 재검토 대상으로 만들어요. 자식을 자동 철회하지 않아요.
 - 일부 철회는 해당 부모 항목을 구체화하는 자식에만 영향을 줘요. 다른 유효 항목만 구체화하는
