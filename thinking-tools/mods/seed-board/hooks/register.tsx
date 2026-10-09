@@ -355,7 +355,7 @@ export const register: Register = on => {
           : []
       const pick = judgment.pick
       if (pick === null) {
-        if (judgment.handoff !== 'missing') cands.push(<Text dimColor>고른 후보가 없어요.</Text>)
+        if (judgment.handoff !== 'missing') cands.push(<Text dimColor>선택한 후보 없음 — 검토 범위와 미확인은 FROM/TRACE 참고</Text>)
       } else {
         const k = `cand:${pick.title}`
         cands.push(

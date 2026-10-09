@@ -39,8 +39,8 @@ verify unmet `measurable_via` in the repo; unresolved evidence stays unresolved.
 Before ranking, read
 `reference.md` §Seed walk (binding record semantics): an unfinished same-repo predecessor → `held`; a
 child already satisfying its criteria → `done`, never re-proposed; `external` is never ranked;
-`STOP`/`CYCLE`/`FAILED`/`notfound` are never "no related Seeds" (name them in
-`unverified`). Worked from a Seed but no path handed over: do not search; set `handoff: "missing"`.
+`STOP`/`CYCLE`/`FAILED`/`notfound` are not absence. Copy STOP claims to `walk_stops`;
+keep other gaps in `unverified`. Worked from a Seed without its path: do not search; set `handoff: "missing"`.
 
 ## Phase 1 — Pick
 
@@ -55,9 +55,9 @@ put the injected maintenance streak in `FROM`, never as a blocker (§Maintenance
 
 **Step 3 — Widen to the backlog** when a candidate fails either bar or chain depth ≥ 3: rank by
 (1) issues combining with what just shipped, (2) label and staleness; one theme is one unit; a Seed in
-play ranks its remaining criteria first. If nothing clears the floor, output `NEXT · 없음`, then the
-`FROM` and `SKIPPED` lines as usual, and `GOAL · 없음 — 가치 있는 후속 후보가 없어요`; stop, no fabricated
-goal, issue, or repeated search. Otherwise render, without narrating the ranking:
+play ranks its remaining criteria first. If nothing clears the floor, keep `pick: null`; render
+and use FROM's scoped conclusion for `GOAL · 없음`. Stop without a fabricated goal or repeated
+search. Render without narrating the ranking:
 
 ```text
 NEXT     · {pick in one line}
@@ -65,12 +65,12 @@ FROM     · {source; on a switch, why the thread's own pool failed the floor}
 SKIPPED  · {rejected candidates and brief reason}
 ```
 
-**With a Seed in play or a missing handoff, the pick is rendered, not typed**: write the judgment as
-JSON and print verbatim what `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --cwd
+**Render every judgment, including no Seed/no pick**, as JSON; print verbatim what
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --cwd
 <repo> <<'JSON' ... JSON` returns via Bash (schema: its docstring; judgment fields: §Render). `TRACE`
 and FROM's edge path come from that output; a `via` the walk did not visit is refused (fix the
-judgment, never the path); on a `[근거 변경됨 ...]` mark walk again and re-judge before writing the
-condition. Without a Seed, render directly.
+judgment, never the path). TRACE retains gaps without a Seed; no pick distinguishes reviewed-scope
+absence, unevaluated scope and missing handoff. On `[근거 변경됨 ...]`, re-walk and re-judge.
 
 **User switch**: an eligible candidate the user names becomes the pick; stale id → re-walk;
 render again, rewrite the condition. Read `reference.md` §User switch (binding) for the prefill form and

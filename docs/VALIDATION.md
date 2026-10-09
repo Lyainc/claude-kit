@@ -952,6 +952,8 @@ python3 thinking-tools/scripts/test/test-seed-id-migrate.py
 # 방문하지 않은 via·다른 레포 Seed pick·착수 불가 pick은 거부, walk 이후 Seed가 바뀌면 `근거 변경됨`,
 # Seed 경로 인계 누락은 무후보와 다른 줄로 나오는지 픽스처로 핀한다. 네트워크 없음(GH_BIN 무효 경로).
 python3 thinking-tools/scripts/test/test-next-goal-render.py
+# #826: no-pick scoped absence vs unevaluated scope vs missing handoff; unavailable backlog
+# survives handoff none/missing; STOP assertions match actual walker targets and causes.
 # Expected: OK: all test-next-goal-render checks passed
 
 # Shell hook syntax check
