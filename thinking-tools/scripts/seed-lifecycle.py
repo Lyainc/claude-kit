@@ -250,6 +250,8 @@ def validate(seed,root=None):
     if seed.relations_version is not None and seed.relations_version != 2:
         errors.append('relations.version must be 2 when recorded')
     if seed.relations_version == 2 or lc is not None:
+        if not seed.parent and (seed.refines or r.get('refines_map')):
+            errors.append('relations.refines and refines_map require a parent')
         for name in ('refines','children','depends_on','replaces'):
             vals = strings(r.get(name,[]),'relations.'+name,errors)
             if name != 'refines' and any(not path(v) for v in vals):
