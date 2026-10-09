@@ -59,7 +59,7 @@ claude-kit/                              # marketplace repo (Lyainc-claude-kit)
 │   └── README.md                        # measure→review→keep, opt-in·local-only·per-turn LLM 0
 ├── docs/                                # 살아있는 계약만 — 완료된 계획·죽은 설계는 삭제(근거는 GitHub 이슈)
 │   ├── design/                          # 현행 설계 계약 (boundary SSOT, 어댑터 계약, vault v4/v5, 4-흐름)
-│   ├── specs/                           # spec-first Seed (YAML)
+│   ├── specs/                           # build-spec Seed (YAML)
 │   ├── VALIDATION.md                    # 검증 명령 단일 출처 (CI가 이 파일을 읽음)
 │   ├── REFERENCE.md                     # CLAUDE.md에서 분리된 조회용 섹션 (이 파일)
 │   └── discussions/                     # 스킬이 쓰는 로컬 워킹 드래프트 (gitignored)

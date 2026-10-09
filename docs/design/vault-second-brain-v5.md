@@ -1,6 +1,6 @@
 # Vault Second Brain 설계안 v5 — LLM-compiled wiki (A 主) + 참고자료 창고 (B, 승격 게이트 폐기)
 
-> 작성일: 2026-06-23 · 최종 개정: 2026-08-04(#477) · 상태: **구현됨** — A(wiki)·B(참고자료 창고) 모두 코드에 반영, §15 전 항목 완료
+> 작성일: 2026-06-23 · 최종 개정: 2026-10-10(6.0.0 기준 소스 대조; #480/#586/#645/#764) · 상태: **소스 반영됨** — A(wiki)·B(참고자료 창고). §15는 당시 종결 기록이며 설치·실행의 새 검증 결과가 아니에요.
 > 대체 대상: `vault-second-brain-v4.md` (인간 저작 second-brain 모델)
 > 방향 출처 — **정전(SSOT) = GitHub #215**(④ 재설계). 근거 트레일: 토론 문서 `docs/discussions/20260612_vault-llm-wiki-redesign/`
 > (SUMMARY+UNRESOLVED+RESOLUTIONS-draft) · `docs/discussions/20260623_vault-debloat-reckoning/DECISION.md`(5레이어) ·
@@ -73,9 +73,16 @@ v4는 "인간이 채우는 second-brain"을 전제했으나, 측정·증언·디
 | **rules** | work-policy("어떻게 일하나") | AI+인간 | 인간, 안정 | `~/.claude/rules`, `rules/RULES.md` |
 | **memory** | 프로젝트 사실 | AI | auto | `~/.claude/projects/.../memory` |
 
+`rules`·`memory` 행의 경로는 Claude 예시예요. Codex에서는 해당 호스트의 네이티브 지침·메모리를
+사용하고 Claude 경로를 생성하지 않아요. 도구·승인·환경변수 차이는 각 플러그인의
+`reference/codex-portability.md`를 따라요.
+
 - **policy/memory ≠ wiki**: wiki는 휘발·축적·AI 저작, policy는 안정·권위·인간 저작 — 성격 반대.
   policy를 wiki에 넣으면 U3(오염 복리)로 규칙 변질 + 출처 분리 위반.
 - **decision은 GitHub 이슈가 정전**(trail 정책): 레포 바운드 decision은 이슈로 간다. B로 안 간다.
+- **토론 경위는 별도 type**: `vault-save --type discussion`은 사고 산출물의 선택지·기각 이유를
+  `wiki/`의 `type: discussion`으로 보존해요(#586). `wiki`가 컴파일하는 `type: wiki`와 같은 작업이
+  아니며, 실제 경위 recall은 `vault-bridge/reference/manifest-recall.md`를 따라요.
 - **A의 인간 부차 소비 경로**: OVM `/base`(§9). 빌트인 `recent` 템플릿은 폴더 필터가 없어 `wiki/` 페이지도
   이미 섞여 나온다 — wiki만 따로 보려면 커스텀 `.base` 파일(`file.inFolder("wiki")`)을 직접 작성해야 한다,
   이 스킬이 자동 생성하는 건 3개 빌트인(`sources`/`notes`/`recent`)뿐이라서다. 브라우징이 설계 밖이라서가
@@ -262,7 +269,7 @@ compounding은 노이즈에게도 복리. "검토를 AI에 위임"한 그 위임
 
 | 관심사 | 귀속 |
 |---|---|
-| wiki(A) 일관성·self-audit(E12) | **OVM**(audit가 E1~E11 보유) — 읽기 전용 감사라 저자를 안 따진다 |
+| wiki(A) 일관성·self-audit(E12) | **OVM** — 현행 감사 분류는 `reference/vault-audit-rules.md`의 E1–E13(E4/E7/E8 폐기, E13은 opt-in schema); 저자를 안 따진다 |
 | wiki(A) 컴파일·링크 저작 | 레이어는 ④, **배포는 vault-bridge**(#645) — `claude-kit-boundary.md` §2 |
 | ~~B 내부 promotion 게이트~~ | **폐기**(§6, #480) — 귀속처 자체가 없어졌다 |
 | B 입구(참고자료 저장) | **vault-bridge `/vault-save`**(§5, #480) — 프로젝트에서 호출 |

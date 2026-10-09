@@ -13,9 +13,9 @@
 
 claude-kit은 **①인지 ②결정화·출력 ③딜리버리 ④지식베이스**를 소유해요. **⑤실행(doing/오케스트레이션)**은 정적 "⑤=OMC"가 아니라 **진화형**이에요:
 
-> **현재** OMC(또는 Claude Code 네이티브)가 ⑤를 담당하나, claude-kit은 Claude Code 네이티브 기능(dynamic Workflow, `/goal`, agents, hooks)을 **substrate로 한 경량 하네스**로 ⑤를 **strangler 점진(route-by-route) 이관**하는 트랙을 갖는다.
+> **현재** ⑤ 실행은 호스트 런타임의 네이티브 기능이 담당해요. Claude Code는 `/goal`·Workflow·agents·hooks, Codex는 해당 세션에 실제 제공된 도구를 사용해요. claude-kit은 자체 실행 엔진을 만들거나 특정 하네스 설치를 요구하지 않아요. 런타임별 도구·승인·훅 차이는 각 플러그인의 `reference/codex-portability.md`가 정의해요.
 
-방향 근거: harness-ownership 어드버서리얼 리뷰(2026-06-03, 비커밋 로컬 작업물)에서 strong-form(전면 OMC 자체 대체 = 옵션 B)이 기각된 뒤 채택된 narrow path예요. 자체 빌드는 native가 강제 못 하는 invariant(헌법) enforcement에 한정돼요(아래 §4 헌법 블록). 동작 중인 OMC를 from-scratch 엔진으로 전면 교체하는 건 lock-in 실측 증거 0건 + native supersession 매몰비용으로 기각됐어요.
+방향 근거: harness-ownership 어드버서리얼 리뷰(2026-06-03, 비커밋 로컬 작업물)에서 전면 OMC 자체 대체가 기각됐고, 이후 #282/#283에서 자체 경량 하네스도 철회됐어요. 남은 결정론 가드는 각 플러그인의 계약을 강제해요. Claude 훅이 있다는 사실만으로 Codex에서도 같은 이벤트·페이로드가 강제된다고 주장하지 않아요.
 
 > **갱신 (2026-06-29 CUT)**: ⑤를 흡수하려던 자체 경량 하네스(goal-doc#100 스키마 + `slice-router` 라우터, `dev-harness` 플러그인)는 dogfood에서 **실사용 부적합**으로 철회됐어요 — 손으로 쓴 goal-doc이 INV-4 스키마를 통과 못 했거든요(slice-router는 실제 goal을 한 번도 라우팅 못 함). ⑤ 실행은 이제 native `/goal`이 직접 담당하고, 슬라이스 계획은 narrative START-PROMPT(session-close ④), 각 인지·출력 작업은 leaf 스킬 관례 호출이에요. strangler 결론 = native 위임으로 충분, 자체 하네스 불요. 전말: 트래킹 이슈 #282 + PR #283 (discussion 노트는 .gitignore상 비커밋이라 정본은 GitHub 이슈).
 
@@ -27,9 +27,9 @@ claude-kit은 **①인지 ②결정화·출력 ③딜리버리 ④지식베이�
 | **②결정화·출력** | 포맷·목적별 산출물 | build-spec(seed) · doc-concretize · doc-polish · graphify(html) · note · issue · next-goal(`/goal` 완료조건) | claude-kit (leaf) |
 | **③딜리버리** | vault 운반 | vault-bridge | claude-kit (leaf) |
 | **④지식베이스** | vault 상주 관리 | obsidian-vault-manager | claude-kit (leaf) |
-| **⑤실행(doing)** | debug · quality · retro · 슬라이스 루프 · 오케스트레이션 | **native `/goal` + Workflow + agents가 직접 담당** (슬라이스 루프 = narrative START-PROMPT를 읽는 native `/goal`; leaf 스킬 관례 호출). measure→improve = `feedback-loop`(외부 배포 ⑤, retro+telemetry). 자체 흡수 하네스(`dev-harness`)는 2026-06-29 CUT으로 철회. | native + feedback-loop |
+| **⑤실행(doing)** | debug · quality · retro · 슬라이스 루프 · 오케스트레이션 | **호스트 네이티브 실행** (Claude: `/goal`·Workflow·agents; Codex: 현재 제공된 도구). measure→improve = `feedback-loop`(외부 배포 ⑤, retro+telemetry). 자체 흡수 하네스(`dev-harness`)는 #282/#283에서 철회. | native + feedback-loop |
 
-claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`·Workflow·agents·hooks)가 직접 담당해요 — 자체 흡수 하네스는 2026-06-29 CUT으로 철회됐어요(위 §1 갱신).
+claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 호스트 네이티브 기능이 직접 담당해요. Codex에서 Claude의 `/goal`·Workflow·에이전트 타입을 호출하지 않아요. 자체 흡수 하네스는 #282/#283에서 철회됐어요.
 
 > **③↔④ 경계 판정 기준 (#304, 2026-07-02 · 배포 축 개정 #645, 2026-08-20)**: 레이어 번호는 "누가 뭘
 > 하나"를 안 알려줘서, 사서/브리지 한 줄 테스트를 판정 기준으로 채택했어요 — **"이게 프로젝트가
@@ -80,6 +80,10 @@ claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`
 
 **§2.5 — ⑤ 슬라이스 루프 완료조건 계약 (#285)**: 슬라이스 루프 입력인 START-PROMPT(session-close ④가 저작, 이 레포 외부)는 native `/goal` 평가자가 판정해요. 그 평가자는 **대화에 surfaced된 증거로만 완료를 판정**하고 파일·명령을 독립 실행하지 않아요([공식](https://code.claude.com/docs/en/goal)). 따라서 START-PROMPT의 `완료조건`은 surfaced-evidence 3레버(L1 단일 도구호출 반증 · L2 독립 리뷰 게이트 · L3 auto mode+턴 상한)를 만족해야 평가 가능해요 — 표준 정본은 #285.
 
+이 `/goal` 구문은 Claude Code 분기예요. Codex `next-goal`은 같은 완료조건을 plain `GOAL`
+문단으로 반환하고, 호출자는 현재 런타임이 제공하는 도구만 사용해요. 외부 session-close 설치나
+Claude Workflow를 leaf 스킬의 전제로 추가하지 않아요.
+
 **§2.5-1 — on-the-loop 게이트 (#309 P3)**: 위 3레버는 완료조건 *판정*을 다루고, 이 게이트는 판정 도중의 *비가역 액션*(merge·삭제·배포·이슈 종료 등)을 다뤄요. 무인/headless 실행이라고 확인 체크포인트가 자동 생략되면 안 돼요 — 정본은 local-harness `rules/README.md` **P6**.
 
 > **재정정 (2026-07-30)**: 이 줄은 정본을 `P7`로 가리켰는데, 그 번호는 2026-07-23에 은퇴했어요 — 내용은 **P6**로 갔고 번호는 P9로 흡수됐어요. `policies/P9.md`가 은퇴 당시 "nothing referenced it correctly"로 기록했지만 그 감사는 local-harness 내부만 봤고, 이 인용을 7일간 놓쳤어요. 교훈은 번호 체계가 아니라 검색 범위예요 — 카탈로그를 인용하는 소비자 레포까지 훑어야 은퇴가 끝나요(local-harness `c52ffde`에 같은 정정).
@@ -88,7 +92,7 @@ claude-kit은 ①②③④를 leaf로 소유하고, ⑤ 실행은 native(`/goal`
 
 ### 3. 의존 방향 — 단방향 (harness → leaf)
 
-- **harness → leaf만 허용.** harness(현재 OMC, 목표 native 기반 경량 하네스)가 claude-kit 스킬을 호출하는 leaf capability 관계예요.
+- **harness → leaf만 허용.** 호스트 네이티브 실행이나 선택적 외부 harness가 claude-kit 스킬을 호출하는 leaf capability 관계예요. OMC나 자체 경량 하네스 설치를 요구하지 않아요.
 - **역방향 무조건 금지.** leaf(①②③④)가 harness API·동작을 import·call·assume하지 않아요. leaf는 independently installable + harness-neutral by construction이에요(leaf 레벨 vendor-neutrality는 커밋 `7a94a34`에서 이미 달성).
 - **B안 기각 1줄 기록**: 루프 전체를 from-scratch 자체 엔진으로 흡수하는 옵션 B는 — 동작 중인 OMC 전면 교체는 lock-in 실측 증거 0건이라 정당화 못 하고 native supersession 시 매몰비용 — 기각. 대신 **native 위임 우선 + strangler 점진**으로 재정의.
 
@@ -109,12 +113,12 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 
 | # | 규칙 | 의미 |
 |---|------|------|
-| CON-1 | **vault writes: new-file-only, user-initiated slash command only** | vault 쓰기는 덮어쓰기 금지(새 파일만) + 메인 컨텍스트 슬래시 커맨드로만 개시. 서브에이전트 직접 write 금지(vault-bridge pre-write-guard Write Role Contract). *예외: frontmatter-only status-machine 전이(아래 CON-1 status-machine note).* |
+| CON-1 | **vault writes: new-file-only, user-initiated slash command only** | 명시적으로 개시한 메인 컨텍스트 vault 쓰기. 임의 덮어쓰기·서브에이전트 직접 write 금지(vault-bridge Write Role Contract). *기존 예외: 아래 status-machine note; wiki의 승인된 compounding update는 `vault-second-brain-v5.md` §4.1과 `wiki/SKILL.md` Phase 4–5를 따른다.* |
 | CON-2 | **deterministic hooks: zero per-turn LLM cost** | 훅은 결정적 셸 스크립트 — 턴마다 LLM 호출 0. (prompt 기반 훅의 무한 루프·토큰 비용 회피.) |
 | CON-3 | **self-approval: prohibited in the same active context** | 저작 패스와 리뷰 패스 분리. 같은 액티브 컨텍스트가 자기 산출물을 승인 불가 — reviewer ≠ author. |
 | CON-5 | **dependency direction: harness → leaf only, no reverse** | §3 단방향. intra-leaf 호출은 면제(§3 규율 범위). |
 
-> **CON-1 status-machine note** (carve-out, ratified 2026-06-08): CON-1의 "new-file-only / 덮어쓰기 금지"는 **content·whole-file 클로버링**을 금지하는 것이지, frontmatter `status:` 전이를 막는 게 아니에요. v4 status machine(raw→draft→evergreen→archived, `vault-second-brain-v4.md` §3.3)은 설계상 `status:` 필드를 in-place 전이시키므로, **frontmatter-only + user-confirmed + 메인 컨텍스트** status 패치는 CON-1 *안*이에요. 이 carve-out은 (a) leaf write로는 OVM `audit` E2 OPTIONAL-FIX가 이미 행사하고, (b) **harness write로는 `feedback-loop` retro(#123, #217로 workflow-harness에서 분리)가 최초**예요 — 둘 다 frontmatter-only·user-confirmed·non-subagent(pre-write-guard 통과) 조건에 한해 허용돼요. body·파일명·경로 변경, 또는 silent(미확인) 패치는 여전히 금지.
+> **CON-1 status-machine note** (carve-out, ratified 2026-06-08): CON-1의 "new-file-only / 덮어쓰기 금지"는 **content·whole-file 클로버링**을 금지해요. 당시 허용한 예외는 **frontmatter-only + user-confirmed + 메인 컨텍스트**의 `status:` 패치예요. v4 status machine은 #480에서 폐기됐으므로 현재 audit이 `status:`를 필수 필드로 채우거나 승격 전이를 제안한다는 뜻은 아니에요. 현행 eligible fix 목록은 `obsidian-vault-manager/reference/vault-audit-rules.md`가 소유해요. 이 역사적 예외만으로 body·파일명·경로 변경이나 silent(미확인) 패치를 허용하지 않아요. repo-local Seed 생애주기는 vault status machine과 별개이며 `thinking-tools/reference/seed-lifecycle.md`를 따라요.
 
 #### Policy rules (harness-overridable / config-gated)
 

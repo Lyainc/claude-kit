@@ -19,7 +19,7 @@ These name a *kind* of thing, are globally consistent, and are healthy. Keep the
 |--------|---------|------------------|
 | `CON-N` | Constraint (boundary / architecture constraint) | `docs/design/claude-kit-boundary.md` |
 | `POL-N` | Policy (constitutional / policy rule) | `docs/design/claude-kit-boundary.md` |
-| `E1`–`E12` | Vault audit error type (E12a/E12b = wiki staleness, #330/#336) | `obsidian-vault-manager/reference/vault-audit-rules.md` |
+| `E1`–`E13` | Vault audit error type (E4/E7/E8 retired; E12 = wiki health; E13 = optional vault schema, #764) | `obsidian-vault-manager/reference/vault-audit-rules.md` |
 | `GN` | Goal-doc ID (closed series, G1–G29 — retired concept #282/#283, docs deleted 2026-07-21) | GitHub issues |
 | `<kind>-N`, `<affiliation>/<kind>-N` | Items thinking-tools generates (Seed `constraint-N`/`acceptance-N`, `finding-N`, rubric `*-check-N`, …) and how they are cited outside their file (#805) | `thinking-tools/reference/identifiers.md` |
 

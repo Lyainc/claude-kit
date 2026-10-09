@@ -1,5 +1,9 @@
 # Build Spec — Examples
 
+아래 점수·계산은 채점 설명이에요. 실제 사용자 대면 Gate Check는 숫자 없이 ✓/✗를
+표시하고, 점수와 consecutive_gate는 STATE에만 기록해요. 질문 제출이나 무응답은 답변이
+아니므로 각 예시의 인용된 사용자 답변을 실제로 받은 뒤에만 다음 단계로 넘어가요.
+
 ## Example 1: Greenfield Tech — Task CLI Tool
 
 **입력**: "task CLI를 만들고 싶어. 뭐가 필요한지 모르겠어."
@@ -35,21 +39,21 @@
 
 **Phase 1 Round 3** [Constraint, Q: "기술 스택이나 환경 제약이 있나요?"]:
 
-> "Python이면 좋겠어요. pip install로 배포하고 싶어서요."
+> "Python과 pip install 배포는 꼭 지켜 주세요. 다른 스택이나 배포 방식은 제외할게요."
 
 **Scoring**:
 - constraint-check-1: hard constraint → Y (Python)
-- constraint-check-2: hard/soft 구분 → Y (pip = hard, 다른 배포 방식 = soft)
+- constraint-check-2: hard/soft 구분 → Y (사용자가 Python·pip를 모두 hard로 확정)
 - constraint-check-3: 근거 → Y (pip 배포)
 - Constraint clarity: 3/3 = 1.0 → capped at 0.90
 
 **Gate Check** (Round 3):
 ```
-[Gate Check] Ambiguity: 0.16 (target ≤ 0.20) ✓
-  Goal: 75% ✓ | Constraint: 90% ✓ | Success: 90% ✓
-  consecutive_gate: 1
+[Gate Check] 게이트: 통과 임박
+  Goal: ✓ | Constraint: ✓ | Success: ✓
 ```
 (1 − (0.75×0.40 + 0.90×0.30 + 0.90×0.30) = 0.16)
+격리 판정이 같은 체크리스트 결과를 반환한 경우 STATE의 consecutive_gate는 1이에요.
 
 **Phase 1 Round 4** [Follow-up Goal, Q: "로컬 파일에 저장하면 될까요?"]:
 
@@ -59,11 +63,15 @@ Goal clarity: 0.90 (goal-check-2 Y로 전환 → 4/4 = 1.0 → cap 0.90)
 
 **Gate Check** (Round 4):
 ```
-[Gate Check] Ambiguity: 0.10 (target ≤ 0.20) ✓
-  Goal: 90% ✓ | Constraint: 90% ✓ | Success: 90% ✓
-  consecutive_gate: 2 → Gate OPEN
+[Gate Check] 게이트: 통과 임박
+  Goal: ✓ | Constraint: ✓ | Success: ✓
 ```
 (1 − (0.90×0.40 + 0.90×0.30 + 0.90×0.30) = 0.10)
+격리 판정이 같은 결과를 반환해 두 번째 연속 통과하면 Gate가 열려요. 격리 호출을 받을 수
+없을 때는 경고와 scoring_isolated: false를 표시해요. Phase 2.5는 1회 실행하고 실제
+채택·기각 답변을 기다려요. 아래 YAML은 작성 당시 형식의 역사적 예시이며, 신규 Seed는
+현재 SEED_SPEC.yaml의 lifecycle·relations.version: 2·amendment header를 모두 사용해요.
+사용자 활성화 승인 없는 조기 출력은 paused로 남겨요.
 
 **Phase 3 — Seed 생성** (`docs/specs/task-cli-tool.yaml`):
 
@@ -175,18 +183,17 @@ Goal clarity: 0.50 (아직 "누가 받나", "어떤 채널로"가 불명확)
 **Phase 1 Round 2** [Context]:
 > "기존 User 모델에 notification_settings 필드를 추가하면 될 것 같아요."
 
-Context clarity: 0.60 ✓ (integration point 파악)
+Context clarity: 1/3 (integration point만 확인; 영향 컴포넌트·충돌은 추가 확인 필요)
 
 *... 이후 라운드에서 이메일 vs 인앱 알림 채널 결정, 성공 기준 수립 ...*
 
-**Ambiguity 0.65 → 0.17** · Round 7 · Gate 통과
+코드와 열린·닫힌 백로그를 확인하고 모든 활성 차원의 floor 및 두 라운드 연속 통과를
+충족한 뒤 격리 Gate 판정을 받아요. 숫자 요약만으로 Gate를 열지 않아요.
 
 **Seed**: `docs/specs/user-notification-system.yaml`
 
-알림 시스템 도입 전 `/unknown-discovery`로 Seed 구멍 점검 추천:
-```
-→ unknown-discovery: 알림 전달 실패 처리, 알림 과부하 방지(rate limiting) 누락 발견
-```
+게이트 뒤 Phase 2.5에서 전달 실패 처리나 알림 과부하 같은 미질문 항목을 한 번 점검해요.
+선행 unknown-discovery 리포트를 feedback으로 받은 경우에는 중복 패스를 건너뛰어요.
 
 
 ## Quick Start (moved from SKILL.md)
@@ -194,17 +201,13 @@ Context clarity: 0.60 ✓ (integration point 파악)
 ```
 User: "task CLI를 만들고 싶어. 뭐가 필요한지 모르겠어."
 
-→ Phase 0: domain=Tech, greenfield (no project files), weight set
-→ Phase 1 Round 1 [Goal]: "어떤 문제를 해결하려고 하나요?" → clarity 0.40
-→ Phase 1 Round 2 [Goal]: "주요 사용자는 누구인가요?" → clarity 0.65
-→ Phase 1 Round 3 [Constraint]: "기술 스택이나 환경 제약이 있나요?" → clarity 0.50
-→ Phase 1 Round 4 [Success]: "어떤 상태가 되면 성공이라고 할 수 있나요?" → clarity 0.60
-→ Phase 1 Round 5 [Goal]: "가장 핵심 기능 하나만 고른다면?" → clarity 0.80 ✓
-→ Phase 1 Round 6 [Constraint]: → clarity 0.70 ✓ | [Success]: → 0.75 ✓ | Ambiguity: 0.18 ✓ (gate: 2회)
-→ Phase 2: Gate open
-→ Phase 3: Seed 생성 → docs/specs/task-cli-tool.yaml
-
-Ambiguity 0.65 → 0.18 · Round 6
+→ Phase 0: domain=Tech, greenfield 확인, 열린·닫힌 백로그 조회
+→ Phase 1: Goal부터 질문, 실제 답변을 받은 뒤 체크리스트 채점
+→ Phase 1: 최저 clarity 차원의 제약·성공 조건과 미해결 답변 확인
+→ Phase 2: 모든 활성 floor와 2회 연속 Gate 통과, 격리 실패 시 명시적 fallback
+→ Phase 2.5: 맹점 패스 1회, 채택·기각 답변 대기
+→ Phase 3: 현재 템플릿으로 Seed 생성, 승인 근거와 lifecycle 기록·검증
+→ 이슈 저작 요청이 있으면 issue-raise에 인계; 생성 승인은 별도 대기
 ```
 
 ## Korean I/O Directive (moved from SKILL.md)

@@ -3,8 +3,9 @@
 > 작성일: 2026-05-26
 > 도출 과정: critic 토론 7라운드 + 외부 PKM 레퍼런스 검증 + 외부 도구 4개 검토 + 자기 비판 리뷰
 > 상태: **SUPERSEDED by [`vault-second-brain-v5.md`](vault-second-brain-v5.md)** (2026-06-23, #215 — LLM wiki A 主 + B probation).
-> v5가 인간 저작 second-brain 전제를 "LLM 컴파일 + 인간 승급만"으로 전환. v4의 type opt-in·status machine·recall 중심·git
-> 통합·거부목록은 v5가 **계승**. 이 문서는 docs/REFERENCE.md의 Vault File Conventions(폴더 레이아웃 §3.1 ·
+> 6.0.0 기준 현행 모델은 v5의 LLM wiki + 참고자료 창고예요. v4의 type opt-in·recall 중심·git
+> 통합·거부목록은 v5가 **계승**하지만, status machine·승격 게이트·`/capture`·`/note`는 #480에서 폐기됐어요.
+> 아래 본문은 당시 설계 기록이며 현재 실행 절차가 아니에요. 이 문서는 docs/REFERENCE.md의 Vault File Conventions(폴더 레이아웃 §3.1 ·
 > type opt-in §2.2 · 파일명 §3.6)가 인용하는 현행 근거라 보존해요. 마이그레이션 가이드는 이관 완료 후 삭제됐어요.
 
 ## 1. 정의

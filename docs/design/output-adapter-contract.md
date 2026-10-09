@@ -1,11 +1,11 @@
 # 출력 어댑터 계약 — 균일 호출 인터페이스 + 포맷×동작 매핑 + net-new gap
 
-**Status**: design · **Created**: 2026-06-04 · **Last reconciled**: 2026-08-07 (#508 — L1 잔여 한계 해소 반영, 근거는 #489) · **Issue**: #101 · **Epic**: #108
+**Status**: design · **Created**: 2026-06-04 · **Last reconciled**: 2026-10-10 (6.0.0 기준, 현재 6.0.1 소스 계약 대조) · **Issue**: #101 · **Epic**: #108
 **선행**: #99(경계 A — `docs/design/claude-kit-boundary.md`)
 **하류 소비처**: #102(출력 레이어 물리 구조 — 이 *논리* 계약을 입력) · #103/#104(② 출력 레이어 조립) · #122 Gap-ROUTE(라우터가 이 어댑터로 슬라이스를 위임) · #133(issue-authoring 경계)
 **Source**: #108 레이어 재설계 논의 C-5(신설 최소화 만장일치) · G2 어댑터 슬라이스 · goal-doc-spec §3.5
 
-> **위치(논리 계약, 물리 구조 아님)**: 이 문서는 슬라이스가 출력 스킬을 *어떻게 균일하게 호출하는지*의 **논리적 계약**만 정의해요. ②를 단일 플러그인으로 묶을지 분산할지의 **물리 구조 확정은 #102(G3 wave)** 게이트라 여기서 안 다뤄요(계약은 구조 독립적 — #101 Acceptance는 #102 결정 없이 충족). 헌법(CON-*)/정책(POL-*) 규칙은 `docs/design/claude-kit-boundary.md`가 단일 출처고, 이 문서는 그걸 **참조만** 하고 재정의하지 않아요.
+> **위치(논리 계약, 물리 구조 아님)**: 이 문서는 슬라이스가 출력 스킬을 *어떻게 균일하게 호출하는지*의 **논리적 계약**만 정의해요. ②의 **분산 물리 구조는 #102 ADR에서 확정**됐어요. 이 문서는 그 결정과 독립적인 논리 계약을 정의해요. 헌법(CON-*)/정책(POL-*) 규칙은 `docs/design/claude-kit-boundary.md`가 단일 출처고, 이 문서는 그걸 **참조만** 하고 재정의하지 않아요.
 
 > **삭제된 문서 인용 주의**: 본문이 인용하는 `goal-doc-spec.md`(#282/#283 하네스 철회로 2026-06-29 삭제) · `execution-skill-inventory.md` · `omc-to-native-substrate.md` · G2 goal-doc · 레이어 재설계 토론 문서는 **더 이상 열리는 파일이 없어요**(2026-07-21 정리). 이 문서 자체(어댑터 계약)는 지금도 유효하고 CLAUDE.md가 참조하는 현행 문서예요 — 위 인용들은 논증의 출처 표시로만 읽고, 근거가 필요하면 함께 적힌 이슈 번호로 찾으세요.
 
@@ -13,7 +13,7 @@
 
 ## 0. 이 계약이 푸는 문제 — 왜 어댑터인가
 
-claude-kit ②(결정화·출력) 레이어의 출력 자산은 **이질적**이에요. graphify는 다단계 파이프라인 커맨드, `note`/`capture`는 user-initiated 슬래시 커맨드, doc-concretize/doc-polish/build-spec는 모델 호출 스킬, gh는 셸 CLI예요. 입력도 제각각(폴더 경로 / 토픽 문자열 / 직전 산출물 / 구조화 Seed)이고 출력 목적지도 제각각(repo-local / vault / GitHub / stdout)이에요.
+claude-kit ②(결정화·출력) 레이어의 출력 자산은 **이질적**이에요. graphify는 외부 사용자 스킬이고, `vault-save`는 참고자료 저장 스킬, `wiki`는 컴파일 스킬이에요.  doc-concretize/doc-polish/build-spec는 모델 호출 스킬, gh는 셸 CLI예요. 입력도 제각각(폴더 경로 / 토픽 문자열 / 직전 산출물 / 구조화 Seed)이고 출력 목적지도 제각각(repo-local / vault / GitHub / stdout)이에요.
 
 goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: <skill>` 한 줄로 가리키는데, **그 바인딩이 가리키는 호출 계약이 없으면 표기법이 공허**해요(G2 배경 §). 그래서 가치는 **신규 스킬이 아니라 "어떤 출력이든 균일하게 호출하는 어댑터 계약"**이에요 — SUMMARY.md **C-5 만장일치**:
 
@@ -25,20 +25,20 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 ## 1. 균일 호출 인터페이스
 
-어댑터는 이질적 출력 자산을 **물리적으로 통합하지 않아요**(그건 #102). 대신 **호출 규약(calling convention)**을 통일해요 — 라우터(Gap-ROUTE)가 바인딩된 스킬이 무엇이든 동일한 4-튜플을 넣고 동일한 2-튜플을 받아요.
+아래 4-튜플과 2-튜플은 출력 자산을 설명하는 **논리 규약**이에요. 공통 어댑터 API나 Gap-ROUTE 라우터가 구현됐다는 뜻은 아니에요. 실제 호출·출력·승인 절차는 각 SKILL.md가 소유하고, 현재 진입점은 [skill-boundaries.md](../skill-boundaries.md)를 참조해요.
 
 ### 1.1 입력 계약 — 4-튜플 `(intent, format, payload, destination)`
 
 | 필드 | 타입 | enum/형식 | 의미 | 라우팅 역할 |
 |------|------|----------|------|------------|
-| `intent` | enum | `visualize` \| `capture` \| `crystallize` \| `author` \| `edit` \| `handoff` \| `record` \| `file-issue` | 슬라이스의 *동작*(왜·무엇을 하려는가) | `format`과 함께 어댑터 타겟 결정(§2). 한 `format` 안에서 타겟이 갈릴 때 디스앰비규에이터(예: `format=md` × `author`→doc-concretize / `edit`→doc-polish) |
-| `format` | enum | `html` \| `note` \| `goal-doc` \| `handoff` \| `session` \| `md` \| `issue` | 산출물의 *형식* | §2 매핑표의 1차 키(8행) |
+| `intent` | enum | `visualize` \| `capture` \| `crystallize` \| `author` \| `edit` \| `file-issue` | 슬라이스의 *동작*(왜·무엇을 하려는가) | `format`과 함께 어댑터 타겟 결정(§2). 한 `format` 안에서 타겟이 갈릴 때 디스앰비규에이터(예: `format=md` × `author`→doc-concretize / `edit`→doc-polish) |
+| `format` | enum | `html` \| `note` \| `yaml` \| `md` \| `issue` (`goal-doc`·`handoff`·`session`은 역사적 표기) | 산출물의 *형식* | §2의 현행 매핑 키; 폐기 행은 추적용 |
 | `payload` | union | `source_path` \| `topic_string` \| `prior_artifact_ref` \| `structured_seed` | 입력 내용. 체이닝 시 직전 슬라이스의 `artifact_path`(§3) | 어댑터에 전달되는 본문 |
 | `destination` | enum | `repo_path` \| `vault`(게이트) \| `github` \| `stdout` \| `local_ephemeral` | 산출물이 안착할 위치 | `vault`는 CON-1 게이트(§1.3) |
 
 > **`intent`×`format`이 "동작×포맷"**: §2 매핑표가 정확히 이 곱집합의 의미 있는 셀만 채워요. `format`이 1차 키, `intent`가 한 포맷 내 분기(md·issue에서만 실분기 발생)예요.
 
-> **`format=goal-doc`의 실제 산출물 주의**: 이 enum 값의 매핑 타겟 build-spec의 실제 산출물은 YAML Seed(`docs/specs/{slug}.yaml`)이지 `goal-doc-spec` 8필드 문서가 아니에요 — *intent 수준* 정합이고, Seed→goal-doc 재프레임은 **#111 소관**이에요(§2 #3 주의 참조). 라우터(#122)는 enum만 보지 말고 §2 #3 주의를 함께 읽어야 해요.
+> **Seed 산출물**: build-spec은 YAML Seed(`docs/specs/{slug}.yaml`)를 저작해요. `goal-doc`은 폐기된 하네스의 역사적 별칭이며 현재 출력 형식이나 후속 변환 트랙이 아니에요. #111 리네임과 #282/#283 하네스 철회 이후 Seed가 최종 명세예요.
 
 > **`intent=file-issue` 명명 의도**: 다른 intent 값은 단일 동사형(`visualize`·`capture`·`author`)인데 `file-issue`만 동사+목적어형이에요 — `format=issue`와의 충돌을 피하면서 *기계적 파일링*(gh 생성/종료, §2 #8)을 본문 *저작*(issue-authoring, §4.1)과 구분하려는 의도적 명명이에요.
 
@@ -54,9 +54,9 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 ### 1.3 gating 차원 — CON-1/CON-3 참조 (재정의 아님)
 
-`destination = vault`인 어댑터(note·session)는 **항상 `status: gated`로 시작**해요. 근거는 `claude-kit-boundary.md`의 헌법 규칙이고 여기서 재정의하지 않아요:
+`destination = vault`인 논리 어댑터는 **쓰기 권한이 없으면 `status: gated`**예요. 명시적으로 요청된 `vault-save` 저장은 스킬 계약대로 즉시 수행하고, `wiki`는 PLAN 확인을 거쳐요. 근거는 `claude-kit-boundary.md`의 헌법 규칙이고 여기서 재정의하지 않아요:
 
-- **CON-1**(vault writes: new-file-only, user-initiated slash command only) → vault 목적지 어댑터는 서브에이전트가 자동 호출 불가. 라우터는 어댑터를 *준비*시키되 쓰기는 메인 컨텍스트 슬래시 커맨드(`/vault-save`·`/wiki`)로만 개시. 어댑터 반환 `status: gated`가 이 경계의 런타임 표식.
+- **CON-1**(vault writes: new-file-only, user-initiated slash command only) → vault 목적지 어댑터는 서브에이전트가 자동 호출 불가. 라우터는 어댑터를 *준비*시키되 쓰기는 메인 컨텍스트 슬래시 커맨드(`/vault-save`·`/wiki`)로만 개시. `status: gated`는 이 경계의 논리적 표현이며 실제로 모든 스킬이 같은 반환 필드를 출력하는 것은 아니에요.
 - **CON-3**(self-approval 금지) → 출력이 *critique/검증* 산출일 때 저작≠리뷰 분리. 단 이건 ⑤ 실행/게이트 영역(#132 Gap-INV)이지 출력 어댑터 영역이 아니에요 — 이 문서는 *출력*만 다루고 critique 격리는 #122/#134로 위임.
 
 > vault가 아닌 목적지(`repo_path`·`stdout`·`local_ephemeral`·`github`)는 CON-1 게이트 대상이 아니에요. 특히 `/handoff`는 vault를 **안 건드리고** 로컬 gitignored `resume.md` 또는 stdout만 산출하므로 `gated`가 아니라 `success`예요(§2 #4 주의). (`/handoff`는 G26에서 retire — 인수인계 기능은 머신 레벨 `session-close` 스킬로 이관, 이 레포 외부.)
@@ -67,30 +67,30 @@ goal-doc 슬라이스(`docs/design/goal-doc-spec.md` §3)는 이걸 `바인딩: 
 
 ## 2. 포맷×동작 매핑표 (8매핑)
 
-각 행 = 한 `(format, 대표 intent)` → 한 어댑터 타겟. **8개 전부 기존 자산을 가리켜요**(net-new는 §4 issue-authoring 1건뿐). 타겟 열의 "구현체"는 호출 메커니즘이 이질적임을 드러내요 — 어댑터가 통일하는 건 *호출 규약*이지 구현이 아니거든요.
+각 행은 기존 매핑의 추적 번호를 보존해요. #1은 외부 스킬, #3은 YAML Seed, #4·#5는 폐기된 경로이고 나머지는 현행 leaf예요. 타겟 열의 "구현체"는 호출 메커니즘이 이질적임을 드러내요 — 어댑터가 통일하는 건 *호출 규약*이지 구현이 아니거든요.
 
 | # | `format` | `intent` | 어댑터 타겟 (구현체) | 레이어 | 호출 메커니즘 | 기본 `destination` | `status` 특이 |
 |---|----------|----------|---------------------|--------|--------------|-------------------|--------------|
-| 1 | `html` | `visualize` | **graphify** (`/graphify` 스킬 → AST+의미추출 파이프라인) | ②(graphify html 산출 · ① 인접 §2 주의) | 슬래시 커맨드 + 서브에이전트 fan-out | `repo_path` (`graphify-out/graph.html`+`graph.json`+`GRAPH_REPORT.md`) | `success` |
-| 2 | `note` | `capture` | **vault-bridge `/vault-save`** (#480 — OVM `/note` 대체) | ③ delivery leaf (vault-bridge) | user-initiated 슬래시 커맨드 | `vault` (`notes/{slug}.md` 또는 `notes/decision-YYYY-MM-DD-{slug}.md`) | **`gated`** (CON-1) |
-| 3 | `goal-doc` | `crystallize` | **build-spec** (요구사항 결정화) | ② 출력 leaf | 모델 호출 스킬 (Socratic 게이트) | `repo_path` (`docs/specs/{slug}.yaml` Seed) | `success` · **Seed↔goal-doc 재프레임=#111** (§2 주의) |
-| 4 | `handoff` | `handoff` | **`/handoff`** (vault-bridge 커맨드 — G26에서 retire, 머신 레벨 `session-close` 스킬로 이관·이 레포 외부) | vault-bridge 커맨드 (로컬 핸드오프 · **vault 비경유** → ③ "vault 운반"에 미해당) | user-initiated 슬래시 커맨드 (`disable-model-invocation`) | `local_ephemeral` (`.claude-kit/vault-bridge/resume.md`, gitignored) 또는 `stdout` | `success` (**vault 미사용 → CON-1 비대상**) |
-| 5 | ~~`session`~~ | ~~`record`~~ | ~~**`/save-session`**~~ — **RETIRED (#331, 2026-07-10)**: 세션지식 경로가 wiki-first로 재정의돼 OVM `/wiki` + native memory로 이관. 원석 캡처는 OVM `/capture`가 담당 | — | — | — | — |
+| 1 | `html` | `visualize` | **graphify** (외부 사용자 스킬, claude-kit 배포에 미포함) | ②(graphify html 산출 · ① 인접 §2 주의) | 슬래시 커맨드 + 서브에이전트 fan-out | `repo_path` (`graphify-out/graph.html`+`graph.json`+`GRAPH_REPORT.md`) | `success` |
+| 2 | `note` | `capture` | **vault-bridge `/vault-save`** (#480 — OVM `/note` 대체) | ③ delivery leaf (vault-bridge) | user-initiated 슬래시 커맨드 | `vault` (`notes/{slug}.md` 또는 `notes/decision-YYYY-MM-DD-{slug}.md`) | 명시적 저장 요청 → `success`; 쓰기 권한 없으면 `gated` |
+| 3 | `yaml` (Seed; `goal-doc`은 역사적 별칭) | `crystallize` | **build-spec** (요구사항 결정화·승인된 생애주기 저작) | ② 출력 leaf | 모델 호출 스킬 (Socratic 게이트) | `repo_path` (`docs/specs/{slug}.yaml` Seed) | `success` · metadata 선행·생애주기 계약 적용 |
+| 4 | ~~`handoff`~~ | ~~`handoff`~~ | **RETIRED** — 인수인계는 선택적 외부 `session-close`, 다음 목표 저작은 thinking-tools `next-goal` | — | — | — | — |
+| 5 | ~~`session`~~ | ~~`record`~~ | ~~**`/save-session`**~~ — **RETIRED (#331, 2026-07-10)**: 세션지식은 vault-bridge `/wiki` + native memory, 원석 캡처는 vault-bridge `/vault-save`가 담당 | — | — | — | — |
 | 6 | `md` | `author` | **doc-concretize** (신규 MD 구조화 저작) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (임의 `.md`) | `success` |
-| 7 | `md` | `edit` | **doc-polish** (기존 MD 린트·개선, Editor-not-Writer) | ② 출력 leaf | 모델 호출 스킬 | `repo_path` (기존 `.md` in-place Edit) | `success` |
-| 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) + **`issue-raise` 스킬** (본문 저작 어댑터 — #502, #407이 얹었던 build-spec Phase 4를 대체) | 외부 도구 (③ GitHub 딜리버리) + ② 출력 leaf | 셸 Bash + 모델 호출 스킬 (build-spec Seed 서브콜 또는 직접 호출) | `github` (이슈 URL) | `success` · **본문 *저작* gap은 #407로 해소, 잔여 한계는 #489·#502로 해소 → §4.1** |
+| 7 | `md` | `edit` | **doc-polish** (기존 MD 검사; `--fix`는 비의미적 교정만) | ② 출력 leaf | 모델 호출 스킬 | 기본 검사 보고서; `--fix`는 기존 `.md` 교정 | `success` · 의미·구조 재작성은 일반 편집 |
+| 8 | `issue` | `file-issue` | **gh CLI** (기계적 생성/종료/라벨/코멘트) + **`issue-raise` 스킬** (본문 저작 어댑터 — #502, #407이 얹었던 build-spec Phase 4를 대체) | 외부 도구 (③ GitHub 딜리버리) + ② 출력 leaf | 셸 Bash + 모델 호출 스킬 (build-spec Seed 서브콜 또는 직접 호출) | `github` (이슈 URL) | `gated` (제목·본문 사용자 승인) → `success`; 무응답은 승인 아님 |
 
-> **매핑 정직성 주의 (#3 goal-doc=build-spec)**: build-spec의 *실제 산출물*은 요구사항 3요소(`goal`/`constraints`/`success_criteria`)를 담은 **YAML Seed**(`docs/specs/{slug}.yaml`)지, `goal-doc-spec` §1~§2의 frontmatter 8필드+본문 5섹션 **goal-doc이 아니에요**. 매핑 `goal-doc=build-spec`는 *"명세 결정화 출력"이라는 intent 수준* 정합이고, Seed→goal-doc 산출물 재프레임(build-spec를 ② goal-doc 출력 스킬로 포지셔닝/개명할지)은 **#111(build-spec reconcile)의 소관**이에요 — 이 문서는 그걸 **재정의하지 않고 위임만** 해요. 따라서 goal-doc 저작은 §4 net-new gap이 *아니에요*(기존 #111 트랙이 소유).
+> **역사적 매핑 주의 (#3 goal-doc=build-spec)**: build-spec의 *실제 산출물*은 요구사항 3요소(`goal`/`constraints`/`success_criteria`)를 담은 **YAML Seed**(`docs/specs/{slug}.yaml`)지, `goal-doc-spec` §1~§2의 frontmatter 8필드+본문 5섹션 **goal-doc이 아니에요**. 매핑 `goal-doc=build-spec`는 *"명세 결정화 출력"이라는 intent 수준* 정합이고, 현재는 #111 리네임과 #282/#283 하네스 철회로 그 후속이 종결됐어요. Seed→goal-doc 변환이나 폐기된 라우터를 다시 구현할 요구사항은 아니에요.
 
 > **매핑 정직성 주의 (#1 graphify)**: graphify는 코퍼스→지식그래프 산출이라 ①(인지: 연결 발견)과 ②(출력: html/json) 경계에 걸쳐요. 출력 어댑터 관점에선 `html` 포맷 산출 타겟이고, 산출물(`graph.html`)이 §3 체이닝의 `file` 참조로 흘러요.
 
-> **행 #5 폐기 경위 (2026-07-08 D1 → 2026-07-10 #331)**: 먼저 D1이 `/save-session`을 session-note 저작에서 `type:capture` 원석 캡처로 재목적화했고(`claude-kit-boundary.md` §2 D1, 커밋 `f59f580`), 이틀 뒤 #331이 커맨드 자체를 retire했어요 — 원석 캡처는 이미 OVM `/capture`가 하고 있어 중복이었거든요. 세션 지식은 이제 OVM `/wiki`(컴파일) + native memory로 갑니다. 즉 `session`은 더 이상 유효한 format enum 값이 아니에요.
+> **행 #5 폐기 경위 (2026-07-08 D1 → 2026-07-10 #331)**: 먼저 D1이 `/save-session`을 session-note 저작에서 `type:capture` 원석 캡처로 재목적화했고(`claude-kit-boundary.md` §2 D1, 커밋 `f59f580`), 이틀 뒤 #331이 커맨드 자체를 retire했어요 — 원석 캡처는 이미 OVM `/capture`가 하고 있어 중복이었거든요. 현재 세션 지식은 vault-bridge `/wiki`(컴파일) + native memory, 원석은 `/vault-save`로 갑니다. 즉 `session`은 더 이상 유효한 format enum 값이 아니에요.
 
 ---
 
 ## 3. 산출 체이닝 계약 (`goal-doc-spec` §3.5 정합)
 
-`goal-doc-spec` §3.5는 시퀀스 표기 `→`가 단순 순서가 아니라 **산출→입력 체이닝**임을 정의하고, 그 런타임 계약을 명시적으로 이 문서에 위임해요:
+`goal-doc-spec` §3.5는 시퀀스 표기 `→`가 단순 순서가 아니라 **산출→입력 체이닝**임을 정의하고, 당시 런타임 계약을 이 문서에 위임했어요. 아래는 역사적 설계 표현이며 공통 실행 코드의 보장이 아니에요:
 
 > (§3.5 인용) 각 `→`는 **앞 슬라이스의 artifact path가 뒤 슬라이스의 payload로 들어감**을 뜻해요. 이 데이터 패싱의 런타임 계약(intent/format/payload/destination → artifact path)은 **#101 출력 어댑터 계약**이 담당해요.
 
@@ -104,7 +104,7 @@ slice N+1  : payload_{N+1} := artifact_path_N            # ← "→"의 런타�
              adapter(intent_{N+1}, format_{N+1}, payload_{N+1}, dest_{N+1}) → ...
 ```
 
-즉 `goal-doc-spec` §3.5의 예시 `unknown-discovery → expert-panel → doc-concretize → doc-polish`는, 각 `→`에서 앞 어댑터의 `artifact_path`(타입 태그 동반)가 뒤 어댑터의 `payload`로 바인딩되는 것으로 실행돼요. §1.2가 `artifact_path`를 "다음 슬라이스가 payload로 집어넣을 참조"로 단일 정의한 게 이걸 위한 거예요.
+즉 `goal-doc-spec` §3.5의 예시 `unknown-discovery → expert-panel → doc-concretize → doc-polish`는, 각 `→`에서 앞 산출물 참조를 뒤 단계 입력으로 넘기도록 설계됐어요. 현재 합성은 실제 스킬이 허용한 인계 절차를 따라요. §1.2가 `artifact_path`를 "다음 슬라이스가 payload로 집어넣을 참조"로 단일 정의한 게 이걸 위한 거예요.
 
 ### 3.2 체이닝 타입 호환성 — 라우터 런타임 책임
 
@@ -123,7 +123,7 @@ slice N+1  : payload_{N+1} := artifact_path_N            # ← "→"의 런타�
 
 ## 4. net-new gap 목록 (≤2)
 
-C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설**, 무근거 신설 금지. §2의 8매핑이 전부 기존 자산이므로 net-new는 다음 **1건**이었고(상한 2 이내), 그 1건도 **새 스킬 없이 기존 build-spec 확장으로 닫혔어요**(§4.1).
+C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설**, 무근거 신설 금지. 원래 출력 gap은 issue-authoring **1건**이었어요. #407의 build-spec 확장을 거쳐 현재는 #502 `issue-raise`가 소유하고, 새 플러그인은 만들지 않았어요.
 
 > **이 절을 읽는 사람에게 (2026-08-02)**: 이 §4는 한때 issue-authoring을 미해결 gap으로 선언한 채 굳어 있었고, 실제로 그 낡은 선언을 근거로 "② 출력 leaf 신설"이 사흘간 설계됐어요 — #407이 이미 2026-07-21에 COMPLETED로 닫은 뒤였는데도요(#490). **이 문서의 gap 선언은 닫힌 이슈에 대조하기 전엔 current state가 아니에요.** `~/.claude/rules` P5.
 
@@ -132,7 +132,7 @@ C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설*
 | 항목 | 내용 |
 |------|------|
 | **원래 gap** | `format=issue`의 §2 #8 매핑은 gh CLI로 *기계적* 생성/종료/라벨만 커버했고, issue **본문 저작**(템플릿 선택·라벨 추론·기존 이슈 대비 중복 검출·Acceptance 구조화)이 빈틈이었어요. |
-| **어떻게 닫혔나** | **#407 COMPLETED (2026-07-21, PR #419)** — 새 스킬을 신설하지 않고 기존 **build-spec에 Phase 4 이슈 어댑터**를 얹었어요(`thinking-tools/skills/build-spec/SKILL.md` Phase 0 백로그 스캔 + Phase 4 필드 매핑 + `gh issue create`). 물리 빌드 위치는 **#140 COMPLETED (같은 날)** 이 "② leaf, 새 플러그인 없음"으로 확정. |
+| **어떻게 닫혔나** | #407/PR #419가 build-spec 확장으로 처음 해소했고, #502 이후 현재 저작·파일링 소유자는 **thinking-tools `issue-raise`**예요. build-spec Phase 4는 사용자가 요청하면 Seed 경로를 그 스킬에 인계해요. 새 플러그인은 없어요(#140). |
 | **레이어 귀속** | **② 출력 leaf**. 근거: `claude-kit-boundary.md` [§2 5-레이어 모델](claude-kit-boundary.md#2-5-레이어-모델) 표가 `issue`를 이미 ②로, [§3 의존 방향 — 규율 범위](claude-kit-boundary.md#3-의존-방향--단방향-harness--leaf)가 "issue-skill의 ②출력 leaf 귀속"을 단일 출처로 확정. intra-leaf 합성(diverse-sampling Mode B → issue 본문 후보 생성)도 같은 §3로 허용. |
 | **#133 경계** | 이 gap의 *선언*은 #101(이 문서), *실행스킬 인벤토리 귀속 판정*은 #133(CLOSED/COMPLETED 2026-06-04). 중복 0 — §5.2 참조. |
 
@@ -146,7 +146,7 @@ C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설*
 
 > **L2·L3 해소 경위 (#502, 2026-08-03) — 별도 스킬로 풀되, #407이 닫은 문과는 다른 문이었다**: 2026-08-02 시점 이 절은 "별도 스킬로 풀지 말라"고 적혀 있었고, 그 근거였던 프로젝트 스코프 프로토타입(`.claude/skills/issue/`) 폐기 판단 4개는 #502 실증으로 재검토됐어요. (1) **#407/#140의 hard 제약은 새 *플러그인*을 금지했지 새 *스킬*을 금지하지 않아요** — #140 C-2가 막은 건 thin 플러그인이고, thinking-tools 안의 스킬은 애초에 대상이 아니에요; 이전 문장이 "신설 자체를 금지"라고 적은 건 플러그인과 스킬을 혼동한 오독이었어요. #113(3번째 format-agnostic primitive 트리거)도 해당 없어요 — issue-raise는 `format=issue`로 format-specific이고, #113 클로징이 위임한 "3번째 primitive를 실제로 만들 때 1회 판정"은 이 이슈가 그 판정 자리였어요. (2) 중복 검사는 `backlog-prefilter.py`를 **재구현 없이 그대로 호출**해 중복을 안 만들었어요. (3) 타이틀 가드 훅은 **다시 만들지 않았어요** — 폐기된 프로토타입의 따옴표 멘션 오탐을 재현하지 않으려고, 컨벤션을 저작 *생성 시점*에만 따르고 검증 훅은 두지 않았어요. (4) "중복 저작 사건 관측 0건"은 무효로 판정됐어요 — 그 0은 사용자가 매 이슈마다 수동으로 중복 검사를 지시하던 기간의 산물이라, 사람의 보상으로 만들어진 숫자였지 자동화가 불필요하다는 증거가 아니었어요. 상세: `thinking-tools/skills/issue-raise/`.
 
-> **L1 해소 경위 (#489, 2026-08-02) — 이 절 자신의 드리프트와 같은 뿌리**: `backlog-prefilter.py`의 `build()`가 `--state open`(limit 500) 호출 `op`과 `--state closed`(limit 1000) 호출 `cl`을 모두 실행하고 두 결과를 합쳐 `render()`에 넘겨요 — 닫힌 이슈는 제목만, 열린 이슈는 본문 발췌까지. `thinking-tools/skills/build-spec/reference.md` §5도 "Until #489 the scan ran `--state open` ... 지금은 open+closed"로 같은 사실을 서술해요. 정작 이 표의 L1 행 자체가 #489 병합(2026-08-02) 이후에도 갱신 안 된 채 하루 뒤 #502 갱신(2026-08-03)까지 살아남았고, 그게 이 문서가 "닫힌 이슈를 못 본다"고 경고하는 바로 그 실패 패턴을 스스로 재현한 사례였어요(#508). **별도 잔여점 — #561 (OPEN, 2026-08-07 기준 미병합 PR #565)**: `build()`는 `if not op and not cl`로 **둘 다** 실패했을 때만 SKIP을 알려요 — `op`·`cl` 중 한쪽만 `gh()` 실패로 빈 리스트가 나오면 경고 없이 "그 카테고리엔 후보가 없다"처럼 조용히 렌더돼요. 이건 L1이 다루던 "닫힌 이슈를 아예 안 본다"와는 다른 결의 잔여 한계라 이 3종엔 안 넣었지만, 스캔의 신뢰성을 따질 땐 같이 알아 둬야 해요 — 아직 `backlog-prefilter.py`엔 반영되지 않았어요.
+> **L1 해소 경위 (#489, 2026-08-02) — 이 절 자신의 드리프트와 같은 뿌리**: `backlog-prefilter.py`의 `build()`가 `--state open`(limit 500) 호출 `op`과 `--state closed`(limit 1000) 호출 `cl`을 모두 실행하고 두 결과를 합쳐 `render()`에 넘겨요 — 닫힌 이슈는 제목만, 열린 이슈는 본문 발췌까지. `thinking-tools/skills/build-spec/reference.md` §5도 "Until #489 the scan ran `--state open` ... 지금은 open+closed"로 같은 사실을 서술해요. 정작 이 표의 L1 행 자체가 #489 병합(2026-08-02) 이후에도 갱신 안 된 채 하루 뒤 #502 갱신(2026-08-03)까지 살아남았고, 그게 이 문서가 "닫힌 이슈를 못 본다"고 경고하는 바로 그 실패 패턴을 스스로 재현한 사례였어요(#508). **부분 실패 처리 — #561 반영됨**: `build()`는 각 조회의 성공 여부(`op_ok`·`cl_ok`)를 따로 받아 한쪽 실패는 `[backlog-scan PARTIAL]`, 양쪽 실패는 `[backlog-scan SKIPPED]`로 보여줘요. 실패한 범주의 0건은 확인된 빈 결과가 아니에요. 이 동작은 같은 파일의 `self_check()`가 실패/빈 결과를 구분해 검증해요.
 
 ### 4.2 net-new이 *아닌* 것 (정직성 — 명시 배제)
 
@@ -155,7 +155,7 @@ C-5 만장일치 "신설 최소화" 준수 — **gap이 입증될 때만 신설*
 - **goal-doc 저작 (build-spec Seed↔goal-doc)**: §2 #3 주의대로 Seed→goal-doc 재프레임은 **#111 트랙**이지 #101 신설 gap이 아니에요. **#111은 CLOSED/COMPLETED (2026-07-05, PR #322)** — spec-first→build-spec 리네임으로 항목 전건 해소. goal-doc 포맷 자체는 그 뒤 #282/#283이 철회했으므로, 이 배제는 이제 "다른 트랙이 소유"가 아니라 **"대상이 사라져 종결"**로 읽어야 해요.
 - **debug · quality**(⑤ 실행 스킬 신설 후보): 이건 *출력 포맷* gap이 아니라 **⑤ 실행 스킬** 축이라 #133 소관이에요. 출력 어댑터(이 문서)의 net-new에 안 셈 — 축이 다름(§5.2). **#133도 CLOSED/COMPLETED (2026-06-04, PR #137)**, 다만 산출물 `execution-skill-inventory.md`는 #282/#283 철회로 삭제됐어요(§ 서두 주의).
 
-> **결론 (2026-08-07 갱신, #508)**: #101 출력-포맷 축의 net-new는 **issue-authoring 1건**이었고(≤2 충족, C-5 "≤1-2" 준수), **#407/PR #419로 신설 없이 닫혔어요**. 명시 배제 2건이 위임하던 하류 트랙(#111·#133)도 전부 종결 상태예요. **이 §4에 열려 있는 net-new gap은 여전히 0건이에요.** §4.1이 남긴 잔여 한계 3종도 L2·L3는 **#502**가 (플러그인이 아닌) 스킬 하나(`issue-raise`)로, L1은 **#489**가 백로그 스캔의 open+closed 양쪽 조회로 각각 해소했어요 — **잔여 한계 0건**이에요. (스캔 자체의 별도 신뢰성 문제 — `gh()` 부분 실패의 무음 렌더 — 는 이 3종에 속하지 않는 새 발견이라 #561로 따로 추적 중이고, 2026-08-07 기준 아직 OPEN이에요. §4.1 각주 참조.)
+> **결론 (2026-08-07 갱신, #508)**: #101 출력-포맷 축의 net-new는 **issue-authoring 1건**이었고(≤2 충족, C-5 "≤1-2" 준수), **#407/PR #419로 신설 없이 닫혔어요**. 명시 배제 2건이 위임하던 하류 트랙(#111·#133)도 전부 종결 상태예요. **이 §4에 열려 있는 net-new gap은 여전히 0건이에요.** §4.1이 남긴 잔여 한계 3종도 L2·L3는 **#502**가 (플러그인이 아닌) 스킬 하나(`issue-raise`)로, L1은 **#489**가 백로그 스캔의 open+closed 양쪽 조회로 각각 해소했어요 — **잔여 한계 0건**이에요. 부분 조회 실패도 #561의 PARTIAL 표기로 반영돼 있어요. 이 판단은 현재 소스에 대한 대조이며 GitHub 이슈의 실시간 상태를 주장하지 않아요.
 
 ---
 
@@ -195,7 +195,7 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 | #101 Acceptance | 충족 위치 |
 |-----------------|----------|
 | **계약 doc** (슬라이스가 출력 스킬을 호출하는 균일 인터페이스: 입력 intent/format/payload/destination, 출력 artifact path + 상태) | §1(4-튜플 입력 + 2-튜플 출력) |
-| **포맷×동작 매트릭스** (html=graphify, note=OVM note, goal-doc=build-spec, handoff=/handoff [G26 retire → 머신 레벨 `session-close`], session=/save-session [#331 retire → OVM `/wiki`+memory], md저작=doc-concretize, md편집=doc-polish, issue=gh CLI) | §2(8매핑 표) |
+| **포맷×동작 매트릭스** (외부 html=graphify, note=vault-save, YAML Seed=build-spec, md저작=doc-concretize, md검사=doc-polish, issue=issue-raise+gh; handoff/session 폐기 행 보존) | §2(8행 추적 표) |
 | **net-new gap 목록**(≤2, 유력 issue-authoring) | §4(issue-authoring 1건 + 명시 배제) · **그 1건은 #407/PR #419로 해소, 현재 열린 gap 0건** |
 | (정합) `goal-doc-spec` §3.5 산출 체이닝 런타임 계약 | §3(`artifact_path(N)→payload(N+1)` + 타입 호환) |
 | (정합) #133 issue-authoring 경계 중복 0 | §5.2(소유권 분할표) |
@@ -204,4 +204,4 @@ issue-authoring은 #101(출력-포맷 축)과 #133(실행-스킬 축)이 만나�
 
 ---
 
-**참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·[§2 ② 레이어 표](claude-kit-boundary.md#2-5-레이어-모델)·[§3 issue ② 귀속](claude-kit-boundary.md#3-의존-방향--단방향-harness--leaf)) · #99/#100/#102/#111/#122/#132/#133 (**전부 CLOSED** — 이 문서가 위임한 하류 트랙에 열려 있는 것은 없어요) · #407/PR #419(§4.1 해소) · #489/PR #496(2026-08-02 병합 — L1 해소, `backlog-prefilter.py` open+closed 양쪽 조회) · #490(2026-08-02 갱신) · #502(2026-08-03 갱신 — L2·L3 해소, `issue-raise` 스킬 신설) · #508(2026-08-07 갱신 — 이 문서가 #489 병합을 하루 뒤 #502 갱신에도 못 실었던 드리프트 정정) · #561(OPEN, PR #565 미병합 — `backlog-prefilter.py` 부분 실패 무음 렌더, L1과 별개 잔여점). (goal-doc-spec·omc-to-native-substrate·execution-skill-inventory·G2 goal-doc·레이어 재설계 토론 문서는 goal-doc 하네스 철회(#282/#283)와 함께 삭제됐어요 — 근거는 각 이슈 번호로 찾으세요.)
+**참조**: `docs/design/claude-kit-boundary.md`(경계 A·CON-1/CON-3·[§2 ② 레이어 표](claude-kit-boundary.md#2-5-레이어-모델)·[§3 issue ② 귀속](claude-kit-boundary.md#3-의존-방향--단방향-harness--leaf)) · #99/#100/#102/#111/#122/#132/#133 (**전부 CLOSED** — 이 문서가 위임한 하류 트랙에 열려 있는 것은 없어요) · #407/PR #419(§4.1 해소) · #489/PR #496(2026-08-02 병합 — L1 해소, `backlog-prefilter.py` open+closed 양쪽 조회) · #490(2026-08-02 갱신) · #502(2026-08-03 갱신 — L2·L3 해소, `issue-raise` 스킬 신설) · #508(2026-08-07 갱신 — 이 문서가 #489 병합을 하루 뒤 #502 갱신에도 못 실었던 드리프트 정정) · #561(`backlog-prefilter.py` 부분 실패 PARTIAL 처리, 현재 소스 반영). (goal-doc-spec·omc-to-native-substrate·execution-skill-inventory·G2 goal-doc·레이어 재설계 토론 문서는 goal-doc 하네스 철회(#282/#283)와 함께 삭제됐어요 — 근거는 각 이슈 번호로 찾으세요.)
