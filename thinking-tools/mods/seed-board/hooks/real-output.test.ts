@@ -88,3 +88,15 @@ test('judgment prose collapses to one line like the renderer', () => {
   expect(j.alternatives[0]?.reason).toBe('ready 과 실제 증거')
   expect(j.unverified).toEqual(['미확인 외부'])
 })
+
+test('STOP assertions use the same normalized judgment fields as the renderer', () => {
+  const stop = { from: 'docs/specs/p.yaml\n', edge: 'children', target: 'docs/specs/x.yaml', reason: 'depth' }
+  const root = { handoff: 'named', pick: null, walk_stops: [stop] }
+  expect(parseJudgment(JSON.stringify(root)).walk_stops).toEqual([{ ...stop, from: 'docs/specs/p.yaml' }])
+  expect(parseJudgment('{"handoff":"none"}').walk_stops).toEqual([])
+  expect(() => parseJudgment(JSON.stringify({ ...root, handoff: 'none' }))).toThrow()
+  for (const unverified of [[null], [42], [' \n '], 'gap']) {
+    expect(() => parseJudgment(JSON.stringify({ handoff: 'none', unverified }))).toThrow()
+  }
+  expect(() => parseJudgment('{"handoff":"named","walk_stops":null}')).toThrow()
+})

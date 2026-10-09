@@ -4,7 +4,7 @@
 Why this exists: next-goal's pick reached the user as free text, so the path from the named Seed
 to the pick could be narrated after the fact, and a second surface (the optional seed-board mod)
 would have had to re-derive the choice. Now next-goal writes its judgment once as JSON and this
-script renders the NEXT/FROM/SKIPPED lines (plus a TRACE line when a Seed is in play) from it.
+script renders the NEXT/FROM/SKIPPED lines (plus TRACE for a Seed or uncertainty) from it.
 The terminal and the mod read the same JSON, so the UI can never change what was chosen.
 
 What it does not do, on purpose:
@@ -32,7 +32,9 @@ Input (stdin, JSON):
       "alternatives": [{"title": str, "via": ..., "decision":
                         "held" | "below-floor" | "done" | "external" | "unverified",
                         "reason": str}],
-      "unverified": [str]
+      "unverified": [str],                     # nonempty facts about unevaluated scope
+      "walk_stops": [{"from": str, "edge": str, "target": str, "reason": "depth" | "nodes"}]
+                                                # optional STOP assertions, checked against walk
     }
 
 `targets` are LOCAL item ids of the `via` Seed (reference/identifiers.md). For a walked Seed
@@ -132,7 +134,16 @@ def validate(j):
             raise Refused(f"{where}.decision: {' | '.join(DECISIONS)} 중 하나여야 해요")
     if not isinstance(j.get("unverified", []), list):
         raise Refused("unverified: 목록이어야 해요")
-    j["unverified"] = [_one_line(u) if isinstance(u, str) else u for u in j.get("unverified", [])]
+    j["unverified"] = [_need_str({"text": u}, "text", f"unverified[{i}]")
+                       for i, u in enumerate(j.get("unverified", []))]
+    stops = j.get("walk_stops", [])
+    if not isinstance(stops, list) or (stops and handoff != "named"):
+        raise Refused("walk_stops: named walk의 STOP 목록이어야 해요")
+    for i, stop in enumerate(stops):
+        if not isinstance(stop, dict):
+            raise Refused(f"walk_stops[{i}]: 객체여야 해요")
+        for k in ("from", "edge", "target", "reason"):
+            _need_str(stop, k, f"walk_stops[{i}]")
     if pick is not None and isinstance(pick.get("note"), str):
         pick["note"] = _one_line(pick["note"])
     if handoff != "named":
@@ -213,11 +224,14 @@ def _render_targets(rel, via, node, targets):
     return out
 
 
-def _from_line(j, nodes, rel):
+def _from_line(j, nodes, rel, incomplete):
     pick = j.get("pick")
     if pick is None:
-        return "없음 — 가치 있는 후속 후보가 없어요" if j["handoff"] != "missing" else \
-            "Seed 경로를 넘겨받지 못해 Seed 후보는 확인 못 함"
+        if j["handoff"] == "missing":
+            return "Seed 경로를 넘겨받지 못해 Seed 후보는 확인 못 함"
+        if incomplete:
+            return "선택 없음 — 미평가 영역이 남아 후보 부재는 확정 못 함"
+        return "없음 — 검토한 범위 안에 가치 있는 후속 후보가 없어요"
     via = pick["via"]
     if via == "session":
         src = "이번 세션 후속"
@@ -247,20 +261,27 @@ def _skipped_line(j):
 
 
 def _trace_line(j, data, current_id):
+    unv = j.get("unverified", [])
+    suffix = " · 미확인: " + ", ".join(unv) if unv else ""
     if j["handoff"] == "missing":
-        return "Seed 경로 인계 누락 — 후보 없음과 달라요. Seed를 지정하면 다시 탐색해요"
+        return "Seed 경로 인계 누락 — 후보 없음과 달라요. Seed를 지정하면 다시 탐색해요" + suffix
+    if data is None:
+        return "Seed 탐색 없음" + suffix
     s, w = data["summary"], data["walk"]
     parts = [f"출발 {w['start']}",
              f"방문 {s['visited']}개 (깊이≤{w['max_depth']}, 상한 {w['max_nodes']}개)"]
+    parts.append("방문 대상: " + ", ".join(
+        f"{n['key']} (깊이 {n['depth']}, {n['status']})" for n in data["nodes"]))
     if s.get("stopped"):
         parts.append(f"상한으로 중단 {s['stopped']}곳")
+        parts.extend(f"중단: {r['from']} →{r['edge']} {r['target']} ({r['reason']})"
+                     for r in data["stops"])
     if s.get("cycles"):
         parts.append(f"순환 {s['cycles']}곳 끊음")
     if s.get("failed"):
         parts.append(f"조회 실패 {s['failed']}곳")
     if s.get("notfound"):
         parts.append(f"없는 파일 {s['notfound']}곳")
-    unv = [u for u in j.get("unverified", []) if isinstance(u, str) and u.strip()]
     if unv:
         parts.append("미확인: " + ", ".join(unv))
     stale = "" if current_id == j["walk_id"] else \
@@ -278,11 +299,21 @@ def render(j, cwd):
         nodes = {n["key"]: n for n in data["nodes"]}
         current_id = data["walk"]["id"]
         _check_vias(j, nodes)
+        for i, stop in enumerate(j.get("walk_stops", [])):
+            if not any(all(stop[k] == actual[k] for k in ("from", "edge", "target", "reason"))
+                       for actual in data["stops"]):
+                raise Refused(f"walk_stops[{i}]: {stop['target']} ({stop['reason']})는 "
+                              "이번 walk의 중단 기록과 달라요 — 방문·중단 대상을 다시 확인해 주세요")
+    incomplete = bool(j["unverified"] or any(a["decision"] == "unverified"
+                      for a in j.get("alternatives", [])) or (data and (
+                          any(data["summary"].get(k) for k in
+                              ("stopped", "failed", "notfound", "cycles", "external"))
+                          or current_id != j["walk_id"])))
     pick = j.get("pick")
     lines.append(f"NEXT     · {pick['title'] if pick else '없음'}")
-    lines.append(f"FROM     · {_from_line(j, nodes, rel)}")
+    lines.append(f"FROM     · {_from_line(j, nodes, rel, incomplete)}")
     lines.append(f"SKIPPED  · {_skipped_line(j)}")
-    if j["handoff"] != "none":
+    if j["handoff"] != "none" or j["unverified"]:
         lines.append(f"TRACE    · {_trace_line(j, data, current_id)}")
     return lines
 

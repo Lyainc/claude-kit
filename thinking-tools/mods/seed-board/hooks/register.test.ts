@@ -75,9 +75,9 @@ const WALK_CMD = `python3 thinking-tools/scripts/seed-relations.py walk ${A}`
 const WALK_JSON_CMD = `python3 thinking-tools/scripts/seed-relations.py walk ${A} --json`
 
 type Pick = { title: string; via: string }
-type JudgeOpts = { walkId: string | null; pick: Pick | null; alts?: { title: string; via: string; decision: string }[]; handoff?: string; seed?: string | null }
+type JudgeOpts = { walkId: string | null; pick: Pick | null; alts?: { title: string; via: string; decision: string }[]; handoff?: string; seed?: string | null; unverified?: string[] }
 
-const judgeCmd = ({ walkId, pick, alts = [], handoff = 'named', seed = A }: JudgeOpts): string =>
+const judgeCmd = ({ walkId, pick, alts = [], handoff = 'named', seed = A, unverified = [] }: JudgeOpts): string =>
   [
     'python3 thinking-tools/scripts/next-goal-render.py <<\'JSON\'',
     JSON.stringify({
@@ -89,7 +89,7 @@ const judgeCmd = ({ walkId, pick, alts = [], handoff = 'named', seed = A }: Judg
           ? null
           : { ...pick, targets: ['c1'], evidence: 'c1 아직 안 닫힘', startable: 'yes', startable_reason: '입력이 다 있어요', user_change: '없음' },
       alternatives: alts.map(a => ({ ...a, reason: `${a.title} 이유` })),
-      unverified: [],
+      unverified,
     }),
     'JSON',
   ].join('\n')
@@ -367,6 +367,25 @@ for (const surface of SURFACES) {
     const all = await texts(ui)
     expect(all).toContain('Seed 경로 인계 누락 — 후보 없음과 달라요')
     expect(all).not.toContain('고른 후보가 없어요.')
+    await ui.unmount()
+  })
+
+  test(`no pick retains unevaluated scope without a Seed (${surface})`, async ($, on) => {
+    const b = bench(on)
+    const gap = '열린 이슈 비교: GitHub 리모트가 없어 조회 못 함'
+    const output = [
+      'NEXT     · 없음',
+      'FROM     · 선택 없음 — 미평가 영역이 남아 후보 부재는 확정 못 함',
+      'SKIPPED  · 없음',
+      `TRACE    · Seed 탐색 없음 · 미확인: ${gap}`,
+    ]
+    await bash($, b, judgeCmd({ walkId: null, seed: null, pick: null, handoff: 'none', unverified: [gap] }), output.join('\n'))
+    const ui = await mountPane($, surface)
+    const all = await texts(ui)
+    for (const line of output) expect(all).toContain(line)
+    expect(all).toContain(`미확인: ${gap}`)
+    expect(all).toContain('선택한 후보 없음 — 검토 범위와 미확인은 FROM/TRACE 참고')
+    expect(all).not.toContain('Seed 경로 인계 누락 — 후보 없음과 달라요')
     await ui.unmount()
   })
 
