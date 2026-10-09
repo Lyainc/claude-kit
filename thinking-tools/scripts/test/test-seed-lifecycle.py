@@ -308,17 +308,20 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(code,1); self.assertIn('nonempty strings',' '.join(lines))
 
     def test_metadata_body_omission_explicit_read(self):
-        path = self.write('s.yaml',spec('closed','discontinued'))
-        before = path.read_bytes()
-        for cmd in ('metadata','read'):
-            p = subprocess.run([sys.executable,str(SCRIPTS/'seed-relations.py'),cmd,str(path),'--json'],capture_output=True,text=True)
-            self.assertEqual(p.returncode,0,p.stderr)
-            data = json.loads(p.stdout)
-            self.assertEqual(data['title'],'Fixture'); self.assertEqual(data['goal'],'Short goal')
-            self.assertEqual('requirements' in data,cmd=='read')
-            if cmd == 'metadata':
-                self.assertNotIn('First original requirement',p.stdout)
-        self.assertEqual(path.read_bytes(),before)
+        for state,outcome in ((None,None),('paused',None),('closed','discontinued')):
+            with self.subTest(state=state):
+                path = self.write('s.yaml',spec(state,outcome))
+                before = path.read_bytes()
+                for cmd in ('metadata','read'):
+                    p = subprocess.run([sys.executable,str(SCRIPTS/'seed-relations.py'),cmd,str(path),'--json'],capture_output=True,text=True)
+                    self.assertEqual(p.returncode,0,p.stderr)
+                    data = json.loads(p.stdout)
+                    self.assertEqual(data['title'],'Fixture'); self.assertEqual(data['goal'],'Short goal')
+                    self.assertFalse(data['eligibility']['eligible'])
+                    self.assertEqual('requirements' in data,cmd=='read')
+                    if cmd == 'metadata':
+                        self.assertNotIn('First original requirement',p.stdout)
+                self.assertEqual(path.read_bytes(),before)
 
     def test_guard_lifecycle_and_journal(self):
         before,after = spec(),spec('paused')

@@ -27,12 +27,13 @@ No snapshot and no worthwhile session candidate, or chain depth ≥ 3: compare t
 (GitHub remote + authenticated `gh`) via `scripts/next-candidate.py --cwd <repo>` (Bash, plugin root);
 never explore other repositories; if unavailable, disclose the gap and rank the known pool.
 
-**A build-spec Seed is a third pool, only when the session or caller names one or a pool issue
-references its path**: never glob or list/read `docs/specs/`; open only Seeds visited by
+**Seed pool: named or issue-linked paths only**. Never scan `docs/specs/`; visit via
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" walk <named-seed-path>`; another repo's Seed
-is a link only. Metadata first: lifecycle unknown/paused/closed and withdrawn items are excluded;
-honor walk `eligibility` and partial exclusions. Naming a Seed never resumes it. Read relevant
-active items only; verify unmet `measurable_via` in the repo. Unresolvable evidence stays unresolved.
+is a link only. Before Seed Read/cat, Bash:
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json`.
+Failure holds intake/application. Unknown/paused/closed and withdrawn items are excluded;
+Honor `eligibility` and partial exclusions. Naming never resumes. Read relevant active items only;
+verify unmet `measurable_via` in the repo; unresolved evidence stays unresolved.
 Before ranking read
 `reference.md` §Seed walk (binding record semantics): an unfinished same-repo predecessor → `held`; a
 child already satisfying its criteria → `done`, never re-proposed; `external` is never ranked;
