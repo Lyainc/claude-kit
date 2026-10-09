@@ -936,6 +936,7 @@ def case_token_cost_exact_models(errors: list[str]) -> None:
     # Sources are recorded next to MODEL_PRICING in report.py.
     expected = {
         "claude-fable-5": (10.0, 50.0, 12.5, 1.0),
+        "claude-fable-5-1": (10.0, 50.0, 12.5, 0.25),
         "claude-opus-5": (5.0, 25.0, 6.25, 0.5),
         "claude-sonnet-5": (2.0, 10.0, 2.5, 0.2),
         "claude-haiku-4-5-20251001": (1.0, 5.0, 1.25, 0.1),
@@ -960,7 +961,7 @@ def case_token_cost_invalid_extensions(errors: list[str]) -> None:
     print("\ncase: token_cost_invalid_extensions")
     models = (
         "claude-opus-5-6", "claude-sonnet-5-6", "claude-opus-5-5-1",
-        "claude-fable-5-1",  # A distinct release, not a Fable 5 suffix alias.
+        "claude-fable-5-1-1",  # Fable 5.1 is priced only by its exact ID.
         "claude-sonnet-5-20260601",  # Old test guessed this nonexistent snapshot.
         "claude-opus-5-20261008", "claude-opus-5-20260230",
         "claude-opus-5-2026100", "claude-opus-5-202610080",

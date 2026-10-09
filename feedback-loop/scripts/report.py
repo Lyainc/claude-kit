@@ -78,11 +78,13 @@ EVENTS_DIR = resolve_events_dir()
 # https://platform.claude.com/docs/en/about-claude/models/model-ids-and-versions
 # IDs from 4.6 onward are dateless pinned snapshots; do not invent date aliases.
 # Haiku 4.5's exact dated ID is confirmed by the model-ID documentation above.
-# Cache reads are 0.05x input on Opus/Sonnet 5.5, 0.1x on these older models.
+# Cache reads are 0.025x input on Fable 5.1, 0.05x on Opus/Sonnet 5.5, and
+# 0.1x on these older models.
 # Rates are current sticker prices, not historical invoices; discounts, fast
 # mode, residency, and 1h TTL are outside this view's standard-rate convention.
 MODEL_PRICING = {
     "claude-fable-5":            {"input": 10.00, "output": 50.00, "cache_write": 12.50, "cache_read": 1.00},
+    "claude-fable-5-1":          {"input": 10.00, "output": 50.00, "cache_write": 12.50, "cache_read": 0.25},
     "claude-opus-5":             {"input": 5.00,  "output": 25.00, "cache_write": 6.25,  "cache_read": 0.50},
     "claude-sonnet-5":           {"input": 2.00,  "output": 10.00, "cache_write": 2.50,  "cache_read": 0.20},
     "claude-opus-5-5":           {"input": 4.00,  "output": 20.00, "cache_write": 5.00,  "cache_read": 0.20},
