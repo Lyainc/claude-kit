@@ -12,11 +12,10 @@ constraint-7·constraint-12도 확인했다. 나머지 Seed 요구를 새로 완
 기존 파일 세 개의 내용도 바뀌었다. 변경 주체는 확인하지 않았으며 덮어쓰거나 복구하지 않았다.
 격리 사본의 기존 WIP 29개 해시는 모두 처음과 같다. 검토 기준은 처음의 고정 SHA를 유지한다.
 
-소스 worktree:
-`/Users/Lyainc/.codex/worktrees/seed-relations-live-consumer/claude-kit`.
-원시 증거 루트:
-`/private/tmp/seed-relations-live-evidence-20261010`.
-`preexisting.patch`, `main-wip-hashes.json`, `preservation-check.json`이 보존·변동 근거다.
+소스 worktree와 원시 증거 루트는 실행 머신의 저장소 밖 임시 경로였고 이 저장소에 커밋하지
+않았다. 아래에 적은 파일 이름(`preexisting.patch`, `main-wip-hashes.json`,
+`preservation-check.json` 등)은 그 증거 루트 기준의 상대 경로다. 임시 경로는 정리될 수 있으므로
+이 문서만으로 원시 증거를 다시 열람·재현할 수 있다고 주장하지 않는다.
 
 관계가 있는 임시 저장소를 생성해 실제 native 도구로 소비했다. 기대 출력을 미리 적어
 테스트한 것으로 대체하지 않았다. 이는 합성 관계에 대한 **소스 소비자 실행 증거**이며,
@@ -35,8 +34,8 @@ constraint-7·constraint-12도 확인했다. 나머지 Seed 요구를 새로 완
 
 해시는 `inventory/source-sha256.txt`, `inventory/final-source-sha256.txt` 및
 각 installed/comparison 파일에 있다. 새 세션 실패 원문은
-`inventory/prompt-input-probe.txt`에 있다. 설치된 renderer는 `return lines`,
-수정한 소스는 각 출력 필드의 개행을 공백으로 연결한다.
+`inventory/prompt-input-probe.txt`에 있다. 설치된 renderer는 판단 문자열을 그대로 출력한다.
+최종 수정은 아래 "재현된 결함과 최소 수정"에 적었다.
 
 ## 실제 metadata 선행 기록
 
@@ -123,23 +122,30 @@ relations.version/parent/refines/link_reason/depends_on/refines_map/provenance/r
 ## 재현된 결함과 최소 수정
 
 실제 run2의 done 사유에 포함된 개행이 `SKIPPED`를 둘로 나눴다. 같은 판단 JSON으로
-직접 확인했으며 source renderer가 각 완성 출력 필드의 `splitlines()`를 공백으로 연결하도록
-반환 한 줄만 바꿨다. 판단·ID·경로 검증과 후보 의미는 바꾸지 않았다.
+직접 확인했다. 처음에는 renderer 반환 줄만 `splitlines()`로 이었지만, PR #839 리뷰에서
+seed-board mod가 같은 판단 JSON을 직접 읽어 패널 라벨·전환 프롬프트에 개행이 남고, REFUSED
+메시지와 빈 줄·들여쓰기 처리도 어긋난다는 지적을 받았다. 그래서 정규화를 판단 입력 단계로
+옮겼다. renderer는 검증 시 판단 문자열의 연속 공백·개행을 공백 하나로 접고(`" ".join(s.split())`,
+target 설명과 같은 규칙), seed-board `parseJudgment`도 판단 필드에 같은 규칙을 적용한다.
+판단·ID·경로 검증과 후보 의미는 바꾸지 않았다.
 
-`test-next-goal-render.py`에 실제 유형의 개행을 여러 판단 필드에 넣는 회귀 한 건을 추가했다.
-수정 전 해당 검사만 실패(exit 1), 수정 후 관련 전체 검사 통과(exit 0)를 확인했다.
-`render-regression-before.log`, `render-regression-after.log`가 근거다.
+`test-next-goal-render.py`에 실제 유형의 개행·CRLF·빈 줄 들여쓰기를 여러 판단 필드와
+unverified에 넣는 회귀와, 개행 제목이 든 REFUSED 메시지가 한 줄인지 보는 검사를 두었다.
+수정 전 renderer에서는 이 두 검사가 실패하고 수정 후 전체가 통과한다. seed-board에는
+`parseJudgment` 정규화 테스트를 추가했다(`claude plugin test` 33개 통과).
 실제 run2 판단 JSON 재렌더도 exit 0, NEXT/FROM/SKIPPED/TRACE 네 줄이며 시각·개행 외 판단
 내용은 동일하다(`render-live-after.stdout`, `nextgoal-assertions.json`). `git diff --check`도 통과했다.
-이미 통과한 관계·lifecycle 전체 회귀는 소스 변화가 없어서 반복하지 않았다.
+기준 SHA 이후 main이 이동했으므로(Seed 철회·provenance 검사 변경 포함), 이 PR 변경을
+`d4f1b3a`(당시 origin/main) 위에 적용한 별도 worktree에서 `test-seed-relations.py`,
+`test-seed-lifecycle.py`, `test-seed-id-migrate.py`, `test-next-goal-render.py`와 seed-board
+mod 테스트를 다시 실행해 모두 통과했다. 위 실제 소비자 실행 자체는 기준 SHA에서만 수행했다.
 
-## 최종 요구 갭 검토 입력
+## 최종 검토
 
-독립 검토는 1회, 상한 1라운드다. 동일 기준 SHA와 `task-code.diff`, 이 검증 문서의 신규 diff,
-원시 native 도구 기록·실제 결과·`refine-artifact.diff`를 제공하고
-`thinking-tools/reference/seed-diff-grading.md`를 첨부한다. 기존 WIP는 검토의 신규 변경에서 제외한다.
-검토 결과는 별도 검증 산출물에 보존한다. 검토 인프라 실패 시 재시도 없이 main 직접 대조로
-보완하고 근거 한계를 기록한다.
+검증 당시 1라운드 독립 요구 갭 검토를 계획했지만, 그 실행 여부와 결과는 이 문서에 기록되지
+않았으므로 통과했다고 주장하지 않는다. 이후 PR #839에 코드 리뷰(medium)를 1회 수행했고,
+지적된 renderer·seed-board 정규화 불일치와 이 문서의 서술 오류를 반영했다.
 
-설치 변경·실제 vault 작업·push·PR·merge·이슈 쓰기는 수행하지 않았다. local commit도 하지 않았다.
+검증 실행 중에는 설치 변경·실제 vault 작업·커밋·push·PR·merge·이슈 쓰기를 하지 않았다.
+이후 사용자 지시로 renderer 수정과 이 문서를 커밋해 PR #839로 올렸다.
 Seed의 전체 완료나 closed 전환, 현재 원본 main과 설치본에서의 통합 실행은 이 결과로 주장하지 않는다.
