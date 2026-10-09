@@ -193,6 +193,7 @@ jobs:
           bash -n thinking-tools/hooks/session-start-welcome.sh
           bash -n thinking-tools/hooks/next-goal-context.sh
           bash -n scripts/rules-checklist-hook.sh
+          uv run --no-project python3 scripts/test/test-rules-checklist-hook.py
           bash -n scripts/worktree-isolation-guard.sh
           bash -n scripts/subagent-git-guard.sh
           bash -n scripts/no-pyyaml-guard.sh

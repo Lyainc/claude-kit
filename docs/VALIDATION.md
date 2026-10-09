@@ -961,6 +961,8 @@ bash -n thinking-tools/hooks/next-goal-context.sh   # #517 candidate-pool inject
 bash -n feedback-loop/scripts/event-logger.sh
 bash -n feedback-loop/scripts/retro-telemetry.sh   # #294 retro stamp/emit helper
 bash -n scripts/rules-checklist-hook.sh   # #216 work-rules task-end reminder hook
+uv run --no-project python3 scripts/test/test-rules-checklist-hook.py
+# Checks marketplace reminders and silent clean/unrelated changes with real hook JSON.
 bash -n scripts/subagent-git-guard.sh     # #209 subagent git side-effect deny hook
 bash -n scripts/no-pyyaml-guard.sh        # #259 no-PyYAML guard (add-policy dogfood + rule_fire emitter)
 bash -n scripts/worktree-isolation-guard.sh  # #594 P1 self-isolation warn hook
