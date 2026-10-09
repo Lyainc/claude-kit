@@ -33,7 +33,7 @@ lifecycle:
   state: active
   outcome: null
   reason: "역할 경계·샘플 판정표·질문 큐·메인 소유권 계약은 확인했다. 현행 계약의 분리 세션 UD→BS 왕복과 사용자 답·skipped STATE 도구 trace는 미검증이므로 로컬 검증 대상으로 활성화한다."
-  approved_by: "2026-10-10 사용자 지시: 상태값 unknown인것들 현행화하고 진단 결과에 따라 수정 필요한 사항 있으면 수정 시작"
+  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
   evidence:
     commit: null
     items:
@@ -61,9 +61,8 @@ constraints:
   - id: constraint-1
     type: technical
     description: >-
-      축 표·세 경로·findings→blindspots 매핑은 thinking-tools/reference/ud-bs-boundary.md
-      한 파일이 소유한다. Seed 적용·전이·재사용은 기존 seed-lifecycle.md가 소유하므로
-      별도 스키마로 중복 정의하지 않고 이 공통 생애주기 계약을 참조한다.
+      두 스킬이 공유하는 계약(축 표 + 세 경로 + findings→blindspots 매핑)은
+      thinking-tools/reference/ 아래 단일 파일로 유지한다. 파일을 쪼개지 않는다.
     hard: true
     rationale: >-
       계약 파일이 여러 개로 늘면 이번 범위에서 제외한 드리프트 문제(INTERVIEW_STATE.md 두 벌,
@@ -80,9 +79,8 @@ constraints:
   - id: constraint-3
     type: other
     description: >-
-      격리 채점 정책·INTERVIEW_STATE.md 통합(#432), doc-concretize까지 포함한 신호
-      정리(#431)는 이 Seed의 범위 밖이다. 현재 공유 경계의 기본 인라인·게이트 임박 시 격리
-      정책과 bare 구체화→doc-concretize 라우팅을 존중하되 이번 변경이 별도 작업을 재개하지 않는다.
+      범위 제외 — (a) 격리 채점 정책 드리프트와 INTERVIEW_STATE.md 두 벌 통합 → #432,
+      (b) doc-concretize까지 낀 3자 신호 충돌 → #431. 둘 다 #430 머지 후 착수.
     hard: true
     rationale: >-
       둘 다 사용자 체감이 0인 유지보수 부채이고, 격리 채점 수렴은 UD 게이트의 "임박" 정의를
@@ -99,10 +97,7 @@ constraints:
 
   - id: constraint-5
     type: technical
-    description: >-
-      버전을 직접 올리지 않는다. Claude description 변경은 thinking-tools/.claude-plugin/plugin.json과
-      .claude-plugin/marketplace.json에 동기화하며, portable root plugin.json은 별도
-      메타데이터를 소유하고 Claude와 name/version만 lockstep이다.
+    description: plugin.json 버전을 직접 올리지 않는다. description 변경 시 marketplace.json만 동기화.
     hard: false
     rationale: claude-kit은 lockstep 릴리스라 버전은 릴리스 워크플로가 일괄 범프한다.
 
@@ -120,29 +115,17 @@ success_criteria:
 
   - id: acceptance-2
     description: >-
-      UD→BS가 Seed를 경유한 다음 세션 handoff로 실제 1회 성립한다. UD가 metadata 후
-      관련 본문을 읽고 저장한 Discovery Report를 다음 BS 세션의 `<feedback>`으로 전달한다.
-      사용자가 승인한 현재 범위만 Refine하고, closed 원본은 선택한 항목의 정확한
-      파일·커밋·ID 출처를 가진 새 Seed로 재사용한다. 파일 발견·전달·새 생성만으로 활성화·
-      재개나 자식 재연결을 승인한 것으로 취급하지 않는다.
+      UD→BS 왕복이 실제로 1회 성립한다 — 기존 seed 파일을 대상으로 UD를 돌리고, 나온
+      Discovery Report를 BS refine mode에 넣어 seed v2(refine_generation: 1)가 산출된다.
     verifiable: true
-    measurable_via: >-
-      분리된 UD/BS 세션의 metadata 선행 호출·실제 사용자 선택·feedback 경로 읽기·
-      원본 보존·새 Seed의 refine_generation/선택 출처와 lifecycle/relations 검사.
-      refine_generation: 1 파일 존재만으로 실행 왕복이나 활성화 승인을 증명하지 않음
+    measurable_via: docs/specs/ 아래 refine_generation이 1 이상인 seed 파일의 존재
 
   - id: acceptance-3
     description: >-
-      UD Discovery Report가 BS `<feedback>`에 전달되면 메인 에이전트가 보고서를 읽고
-      Phase 1 질문 큐에 주입한다. 답이 나온 발견만 constraint/success로 굳히고 남은
-      질문은 blindspots로 유지한다. Phase 2.5는 건너뛰며 STATE에 blindspot_pass: skipped를 남긴다.
-      인터뷰·사용자 답·STATE·게이트·Seed 쓰기는 메인 소유이고, 지원 분석만 위임한다.
-      Codex는 현재 허용된 native 질문 도구를 우선 사용하고 실제 답 전에는 게이트를 진행하지 않는다.
+      UD를 거쳐 들어온 BS 세션에서 Phase 2.5 blind-spot pass가 건너뛰어지고, STATE에
+      blindspot_pass: skipped와 그 사유가 남는다.
     verifiable: true
-    measurable_via: >-
-      build-spec reference.md §6의 frontmatter skill: unknown-discovery 또는 사용자 명시
-      검출 조건, §11.4 feedback Read와 Phase 2.5 스킵 문구 및 acceptance-2 세션 STATE 대조.
-      Codex 도구의 제출 성공·빈 응답·경과 시간을 사용자 답으로 대신하지 않는지 확인
+    measurable_via: build-spec SKILL.md Phase 2.5의 스킵 조건 문구 + acceptance-2 왕복 시 STATE 확인
 
 context:
   existing_stack:

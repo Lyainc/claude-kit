@@ -34,7 +34,7 @@ lifecycle:
   state: active
   outcome: null
   reason: "현재 위임·반환 계약과 정적 검사는 확인했다. 실제 worker 반환·호출자 relay·파일 작성 및 동일 조건 총비용·품질 비교가 남아 있어 로컬 검증 대상으로 활성화한다."
-  approved_by: "2026-10-10 사용자 지시: 상태값 unknown인것들 현행화하고 진단 결과에 따라 수정 필요한 사항 있으면 수정 시작"
+  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
   evidence:
     commit: null
     items:
@@ -76,19 +76,21 @@ constraints:
   - id: constraint-2
     type: technical
     description: >-
-      위임 에이전트 정의에 `## Final Response Contract`를 둔다. 마지막 메시지가 SUMMARY
-      본문과 진행 기록을 담은 산출물이고, content-free sign-off나 파일 경로만 반환하는 형태를 금지한다.
+      위임 에이전트 정의에 Final_Response_Contract 블록을 넣는다 — 마지막 메시지가 산출물이고
+      content-free sign-off를 금지한다.
     hard: true
     rationale: >-
-      #211의 마지막 assistant 메시지 반환 계약을 따른다. #227의 빈 sign-off 실패는
-      파일 생성만으로 방어되지 않으므로 호출자가 실제 반환 본문을 확인해야 한다.
-
+      #227이 위임 반환에서 빈 sign-off 19회를 실측하고 회수비용을 문서화했으며, 그 문서화된
+      완화책이 하필 "inline SUMMARY path"다. #211은 native Agent가 마지막 assistant 메시지만
+      반환한다고 못박고 351k 토큰 분석이 "Complete." 하나로 잘린 사례를 남겼다. #201의
+      Workflow schema 방어는 dev-harness로 이관되고 그 dev-harness가 2026-06-29 CUT으로
+      철회됐으므로, 이 레포에 남은 방어는 반환 계약뿐이다. 현재 에이전트 5개가 모두 같은 문구를
+      갖고 있어 새 발명이 아니라 기존 관례다.
   - id: constraint-3
     type: technical
     description: >-
-      SKILL.md가 5,000 토큰 예산과 Codex의 8,000바이트 invoked-skill 상한(frontmatter 포함)
-      안에 남는다. 근거·긴 예제는 reference.md로 옮길 수 있지만 실행 순서·승인 게이트·fallback·
-      금지·출력 필드·Codex 분기는 본문에 유지하고, 이동한 binding 절은 읽을 시점을 명시한다.
+      SKILL.md가 5,000 토큰 예산과 Codex의 8,000바이트 invoked-skill 상한(frontmatter 포함) 안에
+      남는다. 넘으면 산문을 reference.md로 옮기고 본문엔 locator만 남긴다.
     hard: true
     rationale: >-
       실질 상한은 바이트 쪽이고 여유가 거의 없다(check-skill-token-budget.py가 둘 다 잰다). 초과 시
@@ -96,10 +98,9 @@ constraints:
   - id: constraint-4
     type: technical
     description: >-
-      test-mode-compose.py required 세트는 격리 실행·요약 출력·위임 실행을 검사한다.
-      격리·선택·역할 계약의 verbatim 핀 상수(`_EXCHANGE_LOOP_SECTION`·
-      `_SKILL_ISOLATED_SECTION`·`_ROLE_CONTRACT_SECTION`·`_SELECTION_GUIDE_SECTION`·
-      `_SKILL_SELECTION_SECTION`)를 예전 내용으로 되돌리거나 위임 모드 때문에 바꾸지 않는다.
+      test-mode-compose.py의 모드 required 세트에 새 모드를 추가한다. 격리·역할 계약 verbatim 핀
+      상수(`_EXCHANGE_LOOP_SECTION`·`_SKILL_ISOLATED_SECTION`·`_ROLE_CONTRACT_SECTION`)를 예전
+      내용으로 되돌리거나 위임 모드 때문에 바꾸지 않는다.
     hard: true
     rationale: >-
       required 세트는 화이트리스트가 아니라 하한이라, 새 모드를 넣지 않으면 통과는 하지만 그 모드가
@@ -113,10 +114,7 @@ constraints:
       선언과 본문 사용을 양방향으로 검사하고 코드펜스 안은 근거로 안 쳐준다.
   - id: constraint-6
     type: technical
-    description: >-
-      Claude 에이전트 등록은 thinking-tools/.claude-plugin/plugin.json의 keywords와 description에
-      반영하고 .claude-plugin/marketplace.json을 동기화한다. root portable plugin.json은
-      별도 메타데이터를 소유하고 name/version만 Claude manifest와 lockstep이며 버전은 직접 올리지 않는다.
+    description: plugin.json keywords에 에이전트명을 추가하고 marketplace.json을 동기화한다. 버전은 올리지 않는다.
     hard: true
     rationale: check-version-sync.py가 CI block 가드다. 버전은 lockstep 릴리스 소관이다.
   - id: constraint-7
@@ -136,9 +134,8 @@ constraints:
   - id: constraint-9
     type: other
     description: >-
-      Workflow fan-out이 훗날 별도 이슈를 거쳐 들어오면 Claude 전용 추가 경로로 표기하고,
-      Workflow가 없는 환경에서는 기존 runtime-native 호출 경로를 유지한다. 현재 Codex는 codex-portability.md에 따라 실제 제공되는 native subagent 도구만 쓰거나
-      현재 컨텍스트에서 실행한다. Claude Agent 타입·모델·Workflow·훅을 Codex 기능으로 가정하지 않는다.
+      Workflow fan-out이 훗날 별도 이슈를 거쳐 들어올 경우 Claude 전용 추가 경로로 표기하고,
+      Workflow가 없는 런타임에서는 기존 Agent 개별 호출로 돌아가는 fallback을 명시한다.
     hard: false
     rationale: >-
       expert-panel이 이미 Codex Portability 섹션을 갖고 있으므로 그 패턴을 잇는다. fan-out 자체는
@@ -146,14 +143,10 @@ constraints:
   - id: constraint-10
     type: technical
     description: >-
-      위임 worker는 reference.md § Role Contract를 따른다. 진행·종합과 실행안·실패 검토를
-      한 컨텍스트 안에서 수행하고 별도 에이전트·투표자를 더하지 않으며, 종합을
-      `[Moderator — 진행자 종합]`으로 표시한다. 반박은 최대 2회, 사실 부족은 held:evidence로
-      보류하고 전문가 추가는 호출자 확인을 위한 제안만 한다. 위임과 전문가별 격리는 대체
-      경로이므로 의도가 불명확하면 사용자 답을 기다린다. file trigger가 있으면 worker는
-      transcripts와 UNRESOLVED.md를 쓰고 호출자가 반환 본문으로 SUMMARY.md를 쓴다.
-      요약 출력에서는 transcripts를 생략한다.
-      요약만 있어도 진행 기록이 없으면 한 번 재요청하고 계속 없으면 `절차 확인 불가`로 전달한다.
+      위임 worker는 reference.md § Role Contract를 따른다 — worker가 진행자로서 패널 진행과 최종
+      종합을 맡고, 실행안·실패 검토는 필수 관점으로 포함하되 별도 에이전트나 투표자로 추가하지
+      않으며, worker의 종합을 독립 검토로 표시하지 않는다. 위임과 전문가별 격리는 대체 실행 경로이고
+      조용히 조합하지 않는다.
     hard: true
     rationale: >-
       역할 계약은 #793이 소유한다. worker 안의 페르소나 토론은 전문가별 독립 컨텍스트와 같은 격리
@@ -171,16 +164,11 @@ success_criteria:
       방식·TTL·도구 접근 차이를 함께 명시하고 확인 못 한 값은 미확정으로 남김
   - id: acceptance-2
     description: >-
-      위임 반환이 SUMMARY 본문(결론·근거·권고·소수 의견·적용 조건·불확실성·미해결),
-      Phase 0 backlog line, 토픽 outcome·투표 실행 시 내역·실제 생성 파일 경로와 진행 기록을 담는다.
-      진행 기록은 한 컨텍스트 시뮬레이션임을 표시하고 브리핑·전문가별 독립 발언 요지·
-      실행안/실패 검토·0–2회 반박과 중단 이유·outcome을 토픽별로 유지한다. 요약 출력에서도
-      진행 기록을 생략하지 않으며, 파일 출력 시 호출자가 SUMMARY.md를 작성한다.
+      위임 반환값이 "Complete." 류 sign-off가 아니고 SUMMARY 본문(결론·근거·권고·반대(소수) 의견·적용
+      조건(실행안·실패/중단 조건)·불확실성·미해결)과, 독립 실행이 아님을 표시한 진행 기록(토픽별 독립 발언
+      요지·실무 검토·반박 횟수와 중단 사유)을 실제로 담았음을 확인한다.
     verifiable: true
-    measurable_via: >-
-      실호출 반환 본문·호출자 relay·파일 작성 주체 확인, test-mode-compose.py의 worker audit·
-      role label·누락 반환 재요청 계약 검사. 정적 검사만으로 실호출 품질이나 비용 동등성을 주장하지 않음
-
+    measurable_via: 실호출 1회의 반환 메시지 육안 확인 — #227이 측정한 실패 모양의 재현 여부
   - id: acceptance-3
     description: 가드 전수 green.
     verifiable: true
