@@ -275,7 +275,7 @@ def render(j, cwd):
     lines.append(f"SKIPPED  · {_skipped_line(j)}")
     if j["handoff"] != "none":
         lines.append(f"TRACE    · {_trace_line(j, data, current_id)}")
-    return lines
+    return [" ".join(line.splitlines()) for line in lines]
 
 
 def main(argv):
