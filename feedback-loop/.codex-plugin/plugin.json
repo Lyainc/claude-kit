@@ -1,6 +1,6 @@
 {
   "name": "feedback-loop",
-  "version": "6.0.0",
+  "version": "6.0.1",
   "description": "Session feedback, distillation, and durable policy storage for Codex; Native command hooks require explicit review and trust.",
   "author": {
     "name": "Lyainc",
