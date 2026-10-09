@@ -36,7 +36,7 @@ keep backlog scan; ask 3-5 Goal questions; gate Goal ≥ 0.75. Emit Goal + best-
 (binding format §11.2).
 
 **Seed use / Refine**: before Seed `Read`/cat, `Bash`: `seed-relations.py metadata <seed> --json`.
-Never bulk-read YAML for discovery. Read relevant content only. Apply unknown only with approval;
+Failure holds body intake/application. No bulk YAML discovery; read relevant content only. Apply unknown only with approval;
 resume paused only with approval; closed needs a new Seed with pinned provenance. No withdrawn
 items or scope expansion. Read `../../reference/seed-lifecycle.md` before changes. Restore scores, ids,
 `issues`/`relations` (§8); skip Phase 0, start at lowest clarity; `<feedback>` → Phase 1 (§6).
