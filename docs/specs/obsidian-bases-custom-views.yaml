@@ -36,13 +36,82 @@ domain: tech
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: active
-  outcome: null
-  reason: '사용자가 #762 독립 Seed와 최소 입력·필터·정렬 계약을 확정하고 구현 적용을 승인했다.'
-  approved_by: '2026-10-10 사용자 답변: 별도 Seed 없음, #762 독립 Seed; 자연어와 명시 플래그 모두; 이 최소 명세로 확정; 혼용하면 사용자에게 의도를 질문. 현재 vault에서 테스트하고 작업 이후 삭제.'
+  state: closed
+  outcome: completed
+  reason: '검증 대상 커밋에서 모든 제약과 완료 조건의 항목별 근거를 확인하고 사용자가 종료를 승인했다.'
+  approved_by: '2026-10-10 사용자 답변: 종료안대로 댓글·Seed 종료·커밋·push.'
   evidence:
-    commit: null
-    items: []
+    commit: 136fde331cfad2a8a3a8c15f1d5ccc30d38daa6a
+    items:
+      - id: constraint-1
+        refs:
+          - 'obsidian-vault-manager/skills/base/SKILL.md:20-30'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: constraint-2
+        refs:
+          - 'obsidian-vault-manager/reference/obsidian-bases-schema.md:150-222'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: constraint-3
+        refs:
+          - 'obsidian-vault-manager/skills/base/SKILL.md:24-26'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: constraint-4
+        refs:
+          - 'obsidian-vault-manager/skills/base/SKILL.md:36-94'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: constraint-5
+        refs:
+          - 'obsidian-vault-manager/skills/base/SKILL.md:30-34'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: constraint-6
+        refs:
+          - 'obsidian-vault-manager/skills/base/SKILL.md:100-107'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: constraint-7
+        refs:
+          - 'docs/VALIDATION.md'
+          - 'https://github.com/Lyainc/claude-kit/actions/runs/38003785759'
+      - id: constraint-8
+        refs:
+          - 'https://github.com/Lyainc/claude-kit/pull/842'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: constraint-9
+        refs:
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+          - 'codex://threads/01a122e4-e0c6-7110-bf5f-157a3ce388e0'
+      - id: acceptance-1
+        refs:
+          - 'obsidian-vault-manager/scripts/test/test-base-custom-views.test.ts'
+          - 'https://github.com/Lyainc/claude-kit/actions/runs/38003785759'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: acceptance-2
+        refs:
+          - 'obsidian-vault-manager/reference/obsidian-bases-schema.md:167-188'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: acceptance-3
+        refs:
+          - 'obsidian-vault-manager/skills/base/SKILL.md:24-26'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: acceptance-4
+        refs:
+          - 'obsidian-vault-manager/scripts/test/test-base-custom-views.test.ts'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: acceptance-5
+        refs:
+          - 'obsidian-vault-manager/skills/base/SKILL.md:100-107'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: acceptance-6
+        refs:
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
+      - id: acceptance-7
+        refs:
+          - '.github/workflows/validate.yml'
+          - 'docs/VALIDATION.md'
+          - 'https://github.com/Lyainc/claude-kit/actions/runs/38003785759'
+      - id: acceptance-8
+        refs:
+          - 'https://github.com/Lyainc/claude-kit/pull/842'
+          - 'https://github.com/Lyainc/claude-kit/pull/842#issuecomment-6091294044'
   withdrawn: []
 goal:
   statement: '/base 사용자가 명시한 커스텀 필터와 선택적 정렬로 #762의 네 업무 뷰를 새 파일로 생성할 수 있게 한다.'
