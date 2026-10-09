@@ -27,18 +27,18 @@ lifecycle:
   state: paused
   outcome: null
   reason: "v2가 원 요구를 보존한 refined generation인 것은 확인했다. 새 세대 존재만으로 원본 폐기나 완료를 판정하지 않는다. 외부 doctor 설치·전체 대상 SessionStart 검증까지 보류한다."
-  approved_by: "2026-10-10 사용자 지시: 상태값 unknown인것들 현행화하고 진단 결과에 따라 수정 필요한 사항 있으면 수정 시작"
+  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (paused)"
   evidence:
     commit: null
     items:
       - id: constraint-7
         refs:
           - "docs/design/claude-kit-boundary.md:190"
-          - "/Users/Lyainc/dev/prj/local-harness/rules/harness-doctor.sh"
+          - "local-harness:rules/harness-doctor.sh"
       - id: acceptance-5
         refs:
-          - "/Users/Lyainc/dev/prj/local-harness/policies/P12.md:5"
-          - "/Users/Lyainc/dev/prj/local-harness/rules/README.md:21"
+          - "local-harness:policies/P12.md:5"
+          - "local-harness:rules/README.md:21"
   withdrawn: []
 
 goal:
@@ -94,9 +94,8 @@ constraints:
   - id: constraint-5
     type: technical
     description: >-
-      실행 예산 상한 500ms. 초과하면 조용히 건너뛰고 그 사실만 기록한다
-      (~/.cache/harness-doctor.skipped, 경로는 환경변수로 재정의 가능).
-      패키지 버전별로 원본 렌더링 해시를 캐시하되 대상 사본은 매번 해시 대조하며,
+      실행 예산 상한 200ms. 초과하면 조용히 건너뛰고 그 사실만 기록한다.
+      성능 캐시는 허용하되(대상 파일 mtime 무변이면 해시 재계산 스킵),
       "결과가 지난번과 같으면 침묵"하는 캐시는 금지.
     hard: true
     rationale: >-
@@ -117,26 +116,21 @@ constraints:
   - id: constraint-7
     type: technical
     description: >-
-      감지기 구현은 local-harness rules/harness-doctor.sh에만 두고 정책은
-      policies/P12.md에서 정의한다. claude-kit 레포는 이 스크립트에 런타임/빌드
+      local-harness `rules/`에만 산다. claude-kit 레포는 이 스크립트에 런타임/빌드
       의존이 0이어야 한다.
     hard: true
     rationale: >-
       boundary §0(claude-kit ↔ local-harness 이식성). 감사 대상이 머신 스코프이고
-      claude-kit은 자동 발견되는 감사 대상 중 하나일 뿐이라, 공개 마켓플레이스 플러그인이
+      claude-kit은 스캔 대상 8개 중 하나일 뿐이라, 공개 마켓플레이스 플러그인이
       사용자 머신 상태를 훑는 모양이 되면 방향이 뒤집힌다.
       #209(서브에이전트 git 계약) 선례와 동일한 배치 — 추상 what+why는 머신 레벨,
       구체 강제는 필요한 프로젝트에.
 
   - id: constraint-8
     type: other
-    description: >-
-      머신 감사 구현과 후속 작업은 local-harness에서 소유한다. 이 Seed의 원래
-      claude-kit #410 추적은 출처로 보존하고 local-harness 자체 추적 이슈와 구분한다.
+    description: 작업은 local-harness에서 하되 추적 이슈는 claude-kit에 등록한다.
     hard: false
-    rationale: >-
-      local-harness는 현재 자체 저장소와 이슈 추적을 사용한다
-      (policies/P12.md의 local-harness #12). 공개 플러그인과 개인 머신 소유권을 분리한다.
+    rationale: local-harness는 자체 이슈 트래커가 없다 (#229 / #234 / #298 선례).
 
 success_criteria:
   - id: acceptance-1
@@ -166,7 +160,7 @@ success_criteria:
   - id: acceptance-4
     description: SessionStart에서 실행해도 체감 지연이 없다.
     verifiable: true
-    measurable_via: 전체 스캔 실행시간 < 500ms (원본 캐시 워밍 후), HARNESS_DOCTOR_BUDGET_S 초과 시 스킵 경로 동작 확인.
+    measurable_via: 전체 스캔 실행시간 < 200ms (캐시 워밍 후), 초과 시 스킵 경로 동작 확인.
 
   - id: acceptance-5
     description: >-
@@ -174,8 +168,8 @@ success_criteria:
       참조된다.
     verifiable: true
     measurable_via: >-
-      local-harness policies/P12.md 존재 + rules/README.md 정책 표의 P12 행 +
-      Layer/Tier/Scope 기재 (work-rule / SOFT / broad). 탐지 후 수동 수정은 설계상 SOFT다.
+      rules/policies/P12.md 존재 + rules/README.md 정책 표에 행 추가 +
+      Layer/Tier/Scope 기재 (work-rule / HARD-candidate / broad).
 
 context:
   existing_stack:

@@ -32,7 +32,7 @@ lifecycle:
   state: active
   outcome: null
   reason: "관계·생애주기·guard·render 회귀는 통과했다. 실제 next-goal의 metadata 선행 도구 trace·선행 보류 판단 및 자식 Refine 왕복이 남아 있어 로컬 검증 대상으로 활성화한다."
-  approved_by: "2026-10-10 사용자 지시: 상태값 unknown인것들 현행화하고 진단 결과에 따라 수정 필요한 사항 있으면 수정 시작"
+  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
   evidence:
     commit: null
     items:
@@ -76,24 +76,23 @@ constraints:
   - id: constraint-1
     type: technical
     description: >-
-      relations와 issues에는 진행 상태·완료 값을 두지 않는다. #814의 lifecycle이
-      승인된 상태·종료 결과·근거·철회를 소유하고, next-goal은 eligibility를 먼저
-      적용한 뒤 현재 레포에서 남은 일을 판단한다. lifecycle이 없으면 unknown이다.
+      relations 어디에도 상태·진척·완료 값을 두지 않는다. Seed가 끝났는지, 부모의 acceptance/constraint 항목이
+      채워졌는지는 지금처럼 next-goal이 레포 상태를 보고 판정한다.
     hard: true
     rationale: >-
-      템플릿 amendment contract가 Seed를 작업 로그가 아닌 스펙으로 규정한다.
-      최소 생애주기 결정은 작업 로그와 구별된다. 엣지·이슈 상태·UI 캐시로 lifecycle을
-      추정하면 승인 원본과 어긋나는 두 번째 진실 원천이 생긴다.
+      템플릿 amendment contract가 Seed를 작업 로그가 아닌 스펙으로 규정하고, next-goal도
+      "not met yet is a judgment about the repository"라고 명시한다. 엣지에 done을 붙이면
+      레포와 어긋나는 두 번째 진실 원천이 생긴다.
   - id: constraint-2
     type: technical
     description: >-
-      신규 relations.version: 2와 생애주기가 있는 엣지는 정확한 파일을 고정한다.
-      관계 버전·생애주기 없는 구형 엣지가 구형 대상을 가리킬 때만 같은 slug의 최신
-      `-vN` 해석을 유지한다. provenance는 파일·전체 commit SHA·선택 항목까지 고정한다.
+      엣지를 해석할 때 같은 slug의 최신 `-vN`을 따라간다. `parent: docs/specs/foo.yaml`은
+      `foo-v2.yaml`이 있으면 그쪽으로 해석되고, 다른 레포 좌표도 같은 규칙을 따른다.
     hard: true
     rationale: >-
-      #780의 최신 세대 해석은 구형 호환 계약으로 남는다. #814 이후 명시적 생애주기나
-      종료 출처를 새 세대로 조용히 옮기면 승인·근거가 바뀌므로 자동 이동을 금지한다.
+      build-spec 재실행은 새 세대를 `-v2`/`-v3`로 쓴다(reference.md §7). 경로를 그대로 믿으면
+      부모가 재생성되는 순간 링크가 소리 없이 끊기고, 역방향 계산은 "자식 없음"만 보여줘서
+      손으로 찾을 때보다 나빠진다.
   - id: constraint-3
     type: technical
     description: >-
@@ -131,15 +130,14 @@ constraints:
       거기 있다"는 링크로만 보여준다.
     hard: true
     rationale: >-
-      next-goal이 다른 레포 Seed의 완료를 여기서 판정하지 않는 이유는 근거가 그 레포 코드에 있기 때문이다.
+      next-goal이 다른 레포 Seed를 읽지 않는 이유가 판정 근거가 그 레포 코드에 있기 때문이다.
       쓰기도 판정과 같은 원칙으로 자기 레포에서만 해야 다른 레포 작업 트리를 건드리지 않는다.
   - id: constraint-7
     type: technical
     description: >-
       next-goal의 "never glob a spec directory to find one" 규칙을 "이름을 댄 Seed에서 명시적
       엣지로 도달하는 Seed도 in play"로 좁혀 연다. 탐색은 LLM 없이 도는 결정론 스크립트가 하고,
-      이름을 댄 기준 Seed 없이는 실행되지 않는다. 본문 읽기 전에 metadata 명령을
-      실제 실행하고 성공을 확인한다. walk/read는 이 선행 호출을 대신하지 않는다.
+      이름을 댄 기준 Seed 없이는 실행되지 않는다.
     hard: true
     rationale: >-
       그 규칙이 막으려는 건 상관없는 옛 Seed가 후보에 끼는 것이다. 명시적 엣지로 이어진 Seed는
@@ -147,20 +145,16 @@ constraints:
   - id: constraint-8
     type: technical
     description: >-
-      seed-append-check.py는 #767 이후 "템플릿이 그 위치에 정의한 키만 통과"로 판정한다.
-      최상위든 항목 안이든 같은 규칙이라, 템플릿에 들어간
-      `relations:`와 정식 lifecycle 결정은 통과하고 임의 `status:`·진척 로그는
-      어느 깊이에서도 막힌다. Codex는 훅을 가정하지 않고 공통 검증기를 명시 실행한다.
+      #767이 먼저 seed-append-check.py의 판정을 "템플릿이 그 위치에 정의한 키만 통과"로 좁혔고,
+      여기서는 템플릿에 relations만 추가한다. 최상위든 항목 안이든 같은 규칙이라, 템플릿에 들어간
+      `relations:`는 통과하고 `status:`는 어느 깊이에서도 막힌다.
     hard: true
     rationale: >-
-      가드는 템플릿에 없는 키를 새로 넣는 편집을 막는다. 허용 필드는 템플릿을 따른다.
-      lifecycle 전이·철회 원문·종료 근거는 seed-lifecycle.py 검증도 함께 적용한다.
+      가드는 템플릿에 없는 키를 새로 넣는 편집을 막는다. 그래서 relations는 템플릿 정의(constraint-9)가
+      먼저 들어가야 Seed에 쓸 수 있고, 가드 코드는 따로 고칠 필요가 없다.
   - id: constraint-9
     type: technical
-    description: >-
-      templates/SEED_SPEC.yaml이 version, parent, refines, link_reason, depends_on,
-      children, refines_map, provenance, replaces, transfers를 정의한다. 생애주기 결정은
-      별도의 lifecycle 필드이며 관계·상태 계약은 reference/seed-lifecycle.md를 따른다.
+    description: templates/SEED_SPEC.yaml이 relations 필드(parent, refines, depends_on, children)를 정의한다.
     hard: true
     rationale: >-
       템플릿에 없으면 constraint-8의 "템플릿이 정의한 키" 판정이 relations를 막고, 리뷰와 다른 도구도
@@ -169,8 +163,7 @@ constraints:
     type: technical
     description: >-
       build-spec Phase 0이 "기존 Seed의 하위 피처인가요?"를 한 번 묻고, 같은 레포 docs/specs/의
-      metadata를 확인한 최대 3개의 target·정확 경로·관찰된 lifecycle을 보기로 준다.
-      다른 레포 부모는 사용자가 좌표로 적는다. 이름을 고르는 것만으로 적용·재개는 승인되지 않는다.
+      target 목록을 보기로 준다. 다른 레포 부모는 사용자가 좌표로 적는다.
     hard: true
     rationale: >-
       작성하는 동안 연결해야 나중에 손으로 잇는 일이 안 생긴다. 사람이 고르는 목록이라
@@ -178,25 +171,20 @@ constraints:
   - id: constraint-11
     type: technical
     description: >-
-      unknown/paused/closed Seed와 철회·영향 불명 항목은 자동 후보에서 제외한다.
-      active인 후보의 같은 레포 선행 Seed는 읽힌 lifecycle과 현재 레포 근거를 확인한다.
-      선행의 요구가 미완료면 의존하는 후보는 held로 보류하고, 착수 가능한 선행 자체를
-      후보로 검토한다. 다른 레포 선행은 확인 불가로 의존 후보를 보류하고 선행 노드
-      자체는 링크로만 남긴다. closed 선행의 종료 결과·근거는 재개하거나 HEAD로 재채점하지 않는다.
+      depends_on의 선행 Seed가 같은 레포에 있고 아직 안 끝났으면 그 형제는 next-goal 후보에서
+      빠진다. 선행 Seed가 다른 레포에 있으면 빼지 않고 "선행 Seed가 다른 레포에 있어 확인 못 함"
+      표시를 붙인다.
     hard: true
-    rationale: >-
-      선후 요구를 무시한 착수를 막되, 다른 레포의 미확인을 미완료 판정으로 바꾸지 않는다.
-      현재 next-goal reference.md의 predecessor 계약이 후보 보류와 외부 링크를 구분한다.
+    rationale: 다른 레포 Seed는 여기서 판정하지 않으므로(constraint-6), 판정 못 한 걸 제외 근거로 쓰면 안 된다.
   - id: constraint-12
     type: technical
     description: >-
-      Refine 모드는 기존 issues/relations와 항목 ID를 복원하고 Phase 0 질문을 건너뛴다.
-      새 세대 생성만으로 자식을 이동하지 않으며 재연결은 별도 승인과 양방향 검증을 거친다.
-      closed 재사용은 선택 항목·고정 provenance를 가진 새 Seed로 저작하고 원본을 보존한다.
+      Refine 모드로 자식이나 부모를 `-vN`으로 다시 만들 때 relations 블록을 그대로 이어받고,
+      Phase 0의 하위 피처 질문은 건너뛴다.
     hard: true
     rationale: >-
-      관계와 항목 정체성을 복원하되 새 파일에 자식을 조용히 이동하면 기존 승인 범위를
-      바꾸게 된다. #814의 별도 재연결 승인과 동결 출처 계약을 함께 지켜야 한다.
+      Refine 모드는 이전 Seed의 goal·constraints·success만 복원한다고 적혀 있어서, 지금대로면
+      새 파일에서 관계가 사라진다. constraint-2는 부모가 재생성될 때만 막고 자식 쪽 유실은 못 막는다.
 
 success_criteria:
   - id: acceptance-1
@@ -205,20 +193,14 @@ success_criteria:
     measurable_via: 같은 레포 부모 1개 + 자식 2개 픽스처에서 스크립트 출력 대조 테스트
   - id: acceptance-2
     description: >-
-      next-goal이 이름을 댄 Seed의 metadata를 먼저 확인하고 walk를 호출해,
-      eligibility를 통과한 같은 레포 부모 항목·형제의 남은 일만 후보로 판단한다.
-      종료된 기준 노드도 조회 결과에 남지만 그 노드 자체는 자동 후보가 아니다.
+      next-goal이 끝난 자식 Seed를 이름으로 받으면, 같은 스크립트를 불러서 부모의 아직 안 채워진
+      ac/c와 형제 Seed를 후보에 올린다.
     verifiable: true
-    measurable_via: >-
-      실제 소비자 도구 trace에서 metadata 호출 성공이 Seed 본문 읽기·walk/read보다
-      앞서는지 확인한다. SKILL.md 문구와 후보 출력 픽스처는 구조 검증이며 실제 실행
-      순서의 증거로 대신하지 않는다.
+    measurable_via: next-goal SKILL.md의 Seed 풀 절이 스크립트 호출을 명시하는지 + 스크립트의 후보 출력 픽스처 테스트
   - id: acceptance-3
-    description: >-
-      구형 엣지·구형 부모만 `-v2`로 해석되고, version 2나 생애주기 있는 엣지·대상은
-      원래 파일을 가리킨다. provenance는 기록된 commit의 원본 항목을 읽는다.
+    description: 부모가 `-v2`로 재생성된 뒤에도 자식의 parent 엣지가 `-v2`로 해석된다.
     verifiable: true
-    measurable_via: test-seed-relations.py 구형 최신 세대 픽스처와 test-seed-lifecycle.py 정확 경로·고정 출처 픽스처
+    measurable_via: foo.yaml과 foo-v2.yaml이 둘 다 있는 픽스처 테스트
   - id: acceptance-4
     description: >-
       일치 검사가 두 방향의 불일치를 모두 보고한다. 자식이 가리키는데 부모 children에 없는 경우와,
@@ -229,8 +211,7 @@ success_criteria:
   - id: acceptance-5
     description: >-
       seed-append-check.py 자체 테스트에서 최상위 `status:` 추가와 constraint 항목 안에 들여쓴
-      `status:` 추가가 둘 다 막히고, 템플릿이 정의한 `relations:`와 유효한 lifecycle
-      결정은 통과한다. 상태 전이·철회 원문·종료 근거는 별도 lifecycle 테스트가 검증한다.
+      `status:` 추가가 둘 다 막히고, 템플릿이 정의한 `relations:` 추가는 통과한다.
     verifiable: true
     measurable_via: seed-append-check.py 자체 테스트 케이스 3종
   - id: acceptance-6
@@ -239,11 +220,10 @@ success_criteria:
     measurable_via: gh 실패를 흉내 낸 테스트에서 실패 줄 출력 확인
   - id: acceptance-7
     description: >-
-      자동 후보는 active·비철회 범위에 한정되고 unknown/paused/closed·영향 불명은 제외된다.
-      같은 레포 선행이 미완료면 해당 후보는 held이고 착수 가능한 선행 자체는 후보다.
-      외부 선행은 확인 불가로 의존 후보를 보류하며 외부 노드 자체는 링크로만 표시한다.
+      같은 레포의 안 끝난 선행 Seed가 있는 형제는 후보에서 빠지고, 선행 Seed가 다른 레포에 있는
+      형제는 "확인 못 함" 표시와 함께 후보에 남는다.
     verifiable: true
-    measurable_via: test-seed-lifecycle.py 소비자 자격·철회 영향 픽스처와 test-next-goal-render.py 착수 불가 pick 거부 테스트
+    measurable_via: depends_on 같은 레포·다른 레포 픽스처 테스트
   - id: acceptance-8
     description: >-
       편집으로 기존 constraint-N/acceptance-N id가 사라지면 가드가 막고, 가리키는 항목이 없는 refines는 일치 검사가
