@@ -76,6 +76,8 @@ export type SeedBoardJudgment = {
   pick: SeedBoardPick | null
   alternatives: SeedBoardAlternative[]
   unverified: string[]
+  /** Optional STOP assertions validated by the renderer against the fresh walk. */
+  walk_stops: SeedBoardStop[]
   /** The rendered NEXT/FROM/SKIPPED/TRACE lines, verbatim. */
   lines: string[]
   /** `at` of the stored walk this judgment references, when that walk was known on arrival. */

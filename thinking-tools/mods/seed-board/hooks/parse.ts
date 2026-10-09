@@ -288,8 +288,16 @@ export const extractHeredoc = (command: string): string => {
 
 // Judgment prose collapses whitespace like next-goal-render.py, so pane labels and switch prompts stay one line.
 const line = (v: unknown, fallback = ''): string => str(v, fallback).split(/\s+/).filter(Boolean).join(' ')
-const needLine = (v: unknown, what: string): string => need(line(v), what)
-const lineList = (v: unknown): string[] => strList(v).map(x => line(x))
+const needLine = (v: unknown, what: string): string => {
+  if (typeof v !== 'string') throw new Error(`seed-board: ${what} is not a string`)
+  return need(line(v), what)
+}
+
+const unverifiedOf = (v: unknown): string[] => {
+  if (v === undefined) return []
+  if (!Array.isArray(v)) throw new Error('seed-board: unverified is not a list')
+  return v.map(x => needLine(x, 'unverified'))
+}
 
 const pickOf = (v: unknown): SeedBoardPick | null => {
   if (v === null || v === undefined) return null
@@ -316,6 +324,8 @@ export const parseJudgment = (json: string): ParsedJudgment => {
   // next-goal-render.py treats a missing list as empty; the board must read the same JSON the same way.
   const alternatives: unknown[] = root.alternatives === undefined ? [] : Array.isArray(root.alternatives) ? root.alternatives : []
   if (root.alternatives !== undefined && !Array.isArray(root.alternatives)) throw new Error('seed-board: judgment alternatives is not a list')
+  const stops = root.walk_stops === undefined ? [] : root.walk_stops
+  if (!Array.isArray(stops) || (stops.length > 0 && handoff !== 'named')) throw new Error('seed-board: walk_stops requires a named walk')
   return {
     seed: dash(root.seed),
     walk_id: dash(root.walk_id),
@@ -330,7 +340,12 @@ export const parseJudgment = (json: string): ParsedJudgment => {
         reason: line(o.reason),
       }
     }),
-    unverified: lineList(root.unverified),
+    unverified: unverifiedOf(root.unverified),
+    walk_stops: stops.map(s => {
+      if (!isObj(s)) throw new Error('seed-board: walk stop is not an object')
+      return { from: needLine(s.from, 'stop from'), edge: needLine(s.edge, 'stop edge'),
+        target: needLine(s.target, 'stop target'), reason: needLine(s.reason, 'stop reason') }
+    }),
   }
 }
 

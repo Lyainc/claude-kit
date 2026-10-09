@@ -6,7 +6,8 @@ Covers: pick targets render as `<seed slug>/<id> · description` from the via Se
 affiliation; a cross-repo key keeps its `owner/repo:` prefix; a legacy Seed still renders); FROM's edge path and TRACE's counts come from a fresh walk, never from the JSON; a `via`
 the walk never visited is refused; another repo's Seed cannot be the pick; a Seed or HEAD change
 after the walk marks the judgment stale; a missing Seed handoff reads differently from "no
-candidate"; no Seed in play keeps the three-line shape; the same JSON renders identically twice.
+candidate"; no Seed/no gaps keeps three lines; no pick retains uncertainty, and STOP assertions
+are checked against actual visited/stopped records (#826); the same JSON renders identically twice.
 
 Usage: python3 thinking-tools/scripts/test/test-next-goal-render.py
 Exit codes: 0 all passed, 1 one or more failed
@@ -153,7 +154,75 @@ def main():
 
     code, out, err = _render(repo, {"handoff": "none", "pick": None, "alternatives": []})
     check("no Seed keeps three lines", code == 0 and len(out.splitlines()) == 3
-          and "TRACE" not in out and "가치 있는 후속 후보가 없어요" in out, f"{code} {out!r} {err!r}")
+          and "TRACE" not in out and "검토한 범위 안" in out, f"{code} {out!r} {err!r}")
+
+    # #826: no pick is not proof that an unavailable pool has no candidates.
+    gap = "열린 이슈 비교: GitHub 리모트가 없어 조회 못 함"
+    no_seed = {"seed": None, "walk_id": None, "handoff": "none", "pick": None,
+               "alternatives": [], "unverified": [gap]}
+    for handoff in ("none", "missing"):
+        code, out, err = _render(repo, {**no_seed, "handoff": handoff})
+        check(handoff + " retains unavailable backlog without a pick", code == 0
+              and gap in out and "TRACE" in out and "가치 있는 후속 후보가 없어요" not in out
+              and ("인계 누락" in out if handoff == "missing" else "미평가" in out),
+              f"{code} {out!r} {err!r}")
+    for unverified in ([None], [42], [" \n "]):
+        code, out, err = _render(repo, {**no_seed, "unverified": unverified})
+        check("malformed uncertainty cannot disappear", code == 1 and out == ""
+              and "unverified" in err, f"{code} {out!r} {err!r}")
+
+    code, out, err = _render(repo, {**no_seed, "unverified": [], "alternatives": [
+        {"title": "확인 못 한 후보", "via": "backlog", "decision": "unverified", "reason": gap}]})
+    check("unverified alternative prevents an exhaustive no-pick claim", code == 0
+          and "미평가" in out and gap in out, f"{code} {out!r} {err!r}")
+
+    # The parent was visited at depth 1; the external child is the actual depth-2 STOP.
+    stop = {"from": "docs/specs/p.yaml", "edge": "children",
+            "target": "other/repo:docs/specs/x.yaml", "reason": "depth"}
+    bounded = _judgment(wid1, pick=None, alternatives=[], walk_stops=[stop])
+    code, out, err = _render(repo, bounded)
+    check("bounded no-pick names visited and actual stopped targets", code == 0
+          and "미평가" in out and "docs/specs/p.yaml (깊이 1, ok)" in out
+          and "docs/specs/p.yaml →children other/repo:docs/specs/x.yaml (depth)" in out,
+          f"{code} {out!r} {err!r}")
+    for field, wrong in (("target", "docs/specs/p.yaml"), ("reason", "nodes"),
+                         ("from", "docs/specs/c.yaml"), ("edge", "parent")):
+        code, out, err = _render(repo, {**bounded, "walk_stops": [{**stop, field: wrong}]})
+        check("stop assertion rejects wrong " + field, code == 1 and out == ""
+              and "walk_stops[0]" in err and "walk" in err, f"{code} {out!r} {err!r}")
+    code, out, err = _render(repo, _judgment(wid1, pick=None, alternatives=[]))
+    check("walker gaps survive omitted stop assertions and unverified", code == 0
+          and "미평가" in out and "other/repo:docs/specs/x.yaml (depth)" in out,
+          f"{code} {out!r} {err!r}")
+    code, out, err = _render(repo, _judgment(wid, pick=None, alternatives=[]))
+    check("failed walk lookup prevents exhaustive no-pick claim", code == 0
+          and "미평가" in out and "조회 실패 1곳" in out, f"{code} {out!r} {err!r}")
+
+    # All local visited candidates may be below the floor; absence is valid within that scope.
+    parent = Path(repo) / "docs/specs/p.yaml"
+    full_parent = parent.read_text(encoding="utf-8")
+    parent.write_text(full_parent.replace(', other/repo:docs/specs/x.yaml', ''), encoding="utf-8")
+    clear_id = _walk_id(repo)
+    code, out, err = _render(repo, _judgment(clear_id, pick=None, alternatives=[]))
+    check("complete named no-pick stays a valid scoped conclusion", code == 0
+          and "검토한 범위 안" in out and "미평가" not in out, f"{code} {out!r} {err!r}")
+    parent.write_text(parent.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
+    code, out, err = _render(repo, _judgment(clear_id, pick=None, alternatives=[]))
+    check("stale no-pick retains uncertainty", code == 0 and "미평가" in out
+          and "근거 변경됨" in out, f"{code} {out!r} {err!r}")
+    parent.write_text(full_parent, encoding="utf-8")
+
+    pn = subprocess.run([sys.executable, str(_RELATIONS), "walk", "docs/specs/c.yaml",
+                         "--max-depth", "3", "--max-nodes", "2"], cwd=repo,
+                        capture_output=True, encoding="utf-8", env=_env())
+    nwid = next(f[3:] for f in pn.stdout.splitlines()[0].split("\t") if f.startswith("id="))
+    node_stop = {k: " \n " + v + " " for k, v in {**stop, "reason": "nodes"}.items()}
+    code, out, err = _render(repo, _judgment(nwid, pick=None, alternatives=[], walk_stops=[node_stop]))
+    check("node cap and normalized STOP assertion retain the actual target", code == 0
+          and "미평가" in out and "other/repo:docs/specs/x.yaml (nodes)" in out,
+          f"{code} {out!r} {err!r}")
+    code, out, err = _render(repo, {**no_seed, "walk_stops": [stop]})
+    check("STOP requires a named walk", code == 1 and out == "" and "walk_stops" in err, err)
 
     code, _, err = _render(repo, {"handoff": "none", "pick": {"title": "외부\r\n선행", "via": "docs/specs/c.yaml",
                                   "targets": ["acceptance-1"], "evidence": "e", "startable": "yes", "startable_reason": "r",

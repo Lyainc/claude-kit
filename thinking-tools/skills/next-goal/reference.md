@@ -103,7 +103,13 @@ Open only the Seeds the walk visited — never list or read `docs/specs/` to loo
 - `external` / `external-failed` nodes are another repo's Seeds: links only, never ranked or judged
   here (`decision: external`).
 - `STOP`, `CYCLE`, `FAILED` and `notfound` mark where the walk ended or could not read. They are
-  never "no related Seeds": name what they left unchecked in the judgment's `unverified`.
+  never "no related Seeds". Copy a STOP claim into `walk_stops` as
+  `{from, edge, target, reason}` exactly from the walker; the renderer checks it against the
+  fresh walk, refusing a visited node misidentified as a stopped target or a wrong cause.
+  Visited means a NODE record, not that its requirements were evaluated. Keep other evaluation
+  gaps in `unverified`; never explain STOP targets in unchecked free text. The renderer always
+  shows actual visited keys/depth/status and stopped edges/targets/causes, even if assertions
+  are omitted. A CYCLE is an edge cut to an already visited node, not an unvisited Seed.
 
 **Seed handoff missing.** When the conversation shows the session worked from a Seed but no path was
 handed over, do not search for one: set `handoff: "missing"` so the result reads as a missing
@@ -147,19 +153,26 @@ unit — several backlog issues sharing one theme are one unit here. With a Seed
 eligible remaining criteria within the current request rank ahead of unrelated backlog issues: they are the declared scope of the
 thread that just ran, not a new one.
 
-If, after widening, nothing clears the floor, output `NEXT · 없음`, then the `FROM` and
-`SKIPPED` lines of the three-field block as usual, and `GOAL · 없음 — 가치 있는 후속 후보가 없어요`. Stop without a
+If, after widening, nothing clears the floor, keep `pick: null` and render the judgment.
+Use `GOAL · 없음` with the same conclusion as FROM: no worthwhile candidate within the reviewed
+scope, unevaluated scope remains, or Seed handoff is missing. Preserve TRACE's limits and gaps;
+never turn unavailable backlog or a bounded walk into whole-project absence. Stop without a
 fabricated goal, issue, or repeated search.
 
 ## Render
 
-**With a Seed in play, or a missing Seed handoff, the pick is rendered, not typed.** Write the
+**Every judgment, including no Seed/no pick, is rendered, not typed.** Write the
 judgment once as JSON and print what
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --cwd <repo> <<'JSON' ... JSON` returns,
 via Bash, verbatim — its docstring holds the schema. Each candidate names its `via` (a walked Seed
 key, `session`, `backlog` or `issue:#N`), and the pick carries its `targets`, the observable unmet
 evidence, whether it is startable and why, and the user-facing change; each main alternative carries
-its decision (`held`, `below-floor`, `done`, `external`, `unverified`) and reason. The script re-walks
+its decision (`held`, `below-floor`, `done`, `external`, `unverified`) and reason.
+`unverified` is a list of nonempty strings, normalized to one line during validation; it retains
+backlog retrieval failures and unevaluated requirements even with `handoff: none` or `missing`.
+`walk_stops` is an optional list of STOP assertions (default empty), allowed only for `named`;
+each has nonempty `from`, `edge`, `target`, `reason` strings matching an actual STOP record.
+The script re-walks
 the Seed: FROM's edge path and the extra `TRACE` line (start, visited scope, stops, failures,
 unverified, evidence id and time) come from that walk, never from the JSON, and a `via` the walk did
 not visit is refused — fix the judgment, never the path. For a Seed `via`, `targets` are that
@@ -169,7 +182,9 @@ Seed does not define or that current eligibility excludes. Missing eligibility, 
 required review refuses the whole pick even when the judgment is stale. Name Seed items to the user the way `reference/identifiers.md` says, never by a bare
 `c1`/`ac1`. For `session`, `backlog` or `issue:#N`, `targets` is free text. A `[근거 변경됨 ...]` mark means the Seed
 or HEAD moved after the walk: walk again and re-judge before writing the condition. Without a Seed
-in play, render the three lines directly as before; no extra call. The same JSON is what the
+in play, the renderer keeps three lines if there are no gaps, adding TRACE for `unverified`.
+A no-pick result is scoped; walk limits/failures, unverified alternatives, external nodes,
+cycles and stale evidence prevent a definitive absence claim. The same JSON is what the
 optional seed-board mod shows, so the choice and the condition never depend on whether a UI is on.
 
 ## User switch

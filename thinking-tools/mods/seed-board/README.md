@@ -41,7 +41,9 @@ The mod only watches Bash output that the skills already produce:
   the rendered NEXT/FROM/SKIPPED/TRACE lines verbatim, the pick and the alternatives, each
   expandable. A judgment whose `walk_id` is not the latest walk of its Seed carries a badge
   ("근거가 바뀐 이전 판단 — next-goal 재실행 필요"). A missing Seed handoff is shown as such, apart from
-  "no candidate".
+  "no candidate". No-pick judgments retain FROM's reviewed-scope or unevaluated-scope conclusion
+  and TRACE's gaps even without a Seed; STOP assertions are normalized from the same JSON,
+  while their verification and the displayed visited/stopped records belong to the renderer.
 - **이 후보로 바꾸기** on an alternative (not shown for `external`/`done`): fills the prompt box with a
   request for `next-goal`. It never submits it. The pane then shows 반영 대기, and 반영 완료 or
   반영 안 됨 once the next judgment arrives, so the person sees whether `next-goal` really changed
