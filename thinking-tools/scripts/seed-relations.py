@@ -688,15 +688,14 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
     if errors:
         return result(False,"invalid lifecycle",review=True)
     lc = lifecycle_summary(seed)
-    if lc["state"] != "active":
+    inactive = lc["state"] != "active"
+    if inactive:
         reason = "closed: " + str(lc["outcome"]) if lc["state"] == "closed" else "unknown lifecycle" if lc["state"] == "unknown" else lc["state"]
-        if seed.parent:
-            parent = rd.load(rd.norm(seed.parent,ctx_repo),exact_edges(seed))
-            if parent.seed and not lifecycle.validate(parent.seed,rd.root if parent.loc[0] is None else None) and wholly_withdrawn(parent.seed):
-                return result(False,reason,seed.item_map,True)
-        return result(False,reason)
+        # Finished Seeds stay history; paused/unknown ones get the same parent checks before any resume.
+        if lc["state"] == "closed" or not seed.parent:
+            return result(False,reason)
     own = set(seed.item_map)
-    excluded = {r["id"] for r in seed.lifecycle.get("withdrawn",[])}
+    excluded = {r["id"] for r in (seed.lifecycle or {}).get("withdrawn",[])}
     if seed.parent:
         loc = rd.norm(seed.parent,ctx_repo)
         trail = set(trail or ())
@@ -707,7 +706,8 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
         if parent.seed is None:
             return result(False,"parent unavailable",own,True)
         ps = parent.seed
-        if hasattr(seed,"location"):
+        # Backlink resolution expands the parent's children; an inactive child is not a candidate to vouch for.
+        if hasattr(seed,"location") and not inactive:
             back = {rd.resolve_quiet(rd.norm(c,parent.loc[0]),exact_edges(ps)) for c in ps.children}
             if seed.location not in back:
                 return result(False,"parent backlink missing",own,True)
@@ -719,7 +719,7 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
             return result(False,"parent discontinued; child review required",own,True)
         withdrawn = {r["id"] for r in (ps.lifecycle or {}).get("withdrawn",[])}
         # A legacy/unknown parent cannot substantiate a child's automatic candidacy.
-        if pl["state"] == "unknown":
+        if pl["state"] == "unknown" and not inactive:
             return result(False,"parent lifecycle unknown",own,True)
         if not seed.refines and withdrawn:
             return result(False,"withdrawn parent items need mapping",own,True)
@@ -744,7 +744,9 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
                 if impacted-set(maps):
                     return result(False,"withdrawn parent items need mapping",own,True)
                 excluded.update(i for rid in impacted for i in maps[rid])
-    mapped_hold = bool(excluded - {r["id"] for r in seed.lifecycle.get("withdrawn",[])})
+    mapped_hold = bool(excluded - {r["id"] for r in (seed.lifecycle or {}).get("withdrawn",[])})
+    if inactive:
+        return result(False,reason,excluded,mapped_hold)
     return result(bool(own-excluded),"mapped parent items withdrawn" if mapped_hold else "withdrawn items" if excluded else "active",excluded,False)
 
 

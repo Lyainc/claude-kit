@@ -48,7 +48,7 @@ def spec(state='active',outcome=None,withdrawn=(),parent=None,refines=(),mapping
            'constraints':[{'id':'constraint-1','description':'First original requirement'},
                           {'id':'constraint-2','description':'Second original requirement'}],
            'success_criteria':[{'id':'acceptance-1','description':'Observable result'}],
-           'relations':{'version':2,'parent':parent,'refines':list(refines),'link_reason':'fixture',
+           'relations':{'version':2,'parent':parent,'refines':list(refines),'link_reason':'fixture' if parent else None,
                         'depends_on':[],'children':list(children),'refines_map':list(mapping),
                         'provenance':[],'replaces':[],'transfers':[]}}
     if state is not None:
@@ -199,22 +199,35 @@ class LifecycleTests(unittest.TestCase):
         for field in ('lifecycle_state=closed','eligible=false','review_required=true','excluded_items='):
             self.assertIn(field,fields)
 
-    def test_whole_withdrawal_marks_inactive_children_for_review(self):
-        parent = spec('closed','discontinued',withdrawn=['constraint-1','constraint-2','acceptance-1'],children=['docs/specs/c.yaml'])
-        self.write('p.yaml',parent)
+    def test_withdrawal_marks_resumable_inactive_children_for_review(self):
+        whole = spec('closed','discontinued',withdrawn=['constraint-1','constraint-2','acceptance-1'],children=['docs/specs/c.yaml'])
+        partial = spec('closed','discontinued',withdrawn=['constraint-1'],children=['docs/specs/c.yaml'])
+        mapping = [{'parent_item':'constraint-1','child_items':['constraint-2']}]
         for state,outcome in ((None,None),('paused',None),('closed','discontinued')):
-            with self.subTest(state=state):
-                child = spec(state,outcome,parent='docs/specs/p.yaml',refines=['constraint-1'])
-                path = self.write('c.yaml',child); before = path.read_bytes()
-                gate = sr.walk(str(path))['nodes'][0]['eligibility']
-                self.assertFalse(gate['eligible']); self.assertTrue(gate['review_required'])
-                self.assertEqual(path.read_bytes(),before)
-                self.assertEqual(sr.lifecycle_summary(parse(child))['state'],state or 'unknown')
-                # A valid partial withdrawal does not force unrelated historical children to resume.
-                partial = spec('closed','discontinued',withdrawn=['constraint-1'],children=['docs/specs/c.yaml'])
-                self.write('p.yaml',partial)
-                self.assertFalse(sr.walk(str(path))['nodes'][0]['eligibility']['review_required'])
-                self.write('p.yaml',parent)
+            for parent,refines,review in ((whole,['constraint-1'],True),(partial,['constraint-1'],True),(partial,['constraint-2'],False)):
+                with self.subTest(state=state,outcome=outcome,withdrawn=len(parent['lifecycle']['withdrawn']),refines=refines):
+                    self.write('p.yaml',parent)
+                    child = spec(state,outcome,parent='docs/specs/p.yaml',refines=refines,
+                                 mapping=mapping if refines == ['constraint-1'] else ())
+                    path = self.write('c.yaml',child); before = path.read_bytes()
+                    node = sr.walk(str(path))['nodes'][0]
+                    self.assertFalse(node['eligibility']['eligible'])
+                    # Closed children are finished history; only paused/unknown ones need review before resuming.
+                    self.assertEqual(node['eligibility']['review_required'],review and state != 'closed')
+                    self.assertEqual(path.read_bytes(),before)
+                    self.assertEqual(node['lifecycle']['state'],state or 'unknown')
+
+    def test_inactive_child_shares_parent_guards(self):
+        child = spec('paused',parent='docs/specs/missing.yaml')
+        gate = sr.eligibility(self.rd,parse(child))
+        self.assertEqual(gate['reason'],'parent unavailable'); self.assertTrue(gate['review_required'])
+        self.write('p.yaml',spec('closed','discontinued',withdrawn=['constraint-1'],children=['docs/specs/c.yaml']))
+        path = self.write('c.yaml',spec('paused',parent='docs/specs/p.yaml',refines=['constraint-1']))
+        gate = sr.walk(str(path))['nodes'][0]['eligibility']
+        self.assertEqual(gate['reason'],'withdrawn parent items need mapping'); self.assertTrue(gate['review_required'])
+        # An unknown-lifecycle parent holds only automatic candidacy, not a paused child.
+        self.write('p.yaml',spec(None,children=['docs/specs/c.yaml']))
+        self.assertFalse(sr.walk(str(path))['nodes'][0]['eligibility']['review_required'])
 
     def test_missing_and_malformed_parent_hold(self):
         child = spec(parent='docs/specs/missing.yaml')
@@ -234,8 +247,9 @@ class LifecycleTests(unittest.TestCase):
 
     def test_independent_seed_cannot_keep_parent_item_references(self):
         self.valid(spec())
+        linked = spec(); linked['relations']['link_reason'] = 'stale parent rationale'
         for obj in (spec(refines=['constraint-1']),
-                    spec(mapping=[{'parent_item':'constraint-1','child_items':['constraint-2']}])):
+                    spec(mapping=[{'parent_item':'constraint-1','child_items':['constraint-2']}]),linked):
             self.invalid(obj,'require a parent')
             gate = sr.eligibility(self.rd,parse(obj))
             self.assertFalse(gate['eligible']); self.assertTrue(gate['review_required'])
