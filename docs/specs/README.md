@@ -28,7 +28,7 @@ when applying requirements or resuming paused work.
 | [build-spec-workflow-integration](build-spec-workflow-integration.yaml) | paused | Main-agent interview and `issue-raise`; acceptance-1–4 still need an approved real issue and authoring-session URL/body/backlog/STATE evidence |
 | [claude-kit-work-rules](claude-kit-work-rules.yaml) | active | `rules/RULES.md` and repository guards; reminder correction is committed with regression coverage, full registered suite is unrun, and constraint-8 rule liveness remains partial |
 | [expert-panel-delegated-mode](expert-panel-delegated-mode.yaml) | active | `expert-panel` and its worker; acceptance-1–2 need controlled total-cost/quality comparison and actual worker/relay/file traces |
-| [obsidian-bases-custom-views](obsidian-bases-custom-views.yaml) | active | #762; natural-language and explicit filter/sort input, new-file safety and four workload views; criteria are in the Seed |
+| [obsidian-bases-custom-views](obsidian-bases-custom-views.yaml) | closed/completed | #762; natural-language and explicit filter/sort input, new-file safety and four workload views; verified commit and item evidence are in the Seed |
 | [harness-doctor](harness-doctor.yaml) | paused | Optional external local-harness; a refined generation alone does not establish original completion or discontinuation |
 | [harness-doctor-v2](harness-doctor-v2.yaml) | paused | External doctor; actual installed SessionStart behavior and full-target latency remain unverified |
 | [seed-relations-graph](seed-relations-graph.yaml) | active | `seed-relations.py` and `seed-lifecycle.py`; acceptance-2/7/10 need actual consumer/predecessor/Refine traces beyond deterministic fixtures |
