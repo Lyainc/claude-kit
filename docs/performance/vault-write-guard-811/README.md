@@ -8,21 +8,15 @@
 ## 기준과 변경 범위
 
 - 실제 시작 기준과 fetch로 확인한 최신 main: `ac95e788018c9e1fc171bc432ac2505e2b41b4d7`.
-- 브랜치: `codex/811-vault-guard-cost`.
-- 전용 worktree: `/Users/gowid/.codex/worktrees/811-vault-guard-cost/claude-kit`.
-- 시작 시 열린 PR #828 (#804), #829 (#825), #830 (#827·#750)의 변경 파일을 확인했다.
-  이번 두 실행/회귀 파일 및 이 폴더와 중복은 없었다.
 - 최종 변경 범위: `vault-bridge/hooks/pre-write-guard.sh`,
   `vault-bridge/scripts/test/test-pre-write-guard.py`, 이 작업 전용 측정 폴더만이다.
-  원래 main checkout의 Seed 변경과 다른 작업 worktree는 건드리지 않았다.
 - 기준 훅은 위 커밋에서 추출한 그대로이며 수정 훅의 측정 시점 해시는 아래와 같다.
-  최종 독립 검토는 같은 기준의 diff 및 이 측정·회귀 자료를 대상으로 1회만 수행한다.
 
 ## 환경과 방법
 
 - 2026-10-08 같은 macOS arm64 머신, Bash·jq는 시스템 실행 파일을 사용했다.
   측정의 훅 Python은 uv가 PATH에 넣은 관리 Python **3.12.14**였고, jq는
-  `jq-1.7.1-apple`이다. 정확한 실행 경로와 버전은 JSON의 `binaries`/`versions`에 있다.
+  `jq-1.7.1-apple`이다. 정확한 실행 경로와 버전은 `benchmark.py` 출력 JSON의 `binaries`/`versions`에 남는다.
   아래 별도 호환성 실행에서는 테스트 드라이버 안에서 PATH를 `/usr/bin:/bin`으로 고정해
   훅의 `python3`가 시스템 Python **3.9.6**을 실행하도록 했다.
 - 임시 vault에 `.obsidian`, `sources`, `notes`, `wiki`, `assets` 디렉토리만 만들었다.
@@ -35,7 +29,7 @@
   두 번째 세션에서는 입력 순서도 뒤집었다. `perf_counter_ns()`로 Bash 프로세스 시작 전부터
   종료·stdout/stderr 캡처까지 재고, 표본별 종료 코드·stdout JSON·stderr 일치도 함께 확인했다.
 - 상위 지연은 nearest-rank p95다. 최대값·모든 개별 표본·세션별 중앙값/p95·환경 버전·시스템
-  load average는 `measurements.json`에 있다. 별도 병렬 에이전트는 측정 중 실행하지 않았다.
+  load average는 `benchmark.py`의 `--output` JSON에 기록된다(저장소에는 넣지 않았다). 별도 병렬 에이전트는 측정 중 실행하지 않았다.
   다른 세션의 활동이나 OS 부하는 통제하지 못했으므로 지연의 일반화는 하지 않는다.
 - 호출 수는 타이밍 종료 후 임시 PATH wrapper로 외부 실행 파일 호출을 판별판마다 3회 세어
   동일한 수임을 확인했다. outer Bash와 cat/jq/python3/cut/basename을 포함한다.
@@ -76,7 +70,7 @@ fallback을 사용한다. 이 보수적인 비용을 남겨 정상 실행 경로
 
 ## 동작 보존과 검사
 
-`parity.txt`는 같은 임시 vault·payload·환경에서 기준판과 수정판의 전후 비교를 기록한다.
+`PRE_WRITE_GUARD_BASELINE`을 주면 회귀 테스트가 같은 임시 vault·payload·환경에서 기준판과 수정판을 비교한다.
 기존 Bash 쓰기/읽기·리다이렉션·대상 디렉토리 옵션, symlink 실경로, assets 예외,
 enforce/warn/off, whitelist·strict naming, warn 메시지 병합·단일 JSON, 조기 종료를 포함한다.
 추가 사례는 Write/Edit의 symlink 양방향 경로, 식별 필드 우선순위, 특수문자·개행·NUL,
@@ -85,7 +79,7 @@ stdout는 빈 출력 또는 JSON 전체 값으로 비교하고 stderr는 문구 
 셸 오류의 스크립트 경로와 소스 줄 번호만 정규화한다. validation Python 실패는 임시 상태를
 매번 초기화해 따로 비교한다. 종료 코드 0의 deny JSON과 strict exit 2를 구별한다.
 
-검사 명령과 원문 출력은 `regression.txt`, `parity.txt`, `python39.txt`에 있다.
+검사 명령:
 
 ```bash
 uv run --no-project python vault-bridge/scripts/test/test-pre-write-guard.py
@@ -122,7 +116,7 @@ uv run --no-project python docs/performance/vault-write-guard-811/benchmark.py \
   --output /tmp/vb-811-reproduction.json --warmup 6 --repetitions 120 --sessions 2
 ```
 
-측정 입력과 환경 override는 JSON의 `inputs`에 임시 루트만 `<TEMP>`로 바꾸어 기록했다.
+측정 입력과 환경 override는 출력 JSON의 `inputs`에 임시 루트만 `<TEMP>`로 바꾸어 기록된다.
 
 기준/수정 훅 SHA-256:
 
@@ -130,31 +124,3 @@ uv run --no-project python docs/performance/vault-write-guard-811/benchmark.py \
 baseline: 824fd57f697eaf23b98bf8f7709909fca42641f67d951b35a5c58ed085546afc
 candidate: 0e0dde81828a2d1d84dde55425ca616505ee4575d82b68d2f05d0a86dacaabbf
 ```
-
-세션 1 load average (1/5/15분): 시작 [4.08642578125, 5.8984375, 6.40185546875], 종료 [4.8359375, 5.60986328125, 6.2275390625].
-
-세션 2 load average (1/5/15분): 시작 [4.8359375, 5.60986328125, 6.2275390625], 종료 [4.4755859375, 5.30029296875, 6.03466796875].
-
-
-## 독립 검토 1회와 후속 직접 확인
-
-기준 `ac95e788018c9e1fc171bc432ac2505e2b41b4d7`의 최종 실행 코드·테스트 diff와 측정 자료를
-독립 검토자에게 1회 전달했다. 실행 코드·테스트 SHA-256은 아래 값과 같으며 검토 이후
-변경하지 않았다. 스타일 지적은 제외했다.
-
-```text
-hook: 0e0dde81828a2d1d84dde55425ca616505ee4575d82b68d2f05d0a86dacaabbf
-test: d7ff6fc5437c7eb4cd1f785597ac98b645388026c404146dd73c7abb12987d3e
-```
-
-검토자는 허용·차단 판정의 기능적 회귀를 찾지 못했고, P2로 측정 Python 환경 설명 및
-3.9 증거 부족을 지적했다. 최초 보고서의 3.9 측정 주장은 잘못이었다. 측정 JSON 자체는
-처음부터 실제 uv 관리 Python 3.12.14를 기록했다. 따라서 위 환경 설명을 바로잡고,
-메인 작업자가 PATH를 고정한 3.9.6 전후 회귀를 추가 실행해 `python39.txt`를 갱신했다.
-실행 코드·테스트 및 성능 표본은 변경하지 않았다. 이 후속 정정·증거는 메인 직접 확인이며
-추가 독립 검토를 수행한 것으로 세지 않는다.
-
-검토자의 표본 요약 재계산용 uv 실행은 uv 캐시 접근 제한으로 실패했다. 지시대로 재시도하지
-않고 직접 코드·기록 검사로 마쳤다. 독립적인 자동 표본 재계산은 미검증으로 남는다.
-검토 당시 전체 diff SHA-256은 `fa87b0fbf27f37f79988d20b5b78aaa3498d4cc89ac7fe4f848d57be7695c10b`였으며,
-환경 설명 및 `python39.txt` 정정 후 최종 자료 diff는 별도로 저장한다.
