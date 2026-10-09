@@ -15,12 +15,13 @@ allowed-tools: AskUserQuestion Read Write Edit Glob Grep Agent Bash Skill
 
 Korean (English for English input); English STATE/YAML keys.
 
-**Seed intake first**: the first Seed-specific tool call is `Bash`: `seed-relations.py metadata <seed> --json`.
-No Seed Read/cat/Grep before success. Failure holds intake/application. No bulk YAML discovery. Apply unknown only with approval;
-resume paused only with approval; closed needs a new Seed with pinned provenance. No withdrawn
-items or scope expansion. Read `../../reference/seed-lifecycle.md` before changes. Restore scores, ids,
-`issues`/`relations` (§8); skip Phase 0, start at lowest clarity; `<feedback>` → Phase 1 (§6).
-
+**Seed intake first** (main only), via `Bash`:
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json`
+(not `walk`/`read`). No Seed Read/cat/Grep before success; failure holds intake. No bulk YAML
+discovery. Unknown apply/paused resume need approval; closed needs a new Seed with pinned
+provenance. No withdrawn items or scope expansion. Read `../../reference/seed-lifecycle.md`
+before changes. Restore scores, ids, `issues`/`relations` (§8); skip Phase 0, start at lowest
+clarity; `<feedback>` → Phase 1 (§6).
 
 ## Codex Portability
 

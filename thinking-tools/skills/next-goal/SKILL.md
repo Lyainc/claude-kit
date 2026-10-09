@@ -14,9 +14,9 @@ allowed-tools: Read Bash
 Output Korean. Read-only: no file/issue/PR/commit/push/merge. Read each cited `reference.md` §Name
 at that step.
 
-First Seed tool call: Bash:
-`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json`.
-No Seed Read/cat/search before success; failure holds intake/application.
+First Seed call, before `walk`/`read`: Bash:
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json`
+No Seed Read/cat/search before success; failure holds intake.
 
 ## Input contract
 
@@ -33,8 +33,8 @@ never explore other repositories; if unavailable, disclose the gap and rank the 
 
 **Seed pool: named or issue-linked paths only**. Never scan `docs/specs/`; visit via
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" walk <named-seed-path>`; another repo's Seed
-is a link only. Unknown/paused/closed and withdrawn items are excluded;
-Honor `eligibility` and exclusions. Naming never resumes. Read relevant active items only;
+is a link only. Unknown/paused/closed/withdrawn items are excluded;
+honor `eligibility` and exclusions. Naming never resumes. Read relevant active items only;
 verify unmet `measurable_via` in the repo; unresolved evidence stays unresolved.
 Before ranking, read
 `reference.md` §Seed walk (binding record semantics): an unfinished same-repo predecessor → `held`; a
