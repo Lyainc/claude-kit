@@ -258,10 +258,25 @@ class LifecycleTests(unittest.TestCase):
         import base64
         def api(endpoint):
             endpoints.append(endpoint)
+            if '/git/commits/' in endpoint:
+                return {'sha':'b'*40},None
             return {'encoding':'base64','content':base64.b64encode(dump(spec()).encode()).decode()},None
         rd._gh_api = api
         self.assertEqual(sr.validate_provenance(rd,parse(obj),None),[])
-        self.assertEqual(endpoints,['repos/acme/source/contents/docs/specs/source.yaml?ref='+'b'*40])
+        self.assertEqual(endpoints,['repos/acme/source/git/commits/'+'b'*40,
+                                    'repos/acme/source/contents/docs/specs/source.yaml?ref='+'b'*40])
+
+    def test_crossrepo_provenance_rejects_unconfirmed_commit(self):
+        obj = spec(); obj['relations']['provenance'] = [{'seed':'acme/source:docs/specs/source.yaml','commit':'b'*40,'items':['constraint-1']}]
+        for response,error in ((None,'not a commit'),({'sha':'c'*40},None),({},None)):
+            with self.subTest(response=response):
+                rd = sr.Reader(str(self.root)); rd._self_repo = None
+                endpoints = []
+                def api(endpoint,endpoints=endpoints,response=response,error=error):
+                    endpoints.append(endpoint); return response,error
+                rd._gh_api = api
+                self.assertIn('historical source unavailable',' '.join(sr.validate_provenance(rd,parse(obj),None)))
+                self.assertEqual(endpoints,['repos/acme/source/git/commits/'+'b'*40])
 
     def test_incoming_child_link_holds_even_duplicate_route(self):
         parent = spec('closed','discontinued',withdrawn=['constraint-1','constraint-2','acceptance-1'],children=['docs/specs/c.yaml'])
@@ -362,6 +377,8 @@ class LifecycleTests(unittest.TestCase):
         target = spec(); target['relations']['provenance'] = [{'seed':'source.yaml','commit':commit,'items':['constraint-1']}]
         rd = sr.Reader(str(self.root)); rd._self_repo = None
         self.assertEqual(sr.validate_provenance(rd,parse(target),None),[])
+        invalid = copy.deepcopy(target); invalid['relations']['provenance'][0]['commit'] = tree
+        self.assertIn('not a commit object',' '.join(sr.validate_provenance(rd,parse(invalid),None)))
         target['relations']['provenance'][0]['items'] = ['other']
         self.assertIn('historical source lacks',' '.join(sr.validate_provenance(rd,parse(target),None)))
         target['relations']['provenance'][0]['commit'] = 'f'*40
