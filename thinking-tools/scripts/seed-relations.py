@@ -493,8 +493,11 @@ class Reader:
         repo,path = loc
         if repo is None:
             if commit:
-                value = _run_git(self.root,"show",f"{commit}:{path}")
-                result = (value,None) if value is not None else (None,"historical source unavailable")
+                if _run_git(self.root,"cat-file","-t",commit) != "commit":
+                    result = (None,"historical commit unavailable or not a commit object")
+                else:
+                    value = _run_git(self.root,"show",f"{commit}:{path}")
+                    result = (value,None) if value is not None else (None,"historical source unavailable")
             else:
                 try:
                     result = (Path(self.root,path).read_text(encoding="utf-8"),None)
@@ -503,6 +506,11 @@ class Reader:
         else:
             endpoint = self._endpoint(repo,path)
             if commit:
+                obj,err = self._gh_api(f"repos/{repo}/git/commits/{commit}")
+                if err or not isinstance(obj,dict) or obj.get("sha") != commit.lower():
+                    result = (None,err or "historical commit unavailable or not a commit object")
+                    self._raw_cache[cache_key] = result
+                    return result
                 endpoint += "?ref=" + quote(commit,safe="")
             data,err = self._gh_api(endpoint)
             try:
