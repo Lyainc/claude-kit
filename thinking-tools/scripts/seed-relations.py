@@ -667,6 +667,13 @@ def validate_provenance(rd, seed, ctx_repo):
     return errors
 
 
+def wholly_withdrawn(seed):
+    lc = lifecycle_summary(seed)
+    return (lc["state"] == "closed" and lc["outcome"] == "discontinued" and
+            bool(seed.item_map) and
+            {r["id"] for r in seed.lifecycle.get("withdrawn",[])} == set(seed.item_map))
+
+
 def eligibility(rd, seed, ctx_repo=None, trail=None):
     """Deterministic candidate gate; excluded items are never evidence of fulfillment."""
     def result(eligible,reason,excluded=(),review=False):
@@ -683,6 +690,10 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
     lc = lifecycle_summary(seed)
     if lc["state"] != "active":
         reason = "closed: " + str(lc["outcome"]) if lc["state"] == "closed" else "unknown lifecycle" if lc["state"] == "unknown" else lc["state"]
+        if seed.parent:
+            parent = rd.load(rd.norm(seed.parent,ctx_repo),exact_edges(seed))
+            if parent.seed and not lifecycle.validate(parent.seed,rd.root if parent.loc[0] is None else None) and wholly_withdrawn(parent.seed):
+                return result(False,reason,seed.item_map,True)
         return result(False,reason)
     own = set(seed.item_map)
     excluded = {r["id"] for r in seed.lifecycle.get("withdrawn",[])}
@@ -704,7 +715,7 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
         if pe or validate_provenance(rd,ps,parent.loc[0]):
             return result(False,"parent lifecycle invalid",own,True)
         pl = lifecycle_summary(ps)
-        if pl["state"] == "closed" and pl["outcome"] == "discontinued" and set(ps.item_map) and {r["id"] for r in (ps.lifecycle or {}).get("withdrawn",[])} == set(ps.item_map):
+        if wholly_withdrawn(ps):
             return result(False,"parent discontinued; child review required",own,True)
         withdrawn = {r["id"] for r in (ps.lifecycle or {}).get("withdrawn",[])}
         # A legacy/unknown parent cannot substantiate a child's automatic candidacy.

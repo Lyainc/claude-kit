@@ -199,6 +199,23 @@ class LifecycleTests(unittest.TestCase):
         for field in ('lifecycle_state=closed','eligible=false','review_required=true','excluded_items='):
             self.assertIn(field,fields)
 
+    def test_whole_withdrawal_marks_inactive_children_for_review(self):
+        parent = spec('closed','discontinued',withdrawn=['constraint-1','constraint-2','acceptance-1'],children=['docs/specs/c.yaml'])
+        self.write('p.yaml',parent)
+        for state,outcome in ((None,None),('paused',None),('closed','discontinued')):
+            with self.subTest(state=state):
+                child = spec(state,outcome,parent='docs/specs/p.yaml',refines=['constraint-1'])
+                path = self.write('c.yaml',child); before = path.read_bytes()
+                gate = sr.walk(str(path))['nodes'][0]['eligibility']
+                self.assertFalse(gate['eligible']); self.assertTrue(gate['review_required'])
+                self.assertEqual(path.read_bytes(),before)
+                self.assertEqual(sr.lifecycle_summary(parse(child))['state'],state or 'unknown')
+                # A valid partial withdrawal does not force unrelated historical children to resume.
+                partial = spec('closed','discontinued',withdrawn=['constraint-1'],children=['docs/specs/c.yaml'])
+                self.write('p.yaml',partial)
+                self.assertFalse(sr.walk(str(path))['nodes'][0]['eligibility']['review_required'])
+                self.write('p.yaml',parent)
+
     def test_missing_and_malformed_parent_hold(self):
         child = spec(parent='docs/specs/missing.yaml')
         self.assertEqual(sr.eligibility(self.rd,parse(child))['reason'],'parent unavailable')
