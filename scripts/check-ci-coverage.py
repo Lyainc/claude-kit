@@ -32,6 +32,7 @@ _PATTERNS = [
     (re.compile(r"python3\s+(\S+\.py)"), "py:{}"),
     (re.compile(r"bash\s+-n\s+(\S+)"), "bash-n:{}"),
     (re.compile(r"bash\s+(\S+\.sh)"), "sh:{}"),
+    (re.compile(r"\bbun\s+test\s+(\S+\.[jt]s)"), "bun:{}"),
     # A linter run has no test file of its own; its id is the tool, so a dropped CI step
     # still shows up as missing_in_ci (#809).
     (re.compile(r"\b(ruff)\s+check\b"), "lint:{}"),
@@ -172,6 +173,7 @@ def run_self_test():
         "bash -n hooks/*.sh\n"
         "python3 dir/test/only-in-claude.py\n"
         "uv tool run ruff check .\n"
+        "bun test dir/test/base.test.ts\n"
         "# python3 dir/test/commented-out.py\n"
         "```\n\n## Next\npython3 dir/test/outside-section.py\n"
     )
@@ -182,6 +184,7 @@ def run_self_test():
         "          bash dir/test/bar.sh\n"
         "          bash -n hooks/*.sh\n"
         "          uv tool run ruff check .\n"
+        "          bun test dir/test/base.test.ts\n"
     )
     reg = extract_test_ids(extract_validation_section(claude))
     ci = extract_test_ids(yml)
@@ -190,7 +193,7 @@ def run_self_test():
     failures = []
     expected_reg = {
         "json.tool:a.json", "py:dir/test/foo.py", "sh:dir/test/bar.sh",
-        "bash-n:hooks/*.sh", "py:dir/test/only-in-claude.py", "lint:ruff",
+        "bash-n:hooks/*.sh", "py:dir/test/only-in-claude.py", "lint:ruff", "bun:dir/test/base.test.ts",
     }
     if reg != expected_reg:
         failures.append(f"  registered: expected {sorted(expected_reg)}, got {sorted(reg)}")

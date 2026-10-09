@@ -93,7 +93,7 @@ _join_continuations = _ci._join_continuations
 # (prose, stray words) is ignored — we only run what looks like an actual command.
 _CMD_HEAD = re.compile(
     r"^(?:[A-Za-z_][A-Za-z0-9_]*=\S*\s+)*"      # zero+ ENV=val prefixes
-    r"(python3|bash|find|rm|claude|uv)\b"       # a known command head
+    r"(python3|bash|find|rm|claude|uv|bun)\b"   # a known command head
     # `uv` earns its place: check-skill-token-budget is registered as
     # `uv run --with tiktoken python3 ...` so CI and local run the identical command. Without
     # it here the line is not a command, so the suite silently stopped running that guard
@@ -317,6 +317,7 @@ def run_self_test():
         'python3 scripts/bar.py  # Expected: OK',
         'just some prose that is not a command',
         'find a/b -name "SKILL.md" | sort',
+        'bun test dir/test/base.test.ts',
         'python3 scripts/foo.py --self-test',   # duplicate of line 1
     ])
     cmds = extract_commands(section)
@@ -325,6 +326,7 @@ def run_self_test():
         'OVM_FIXTURE_DIR=/tmp/x    bash scripts/test/gen.sh --with-audit-errors',
         'python3 scripts/bar.py',
         'find a/b -name "SKILL.md" | sort',
+        'bun test dir/test/base.test.ts',
     ]
     if cmds != expected:
         failures.append(f"  extractor: expected {expected}, got {cmds}")

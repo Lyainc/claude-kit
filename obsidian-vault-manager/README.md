@@ -20,7 +20,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | Skill | Description |
 | --- | --- |
 | `audit` | vault 구조 무결성 감사 — E1–E3·E5–E6·E9–E13 오류 감지 (P0-P2 우선순위), stale 노트·orphan 추적 |
-| `base` | enforced frontmatter로 비파괴 Obsidian Bases(.base) 뷰 생성 — 기존 노트 불변, 내장 템플릿(sources/notes/recent) |
+| `base` | 비파괴 Obsidian Bases(.base) 뷰 생성: 내장 sources/notes/recent 또는 자연어·`--filter`·선택적 `--sort` 커스텀 조건, type 가드·작성 전 확인·기존 노트 불변 |
 
 ## v4 파일 컨벤션
 
