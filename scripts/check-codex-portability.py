@@ -28,7 +28,8 @@ QUESTION_RULES = {
         "pending until the actual user reply arrives",
     ),
     "mode and purpose restrictions": (
-        "request_user_input", "current-mode and purpose restrictions",
+        "Otherwise use `request_user_input` only when available and permitted",
+        "current-mode and purpose restrictions",
         "never invent a tool or switch modes to enable it",
     ),
     "independent choices": (
@@ -37,11 +38,13 @@ QUESTION_RULES = {
     ),
     "prior answers and non-answers": (
         "Reuse explicit prior answers and approvals",
-        "preselected options", "elapsed time are not user answers or approval",
+        "Tool acceptance, preselected options", "elapsed time are not user answers or approval",
+        "a skip is never an answer or approval and never advances a gate",
     ),
     "unavailable-tool fallback": (
         "If no native tool is usable", "normal user turn",
         "wait for the actual reply", "required unanswered questions pending",
+        "never claim the interview completed",
     ),
 }
 
@@ -63,6 +66,8 @@ def question_self_test() -> int:
         cases.append((f"loss of {label} fails", bool(check_question_contract(fixture.replace(line, "")))))
     cases.append(("legacy chat-only contract fails", bool(check_question_contract(
         "For AskUserQuestion, ask a normal user-facing question and wait for the answer."))))
+    cases.append(("weakened async gate fails", bool(check_question_contract(fixture.replace(
+        "pending until the actual user reply arrives", "complete once submitted")))))
     cases.append(("line wrapping preserves the contract", not check_question_contract(
         fixture.replace(" ", "\n"))))
     for label, ok in cases:

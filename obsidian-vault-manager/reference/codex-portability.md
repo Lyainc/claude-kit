@@ -21,8 +21,8 @@ Claude-only mechanics while preserving its decision rules and safety gates.
      never silently turn independent keep/dismiss choices into a single-choice decision.
    - Reuse explicit prior answers and approvals. Tool acceptance, preselected options,
      missing/empty replies and elapsed time are not user answers or approval. Preserve each
-     skill's required-answer and approval gates; optional clarification may follow the
-     runtime's stated fallback, without inventing an interview answer or advancing its gate.
+     skill's required-answer and approval gates. Only a clarification the runtime lets you skip
+     may be skipped; a skip is never an answer or approval and never advances a gate.
    - If no native tool is usable, ask in a normal user turn and wait for the actual reply.
      Keep required unanswered questions pending; never claim the interview completed.
 4. Use only tools available in the current Codex runtime. For `Agent` or `Skill`, do the work in
