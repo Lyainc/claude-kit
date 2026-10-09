@@ -1,8 +1,8 @@
 # Obsidian Bases (.base) 스키마 레퍼런스
 
-`base` 스킬이 생성하는 `.base` 파일의 YAML 스키마를 버전 고정(version-pin)하는 문서예요. Bases는 비교적 신규 기능(2026)이라 스키마가 바뀔 수 있어요. 생성 템플릿이 깨지면 이 문서의 핀 버전과 실제 Obsidian 버전을 대조하세요 (#118 Risk 완화).
+`base` 스킬이 생성하는 `.base` 파일의 문법과 예시예요. 공식 문서와 실행 검증 범위를 구분해요. 생성 뷰가 깨지면 실제 Obsidian 버전과 이 문서의 검증 기준을 대조하세요.
 
-- **핀 기준 스키마 버전**: Obsidian Bases 1.0 (2026 GA)
+- **공식 문법 기준**: [Bases syntax](https://obsidian.md/help/bases/syntax), [Functions](https://obsidian.md/help/bases/functions). 공식 문서는 별도 “Bases 1.0” 스키마 버전을 명시하지 않아요.
 - **재검증**: 2026-10-01에 공식 문서(`https://obsidian.md/help/bases/syntax`, `https://obsidian.md/help/bases/functions`)와 대조해 filters·views·날짜 함수 문법을 바로잡았어요 (#760). 이전 판은 존재하지 않는 `property.` 접두어를 규정해서 생성된 뷰가 전부 빈 표로 렌더됐어요.
 - **출처**: Obsidian Help — Bases (`https://help.obsidian.md/bases`), Bases syntax / filters / views. kepano vault 사용 사례(`https://stephango.com/vault`).
 - **갱신 규칙**: Obsidian이 `.base` 스키마를 변경하면 이 문서의 키 표와 템플릿을 함께 갱신하고, `base` 스킬의 템플릿 YAML도 맞춰서 수정하세요.
@@ -46,12 +46,7 @@ property 참조 방식은 세 가지예요. `property.` 접두어는 **없어요
 | 날짜 조건 | `'file.mtime > now() - "14d"'` | 최근 14일 안에 수정된 파일 |
 | 논리 결합 | `and:` / `or:` / `not:` + 하위 목록 | 모두 만족 / 하나 이상 / 부정 |
 
-```yaml
-filters:
-  and:
-    - 'status != "done"'
-    - file.hasTag("book")
-```
+커스텀 조건도 type 가드와 최상위 `and`로 묶어요. 사용자 정의 `status`는 사용자가 명시한 값으로 비교할 수 있어요. #480에서 폐기한 것은 플러그인의 내장 상태 머신이며, 사용자 속성 조회를 금지한 것이 아니에요.
 
 **날짜 함수**: `now()`, `today()`, `date("2024-12-01")`. duration 산술도 돼요 (`today() + "7d"`, `now() - "14d"`). 단위는 `y` / `M` / `d` / `w` / `h` / `m` / `s`예요.
 
@@ -77,6 +72,8 @@ views:
 ```
 
 view 옵션으로 `order` / `sort` / `groupBy` / `limit` / `summaries`를 쓸 수 있어요. 템플릿 3종은 `order`와 `sort`만 써요.
+
+`order`는 표시할 컬럼의 순서이며 행 정렬과 구분해요. 공식 syntax 예시는 `order`와 `groupBy`를 문서화하지만 테이블의 `sort` 저장 형식은 나열하지 않아요. 위 `sort`는 기존 빌트인의 저장 형식이며 실제 앱의 Bases 질의로 검증해야 해요. 미지정 커스텀 정렬은 `sort` 자체를 생략하고, 정렬값이 없는 행을 임의로 제외하거나 추가 동률 정렬을 넣지 않아요.
 
 ## 빌트인 템플릿 3종
 
@@ -139,6 +136,92 @@ views:
       - property: created
         direction: DESC
 ```
+
+## 커스텀 입력과 네 사용 사례 (#762)
+
+자연어와 `--filter '<표현식>' [--sort '<속성>:ASC|DESC']`를 받아요. 최소 계약은 단일 필터 표현식과 선택적 단일 정렬 키예요. 표현식 안에서 `&&`, `||` 또는 아래처럼 YAML의 `and`/`or`를 사용해 조건을 결합할 수 있어요. 플래그는 텍스트로만 해석하며 셸로 실행하지 않아요.
+
+속성·조건·필요한 값이 없거나 모순되면 질문하고 답변을 기다려요. 존재 조건에는 비교 값이 필요하지 않아요. “오래된 것”만으로 기간이나 속성을 추측하지 않고, “status_since 오름차순”이면 날짜 하한을 추가하지 않아요. 정렬 요청이 없으면 생략하지만 요청이 있으면 속성과 방향을 확인해요. 잘못된 템플릿·플래그·표현식·정렬 방향, 중복 플래그도 질문 대상이에요. 내장 템플릿과 커스텀 필터가 혼용되면 AND 결합할지 커스텀 뷰로 전환할지 먼저 질문해요.
+
+네 예시는 사용자가 확인한 이슈 조건을 그대로 사용해요. `track != null` / `related != null`은 **값 비교**이며 키 존재 확인인 `file.hasProperty(...)`와 바꾸어 쓰지 않아요. 누락·명시적 null·빈 문자열의 세부 의미는 공식 문서만으로 같다고 단정하지 말고 실제 앱에서 확인하세요. type opt-in은 언제나 `file.hasProperty("type")`예요.
+
+### 업무 항목 전체
+
+자연어: `/base work 업무 항목: track이 null이 아닌 것`. 플래그: `/base work --filter 'track != null'`.
+
+```yaml
+filters:
+  and:
+    - 'file.hasProperty("type")'
+    - 'track != null'
+views:
+  - type: table
+    name: "업무 항목 전체"
+    order:
+      - file.name
+      - track
+```
+
+### 오래 안 움직인 것
+
+자연어: `/base waiting status가 대기 또는 진행중인 것을 status_since 오름차순으로`. 플래그: `/base waiting --filter '(status == "대기" || status == "진행중")' --sort 'status_since:ASC'`. 문자열 OR 또는 아래 재귀 OR는 같은 조건이며, type 가드가 OR 밖에 있어야 해요.
+
+```yaml
+filters:
+  and:
+    - 'file.hasProperty("type")'
+    - or:
+        - 'status == "대기"'
+        - 'status == "진행중"'
+views:
+  - type: table
+    name: "오래 안 움직인 것"
+    order:
+      - file.name
+      - status
+      - status_since
+    sort:
+      - property: status_since
+        direction: ASC
+```
+
+완료·보류 등의 값은 위 두 값에 해당하지 않아 제외돼요. `status_since`가 없는 행도 상태 조건을 만족하면 포함하며, 누락값 위치와 동률 순서는 Obsidian 동작에 따라요.
+
+### 산출물 없는 것
+
+자연어: `/base no-output output_at이 "없음"인 것`. 플래그: `/base no-output --filter 'output_at == "없음"'`. 속성 누락을 문자열 “없음”과 같다고 추측하지 않아요.
+
+```yaml
+filters:
+  and:
+    - 'file.hasProperty("type")'
+    - 'output_at == "없음"'
+views:
+  - type: table
+    name: "산출물 없는 것"
+    order:
+      - file.name
+      - output_at
+```
+
+### 업무별 문서
+
+자연어: `/base work-docs related가 null이 아닌 문서`. 플래그: `/base work-docs --filter 'related != null'`. 이 예시에 특정 업무 값이나 그룹화를 임의로 추가하지 않아요.
+
+```yaml
+filters:
+  and:
+    - 'file.hasProperty("type")'
+    - 'related != null'
+views:
+  - type: table
+    name: "업무별 문서"
+    order:
+      - file.name
+      - related
+```
+
+작성 전 실제 대상 경로·전체 YAML·필터와 정렬 설명을 보여주고 확인을 기다려요. 기존 노트나 뷰를 읽어서 속성·값을 추론하지 않아요. YAML 파싱 성공이나 파일 생성만으로 렌더 성공을 주장하지 않으며, 실제 Obsidian에서 포함·제외·정렬을 확인하지 못했다면 미검증으로 표시해요. 빈 표는 데이터가 없을 수도, 조건이 맞지 않을 수도 있어요.
 
 ## 파일명·경로 규칙
 

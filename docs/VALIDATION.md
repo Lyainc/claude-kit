@@ -1179,6 +1179,14 @@ python3 obsidian-vault-manager/scripts/scan-summary.py --self-test
 python3 obsidian-vault-manager/scripts/test/test-audit-custom-schema.py
 # Expected: OK: all 22 custom-schema cases passed
 
+# #762: Bun's built-in YAML parser, four custom view membership fixtures and unchanged
+# built-ins. This oracle covers only the example expressions; it is not the Obsidian engine.
+bun test obsidian-vault-manager/scripts/test/test-base-custom-views.test.ts
+# Also test the source skill's question/confirmation paths and generated plans, then query
+# generated bases in the explicitly authorized vault with Obsidian base:query. Record the
+# app version, actual rows/order, content hashes and test-file cleanup; report visual rendering
+# separately. Never claim source-plan tests loaded the installed plugin cache.
+
 # audit DoD 측정 (mechanical reference impl). Folded into ONE registered command
 # (#660) — check-test-exitcode.py runs each registered command in its own `bash -c`,
 # so shell state (e.g. a per-run `mktemp -d`) does not survive across separate lines.

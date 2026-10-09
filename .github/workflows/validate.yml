@@ -438,6 +438,13 @@ jobs:
           python3 obsidian-vault-manager/scripts/test/test-notes-filename-consistency.py
           echo "obsidian-vault-manager tests OK"
 
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: "1.3.14"
+
+      - name: Validate Bases YAML examples and fixture membership
+        run: bun test obsidian-vault-manager/scripts/test/test-base-custom-views.test.ts
+
       - name: Run obsidian-vault-manager trigger regression
         run: |
           # #471 — routing-SSOT drift guard extended to obsidian-vault-manager/skills/*/SKILL.md
