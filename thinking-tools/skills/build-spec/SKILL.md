@@ -13,7 +13,14 @@ allowed-tools: AskUserQuestion Read Write Edit Glob Grep Agent Bash Skill
 
 # Build Spec
 
-Korean output (English for English input); English STATE/YAML keys.
+Korean (English for English input); English STATE/YAML keys.
+
+**Seed intake first**: the first Seed-specific tool call is `Bash`: `seed-relations.py metadata <seed> --json`.
+No Seed Read/cat/Grep before success. Failure holds intake/application. No bulk YAML discovery. Apply unknown only with approval;
+resume paused only with approval; closed needs a new Seed with pinned provenance. No withdrawn
+items or scope expansion. Read `../../reference/seed-lifecycle.md` before changes. Restore scores, ids,
+`issues`/`relations` (§8); skip Phase 0, start at lowest clarity; `<feedback>` → Phase 1 (§6).
+
 
 ## Codex Portability
 
@@ -21,9 +28,9 @@ Codex: read [the native question contract](../../reference/codex-portability.md)
 
 ## Execution Ownership
 
-Main owns interview, STATE, gate transitions and Seed writes in every mode; never delegate all.
-As a subagent, stop before Phase 0: final response = `MAIN_AGENT_REQUIRED`, facts, unanswered
-questions. Never invent answers or emit a Seed.
+Main owns interview, STATE, gate transitions and Seed writes in every mode. Never delegate all.
+Subagent: stop before Phase 0; return `MAIN_AGENT_REQUIRED`, facts, unanswered
+questions. Never invent answers or emit Seed.
 
 Delegate only research, Phase 2 verdict and Phase 2.5 findings, never user answers.
 Phase 1: `AskUserQuestion`, await input; reuse explicit prior answers. Missing input/tool → pending,
@@ -35,11 +42,6 @@ never completion.
 keep backlog scan; ask 3-5 Goal questions; gate Goal ≥ 0.75. Emit Goal + best-effort Constraints
 (binding format §11.2).
 
-**Seed use / Refine**: before Seed `Read`/cat, `Bash`: `seed-relations.py metadata <seed> --json`.
-Failure holds body intake/application. No bulk YAML discovery; read relevant content only. Apply unknown only with approval;
-resume paused only with approval; closed needs a new Seed with pinned provenance. No withdrawn
-items or scope expansion. Read `../../reference/seed-lifecycle.md` before changes. Restore scores, ids,
-`issues`/`relations` (§8); skip Phase 0, start at lowest clarity; `<feedback>` → Phase 1 (§6).
 
 ### Phase 0: Context Analysis
 
