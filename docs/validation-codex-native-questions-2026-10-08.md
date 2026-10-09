@@ -2,12 +2,11 @@
 
 ## 범위와 기준
 
-- 작업 소스: `/Users/gowid/.codex/worktrees/codex-native-interviews/claude-kit`
 - 기준 커밋: `ac95e788018c9e1fc171bc432ac2505e2b41b4d7`
 - 요구사항: [#827](https://github.com/Lyainc/claude-kit/issues/827), [#750](https://github.com/Lyainc/claude-kit/issues/750)의 남은 설치본 호출 조건.
 - 런타임: Codex CLI `0.161.0`, Default 모드, ChatGPT 로그인. 새 app-server 세션은 현재 설정의 `gpt-6.1-sol` / high를 사용했다. 모델 설정은 변경하지 않았다.
 - 실제 호출은 읽기 전용·ephemeral 세션과 빈 임시 fixture에서 수행했다. 질문·게이트의 제한된 진입 경로를 확인했으며, 두 인터뷰를 끝까지 완료하거나 Seed를 생성한 시험은 아니다.
-- 원래 검증 목표의 독립 최종 검토 상한은 도구·대체 검토자를 합쳐 1회이며 사용을 마쳤다. 검증 종료 시점에는 커밋·push·PR·이슈 댓글·상태 변경을 수행하지 않았다. 이후 사용자가 별도로 커밋·draft PR·Claude 인계를 승인했으며, 아래 인계 절차는 그 후속 단계다.
+- 원시 기록(app-server JSONL)은 실행 머신에만 있고 저장소에는 넣지 않았다. 아래 호출 ID·이벤트는 그 기록에서 옮긴 것이다.
 
 ## 소스, 설치, 발견, 실행
 
@@ -179,41 +178,7 @@ NEXT·FROM·SKIPPED·GOAL을 반환했고 `turn.completed`가 1개였다. `/goal
 추가로 바뀌지 않았으므로 반복하지 않았다. 새 검사·문서·CI 변경과 self-test 실패 관련 검사만
 재실행했다.
 
-## 보존과 원시 기록
-
-원래 체크아웃과 작업 worktree의 Seed 10개 각각을 시작 시점 SHA-256과 대조해 모두 동일함을
-확인했다. 원래 체크아웃의 미커밋 diff도 보존했다. closed/completed/discontinued 요구사항을
-재활성화하거나 새 Seed에 자동 재적용하지 않았다.
-
-원시 기록: `/private/tmp/claude-kit-codex-proof-20261008/`.
-재개 시 파일의 존재와 해시부터 확인한다. 주요 파일은 `install-plan.json`, `install-result.json`,
-`cache-before/`, `discovery-result.json`, `native-state-before.json`,
-`native-state-after-two-replies.json`, `build-spec-default.jsonl`, `unknown-discovery-default.jsonl`,
-`appserver-fallback.jsonl`(파일명과 달리 실제 네이티브 호출 기록), `fresh-native-result.json`,
-`unknown-discovery-permission-fallback.jsonl`, `next-goal-exec.jsonl`,
-`next-goal-tail-exec.jsonl`, `question-guard-before.json`, `question-guard-after.json`,
-`check-results.json`, `next-goal-invocation-manifest.json`,
-`appserver-human-reply.jsonl`(최초 시간 초과), `appserver-human-reply-fixed.jsonl`,
-`forwarded-human-result.json`, `native-state-after-independent-choices.json`,
-`continuation-evidence.json`, `appserver-build-spec-answer.jsonl`,
-`appserver-no-code-mode-host.jsonl`, `no-code-mode-host-result.json`이다.
-
-## 독립 최종 검토
-
-새 문맥의 `gpt-6.1-sol` / high 독립 검토자에게 소스 snapshot과 기준 커밋 대비 최종 diff,
-#827 요구사항, 원시 증거를 한 번 대조했다. **P0–P2 material finding 없음**이다.
-검토자는 소스·Git을 수정하거나 테스트를 재실행하지 않았고 추가 검토자·서비스를 호출하지
-않았다. 검토 인프라 차단도 없었다. 총 **1/1회**를 사용했으며 재검토하지 않는다.
-
-검토 대상 source diff SHA-256:
-`57c043a01985f5c7bd9409f4b559bc7650e8af99efa97f1f874d873ae27efced`.
-검토 후 변경은 이 보고서에 결과·증거 provenance·탐침 실패/복구·추가 실제 호출 기록을
-보충한 것뿐이다. 추가 build-spec 원시 기록과 독립 선택 실제 답변은 주 에이전트가 대조했고,
-추가 독립 검토는 하지 않았다. 검토된 tracked source diff는 동일하다.
-원본 Seed 해시·보존 기록·Seed 변경이 없는 diff는 검토했으나, 검토자가 공유 원본 체크아웃을
-직접 재검사하지는 않았다. 원본 파일의 최종 live 대조는 주 에이전트가 수행했다.
-
-## 남은 조건과 재개 지점
+## 남은 미검증 조건
 
 1. 복수 선택 의미 보존과 실제 결정 수신은 항목별 네이티브 질문의 A 폐기/B·C 유지로
    확인했다. 자유 입력 UI가 실제로 어떻게 보였는지는 미검증이며, Computer Use의 Codex 앱
@@ -224,70 +189,3 @@ NEXT·FROM·SKIPPED·GOAL을 반환했고 `turn.completed`가 1개였다. `/goal
 3. 전체 build-spec·unknown-discovery 인터뷰의 게이트 통과·격리 채점·Seed/리포트 생성은
    확인하지 못했다. 이 부분을 진입 시험의 통과로 확대하지 않는다. 필요하면 새 disposable
    target에서 실제 답변으로 검증한다.
-4. 후속 승인 범위는 관련 변경의 커밋·push·draft PR과 Claude 리뷰 인계다. 이슈 종료·merge·개인 설치 재갱신은 승인 범위에 포함하지 않는다.
-
-## 최종 차단 상태
-
-실제 네이티브 질문 도구가 없는 허용된 런타임을 확보하지 못한 동일한 차단 조건이
-원래 목표 턴과 두 자동 계속 턴에 걸쳐 유지됐다. 직전 턴은 실제 선택 답변과 build-spec
-원시 기록을 추가한 진전이며, 이번 턴의 재확인에서는 기존 증거 17개 해시가 일치했다.
-완료로 판정하지 않는다. `blocked-audit.json`과 `resume.json`에 외부 런타임·실제 도구 목록
-변경 뒤 수행할 다음 호출을 남겼다. 통과 검사나 독립 검토는 추가 실행하지 않았다.
-
-## PR 인계와 공유 가능한 증거
-
-[공유 증거 JSON](validation-evidence/native-questions-2026-10-08.json)에 기존 원시 기록에서
-질문 함수 호출·접수 결과·사용자 입력·최종 메시지·턴 완료 이벤트를 발췌했다. 원본 파일명,
-SHA-256, 원본의 1-based 행 번호를 보존했다. 새로운 실행이나 전체 transcript로 표현하지
-않는다. 이 파일만으로 실제 호출과 접수 뒤 대기, 부모 답변 전달 뒤 전환, #750의 출력과
-완료를 읽을 수 있다. 원본 전체 검사가 필요하면 해당 로컬 기록이 추가로 필요하다.
-JSON에 포함된 로컬 절대 경로는 당시 실행의 provenance이며 수신 환경에서 사용할 경로가 아니다.
-
-직접 사람 답변은 부모 대화에서 수신했다. 다른 세션으로 전달한 text 입력은 실제 답변의
-재사용이며 새 UI 클릭 증거가 아니다. 선택 A 폐기/B·C 유지도 부모 기록에서 복사한 증거다.
-모델이 보고한 STATE의 Goal 점수는 별도 실행에서 0.90, 부모 fixture의 보수적 판정은 0.75였다.
-서로 다른 평가를 하나로 합치지 않는다. 두 경우 모두 미답 항목과 최종 게이트는 보류했다.
-
-소스 검사 재현 명령은 저장소 루트에서 다음과 같다. 아래 명령은 앞선 검사 재현용이며,
-인계 준비 때문에 통과 검사를 다시 실행하지 않았다.
-
-```bash
-uv run --no-project python scripts/check-codex-portability.py --self-test
-uv run --no-project python scripts/check-codex-portability.py
-uv run --no-project python feedback-loop/scripts/test/test-codex-portability.py --self-test
-uv run --no-project python feedback-loop/scripts/test/test-codex-portability.py
-uv run --no-project python scripts/check-ci-coverage.py --strict
-```
-
-#750 재현은 해당 환경의 설치본·발견 경로를 먼저 확인하고 명시적
-`$thinking-tools:next-goal`을 읽기 전용 새 세션에서 호출한다. 공유 JSON의 `invocation.argv`에
-당시 실제 명령과 프롬프트를 보존했다. `-C`와 설치 경로는 수신 환경에 맞게 해석한다.
-개인 설치가 다르면 소스 일치 여부를 보고하며 승인 없이 갱신하지 않는다.
-핵심 판정은 `turn.completed`, 도구 실행 없음, 마지막 Rules 문장의 정확한 반환이다.
-
-이 저장소의 `.github/workflows/claude-code-review.yml`은 PR opened/synchronize에 반응하며
-draft 제외 조건이 없다. PR 생성 후 실제 Checks를 확인해야 리뷰 실행 여부가 증명된다.
-원래 검증의 독립 검토 1회와 사용자 후속 승인에 따른 PR의 Claude 리뷰는 별도 단계다.
-수동 Claude 세션은 먼저 PR의 기존 리뷰를 읽고, 같은 리뷰를 중복 호출하지 않는다.
-
-## 새 Claude 세션 시작 프롬프트
-
-아래 `[PR URL]`에 실제 URL을 넣어 새 세션에 전달한다. 프롬프트를 포함한 인계 문서는
-세션 생성이나 메시지 전달을 수행했다는 증거가 아니다.
-
-> 이 PR을 넘겨받아 리뷰해 줘: `[PR URL]`.
-> 우선 PR head SHA와 기존 리뷰·Checks를 확인하고, 별도 worktree에서 작업해 줘.
-> `docs/validation-codex-native-questions-2026-10-08.md`와 연결된 공유 증거 JSON을 먼저 읽어 줘.
-> 기준 커밋은 `ac95e788018c9e1fc171bc432ac2505e2b41b4d7`이고 #827 요구사항이 변경의 기준이야.
-> 네 플러그인의 질문 계약, build-spec·unknown-discovery 및 개별 Codex 어댑터의 정확성,
-> Claude 동작 보존, 회귀 검사의 범위, 실행 증거가 판정을 뒷받침하는지 검토해 줘.
-> #750의 설치본 명시적 호출 조건은 로컬에서 통과했지만 이슈를 종료하지 않았어.
-> 실제 도구 부재 fallback, 전체 인터뷰 게이트·산출물, 원래 자유 입력 UI의 외형은 미검증이야.
-> 도구 금지 fixture나 `accepted: true`를 물리적 도구 부재·사람 답변으로 바꿔 해석하지 마.
-> 원래 Seed 변경 10개와 종료된 요구사항을 보존하고 작업 기록을 Seed에 쓰지 마.
-> 개인 설치·설정 변경, commit·push·merge·이슈 종료는 하지 마.
-> 우선 기존 Claude CI 리뷰와 중복되지 않는 결과 및 남은 검증의 실행 가능성을 보고해 줘.
-> 이미 통과한 검사는 변경·실패·구체적인 미해결 우려가 있을 때만 재실행해 줘.
-> 실제 질문 도구가 없는 허용된 Codex 환경을 확보하면 그 사실을 도구 목록으로 입증한 뒤,
-> 설치본 unknown-discovery의 첫 분야 질문과 실제 대화 답변 수신까지 검증하는 것이 재개 지점이야.
-> 현재 환경에서 확보할 수 없으면 정확한 제약을 남기고 통과로 표현하지 마.
