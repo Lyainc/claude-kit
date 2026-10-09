@@ -2,7 +2,7 @@
 // verbatim so the parser is held to what the script prints, not to a hand-written imitation.
 import { expect, test } from 'claude-code/testing'
 
-import { parseWalk } from './parse'
+import { parseJudgment, parseWalk } from './parse'
 
 const REAL_TEXT = "WALK\tid=local@6cbbc5f96218:docs/specs/c1.yaml#9b7bc11e.770ba239~d3n25\tat=2026-10-02T08:23:27Z\tstart=docs/specs/c1.yaml\tmax_depth=3\tmax_nodes=25\tfingerprint=770ba239be7a\nNODE\t0\tstart\tdocs/specs/c1.yaml\tok\tvia=-\ttarget=csv-parser\trefines=ac1\tlink_reason=부모 ac1의 파서 입력 형식을 정한다\tsource=#10\ttracking=#12\titems=ac1\tchildren=-\nNODE\t1\tancestor\tdocs/specs/p.yaml\tok\tvia=parent>docs/specs/p.yaml\ttarget=report-tool\trefines=-\tlink_reason=-\tsource=#10\ttracking=#11\titems=ac1,ac2,ac3\tchildren=docs/specs/c1.yaml,docs/specs/c2.yaml\nNODE\t2\tancestor-child\tdocs/specs/c2.yaml\tok\tvia=parent>docs/specs/p.yaml>children>docs/specs/c2.yaml\ttarget=report-writer\trefines=ac2\tlink_reason=미확인\tsource=미확인\ttracking=-\titems=ac1\tchildren=-\nNODE\t3\tpredecessor\tdocs/specs/pre.yaml\tok\tvia=parent>docs/specs/p.yaml>children>docs/specs/c2.yaml>depends_on>docs/specs/pre.yaml\ttarget=template-loader\trefines=-\tlink_reason=-\tsource=미확인\ttracking=-\titems=ac1\tchildren=-\nITEM\tdocs/specs/p.yaml\tac1\trefined_by=docs/specs/c1.yaml\nITEM\tdocs/specs/p.yaml\tac2\trefined_by=docs/specs/c2.yaml\nITEM\tdocs/specs/p.yaml\tac3\trefined_by=(none)\nSUMMARY\tvisited=4\tstopped=0\tfailed=0\tcycles=0\texternal=0\tnotfound=0"
 const REAL_JSON = "{\"walk\": {\"id\": \"local@6cbbc5f96218:docs/specs/c1.yaml#9b7bc11e.770ba239~d3n25\", \"at\": \"2026-10-02T08:23:27Z\", \"start\": \"docs/specs/c1.yaml\", \"max_depth\": 3, \"max_nodes\": 25, \"fingerprint\": \"770ba239be7a\"}, \"nodes\": [{\"key\": \"docs/specs/c1.yaml\", \"depth\": 0, \"relation\": \"start\", \"status\": \"ok\", \"via\": [], \"target\": \"csv-parser\", \"parent\": \"docs/specs/p.yaml\", \"refines\": [\"ac1\"], \"link_reason\": \"부모 ac1의 파서 입력 형식을 정한다\", \"source\": \"#10\", \"tracking\": [\"#12\"], \"items\": [\"ac1\"], \"children\": []}, {\"key\": \"docs/specs/p.yaml\", \"depth\": 1, \"relation\": \"ancestor\", \"status\": \"ok\", \"via\": [[\"parent\", \"docs/specs/p.yaml\"]], \"target\": \"report-tool\", \"parent\": null, \"refines\": [], \"link_reason\": null, \"source\": \"#10\", \"tracking\": [\"#11\"], \"items\": [\"ac1\", \"ac2\", \"ac3\"], \"children\": [\"docs/specs/c1.yaml\", \"docs/specs/c2.yaml\"]}, {\"key\": \"docs/specs/c2.yaml\", \"depth\": 2, \"relation\": \"ancestor-child\", \"status\": \"ok\", \"via\": [[\"parent\", \"docs/specs/p.yaml\"], [\"children\", \"docs/specs/c2.yaml\"]], \"target\": \"report-writer\", \"parent\": \"docs/specs/p.yaml\", \"refines\": [\"ac2\"], \"link_reason\": null, \"source\": null, \"tracking\": [], \"items\": [\"ac1\"], \"children\": []}, {\"key\": \"docs/specs/pre.yaml\", \"depth\": 3, \"relation\": \"predecessor\", \"status\": \"ok\", \"via\": [[\"parent\", \"docs/specs/p.yaml\"], [\"children\", \"docs/specs/c2.yaml\"], [\"depends_on\", \"docs/specs/pre.yaml\"]], \"target\": \"template-loader\", \"parent\": null, \"refines\": [], \"link_reason\": null, \"source\": null, \"tracking\": [], \"items\": [\"ac1\"], \"children\": []}], \"items\": [{\"owner\": \"docs/specs/p.yaml\", \"id\": \"ac1\", \"refined_by\": [\"docs/specs/c1.yaml\"]}, {\"owner\": \"docs/specs/p.yaml\", \"id\": \"ac2\", \"refined_by\": [\"docs/specs/c2.yaml\"]}, {\"owner\": \"docs/specs/p.yaml\", \"id\": \"ac3\", \"refined_by\": []}], \"dups\": [], \"cycles\": [], \"stops\": [], \"failures\": [], \"summary\": {\"visited\": 4, \"stopped\": 0, \"failed\": 0, \"cycles\": 0, \"external\": 0, \"notfound\": 0}}"
@@ -73,4 +73,18 @@ test('malformed eligibility never becomes selectable metadata', () => {
   root.nodes[0].eligibility = { eligible: 'true', excluded_items: [], review_required: false }
   expect(parseWalk(JSON.stringify(root)).nodes[0]?.eligibility?.eligible).toBe(false)
   expect(parseWalk(JSON.stringify(root)).nodes[0]?.eligibility?.reviewRequired).toBe(true)
+})
+
+test('judgment prose collapses to one line like the renderer', () => {
+  const j = parseJudgment(JSON.stringify({
+    handoff: 'none',
+    pick: { title: '첫 줄\n\n  둘째 줄', via: 'session', evidence: 'e\r\nf', startable: 'yes', startable_reason: 'r', user_change: 'u' },
+    alternatives: [{ title: '외부\r\n선행', via: 'backlog', decision: 'held', reason: 'ready\n과 실제 증거' }],
+    unverified: ['미확인\n외부'],
+  }))
+  expect(j.pick?.title).toBe('첫 줄 둘째 줄')
+  expect(j.pick?.evidence).toBe('e f')
+  expect(j.alternatives[0]?.title).toBe('외부 선행')
+  expect(j.alternatives[0]?.reason).toBe('ready 과 실제 증거')
+  expect(j.unverified).toEqual(['미확인 외부'])
 })

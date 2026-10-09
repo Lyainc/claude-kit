@@ -286,18 +286,23 @@ export const extractHeredoc = (command: string): string => {
   return lines.slice(open + 1, close).join('\n')
 }
 
+// Judgment prose collapses whitespace like next-goal-render.py, so pane labels and switch prompts stay one line.
+const line = (v: unknown, fallback = ''): string => str(v, fallback).split(/\s+/).filter(Boolean).join(' ')
+const needLine = (v: unknown, what: string): string => need(line(v), what)
+const lineList = (v: unknown): string[] => strList(v).map(x => line(x))
+
 const pickOf = (v: unknown): SeedBoardPick | null => {
   if (v === null || v === undefined) return null
   if (!isObj(v)) throw new Error('seed-board: pick is not an object')
   return {
-    title: need(v.title, 'pick title'),
-    via: need(v.via, 'pick via'),
+    title: needLine(v.title, 'pick title'),
+    via: needLine(v.via, 'pick via'),
     targets: strList(v.targets),
-    evidence: str(v.evidence),
+    evidence: line(v.evidence),
     startable: str(v.startable, 'unknown'),
-    startable_reason: str(v.startable_reason),
-    user_change: str(v.user_change),
-    note: dash(v.note),
+    startable_reason: line(v.startable_reason),
+    user_change: line(v.user_change),
+    note: dash(line(v.note)),
   }
 }
 
@@ -319,13 +324,13 @@ export const parseJudgment = (json: string): ParsedJudgment => {
     alternatives: alternatives.map((a): SeedBoardAlternative => {
       const o = isObj(a) ? a : {}
       return {
-        title: need(o.title, 'alternative title'),
-        via: need(o.via, 'alternative via'),
+        title: needLine(o.title, 'alternative title'),
+        via: needLine(o.via, 'alternative via'),
         decision: need(o.decision, 'alternative decision'),
-        reason: str(o.reason),
+        reason: line(o.reason),
       }
     }),
-    unverified: strList(root.unverified),
+    unverified: lineList(root.unverified),
   }
 }
 

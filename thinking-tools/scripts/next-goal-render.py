@@ -79,11 +79,17 @@ def _load_relations():
     return mod
 
 
+def _one_line(s):
+    return " ".join(s.split())
+
+
 def _need_str(obj, key, where):
     v = obj.get(key)
     if not isinstance(v, str) or not v.strip():
         raise Refused(f"{where}.{key}: 비어 있지 않은 문자열이어야 해요")
-    return v.strip()
+    # Normalized in place so every line and REFUSED message stays single-line.
+    obj[key] = _one_line(v)
+    return obj[key]
 
 
 def _is_seed_via(via):
@@ -126,6 +132,9 @@ def validate(j):
             raise Refused(f"{where}.decision: {' | '.join(DECISIONS)} 중 하나여야 해요")
     if not isinstance(j.get("unverified", []), list):
         raise Refused("unverified: 목록이어야 해요")
+    j["unverified"] = [_one_line(u) if isinstance(u, str) else u for u in j.get("unverified", [])]
+    if pick is not None and isinstance(pick.get("note"), str):
+        pick["note"] = _one_line(pick["note"])
     if handoff != "named":
         for c in ([pick] if pick else []) + alts:
             if _is_seed_via(c["via"]):
@@ -275,7 +284,7 @@ def render(j, cwd):
     lines.append(f"SKIPPED  · {_skipped_line(j)}")
     if j["handoff"] != "none":
         lines.append(f"TRACE    · {_trace_line(j, data, current_id)}")
-    return [" ".join(line.splitlines()) for line in lines]
+    return lines
 
 
 def main(argv):
