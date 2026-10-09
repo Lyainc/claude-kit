@@ -39,7 +39,7 @@
 
 **Phase 1 Round 3** [Constraint, Q: "기술 스택이나 환경 제약이 있나요?"]:
 
-> "Python과 pip install 배포는 꼭 지켜 주세요. 다른 스택이나 배포 방식은 제외할게요."
+> "Python과 pip install 배포는 꼭 지켜 주세요. pip install로 배포하고 싶어서요. 다른 스택이나 배포 방식은 제외할게요."
 
 **Scoring**:
 - constraint-check-1: hard constraint → Y (Python)
