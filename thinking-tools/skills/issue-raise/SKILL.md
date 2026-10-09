@@ -14,26 +14,27 @@ allowed-tools: Read Write Bash AskUserQuestion
 
 ## Codex Portability
 
-Codex: read [the portability contract](../../reference/codex-portability.md) first; it overrides
-Claude-only mechanics below. Keep Phase 3's approval gate before `gh issue create`; use the
-contract's native question path. Claude Code ignores this section.
+Codex: read [the portability contract](../../reference/codex-portability.md) first. Keep Phase 3's
+approval gate before `gh issue create`; use its native question path.
 
 ## Prerequisites
 
-- A one-line bug report or feature idea, OR a Seed YAML path handed off by build-spec
-  (`docs/specs/{slug}.yaml`)
-- `gh` CLI authenticated against the repo (fallback in Phase 3 if absent)
-
-**Nothing about the repo's issue conventions is assumed.** Template names, headings, the
-optional marker, labels, and title shape come from what the repo ships, read at call time.
+- Bug report, feature idea, or build-spec Seed path.
+- Authenticated `gh` CLI; absent → Phase 3 fallback.
 
 ## Core Workflow
 
 ### Phase 0: Entry + Template Selection
 
 1. **Entry mode** — decides the *kind*, never the filename:
-   - **Seed handoff** — input names a Seed YAML path, or the caller is build-spec. `Read` the
-     Seed; its `goal`/`constraints`/`success_criteria`/`context` fields are the source data. List constraints and success criteria by full identifier
+   - **Seed handoff** — input names a Seed YAML path, or the caller is build-spec. First use
+     `Bash`: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json`.
+     No Seed `Read`/cat/Grep before success; failure holds intake. `walk`/`read` is no substitute.
+     Follow [the lifecycle contract](../../reference/seed-lifecycle.md): unknown requirements need
+     user confirmation before application, paused needs approved resume, and closed reuse needs a
+     new approved Seed with pinned provenance. Naming a path does not authorize activation; do not
+     apply withdrawn items or expand scope. `Read` only relevant fields; its
+     `goal`/`constraints`/`success_criteria`/`context` are source data. List constraints and success criteria by full identifier
      (`<seed-slug>/constraint-1 · 설명`, convention: `reference/identifiers.md`), never with an invented issue number.
      Kind = **proposal** (a Seed crystallizes something to build, never a defect).
    - **Freeform** — a natural-language line. Classify **defect** (observed vs. expected
@@ -143,14 +144,12 @@ Show the assembled title + body. `AskUserQuestion` for approval before creating 
 
 ## Known Limitations
 
-If `--list`'s section count disagrees with a `.yml` form, stop (forms are read for labels only,
-by an indentation scanner); a Seed that is really a defect report is out of scope. The other
-limits (template drift, regex-diff check): [reference.md](reference.md) §4.
+If `--list`'s section count disagrees with a `.yml` form, stop. A defect-report Seed is out of
+scope. Form-scanner, template-drift and regex-diff limits: [reference.md](reference.md) §4.
 
 ## References
 
-- **Field mapping, title rationale, moved detail**: [reference.md](reference.md)
-- **Common output schema**: [../../reference/common-schema.md](../../reference/common-schema.md)
+- [reference.md](reference.md): field mapping, title rationale and detail.
 
 ## Korean I/O Directive
 
