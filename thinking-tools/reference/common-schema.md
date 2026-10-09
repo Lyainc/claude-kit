@@ -10,7 +10,7 @@ Item identifiers and their display form are defined once in [identifiers.md](ide
 ---
 skill: <skill-name>           # e.g., build-spec, unknown-discovery, adversarial-review
 schema_version: 1             # bump on breaking changes to this schema
-version: <skill-version>      # from SKILL.md frontmatter
+version: <plugin-version>     # from the containing plugin's root plugin.json at generation
 generated: <ISO-date>         # YYYY-MM-DD
 input:
   target: <topic or project name>
@@ -28,7 +28,7 @@ output:
 |-------|------|----------|-------------|
 | `skill` | string | Yes | Skill name (kebab-case) |
 | `schema_version` | int | Yes | Common-schema version this output conforms to (current: 1) |
-| `version` | string | Yes | Skill version at time of generation |
+| `version` | string | Yes | Containing plugin's release version from root `plugin.json` at generation |
 | `generated` | string | Yes | ISO date string |
 | `input.target` | string | Yes | What was analyzed or crystallized |
 | `input.options` | array | No | Flags/options used in this run |
@@ -99,6 +99,8 @@ Skill-specific frontmatter fields come after the common block, extending it rath
 
 ## Versioning
 
+- `version` records generation provenance, not the current installed release. Read the containing
+  plugin's root `plugin.json` for new outputs; preserve existing values when amending an artifact.
 - `schema_version` is required (current: `1`). All output templates MUST emit it.
 - Breaking changes (renaming or removing required fields) bump `schema_version`.
 - Additive fields (new skill extensions, new optional fields) are non-breaking and do not bump.

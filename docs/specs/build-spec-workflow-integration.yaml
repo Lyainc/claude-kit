@@ -1,4 +1,5 @@
 ---
+# Reviewed against v6.0.0 and the v6.0.1 contract patches; authorship metadata is historical.
 # Output conforms to thinking-tools/reference/common-schema.md
 skill: build-spec
 schema_version: 1
@@ -19,25 +20,43 @@ domain: tech
 brownfield: true
 refine_generation: 0
 
+lifecycle:
+  state: paused
+  outcome: null
+  reason: "저작 소유권과 로컬 보조 도구는 확인했다. 실제 승인된 이슈 생성 URL·본문·백로그·STATE 검증이 남아 있고 외부 생성은 현재 로컬 수정 범위 밖이므로 보류한다."
+  approved_by: "2026-10-10 사용자 지시: 상태값 unknown인것들 현행화하고 진단 결과에 따라 수정 필요한 사항 있으면 수정 시작"
+  evidence:
+    commit: null
+    items:
+      - id: constraint-1
+        refs:
+          - "thinking-tools/skills/build-spec/SKILL.md"
+          - "thinking-tools/skills/issue-raise/SKILL.md"
+      - id: constraint-3
+        refs:
+          - "thinking-tools/skills/issue-raise/SKILL.md"
+          - "thinking-tools/skills/issue-raise/reference.md"
+  withdrawn: []
+
 goal:
   statement: >
-    build-spec이 Seed를 GitHub 이슈 본문으로 내보내고, 그 저작 과정에서 맹점 패스와
-    독립 게이트 판정과 백로그 조회를 거치게 해서, #282 CUT 이후 하류를 잃은 저작기에
-    실사용 소비자를 붙인다. 수혜자는 이 레포에서 이슈를 여는 사람과, native /goal로
-    스펙 주도 작업을 하는 외부 사용자.
+    build-spec이 백로그 조회·독립 게이트 판정·맹점 패스로 포터블 Seed를 저작하고,
+    사용자 요청에 따라 issue-raise가 이를 GitHub 이슈 본문으로 내보내게 한다.
+    #282/#283으로 철회된 workflow-harness 실행 파이프라인을 복원하지 않으며,
+    수혜자는 이슈를 여는 사람과 Seed를 작업 근거로 쓰는 외부 사용자다.
   clarity_score: 0.90
 
 constraints:
   - id: constraint-1
     type: technical
     description: >
-      새 플러그인이나 새 스킬을 신설하지 않는다. 네 변경 모두 기존 build-spec
-      스킬 안에 얹는다.
+      새 플러그인을 신설하지 않는다. Seed 저작·게이트·맹점 패스·백로그 조회는
+      build-spec이, 이슈 본문 저작·중복 검사·생성 승인은 기존 issue-raise가 소유한다.
     hard: true
     rationale: >
-      #102 ADR의 C-2(thin 신규 플러그인 금지). 새 스킬을 만들면 #113의
-      "3번째 저작 primitive → doc-authoring 플러그인 신설" 트리거가 발동해
-      #140과 정면 충돌한다. 기존 스킬에 얹으면 충돌 자체가 발생하지 않는다.
+      #502가 #407/#140의 새 플러그인 금지와 새 스킬 금지를 구별했다.
+      issue-raise는 format-specific 출력 스킬이며 #113의 세 번째 format-agnostic
+      저작 primitive에 해당하지 않는다. 현행 소유권은 docs/skill-boundaries.md를 따른다.
 
   - id: constraint-2
     type: technical
@@ -46,8 +65,8 @@ constraints:
       지금처럼 포터블한 YAML로 남는다.
     hard: true
     rationale: >
-      SKILL.md Phase 4 원문이 지목하는 vendor-neutral의 실제 대상이 execution
-      runtime이다. 이 제약은 유지된다.
+      docs/design/claude-kit-boundary.md §3의 harness → leaf 단방향 의존이 근거다.
+      build-spec은 실행 하네스 API를 호출하거나 특정 runtime을 요구하지 않는다.
 
   - id: constraint-3
     type: other
@@ -56,26 +75,27 @@ constraints:
       기존 계약 위반이 아니다.
     hard: false
     rationale: >
-      2026-07-21 재검토 결과. docs/design/output-adapter-contract.md §2 row 8이
-      이미 `issue` 포맷과 `github` destination을 등록했고, 같은 행이 "본문 저작은
-      gap → §4 issue-authoring"으로 이 자리를 비워둔 것으로 명시한다. vendor-neutral
-      원칙을 이슈 트래커까지 확장 적용한 것은 범위 혼동이었다.
+      docs/design/output-adapter-contract.md가 `issue` 포맷과 `github` destination을
+      등록하고 #502의 issue-raise가 본문 저작을 소유한다. vendor-neutral 원칙은
+      실행 runtime에 관한 경계이며 이슈 트래커까지 확대하는 것은 범위 혼동이다.
 
   - id: constraint-4
     type: technical
     description: >
       인터뷰 라운드 수를 늘리지 않는다. 맹점 패스는 게이트 통과 직후 Seed 방출 직전
-      1회로 고정한다.
+      최대 1회이며, 선행 Discovery Report가 있으면 중복 패스를 건너뛴다.
     hard: true
     rationale: >
-      12라운드 상한이 이미 있고, 인터뷰가 길어지면 실사용에서 버려진다. 게이트 전에
-      맹점 패스를 넣으면 라운드가 두 배가 되고, 게이트 후 1회는 선명해진 스펙을
-      입력으로 받아 질문이 더 날카로워진다.
+      12라운드 상한과 게이트 후 1회 원칙을 유지한다. unknown-discovery 리포트를
+      feedback으로 받은 경우 중복 패스를 건너뛴다. 맹점 채택 질문은 실제 사용자
+      답변을 기다리며 무응답을 채택·기각이나 완료로 간주하지 않는다.
 
   - id: constraint-5
     type: resource
     description: >
-      게이트 독립 판정은 매 라운드가 아니라 게이트가 열릴 것 같은 라운드에만 건다.
+      게이트 독립 판정은 게이트 통과 임박 라운드에만 건다. 호출 실패·정책 차단·
+      한 번 재요청한 뒤에도 최종 응답이 없으면 자체 채점으로 전환하고,
+      경고와 scoring_isolated: false를 표시한다.
     hard: false
     rationale: >
       서브에이전트 spawn 비용. vault plan-2026-04-19-thinking-tools-ouroboros-execution
@@ -95,29 +115,31 @@ success_criteria:
       그 이슈 URL이 존재한다.
     verifiable: true
     measurable_via: >
-      이슈 URL 하나. 한 번의 도구 호출로 반증 가능(#285 L1). 이 증거 하나가 네 변경
-      전부의 통과를 함의한다 — 어댑터가 없으면 본문이 안 나오고, 맹점 패스와 독립
-      판정이 없으면 게이트가 안 열리고, 백로그 조회가 없으면 충돌 기록이 비어 있다.
+      사용자 생성 승인 뒤 issue-raise가 반환한 이슈 URL. URL 존재는 생성만 증명하므로
+      필드 매핑·백로그 결과·판정 출처는 acceptance-2~acceptance-4로 따로 확인한다.
+      gh 부재·GitHub remote 부재의 초안 파일 fallback은 이 기준 충족이 아니다.
 
   - id: acceptance-2
     description: >
-      그 이슈 본문에 Seed의 goal / constraints / success_criteria가 각각 배경·스코프 /
-      제약 / Acceptance로 매핑돼 있다.
+      이슈 본문에 Seed의 goal / constraints / success_criteria가 실제 레포 템플릿의
+      의미와 순서에 맞게 매핑돼 있다. 별도 Acceptance 헤더가 없으면 가장 가까운
+      기존 절에 체크리스트를 넣고, 템플릿에 없는 헤더를 만들지 않는다.
     verifiable: true
     measurable_via: 이슈 본문과 Seed YAML 대조
 
   - id: acceptance-3
     description: >
-      저작 과정에서 Phase 0이 열린 이슈 백로그를 조회했고, 기존 이슈와의 충돌 또는
-      무충돌 판정이 본문에 기록됐다.
+      build-spec Phase 0과 issue-raise Phase 1이 열린·닫힌 백로그를 조회하고,
+      충돌·무충돌 결과 또는 SKIPPED/PARTIAL 원문을 각 산출물에 기록했다.
     verifiable: true
-    measurable_via: 이슈 본문의 기존 이슈 참조 항목 존재 여부
+    measurable_via: Seed context.backlog_scan과 이슈 초안·출력의 중복 검사 결과 대조
 
   - id: acceptance-4
     description: >
-      게이트 판정이 격리 서브에이전트에서 나왔고 STATE 블록에 그 사실이 기록됐다.
+      게이트 판정 출처가 STATE의 scoring_isolated에 기록됐다. 격리 판정을 받을 수
+      없을 때는 자체 채점 경고와 false가 함께 표시돼 격리 성공과 구별된다.
     verifiable: true
-    measurable_via: STATE 블록의 판정 출처 필드
+    measurable_via: 격리 성공·실패 흐름의 STATE와 게이트 직전 경고 대조
 
   - id: acceptance-5
     description: 등록된 가드와 테스트가 전수 통과한다.
@@ -127,18 +149,21 @@ success_criteria:
 context:
   existing_stack:
     - thinking-tools/skills/build-spec (SKILL.md, reference.md, templates/)
-    - gh CLI (이슈 생성)
-    - thinking-tools/skills/unknown-discovery (맹점 패스 재사용)
+    - thinking-tools/skills/issue-raise (이슈 저작·생성 승인·gh 또는 파일 fallback)
+    - gh CLI (이슈 생성·백로그 조회)
+    - thinking-tools/skills/unknown-discovery (Discovery Report feedback 시 맹점 패스 생략)
     - Agent tool (격리 판정 서브에이전트)
   dependencies:
     - docs/design/output-adapter-contract.md §2 row 8 — issue 포맷·github destination 계약
     - docs/design/claude-kit-boundary.md §3 — leaf 내부 스킬 간 호출 허용 근거
-    - rules/RULES.md §3 — haiku verifier 유예 조항, 이 이슈가 승격 조건 충족 사례
+    - thinking-tools/reference/seed-lifecycle.md — metadata 선행·승인·기존 Seed 적용 계약
+    - thinking-tools/reference/codex-portability.md — native 질문 응답 대기, 무응답은 답변 아님
   integration_points:
-    - Phase 0 — 백로그 조회 추가
-    - Phase 2 — 게이트 판정 격리
-    - Phase 3 직전 — 맹점 패스 1회
-    - Phase 3 이후 — 이슈 출력 어댑터 (신규 계층)
+    - build-spec Phase 0 — backlog-prefilter.py로 열린·닫힌 이슈 조회
+    - build-spec Phase 2 — 격리 판정과 명시적 자체 채점 fallback
+    - build-spec Phase 2.5 — 맹점 패스 1회 또는 Discovery Report에 따른 생략
+    - build-spec Phase 3 — issue-raise 호출 제안과 실제 이슈 번호의 issues.tracking 기록
+    - issue-raise Phase 0~3 — metadata 성공 후 Seed 읽기·템플릿 매핑·중복 검사·생성 승인
 
 ambiguity:
   overall: 0.10

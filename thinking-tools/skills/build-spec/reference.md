@@ -465,8 +465,10 @@ in STATE (`"already covered by prior unknown-discovery pass"`), Phase 3.
 - Present all of them in **one** `AskUserQuestion` (multiSelect): keep or dismiss. Kept findings land in
   the Seed's `blindspots:` list; if the user answers one inline, fold that answer into the matching
   constraint or success criterion instead. No new interview round either way.
-- STATE records `blindspot_pass: {done|skipped|pending}` — `pending` until the gate opens, then `done`,
-  or `skipped` when the `Agent` call fails (skip silently in that case). A subagent that returns only
+- STATE records `blindspot_pass: {done|skipped|pending}` — keep `pending` until the user's actual
+  keep/dismiss answer arrives, then `done`; `skipped` when the `Agent` call fails (skip silently
+  in that case). Tool acceptance, empty replies and elapsed time never complete this step.
+  A subagent that returns only
   idle notifications and no final text after one re-request counts as unavailable (#647).
 
 ### 11.7 Phase 3 detail

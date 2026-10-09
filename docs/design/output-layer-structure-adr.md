@@ -17,7 +17,7 @@
 
 핵심 관찰: 기존 ② 출력 자산은 *이미* 서로 다른 곳에 도메인별로 흩어져 있어요. 단 "5개가 5곳에 분산"이라는 단순 서사는 부정확해요 — 단일 통합의 실 비용을 정직하게 보려면 *무엇이 실제로 이동 대상인지*를 구분해야 하거든요.
 
-| ② 출력 자산 | 현재 물리 위치 | 도메인 | 단일 통합 시 성격 |
+| ② 출력 자산 | 결정 당시 물리 위치 (2026-06-04) | 도메인 | 단일 통합 시 성격 |
 |------------|---------------|--------|------------------|
 | graphify(html) | **user-level 스킬** (`~/.claude/skills/graphify/`, claude-kit 마켓플레이스 **미등록**) | 시각화 | *이동 아님* — 신규 채택 여부라는 별개 결정 |
 | OVM note | obsidian-vault-manager (vault 도메인 플러그인) | vault 지식 | 도메인 분리 이동 (note↔vault 응집 파괴) |
@@ -25,7 +25,7 @@
 | handoff / save-session | vault-bridge 커맨드 | 세션·딜리버리 (#101 §2: ③ 딜리버리·vault 운반) | *② 아님* — ③ 결합이라 ② 통합 부적합 |
 | gh(issue) | 외부 CLI | GitHub (전송=gh 외부 / 본문 *저작*=issue-authoring ② leaf, #133) | *이동 아님* — 외부 전송 도구 |
 
-> **이동 대상의 실제 범위 (정직성)**: claude-kit 마켓플레이스 플러그인은 **3개**(thinking-tools · obsidian-vault-manager · vault-bridge)뿐이에요. graphify는 user-level 스킬이라 단일 통합 시 "이동"이 아니라 "신규 채택"이고, gh는 외부 도구, handoff/save-session은 #101 §2가 vault-bridge 커맨드/③ 딜리버리로 귀속해요. 즉 단일화의 *실질 이동 대상*은 thinking-tools의 doc-concretize/doc-polish/build-spec(± OVM note) 정도로 좁아요. 이 좁은 집합이 §2.2 단일 반증의 정직한 입력이에요 — 비용은 "5곳 통합"보다 작지만, *바로 그 좁음*이 C-2 위반으로 이어진다는 게 §2.2의 핵심이에요.
+> **결정 당시 이동 범위와 현행 배포**: 위 표는 당시 3개 플러그인에 대한 비용 비교예요. 6.0.0은 `feedback-loop`까지 **4개**를 배포하고, `note`/`capture`는 vault-bridge `vault-save`로 통합됐으며 `handoff`/`save-session`은 폐기됐어요. `issue-raise`는 thinking-tools에 있어요. 현행 소유권은 [skill-boundaries.md](../skill-boundaries.md), 출력 매핑은 [output-adapter-contract.md](output-adapter-contract.md) §2를 참조해요. 분산 결정과 그 근거는 유지해요.
 
 work_type = decision-only예요 → 산출 = **결정 + 근거 ADR, 코드 없음**(#102 Acceptance: "결정 + 근거 ADR"). 이 ADR이 실행(파일 이동·스캐폴딩)을 하는 게 아니라 *어느 물리 구조를 채택할지*만 못박아요.
 
@@ -107,7 +107,7 @@ G3 goal-doc(line 33 — #108 wave의 로컬 작업물이라 비커밋, 상단 "�
 | **#124 (diverse-sampling Mode B → doc-concretize 하위호출 경로)** | #102 → #103 (2차 의존) | 분산 + #103 in-place reframe → diverse-sampling→doc-concretize가 **intra-plugin Skill 호출**(둘 다 thinking-tools)이라 #124 크로스플러그인 의존 우려 *소멸*(G3 쟁점표 line 60). 단 호출 경로 라인은 #103 행선지 확정값에 종속(머지 후 박제)이라 **#102 직접 게이트 아님 — #103 경유 2차 의존** | **대기 — #103 머지 후 경로 확정(placeholder 미잔존 검증)** |
 | **#111-4 (build-spec 물리 분리)** | #102 | 분산/흡수 결정 → standalone 플러그인 신설 = 껍데기 → **폐기**(G2 쟁점 표 #111-4: "분산/흡수면 폐기"; (b)보류 → 폐기 확정). build-spec는 현 위치(`thinking-tools/skills/build-spec`) 유지, plugin.json/marketplace.json 등록·디렉토리 레이아웃·버전 동기화 불필요 | **폐기 확정 — 게이트 해소** |
 | **#138 (mirror drift 가드 위치)** | #102(논리적 영향) · 형식 Refs #101/#133/#134 | 분산 → issue-authoring 소유권 분할 거울 표가 두 doc에 물리 분산 유지 → grep 기반 drift 가드가 적합. **후속(2026-07-21)**: 거울의 다른 쪽(#133 문서)이 #282/#283으로 삭제돼 `output-adapter-contract.md` §5.2가 단일 출처가 됐어요 — drift 가드 필요 자체가 소멸 | **해소 — 거울이 없어져 가드 불필요** |
-| **issue-authoring 빌드 위치** | #102 + #133(② 귀속 firm) | 분산 → ② 출력 leaf 귀속은 #133 firm이나 *물리적으로 어느 플러그인에 빌드*할지는 thin 신규 금지(C-2) 하에 기존 ② 도메인 플러그인 후보로 별도 후속 결정. #133=귀속 판정만, 빌드 위치=미정 | **대기 — 빌드 시 위치 후속(C-2 적용)** |
+| **issue-authoring 빌드 위치** | #102 + #133(② 귀속 firm) · #407/#502 | thinking-tools의 `issue-raise`가 이슈 저작·파일링을 소유하고, build-spec은 Seed 저작 후 사용자가 요청하면 인계해요. 별도 플러그인은 만들지 않아요. | **해소 — thinking-tools 내 분산 유지** |
 
 ---
 
