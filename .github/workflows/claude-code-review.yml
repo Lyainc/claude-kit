@@ -43,6 +43,8 @@ jobs:
           # check-trigger-regression.py's origin/main diff (validate.yml needs the same).
           fetch-depth: 0
 
+      - uses: astral-sh/setup-uv@v6
+
       # Read before the review runs, so the verify step below counts only THIS round's
       # comments. A plain "does the PR have a claude comment" count passes on every
       # `synchronize` re-run as soon as round 1 left one behind — which turns the guard
