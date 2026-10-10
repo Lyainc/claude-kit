@@ -499,6 +499,8 @@ python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 # generator loads old JSON. Its final content must match a full scan. Also covers
 # replacement/deletion during loading, unchanged cache reuse, add/change/delete,
 # subsecond mtimes, absent/corrupt cache recovery, and --force cache bypass.
+# Edits between scanning and saving must be seen by the next incremental run,
+# including subsecond edits, a late stale writer, and legacy fingerprint migration.
 python3 vault-bridge/scripts/test/test-manifest-freshness.py
 
 # vault-bridge manifest-candidates regression (#523, mirrors #468's OVM test-manifest-reads.py)
