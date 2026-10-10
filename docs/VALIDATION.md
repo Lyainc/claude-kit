@@ -12,6 +12,10 @@ keep that heading text and the fence intact if you edit this file.
 ## Validation
 
 ```bash
+# #817: one copied plugin at a time, isolated HOME/env/cwd, actual script exits/output.
+uv run --no-project python3 scripts/check-isolated-plugins.py
+# Expected: Copied-package deterministic validation: PASS; native install/discovery and guidance invocation: UNVERIFIED
+
 # JSON 유효성 검사
 python3 -m json.tool .claude-plugin/marketplace.json > /dev/null
 python3 -m json.tool thinking-tools/.claude-plugin/plugin.json > /dev/null
@@ -1360,3 +1364,102 @@ never report a simulated or accepted submission as a human answer.
 | Multi-select keep/dismiss with only single-choice support | Separate item choices or free-text item IDs, preserving independent decisions |
 | Explicit prior answer/approval already covers the question | Reuse it within its scope without repeated confirmation |
 | Optional clarification versus required approval | Respect tool-purpose restrictions; optional runtime fallback is not an interview answer or approval |
+
+## Isolated standalone packages (#817)
+
+`uv run --no-project python3 scripts/check-isolated-plugins.py` is the local and CI
+entrypoint. It runs its classification self-tests, copies **one plugin at a time** into
+its own temporary standalone directory, and removes that directory before the next copy.
+Each script runs from a separate non-Git consumer directory with an empty HOME, explicit
+environment, isolated Git/GitHub configuration, and an executable-only PATH. No neighboring
+plugin, repository, local-harness or developer configuration is on those execution paths.
+The checker remains a repository validation tool; the deployed scripts receive only their
+own plugin package and disposable consumer fixtures. It does not install plugins or use
+network/model calls. Required host executables are Python, Bash, Git, jq and the fixture's
+standard shell tools; GitHub CLI auth is checked locally when `gh` is installed.
+
+The packaged reference check covers `skills/`, `reference/`, `templates/`, `hooks/`,
+`agents/` and the two plugin manifests. Explicit `${CLAUDE_PLUGIN_ROOT}` asset paths,
+relative Markdown `.md` links, and backticks used as read/apply locators must resolve
+inside the copied package. Relative links use the containing file; plugin-surface
+backticks also accept the plugin root. The expert-panel worker's `SKILL.md` and
+`reference.md` inputs resolve against its explicitly supplied expert-panel skill directory.
+An existing target outside the package fails containment. A missing binding reference is
+injected into every copy and the checker is executed against that copy: **exit 1** is
+required. Self-tests include both positive and negative classifications, mixed binding and
+historical references on the same line, missing files and external containment.
+
+This is scoped classification, not a general Markdown/shell interpreter. Historical or
+background reference clauses, example/rationale bodies, consumer `CLAUDE.md`/`AGENTS.md`/
+`README.md`, output `docs/specs/` paths, URLs, variable/generated paths, and optional
+cross-plugin skill calls are excluded. A binding `Read ../../../docs/policy.md` locator is
+included even though an output `docs/specs/new.md` path is excluded. Computed script imports,
+all prose phrasings, link anchors and LLM compliance are not covered. Existing
+`check-plugin-root-paths.py` and `check-skill-reference-drift.py` remain source guards; this
+entrypoint adds package existence/containment and does not read their external consumer roots.
+
+| Copied package / case | Actual script result asserted |
+|---|---|
+| Every package, no Git repository | `git rev-parse` exit 128, explicit non-repository error |
+| Every package, real `gh` present with isolated config | `gh auth status` exit 1, not logged in |
+| thinking-tools, unavailable backlog | `backlog-prefilter.py` exit 0 with `SKIPPED`, not a clean scan |
+| thinking-tools, consumer template absent / present | `issue-template.py` exit 1 with `[]` / exit 0 with one discovered template |
+| OVM, no vault / existing vault without manifest | `manifest-summary.py` exit 3, stderr `manifest unusable`, no successful JSON |
+| OVM, generated fixture / real zero manifest | Existing `gen-fixture.sh` and `ovm-primitives.sh scan-frontmatter` exit 0 with at least 200 records / summary exit 0 with `file_count: 0` |
+| vault-bridge, no vault | Startup hook exit 0 with a notice; vault directory remains absent |
+| vault-bridge, absent manifest / empty vault / populated vault | Keyword candidates exit 3 / exit 0 with zero / exit 0 with one matching note after the real generator runs |
+| feedback-loop, no repository or events | Report exit 0 with `No events matched`; telemetry stamp still works from consumer CWD |
+| feedback-loop, unavailable backlog / successful zero | Cache helper exit 1 with `FAILED` / exit 0 with `[]` from an explicitly labeled deterministic API fixture |
+| feedback-loop, locally logged event | Real event logger and report exit 0; report JSON contains `total: 1` |
+
+Successful-zero GitHub data uses a tiny `gh issue list` response fixture; it is not a live
+GitHub query or authentication claim. All other results above come from real copied scripts.
+Output includes exit codes and stdout/stderr previews; assertions inspect full output.
+
+### Separate opt-in native guidance check
+
+Keep four evidence layers separate: source/static checks; copied-package script execution;
+native installation/discovery; and native guidance invocation. The deterministic command
+proves the first two for its stated scope and always labels the last two **UNVERIFIED**.
+Static prose pins and successful fixture scripts do not prove a model followed the contract.
+
+For a bounded native check, create a fresh temporary consumer directory and temporary
+HOME/runtime configuration (`CODEX_HOME` for Codex). Copy/install only the selected plugin,
+use an explicitly authorized authentication route, and capture fresh discovery plus invocation
+records. Do not write to the user's installed cache, shared config, vault, Seeds or real GitHub
+issues. Invoke an actual discovered skill when testing a skill; explicitly reading an agent
+source file tests source guidance, not native agent discovery. Inspect tool events as well as
+final text, keeping unavailable telemetry/backlog distinct from zero. Repeat OVM alone and
+OVM with vault-bridge: require a complete path/frontmatter/body draft without a runnable save
+command in the first case, and preserved commands only when fresh discovery lists the bridge
+skill in the second. Invoke installed feedback-loop retro with no repository/auth/telemetry
+and verify the inline safety contract and unavailable-data guidance. Remove any copied auth
+material from retained evidence. Model/API use makes this opt-in, separate from CI.
+
+After installing the selected copied package into the disposable runtime home, use the
+same empty consumer directory for discovery and guidance. These commands assume
+`runtime_home`, `consumer`, and `package` name only disposable paths; authentication is
+prepared separately without loading personal settings. Do not use the real user HOME.
+
+```bash
+HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex debug prompt-input \
+  'standalone discovery probe' > "$consumer/discovery.json"
+HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex exec --ephemeral \
+  --skip-git-repo-check --sandbox read-only --json -C "$consumer" \
+  '$feedback-loop:retro Inspect this conversation only: pytest failed three times with identical ImportError, then import fixed. No Git repo, GitHub authentication, vault or manifest exists here. Return the supported result and issue prerequisites. No writes, issue creation, network tools or telemetry calls.'
+HOME="$runtime_home" CODEX_HOME="$runtime_home/.codex" codex exec --ephemeral \
+  --skip-git-repo-check --sandbox read-only --json -C "$consumer" \
+  "Read the complete $package/agents/vault-knowledge-manager.md and follow it: draft a short Redis note from this source: product queries cache for 60 seconds; change events delete the key. Return a complete Korean draft and handoff based only on discovered skills. No writes, save-skill invocation or network tools."
+```
+
+Run the retro and OVM commands in their respective single-plugin homes. Repeat only the OVM
+command in a separate home with vault-bridge also installed to check its optional handoff.
+
+A bounded Codex check on 2026-10-10 observed native skill installation/discovery for OVM
+alone, OVM with vault-bridge and feedback-loop alone. Installed retro was actually invoked;
+OVM's knowledge-manager agent source was explicitly read because that agent was not natively
+discovered. The OVM-alone response returned a complete draft without a runnable save command;
+the bridge case preserved `/vault-save --type decision` only after discovered availability.
+Retro reported telemetry unavailable and backlog deduplication unknown with missing Git/GH
+prerequisites. These records are behavioral snapshots, not an automated guarantee across all
+19 skills or all runtimes. Native OVM agent discovery and Claude guidance remain unverified.
