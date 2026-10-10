@@ -495,6 +495,12 @@ python3 vault-bridge/scripts/generate-manifest.py --self-test
 # vault-bridge manifest type opt-in regression (v4 §2.2)
 python3 vault-bridge/scripts/test/test-manifest-type-optin.py
 
+# Manifest JSON/mtime race (#844): inject a second atomic write after the first
+# generator loads old JSON. Its final content must match a full scan. Also covers
+# replacement/deletion during loading, unchanged cache reuse, add/change/delete,
+# subsecond mtimes, absent/corrupt cache recovery, and --force cache bypass.
+python3 vault-bridge/scripts/test/test-manifest-freshness.py
+
 # vault-bridge manifest-candidates regression (#523, mirrors #468's OVM test-manifest-reads.py)
 # — vault-searcher.md used to `Read` the whole manifest, overflowing the Read tool's 2,000-line
 # cap and silently dropping 100% of wiki/ entries (alphabetically sorted last by
