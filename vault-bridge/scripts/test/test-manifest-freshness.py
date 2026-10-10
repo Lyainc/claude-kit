@@ -107,6 +107,71 @@ class ManifestFreshnessTests(unittest.TestCase):
         self.assertEqual(stats["updated"], 1)
         self.assert_matches_full_scan(actual)
 
+    def test_edit_during_generation_is_seen_by_next_incremental_run(self):
+        for force in (False, True):
+            with self.subTest(force=force):
+                self.write_note(self.source, "Old", "Original body", self.stamp)
+                self.refresh(force=True)
+                os.utime(self.out, (self.stamp + 1, self.stamp + 1))
+                real_write = manifest_module._atomic_write_text
+
+                def edit_then_save(path, text, write=real_write):
+                    # main has finished scanning. The edit precedes the next request
+                    # but is older than the completed manifest's filesystem mtime.
+                    self.write_note(self.source, "Changed", "New body [[target]]",
+                                    self.stamp + 2)
+                    write(path, text)
+                    os.utime(path, (self.stamp + 3, self.stamp + 3))
+
+                argv = [str(SCRIPT), "--vault-root", str(self.vault)]
+                if force:
+                    argv.append("--force")
+                with mock.patch("sys.argv", argv), \
+                     mock.patch.object(manifest_module, "_atomic_write_text",
+                                       side_effect=edit_then_save):
+                    manifest_module.main()
+                self.assertEqual(json.loads(self.out.read_text())["files"][0]["title"], "Old")
+                self.assertLess(self.source.stat().st_mtime, self.out.stat().st_mtime)
+
+                actual, stats = self.refresh()
+                self.assertEqual(stats["updated"], 1)
+                self.assertEqual(actual["files"][0]["title"], "Changed")
+                self.assert_matches_full_scan(actual)
+
+    def test_subsecond_edit_older_than_manifest_is_not_cached(self):
+        self.write_note(self.source, "Old", "Original body", self.stamp + .25)
+        self.refresh(force=True)
+        os.utime(self.out, (self.stamp + 1, self.stamp + 1))
+        self.write_note(self.source, "Changed", "New body", self.stamp + .5)
+        self.assertEqual(int(self.source.stat().st_mtime), self.stamp)
+        actual, stats = self.refresh()
+        self.assertEqual(stats["updated"], 1)
+        self.assert_matches_full_scan(actual)
+
+    def test_legacy_entries_are_rebuilt_once(self):
+        cached = json.loads(self.out.read_text())
+        for entry in cached["files"]:
+            entry.pop("mtime_ns", None)
+        manifest_module._atomic_write_text(self.out, json.dumps(cached))
+        actual, stats = self.refresh()
+        self.assertEqual(stats["updated"], 2)
+        self.assert_matches_full_scan(actual)
+        with mock.patch.object(manifest_module, "_build_entry",
+                               wraps=manifest_module._build_entry) as build:
+            self.refresh()
+        self.assertEqual(build.call_count, 0)
+
+    def test_late_old_writer_does_not_hide_edit_from_next_request(self):
+        old, _ = manifest_module.generate(self.vault, self.out, True)
+        self.write_note(self.source, "Changed", "New body [[target]]", self.stamp + 2)
+        latest, _ = self.refresh(force=True)
+        self.assertEqual(latest["files"][0]["title"], "Changed")
+        manifest_module._atomic_write_text(self.out, json.dumps(old))
+        os.utime(self.out, (self.stamp + 3, self.stamp + 3))
+        actual, stats = self.refresh()
+        self.assertEqual(stats["updated"], 1)
+        self.assert_matches_full_scan(actual)
+
     def test_force_does_not_consult_cache_or_cutoff(self):
         self.write_note(self.source, "Changed", "Changed body", self.stamp + 2)
         with mock.patch.object(manifest_module, "_load_existing_manifest",
