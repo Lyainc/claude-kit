@@ -205,6 +205,7 @@ jobs:
           python3 vault-bridge/scripts/test/test-pre-write-guard.py
           python3 vault-bridge/scripts/test/test-vault-path.py
           python3 vault-bridge/scripts/test/test-manifest-type-optin.py
+          python3 vault-bridge/scripts/test/test-manifest-freshness.py
           python3 vault-bridge/scripts/test/test-manifest-candidates.py --self-test
           python3 vault-bridge/scripts/test/test-manifest-candidates.py
           python3 vault-bridge/scripts/test/test-manifest-meta.py

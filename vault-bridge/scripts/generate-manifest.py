@@ -413,6 +413,9 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
         entry.pop("access_count", None)
         return entry
 
+    # Capture the cutoff before JSON: a replacement must not lend its newer mtime
+    # to cached older entries (#844).
+    manifest_mtime = 0.0 if force else _manifest_mtime(out_path)
     existing = None if force else _load_existing_manifest(out_path)
 
     if existing is None:
@@ -443,8 +446,6 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
         # In-place upgrade (older schema_version): unchanged entries are kept
         # and always re-enriched, because global meta fields depend on the
         # whole vault rather than the single file's mtime.
-        manifest_mtime = _manifest_mtime(out_path)
-
         existing_by_path: dict[str, dict] = {e["path"]: e for e in existing.get("files", [])}
 
         updated_count = 0
