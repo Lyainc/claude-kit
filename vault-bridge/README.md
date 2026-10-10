@@ -85,7 +85,7 @@ Without a manifest, loading vault context requires reading 20+ files at ~50 KB e
 {
   "generated_at": "2026-04-18T14:32:00+09:00",
   "vault_root": "/Users/Lyainc/vault",
-  "schema_version": 1,
+  "schema_version": 4,
   "file_count": 142,
   "files": [
     {
@@ -97,6 +97,7 @@ Without a manifest, loading vault context requires reading 20+ files at ~50 KB e
       "title": "W10 — vault-bridge Value Proposition & Enforcement",
       "summary": "Phase A manifest generator spec — token cost reduction via compressed metadata index.",
       "mtime": 1747612320,
+      "mtime_ns": 1747612320123456789,
       "size_bytes": 4820
     }
   ]
@@ -115,7 +116,12 @@ Without a manifest, loading vault context requires reading 20+ files at ~50 KB e
 | `title` | first `# H1` in body | Filename stem fallback |
 | `summary` | first body paragraph | Truncated at 200 chars |
 | `mtime` | filesystem | Unix epoch (seconds) |
+| `mtime_ns` | filesystem | Entry's observed file mtime in nanoseconds; cache freshness check |
 | `size_bytes` | filesystem | File size in bytes |
+
+`mtime` remains integer Unix seconds. The additive `mtime_ns` field records the
+file timestamp observed when building that entry, so an edit during generation
+is detected by the next incremental refresh. Entries without it are re-read once.
 
 ### Trigger strategy
 
@@ -124,8 +130,8 @@ The manifest is regenerated automatically via the **SessionStart hook** (`hooks/
 | Condition | Action |
 |-----------|--------|
 | `manifest.json` absent | Full scan (generate from scratch) |
-| Any vault file mtime > manifest mtime | Incremental update (changed files only) |
-| `schema_version` mismatch | Full scan |
+| File mtime > manifest mtime, or entry `mtime_ns` differs/is absent | Re-read that file during incremental update |
+| Older `schema_version` | In-place upgrade; entries without `mtime_ns` are re-read |
 | `/vault-manifest-refresh` invoked | Full scan (`--force`) |
 
 The hook runs the Python generator in the background (10 s kill guard). Session startup is never blocked.

@@ -284,6 +284,7 @@ def _build_entry(rel_path: str, abs_path: Path, vault_root: Path) -> dict:
         "title": title,
         "summary": summary,
         "mtime": mtime,
+        "mtime_ns": stat.st_mtime_ns,
         "size_bytes": size_bytes,
     }
 
@@ -454,11 +455,15 @@ def generate(vault_root: Path, out_path: Path, force: bool) -> dict:
 
         for rel, abs_path in sorted(md_files.items()):
             try:
-                file_mtime = abs_path.stat().st_mtime
+                file_stat = abs_path.stat()
+                file_mtime = file_stat.st_mtime
             except OSError:
                 continue
 
-            if rel in existing_by_path and file_mtime <= manifest_mtime:
+            # Saving the manifest after an edit does not make its cached entry fresh.
+            # Missing fingerprints in older manifests conservatively trigger a rebuild.
+            if (rel in existing_by_path and file_mtime <= manifest_mtime
+                    and existing_by_path[rel].get("mtime_ns") == file_stat.st_mtime_ns):
                 existing_entry = existing_by_path[rel]
                 if existing_entry.get("type", "unknown") == "unknown":
                     continue  # safety net for manually-edited older manifests
