@@ -107,7 +107,10 @@ claude-kit의 vault 관련 동작 전체를 관통하는 두 원칙이에요. CL
 
 ### 5. 헌법 / 정책 분리 — 규칙 단일 출처
 
-아래 두 목록이 claude-kit 동작 규칙의 **단일 출처**예요. #125(3-tier 규칙 시스템)는 이 목록을 *참조만* 하고 (1) 3-tier 레이어 구조 + (2) 안전판 4종만 별도로 다뤄요. 각 tier가 override 가능한 범위 = **정책(policy)** 항목에 한하고, **헌법(constitutional)** 항목은 어느 tier(default / user-global / project-local)도 override 불가예요.
+아래 두 목록이 저장소 설계 규칙의 **단일 출처**예요. 배포되는 retro의 실행 안전 계약은
+[`feedback-loop/skills/retro/SKILL.md`의 Boundary & safety](../../feedback-loop/skills/retro/SKILL.md#boundary--safety-constitutional--do-not-relax)가 소유해요.
+이 문서는 그 계약을 복제하지 않으며 retro 실행에 필요한 입력도 아니에요.
+#125(3-tier 규칙 시스템)는 이 목록을 *참조만* 하고 (1) 3-tier 레이어 구조 + (2) 안전판 4종만 별도로 다뤄요. 각 tier가 override 가능한 범위 = **정책(policy)** 항목에 한하고, **헌법(constitutional)** 항목은 어느 tier(default / user-global / project-local)도 override 불가예요.
 
 #### Constitutional rules (immutable — harness·config 어느 쪽도 override 불가)
 

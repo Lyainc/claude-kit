@@ -32,13 +32,24 @@ and does its own worth-keeping judgment).
 
 ## Boundary & safety (constitutional — do not relax)
 
-Single source of truth: [`docs/design/claude-kit-boundary.md`](../../../docs/design/claude-kit-boundary.md) §5.
+This section is the canonical retro safety contract, shipped inside this plugin.
+Repository design documents refer here; they are not required runtime inputs.
 
 - **CON-5 one-way dependency**: `retro` only *reads* leaf artifacts (telemetry
   output) and *invokes* leaf capabilities via `gh`. It NEVER modifies
   leaf-plugin code and nothing in a leaf depends back on `retro`.
 - **User-confirmed gate (silent forbidden)**: issue filing is proposed as a
   candidate and applied ONLY on explicit user confirmation.
+- **Read-only scope**: zero vault writes and zero rule-file edits; the only applied
+  output is a GitHub issue. Route other requests directly to their owning skill.
+
+Git/GitHub are needed only for issue deduplication and filing. Before those steps,
+use Bash to check the consumer repository (`git rev-parse --show-toplevel`), its GitHub
+remote, and `gh auth status`. If any is unavailable, report the missing prerequisite
+and keep the observed-waste report available. A failed issue lookup is unknown, never
+zero open issues or proof of no duplicate; do not file until dedup can be checked or
+the user explicitly confirms proceeding with that uncertainty. No vault or manifest
+is needed for conversation-only collection.
 
 ## Phase 1 — COLLECT (gather + dedup)
 
@@ -112,9 +123,4 @@ Single source of truth: [`docs/design/claude-kit-boundary.md`](../../../docs/des
 
 ## Rules
 
-- Silent issue filing is FORBIDDEN — user-confirmed.
-- `retro` performs zero vault writes and zero rule-file edits — a git issue is
-  its only output. Session insights and rule candidates route through
-  `/vault-save`/`/wiki` and `/distill` directly, not via `retro`.
 - Dedup before filing.
-- CON-5: read leaf artifacts only; never modify leaf-plugin code; no reverse dependency.

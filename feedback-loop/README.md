@@ -201,6 +201,7 @@ macOS by default — don't introduce it without re-checking the size guard.
 distributed (deployment unit ≠ layer). It only **reads leaf OUTPUT** — audit
 findings, the vault-bridge manifest, telemetry events — and **invokes** leaf
 capabilities via user-initiated slash commands. It never modifies leaf-plugin
-code, and no leaf depends back on it. The single source of truth for the boundary
-is [`docs/design/claude-kit-boundary.md`](../docs/design/claude-kit-boundary.md)
-§3 / §5.
+code, and no leaf depends back on it. The canonical retro execution safety contract
+is [Boundary & safety in the packaged skill](skills/retro/SKILL.md#boundary--safety-constitutional--do-not-relax).
+The repository's [design boundary](../docs/design/claude-kit-boundary.md) §3 / §5
+provides architectural background, not a required runtime input.
