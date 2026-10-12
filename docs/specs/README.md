@@ -10,9 +10,9 @@ not proof of installed plugin contents or live runtime behavior.
 authoring. They are preserved when correcting a contract; they are not rewritten
 to the compatibility baseline. Constraint and acceptance IDs are also preserved.
 
-All ten repository Seeds now carry explicit lifecycle decisions following the user's
+All eleven repository Seeds now carry explicit lifecycle decisions following the user's
 request to refresh unknown states and fix diagnosed defects: **5 active, 4 paused,
-1 closed/discontinued, 0 unknown, 0 completed**. Each Seed records the actual user
+1 closed/discontinued, 1 closed/completed, 0 unknown**. Each Seed records the actual user
 instruction, decision reason and selected source/test references. These references
 are partial evidence; static contracts and fixtures do not prove live acceptance.
 Rule and persona correction evidence pins implementation commit
@@ -28,9 +28,9 @@ when applying requirements or resuming paused work.
 | [build-spec-workflow-integration](build-spec-workflow-integration.yaml) | paused | Main-agent interview and `issue-raise`; acceptance-1–4 still need an approved real issue and authoring-session URL/body/backlog/STATE evidence |
 | [claude-kit-work-rules](claude-kit-work-rules.yaml) | active | `rules/RULES.md` and repository guards; reminder correction is committed with regression coverage, full registered suite is unrun, and constraint-8 rule liveness remains partial |
 | [expert-panel-delegated-mode](expert-panel-delegated-mode.yaml) | active | `expert-panel` and its worker; acceptance-1–2 need controlled total-cost/quality comparison and actual worker/relay/file traces |
-| [obsidian-bases-custom-views](obsidian-bases-custom-views.yaml) | closed/completed | #762; natural-language and explicit filter/sort input, new-file safety and four workload views; verified commit and item evidence are in the Seed |
 | [harness-doctor](harness-doctor.yaml) | paused | Optional external local-harness; a refined generation alone does not establish original completion or discontinuation |
 | [harness-doctor-v2](harness-doctor-v2.yaml) | paused | External doctor; actual installed SessionStart behavior and full-target latency remain unverified |
+| [obsidian-bases-custom-views](obsidian-bases-custom-views.yaml) | closed/completed | #762; natural-language and explicit filter/sort input, new-file safety and four workload views; verified commit and item evidence are in the Seed |
 | [seed-relations-graph](seed-relations-graph.yaml) | active | `seed-relations.py` and `seed-lifecycle.py`; acceptance-2/7/10 need actual consumer/predecessor/Refine traces beyond deterministic fixtures |
 | [thinking-tools-code-reviewer](thinking-tools-code-reviewer.yaml) | closed/discontinued | Retired in #593; methodology moved to `requirement-gap-reviewer` with `seed-diff-grading.md`. This is retirement, not proof that acceptance-3–6 passed |
 | [thinking-tools-persona-library](thinking-tools-persona-library.yaml) | active | Shared original-input selection in `reference/personas.md`; acceptance-2/3/5 need actual session STATE/off-pool/consumer comparisons; acceptance-6 documentation is corrected |
@@ -64,7 +64,7 @@ bytes, exit 0 and 59.056 ms without a budget skip; it is not full installed-mach
 SessionStart latency proof. External source, installed copies and personal settings
 were preserved.
 
-No Seed is marked completed. Full registered-suite execution, real issue creation,
+No Seed other than `obsidian-bases-custom-views` is marked completed. Full registered-suite execution, real issue creation,
 actual vault migration, fresh runtime interviews and installed-plugin behavior are
 not established by this local diagnosis. Missing recorded `issues.source` fields
 remain visible diagnostics; no issue association or approval was invented.

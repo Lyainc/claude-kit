@@ -27,7 +27,7 @@ Interpret the request as text, never as a shell command:
 
 ## Custom Views
 
-Use only user-supplied or explicitly confirmed conditions. Reference note properties as `note.<key>` or bare `<key>`, never `property.<key>`. Keep expressions as YAML strings and escape their YAML quotes without changing the expression. Compose AND/OR from the stated meaning. Place the **whole** custom condition under a global `and` alongside `file.hasProperty("type")`, so an OR branch cannot bypass the guard.
+Use only user-supplied or explicitly confirmed conditions. Reference note properties as `note.<key>` or bare `<key>`, never `property.<key>`; names with `-`, spaces, or non-ASCII need `note["status-since"]` (see `reference/obsidian-bases-schema.md`). Keep expressions as YAML strings and escape their YAML quotes without changing the expression. Compose AND/OR from the stated meaning. Place the **whole** custom condition under a global `and` alongside `file.hasProperty("type")`, so an OR branch cannot bypass the guard.
 
 Display `file.name` plus the referenced filter/sort properties, or user-specified columns. Do not add folder restrictions, status values, date cutoffs, missing-property exclusions, or tie-break sorts. Missing sort values follow Obsidian's ordering; disclose that no exclusion was added. Custom `status` values are permitted when supplied by the user. They do not restore the abolished built-in status machine or its old templates.
 

@@ -37,6 +37,8 @@ property 참조 방식은 세 가지예요. `property.` 접두어는 **없어요
 
 접두어를 생략하면 note property로 해석돼요.
 
+`-`·공백이 들어가거나 한글 같은 비ASCII 이름처럼 일반 식별자가 아닌 property는 점 표기나 접두어 생략형이 안 돼요. 대괄호 표기 `note["status-since"]`, `note["상태"]`로 써요.
+
 | 패턴 | 예시 | 의미 |
 |------|------|------|
 | 동등 비교 | `'note.type == "capture"'` | type이 capture인 노트 |
