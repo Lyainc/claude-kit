@@ -5,7 +5,7 @@ model: inherit
 allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 ---
 
-**User language:** dialogue is Korean by default, English if the user writes English. Artifact language: reference.md §0 (binding).
+**User language:** Korean dialogue, English if the user writes English. Artifact language: reference.md §0 (binding).
 
 ## Codex Portability
 
