@@ -1274,7 +1274,7 @@ def check_walk_fuzz_reachability() -> list[str]:
         seen = {("n0", "start", None)}
         frontier = [("n0", "start", None)]
         reach = {"n0"}
-        for d in range(1, depth + 1):
+        for _ in range(depth):
             new = []
             for node, rel, came in frontier:
                 for field in edges[rel]:
