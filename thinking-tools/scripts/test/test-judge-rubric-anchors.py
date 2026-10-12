@@ -172,7 +172,7 @@ re-query per round, never request full notes.
 _JUDGE_RUBRIC_BLOCK = _normalise("""
 **Judge Rubric** (3 elements per round): Relevance (0–10), Substance (0–10), Completeness (0–10).
 Score delta: 25–30 → +15%, 18–24 → +8%, 10–17 → 0%, 0–9 → −10% per dimension.
-Score every element against these anchors — an unanchored 0–10 scale inflates until everything lands at 8 (#610):
+Score every element against these anchors — an unanchored 0–10 scale inflates until everything lands at 8:
 
 | Score | Anchor |
 |-------|--------|
@@ -198,7 +198,7 @@ Survival Score = (Logical Integrity × 0.30) + (Evidence × 0.25) + (Counter-res
 
 All dimensions start at 50%. Score updates after every Judge evaluation. Display as qualitative resilience band (탄탄/보통/취약) in STATE block.
 
-The Judge Rubric anchors buy judging consistency; they do NOT make Survival Score a measurement — the 50% start is still arbitrary (#610). Read the score as a resilience band, never as a measured quantity.
+The Judge Rubric anchors buy judging consistency; they do NOT make Survival Score a measurement — the 50% start is still arbitrary. Read the score as a resilience band, never as a measured quantity.
 
 Qualitative bands (mirroring verdict thresholds): **탄탄** (Survived, ≥60%) | **보통** (Pending, 26–59%) | **취약** (Collapsed, ≤25%)
 """)
@@ -265,7 +265,7 @@ defense** against the attack it answers — never the attack, and never the clai
 
 _NOT_A_MEASUREMENT = _normalise("""
 The Judge Rubric anchors buy judging consistency; they do NOT make Survival Score a measurement —
-the 50% start is still arbitrary (#610).
+the 50% start is still arbitrary.
 """)
 
 # ---------------------------------------------------------------------------
@@ -560,7 +560,7 @@ _PATTERNS_RENAMED = _CLEAN_PATTERNS.replace(
 # The caveat deleted: the displayed band silently reads as a measured quantity again.
 _SKILL_NO_CAVEAT = _CLEAN_SKILL.replace(
     "The Judge Rubric anchors buy judging consistency; they do NOT make Survival Score a "
-    "measurement — the 50% start is still arbitrary (#610).",
+    "measurement — the 50% start is still arbitrary.",
     "",
 )
 # The caveat inverted — the failure mode #610 explicitly warns against.

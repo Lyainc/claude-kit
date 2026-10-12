@@ -209,13 +209,13 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
 1. **Check manifest existence**: `[ -f "{vault_root}/.vault-bridge/manifest.json" ]`
 2. **If manifest exists**:
    a. Run the candidate prefilter via `manifest-domain-candidates.py` (never `Read` the raw
-      manifest — why, #523: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`). Reads it
+      manifest — why: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`). Reads it
       untruncated, filters out of context:
       ```bash
       python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-domain-candidates.py" \\
         --domain "{domain}" --vault-path "{vault_path}" "{vault_root}/.vault-bridge/manifest.json"
       ```
-      Applies `type == wiki` (always included — #272), `.vault-link` `vault_path`
+      Applies `type == wiki` (always included), `.vault-link` `vault_path`
       directory-scoped prefix, domain-keyword tag/workstream match, or `status == active`.
       Output: `{"candidate_count": N, "candidates": [...]}`.
    b. **Truncation check**: apply § The truncation-check invariant in
@@ -234,7 +234,7 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
 _AGENT_RULES_SECTION = _normalise("""\
 ## Rules
 
-- **Wiki staleness hedge (#305)**: when returning a `type: wiki` page's content, always hedge
+- **Wiki staleness hedge**: when returning a `type: wiki` page's content, always hedge
   it with the page's `verified:` age — prefer `verified:` over the file's modification date (a
   git checkout resets mtimes, so mtime understates the real age), and if `verified:` is absent
   say the age is unknown rather than inventing one. `anchor:` is the source file/URL the page's
@@ -329,7 +329,7 @@ don't invent a date; say the age is unknown instead of silently omitting the hed
 
 # The locators are pinned by SECTION NAME + the read-and-apply wording, never by the bare
 # path: `reference/manifest-recall.md` is already cited twice in the body as a #523 rationale
-# ("never `Read` the raw manifest — why, #523: ..."), so a path-only check stays green after
+# ("never `Read` the raw manifest — why: ..."), so a path-only check stays green after
 # every binding pointer has decayed into a citation.
 _LOCATOR_TRUNCATION = _normalise("""
 apply § The truncation-check invariant in `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`
@@ -347,6 +347,11 @@ section is the binding contract
 """)
 
 
+_RAW_MANIFEST_WHY = _normalise("""
+never `Read` the raw manifest — why: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`
+""")
+
+
 def static_checks(agent_text: str, ref_text: str, staleness_text: str) -> list:
     """(condition, description) for every static guard over the agent + its canonical contract."""
     ref = _normalise(ref_text)
@@ -360,8 +365,13 @@ def static_checks(agent_text: str, ref_text: str, staleness_text: str) -> list:
          "vault-searcher.md Mode 3 invokes manifest-keyword-candidates.py"),
         ('Read `{vault_root}/.vault-bridge/manifest.json`' not in agent_text,
          "vault-searcher.md no longer `Read`s the raw manifest directly (#523)"),
-        ("#523" in agent_text,
-         "vault-searcher.md references #523 at the fixed call sites"),
+        # The body carries no issue numbers; the #523 rationale pointer is keyed on its functional
+        # text instead: the "never `Read` the raw manifest" prohibition immediately followed by the
+        # `reference/manifest-recall.md` "why" locator, once at each of the two fixed call sites
+        # (Mode 2 domain prefilter, Mode 3 keyword prefilter).
+        (agent.count(_RAW_MANIFEST_WHY) == 2,
+         "vault-searcher.md points at manifest-recall.md as the #523 reason not to `Read` the raw "
+         "manifest, at both fixed call sites"),
         # --- total: the whole section, verbatim ---
         (_section(_REF_TRUNCATION_RE, ref_text) == _REF_TRUNCATION_SECTION,
          "manifest-recall.md § The truncation-check invariant matches VERBATIM"),
@@ -687,6 +697,12 @@ _AGENT_POINTER_DECAYED = _CLEAN_AGENT.replace(
 ).replace(
     "apply § Candidate ranking order in", "see (background) the notes in",
 )
+# Mode 3's "never `Read` the raw manifest" rationale loses its manifest-recall.md locator. That
+# site sits outside every verbatim-pinned section, so only the functional-text check sees it.
+_AGENT_NO_KEYWORD_WHY = _CLEAN_AGENT.replace(
+    "(never `Read` the raw manifest — why:\n     `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`):",
+    "(never `Read` the raw manifest):",
+)
 # The #305 hedge obligation deleted from its canonical home.
 _STALENESS_NO_HEDGE = _CLEAN_STALENESS.replace(
     "When you return a wiki page's content,\nmention its `verified:` age alongside it",
@@ -784,6 +800,7 @@ for _name, _fixture, _base in (
     ("_REF_REFLOWED", _REF_REFLOWED, _CLEAN_REF),
     ("_AGENT_NO_POINTER", _AGENT_NO_POINTER, _CLEAN_AGENT),
     ("_AGENT_POINTER_DECAYED", _AGENT_POINTER_DECAYED, _CLEAN_AGENT),
+    ("_AGENT_NO_KEYWORD_WHY", _AGENT_NO_KEYWORD_WHY, _CLEAN_AGENT),
     ("_AGENT_NO_STALENESS_POINTER", _AGENT_NO_STALENESS_POINTER, _CLEAN_AGENT),
     ("_AGENT_RANKING_AS_OVERRIDE", _AGENT_RANKING_AS_OVERRIDE, _CLEAN_AGENT),
     ("_AGENT_TRUNCATION_IGNORED", _AGENT_TRUNCATION_IGNORED, _CLEAN_AGENT),
@@ -824,6 +841,8 @@ def self_test() -> int:
         # cannot distinguish from a binding read-and-apply pointer.
         ("binding pointers decayed into background citations -> FAIL",
          _AGENT_POINTER_DECAYED, _CLEAN_REF, _CLEAN_STALENESS, False),
+        ("Mode 3 raw-manifest prohibition loses its manifest-recall.md rationale locator -> FAIL",
+         _AGENT_NO_KEYWORD_WHY, _CLEAN_REF, _CLEAN_STALENESS, False),
         # The loaded body contradicting the canonical section it points at — the body wins at
         # runtime, so a perfectly pinned reference doc does not save it.
         ("loaded body turns the wiki tiebreak into an override and drops the top-5 cap -> FAIL",
