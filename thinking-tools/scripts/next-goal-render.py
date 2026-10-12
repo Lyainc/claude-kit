@@ -39,7 +39,8 @@ Input (stdin, JSON):
 
 `targets` are LOCAL item ids of the `via` Seed (reference/identifiers.md). For a walked Seed
 `via` each renders as its full identifier plus the Seed's own description
-(`foo/constraint-1 · DB 스키마 생성`, `owner/repo:foo/constraint-1 · ...` across repos); a target the
+(`foo/constraint-1 · DB 스키마 생성`, `owner/repo:foo/constraint-1 · ...` across repos), cut to its
+first sentence and at most _TARGET_DESC_MAX chars with a trailing '…' when anything was dropped; a target the
 Seed does not define is refused, as is a legacy `c1`/`ac1` that matches only by canonical form
 (the Seed needs `seed-id-migrate.py`, or the target needs the Seed's own spelling). For
 `session`, `backlog` and `issue:#N` the targets are free text and print as given.
@@ -58,6 +59,9 @@ import json
 import os
 import re
 import sys
+
+_TARGET_DESC_MAX = 80  # chars of one target description kept in FROM before '…'
+_SENTENCE_END = re.compile(r"[.?!。](?=\s|$)")
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 NON_SEED_VIA = ("session", "backlog")
@@ -202,6 +206,20 @@ def _check_vias(j, nodes):
             raise Refused(f"'{c['title']}': 다른 레포 Seed의 decision은 external이어야 해요")
 
 
+def _shorten_desc(desc):
+    """First sentence of `desc`, capped at _TARGET_DESC_MAX chars; '…' marks anything dropped."""
+    m = _SENTENCE_END.search(desc)
+    cut = m.end() < len(desc) if m else False
+    if m:
+        desc = desc[:m.end()]
+    if len(desc) > _TARGET_DESC_MAX:
+        head = desc[:_TARGET_DESC_MAX]
+        space = head.rfind(" ", _TARGET_DESC_MAX - 20)
+        desc = (head[:space] if space > 0 else head).rstrip()
+        cut = True
+    return desc + "…" if cut else desc
+
+
 def _render_targets(rel, via, node, targets):
     """Free text for non-Seed via; for a walked Seed, `<qualified id> · <description>` per target."""
     if not _is_seed_via(via):
@@ -219,7 +237,7 @@ def _render_targets(rel, via, node, targets):
                               f"옛 id(c<N>/ac<N>) Seed는 scripts/seed-id-migrate.py <seed> --apply로 옮겨요")
             raise Refused(f"target {t}: {via} Seed에 없는 항목이에요 — 정의된 id: "
                           f"{', '.join(defined) or '(없음)'}. 없는 항목은 적지 않아요")
-        desc = " ".join(str(defined[t] or "").split())
+        desc = _shorten_desc(" ".join(str(defined[t] or "").split()))
         out.append(rel.qualified_id(via, t) + (f" · {desc}" if desc else ""))
     return out
 
