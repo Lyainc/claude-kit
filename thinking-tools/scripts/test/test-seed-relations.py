@@ -1306,7 +1306,9 @@ def check_walk_fuzz_reachability() -> list[str]:
         missing = sorted(f"{SP}{n}.yaml" for n in reach if f"{SP}{n}.yaml" not in have)
         if missing:
             failures.append(f"walk fuzz #{i}: max_depth {depth} graph {g} missing {missing}")
-    return failures[:3]
+    if len(failures) > 3:  # keep the report short, but say how many graphs failed
+        failures = failures[:3] + [f"walk fuzz: {len(failures)} of 150 graphs failed in all"]
+    return failures
 
 
 def check_identifier_helpers() -> list[str]:
