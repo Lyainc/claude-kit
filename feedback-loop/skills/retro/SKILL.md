@@ -85,8 +85,8 @@ is needed for conversation-only collection.
      Cached ≤5 min old, else fetched live and refreshed. Match candidates
      against the returned titles locally (case-insensitive substring). **Never
      reuse this cache for a live-status render** (a specific PR/issue shown to
-     the user) — a cached one already misjudged a merged PR as open
-     (2026-07-30). A failed fetch prints `[gh-issues-cache FAILED] ...` and
+     the user) — a cached one already misjudged a merged PR as open.
+     A failed fetch prints `[gh-issues-cache FAILED] ...` and
      exits nonzero — treat dedup as unknown, not clean: ask the user
      before filing, or skip and note the check couldn't run.
 

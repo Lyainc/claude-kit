@@ -15,7 +15,7 @@ You work out mechanical file operations — moves and renames — and hand them 
 ## Core Principle — you cannot write to the vault, plan instead
 
 vault-bridge's `pre-write-guard.sh` denies any vault write carrying a subagent identifier (the
-Write Role Contract; default `enforce`), and it closed the `Bash` path too, so `mv` is denied
+Write Role Contract; default `enforce`), and the guard also covers the `Bash` path, so `mv` is denied
 for the same reason a frontmatter edit is. That is not a bug to work around: vault writes are
 user-initiated by design, and this agent runs as a subagent.
 
