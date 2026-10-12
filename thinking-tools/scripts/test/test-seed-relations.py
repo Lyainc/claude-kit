@@ -1244,6 +1244,71 @@ def check_walk_reexpand_wider_relation() -> list[str]:
     return failures
 
 
+def check_walk_fuzz_reachability() -> list[str]:
+    """#849: on random small graphs every Seed reachable within --max-depth is a visited node or a STOP."""
+    edges = {"start": ("parent", "children", "depends_on"),
+             "ancestor": ("parent", "children", "depends_on"),
+             "descendant": ("children", "depends_on"),
+             "ancestor-child": ("depends_on",), "predecessor": ("depends_on",)}
+    nxt = {("start", "parent"): "ancestor", ("start", "children"): "descendant",
+           ("start", "depends_on"): "predecessor", ("ancestor", "parent"): "ancestor",
+           ("ancestor", "children"): "ancestor-child", ("ancestor", "depends_on"): "predecessor",
+           ("descendant", "children"): "descendant", ("descendant", "depends_on"): "predecessor",
+           ("ancestor-child", "depends_on"): "predecessor",
+           ("predecessor", "depends_on"): "predecessor"}
+    rng = random.Random(849)
+    failures = []
+    for i in range(150):
+        names = [f"n{k}" for k in range(rng.randint(3, 6))]
+        g = {}
+        for n in names:
+            others = [m for m in names if m != n]
+            g[n] = {"parent": rng.choice(others) if rng.random() < 0.3 else None,
+                    "children": rng.sample(others, rng.randint(0, min(2, len(others)))),
+                    "depends_on": rng.sample(others, rng.randint(0, 1))}
+        if rng.random() < 0.6:  # the start's parent is also its child: two relations, one Seed
+            g["n0"]["parent"] = rng.choice(names[1:])
+            g["n0"]["children"] = sorted({*g["n0"]["children"], g["n0"]["parent"]})
+        depth = rng.randint(1, 3)
+        # Independent model: BFS over (node, relation, came_from) states.
+        seen = {("n0", "start", None)}
+        frontier = [("n0", "start", None)]
+        reach = {"n0"}
+        for d in range(1, depth + 1):
+            new = []
+            for node, rel, came in frontier:
+                for field in edges[rel]:
+                    targets = [g[node]["parent"]] if field == "parent" else g[node][field]
+                    for t in targets:
+                        if t is None or t not in g:
+                            continue
+                        r = nxt[(rel, field)]
+                        if rel == "ancestor" and field == "children" and t == came:
+                            continue  # an ancestor does not walk back down to where it came from
+                        st = (t, r, node)
+                        if st not in seen:
+                            seen.add(st)
+                            new.append(st)
+                            reach.add(t)
+            frontier = new
+        repo = _repo()
+        for n in names:
+            p = g[n]
+            _write(repo, f"{n}.yaml", target=n.upper(),
+                   parent=f"{SP}{p['parent']}.yaml" if p["parent"] else None,
+                   children=[f"{SP}{c}.yaml" for c in p["children"]],
+                   depends_on=[f"{SP}{c}.yaml" for c in p["depends_on"]])
+        code, data, err = _walk_json(repo, SP + "n0.yaml", "--max-depth", str(depth))
+        if code != 0 or data is None:
+            failures.append(f"walk fuzz #{i}: exit {code} {err!r} graph {g}")
+            continue
+        have = {n["key"] for n in data["nodes"]} | {s["target"] for s in data["stops"]}
+        missing = sorted(f"{SP}{n}.yaml" for n in reach if f"{SP}{n}.yaml" not in have)
+        if missing:
+            failures.append(f"walk fuzz #{i}: max_depth {depth} graph {g} missing {missing}")
+    return failures[:3]
+
+
 def check_identifier_helpers() -> list[str]:
     """canonical_id / legacy_form / seed_slug / qualified_id are the code form of identifiers.md."""
     failures = []
@@ -1424,6 +1489,7 @@ def main() -> int:
         check_walk_value_cleaning,
         check_walk_reexpand_second_route,
         check_walk_reexpand_wider_relation,
+        check_walk_fuzz_reachability,
         check_identifier_helpers,
         check_legacy_compat,
         check_refines_form_hint,
