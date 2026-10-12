@@ -37,20 +37,20 @@ Apply reference.md § Role Contract (binding): the **facilitator** (the orchestr
 
 ### Expert Selection Guide
 
-**Apply § Expert Selection Guide: what the Selection Rule enforces in [reference.md](reference.md) as written — that section is the binding contract** for panel size (3–5) and the ban on topping up a panel that merely *looks* implementation-heavy (#423). This paragraph is a locator, not a summary you may act from alone.
+**Apply § Expert Selection Guide: what the Selection Rule enforces in [reference.md](reference.md) as written — that section is the binding contract** for panel size (3–5) and the ban on topping up a panel that merely *looks* implementation-heavy. This paragraph is a locator, not a summary you may act from alone.
 
 **When to add experts mid-discussion**: for an uncovered domain, the facilitator may propose an expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`; without an explicit yes the rule's output stands.
 
 ## Citation Contract
 
-An expert's **numeric or factual claim** cites one source: `vault-searcher` (Agent, Mode 3) once per topic, else an in-scope document via Read/Grep, else — vault-searcher unavailable, no result, or no response — a stated domain judgment, silently. Never invent a figure: label it assumption or estimate. A subagent with only idle notifications and no final text after one re-request counts as unavailable (#647). `Citation: unverified` escalates/deepens the topic, never `skipped`.
+An expert's **numeric or factual claim** cites one source: `vault-searcher` (Agent, Mode 3) once per topic, else an in-scope document via Read/Grep, else — vault-searcher unavailable, no result, or no response — a stated domain judgment, silently. Never invent a figure: label it assumption or estimate. A subagent with only idle notifications and no final text after one re-request counts as unavailable. `Citation: unverified` escalates/deepens the topic, never `skipped`.
 
 ## Core Workflow
 
 ### Phase 0: Preparation
 
 1. Split the target into topics; generate the agenda.
-2. **Backlog prefilter (#524)**: before any expert speaks, run once via Bash on the user's original topic text: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{review target text}"`. Statuses and carry-over: reference.md § Procedure Detail → Phase 0; the digest grounds, never binds.
+2. **Backlog prefilter**: before any expert speaks, run once via Bash on the user's original topic text: `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/backlog-prefilter.py" --intent "{review target text}"`. Statuses and carry-over: reference.md § Procedure Detail → Phase 0; the digest grounds, never binds.
 3. Run the Selection Rule per topic (confirm only if the user picks experts).
 
 ### Phase 1: Topic Rounds

@@ -61,7 +61,7 @@ Vault root: `{vault_root}` — dirs: `sources` (raw input), `notes` (all content
 
 The `wiki/` layer is the primary recall target — compiled domain knowledge, first-class alongside `notes/`. This is the default weighting when a query doesn't classify under Question-Type Routing below.
 
-## Question-Type Routing (#519)
+## Question-Type Routing
 
 Classify the query by its question form before searching. This decides which layer is checked
 *first*; the other layer is always still checked as fallback, so an answer sitting in the
@@ -75,7 +75,7 @@ non-preferred layer is still found — routing only reorders, never excludes.
   "전에 어떻게 했지", "과거 리서치/조사 자료", "why did we do that", "how did we handle this
   before"): session records answer this. Check `notes/`+`sources/` first, `wiki/` as fallback
   regardless.
-- **`wiki/`의 `type: discussion` 승격 (#586)**: AI 컴파일이라 `wiki/`에 있지만(vault-discussion-history-wiring/constraint-1) 내용은 세션
+- **`wiki/`의 `type: discussion` 승격**: AI 컴파일이라 `wiki/`에 있지만(vault-discussion-history-wiring/constraint-1) 내용은 세션
   경위 기록이다. 경위/이력 질문에서는 `wiki/` fallback이 아니라 `notes/`+`sources/`와 같은 1순위로
   검색·정렬하고, 정의/사실 질문에서는 승격하지 않는다 — 티어는 폴더가 아니라 `type:`으로 가른다.
 - **분류 불가 / 혼합 질문**: no priority — scan `wiki/` + `notes/` + `sources/` together as today,
@@ -118,13 +118,13 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
 1. **Check manifest existence**: `[ -f "{vault_root}/.vault-bridge/manifest.json" ]`
 2. **If manifest exists**:
    a. Run the candidate prefilter via `manifest-domain-candidates.py` (never `Read` the raw
-      manifest — why, #523: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`). Reads it
+      manifest — why: `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`). Reads it
       untruncated, filters out of context:
       ```bash
       python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-domain-candidates.py" \
         --domain "{domain}" --vault-path "{vault_path}" "{vault_root}/.vault-bridge/manifest.json"
       ```
-      Applies `type == wiki` (always included — #272), `.vault-link` `vault_path`
+      Applies `type == wiki` (always included), `.vault-link` `vault_path`
       directory-scoped prefix, domain-keyword tag/workstream match, or `status == active`.
       Output: `{"candidate_count": N, "candidates": [...]}`.
    b. **Truncation check**: apply § The truncation-check invariant in
@@ -143,10 +143,10 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
 
 1. Run `.vault-link` Discovery Protocol (see above). Determine `search_root`:
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always included** — order between the two follows the Question-Type Routing tier: 정의/사실 checks `wiki/` before the scoped path, 경위/이력 or 분류 불가 checks the scoped path first (existing order, unchanged).
-     - [#272: the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`]
+     - [the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`]
    - No pointer or resolution failed → order `{vault_root}/wiki/`, `{vault_root}/notes/`, `{vault_root}/sources/` by the Question-Type Routing tier: 정의/사실 checks `wiki/` first with `notes/`+`sources/` as fallback; 경위/이력 checks `notes/`+`sources/` first with `wiki/` as fallback; 분류 불가 keeps the existing order (`wiki/` + `notes/` primary, `sources/` secondary).
 2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
-   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree, then run a second pass over `{vault_root}/wiki/` (CLI `path=wiki`; the mdfind/grep fallback below already covers `wiki/` via the `search_root` set in step 1) so wiki pages are never excluded by scoping (#272).
+   - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree, then run a second pass over `{vault_root}/wiki/` (CLI `path=wiki`; the mdfind/grep fallback below already covers `wiki/` via the `search_root` set in step 1) so wiki pages are never excluded by scoping.
    - If CLI is unavailable/fails/times out, search adaptively within `search_root`:
      - macOS (`uname -s` = `Darwin`): `mdfind -onlyin {search_root} "{domain}"` (결과 없으면 grep fallback)
      - Other / fallback: `grep -rl "{domain}" {search_root} --include="*.md"`
@@ -169,7 +169,7 @@ Search the entire vault by keyword and load note contents.
 
 **Procedure**:
 1. **Manifest-first pre-filter** (if `{vault_root}/.vault-bridge/manifest.json` exists):
-   - Run `manifest-keyword-candidates.py` (never `Read` the raw manifest — why, #523:
+   - Run `manifest-keyword-candidates.py` (never `Read` the raw manifest — why:
      `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md`):
      ```bash
      python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-keyword-candidates.py" \
@@ -207,7 +207,7 @@ Search the entire vault by keyword and load note contents.
 
 ## Rules
 
-- **Wiki staleness hedge (#305)**: when returning a `type: wiki` page's content, always hedge
+- **Wiki staleness hedge**: when returning a `type: wiki` page's content, always hedge
   it with the page's `verified:` age — prefer `verified:` over the file's modification date (a
   git checkout resets mtimes, so mtime understates the real age), and if `verified:` is absent
   say the age is unknown rather than inventing one. `anchor:` is the source file/URL the page's

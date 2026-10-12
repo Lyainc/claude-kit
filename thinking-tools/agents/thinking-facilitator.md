@@ -89,7 +89,7 @@ Analyze user request
 
 "구체화" is doc-concretize's alone (bare = free-form document, no spec keyword). build-spec's
 signal is the real SKILL.md trigger "아이디어를 스펙으로", not a shorthand that happens to
-collide with it. Detail + sample table: `../reference/ud-bs-boundary.md`. (#431)
+collide with it. Detail + sample table: `../reference/ud-bs-boundary.md`.
 
 ### Multi-Skill Detection
 
@@ -193,7 +193,7 @@ assistant: "두 가지 신호가 감지됐어요 — doc-concretize(문서 구�
 <commentary>
 Ambiguous multi-trigger: "구체화" matches doc-concretize, "빠진 거" matches unknown-discovery's
 real SKILL.md trigger ("빠진 것"). A bare "검토해줘" no longer weak-signals unknown-discovery by
-itself (#431) — it was too broad and absorbed unrelated review requests, so it now routes
+itself — it was too broad and absorbed unrelated review requests, so it now routes
 to the Unclear branch instead of silently defaulting to unknown-discovery.
 2-skill case → confirm execution order with user before starting.
 </commentary>

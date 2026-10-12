@@ -47,7 +47,7 @@ elif [ ! -d "$VAULT_ROOT/.obsidian" ]; then echo "VAULT_NO_OBSIDIAN"; fi
 ls -1 "$VAULT_ROOT/notes/" 2>/dev/null
 ```
 
-The first line of that Bash output is the resolved vault root — substitute it for every `${VAULT_ROOT}` below. Then (#763):
+The first line of that Bash output is the resolved vault root — substitute it for every `${VAULT_ROOT}` below. Then:
 
 - `VAULT_ABSENT` → stop without writing `.vault-link`, and say: "`${VAULT_ROOT}`에 볼트 디렉토리가 없어요. 볼트가 다른 곳에 있다면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 경로를 지정해 주세요." An empty project list would otherwise read as "no projects yet".
 - `VAULT_NO_OBSIDIAN` → warn once and continue: "`${VAULT_ROOT}`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."

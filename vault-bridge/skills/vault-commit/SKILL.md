@@ -39,7 +39,7 @@ if [ ! -d "$_vr" ]; then echo "VAULT_ABSENT"
 elif [ ! -d "$_vr/.obsidian" ]; then echo "VAULT_NO_OBSIDIAN"; fi
 ```
 
-Use the first line as `{vault_root}` for all subsequent steps. Then (#763):
+Use the first line as `{vault_root}` for all subsequent steps. Then:
 
 - `VAULT_ABSENT` → output the following and stop:
 
