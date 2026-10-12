@@ -5,7 +5,7 @@ allowed-tools: Write Bash Glob Read
 model: haiku  # kept: mechanical write only, no LLM judgment — merges /capture + /note (#448, #480)
 ---
 
-**User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
+**User language:** user-facing output (responses, generated content, file contents) is in Korean by default, or in English when the user writes in English.
 
 ## Codex Portability
 
@@ -65,7 +65,7 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 2. Parse `$ARGUMENTS`: strip a leading `--type decision` or `--type discussion` flag if present;
    the rest is the content or URL.
 3. **Vault-absent guard (#697) — check `{vault_root}` exists BEFORE creating anything.** If
-   `[ -d "{vault_root}" ]` is false, **stop without writing** and tell the user in Korean that no
+   `[ -d "{vault_root}" ]` is false, **stop without writing** and tell the user that no
    vault was found at that path and where to configure one (`VAULT_BRIDGE_VAULT_ROOT`, or the
    `vault_path` plugin setting) — e.g. "`{vault_root}`에 볼트가 없어서 저장을
    멈췄어요. 볼트 경로를 `VAULT_BRIDGE_VAULT_ROOT`(환경변수)나 플러그인 설정

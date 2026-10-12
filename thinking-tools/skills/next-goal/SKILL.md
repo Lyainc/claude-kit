@@ -11,7 +11,7 @@ allowed-tools: Read Bash
 
 # Next Goal
 
-Output Korean. Read-only: no file/issue/PR/commit/push/merge. Read each cited `reference.md` §Name
+Output Korean (English if the user writes English). Read-only: no file/issue/PR/commit/push/merge. Read each cited `reference.md` §Name
 at that step.
 
 First Seed call, before `walk`/`read`: Bash:

@@ -16,9 +16,9 @@ auto-compaction re-attaches and Codex's 8,000-byte invoked-skill limit. **Two ki
 
 BINDING. SKILL.md's preamble points here for the written-artifact language: read `~/.claude/CLAUDE.md` first and write the new line in the language it is already in; everything else the engine writes is English.
 
-**User language: Korean for dialogue; written-artifact language depends on the site.** All
-user-facing DIALOGUE (the classification readout, AskUserQuestion prompts, confirmation
-messages, command suggestions) MUST be in Korean. For the prose the engine actually WRITES:
+**User language: dialogue follows the user; written-artifact language depends on the site.**
+User-facing DIALOGUE (the classification readout, AskUserQuestion prompts, confirmation
+messages, command suggestions) is in Korean by default, or in English when the user writes in English. For the prose the engine actually WRITES:
 
 - **`~/.claude/rules` catalogue, a hook script + its comments, a skill's SKILL.md body**:
   English. These are pure procedural/LLM-executed artifacts with no reader-language identity

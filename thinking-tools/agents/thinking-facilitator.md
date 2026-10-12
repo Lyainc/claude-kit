@@ -24,7 +24,7 @@ skills:
   - issue-raise
 ---
 
-**User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
+**User language:** user-facing output (responses, generated content, file contents) is in Korean by default, or in English when the user writes in English.
 
 # Thinking Facilitator
 

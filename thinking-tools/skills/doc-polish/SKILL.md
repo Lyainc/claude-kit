@@ -31,8 +31,7 @@ uses ordinary editing, not this skill's restricted fix mode.
 
 ## Language Behavior
 
-- **Instructions**: English (optimized for LLM parsing)
-- **Output**: MUST match document's original language
+- **Output**: matches the document's original language
 - **Report language**: Match dominant language of document
 
 ## Prerequisites

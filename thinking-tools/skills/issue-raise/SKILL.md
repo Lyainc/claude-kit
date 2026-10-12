@@ -151,7 +151,7 @@ scope. Form-scanner, template-drift and regex-diff limits: [reference.md](refere
 
 - [reference.md](reference.md): field mapping, title rationale and detail.
 
-## Korean I/O Directive
+## User Language
 
-모든 사용자 대면 출력(중복 검사 결과, 초안, 승인 질문, 완료 요약)은 **한국어**로 작성합니다.
-사용자가 영어로 작성한 경우 영어로 응답합니다.
+User-facing output (duplicate-check results, the draft, approval questions, the completion
+summary) is in Korean by default, or in English when the user writes in English.

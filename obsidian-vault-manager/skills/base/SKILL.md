@@ -4,7 +4,7 @@ description: "Generate a new, non-destructive Obsidian Bases (.base) view from b
 allowed-tools: Read Write Bash Glob AskUserQuestion
 ---
 
-**User language: Korean.** All user-facing output (responses, generated content, file contents) MUST be in Korean.
+**User language:** user-facing output (responses, generated content, file contents) is in Korean by default, or in English when the user writes in English.
 
 ## Codex Portability
 
@@ -106,7 +106,7 @@ views:
 
 5. **Create file** (after user confirmation): Recheck the target with Glob immediately before Write. A new collision requires a new unique path and renewed confirmation of that path. Write ONLY the new `.base` file. The body is pure YAML, without frontmatter or Markdown.
 
-6. **Output result**: Created path and a reminder (in Korean) to open the `.base` in Obsidian to check rows and sorting. Empty rows may mean no matching data or a property/expression mismatch; do not infer which. File creation alone does not verify rendering: say rendering is unverified unless it was actually observed. No other follow-up questions.
+6. **Output result**: Created path and a reminder to open the `.base` in Obsidian to check rows and sorting. Empty rows may mean no matching data or a property/expression mismatch; do not infer which. File creation alone does not verify rendering: say rendering is unverified unless it was actually observed. No other follow-up questions.
 
 ## Rules
 
