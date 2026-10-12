@@ -292,6 +292,42 @@ def main():
                               {"item_desc": {"constraint-1": "DB 스키마\n생성"}}, ["constraint-1"])
     check("cross-repo key shows owner/repo: prefix", got == ["other/repo:x/constraint-1 · DB 스키마 생성"], str(got))
 
+    # #854: a target description is cut to its first sentence and a fixed cap, '…' marks what was dropped.
+    cap = ngr._TARGET_DESC_MAX
+    desc_of = lambda d: ngr._render_targets(rel, "docs/specs/x.yaml", {"item_desc": {"constraint-1": d}},
+                                            ["constraint-1"])[0].split(" · ", 1)[1]
+    got = desc_of("첫 문장이에요. 둘째 문장이에요. 셋째 문장이에요.")
+    check("multi-sentence description keeps the first sentence + marker", got == "첫 문장이에요.…", got)
+    got = desc_of("word " * 60)
+    check("over-long sentence is capped with a marker", got.endswith("…") and len(got) <= cap + 1, got)
+    got = desc_of("DB 스키마 생성")
+    check("short description is unchanged without a marker", got == "DB 스키마 생성", got)
+    got = desc_of("Short one.")
+    check("short sentence with a final period gets no marker", got == "Short one.", got)
+    got = ngr._render_targets(rel, "docs/specs/x.yaml", {"item_desc": {"constraint-1": ""}}, ["constraint-1"])
+    check("no description renders the bare id", got == ["x/constraint-1"], str(got))
+
+    # #854 end to end: 8 targets with long multi-sentence descriptions keep FROM bounded.
+    big = _repo()
+    long_desc = " ".join("이 항목은 충분히 길게 쓰인 문장이라서 설명 전체를 그대로 찍으면 한 줄이 아주 길어져요." for _ in range(4))
+    items = [("constraints", "constraint-%d" % i) for i in range(1, 4)] + \
+            [("success_criteria", "acceptance-%d" % i) for i in range(1, 6)]
+    body = "".join("%s:\n" % k + "".join("  - id: %s\n    description: %s\n" % (i, long_desc)
+                                        for kk, i in items if kk == k)
+                   for k in ("constraints", "success_criteria"))
+    pyaml = Path(big) / "docs" / "specs" / "p.yaml"
+    head = pyaml.read_text(encoding="utf-8").split("success_criteria:")[0]
+    pyaml.write_text(head + body, encoding="utf-8")
+    bj = _judgment(_walk_id(big))
+    bj["pick"]["targets"] = [i for _, i in items]
+    code, out, err = _render(big, bj)
+    from_line = next((ln for ln in out.splitlines() if ln.startswith("FROM")), "")
+    check("8-target pick renders", code == 0 and from_line != "", f"{code} {out!r} {err!r}")
+    paren = from_line[from_line.find(" ("):from_line.find(") — 미충족")]
+    check("every qualified id still appears", all("p/" + i in paren for _, i in items), paren)
+    check("FROM target list is bounded", 0 < len(paren) <= 8 * (len("p/constraint-1") + cap + 6), str(len(paren)))
+    check("whole FROM line stays short", 0 < len(from_line) < 1500, str(len(from_line)))
+
     # Missing eligibility from an older walker never authorizes a pick.
     for name, eligibility in [
         ("missing eligibility", None),
