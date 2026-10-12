@@ -9,6 +9,7 @@ import argparse
 import importlib.util
 import json
 import os
+import posixpath
 import re
 import subprocess
 import sys
@@ -319,6 +320,28 @@ def child_blockers(after,reader,rel):
     return errors
 
 
+def prior_parent_provenance(before,after,rd):
+    """An independent transition or relink must pin the previous parent as actually resolved."""
+    exact = before.relations_version in (2,3) or before.lifecycle is not None
+    if rd is None:
+        if not exact:
+            return ['previous legacy parent needs a repository reader to resolve; pin the resolved file in provenance']
+        loc = (None,posixpath.normpath(before.parent.strip().lstrip('/')))
+    else:
+        loc,err = rd.resolve(rd.norm(before.parent,None),exact)
+        if err:
+            return [f'previous legacy parent cannot be resolved ({err}); pin the actually resolved file in provenance']
+    norm = (lambda v: rd.norm(v,None)) if rd else (lambda v: (None,posixpath.normpath(v.strip().lstrip('/'))))
+    rows = after.relations_data.get('provenance') if isinstance(after.relations_data,dict) else None
+    for row in rows if isinstance(rows,list) else []:
+        if (isinstance(row,dict) and path(row.get('seed')) and norm(row['seed']) == loc and
+                isinstance(row.get('commit'),str) and SHA.fullmatch(row['commit']) and
+                isinstance(row.get('items'),list) and set(before.refines) <= set(row['items'])):
+            return []
+    return [f'reparent or independent transition must pin previous parent {loc[1]} with its full commit and refined items '
+            + str(sorted(before.refines)) + ' in relations.provenance']
+
+
 def transition(before,after,reader=None,rel=None):
     """Validate before -> after. `reader`/`rel` (a seed-relations Reader and the repo-relative
     path of `after`) enable the parent-completion rule; without them it is skipped."""
@@ -335,6 +358,8 @@ def transition(before,after,reader=None,rel=None):
         errors.append('lifecycle/withdrawal/reparent change requires represented user approval and reason')
     if changed and isinstance(old,dict) and isinstance(new,dict) and new.get('approved_by') == old.get('approved_by'):
         errors.append('transition requires a new explicit approval reference')
+    if before.parent and before.parent != after.parent:
+        errors += prior_parent_provenance(before,after,reader)
     if old != new and before.requirements != after.requirements:
         errors.append('lifecycle transition must preserve original requirement contents and IDs')
     rows = old.get('withdrawn',[]) if isinstance(old,dict) else []

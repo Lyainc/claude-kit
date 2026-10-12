@@ -306,7 +306,7 @@ def lifecycle_reason(existing: str, result: str, path: str) -> str:
         errors = sr.lifecycle.validate(after, sr.find_root(path))
         errors += sr.validate_provenance(sr.Reader(sr.find_root(path)),after,None)
         if existing:
-            errors += sr.lifecycle.transition(before,after)
+            errors += sr.lifecycle.transition(before,after,sr.Reader(sr.find_root(path)))
         if errors:
             return "Seed 수명주기 변경이 유효하지 않아요: " + "; ".join(errors)
     except (OSError,ValueError,TypeError,AttributeError) as exc:
