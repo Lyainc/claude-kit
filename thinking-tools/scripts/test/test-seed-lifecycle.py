@@ -559,6 +559,13 @@ class LifecycleTests(unittest.TestCase):
         detach['relations']['provenance'] = [pin]
         self.assertEqual(lc.transition(before,parse(detach),rd),[])
         self.assertEqual(sr.validate_provenance(rd,parse(detach),None),[])
+        # The edit guard applies the same rule to a Write of the detached Seed.
+        prior = dump(spec(parent='docs/specs/p.yaml',refines=['constraint-1'],mapping=[{'parent_item':'constraint-1','child_items':['constraint-1']}]))
+        payload = {'tool_name':'Write','tool_input':{'file_path':str(self.root/'docs/specs/c.yaml'),'content':dump(detach)}}
+        self.assertEqual(guard.decide(payload,read_file=lambda _:prior),'')
+        unpinned = copy.deepcopy(detach); unpinned['relations']['provenance'] = []
+        payload['tool_input']['content'] = dump(unpinned)
+        self.assertIn('pin previous parent',guard.decide(payload,read_file=lambda _:prior))
         # A relink keeps the same pin and still needs both directions of the new edge.
         relink = spec(parent='docs/specs/q.yaml',refines=['constraint-1'],mapping=[{'parent_item':'constraint-1','child_items':['constraint-1']}])
         relink['lifecycle']['approved_by'] = 'user relink message 2'
