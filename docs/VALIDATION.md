@@ -950,7 +950,7 @@ python3 thinking-tools/scripts/test/test-seed-relations.py
 # Seed 생애주기 (#814): 전이·완료 근거·철회 원문·고정 출처·부분 영향·소비자 후보 자격.
 # 임시 Git 픽스처로 검증하며 사용자 승인의 진위나 LLM 준수는 별도 실행 근거가 필요하다.
 python3 thinking-tools/scripts/test/test-seed-lifecycle.py
-# Expected: OK: all 34 Seed lifecycle regression fixtures passed
+# Expected: OK: all 36 Seed lifecycle regression fixtures passed
 
 # seed-id-migrate.py 회귀 — 옛 c<N>/ac<N> id를 constraint-<N>/acceptance-<N>로 바꾸는 유일한 경로.
 # 생애주기·구조화된 참조가 있는 파일은 부분 이름 변경을 거부하며 구형 ID 그대로 읽을 수 있다.

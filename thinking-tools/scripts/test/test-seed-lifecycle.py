@@ -535,6 +535,56 @@ class LifecycleTests(unittest.TestCase):
         completed['lifecycle']['evidence']['commit'] = 'f'*40
         self.assertIn('unavailable',' '.join(lc.validate(parse(completed),str(self.root))))
 
+    def legacy(self,**kw):
+        obj = spec(None,**kw)
+        obj['relations'] = {k:v for k,v in obj['relations'].items() if k not in ('version','refines_map','provenance','replaces','transfers')}
+        return obj
+
+    def test_detach_and_relink_must_pin_previous_parent(self):
+        # Independent transitions and relinks used to pass while dropping the previous parent.
+        def git(*args,input=None):
+            return subprocess.run(['git','-C',str(self.root),*args],input=input,capture_output=True,text=True,check=True).stdout.strip()
+        git('init','-q'); git('config','user.name','Fixture'); git('config','user.email','fixture@example.invalid')
+        parent = spec(children=['docs/specs/c.yaml'])
+        self.write('p.yaml',parent); git('add','-A'); git('commit','-qm','parent')
+        commit = git('rev-parse','HEAD')
+        before = parse(spec(parent='docs/specs/p.yaml',refines=['constraint-1'],mapping=[{'parent_item':'constraint-1','child_items':['constraint-1']}]))
+        rd = sr.Reader(str(self.root)); rd._self_repo = None
+        pin = {'seed':'docs/specs/p.yaml','commit':commit,'items':['constraint-1']}
+        detach = spec(); detach['lifecycle']['approved_by'] = 'user detach message 2'
+        self.assertIn('pin previous parent docs/specs/p.yaml',' '.join(lc.transition(before,parse(detach),rd)))
+        for field,value in (('seed','docs/specs/other.yaml'),('commit',commit[:12]),('items',['constraint-2'])):
+            bad = copy.deepcopy(detach); bad['relations']['provenance'] = [dict(pin,**{field:value})]
+            self.assertTrue(lc.transition(before,parse(bad),rd),field)
+        detach['relations']['provenance'] = [pin]
+        self.assertEqual(lc.transition(before,parse(detach),rd),[])
+        self.assertEqual(sr.validate_provenance(rd,parse(detach),None),[])
+        # A relink keeps the same pin and still needs both directions of the new edge.
+        relink = spec(parent='docs/specs/q.yaml',refines=['constraint-1'],mapping=[{'parent_item':'constraint-1','child_items':['constraint-1']}])
+        relink['lifecycle']['approved_by'] = 'user relink message 2'
+        self.assertTrue(lc.transition(before,parse(relink),rd))
+        relink['relations']['provenance'] = [pin]
+        self.assertEqual(lc.transition(before,parse(relink),rd),[])
+        self.write('q.yaml',spec()); self.write('c.yaml',relink)
+        rd = sr.Reader(str(self.root)); rd._self_repo = None
+        self.assertEqual(sr.cmd_check(rd,'docs/specs/c.yaml',parse(relink))[1],1)
+        self.write('q.yaml',spec(children=['docs/specs/c.yaml']))
+        rd = sr.Reader(str(self.root)); rd._self_repo = None
+        lines,code = sr.cmd_check(rd,'docs/specs/c.yaml',parse(relink))
+        self.assertEqual(code,0,lines)
+
+    def test_legacy_previous_parent_pins_the_resolved_generation(self):
+        # Legacy parents keep latest -vN resolution; the pin must name that file, never a guess.
+        self.write('p.yaml',self.legacy()); self.write('p-v2.yaml',self.legacy())
+        before = parse(self.legacy(parent='docs/specs/p.yaml',refines=['constraint-1']))
+        rd = sr.Reader(str(self.root)); rd._self_repo = None
+        after = spec()
+        after['relations']['provenance'] = [{'seed':'docs/specs/p.yaml','commit':'a'*40,'items':['constraint-1']}]
+        self.assertIn('pin previous parent docs/specs/p-v2.yaml',' '.join(lc.transition(before,parse(after),rd)))
+        self.assertIn('repository reader',' '.join(lc.transition(before,parse(after))))
+        after['relations']['provenance'][0]['seed'] = 'docs/specs/p-v2.yaml'
+        self.assertEqual(lc.transition(before,parse(after),rd),[])
+
 if __name__ == '__main__':
     os.environ['GH_BIN'] = '/nonexistent/gh'
     suite = unittest.defaultTestLoader.loadTestsFromTestCase(LifecycleTests)
