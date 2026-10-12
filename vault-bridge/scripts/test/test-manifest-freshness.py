@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
 """Deterministic manifest JSON/mtime race and incremental regressions (#844)."""
 
+import contextlib
 import importlib.util
+import io
 import json
 import os
 import tempfile
@@ -127,6 +129,7 @@ class ManifestFreshnessTests(unittest.TestCase):
                 if force:
                     argv.append("--force")
                 with mock.patch("sys.argv", argv), \
+                     contextlib.redirect_stdout(io.StringIO()), \
                      mock.patch.object(manifest_module, "_atomic_write_text",
                                        side_effect=edit_then_save):
                     manifest_module.main()
@@ -215,6 +218,38 @@ class ManifestFreshnessTests(unittest.TestCase):
         with mock.patch.object(manifest_module, "_load_existing_manifest",
                                side_effect=load_then_delete):
             actual, _ = self.refresh()
+        self.assert_matches_full_scan(actual)
+
+    def test_cutoff_alone_rejects_entry_not_older_than_manifest(self):
+        # mtime_ns still matches the file, so only the manifest-mtime cutoff can
+        # reject reuse here (defense in depth beyond the fingerprint, #844).
+        os.utime(self.out, (self.stamp - 10, self.stamp - 10))
+        self.assertLess(self.out.stat().st_mtime, self.source.stat().st_mtime)
+        with mock.patch.object(manifest_module, "_build_entry",
+                               wraps=manifest_module._build_entry) as build:
+            actual, stats = self.refresh()
+        self.assertEqual(build.call_count, 2)
+        self.assertEqual(stats["updated"], 2)
+        self.assert_matches_full_scan(actual)
+
+    def test_cutoff_is_captured_before_json_load(self):
+        # A writer bumps the manifest mtime during the load. The fingerprint still
+        # matches, so only the pre-load cutoff keeps the entries from being reused.
+        os.utime(self.out, (self.stamp - 10, self.stamp - 10))
+        real_load = manifest_module._load_existing_manifest
+
+        def load_then_bump(path):
+            cached = real_load(path)
+            os.utime(path, (self.stamp + 50, self.stamp + 50))
+            return cached
+
+        with mock.patch.object(manifest_module, "_load_existing_manifest",
+                               side_effect=load_then_bump), \
+             mock.patch.object(manifest_module, "_build_entry",
+                               wraps=manifest_module._build_entry) as build:
+            actual, stats = self.refresh()
+        self.assertEqual(build.call_count, 2)
+        self.assertEqual(stats["updated"], 2)
         self.assert_matches_full_scan(actual)
 
 
