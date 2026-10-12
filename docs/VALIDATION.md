@@ -970,6 +970,13 @@ python3 thinking-tools/scripts/test/test-next-goal-render.py
 # survives handoff none/missing; STOP assertions match actual walker targets and causes.
 # Expected: OK: all test-next-goal-render checks passed
 
+# Seed board Mods (#815) — CI의 seed-board-mods job이 Claude Code CLI 2.1.296으로 고정해 같은 두 명령을
+# 돌린다. 모델 호출·인증 없음. test는 실패한 `expect`를 실패로 집계해 exit 1로 끝난다(2026-10-12 로컬 재현).
+claude plugin validate thinking-tools/mods/seed-board
+# Expected: ✔ Validation passed with warnings
+claude plugin test thinking-tools/mods/seed-board
+# Expected: Ran N tests across N files. [...]
+
 # Shell hook syntax check
 bash -n vault-bridge/hooks/*.sh
 bash -n thinking-tools/hooks/session-start-welcome.sh   # #117 first-run onboarding hint
