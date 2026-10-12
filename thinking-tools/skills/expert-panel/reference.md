@@ -26,17 +26,18 @@ contract for who runs the panel, who synthesizes, and what the practitioners are
 updates that constant in the same commit (a reflow is free).
 
 - **Facilitator** — whoever runs the panel: the main context in inline and isolated mode (the
-  *orchestrator* of the exchange-loop contract). It selects experts, prepares inputs, writes the
-  neutral briefing and the practitioner review, spawns and relays (isolated), keeps the records,
-  judges *no new argument*, and ends the exchange loop only by the stop conditions. Fact requests
-  and decisions go to the user through it; a mid-discussion expert is only *proposed* by it and
-  needs the user's explicit yes. It never ends a topic outside the stop conditions and
+  *orchestrator* of the exchange-loop contract), the worker in 위임 실행 (§ Delegated
+  execution). It selects experts, prepares inputs, writes the neutral briefing and the
+  practitioner review, spawns and relays (isolated), keeps the records, judges *no new
+  argument*, and ends the exchange loop only by the stop conditions. Fact requests and decisions
+  go to the user through it; a mid-discussion expert is only *proposed* by it and needs the
+  user's explicit yes. It never ends a topic outside the stop conditions and
   SKILL.md § Topic Conclusion.
 - **Moderator** — the final synthesis role only; no vote, no facilitation power. In isolated mode
   it is a separate subagent spawned once per topic after the loop stops, the independent final
   reviewer: it receives each expert's final position summary (position, evidence source,
   conditions, objection reason, vote) plus the practitioner review — never the full Q&A. In inline
-  mode the facilitator writes the synthesis under the Moderator label with the same
+  mode and 위임 실행 the facilitator writes the synthesis under the Moderator label with the same
   [Synthesis Checklist](#synthesis-checklist) and never calls it an independent review. Either
   way the Moderator checks unsupported evidence and omissions and may set `held:evidence`, but
   never changes an expert's vote, re-runs the loop past its cap, or adds experts.
