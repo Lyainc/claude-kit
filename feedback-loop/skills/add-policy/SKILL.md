@@ -124,12 +124,12 @@ both row and detail file. Read reference §6-shape-contract and apply it as writ
 
 Leave every change in the working tree (no commit/push/PR; a guard's `chmod +x`, activation and
 live test are the main context's). Zero own harness hooks (CON-2). Details: reference §7. Close
-in Korean: "메인 컨텍스트가 검토 후 커밋하세요."
+with the handoff line (Korean: "메인 컨텍스트가 검토 후 커밋하세요.").
 
 ## 8. Post-write self-check
 
 After writing, read reference §8 and run its checklist for the site written; report a malformed
-write in Korean and fix it; never claim a write or removal that didn't happen.
+write and fix it; never claim a write or removal that didn't happen.
 
 ## Rules
 

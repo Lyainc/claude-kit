@@ -4,7 +4,7 @@ description: "Audit an Obsidian vault for structural, metadata, link, placement,
 allowed-tools: Read Edit Bash AskUserQuestion
 ---
 
-**User language: Korean.** All user-facing output, including AskUserQuestion prompts, MUST be in Korean.
+**User language:** Korean by default, English if the user writes English (all user-facing output).
 
 ## Codex Portability
 
@@ -43,7 +43,7 @@ Detail: `reference.md`; Phase 4 procedure: `fix.md`.
    ```
 
 > **`audit-state` exit 3 applies to EVERY call** — state file unusable, nothing written back. **STOP the audit at
-> the first exit 3**, never treat it as empty state; report the sidecar path in Korean (what is preserved, recovery:
+> the first exit 3**, never treat it as empty state; report the sidecar path (what is preserved, recovery:
 > `scripts/README.md` → `audit-state`).
 
 4. Emit a Korean scan-start status line (file count, estimated time). Steps 5–7b write into a fresh
@@ -120,7 +120,7 @@ findings: "이슈 없음 — 볼트가 깨끗합니다." Then Phase 4 if auto-fi
 ## Phase 4 — OPTIONAL-FIX
 
 OFF by default: only after REPORT, on the user's explicit opt-in, never under `--dry-run`. **On entering Phase 4, before asking anything or any write, Read
-`fix.md` in full and follow it**; if unreadable, STOP, apply no fix and tell the user in Korean. Never use Edit on, or
+`fix.md` in full and follow it**; if unreadable, STOP, apply no fix and tell the user. Never use Edit on, or
 otherwise write, a vault file without the user's approval through the AskUserQuestion gate in `fix.md` Step 1
 ("수정 실행"). Only E2 is auto-fixable (frontmatter-only), and it requires the provenance gate: ask for the real
 origin, never a placeholder. E9, E13 and every other type are display-only, never mutated.

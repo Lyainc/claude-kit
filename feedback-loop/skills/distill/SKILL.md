@@ -5,8 +5,8 @@ model: inherit
 allowed-tools: Read Bash Grep AskUserQuestion
 ---
 
-**User language: Korean.** All user-facing output (status lines, AskUserQuestion prompts,
-confirmations, reports) MUST be in Korean. Instructions below are English for LLM parsing.
+**User language:** user-facing output (status lines, AskUserQuestion prompts,
+confirmations, reports) is in Korean by default, or in English when the user writes in English.
 
 ## Codex Portability
 

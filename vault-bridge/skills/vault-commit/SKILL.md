@@ -11,7 +11,7 @@ Commit uncommitted changes in the vault git repository with user approval.
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
-**User language: Korean.** All user-facing output MUST be in Korean.
+**User language:** user-facing output is in Korean by default, or in English when the user writes in English.
 
 ## Procedure
 
@@ -151,7 +151,7 @@ If any group's commit fails, **stop** — do not continue. Report which groups c
 
 **Option C — "메시지 직접 입력 후 커밋"** (index 2):
 
-Do NOT call AskUserQuestion (it does not support freeform text). Instead, output this prompt in Korean and wait for the next user turn:
+Do NOT call AskUserQuestion (it does not support freeform text). Instead, output this prompt and wait for the next user turn:
 
 > 커밋 메시지를 한 줄로 입력해 주세요. (예: `vault: 2026-04-18 session notes`)
 

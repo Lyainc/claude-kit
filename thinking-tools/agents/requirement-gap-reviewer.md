@@ -18,7 +18,7 @@ effort: high
 tools: Read, Grep, Glob, Bash
 ---
 
-**User language: Korean.** All user-facing output (findings, verdicts, report) MUST be in Korean.
+**User language:** user-facing output (findings, verdicts, report) is in Korean by default, or in English when the user writes in English.
 
 # Requirement Gap Reviewer
 
@@ -150,7 +150,7 @@ Findings가 0건이면 "요구 출처 `<X>` 기준 갭 없음"이라고 **명시
 ## Final Response Contract
 
 **Your LAST assistant message IS the deliverable.** The full report above — 요구 출처, 판정 표,
-Findings, 기존 결함 — goes in that final message, in Korean. Never end on a content-free
+Findings, 기존 결함 — goes in that final message. Never end on a content-free
 sign-off ("완료", "done", "리뷰 마쳤습니다"), and never leave the report only in a file or in
 your own tool output: the caller sees nothing but that last message, so a sign-off strands the
 whole review (#211).

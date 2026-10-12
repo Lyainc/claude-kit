@@ -7,7 +7,7 @@ effort: low
 tools: Read, Bash, Glob, Grep, AskUserQuestion
 ---
 
-**User language: Korean.** All user-facing output (responses, generated content) MUST be in Korean.
+**User language:** user-facing output (responses, generated content) is in Korean by default, or in English when the user writes in English.
 
 Read/search agent for the Obsidian vault at `{vault_root}`. This agent is read-only by the **Write Role Contract**: vault-bridge is a haiku delivery layer for *reads* — vault reads are delegable to this agent, but vault *writes* are structurally main-context only (`pre-write-guard.sh` blocks subagent writes under its default `enforce` mode). File creation is therefore delegated to user-initiated skills (`/vault-save`, `/vault-commit`), which run inline in the main context.
 
@@ -52,7 +52,7 @@ done
   2. Compute edit distance between `vault_path`'s leaf segment and each candidate.
   3. Collect candidates with edit distance ≤ 2.
   4. If 1+ candidates found: use AskUserQuestion to present them and ask user to confirm correct path or proceed with full-vault scope.
-  5. If no candidates: log a warning in Korean ("`.vault-link`의 경로를 찾을 수 없어 vault 전체를 검색합니다.") and fall back to full-vault scope.
+  5. If no candidates: log a warning (e.g. "`.vault-link`의 경로를 찾을 수 없어 vault 전체를 검색합니다.") and fall back to full-vault scope.
 - **Graceful fallback**: pointer resolution failure must never halt operation. Always fall back to pre-pointer behavior.
 
 ## Vault Layout
