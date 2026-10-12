@@ -36,7 +36,13 @@ _PATTERNS = [
     # A linter run has no test file of its own; its id is the tool, so a dropped CI step
     # still shows up as missing_in_ci (#809).
     (re.compile(r"\b(ruff)\s+check\b"), "lint:{}"),
+    # Claude plugin checks take a plugin directory, not a file.
+    (re.compile(r"\bclaude\s+plugin\s+validate\s+(\S+)"), "claude-plugin-validate:{}"),
+    (re.compile(r"\bclaude\s+plugin\s+test\s+(\S+)"), "claude-plugin-test:{}"),
 ]
+
+# Ids whose path is a plugin directory; the stale-path check accepts a directory for these.
+_DIR_KINDS = ("claude-plugin-validate", "claude-plugin-test")
 
 
 def _git_toplevel():
@@ -123,6 +129,14 @@ def _referenced_paths(ids):
     return paths
 
 
+def _path_exists(root, path, ids):
+    """True if `path` exists: a directory counts only when a claude-plugin id names it."""
+    full = os.path.join(root, path)
+    if os.path.isfile(full):
+        return True
+    return os.path.isdir(full) and any(f"{k}:{path}" in ids for k in _DIR_KINDS)
+
+
 def check_coverage(root):
     """Return (ok, report). ok=True means every docs/VALIDATION.md test is also run in
     CI, AND every registered path still exists on disk (#618: a test deleted without
@@ -154,7 +168,7 @@ def check_coverage(root):
     ci = extract_test_ids(yml_text)
     missing = registered - ci
     ci_only = ci - registered
-    stale = sorted(p for p in _referenced_paths(registered) if not os.path.isfile(os.path.join(root, p)))
+    stale = sorted(p for p in _referenced_paths(registered) if not _path_exists(root, p, registered))
 
     report["registered"] = sorted(registered)
     report["ci"] = sorted(ci)
@@ -174,6 +188,8 @@ def run_self_test():
         "python3 dir/test/only-in-claude.py\n"
         "uv tool run ruff check .\n"
         "bun test dir/test/base.test.ts\n"
+        "claude plugin validate plugins/x\n"
+        "claude plugin test plugins/x\n"
         "# python3 dir/test/commented-out.py\n"
         "```\n\n## Next\npython3 dir/test/outside-section.py\n"
     )
@@ -185,6 +201,8 @@ def run_self_test():
         "          bash -n hooks/*.sh\n"
         "          uv tool run ruff check .\n"
         "          bun test dir/test/base.test.ts\n"
+        "          claude plugin validate plugins/x\n"
+        "          claude plugin test plugins/x\n"
     )
     reg = extract_test_ids(extract_validation_section(claude))
     ci = extract_test_ids(yml)
@@ -194,6 +212,7 @@ def run_self_test():
     expected_reg = {
         "json.tool:a.json", "py:dir/test/foo.py", "sh:dir/test/bar.sh",
         "bash-n:hooks/*.sh", "py:dir/test/only-in-claude.py", "lint:ruff", "bun:dir/test/base.test.ts",
+        "claude-plugin-validate:plugins/x", "claude-plugin-test:plugins/x",
     }
     if reg != expected_reg:
         failures.append(f"  registered: expected {sorted(expected_reg)}, got {sorted(reg)}")
@@ -212,20 +231,26 @@ def run_self_test():
         os.makedirs(os.path.join(tmp, "docs"))
         os.makedirs(os.path.join(tmp, ".github", "workflows"))
         os.makedirs(os.path.join(tmp, "dir", "test"))
+        os.makedirs(os.path.join(tmp, "plugins", "real"))
         with open(os.path.join(tmp, "dir", "test", "real.py"), "w") as fh:
             fh.write("")
         with open(os.path.join(tmp, "docs", "VALIDATION.md"), "w") as fh:
             fh.write("# x\n## Validation\n\n```bash\npython3 dir/test/real.py\n"
-                      "python3 dir/test/deleted.py\n```\n")
+                      "python3 dir/test/deleted.py\n"
+                      "claude plugin validate plugins/real\n"
+                      "claude plugin test plugins/gone\n```\n")
         with open(os.path.join(tmp, ".github", "workflows", "validate.yml"), "w") as fh:
             fh.write("name: v\njobs:\n  validate:\n    steps:\n      - run: |\n"
                       "          python3 dir/test/real.py\n"
-                      "          python3 dir/test/deleted.py\n")
+                      "          python3 dir/test/deleted.py\n"
+                      "          claude plugin validate plugins/real\n"
+                      "          claude plugin test plugins/gone\n")
         ok, report = check_coverage(tmp)
         if ok:
             failures.append("  check_coverage: a stale (deleted) path should fail ok=False")
-        if report["stale_paths"] != ["dir/test/deleted.py"]:
-            failures.append(f"  check_coverage: expected stale_paths=['dir/test/deleted.py'], "
+        if report["stale_paths"] != ["dir/test/deleted.py", "plugins/gone"]:
+            failures.append(f"  check_coverage: expected stale_paths=['dir/test/deleted.py', "
+                             f"'plugins/gone'], "
                              f"got {report['stale_paths']}")
 
     if failures:
