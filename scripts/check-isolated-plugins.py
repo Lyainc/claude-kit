@@ -27,7 +27,11 @@ BINDING = re.compile(
 )
 BACKGROUND = re.compile(r"\b(history|historical|background|rationale|lineage)\b", re.IGNORECASE)
 READ_CONTEXT = re.compile(r"\b(read|apply|load|follow|see)\b[^`\n]*$", re.IGNORECASE)
-BINDING_CONTEXT = re.compile(r"\b(canonical|contract|source of truth)\b[^`\n]*$", re.IGNORECASE)
+# A binding word must name the backtick path directly ("Source of truth: `../x.md`"),
+# not merely appear earlier in a sentence about consumer output.
+BINDING_CONTEXT = re.compile(
+    r"\b(canonical|contract|source of truth)(?:\s+(?:text|file|copy|path|definition))?"
+    r"\s*(?::|\bis\b|\blives in\b)?\s*$", re.IGNORECASE)
 CONSUMER_FILES = {"CLAUDE.md", "AGENTS.md", "README.md"}
 
 
@@ -137,6 +141,8 @@ def self_test():
         ('Canonical text: `../agent.md` points here, background `../old.md`.', ["../agent.md"]),
         ('bash "${CLAUDE_PLUGIN_ROOT}/scripts/event-logger.sh".', ["scripts/event-logger.sh"]),
         ('Run ${CLAUDE_PLUGIN_ROOT}/scripts/event-logger.sh.', ["scripts/event-logger.sh"]),
+        ('A contract test writes `../out/result.md` in your project.', []),
+        ('Contract: write `./out.md` next to the input.', []),
         ('<!-- Read [missing](missing.md) -->', []),
     ]
     for text, expected in cases:
