@@ -5,7 +5,7 @@ model: inherit
 allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 ---
 
-**User language: Korean for dialogue.** Artifact language: reference.md §0 (binding).
+**User language:** dialogue is Korean by default, English if the user writes English. Artifact language: reference.md §0 (binding).
 
 ## Codex Portability
 
@@ -72,7 +72,7 @@ so never add a second `.md` there.
 - memory 중복: <none | memory에도 있어요: <path...> — 매립 후 그 항목은 지울게요 (§6)>
 ```
 
-Then AskUserQuestion (Korean): "여기에 이렇게 넣을게요 — 맞아요?" If 필요성 is 기존 항목으로 충분 /
+Then AskUserQuestion: "여기에 이렇게 넣을게요 — 맞아요?" If 필요성 is 기존 항목으로 충분 /
 안 넣는 게 나음 or 은퇴 is 미발동, first read reference §3-gate-question (binding): the
 recommendation is the first option, never a generic refusal; 미발동 is a three-way pick, not
 yes/no. Never write without confirmation; hold an unsettled axis.

@@ -46,7 +46,7 @@ Detail: `reference.md`; Phase 4 procedure: `fix.md`.
 > the first exit 3**, never treat it as empty state; report the sidecar path (what is preserved, recovery:
 > `scripts/README.md` → `audit-state`).
 
-4. Emit a Korean scan-start status line (file count, estimated time). Steps 5–7b write into a fresh
+4. Emit a scan-start status line (file count, estimated time). Steps 5–7b write into a fresh
    `$scan_tmp` (never stdout) in ONE Bash call.
 
 5. Frontmatter scan (`--path`-scoped):
@@ -131,7 +131,7 @@ origin, never a placeholder. E9, E13 and every other type are display-only, neve
 - `--dry-run`: SCAN→CLASSIFY→REPORT only.
 - `--path <dir>`: scope Steps 5–6 only.
 - `--deep`: run Phase 2.5 (off by default).
-- `status` (bare arg): skip the pipeline; `audit-state stats` → one Korean status line, no mutation.
+- `status` (bare arg): skip the pipeline; `audit-state stats` → one status line, no mutation.
 
 ## Rules
 
