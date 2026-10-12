@@ -1380,8 +1380,8 @@ standard shell tools; GitHub CLI auth is checked locally when `gh` is installed.
 
 The packaged reference check covers `skills/`, `reference/`, `templates/`, `hooks/`,
 `agents/` and the two plugin manifests. Explicit `${CLAUDE_PLUGIN_ROOT}` asset paths,
-relative Markdown `.md` links, and backticks used as read/apply locators must resolve
-inside the copied package. Relative links use the containing file; plugin-surface
+relative Markdown `.md` links, and backticks used as read/apply or canonical/contract/source-of-truth
+locators must resolve inside the copied package. Relative links use the containing file; plugin-surface
 backticks also accept the plugin root. The expert-panel worker's `SKILL.md` and
 `reference.md` inputs resolve against its explicitly supplied expert-panel skill directory.
 An existing target outside the package fails containment. A missing binding reference is
