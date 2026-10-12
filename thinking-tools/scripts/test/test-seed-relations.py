@@ -31,6 +31,7 @@ import base64
 import importlib.util
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -1221,6 +1222,28 @@ def check_walk_reexpand_second_route() -> list[str]:
     return failures
 
 
+def check_walk_reexpand_wider_relation() -> list[str]:
+    """#849: a Seed reached again over the same edges but handing down a wider relation is
+    expanded again, so nothing within the depth cap goes missing without a STOP."""
+    failures = []
+    repo = _repo()
+    at = lambda *ns: [f"{SP}{n}.yaml" for n in ns]
+    # A is S's parent and child: first an `ancestor` (children -> ancestor-child), then a
+    # `descendant` (children -> descendant), so B must be walked on as a descendant too.
+    _write(repo, "s.yaml", target="S", parent=SP + "a.yaml", children=at("a"))
+    _write(repo, "a.yaml", target="A", children=at("b"))
+    _write(repo, "b.yaml", target="B", children=at("c"))
+    _write(repo, "c.yaml", target="C")
+    code, data, _ = _walk_json(repo, SP + "s.yaml", "--max-depth", "3")
+    got = {n["key"]: (n["depth"], n["relation"]) for n in data["nodes"]} if data else None
+    want = {SP + "s.yaml": (0, "start"), SP + "a.yaml": (1, "ancestor"),
+            SP + "b.yaml": (2, "ancestor-child"), SP + "c.yaml": (3, "descendant")}
+    if code != 0 or got != want or data["stops"]:
+        failures.append(f"walk wider relation: expected {want} and no stops, got {got} "
+                        f"stops {data['stops'] if data else None}")
+    return failures
+
+
 def check_identifier_helpers() -> list[str]:
     """canonical_id / legacy_form / seed_slug / qualified_id are the code form of identifiers.md."""
     failures = []
@@ -1400,6 +1423,7 @@ def main() -> int:
         check_walk_identification,
         check_walk_value_cleaning,
         check_walk_reexpand_second_route,
+        check_walk_reexpand_wider_relation,
         check_identifier_helpers,
         check_legacy_compat,
         check_refines_form_hint,
