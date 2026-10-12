@@ -27,6 +27,7 @@ BINDING = re.compile(
 )
 BACKGROUND = re.compile(r"\b(history|historical|background|rationale|lineage)\b", re.IGNORECASE)
 READ_CONTEXT = re.compile(r"\b(read|apply|load|follow|see)\b[^`\n]*$", re.IGNORECASE)
+BINDING_CONTEXT = re.compile(r"\b(canonical|contract|source of truth)\b[^`\n]*$", re.IGNORECASE)
 CONSUMER_FILES = {"CLAUDE.md", "AGENTS.md", "README.md"}
 
 
@@ -50,7 +51,7 @@ def references(text):
                   text, flags=re.DOTALL)
     for number, line in enumerate(text.splitlines(), 1):
         for match in ROOT_PATH.finditer(line):
-            yield number, match.group(1), "root"
+            yield number, match.group(1).rstrip(".-/"), "root"
         for match in LINK.finditer(line):
             path = match.group(1).split("#", 1)[0]
             if (not path or re.match(r"[\w+.-]+:", path)
@@ -72,7 +73,8 @@ def references(text):
             stripped = re.sub(r"^(?:\.\./|\./)+", "", path)
             if (stripped.split("/", 1)[0] in SURFACES
                     or (path.startswith(("../", "./"))
-                        and READ_CONTEXT.search(line[:match.start()]))
+                        and (READ_CONTEXT.search(line[:match.start()])
+                             or BINDING_CONTEXT.search(line[:match.start()])))
                     or ("/" not in path and path.endswith(".md")
                         and READ_CONTEXT.search(line[:match.start()]))):
                 yield number, path, "local"
@@ -88,7 +90,7 @@ def reference_errors(package):
         if source.suffix not in (".md", ".sh", ".json") or not source.is_file():
             continue
         # Examples/rationale are illustrative, not executable read contracts.
-        if "examples" in source.parts or source.name in ("examples.md", "rationale.md"):
+        if "examples" in source.relative_to(package).parts or source.name in ("examples.md", "rationale.md"):
             continue
         for line, raw, anchor in references(source.read_text(encoding="utf-8")):
             count += 1
@@ -130,6 +132,11 @@ def self_test():
         ('"${CLAUDE_PLUGIN_ROOT}"/hooks/check.sh', ["hooks/check.sh"]),
         ('If available, invoke `vault-bridge:vault-save`.', []),
         ('See [API](https://example.com/api.md) and [section](#section).', []),
+        ('Single source of truth: `../../../docs/design/boundary.md` §5.',
+         ["../../../docs/design/boundary.md"]),
+        ('Canonical text: `../agent.md` points here, background `../old.md`.', ["../agent.md"]),
+        ('bash "${CLAUDE_PLUGIN_ROOT}/scripts/event-logger.sh".', ["scripts/event-logger.sh"]),
+        ('Run ${CLAUDE_PLUGIN_ROOT}/scripts/event-logger.sh.', ["scripts/event-logger.sh"]),
         ('<!-- Read [missing](missing.md) -->', []),
     ]
     for text, expected in cases:
@@ -149,6 +156,16 @@ def self_test():
         (root.parent / "outside.md").touch()
         # An existing file outside the package must still fail containment.
         assert reference_errors(root)[1]
+    # The examples exclusion is package-relative: an ancestor named examples must not skip files.
+    with tempfile.TemporaryDirectory(prefix="plugin-reference-self-test-") as directory:
+        package = Path(directory) / "examples" / "x" / "package"
+        skill = package / "skills" / "demo"
+        skill.mkdir(parents=True)
+        (skill / "SKILL.md").write_text("Read `reference/missing.md`", encoding="utf-8")
+        assert reference_errors(package)[1]
+        (skill / "examples").mkdir()
+        (skill / "examples" / "a.md").write_text("Read `reference/missing.md`", encoding="utf-8")
+        assert len(reference_errors(package)[1]) == 1
     print(f"OK: {len(cases)} reference classification cases + containment mutation")
 
 
