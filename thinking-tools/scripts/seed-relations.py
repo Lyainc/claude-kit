@@ -1062,7 +1062,10 @@ class _Node:
         self.came_from = came_from  # identity of the node this one was reached from
         self.error = None
         self.sha = None
-        self.expanded = set(WALK_EDGES[relation])  # edges queued for expansion from this node
+        # (edge, relation its targets get) pairs queued for expansion from this node: the same
+        # edge hands a different relation down from another route (children of an `ancestor`
+        # are `ancestor-child`, of a `descendant` are `descendant`), so the edge alone is not enough.
+        self.expanded = {(e, WALK_NEXT[(relation, e)]) for e in WALK_EDGES[relation]}
         self.todo = None            # a re-expansion shadow: only these edges are followed
 
 
@@ -1119,16 +1122,17 @@ def walk(seed_file, max_depth=3, max_nodes=25):
         # A Seed found again by a different route keeps its first relation/via/depth in the
         # output (the shortest, first-seen path), but the new route may allow edges the first
         # one did not (a `predecessor` only follows depends_on; as a `descendant` it also
-        # follows children). Those edges are followed once, from a shadow of the node carrying
-        # the new route's relation, depth and path, so depth/node caps and cycle checks hold
-        # for that route. Each (node, edge) is expanded at most once, so this stays bounded.
+        # follows children), or hand its targets a wider relation over the same edge (#849).
+        # Those edges are followed once, from a shadow of the node carrying the new route's
+        # relation, depth and path, so depth/node caps and cycle checks hold for that route.
+        # Each (node, edge, handed-down relation) is expanded at most once, so this stays bounded.
         if tgt.status != "ok" or src.depth + 1 > max_depth:
             return
         rel_ = WALK_NEXT[(src.relation, edge)]
-        extra = [e for e in WALK_EDGES[rel_] if e not in tgt.expanded]
+        extra = [e for e in WALK_EDGES[rel_] if (e, WALK_NEXT[(rel_, e)]) not in tgt.expanded]
         if not extra:
             return
-        tgt.expanded.update(extra)
+        tgt.expanded.update((e, WALK_NEXT[(rel_, e)]) for e in extra)
         shadow = _Node(tgt.key, tgt.loc, src.depth + 1, rel_, src.via + [[edge, tgt.key]],
                        src.path + [tgt.loc], tgt.status, tgt.seed, src.loc)
         shadow.todo = extra
