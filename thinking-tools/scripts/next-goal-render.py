@@ -307,7 +307,7 @@ def render(j, cwd):
     incomplete = bool(j["unverified"] or any(a["decision"] == "unverified"
                       for a in j.get("alternatives", [])) or (data and (
                           any(data["summary"].get(k) for k in
-                              ("stopped", "failed", "notfound", "cycles", "external"))
+                              ("stopped", "failed", "notfound", "external"))
                           or current_id != j["walk_id"])))
     pick = j.get("pick")
     lines.append(f"NEXT     · {pick['title'] if pick else '없음'}")

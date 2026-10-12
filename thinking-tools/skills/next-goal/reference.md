@@ -183,8 +183,8 @@ required review refuses the whole pick even when the judgment is stale. Name See
 `c1`/`ac1`. For `session`, `backlog` or `issue:#N`, `targets` is free text. A `[근거 변경됨 ...]` mark means the Seed
 or HEAD moved after the walk: walk again and re-judge before writing the condition. Without a Seed
 in play, the renderer keeps three lines if there are no gaps, adding TRACE for `unverified`.
-A no-pick result is scoped; walk limits/failures, unverified alternatives, external nodes,
-cycles and stale evidence prevent a definitive absence claim. The same JSON is what the
+A no-pick result is scoped; walk limits/failures, unverified alternatives, external nodes
+and stale evidence prevent a definitive absence claim; a cut cycle leaves no unevaluated scope. The same JSON is what the
 optional seed-board mod shows, so the choice and the condition never depend on whether a UI is on.
 
 ## User switch

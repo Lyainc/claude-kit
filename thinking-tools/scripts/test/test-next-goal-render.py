@@ -206,6 +206,15 @@ def main():
     code, out, err = _render(repo, _judgment(clear_id, pick=None, alternatives=[]))
     check("complete named no-pick stays a valid scoped conclusion", code == 0
           and "검토한 범위 안" in out and "미평가" not in out, f"{code} {out!r} {err!r}")
+    # A CYCLE is an edge cut to an already visited node: it leaves no unevaluated scope.
+    parent.write_text(parent.read_text(encoding="utf-8").replace(
+        "relations:\n  parent: null", "relations:\n  parent: docs/specs/c.yaml"), encoding="utf-8")
+    cycle_id = _walk_id(repo)
+    code, out, err = _render(repo, _judgment(cycle_id, pick=None, alternatives=[]))
+    check("cycle-only no-pick stays a valid scoped conclusion", code == 0 and "순환" in out
+          and "검토한 범위 안" in out and "미평가" not in out, f"{code} {out!r} {err!r}")
+    parent.write_text(parent.read_text(encoding="utf-8").replace(
+        "parent: docs/specs/c.yaml", "parent: null", 1), encoding="utf-8")
     parent.write_text(parent.read_text(encoding="utf-8") + "\n# changed\n", encoding="utf-8")
     code, out, err = _render(repo, _judgment(clear_id, pick=None, alternatives=[]))
     check("stale no-pick retains uncertainty", code == 0 and "미평가" in out
