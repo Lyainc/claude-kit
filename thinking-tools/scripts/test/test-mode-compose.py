@@ -726,8 +726,9 @@ def role_label_checks(transcript: str, summary: str, ref_text: str, worker_text:
          "reference.md § 속기록 형식 reserves 독립 최종 검토 for the isolated Moderator subagent"),
         (_normalise("the transcript labels it `[Moderator — 진행자 종합]`, never inline-only wording") in delegated,
          "reference.md § Delegated execution labels the worker's synthesis 진행자 종합"),
-        (_normalise("label the synthesis `[Moderator — 진행자 종합]`") in _normalise(worker_text),
-         "expert-panel-worker.md labels its synthesis 진행자 종합"),
+        (_normalise("label the synthesis `[Moderator — 진행자 종합]` and append no mode qualifier")
+         in _normalise(worker_text),
+         "expert-panel-worker.md labels its synthesis 진행자 종합 with no mode qualifier"),
     ]
 
 
@@ -1043,7 +1044,10 @@ _REF_FORMAT_INLINE_ONLY = _CLEAN_REF.replace(
     "**[Moderator]**: 결론·근거... / 보류 사유... (inline: 진행자 종합)")
 _REF_DELEGATED_NO_LABEL = _CLEAN_REF.replace(
     " — the transcript labels it `[Moderator — 진행자 종합]`, never inline-only wording —", ",")
-_WORKER_NO_LABEL = _CLEAN_WORKER.replace("; label the synthesis `[Moderator — 진행자 종합]`.", ".")
+_WORKER_NO_LABEL = _CLEAN_WORKER.replace(
+    "; label the synthesis `[Moderator — 진행자 종합]` and append no mode qualifier (no\n  `inline …`) after it.", ".")
+# The 2026-10-12 delegated run labeled correctly but appended "(inline 체크리스트 적용, …)".
+_WORKER_QUALIFIER_ALLOWED = _CLEAN_WORKER.replace(" and append no mode qualifier (no\n  `inline …`) after it", "")
 # The loaded bullet back to "SUMMARY only", which made a live caller drop the trail.
 _SKILL_BULLET_SUMMARY_ONLY = _CLEAN_SKILL.replace("relay its SUMMARY + 진행 기록", "returns SUMMARY only")
 # The caller allowed to present a SUMMARY without its trail as verified.
@@ -1318,6 +1322,8 @@ def _self_test() -> int:
          (_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _REF_DELEGATED_NO_LABEL, _CLEAN_WORKER)),
         ("worker drops the label",
          (_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _CLEAN_REF, _WORKER_NO_LABEL)),
+        ("worker allows a mode qualifier after the label",
+         (_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _CLEAN_REF, _WORKER_QUALIFIER_ALLOWED)),
     ):
         cases.append((f"role label: {desc} -> FAIL", not all(ok for ok, _ in role_label_checks(*args))))
 
