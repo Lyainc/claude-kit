@@ -25,7 +25,7 @@ Detail: `reference.md`; Phase 4 procedure: `fix.md`.
    if [ ! -d "$VAULT_ROOT" ]; then echo "VAULT_ABSENT"
    elif [ ! -d "$VAULT_ROOT/.obsidian" ]; then echo "VAULT_NO_OBSIDIAN"; fi
    ```
-   `VAULT_ABSENT` → stop before any scan (#763) and say: "`{vault_root}`에 볼트 디렉토리가 없어요.
+   `VAULT_ABSENT` → stop before any scan and say: "`{vault_root}`에 볼트 디렉토리가 없어요.
    볼트가 다른 곳에 있다면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 vault-bridge 플러그인 설정
    `vault_path`로 경로를 지정해 주세요." `VAULT_NO_OBSIDIAN` → warn once that it may not be an
    Obsidian vault (same two settings), then continue.
@@ -61,7 +61,7 @@ Detail: `reference.md`; Phase 4 procedure: `fix.md`.
    ```
 
 7. Build a global link index (`{target_stem → [source_paths]}`) from wikilinks vault-wide —
-   **never `--path`-scoped**; ONE call, never a per-file loop (#614):
+   **never `--path`-scoped**; ONE call, never a per-file loop:
    ```bash
    bash "${CLAUDE_PLUGIN_ROOT}/scripts/ovm-primitives.sh" extract-wikilinks-batch "$VAULT_ROOT" > "$scan_tmp/links.json"
    ```
@@ -72,14 +72,14 @@ Detail: `reference.md`; Phase 4 procedure: `fix.md`.
      --frontmatter "$scan_tmp/fm.json" --filename "$scan_tmp/fn.json" --index "$scan_tmp/links.json" \
      --schema "$VAULT_ROOT/.vault-schema.json"
    ```
-   **Never `cat` a raw scan file** (#468, #460). Exit 0 → parse stdout as `scan_summary`.
+   **Never `cat` a raw scan file**. Exit 0 → parse stdout as `scan_summary`.
    Exit 3 (a scan file absent or unparseable) → **STOP the audit**, name the unusable input;
    never fall back to a raw `cat`, never treat it as an empty scan. `omitted: N` → re-run
    Steps 5–7b as ONE new Bash call with a larger `--max-per-type`, into a file, via **Read**.
    Apply `${CLAUDE_PLUGIN_ROOT}/reference/vault-audit-rules.md` → **SCAN output budget**: report `count`, never the
    list length; say in the REPORT when a list was cut.
 
-8. Read manifest summary (REPORT header) — **never `cat` the manifest** (#468, #460):
+8. Read manifest summary (REPORT header) — **never `cat` the manifest**:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
@@ -108,7 +108,7 @@ sources (E13 only with `.vault-schema.json`; `computed: false` → report its `r
 ## Phase 2.5 — DEEP (opt-in, `--deep`)
 
 Not passed → skip. Passed → read `${CLAUDE_PLUGIN_ROOT}/reference/audit-deep.md` and apply it as written
-(E12b #336, E9c #167, each with its own `AskUserQuestion` confirm gate); only confirmed pairs become findings.
+(E12b, E9c, each with its own `AskUserQuestion` confirm gate); only confirmed pairs become findings.
 
 ## Phase 3 — REPORT
 

@@ -103,7 +103,7 @@ Otherwise read the site's current rules, hook matchers and guard scripts, or ski
   it and retires it in the same write, on the same confirmation, never a separate prompt. Read
   reference §6-supersede-contract and apply it as written; this bullet is a locator, not the
   contract.
-- **Unused retirement (#609)**: only when the user says outright the entry never came up (never
+- **Unused retirement**: only when the user says outright the entry never came up (never
   silence); recommends only, never `rm`. Read reference §6-unused-contract and apply it as written.
 - **Contradiction**: conflicts with an existing rule and the request does NOT target it as an
   explicit edit → do NOT write; report and stop.

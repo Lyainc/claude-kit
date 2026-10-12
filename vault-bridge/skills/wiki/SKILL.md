@@ -34,7 +34,7 @@ Destinations: GitHub issue / wiki / AGENTS.md. Redirect wording and mixed input:
 
 ## Phase 3 — DEDUP (compounding, not duplication)
 
-0. **Vault-absent guard (#645 B1) — runs BEFORE the manifest read, and the order matters.**
+0. **Vault-absent guard — runs BEFORE the manifest read, and the order matters.**
    Resolve like `hooks/pre-write-guard.sh`: `VAULT_BRIDGE_VAULT_ROOT`
    (env override) > `VAULT_BRIDGE_VAULT_PATH` (userConfig) > `~/vault`:
    ```bash
@@ -51,14 +51,14 @@ Destinations: GitHub issue / wiki / AGENTS.md. Redirect wording and mixed input:
    `VAULT_BRIDGE_VAULT_ROOT`(환경변수)나 플러그인 설정 `vault_path`로 지정해 주세요."
    **Never `mkdir` the vault root**, here or in Phase 5.
 
-   `VAULT_NO_OBSIDIAN` → warn once, continue (#763): "`$VAULT_ROOT`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."
+   `VAULT_NO_OBSIDIAN` → warn once, continue: "`$VAULT_ROOT`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."
 
-1. Find existing same-topic pages (a topic with a page is **updated**, never duplicated). **Primary: the manifest**, matching `type:wiki` entries on title + tags. **Never `cat` the manifest** — the harness truncates large Bash output to a 2 KB preview, so a raw `cat` silently loses entries (#468; `reference.md` §Manifest read). Use the filter script:
+1. Find existing same-topic pages (a topic with a page is **updated**, never duplicated). **Primary: the manifest**, matching `type:wiki` entries on title + tags. **Never `cat` the manifest** — the harness truncates large Bash output to a 2 KB preview, so a raw `cat` silently loses entries (`reference.md` §Manifest read). Use the filter script:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-wiki-match.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```
    Exit 0 → parse stdout `{scanned, wiki_entries[]}` and match on title + tags.
-   Exit 3 (manifest absent, unparseable, or malformed) → slug/filename fallback below (no raw retry). Also warn the user once (#645 B2), e.g. "manifest를 못 읽어서(`$VAULT_ROOT/.vault-bridge/manifest.json`) 슬러그 이름 매칭으로만
+   Exit 3 (manifest absent, unparseable, or malformed) → slug/filename fallback below (no raw retry). Also warn the user once, e.g. "manifest를 못 읽어서(`$VAULT_ROOT/.vault-bridge/manifest.json`) 슬러그 이름 매칭으로만
    중복을 확인해요. 같은 주제가 다른 슬러그로 있으면 못 잡을 수 있어요. `/vault-manifest-refresh`로
    다시 만들 수 있어요." This warns, it does not abort.
 
@@ -67,7 +67,7 @@ Destinations: GitHub issue / wiki / AGENTS.md. Redirect wording and mixed input:
    ls "$VAULT_ROOT/wiki/" 2>/dev/null
    ```
 2. **Existing page** → Read it, plan an **update/merge** (keep it coherent, extend `provenance:`). Do NOT create a `-v2`.
-   - **Lazy anchor check (#305)**: for a local-path `anchor:`, `stat` it and compare mtime to `verified:`; unchanged → skip re-deriving, changed → recompile. URL anchor: never fetch, always recompile. See `reference.md` §Lazy anchor check.
+   - **Lazy anchor check**: for a local-path `anchor:`, `stat` it and compare mtime to `verified:`; unchanged → skip re-deriving, changed → recompile. URL anchor: never fetch, always recompile. See `reference.md` §Lazy anchor check.
 3. **No page** → plan a **new** page `$VAULT_ROOT/wiki/{slug}.md`; `{slug}` = 2–4 kebab-case words.
 4. `-v2`/`-v3` only for a genuinely different topic colliding on slug.
 
@@ -91,7 +91,7 @@ provenance: <one line: the query / exploration that produced this page; multiple
 
 ## Phase 5 — WRITE
 
-1. `mkdir -p "$VAULT_ROOT/wiki"` — the `wiki/` sub-directory only, because Phase 3 step 0 proved `$VAULT_ROOT` exists. **Never `mkdir` the vault root** (#645 B1).
+1. `mkdir -p "$VAULT_ROOT/wiki"` — the `wiki/` sub-directory only, because Phase 3 step 0 proved `$VAULT_ROOT` exists. **Never `mkdir` the vault root**.
 2. **New**: write `$VAULT_ROOT/wiki/{slug}.md` with the frontmatter above; stamp `verified:` to today.
 3. **Update**: rewrite with merged content and extended `provenance:`; preserve `created:`; stamp `verified:` to today either way.
 4. Output only the file path and whether it was new or merged. No follow-up questions.
@@ -102,8 +102,8 @@ provenance: <one line: the query / exploration that produced this page; multiple
 - **U7 route first.** Repo-structure knowledge goes to AGENTS.md/deepinit, never wiki.
 - **Compound, don't duplicate.** Same topic → update; `-v2` only for a slug collision between different topics.
 - **Always write `provenance:`.** Every wiki page carries the exploration that produced it.
-- **Always stamp `verified:` to today on write.** No exceptions, no schedule, no "re-verify" step (#305).
+- **Always stamp `verified:` to today on write.** No exceptions, no schedule, no "re-verify" step.
 - **No `status:` on wiki pages.** A is outside the status machine.
 - **Filename**: `{slug}.md`, lowercase kebab (`pre-write-guard.sh` convention).
-- **Vault writes only inside `$VAULT_ROOT/wiki/`** — the root step 0 resolved, never a hardcoded `~/vault` (#613/#616; `reference.md` §Rules). Never touch repo files.
+- **Vault writes only inside `$VAULT_ROOT/wiki/`** — the root step 0 resolved, never a hardcoded `~/vault` (`reference.md` §Rules). Never touch repo files.
 - AI recall is primary: plain markdown, no embedding/DB.

@@ -9,7 +9,7 @@ description: |
   Everything repo-checkable — correctness, and CLAUDE.md/guard-script rule
   compliance, which native `/code-review high` already grades by running the
   guards itself and citing their output — is native's axis, not this one
-  (measured, #728). This agent covers only what native structurally cannot see:
+  (measured). This agent covers only what native structurally cannot see:
   this session's own ask (an issue's 기대 동작, a Seed, a completion condition).
   Used by next-goal's Phase 2 review requirement and build-spec. Read-only — reports, never edits.
 model: sonnet
@@ -25,7 +25,7 @@ tools: Read, Grep, Glob, Bash
 You grade a change against what was *asked for*. Correctness, and whether the change follows
 this repo's own rules, are not your axis — native review (`/code-review high`) already covers
 both: it grades CLAUDE.md-stated conventions by name and runs the repo's own guard scripts
-(`check-*.py`) directly, citing their output as evidence (measured live, #728). It has its own
+(`check-*.py`) directly, citing their output as evidence (measured live). It has its own
 per-angle finder and per-finding verifier for all of that. Yours is the one axis native review
 structurally cannot serve, because it lives outside the repo: this session's own issue,
 instruction, or Seed.
@@ -111,7 +111,7 @@ the blocking count nor stalls the caller's loop.
 
 Screen lightly. A finding that survives one re-read of the diff stands. Do not run an
 adversarial verification pass over your own findings — measured on this repository,
-over-detection is not the failure mode (#689 reviewed every open deferred nit and found each
+over-detection is not the failure mode (a review of every open deferred nit found each
 one a real defect or a real nit).
 
 ## Report format
@@ -153,4 +153,4 @@ Findings가 0건이면 "요구 출처 `<X>` 기준 갭 없음"이라고 **명시
 Findings, 기존 결함 — goes in that final message. Never end on a content-free
 sign-off ("완료", "done", "리뷰 마쳤습니다"), and never leave the report only in a file or in
 your own tool output: the caller sees nothing but that last message, so a sign-off strands the
-whole review (#211).
+whole review.

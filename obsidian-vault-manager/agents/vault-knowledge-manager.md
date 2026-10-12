@@ -70,7 +70,7 @@ this handoff table is not evidence that the command is available.
 Every command in the right-hand column ships with **vault-bridge**, not with this plugin.
 Never claim a file was created — you did not create it.
 
-### No status, provenance required (v5 §5, #480)
+### No status, provenance required (v5 §5)
 
 Every draft carries `provenance:` — where the material came from (URL, session topic, conversation,
 book, meeting). Never put a `status:` field in a draft: the `raw → draft → evergreen` machine and
@@ -101,7 +101,7 @@ grep -rl "keyword" ~/vault --include="*.md"
 
 ## Audit
 
-Invoke the `audit` skill (via Skill) to scan vault health. Detects 10 error types (E1–E3, E5–E6, E9–E13 — E4 was removed as a native-Obsidian duplicate, #482; E7/E8 went with the promotion gate, #480):
+Invoke the `audit` skill (via Skill) to scan vault health. Detects 10 error types (E1–E3, E5–E6, E9–E13 — E4 was removed as a native-Obsidian duplicate; E7/E8 went with the promotion gate):
 
 - `/audit` — full vault scan
 - `/audit --path notes` — scope to notes/ only

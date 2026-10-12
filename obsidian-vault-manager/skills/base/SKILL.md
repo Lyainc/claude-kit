@@ -33,7 +33,7 @@ Display `file.name` plus the referenced filter/sort properties, or user-specifie
 
 ## Built-in View Templates
 
-Built-ins follow the source/prose folder split. **Every filter includes `file.hasProperty("type")`**: notes without `type:` stay invisible (type opt-in). The old status templates remain abolished (#480).
+Built-ins follow the source/prose folder split. **Every filter includes `file.hasProperty("type")`**: notes without `type:` stay invisible (type opt-in). The old status templates remain abolished.
 
 ### sources — everything in `sources/` (source text kept as-is)
 
@@ -116,5 +116,5 @@ views:
 - **Pure YAML**: no frontmatter delimiters or Markdown.
 - Show the plan first; write the file only after user confirmation.
 - `notes/` allows free sub-folder structure; do not auto-create sub-folders unless the user specifies a path.
-- Custom `status` filters are allowed; the plugin does not create or manage that field. The former built-in state machine stays abolished (#480).
+- Custom `status` filters are allowed; the plugin does not create or manage that field. The former built-in state machine stays abolished.
 - For syntax, examples, and future Bases changes, Read `../../reference/obsidian-bases-schema.md`. Specific-work selection, grouping, and schema inference are outside this minimum contract.

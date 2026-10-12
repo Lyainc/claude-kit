@@ -32,7 +32,7 @@ The split is **authorship, not quality** (`reference.md` §Destination notes).
 
 - `{slug}`: 2–4 kebab-case words from the topic or title. Unsure? Text that would survive unchanged without you is source → `sources/`.
 - `--type decision` is for non-repo-bound decisions only. A **repo-bound** design decision belongs in a GitHub issue (v5 §10) — say so and stop rather than writing one.
-- `--type discussion` is the one case that writes to `wiki/` (#586); no date prefix in the filename (the date lives only in `created:`).
+- `--type discussion` is the one case that writes to `wiki/`; no date prefix in the filename (the date lives only in `created:`).
 
 ## Frontmatter
 
@@ -47,10 +47,10 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 ---
 ```
 
-- **`provenance` is required on every file** (v5 §5, #480); never write a file without it. If the origin is just "this conversation", say that.
-- **No `status:` field**; do not offer to promote anything (v5 §5/§6, #480).
+- **`provenance` is required on every file** (v5 §5); never write a file without it. If the origin is just "this conversation", say that.
+- **No `status:` field**; do not offer to promote anything (v5 §5/§6).
 - URL saves add `url:` and, when an H1 was extracted, `title:` (see below). Quote both values.
-- `type: discussion` keeps rejected alternatives and their assumptions in the body (#586); link related `wiki/` pages with `[[wikilinks]]`. More: `reference.md` §Frontmatter notes.
+- `type: discussion` keeps rejected alternatives and their assumptions in the body; link related `wiki/` pages with `[[wikilinks]]`. More: `reference.md` §Frontmatter notes.
 
 ## Procedure
 
@@ -64,7 +64,7 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
    ```
 2. Parse `$ARGUMENTS`: strip a leading `--type decision` or `--type discussion` flag if present;
    the rest is the content or URL.
-3. **Vault-absent guard (#697) — check `{vault_root}` exists BEFORE creating anything.** If
+3. **Vault-absent guard — check `{vault_root}` exists BEFORE creating anything.** If
    `[ -d "{vault_root}" ]` is false, **stop without writing** and tell the user that no
    vault was found at that path and where to configure one (`VAULT_BRIDGE_VAULT_ROOT`, or the
    `vault_path` plugin setting) — e.g. "`{vault_root}`에 볼트가 없어서 저장을
@@ -73,7 +73,7 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 
    Rationale: `reference.md` §Procedure step 3.
 
-   Root exists but `[ -d "{vault_root}/.obsidian" ]` is false → warn once, continue (#763): "`{vault_root}`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."
+   Root exists but `[ -d "{vault_root}/.obsidian" ]` is false → warn once, continue: "`{vault_root}`에 `.obsidian/`이 없어 Obsidian 볼트가 아닐 수 있어요. 다른 경로라면 `VAULT_BRIDGE_VAULT_ROOT` 환경변수나 플러그인 설정 `vault_path`로 지정해 주세요."
 
    Once the root exists, `mkdir -p` the target sub-directory before writing.
 4. If the content starts with `http://` or `https://`, follow **URL capture** below; otherwise
@@ -129,8 +129,8 @@ Body: the full `$DEFUDDLE_OUT` (including its H1) on success, the bare URL other
 
 ## Rules
 
-- **Save immediately, without confirmation** (#477; `reference.md` §Rules).
+- **Save immediately, without confirmation** (`reference.md` §Rules).
 - Write `provenance:` on every file; never write `status:`.
 - Save immediately regardless of the Defuddle outcome; output the saved path only.
 - `notes/` allows free sub-folder structure; do not auto-create sub-folders.
-- Never write to `{vault_root}/wiki/` except for `--type discussion` (#645).
+- Never write to `{vault_root}/wiki/` except for `--type discussion`.

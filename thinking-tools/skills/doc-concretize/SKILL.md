@@ -99,7 +99,7 @@ not the same partition. It returns pass/fail per `segment-{n}` plus the failing 
 document, not per segment. **Agent call fails / no response** → verify inline against the same
 checklist and tell the user the final pass was not isolated. A subagent that returns only idle
 notifications and no final text after one re-request counts as unavailable and takes this same
-fallback (#647) — never wait on it further.
+fallback — never wait on it further.
 
 **[Reflect]** — fires only on an isolated-Verify failure, never per segment:
 - All `segment-{n}` passed → document is done
