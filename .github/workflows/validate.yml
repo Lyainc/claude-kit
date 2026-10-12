@@ -482,3 +482,24 @@ jobs:
         run: |
           bash obsidian-vault-manager/scripts/test/run-audit-dod.sh
           echo "Audit DoD gate OK"
+
+  seed-board-mods:
+    # Seed board Mods checks (#815). `claude plugin test` exits 1 on a failed `expect`
+    # (reproduced locally 2026-10-12). Neither command calls a model or needs auth. The CLI
+    # version is pinned so a CLI release cannot change the verdict unseen; its own job keeps
+    # the install off the main validate path.
+    runs-on: ubuntu-latest
+    env:
+      DISABLE_AUTOUPDATER: "1"
+      CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Claude Code CLI (pinned)
+        run: npm install -g @anthropic-ai/claude-code@2.1.296
+
+      - name: Validate and test the Seed board mod
+        run: |
+          claude --version
+          claude plugin validate thinking-tools/mods/seed-board
+          claude plugin test thinking-tools/mods/seed-board
