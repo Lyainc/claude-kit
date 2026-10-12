@@ -180,7 +180,7 @@ Cursor 방식으로는 어떻게 처리하나요?
 
 | 토픽 | 결론 | 근거 | 출처 / 인용 |
 |------|------|------|------------|
-| 인증 방식 | JWT + Refresh Token | Rotation + Fingerprint 조건부 합의 | [[decision-2026-03-auth]] |
+| 인증 방식 | JWT + Refresh Token | Rotation + Fingerprint 조건부 합의 | 도메인 판단 (근거 없음) |
 | 페이지네이션 | 하이브리드 (User: Cursor, Admin: Offset) | 용도별 최적화 | 도메인 판단 (근거 없음) |
 | 에러 처리 | 보류 (`held:evidence`) | 보안 정책 확인 필요 | — |
 
