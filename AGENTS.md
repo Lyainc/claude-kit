@@ -23,9 +23,11 @@ Personal machine policy is optional and must never become a runtime/build depend
 - Before adding/changing skills, agents, hooks, or manifests, read the relevant sections of
   `docs/contributor-authoring.md`. It preserves tool declarations, frontmatter, manifest sync,
   and catalog-registration requirements. Detailed history stays outside startup instructions.
-- Claude `.claude-plugin/plugin.json` owns Claude metadata; root `plugin.json` owns portable
-  Codex metadata. Keep names/versions in lockstep, but do not bump versions manually. Follow
-  `RELEASING.md`; run only the checks relevant to changed behavior from `docs/VALIDATION.md`.
+- In each plugin, `{plugin}/.claude-plugin/plugin.json` owns Claude metadata and
+  `{plugin}/plugin.json` owns portable Codex metadata (the repository root has no plugin
+  manifest, only `.claude-plugin/marketplace.json`). Keep names/versions in lockstep, but do
+  not bump versions manually. Follow `RELEASING.md`; run only the checks relevant to changed
+  behavior from `docs/VALIDATION.md`.
 - Claude-only tools/hooks/settings need an explicit runtime adapter; do not assume Codex has
   equivalent enforcement. Codex supplies `CLAUDE_PLUGIN_ROOT`/`CLAUDE_PLUGIN_DATA` compatibility
   variables. No equivalent to Claude `plugin.json userConfig` is verified: use a plugin's
