@@ -149,7 +149,7 @@ python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-
 # pinned whole: the raw-`cat` prohibition, the filter-script call, the exit-0 two-field parse, the
 # exit-3 -> null branch WITH its no-`cat`-fallback clause, and the binding-locator caveat.
 _SKILL_STEP8 = _normalise("""\
-8. Read manifest summary (REPORT header) — **never `cat` the manifest** (#468, #460):
+8. Read manifest summary (REPORT header) — **never `cat` the manifest**:
    ```bash
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-summary.py" "$VAULT_ROOT/.vault-bridge/manifest.json"
    ```

@@ -141,7 +141,7 @@ _SKILL_PHASE4 = _normalise(
     "## Phase 4 — OPTIONAL-FIX\n\n"
     "OFF by default: only after REPORT, on the user's explicit opt-in, never under `--dry-run`. "
     "**On entering Phase 4, before asking anything or any write, Read\n`fix.md` in full and follow it**; if unreadable, STOP, apply no fix "
-    "and tell the user in Korean. Never use Edit on, or\notherwise write, a vault file without the "
+    "and tell the user. Never use Edit on, or\notherwise write, a vault file without the "
     "user's approval through the AskUserQuestion gate in `fix.md` Step 1\n(\"수정 실행\"). Only E2 "
     "is auto-fixable (frontmatter-only), and it requires the provenance gate: ask for the real\n"
     "origin, never a placeholder. E9, E13 and every other type are display-only, never mutated.\n\n"
@@ -247,7 +247,7 @@ _SKILL_GATE_READ_DROPPED = _CLEAN_SKILL.replace(
     "**On entering Phase 4, before asking anything or any write, Read\n`fix.md` in full and follow it**; ", "")
 _SKILL_DRYRUN_NOFIX_DROPPED = _CLEAN_SKILL.replace("otherwise, unless `--dry-run`, Read", "otherwise Read")
 _SKILL_GATE_UNREADABLE_DROPPED = _CLEAN_SKILL.replace(
-    "if unreadable, STOP, apply no fix and tell the user in Korean. ", "")
+    "if unreadable, STOP, apply no fix and tell the user. ", "")
 _SKILL_GATE_APPROVAL_DROPPED = _CLEAN_SKILL.replace(
     "Never use Edit on, or\notherwise write, a vault file without the user's approval through the "
     "AskUserQuestion gate in `fix.md` Step 1\n(\"수정 실행\"). ", "")

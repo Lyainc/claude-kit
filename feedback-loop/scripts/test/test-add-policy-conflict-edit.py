@@ -613,7 +613,7 @@ _SKILL_SUPERSEDE_LOCATOR = _normalise("""\
 
 _SUPERSEDE_LOCATOR_NEIGHBOURS = (
     "- **Edit (explicit modification of an existing entry)**: edit in place, showing ",
-    "- **Unused retirement (#609)**: only when the user says outright the entry never",
+    "- **Unused retirement**: only when the user says outright the entry never came u",
 )
 
 _REF_SUPERSEDE_NEIGHBOURS = (
@@ -1111,10 +1111,10 @@ _REF_SUPERSEDE_ADDENDUM_INSERTED = _CLEAN_REF.replace(
 # The same trick on the always-loaded side: a new verdict bullet inserted right after the
 # Supersede locator, and a whole sibling section right after §6.
 _SKILL_ADJACENT_BULLET = _CLEAN_SKILL.replace(
-    "\n- **Unused retirement (#609)**",
+    "\n- **Unused retirement**",
     "\n- **Deferred retirement**: when the absorption is large, retire the old entry on a\n"
     "  follow-up confirmation instead.\n"
-    "- **Unused retirement (#609)**",
+    "- **Unused retirement**",
 )
 _SKILL_SIBLING_SECTION = _CLEAN_SKILL.replace(
     "\n## 7. Output contract",

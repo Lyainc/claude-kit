@@ -488,7 +488,7 @@ SUMMARY.md records the outcome, vote breakdown and dissent; held topics also go 
 _SKILL_SELECTION_SECTION = _normalise("""\
 ### Expert Selection Guide
 
-**Apply § Expert Selection Guide: what the Selection Rule enforces in [reference.md](reference.md) as written — that section is the binding contract** for panel size (3–5) and the ban on topping up a panel that merely *looks* implementation-heavy (#423). This paragraph is a locator, not a summary you may act from alone.
+**Apply § Expert Selection Guide: what the Selection Rule enforces in [reference.md](reference.md) as written — that section is the binding contract** for panel size (3–5) and the ban on topping up a panel that merely *looks* implementation-heavy. This paragraph is a locator, not a summary you may act from alone.
 
 **When to add experts mid-discussion**: for an uncovered domain, the facilitator may propose an expert — **user confirmation required**, asked via AskUserQuestion and recorded in `adhoc:{n}`; without an explicit yes the rule's output stands.
 """)

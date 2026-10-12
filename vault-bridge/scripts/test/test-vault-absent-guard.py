@@ -54,7 +54,10 @@ def check(cond: bool, desc: str) -> None:
 # `$VAULT_ROOT`), and a verbatim pin across both would force their prose to converge for no
 # contract reason. Each property below is separately necessary — see the FAIL messages.
 _DASH_D_RE = re.compile(r"\[\s*!?\s*-d\s")          # a shell directory test on the vault root
-_ISSUE_RE = re.compile(r"#697|#645")                 # traceable to the deciding issue
+# The skill bodies carry no issue numbers (provenance tags were stripped from bodies), so the
+# guard is pinned on its functional remedy instead: the stop message tells the user where to
+# configure a vault, which is what turns the abort into something actionable.
+_REMEDY_RE = re.compile(r"VAULT_BRIDGE_VAULT_ROOT")
 _STOP_WORDS_RE = re.compile(
     r"stop without writing|stop, without writing|abort|멈췄어요|중단", re.IGNORECASE)
 _NEVER_MKDIR_RE = re.compile(r"[Nn]ever `?mkdir`? the vault root")
@@ -108,8 +111,9 @@ def guard_checks(bodies: dict) -> list:
              f"{name}: the vault-absent branch STOPS (aborts) instead of creating"),
             (bool(_NEVER_MKDIR_RE.search(guard)),
              f"{name}: the guard states the vault root is never `mkdir`ed"),
-            (bool(_ISSUE_RE.search(guard)),
-             f"{name}: the guard cites its deciding issue (#697 / #645)"),
+            (bool(_REMEDY_RE.search(guard)),
+             f"{name}: the guard tells the user where to configure the vault "
+             f"(VAULT_BRIDGE_VAULT_ROOT)"),
             (not _ROOT_MKDIR_RE.search(text),
              f"{name}: body carries NO unconditional `mkdir` of the vault root "
              f"(the #697 ghost-vault defect itself)"),
@@ -136,8 +140,8 @@ def _mutate(name: str, old: str, new: str) -> dict:
 # The guard deleted outright and the original defect restored — the #697 regression itself.
 _SAVE_GHOST_RESTORED = _mutate(
     "vault-save",
-    "3. **Vault-absent guard (#697)",
-    "3. `mkdir -p {vault_root}` then write. **Removed guard (#697)")
+    "3. **Vault-absent guard",
+    "3. `mkdir -p {vault_root}` then write. **Removed guard")
 # Every stop/abort word removed, so the guard branch no longer says what to DO on a missing
 # vault. Mutating only the English clause is not enough — the Korean user message repeats the
 # abort ("멈췄어요"), so a half-mutation leaves the body still correctly saying "stop" and the
