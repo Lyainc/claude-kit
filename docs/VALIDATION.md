@@ -844,8 +844,10 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/mai
 # pinned the Moderator label to the actual mode in both templates, the reference.md transcript
 # format, the delegated section and the worker (`진행자 종합` inline/delegated, `독립 최종 검토`
 # isolated only), judged against six mutations: delegated transcripts had copied an inline-only label.
+# A seventh mutation drops the worker's ban on a mode qualifier after the label: a 2026-10-12
+# delegated run labeled correctly but appended "(inline 체크리스트 적용, …)".
 python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
-# Expected: OK: all 81 self-test cases passed
+# Expected: OK: all 82 self-test cases passed
 python3 thinking-tools/scripts/test/test-mode-compose.py
 # Expected: OK: all 63 mode-compose checks passed.
 # (static check against the live SKILL.md)
