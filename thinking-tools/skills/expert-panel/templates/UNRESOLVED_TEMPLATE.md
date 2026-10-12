@@ -24,7 +24,7 @@
 |------|------|
 | 토픽 | |
 | 쟁점 요약 | |
-| 보류 사유 | [동점 (held:tie) / 근거 부족 (held:evidence) / 정족수 미달 (held:quorum) / 구조적 한계] |
+| 보류 사유 | [동점 (held:tie) / 근거 부족 (held:evidence) / 정족수 미달 (held:quorum)] |
 
 **실행안 검토 노트** (Optimistic Practitioner 관점 — 투표·정족수에 포함되지 않음):
 >
