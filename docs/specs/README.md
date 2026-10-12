@@ -59,8 +59,8 @@ work without creating a duplicate parent or blocking unrelated work.
 | [skill-effort-evaluation](skill-effort-evaluation.yaml) | #770 / paused | Compare observed effort, quality and total cost; role audit is an expert-panel sample prerequisite, not a whole-skill blocker |
 
 The confirmed issue tasks #834 (manifest-path wording), #815 (board CI) and #793
-(role-contract audit) use their existing issue completion conditions. They do not
-receive duplicate Seeds. Open PRs and the explicit activation gates of #771, #756,
+(role-contract audit) used their existing issue completion conditions and received
+no duplicate Seeds; all three closed on 2026-10-12 via PRs #853, #852 and #851. Open PRs and the explicit activation gates of #771, #756,
 #732 and #689 remain distinct from this authoring scope.
 
 ## Diagnosed corrections and verification limits
