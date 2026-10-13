@@ -1518,7 +1518,10 @@ Manual, paid check; intentionally outside `## Validation`, so CI does not run it
 skill description or discovery boundary changes (for example #835). Each case under
 `<plugin>/evals/<case>/prompt.md` is one boundary pair from `docs/skill-boundaries.md`:
 `fires-<skill>` requires that skill's `Skill` call, and `skips-<skill>` (`min: 0`, `max: 0`,
-`arm: both`) requires that the neighboring skill never fires. Pass `./<plugin>` as a path:
+`arm: both`) requires that the neighboring skill never fires. A case with only `skips-*` graders
+also needs a positive grader on the reply, or a run that errors out before answering scores 1.00.
+Phrase prompts as a user would, without copying a description's trigger list, so that a pass
+measures the boundary rather than a word match. Pass `./<plugin>` as a path:
 a bare plugin name resolves to the installed directory-marketplace copy, which reads the main
 checkout's cases instead of the current worktree's.
 
@@ -1528,7 +1531,8 @@ claude plugin eval ./vault-bridge --tag trigger --ablation none --runs 1 --max-c
 # Expected: every case score 1.00, exit 0; aggregate-result.json and report.html land in
 #   <plugin>/evals/results/<timestamp>/ (gitignored, not committed).
 # First measurement (2026-10-14, Claude Code 2.1.296, runs 1): thinking-tools 5/5 $1.23,
-#   vault-bridge 2/2 $0.22. `Reached maximum number of turns (4)` notes are expected: the
+#   vault-bridge 2/2 $0.22. After the prompts dropped the descriptions' trigger phrases, the
+#   re-run passed 5/7; the other two runs ended on a usage-limit error and are unmeasured. `Reached maximum number of turns (4)` notes are expected: the
 #   graders only need the first Skill call, and the turn cap keeps each run cheap.
 ```
 

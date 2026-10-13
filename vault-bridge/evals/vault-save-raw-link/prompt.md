@@ -6,4 +6,4 @@ timeout_seconds: 180
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-이 링크를 볼트에 저장해줘: https://example.com/articles/event-sourcing-intro
+나중에 읽으려는 글이야. 내 옵시디언에 원문 그대로 보관해줘: https://example.com/articles/event-sourcing-intro

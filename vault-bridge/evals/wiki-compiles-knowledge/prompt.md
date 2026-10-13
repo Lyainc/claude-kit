@@ -6,4 +6,4 @@ timeout_seconds: 180
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-방금 알아낸 거 wiki로 정리해줘: Defuddle CLI는 문서의 첫 H1을 제목으로 추출하고 본문에서는 그 H1을 뺀다.
+오늘 작업하다 확인한 사실인데, uv run에 --no-project를 주면 상위 디렉터리의 pyproject.toml을 무시하고 실행한다. 다음에 내가 다시 떠올릴 수 있게 재사용할 지식으로 남겨줘.

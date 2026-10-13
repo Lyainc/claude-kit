@@ -6,4 +6,4 @@ timeout_seconds: 180
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
-Slack 알림 봇을 만들기로 정했어. 요구사항을 명확화해서 seed 스펙으로 만들어줘.
+Slack 알림 봇을 만들기로 이미 정했어. 구현 들어가기 전에 범위와 수용 기준을 나한테 질문하면서 확정해줘.

@@ -71,5 +71,5 @@ docs/discovery/
 # narrative START-PROMPT replaced it. Nothing new should land here.
 docs/plans/goal-docs/
 
-# claude plugin eval output: timestamped, regenerable run records (#874).
-*/evals/results/
+# claude plugin eval output at any depth (plugin path or cwd for a named target), #874.
+**/evals/results/
