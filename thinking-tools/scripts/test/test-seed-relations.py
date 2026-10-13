@@ -207,8 +207,9 @@ def check_tree_same_repo() -> list[str]:
         "REFINES   parent/constraint-9 · [missing in parent]",
         "LINK      because",
         "SIBLING   docs/specs/child-b.yaml  (target: Child B)",
-        f"PARENT-ITEM parent/constraint-1 · {long_cut}  refined by: docs/specs/child-a.yaml",
-        "PARENT-ITEM parent/constraint-2 · Second constraint  refined by: docs/specs/child-b.yaml",
+        # constraint-only refines is a reference edge, so only acceptance ids count as refined
+        f"PARENT-ITEM parent/constraint-1 · {long_cut}  refined by: (none)",
+        "PARENT-ITEM parent/constraint-2 · Second constraint  refined by: (none)",
         "PARENT-ITEM parent/acceptance-1 · First criterion  refined by: docs/specs/child-a.yaml",
         "PARENT-ITEM parent/acceptance-2 · Second criterion  refined by: (none)",
     ]
@@ -497,7 +498,9 @@ def check_cross_repo_link_only() -> list[str]:
     repo = _cross_fixture()
     p_text = _seed_text("Remote parent",
                         children=["acme/child-repo:docs/specs/c3.yaml", "docs/specs/sib.yaml"],
-                        constraints=[("constraint-1", "Remote c1")])
+                        criteria=[("acceptance-1", "Remote a1")])
+    _write(repo, "c3.yaml", target="Cross child", parent="acme/parent-repo:docs/specs/p.yaml",
+           refines=["acceptance-1"])
     sib_text = _seed_text("Remote sibling", parent="docs/specs/p.yaml")
     gh, _ = _gh_shim({"acme/parent-repo:docs/specs/p.yaml": p_text,
                       "acme/parent-repo:docs/specs/sib.yaml": sib_text})
@@ -506,7 +509,7 @@ def check_cross_repo_link_only() -> list[str]:
     want = [
         f"PARENT    acme/parent-repo:docs/specs/p.yaml{mark}",
         f"SIBLING   acme/parent-repo:docs/specs/sib.yaml  (target: Remote sibling){mark}",
-        f"PARENT-ITEM acme/parent-repo:p/constraint-1 · Remote c1  refined by: docs/specs/c3.yaml{mark}",
+        f"PARENT-ITEM acme/parent-repo:p/acceptance-1 · Remote a1  refined by: docs/specs/c3.yaml{mark}",
     ]
     for w in want:
         if w not in out:
@@ -622,8 +625,8 @@ def check_tree_item_mapping() -> list[str]:
         "CHILD     docs/specs/child-a.yaml  refines: parent/constraint-1",
         "CHILD     docs/specs/child-b.yaml  refines: parent/constraint-1, parent/acceptance-1",
         "CHILD     docs/specs/gone.yaml  [file not found]",
-        "ITEM      parent/constraint-1 · First  refined by: docs/specs/child-a.yaml, "
-        "docs/specs/child-b.yaml",
+        # child-a refines only a constraint (reference edge); child-b also refines acceptance-1
+        "ITEM      parent/constraint-1 · First  refined by: (none)",
         "ITEM      parent/constraint-2 · Second  refined by: (none)",
         "ITEM      parent/acceptance-1 · Third  refined by: docs/specs/child-b.yaml",
         "ITEM      (unreadable child docs/specs/gone.yaml — 대응 미확인)",
@@ -831,8 +834,8 @@ def check_walk_kinds() -> list[str]:
     items = [tuple(f[1:]) for f in r["ITEM"]]
     want_items = [
         (n("s"), "constraint-1", "refined_by=(none)"), (n("s"), "acceptance-1", "refined_by=" + n("gc")),
-        (n("p"), "constraint-1", "refined_by=" + n("s")), (n("p"), "acceptance-1", "refined_by=(none)"),
-        (n("gp"), "constraint-1", "refined_by=" + n("p")),
+        (n("p"), "constraint-1", "refined_by=(none)"), (n("p"), "acceptance-1", "refined_by=(none)"),
+        (n("gp"), "constraint-1", "refined_by=(none)"),
     ]
     if items != want_items:
         failures.append(f"walk ITEM mapping: expected {want_items}, got {items}")
@@ -1356,7 +1359,8 @@ def check_legacy_compat() -> list[str]:
 
     code, out, _ = _run(repo, "tree", SP + "kid.yaml")
     for want in ("REFINES   parent/c1 · desc c1", "REFINES   parent/ac1 · desc ac1",
-                 "PARENT-ITEM parent/c1 · desc c1  refined by: docs/specs/kid.yaml"):
+                 "PARENT-ITEM parent/c1 · desc c1  refined by: (none)",
+                 "PARENT-ITEM parent/ac1 · desc ac1  refined by: docs/specs/kid.yaml"):
         if want not in out:
             failures.append(f"legacy tree: missing {want!r} in {out}")
     code, data, _ = _walk_json(repo, SP + "parent.yaml")
@@ -1364,7 +1368,7 @@ def check_legacy_compat() -> list[str]:
     if code != 0 or node["items"] != ["c1", "ac1"] or node["item_desc"] != {}:
         failures.append(f"legacy walk: legacy ids remain visible while requirement bodies are omitted: {node}")
     if [(i["id"], i["refined_by"]) for i in data["items"]] != [
-            ("c1", [SP + "kid.yaml"]), ("ac1", [SP + "kid.yaml"])]:
+            ("c1", []), ("ac1", [SP + "kid.yaml"])]:
         failures.append(f"legacy walk: ITEM mapping: {data['items']}")
 
     # A new-form Seed never prints LEGACY.
@@ -1466,6 +1470,58 @@ def check_walk_item_desc() -> list[str]:
     return failures
 
 
+def _versioned(text, version):
+    """Record `relations.version` on a composed Seed (strict structured reading)."""
+    return text.replace("relations:            # edges only, never a status\n",
+                        f"relations:\n  version: {version}\n", 1)
+
+
+def check_relations_v3() -> list[str]:
+    """v3 child edges and v2 reference edges: item mapping and bilateral checks."""
+    failures = []
+    repo = _repo()
+    spec_dir = Path(repo) / "docs" / "specs"
+    kw = dict(constraints=[("constraint-1", "Rule")], criteria=[("acceptance-1", "Done")])
+    kids = [SP + "kid.yaml", SP + "ref.yaml"]
+    (spec_dir / "parent.yaml").write_text(_versioned(_seed_text("Parent", children=kids, **kw), 3))
+    (spec_dir / "kid.yaml").write_text(_versioned(
+        _seed_text("Kid", parent=SP + "parent.yaml", refines=["acceptance-1"], **kw), 3))
+    (spec_dir / "ref.yaml").write_text(_versioned(
+        _seed_text("Ref", parent=SP + "parent.yaml", refines=["constraint-1"], **kw), 2))
+    code, out, err = _run(repo, "tree", SP + "parent.yaml")
+    items = [ln for ln in out if ln.startswith("ITEM")]
+    if items != ["ITEM      parent/constraint-1 · Rule  refined by: (none)",
+                 "ITEM      parent/acceptance-1 · Done  refined by: docs/specs/kid.yaml"]:
+        failures.append(f"v3 tree: only the acceptance child counts as refined_by: {items} {err!r}")
+    code, data, _ = _walk_json(repo, SP + "parent.yaml")
+    if [(i["id"], i["refined_by"]) for i in data["items"]] != [
+            ("constraint-1", []), ("acceptance-1", [SP + "kid.yaml"])]:
+        failures.append(f"v3 walk: refined_by must count child edges only: {data['items']}")
+    for name in ("kid", "ref", "parent"):
+        code, out, err = _run(repo, "check", SP + name + ".yaml")
+        if code != 0 or not out or not out[-1].startswith("OK:"):
+            failures.append(f"v3 check {name}: both edge kinds stay consistent: {code} {out} {err!r}")
+
+    # Backlink is bilateral for a reference edge too.
+    (spec_dir / "parent.yaml").write_text(_versioned(_seed_text("Parent", children=[SP + "kid.yaml"], **kw), 3))
+    code, out, _ = _run(repo, "check", SP + "ref.yaml")
+    if code != 1 or not any("children is missing docs/specs/ref.yaml" in ln for ln in out):
+        failures.append(f"v3 check: a reference edge needs its backlink: {code} {out}")
+
+    # v3 refines must exist in the parent and be acceptance ids.
+    (spec_dir / "kid.yaml").write_text(_versioned(
+        _seed_text("Kid", parent=SP + "parent.yaml", refines=["acceptance-9"], **kw), 3))
+    code, out, _ = _run(repo, "check", SP + "kid.yaml")
+    if code != 1 or not any("acceptance-9, which" in ln and "does not define" in ln for ln in out):
+        failures.append(f"v3 check: refines id must exist in the parent: {code} {out}")
+    (spec_dir / "kid.yaml").write_text(_versioned(
+        _seed_text("Kid", parent=SP + "parent.yaml", refines=["constraint-1"], **kw), 3))
+    code, out, _ = _run(repo, "check", SP + "kid.yaml")
+    if code != 1 or not any("only acceptance ids" in ln for ln in out):
+        failures.append(f"v3 check: constraint refines is invalid: {code} {out}")
+    return failures
+
+
 def main() -> int:
     checks = [
         check_tree_same_repo,
@@ -1497,6 +1553,7 @@ def main() -> int:
         check_refines_form_hint,
         check_duplicate_item_ids,
         check_walk_item_desc,
+        check_relations_v3,
     ]
     failures = []
     for check in checks:

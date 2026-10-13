@@ -57,7 +57,7 @@ dataflow-native-foundation/constraint-1 · DB 스키마 생성
 
 The full identifier is computed at display time. Source files store only the local id — never
 the affiliation, never a second alias next to it. A `relations.refines` entry stores the
-parent's local id (`refines: [constraint-3]`), because `relations.parent` already names the
+parent's local acceptance id (`refines: [acceptance-2]`), because `relations.parent` already names the
 affiliation. `scripts/seed-relations.py` `qualified_id()` is the code form of this rule.
 
 ## Legacy ids and migration
@@ -74,7 +74,7 @@ but compatibility reading is not migration:
   `ac<N>` → `acceptance-<N>` (number kept, so no mapping table is needed), rewrites the named
   Seed and the `refines` of its local children together, verifies that every item's content and
   every relation survives, and is safe to re-run after a partial failure. Dry-run by default.
-  Check the script's supported fields before using it on lifecycle/relations-v2 data; never
+  Check the script's supported fields before using it on lifecycle/relations data; never
   rename frozen historical ids or rewrite pinned provenance as an incidental migration.
 - The Seed edit guard (`hooks/seed-append-guard.sh`) still denies an id vanishing in an ordinary
   edit, including a hand-made rename, and points to the migration script instead.

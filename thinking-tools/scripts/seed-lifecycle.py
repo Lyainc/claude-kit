@@ -8,6 +8,7 @@ from __future__ import annotations
 import argparse
 import importlib.util
 import json
+import os
 import re
 import subprocess
 import sys
@@ -245,11 +246,20 @@ def validate(seed,root=None):
             except (OSError,subprocess.TimeoutExpired):
                 errors.append('evidence commit unavailable: '+commit)
     r = seed.relations_data
-    if any(k in r for k in ('refines_map','provenance','replaces','transfers')) and seed.relations_version != 2:
-        errors.append('structured relations require version 2')
-    if seed.relations_version is not None and seed.relations_version != 2:
-        errors.append('relations.version must be 2 when recorded')
-    if seed.relations_version == 2 or lc is not None:
+    structured = seed.relations_version in (2,3)
+    if any(k in r for k in ('refines_map','provenance','replaces','transfers')) and not structured:
+        errors.append('structured relations require version 2 or 3')
+    if seed.relations_version is not None and not structured:
+        errors.append('relations.version must be 2 or 3 when recorded')
+    if seed.relations_version == 3:
+        if 'refines_map' in r:
+            errors.append('relations.refines_map is not used in version 3')
+        if seed.parent:
+            if not seed.refines:
+                errors.append('version 3 relations.refines must name at least one parent acceptance when a parent is set')
+            elif any(not seed.is_acceptance_id(i) for i in seed.refines):
+                errors.append('version 3 relations.refines must contain only acceptance ids')
+    if structured or lc is not None:
         if not seed.parent and (seed.refines or r.get('refines_map') or getattr(seed,'link_reason',None)):
             errors.append('relations.refines, refines_map and link_reason require a parent')
         for name in ('refines','children','depends_on','replaces'):
@@ -285,13 +295,41 @@ def validate(seed,root=None):
     return errors
 
 
-def transition(before,after):
+def child_blockers(after,reader,rel):
+    """Same-repo child-edge children of `after` (at repo path `rel`) that are not closed."""
+    errors = []
+    exact = after.relations_version in (2,3) or after.lifecycle is not None
+    self_res = reader.resolve_quiet((None,rel),exact)
+    for c in after.children:
+        loc = reader.norm(c,None)
+        if loc[0] is not None:
+            continue  # another repo's child is not judged here
+        ld = reader.load(loc,exact)
+        name = ld.loc[1] if ld.loc else loc[1]
+        if ld.seed is None:
+            errors.append('parent completion requires a readable child; unreadable: '+name)
+            continue
+        child = ld.seed
+        back = reader.resolve_quiet(reader.norm(child.parent,None),exact) if child.parent else None
+        if back != self_res or not child.is_child_edge():
+            continue  # reference edges and unrelated listings never block
+        state = child.lifecycle.get('state') if isinstance(child.lifecycle,dict) else None
+        if state != 'closed':
+            errors.append('parent cannot close while child is not closed: '+name+' ('+str(state or 'unknown')+')')
+    return errors
+
+
+def transition(before,after,reader=None,rel=None):
+    """Validate before -> after. `reader`/`rel` (a seed-relations Reader and the repo-relative
+    path of `after`) enable the parent-completion rule; without them it is skipped."""
     errors = []
     old,new = before.lifecycle,after.lifecycle
     if isinstance(old,dict) and old.get('state') == 'closed':
         if before.semantic != after.semantic:
             errors.append('closed Seed is immutable; create a new Seed with provenance')
         return errors
+    if reader is not None and rel is not None and isinstance(new,dict) and new.get('state') == 'closed' and new.get('outcome') == 'completed':
+        errors += child_blockers(after,reader,rel)
     changed = old != new or before.parent != after.parent
     if changed and (not isinstance(new,dict) or not text(new.get('approved_by')) or not text(new.get('reason'))):
         errors.append('lifecycle/withdrawal/reparent change requires represented user approval and reason')
@@ -317,7 +355,8 @@ def main():
         errors = validate(seed,root)+sr.validate_provenance(sr.Reader(root),seed,None)
         if args.before:
             before = sr.parse_seed(Path(args.before).read_text(encoding='utf-8'))
-            errors += validate(before,root)+transition(before,seed)
+            rel = os.path.relpath(os.path.realpath(args.seed),root).replace(os.sep,'/')
+            errors += validate(before,root)+transition(before,seed,sr.Reader(root),rel)
     except (OSError,ValueError,TypeError,AttributeError) as exc:
         errors = [str(exc)]
     print(json.dumps({'valid':not errors,'errors':errors},ensure_ascii=False) if args.json else
