@@ -44,7 +44,8 @@ uses the same contract for authorized closure; its implementation remains outsid
 
 ## Scenario checks for boundary changes
 
-These are review cases, not claims of measured model behavior. Keep them alongside edits so
+These are review cases, not claims of measured model behavior; the measured trigger cases live in
+`<plugin>/evals/` (docs/VALIDATION.md → Skill trigger evals). Keep these alongside edits so
 reviewers can evaluate plausible misroutes without relying on word-match tests.
 
 | Request | Expected entry / reason |

@@ -1511,3 +1511,27 @@ the bridge case preserved `/vault-save --type decision` only after discovered av
 Retro reported telemetry unavailable and backlog deduplication unknown with missing Git/GH
 prerequisites. These records are behavioral snapshots, not an automated guarantee across all
 19 skills or all runtimes. Native OVM agent discovery and Claude guidance remain unverified.
+
+## Skill trigger evals (#874)
+
+Manual, paid check; intentionally outside `## Validation`, so CI does not run it. Run it after a
+skill description or discovery boundary changes (for example #835). Each case under
+`<plugin>/evals/<case>/prompt.md` is one boundary pair from `docs/skill-boundaries.md`:
+`fires-<skill>` requires that skill's `Skill` call, and `skips-<skill>` (`min: 0`, `max: 0`,
+`arm: both`) requires that the neighboring skill never fires. Pass `./<plugin>` as a path:
+a bare plugin name resolves to the installed directory-marketplace copy, which reads the main
+checkout's cases instead of the current worktree's.
+
+```bash
+claude plugin eval ./thinking-tools --tag trigger --ablation none --runs 1 --max-cost-usd 3 --trust-plugin --no-publish
+claude plugin eval ./vault-bridge --tag trigger --ablation none --runs 1 --max-cost-usd 3 --trust-plugin --no-publish
+# Expected: every case score 1.00, exit 0; aggregate-result.json and report.html land in
+#   <plugin>/evals/results/<timestamp>/ (gitignored, not committed).
+# First measurement (2026-10-14, Claude Code 2.1.296, runs 1): thinking-tools 5/5 $1.23,
+#   vault-bridge 2/2 $0.22. `Reached maximum number of turns (4)` notes are expected: the
+#   graders only need the first Skill call, and the turn cap keeps each run cheap.
+```
+
+`--ablation none` is deliberate: without the plugin no skill can fire, so the baseline arm adds
+cost but no trigger signal. Raise `--runs` (and `--max-cost-usd` proportionally) to measure
+variance before relying on a single pass.

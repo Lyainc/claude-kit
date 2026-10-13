@@ -70,3 +70,6 @@ docs/discovery/
 # goal-doc planning format, retired 2026-06-29 (#282/#283) — native /goal +
 # narrative START-PROMPT replaced it. Nothing new should land here.
 docs/plans/goal-docs/
+
+# claude plugin eval output: timestamped, regenerable run records (#874).
+*/evals/results/
