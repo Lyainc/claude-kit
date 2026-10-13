@@ -468,6 +468,15 @@ python3 scripts/test/test-auto-release-trigger.py
 # 플러그인 스펙 전체 검증 (frontmatter·hooks 스키마 포함)
 # claude plugin validate  # Claude Code 설치 환경에서 실행
 
+# 마켓플레이스·플러그인 strict 검증 (#873) — marketplace.json 루트의 스키마 밖 필드나 매니페스트 경고를 잡는다.
+# CI는 seed-board-mods job의 고정 버전 Claude Code CLI(2.1.296)로 같은 명령을 돌린다. CLI가 없는 로컬에서는 건너뛴다.
+claude plugin validate . --strict
+claude plugin validate thinking-tools --strict
+claude plugin validate obsidian-vault-manager --strict
+claude plugin validate vault-bridge --strict
+claude plugin validate feedback-loop --strict
+# Expected: ✔ Validation passed
+
 # 스킬 파일 존재 확인
 find thinking-tools/skills -name "SKILL.md" | sort
 find obsidian-vault-manager/skills -name "SKILL.md" | sort

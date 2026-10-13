@@ -503,3 +503,13 @@ jobs:
           claude --version
           claude plugin validate thinking-tools/mods/seed-board
           claude plugin test thinking-tools/mods/seed-board
+
+      - name: Strict-validate the marketplace and each plugin (#873)
+        run: |
+          # --strict fails on warnings such as unknown marketplace fields. The path comes first
+          # so check-ci-coverage.py reads it as the registered id.
+          claude plugin validate . --strict
+          claude plugin validate thinking-tools --strict
+          claude plugin validate obsidian-vault-manager --strict
+          claude plugin validate vault-bridge --strict
+          claude plugin validate feedback-loop --strict
