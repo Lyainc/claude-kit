@@ -71,5 +71,5 @@ skill-reference 가드)이 커밋 시 아예 안 돕니다. 설치 여부·내�
 The reference guard discovers `local-harness/skills` beside the primary checkout, including
 when invoked from a linked worktree. For another layout, pass `--external-root PATH` to
 `scripts/check-skill-reference-drift.py`; repeat it to scan multiple consumer roots. Explicit
-roots replace the default. Missing roots are reported, and release-checklist synchronization
-is withheld when any requested root is absent.
+roots are added to the default (`--no-default-external-roots` drops it) and must exist. An absent
+root prints a stderr NOTICE naming it and release-checklist synchronization is withheld.
