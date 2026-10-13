@@ -199,7 +199,7 @@ python3 scripts/check-hooks-installed.py
 # Expected: ...
 
 python3 scripts/check-skill-reference-drift.py --self-test
-# Expected: OK: all 75 check-skill-reference-drift self-test cases passed
+# Expected: OK: all 78 check-skill-reference-drift self-test cases passed
 python3 scripts/check-skill-reference-drift.py
 # Expected: OK: all N skill reference(s) resolve — N file(s) across N root(s), N external
 #   root(s) absent, N deliberate fallback(s) exempt
@@ -214,9 +214,10 @@ python3 scripts/check-skill-reference-drift.py
 # The external consumer is therefore the point, not an extra: every sibling guard scans this
 # checkout only, which is exactly why check-trigger-regression.py missed it. The default is
 # `local-harness/skills` beside the primary checkout, also when run from a linked worktree.
-# Repeat `--external-root PATH` to replace that default with explicit consumer roots.
-# Missing roots are reported without failing other contributors' scans; --sync-releasing
-# leaves the checklist untouched when any requested consumer root is absent.
+# Repeat `--external-root PATH` (must exist) to ADD consumer roots; `--no-default-external-roots`
+# drops the default. A missing default root prints a one-line stderr NOTICE and is counted in
+# the summary, without failing other contributors' scans (exit status unchanged);
+# --sync-releasing leaves the checklist untouched when any external root is absent.
 # Internal sources and declarations use tracked plus nonignored untracked Git files, so
 # ignored worktrees/local state cannot introduce stale references or hide missing declarations.
 # Non-Git fixtures retain a filesystem walk; external consumer roots retain their wider scan.

@@ -14,9 +14,13 @@ def syntax_failures(paths):
     """Bash treats later filename arguments as script arguments, so run once per file."""
     failures = []
     for path in paths:
-        result = subprocess.run(
-            ["bash", "-n", str(path)], capture_output=True, text=True
-        )
+        try:
+            result = subprocess.run(
+                ["bash", "-n", str(path)], capture_output=True, text=True
+            )
+        except FileNotFoundError:
+            print("FAIL: `bash` not found on PATH; cannot check shell hook syntax", file=sys.stderr)
+            sys.exit(1)
         if result.returncode:
             failures.append((path, result.stderr.strip()))
     return failures
