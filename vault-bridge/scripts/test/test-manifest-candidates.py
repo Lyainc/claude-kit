@@ -39,6 +39,7 @@ from pathlib import Path
 _HERE = Path(__file__).resolve().parent
 _DOMAIN_SCRIPT = _HERE.parent / "manifest-domain-candidates.py"
 _KEYWORD_SCRIPT = _HERE.parent / "manifest-keyword-candidates.py"
+_LATEST_SCRIPT = _HERE.parent / "manifest-latest-work.py"
 _AGENT = _HERE.parent.parent / "agents" / "vault-searcher.md"
 _REF = _HERE.parent.parent / "reference" / "manifest-recall.md"
 _STALENESS = _HERE.parent.parent / "reference" / "wiki-staleness.md"
@@ -148,20 +149,19 @@ is whitespace-normalised).
 
 Sort the returned candidates:
 
-1. `status=active` first.
-2. Then by the Question-Type Routing tier (`vault-searcher.md` § Question-Type Routing) —
+1. By the Question-Type Routing tier (`vault-searcher.md` § Question-Type Routing) —
    wiki candidates surface before notes/sources for a 정의/사실 질문, and vice versa for a
    경위/이력 질문; `type: discussion` counts as notes/sources-tier; no reordering for 분류 불가.
-3. Then by the recall-weight signals already in the manifest entry: `recent_commits`
+2. Then by the recall-weight signals already in the manifest entry: `recent_commits`
    descending — the count of git commits touching the file in the **last 7 days**, i.e.
    recent activity, not all-time work. It measures *writing*, never reads, and a vault left
    uncommitted for a week scores 0 everywhere — silent, not meaningful, so never read a 0 as
    "this page is cold".
-4. Then `references_in` descending (cross-note wikilink weight).
-5. Then `type: wiki` preferred — the A layer is the primary recall target, so a wiki page
+3. Then `references_in` descending (cross-note wikilink weight).
+4. Then `type: wiki` preferred — the A layer is the primary recall target, so a wiki page
    wins a tie over an equally-scored note. A *tiebreaker only*, never an override that
    buries a more relevant non-wiki hit.
-6. Finally `mtime` descending as the last tiebreaker.
+5. Finally `mtime` descending as the last tiebreaker.
 
 These signals are free: `generate-manifest.py`'s `_enrich` already populates them.
 
@@ -216,7 +216,7 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
         --domain "{domain}" --vault-path "{vault_path}" "{vault_root}/.vault-bridge/manifest.json"
       ```
       Applies `type == wiki` (always included), `.vault-link` `vault_path`
-      directory-scoped prefix, domain-keyword tag/workstream match, or `status == active`.
+      directory-scoped prefix, or domain-keyword tag/workstream match.
       Output: `{"candidate_count": N, "candidates": [...]}`.
    b. **Truncation check**: apply § The truncation-check invariant in
       `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that section is the binding
@@ -224,7 +224,7 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
       standard scan below).
    c. **Sort + select**: apply § Candidate ranking order in
       `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that section is the binding
-      sort contract (active → Question-Type Routing tier → `recent_commits` →
+      sort contract (Question-Type Routing tier → `recent_commits` →
       `references_in` → `type: wiki` tiebreak → `mtime`, then top ≤ 5).
    d. Read only those specific files. Skip the MOC/grep scan entirely.
    e. **Staleness check**: if manifest `generated_at` is older than 24 hours OR any candidate file's actual `mtime` (via `stat`) is newer than the manifest's `generated_at`, fall through to standard scan below and log a warning: "manifest가 오래되었거나 변경 파일이 있어 전체 스캔으로 대체합니다."
@@ -262,7 +262,7 @@ This whole section is pinned VERBATIM by `_AGENT_RULES_SECTION` in
 _NEIGHBOURS = {
     "manifest-recall.md § The truncation-check invariant": (
         "ref", _REF_TRUNCATION_RE,
-        ("## `status == active` is unconditional, on purpose (for now)",
+        ("## `status == active` is not a candidate arm (#866)",
          "## Candidate ranking order (Mode 2 step 2c)"),
     ),
     "manifest-recall.md § Candidate ranking order": (
@@ -515,15 +515,68 @@ def main() -> int:
         check(non_wiki_leaked == [],
               "domain: a non-matching domain/vault-path/status pulls in no notes/inbox/.legacy noise")
 
-        # status=active and vault-path prefix arms also work (not just the wiki-always arm)
+        # #866: `status=active` is NOT a match arm any more (no current writer emits `status:`).
+        # An unrelated active note must not surface; domain/path arms are unaffected.
         active_manifest = _real_scale_manifest(wiki_count=2, notes_count=3, inbox_count=0, legacy_count=0)
         active_manifest["files"].append(_note("notes/active-one.md", status="active"))
         active_path = tmp / "active.json"
         active_path.write_text(json.dumps(active_manifest), encoding="utf-8")
         r = run(_DOMAIN_SCRIPT, "--domain", "", "--vault-path", "", active_path)
         out = json.loads(r.stdout)
-        check(any(c["path"] == "notes/active-one.md" for c in out["candidates"]),
-              "domain: status=active entries are selected even without a domain/path match")
+        check(not any(c["path"] == "notes/active-one.md" for c in out["candidates"]),
+              "domain: status=active alone no longer selects an entry (#866 dead arm removed)")
+
+        # ranking contract works with NO `status: active` note anywhere: wiki-only manifest still
+        # yields wiki candidates, and the canonical ranking text names no status key.
+        no_status_manifest = _real_scale_manifest(wiki_count=3, notes_count=2, inbox_count=0, legacy_count=0)
+        assert not any(f.get("status") for f in no_status_manifest["files"])
+        no_status_path = tmp / "no-status.json"
+        no_status_path.write_text(json.dumps(no_status_manifest), encoding="utf-8")
+        r = run(_DOMAIN_SCRIPT, "--domain", "x", "--vault-path", "", no_status_path)
+        out = json.loads(r.stdout)
+        check(r.returncode == 0 and out["candidate_count"] == 5,
+              "domain: with no `status: active` notes at all, candidates come from wiki + tag arms (5)")
+        check("status" not in _REF_RANKING_SECTION.replace("whitespace-normalised", ""),
+              "ranking contract: no `status` rank key remains in the pinned ranking section")
+
+        # ---- #866: Mode 1 latest-work selection by manifest type + mtime ----
+        lw = {"generated_at": "2026-10-14T00:00:00+00:00", "file_count": 6, "schema_version": 4, "files": [
+            _note("notes/proj/capture-old.md", "capture", mtime=100),
+            _note("notes/proj/decision-new.md", "decision", mtime=300),
+            _note("notes/other/note-newest.md", "note", mtime=500),
+            _note("wiki/w.md", "wiki", mtime=900),
+            _note("wiki/d.md", "discussion", mtime=950),
+            _note("notes/proj/session-legacy.md", "unknown", mtime=50, status="active"),
+        ]}
+        lw_path = tmp / "latest.json"
+        lw_path.write_text(json.dumps(lw), encoding="utf-8")
+        r = run(_LATEST_SCRIPT, lw_path)
+        out = json.loads(r.stdout)
+        order = [c["path"] for c in out["candidates"]]
+        check(r.returncode == 0 and order == ["notes/other/note-newest.md", "notes/proj/decision-new.md",
+                                              "notes/proj/capture-old.md", "notes/proj/session-legacy.md"],
+              f"latest-work: work types plus legacy session by mtime desc, wiki/discussion excluded (got {order})")
+        r = run(_LATEST_SCRIPT, "--vault-path", "notes/proj", lw_path)
+        order = [c["path"] for c in json.loads(r.stdout)["candidates"]]
+        check(order == ["notes/proj/decision-new.md", "notes/proj/capture-old.md", "notes/proj/session-legacy.md"],
+              f".vault-link scope limits latest-work to the project directory (got {order})")
+        r = run(_LATEST_SCRIPT, "--vault-path", "notes/proj/", lw_path)
+        check([c["path"] for c in json.loads(r.stdout)["candidates"]] == order,
+              "latest-work: a trailing slash in the .vault-link path scopes the same")
+        lw_path.write_text(json.dumps({"files": [
+            _note("notes/proj/_index.md", "note", mtime=900),
+            _note("wiki/old-active.md", "wiki", mtime=800, status="active"),
+            _note("notes/proj/work.md", "note", mtime=100),
+        ]}), encoding="utf-8")
+        order = [c["path"] for c in json.loads(run(_LATEST_SCRIPT, lw_path).stdout)["candidates"]]
+        check(order == ["notes/proj/work.md"],
+              f"latest-work: hub pages and status:active wiki pages are never candidates (got {order})")
+        lw_path.write_text(json.dumps({"files": [_note("notes/a.md", "note", mtime=1)]}), encoding="utf-8")
+        out = json.loads(run(_LATEST_SCRIPT, lw_path).stdout)
+        check(out["candidates"][0]["path"] == "notes/a.md" and not out["candidates"][0]["legacy_session"],
+              "latest-work: works on a vault with no session-* files and no status at all")
+        check(run(_LATEST_SCRIPT, tmp / "missing.json").returncode == 3,
+              "latest-work: missing manifest -> rc=3")
 
         # comma-separated domains are split and OR'd, matching the standard-scan fallback's
         # documented "query each individually, merge results" handling (vault-searcher.md
@@ -723,10 +776,9 @@ _AGENT_NO_STALENESS_POINTER = _CLEAN_AGENT.replace(
     "reference/wiki-staleness.md", "reference/README.md")
 
 # --- deletions the OLD substring suite let through: unpinned remainder of a pinned section ---
-# `status=active` demoted from the top of the sort — the one signal that guarantees the
-# in-progress note surfaces at all.
+# The dead `status=active` rank-1 key reintroduced at the top of the sort (#866).
 _REF_ACTIVE_DEMOTED = _CLEAN_REF.replace(
-    "1. `status=active` first.", "1. `status=active` last.")
+    "1. By the Question-Type", "1. `status=active` first.\n2. Then by the Question-Type")
 # The "a 0 is silent, not cold" caveat deleted, so an uncommitted vault reads as all-cold.
 _REF_NO_ZERO_CAVEAT = _CLEAN_REF.replace(
     " It measures *writing*, never reads, and a vault left\n   uncommitted for a week scores 0 everywhere — silent, not meaningful, so never read a 0 as\n   \"this page is cold\".",
@@ -829,7 +881,7 @@ def self_test() -> int:
          _CLEAN_AGENT, _REF_NO_SELECT, _CLEAN_STALENESS, False),
         # The next three were all green under the old substring suite — unpinned remainder
         # of a section whose named clauses were the only thing anchored.
-        ("canonical sort demotes `status=active` off the top -> FAIL",
+        ("canonical sort reintroduces the dead `status=active` rank-1 key -> FAIL",
          _CLEAN_AGENT, _REF_ACTIVE_DEMOTED, _CLEAN_STALENESS, False),
         ("canonical `recent_commits` zero-is-silent caveat deleted -> FAIL",
          _CLEAN_AGENT, _REF_NO_ZERO_CAVEAT, _CLEAN_STALENESS, False),

@@ -6,11 +6,13 @@ the expected shape of output, not additional rules.
 <example>
 user: "지난 세션 이어서 해줘"
 assistant: ".vault-link 확인 → notes/claude-kit 스코프.
-session-2026-04-10.md (status: active) 발견.
+manifest에서 type이 capture/note/decision/session인 문서 중 mtime이 가장 최근인
+notes/claude-kit/capture-2026-04-10-api-review.md 발견.
 현재 상태: API 설계 리뷰 진행 중 | 다음 단계: PR #42 머지 후 배포 | 블로커: 없음"
 <commentary>
 Session Restore (Mode 1): .vault-link scopes to bound project directory.
-Filters by status: active, sorts by date descending, outputs key context only.
+Picks the latest work document by manifest type + mtime (legacy session-*.md / status: active
+notes are included in the same ordering), outputs key context only.
 No full-vault scan — targeted read via .vault-link project scope.
 </commentary>
 </example>
@@ -51,12 +53,12 @@ vault-searcher never writes; all vault writes are user-initiated skills only.
 
 <example>
 user: "어제 하던 작업 이어서 할래, 세션 컨텍스트 불러와줘"
-assistant: [Mode 1 Session Restore — searches sources/session-*.md (and .vault-link project path if
-present) filtered by status: active. Sorts by date descending, returns the most recent active
-session with key context: current status, next steps, blockers. Read-only.]
+assistant: [Mode 1 Session Restore — runs manifest-latest-work.py (scoped to the .vault-link project
+path if present), picks the newest capture/note/decision/session document by mtime; legacy
+session-*.md / status: active notes are included in the same ordering. Returns the most recent work document with key context: current status, next steps, blockers. Read-only.]
 <commentary>
-"이어서" / "세션 컨텍스트 불러와" → Mode 1 session restore: load the latest active session note.
-Distinct from Mode 3 — Mode 1 targets the most recent in-progress session, NOT a topic keyword.
+"이어서" / "세션 컨텍스트 불러와" → Mode 1 session restore: load the latest work document.
+Distinct from Mode 3 — Mode 1 targets the most recent work document, NOT a topic keyword.
 A topic-scoped request ("API 설계 관련 예전 기록 찾아줘") routes to Mode 3 instead.
 Read-only: no files written or modified.
 </commentary>
