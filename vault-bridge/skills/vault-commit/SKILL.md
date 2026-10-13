@@ -151,13 +151,14 @@ If any group's commit fails, **stop** — do not continue. Report which groups c
 
 **Option C — "메시지 직접 입력 후 커밋"** (index 2):
 
-Codex: use the shared question contract above; empty or missing input keeps the commit pending.
+Codex: ask a free-text question per [the portability contract](../../reference/codex-portability.md).
+An empty or missing reply keeps the commit pending: no `git commit`, no auto-generated message.
 Claude Code: do NOT call AskUserQuestion here; output this prompt and wait for the next user turn:
 
 > 커밋 메시지를 한 줄로 입력해 주세요. (예: `vault: 2026-04-18 session notes`)
 
-Trim the actual reply into single-line `{custom_msg}`. Claude Code only: an empty or whitespace
-reply falls back to the auto-generated message. Then run:
+Trim the reply into single-line `{custom_msg}`; on Claude Code only, an empty reply falls back to
+the auto-generated message. Never run `git commit -m ""`:
 ```bash
 git -C "{vault_root}" commit -m "{custom_msg}"
 ```

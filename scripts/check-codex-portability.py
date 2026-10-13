@@ -53,23 +53,37 @@ QUESTION_RULES = {
 }
 
 # feedback-loop's individual overrides are covered by its plugin-local regression test.
+# Each entry: (section start marker, section end marker or None, required phrases).
 QUESTION_OVERRIDES = {
     "thinking-tools/skills/issue-raise/SKILL.md": (
-        "use its native question path",
+        PORTABLE_MARKER, "\n## ",
+        ("approval gate before `gh issue create`; use its native question path",),
     ),
     "vault-bridge/skills/vault-commit/SKILL.md": (
-        "Codex: use the shared question contract above; empty or missing input keeps the commit pending",
-        "Claude Code: do NOT call AskUserQuestion here",
-        "Claude Code only: an empty or whitespace reply falls back to the auto-generated message",
+        "**Option C", "**Option D",
+        (
+            "Codex: ask a free-text question per [the portability contract](../../reference/codex-portability.md)",
+            "An empty or missing reply keeps the commit pending: no `git commit`, no auto-generated message",
+            "Claude Code: do NOT call AskUserQuestion here",
+            "on Claude Code only, an empty reply falls back to the auto-generated message",
+            'Never run `git commit -m ""`',
+        ),
     ),
 }
 
 
 def check_question_override(path: str, text: str) -> list[str]:
+    start, end, phrases = QUESTION_OVERRIDES[path]
     normalized = " ".join(text.split())
+    begin = normalized.find(start)
+    if begin < 0:
+        return [f"{path}: missing override section: {start}"]
+    rest = normalized[begin + len(start):]
+    stop = rest.find(end.strip()) if end else -1
+    section = rest if stop < 0 else rest[:stop]
     return [
         f"{path}: missing question override: {phrase}"
-        for phrase in QUESTION_OVERRIDES[path] if phrase not in normalized
+        for phrase in phrases if phrase not in section
     ]
 
 
@@ -96,13 +110,25 @@ def question_self_test() -> int:
         "or the number of options ", "")))))
     cases.append(("line wrapping preserves the contract", not check_question_contract(
         fixture.replace(" ", "\n"))))
-    overrides = {path: "\n".join(phrases) for path, phrases in QUESTION_OVERRIDES.items()}
+    overrides = {
+        path: f"intro\n{start}\n" + "\n".join(phrases) + (f"\n{end.strip()}\ntail" if end else "")
+        for path, (start, end, phrases) in QUESTION_OVERRIDES.items()
+    }
     cases.append(("complete individual question overrides pass", not any(
         check_question_override(path, text) for path, text in overrides.items())))
-    for path, phrases in QUESTION_OVERRIDES.items():
+    for path, (start, end, phrases) in QUESTION_OVERRIDES.items():
         for phrase in phrases:
             cases.append((f"loss of {path}: {phrase} fails", bool(
                 check_question_override(path, overrides[path].replace(phrase, "")))))
+        stray = f"{start}\n{end.strip()}\n" + "\n".join(phrases)
+        cases.append((f"{path}: phrases outside the section fail", bool(
+            check_question_override(path, stray))))
+    for phrase in (
+        "continue only independent work meanwhile", "missing/empty replies",
+        "or drop choices to fit a limit",
+    ):
+        cases.append((f"loss of '{phrase}' fails", bool(check_question_contract(
+            fixture.replace(phrase, "")))))
     for label, ok in cases:
         print(f"  [{'OK' if ok else 'FAIL'}] {label}")
     if not all(ok for _, ok in cases):
@@ -151,6 +177,7 @@ def check(root: Path) -> list[str]:
         if extra:
             errors.append(f"unclassified skills missing from the inventory: {extra}")
     reference = None
+    visited_overrides = set()
     for plugin, skills in PLUGINS.items():
         manifest_path = root / plugin / ".codex-plugin" / "plugin.json"
         claude_path = root / plugin / ".claude-plugin" / "plugin.json"
@@ -193,7 +220,12 @@ def check(root: Path) -> list[str]:
                 errors.append(f"{plugin}/{skill}: missing Codex adapter")
             relative_path = path.relative_to(root).as_posix()
             if relative_path in QUESTION_OVERRIDES:
+                visited_overrides.add(relative_path)
                 errors.extend(check_question_override(relative_path, text))
+    errors.extend(
+        f"{path}: question override key never checked (unknown or unsupported skill)"
+        for path in sorted(set(QUESTION_OVERRIDES) - visited_overrides)
+    )
     next_goal = root / "thinking-tools/skills/next-goal/SKILL.md"
     issue_raise = root / "thinking-tools/skills/issue-raise/SKILL.md"
     if next_goal.is_file():
