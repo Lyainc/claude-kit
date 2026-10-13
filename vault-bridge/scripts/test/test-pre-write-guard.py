@@ -547,6 +547,9 @@ def case_bash_subagent_writes_denied(errors: list[str], vault_root: str) -> None
         f'cp /tmp/a.md {v}/notes/x.md',                      # copy in
         f'echo x | tee {v}/notes/x.md',                      # tee after a pipe
         f'cd {v} && echo x > notes/y.md',                    # relative target after cd
+        f'cd {v} && echo x > "$PWD/notes/y.md"',             # cwd variable resolves to the vault (#870)
+        f'cd {v} && echo x > "${{PWD}}/notes/y.md"',
+        f'cd {v} && echo x | tee "$(pwd)/notes/y.md"',
         f'sed -i "" s/a/b/ {v}/notes/x.md',                  # in-place edit
         f'touch {v}/sources/capture-2026-01-01.md',
         f'mkdir -p {v}/notes/newdir',
@@ -605,6 +608,19 @@ def case_bash_reads_pass(errors: list[str], vault_root: str) -> None:
         proc = _run(payload, vault_root=vault_root)
         _assert(proc.returncode == 0, f"exit 0: {cmd!r}", errors)
         _assert(proc.stdout.strip() == "", f"stdout empty (no deny): {cmd!r} (got: {proc.stdout!r})", errors)
+
+    # #870: with cwd INSIDE the vault, fd dups and unresolvable `$` targets must not be
+    # joined onto cwd and mistaken for vault-relative paths.
+    cwd_vault_commands = [
+        f'script.sh {v} 2>&1',                               # fd dup, not <vault>/1
+        f'script.sh {v} > /tmp/scan/fm.json 2>&1',           # outside literal target + fd dup
+        'script.sh > "$scan_tmp/fm.json"',                   # unresolvable variable target
+    ]
+    for cmd in cwd_vault_commands:
+        payload = _make_bash_payload(cmd, agent_id_value="vault-searcher", cwd=v)
+        proc = _run(payload, vault_root=vault_root)
+        _assert(proc.returncode == 0, f"exit 0 (cwd in vault): {cmd!r}", errors)
+        _assert(proc.stdout.strip() == "", f"stdout empty (cwd in vault): {cmd!r} (got: {proc.stdout!r})", errors)
 
 
 def case_bash_main_context_allowed(errors: list[str], vault_root: str) -> None:
