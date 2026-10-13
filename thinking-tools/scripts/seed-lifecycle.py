@@ -358,7 +358,8 @@ def transition(before,after,reader=None,rel=None):
         errors.append('lifecycle/withdrawal/reparent change requires represented user approval and reason')
     if changed and isinstance(old,dict) and isinstance(new,dict) and new.get('approved_by') == old.get('approved_by'):
         errors.append('transition requires a new explicit approval reference')
-    if before.parent and before.parent != after.parent:
+    # Only a child edge composed its parent; dropping a version 2 reference edge pins nothing.
+    if before.parent and before.parent != after.parent and before.is_child_edge():
         errors += prior_parent_provenance(before,after,reader)
     if old != new and before.requirements != after.requirements:
         errors.append('lifecycle transition must preserve original requirement contents and IDs')

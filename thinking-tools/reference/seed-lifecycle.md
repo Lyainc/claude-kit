@@ -73,9 +73,11 @@ active ↔ paused, active/paused → closed는 실제 승인에 따라 처리해
 없으면 자식이 아니라 선행이나 참조예요. `refines_map`은 version 3에서 쓰지 않아요. 부모가 없는
 독립 Seed의 `refines`, `link_reason`은 비워요. 이전 부모 항목은 고정된 `provenance`로 보존하며,
 현재 부모의 항목 참조로 남기지 않아요.
-독립 전환이나 재연결로 부모가 바뀌면 `provenance`에 이전 부모가 실제로 해석된 파일(구형 관계는
-`-vN` 최신 세대 해석 결과), 전체 커밋 SHA, 이전 `refines` 항목 전부를 담은 행이 있어야 해요.
-`seed-lifecycle.py check --before`와 편집 훅이 이 행 없이 출처를 버리는 전환을 거부해요.
+자식 연결의 부모가 바뀌면(독립 전환이나 재연결) `provenance`에 이전 부모가 실제로 해석된 파일(구형
+관계는 `-vN` 최신 세대 해석 결과), 전체 커밋 SHA, 이전 `refines` 항목 전부를 담은 행이 있어야 해요.
+`seed-lifecycle.py check --before`와 편집 훅이 이 행 없이 출처를 버리는 전환을 거부해요. 참조로 읽히는
+version 2 연결을 정리하는 경우(부모를 지우고 `depends_on`이나 본문 인용으로 바꾸는 경우)는 구성 관계가
+아니었으므로 이 고정을 요구하지 않아요.
 
 **부모 완료 규칙.** 부모를 `closed/completed`로 전이할 때, 같은 레포의 자식(위 정의의 자식)이
 모두 `closed`여야 해요. 열린 자식이 있으면 전이를 거부하고 그 자식을 보고해요. 자식이

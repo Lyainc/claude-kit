@@ -548,9 +548,9 @@ class LifecycleTests(unittest.TestCase):
         parent = spec(children=['docs/specs/c.yaml'])
         self.write('p.yaml',parent); git('add','-A'); git('commit','-qm','parent')
         commit = git('rev-parse','HEAD')
-        before = parse(spec(parent='docs/specs/p.yaml',refines=['constraint-1'],mapping=[{'parent_item':'constraint-1','child_items':['constraint-1']}]))
+        before = parse(spec(parent='docs/specs/p.yaml',refines=['acceptance-1'],mapping=[{'parent_item':'acceptance-1','child_items':['acceptance-1']}]))
         rd = sr.Reader(str(self.root)); rd._self_repo = None
-        pin = {'seed':'docs/specs/p.yaml','commit':commit,'items':['constraint-1']}
+        pin = {'seed':'docs/specs/p.yaml','commit':commit,'items':['acceptance-1']}
         detach = spec(); detach['lifecycle']['approved_by'] = 'user detach message 2'
         self.assertIn('pin previous parent docs/specs/p.yaml',' '.join(lc.transition(before,parse(detach),rd)))
         for field,value in (('seed','docs/specs/other.yaml'),('commit',commit[:12]),('items',['constraint-2'])):
@@ -560,14 +560,18 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(lc.transition(before,parse(detach),rd),[])
         self.assertEqual(sr.validate_provenance(rd,parse(detach),None),[])
         # The edit guard applies the same rule to a Write of the detached Seed.
-        prior = dump(spec(parent='docs/specs/p.yaml',refines=['constraint-1'],mapping=[{'parent_item':'constraint-1','child_items':['constraint-1']}]))
+        prior = dump(spec(parent='docs/specs/p.yaml',refines=['acceptance-1'],mapping=[{'parent_item':'acceptance-1','child_items':['acceptance-1']}]))
         payload = {'tool_name':'Write','tool_input':{'file_path':str(self.root/'docs/specs/c.yaml'),'content':dump(detach)}}
         self.assertEqual(guard.decide(payload,read_file=lambda _:prior),'')
         unpinned = copy.deepcopy(detach); unpinned['relations']['provenance'] = []
         payload['tool_input']['content'] = dump(unpinned)
         self.assertIn('pin previous parent',guard.decide(payload,read_file=lambda _:prior))
+        # A version 2 reference edge (constraint-only refines) never composed its parent: dropping it pins nothing.
+        reference = parse(spec(parent='docs/specs/p.yaml',refines=['constraint-1']))
+        dropped = spec(); dropped['lifecycle']['approved_by'] = 'user reference cleanup 2'
+        self.assertEqual(lc.transition(reference,parse(dropped),rd),[])
         # A relink keeps the same pin and still needs both directions of the new edge.
-        relink = spec(parent='docs/specs/q.yaml',refines=['constraint-1'],mapping=[{'parent_item':'constraint-1','child_items':['constraint-1']}])
+        relink = spec(parent='docs/specs/q.yaml',refines=['acceptance-1'],mapping=[{'parent_item':'acceptance-1','child_items':['acceptance-1']}])
         relink['lifecycle']['approved_by'] = 'user relink message 2'
         self.assertTrue(lc.transition(before,parse(relink),rd))
         relink['relations']['provenance'] = [pin]
@@ -583,10 +587,10 @@ class LifecycleTests(unittest.TestCase):
     def test_legacy_previous_parent_pins_the_resolved_generation(self):
         # Legacy parents keep latest -vN resolution; the pin must name that file, never a guess.
         self.write('p.yaml',self.legacy()); self.write('p-v2.yaml',self.legacy())
-        before = parse(self.legacy(parent='docs/specs/p.yaml',refines=['constraint-1']))
+        before = parse(self.legacy(parent='docs/specs/p.yaml',refines=['acceptance-1']))
         rd = sr.Reader(str(self.root)); rd._self_repo = None
         after = spec()
-        after['relations']['provenance'] = [{'seed':'docs/specs/p.yaml','commit':'a'*40,'items':['constraint-1']}]
+        after['relations']['provenance'] = [{'seed':'docs/specs/p.yaml','commit':'a'*40,'items':['acceptance-1']}]
         self.assertIn('pin previous parent docs/specs/p-v2.yaml',' '.join(lc.transition(before,parse(after),rd)))
         self.assertIn('repository reader',' '.join(lc.transition(before,parse(after))))
         after['relations']['provenance'][0]['seed'] = 'docs/specs/p-v2.yaml'
