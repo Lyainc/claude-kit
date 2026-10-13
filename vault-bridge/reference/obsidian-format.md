@@ -59,7 +59,6 @@ tags:
   - obsidian
   - reference
 type: note
-status: active
 related:
   - "[[20_Projects/claude-kit/_index]]"
 publish: false

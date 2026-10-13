@@ -22,7 +22,10 @@ Selection (OR'd, matches vault-searcher.md Mode 2 Manifest-First Protocol):
                                           (substring, case-insensitive; comma-separated domains
                                            are split and OR'd, matching the standard-scan
                                            fallback's "query each individually" handling)
-    - status == "active"
+
+    `status == "active"` is intentionally NOT a match arm (#866): no current writer emits `status:`,
+    so it never fired on a current vault. Legacy active session notes are Mode 1's job
+    (manifest-latest-work.py).
 
 Output (stdout, one line). `candidate_count` is serialized FIRST so the coverage count survives
 even if the entry list itself is ever truncated downstream by the caller's tool-output cap:
@@ -69,8 +72,6 @@ def _matches(entry: dict, domain: str, vault_path: str) -> bool:
         workstream = str(entry.get("workstream") or "").lower()
         if workstream and any(dom in workstream for dom in domains):
             return True
-    if entry.get("status") == "active":
-        return True
     return False
 
 

@@ -21,20 +21,19 @@ would never propose one.
 ## The fix
 
 `manifest-domain-candidates.py` / `manifest-keyword-candidates.py` read the manifest
-file directly off disk — untruncated — and apply the candidate filter (type/tags/path/
-status for domain; title/summary substring for keyword) *before* anything crosses into
+file directly off disk — untruncated — and apply the candidate filter (type/tags/path
+for domain; title/summary substring for keyword) *before* anything crosses into
 the calling agent's context. Each prints one JSON line:
 `{"candidate_count": N, "candidates": [...]}`.
 
-## `status == active` is unconditional, on purpose (for now)
+## `status == active` is not a candidate arm (#866)
 
-Mode 2's `status == active` match arm fires regardless of `domain`/`vault_path` — this
-is a literal carry-over of the pre-#523 prose ("any combination of: type, tags,
-workstream, path prefix, or status"), not a new behavior this fix introduced. On a
-vault with several concurrent active projects it means an unrelated active note can
-surface as a domain-context candidate. Not addressed here because #523's scope is the
-truncation defect, not a redesign of the match semantics — tracked as a follow-up
-if it proves noisy in practice.
+Mode 2 no longer selects or ranks by `status == active`: no current writer emits `status:`
+(#480), so the arm never fired on a current vault. Session restore (Mode 1) uses
+`manifest-latest-work.py` — manifest `type` in `capture|note|decision|session`, newest `mtime`
+first, `.vault-link` scoped when present — and still includes `session-*.md` / `status: active` entries
+from older vaults, sorted by `mtime` like any other entry (a stale session note never outranks
+newer work). Mode 1 applies the same staleness check as Mode 2 step 2e.
 
 ## The truncation-check invariant
 
@@ -69,20 +68,19 @@ is whitespace-normalised).
 
 Sort the returned candidates:
 
-1. `status=active` first.
-2. Then by the Question-Type Routing tier (`vault-searcher.md` § Question-Type Routing) —
+1. By the Question-Type Routing tier (`vault-searcher.md` § Question-Type Routing) —
    wiki candidates surface before notes/sources for a 정의/사실 질문, and vice versa for a
    경위/이력 질문; `type: discussion` counts as notes/sources-tier; no reordering for 분류 불가.
-3. Then by the recall-weight signals already in the manifest entry: `recent_commits`
+2. Then by the recall-weight signals already in the manifest entry: `recent_commits`
    descending — the count of git commits touching the file in the **last 7 days**, i.e.
    recent activity, not all-time work. It measures *writing*, never reads, and a vault left
    uncommitted for a week scores 0 everywhere — silent, not meaningful, so never read a 0 as
    "this page is cold".
-4. Then `references_in` descending (cross-note wikilink weight).
-5. Then `type: wiki` preferred — the A layer is the primary recall target, so a wiki page
+3. Then `references_in` descending (cross-note wikilink weight).
+4. Then `type: wiki` preferred — the A layer is the primary recall target, so a wiki page
    wins a tie over an equally-scored note. A *tiebreaker only*, never an override that
    buries a more relevant non-wiki hit.
-6. Finally `mtime` descending as the last tiebreaker.
+5. Finally `mtime` descending as the last tiebreaker.
 
 These signals are free: `generate-manifest.py`'s `_enrich` already populates them.
 
