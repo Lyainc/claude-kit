@@ -1530,11 +1530,14 @@ claude plugin eval ./thinking-tools --tag trigger --ablation none --runs 1 --max
 claude plugin eval ./vault-bridge --tag trigger --ablation none --runs 1 --max-cost-usd 3 --trust-plugin --no-publish
 # Expected: every case score 1.00, exit 0; aggregate-result.json and report.html land in
 #   <plugin>/evals/results/<timestamp>/ (gitignored, not committed). Any case below 1.00 is a
-#   boundary regression unless its run ended on an infrastructure error (usage limit, auth).
+#   boundary regression unless its run ended on an infrastructure error (usage limit, auth, a
+#   timeout with a queued API).
 # First measurement (2026-10-14 KST, Claude Code 2.1.296, runs 1): thinking-tools 5/5 $1.23,
 #   vault-bridge 2/2 $0.22. After the prompts dropped the descriptions' trigger phrases, the
-#   re-run passed 5/7; the other two runs ended on a usage-limit error and are unmeasured. `Reached maximum number of turns (4)` notes are expected: the
-#   graders only need the first Skill call, and the turn cap keeps each run cheap.
+#   re-run passed 6/7. substantive-rewrite-is-ordinary timed out at 180s with no reply (queued
+#   API, 1133s wall clock), so its reply grader failed it; that case is unconfirmed.
+# `Reached maximum number of turns (4)` notes are expected: the graders only need the first
+#   Skill call, and the turn cap keeps each run cheap.
 ```
 
 `--ablation none` is deliberate: without the plugin no skill can fire, so the baseline arm adds
