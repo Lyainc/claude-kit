@@ -70,7 +70,7 @@ Goal clarity: 0.90 (goal-check-2 Y로 전환 → 4/4 = 1.0 → cap 0.90)
 격리 판정이 같은 결과를 반환해 두 번째 연속 통과하면 Gate가 열려요. 격리 호출을 받을 수
 없을 때는 경고와 scoring_isolated: false를 표시해요. Phase 2.5는 1회 실행하고 실제
 채택·기각 답변을 기다려요. 아래 YAML은 작성 당시 형식의 역사적 예시이며, 신규 Seed는
-현재 SEED_SPEC.yaml의 lifecycle·relations.version: 2·amendment header를 모두 사용해요.
+현재 SEED_SPEC.yaml의 lifecycle·relations.version: 3·amendment header를 모두 사용해요.
 사용자 활성화 승인 없는 조기 출력은 paused로 남겨요.
 
 **Phase 3 — Seed 생성** (`docs/specs/task-cli-tool.yaml`):

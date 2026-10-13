@@ -93,9 +93,11 @@ Open only the Seeds the walk visited — never list or read `docs/specs/` to loo
   `ancestor` item is what `PARENT-ITEM` was). `ancestor-child` nodes are sibling Seeds and
   `descendant` nodes are child Seeds — eligible nodes can be candidates when this repo does not satisfy them yet; a
   child that already satisfies its criteria is `done`, never re-proposed.
-- `ITEM <owner> <id> refined_by=<children>` maps a Seed's item to the child Seeds that spell it out,
-  so starting from a parent shows which child carries which item. An item refined by a child is
-  judged through that child; one with `refined_by=(none)` is judged directly.
+- `ITEM <owner> <id> refined_by=<children>` maps a Seed's `acceptance` item to the child Seeds that
+  deliver it (version 3: child edges with acceptance refines only), so starting from a parent shows which
+  child carries which item. An item refined by a child is judged through that child; one with
+  `refined_by=(none)` is judged directly. A version-2 parent edge without acceptance refines is a
+  reference, not a descendant whose completion gates the parent; do not treat it as carrying an item.
 - `predecessor` nodes are what another node `depends_on`. A candidate whose same-repo predecessor
   is not finished is `held`; that predecessor itself becomes a candidate when it is startable. A
   predecessor in another repo stays unverified and the hold says so. A closed predecessor's
