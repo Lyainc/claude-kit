@@ -55,7 +55,26 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-append-guard.sh",
-            "timeout": 5
+            "timeout": 5,
+            "if": "Write(**/*.yaml)"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-append-guard.sh",
+            "timeout": 5,
+            "if": "Write(**/*.yml)"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-append-guard.sh",
+            "timeout": 5,
+            "if": "Edit(**/*.yaml)"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-append-guard.sh",
+            "timeout": 5,
+            "if": "Edit(**/*.yml)"
           }
         ]
       }
