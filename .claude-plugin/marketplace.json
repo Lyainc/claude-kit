@@ -6,9 +6,6 @@
     "name": "Lyainc",
     "url": "https://github.com/Lyainc"
   },
-  "homepage": "https://github.com/Lyainc/claude-kit",
-  "repository": "https://github.com/Lyainc/claude-kit",
-  "license": "MIT",
   "plugins": [
     {
       "name": "thinking-tools",
