@@ -987,7 +987,9 @@ claude plugin test thinking-tools/mods/seed-board
 # Expected: Ran N tests across N files. [...]
 
 # Shell hook syntax check
-bash -n vault-bridge/hooks/*.sh
+# Checks each vault-bridge hook separately and rejects a broken second shell file.
+python3 scripts/test/test-shell-hook-syntax.py
+# Expected: OK: shell hook syntax and second-file regression passed
 bash -n thinking-tools/hooks/session-start-welcome.sh   # #117 first-run onboarding hint
 bash -n thinking-tools/hooks/next-goal-context.sh   # #517 candidate-pool injection
 bash -n feedback-loop/scripts/event-logger.sh
