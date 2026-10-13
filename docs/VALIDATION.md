@@ -1529,8 +1529,9 @@ checkout's cases instead of the current worktree's.
 claude plugin eval ./thinking-tools --tag trigger --ablation none --runs 1 --max-cost-usd 3 --trust-plugin --no-publish
 claude plugin eval ./vault-bridge --tag trigger --ablation none --runs 1 --max-cost-usd 3 --trust-plugin --no-publish
 # Expected: every case score 1.00, exit 0; aggregate-result.json and report.html land in
-#   <plugin>/evals/results/<timestamp>/ (gitignored, not committed).
-# First measurement (2026-10-14, Claude Code 2.1.296, runs 1): thinking-tools 5/5 $1.23,
+#   <plugin>/evals/results/<timestamp>/ (gitignored, not committed). Any case below 1.00 is a
+#   boundary regression unless its run ended on an infrastructure error (usage limit, auth).
+# First measurement (2026-10-14 KST, Claude Code 2.1.296, runs 1): thinking-tools 5/5 $1.23,
 #   vault-bridge 2/2 $0.22. After the prompts dropped the descriptions' trigger phrases, the
 #   re-run passed 5/7; the other two runs ended on a usage-limit error and are unmeasured. `Reached maximum number of turns (4)` notes are expected: the
 #   graders only need the first Skill call, and the turn cap keeps each run cheap.
