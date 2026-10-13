@@ -67,3 +67,9 @@ bash scripts/install-hooks.sh
 skill-reference 가드)이 커밋 시 아예 안 돕니다. 설치 여부·내용 일치는
 `python3 scripts/check-hooks-installed.py`로 확인할 수 있습니다 — 훅이 없으면 (CI·클론 직후 등)
 실패가 아니라 설치 안내만 출력하고 exit 0, 설치는 됐는데 내용이 어긋나면 exit 1로 재설치를 요구합니다.
+
+The reference guard discovers `local-harness/skills` beside the primary checkout, including
+when invoked from a linked worktree. For another layout, pass `--external-root PATH` to
+`scripts/check-skill-reference-drift.py`; repeat it to scan multiple consumer roots. Explicit
+roots replace the default. Missing roots are reported, and release-checklist synchronization
+is withheld when any requested root is absent.

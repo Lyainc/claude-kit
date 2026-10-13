@@ -3,7 +3,7 @@
 #
 # WHY HERE and not only in CI (#637). The guard's whole point is scanning consumers OUTSIDE
 # this repo, and CI is the one place those consumers do not exist — the checkout has no
-# ~/dev/prj/local-harness, so the documented fail-open triggers and the run degrades to an
+# sibling local-harness checkout, so the documented fail-open triggers and the run degrades to an
 # in-repo-only scan, which is exactly the scan that missed #562. CI stays green either way.
 # This machine is where both repos live, so this is where the external half can actually run.
 #

@@ -16,9 +16,10 @@ itself was latent — installs are pinned at v4.6.0 where the OLD name still res
 failed at runtime either. The documented fallback text had gone stale in the same edit, so the
 recovery path pointed at the dead name too.
 
-So the external consumer is not an optional extra surface, it is the whole point. EXTERNAL_ROOTS
-is the configurable list; a root that does not exist is skipped silently, because no other
-machine has local-harness checked out.
+So the external consumer is not an optional extra surface, it is the whole point. By default,
+scan local-harness/skills beside the primary checkout (also from linked worktrees). Repeat
+--external-root to select other consumers instead. Missing roots are reported in the summary
+and prevent --sync-releasing from clearing a checklist this run could not verify.
 
 ## Two failure modes, two matching rules
 
@@ -73,13 +74,15 @@ is how the one entry this guard shipped with was retired, minutes after the brid
 
 Usage:
     python3 scripts/check-skill-reference-drift.py [--root DIR] [--json] [--self-test]
-                                                    [--sync-releasing]
+                                                    [--external-root DIR ...] [--sync-releasing]
 
     --root DIR          Repo root to check (default: git toplevel, else CWD).
+    --external-root DIR Consumer root; repeat for multiple roots. Replaces the default
+                        local-harness/skills sibling of the primary checkout.
     --json              Emit a machine-readable JSON report instead of text.
     --self-test         Run the matching logic against temp-directory fixtures and exit 0
                         only if every case behaves as expected.
-    --sync-releasing    Write every EXTERNAL_ROOTS finding into RELEASING.md's pending-
+    --sync-releasing    Write every external consumer finding into RELEASING.md's pending-
                         binding checklist (see #737); no-op if the managed block isn't
                         there.
 
@@ -88,7 +91,9 @@ Exit codes: 0 = every reference resolves (or --self-test passed),
             2 = usage error / no plugins found to build a catalogue from.
 """
 import argparse
+import contextlib
 import glob
+import io
 import json
 import os
 import re
@@ -96,10 +101,6 @@ import shutil
 import subprocess
 import sys
 import tempfile
-
-# Consumers outside this repo that hardcode claude-kit skill names. A path that does not exist
-# is skipped silently — most machines have no local-harness checkout. `~` is expanded.
-EXTERNAL_ROOTS = ["~/dev/prj/local-harness/skills"]
 
 # (path suffix, "<plugin>:<name>", reason). A dangling reference matching an entry is exempt.
 # Keyed by path suffix so an entry holds wherever the consumer happens to be checked out.
@@ -248,17 +249,16 @@ def _git_toplevel():
 def build_catalog(root):
     """Return {plugin: {declared names}} from this repo's skills and agents."""
     catalog = {}
-    patterns = (
-        os.path.join(root, "*", "skills", "*", "SKILL.md"),
-        os.path.join(root, "*", "agents", "*.md"),
-    )
-    for pattern in patterns:
-        for path in sorted(glob.glob(pattern)):
-            plugin = os.path.relpath(path, root).split(os.sep)[0]
-            with open(path, encoding="utf-8", errors="replace") as fh:
-                m = NAME_KEY_RE.search(fh.read())
-            if m:
-                catalog.setdefault(plugin, set()).add(m.group(1))
+    for path in iter_files(root, repo_internal=True):
+        parts = os.path.relpath(path, root).split(os.sep)
+        is_skill = len(parts) == 4 and parts[1] == "skills" and parts[3] == "SKILL.md"
+        is_agent = len(parts) == 3 and parts[1] == "agents" and parts[2].endswith(".md")
+        if not (is_skill or is_agent):
+            continue
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            m = NAME_KEY_RE.search(fh.read())
+        if m:
+            catalog.setdefault(parts[0], set()).add(m.group(1))
     return catalog
 
 
@@ -431,9 +431,69 @@ def _display(path, root):
     return path.replace(home, "~", 1) if path.startswith(home) else path
 
 
-def iter_files(top):
+def _git_env():
+    # Hooks may export a different repository/index. --root must still own this query.
+    env = os.environ.copy()
+    for name in ("GIT_DIR", "GIT_WORK_TREE", "GIT_COMMON_DIR", "GIT_INDEX_FILE",
+                 "GIT_OBJECT_DIRECTORY", "GIT_ALTERNATE_OBJECT_DIRECTORIES", "GIT_PREFIX"):
+        env.pop(name, None)
+    return env
+
+
+def _git_output(root, *args):
+    """Read Git metadata without treating a missing Git installation as a fixture failure."""
+    try:
+        return subprocess.run(
+            ["git", "-C", root, *args], capture_output=True, text=True, check=True, env=_git_env(),
+        ).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
+def default_external_roots(root):
+    """Find the optional sibling consumer beside the primary checkout, not a worktree."""
+    primary = root
+    worktrees = _git_output(root, "worktree", "list", "--porcelain", "-z")
+    if worktrees:
+        first = worktrees.split("\0", 1)[0]
+        if first.startswith("worktree "):
+            primary = first.removeprefix("worktree ")
+    return [os.path.join(os.path.dirname(os.path.abspath(primary)), "local-harness", "skills")]
+
+
+def _inside_nested_repo(path, top):
+    parent = os.path.dirname(path)
+    while parent != top:
+        if os.path.lexists(os.path.join(parent, ".git")):
+            return True
+        parent = os.path.dirname(parent)
+    return False
+
+
+def iter_files(top, repo_internal=False):
+    """Scan Git-owned source inside the repo; external skill roots retain their full walk.
+
+    Cached paths survive ignore rules, while untracked paths honor Git's excludes. A root
+    without its own Git checkout uses the fixture/archive walk, pruning nested repositories.
+    """
+    top = os.path.abspath(top)
+    if repo_internal:
+        toplevel = _git_output(top, "rev-parse", "--show-toplevel")
+        if toplevel and os.path.realpath(toplevel.strip()) == os.path.realpath(top):
+            paths = _git_output(top, "ls-files", "--cached", "--others", "--exclude-standard", "-z")
+            if paths is None:
+                raise RuntimeError(f"cannot enumerate Git source files under {top}")
+            for rel in sorted(set(paths.split("\0"))):
+                path = os.path.join(top, rel)
+                if (rel.endswith(SCAN_EXTENSIONS) and os.path.isfile(path)
+                        and not _inside_nested_repo(path, top)):
+                    yield path
+            return
     for dirpath, dirnames, filenames in os.walk(top):
-        dirnames[:] = sorted(d for d in dirnames if d not in SKIP_DIRS)
+        dirnames[:] = sorted(
+            d for d in dirnames if d not in SKIP_DIRS
+            and not (repo_internal and os.path.lexists(os.path.join(dirpath, d, ".git")))
+        )
         for fn in sorted(filenames):
             if fn.endswith(SCAN_EXTENSIONS):
                 yield os.path.join(dirpath, fn)
@@ -442,7 +502,7 @@ def iter_files(top):
 def check_all(root, external_roots=None, allowlist=None):
     """Return (findings, stats). A finding is a dict with file/line/ref/problem."""
     root = os.path.abspath(root)
-    external_roots = EXTERNAL_ROOTS if external_roots is None else external_roots
+    external_roots = default_external_roots(root) if external_roots is None else external_roots
     allowlist = DELIBERATE_FALLBACKS if allowlist is None else allowlist
     catalog = build_catalog(root)
     qual_re = qualified_re(catalog.keys())
@@ -479,7 +539,7 @@ def check_all(root, external_roots=None, allowlist=None):
     findings, fired, files, refs = [], set(), 0, 0
     scanned_paths = []
     for top, wide in surfaces:
-        for path in iter_files(top):
+        for path in iter_files(top, repo_internal=not wide):
             files += 1
             scanned_paths.append(path)
             with open(path, encoding="utf-8", errors="replace") as fh:
@@ -558,7 +618,7 @@ def check_all(root, external_roots=None, allowlist=None):
 
 # --------------------------------------------------------------------- releasing checklist
 
-# #737: an EXTERNAL_ROOTS finding means a consumer outside this repo (local-harness) names
+# #737: an external consumer finding means a consumer outside this repo (local-harness) names
 # a skill/agent this repo just renamed or removed — exactly the shape that sat broken 7
 # days after #562 (see the module docstring). CI never sees this (no local-harness
 # checkout there), so the only machine that CAN catch it live is the maintainer's own,
@@ -581,7 +641,7 @@ def sync_releasing_checklist(findings, releasing_path, absent_roots=None):
 
     Returns None if there is nothing this can safely sync into — no file at `releasing_path`,
     a doc with no managed block (not wired up), or `absent_roots` non-empty (this run could
-    not scan EXTERNAL_ROOTS at all, so an empty `findings` proves nothing: syncing from it
+    not scan all external roots, so an empty `findings` proves nothing: syncing from it
     would silently clear real pending bullets on any machine without the consumer checked
     out) — else True if the block's content changed, False if it already matched.
 
@@ -668,6 +728,111 @@ def run_self_test():
 
     with tempfile.TemporaryDirectory() as tmp:
         repo = _fixture_repo(os.path.join(tmp, "repo"))
+
+        # Git scope: stale files in ignored worktrees/local config are not this checkout's
+        # source. Tracked files remain source even after an ignore pattern matches them.
+        git_repo = _fixture_repo(os.path.join(tmp, "git-scope"))
+
+        def git_at(top, *args):
+            return subprocess.run(
+                ["git", "-C", top, *args], capture_output=True, text=True, check=True,
+                env=_git_env(),
+            ).stdout
+
+        git_at(git_repo, "init", "--quiet")
+        _materialise(git_repo, {
+            "docs/tracked.md": 'Skill(skill: "tt:tracked-gone")\n',
+        })
+        git_at(git_repo, "add", ".")
+        _materialise(git_repo, {
+            ".gitignore": ".worktrees/\n.claude/\ndocs/tracked.md\ntt/skills/ignored/\n",
+            "tt/skills/ignored/SKILL.md": SKILL_MD.format(name="ignored"),
+            ".worktrees/old/docs/stale.md": 'Skill(skill: "tt:worktree-gone")\n',
+            ".claude/stale.md": 'Skill(skill: "tt:config-gone")\n',
+            "docs/untracked.md": 'Skill(skill: "tt:untracked-gone")\n',
+            "nested/stale.md": 'Skill(skill: "tt:nested-gone")\n',
+        })
+        git_at(os.path.join(git_repo, "nested"), "init", "--quiet")
+        found, _ = check_all(git_repo, external_roots=[], allowlist=[])
+        case("tracked and nonignored untracked drift survives ignored worktree exclusion",
+             refs_of(found), [("tt:tracked-gone", 1), ("tt:untracked-gone", 1)])
+        scanned = {os.path.relpath(p, git_repo) for p in iter_files(git_repo, repo_internal=True)}
+        case("ignored worktree references are excluded", any(p.startswith(".worktrees/") for p in scanned), False)
+        case("ignored local config is excluded", any(p.startswith(".claude/") for p in scanned), False)
+        case("a later ignore rule does not hide tracked source", "docs/tracked.md" in scanned, True)
+        case("nested repository is excluded", any(p.startswith("nested/") for p in scanned), False)
+        case("ignored declarations cannot satisfy real source references",
+             "ignored" in build_catalog(git_repo)["tt"], False)
+        os.remove(os.path.join(git_repo, "docs", "tracked.md"))
+        case("deleted tracked file is not opened",
+             any(os.path.relpath(p, git_repo) == "docs/tracked.md"
+                 for p in iter_files(git_repo, repo_internal=True)), False)
+
+        # External consumers intentionally keep their walk, including ignored local skills.
+        found, _ = check_all(repo, external_roots=[os.path.join(git_repo, ".claude")], allowlist=[])
+        case("explicit ignored external skill root remains scanned", refs_of(found), [("tt:config-gone", 1)])
+        archive = _fixture_repo(os.path.join(tmp, "archive"))
+        _materialise(archive, {"nested/.git": "gitdir: elsewhere\n",
+                               "nested/stale.md": 'Skill(skill: "tt:archive-gone")\n'})
+        found, _ = check_all(archive, external_roots=[], allowlist=[])
+        case("non-Git archive fallback also prunes linked worktrees", refs_of(found), [])
+
+        # Use repository metadata without a checkout or a new commit to exercise a genuine
+        # linked worktree. The primary checkout's sibling is independent of the linked path.
+        primary = os.path.join(tmp, "projects", "claude-kit")
+        os.makedirs(os.path.dirname(primary))
+        subprocess.run(
+            ["git", "clone", "--quiet", "--shared", "--no-checkout",
+             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), primary],
+            capture_output=True, text=True, check=True, env=_git_env(),
+        )
+        linked = os.path.join(tmp, "elsewhere", "linked")
+        git_at(primary, "worktree", "add", "--quiet", "--detach", "--no-checkout", linked, "HEAD")
+        sibling = os.path.join(tmp, "projects", "local-harness", "skills")
+        case("default external root follows primary checkout from linked worktree",
+             [os.path.realpath(p) for p in default_external_roots(linked)], [os.path.realpath(sibling)])
+        case("non-Git default follows supplied root, not CWD",
+             default_external_roots(repo), [os.path.join(tmp, "local-harness", "skills")])
+        found, absent_stats = check_all(repo, allowlist=[])
+        case("missing default consumer is reported", absent_stats["absent_roots"], default_external_roots(repo))
+
+        inherited = {name: os.environ.get(name) for name in ("GIT_DIR", "GIT_WORK_TREE")}
+        try:
+            os.environ["GIT_DIR"] = os.path.join(git_repo, ".git")
+            os.environ["GIT_WORK_TREE"] = git_repo
+            case("hook Git environment cannot retarget supplied root",
+                 [os.path.realpath(p) for p in default_external_roots(linked)],
+                 [os.path.realpath(sibling)])
+        finally:
+            for name, value in inherited.items():
+                if value is None:
+                    os.environ.pop(name, None)
+                else:
+                    os.environ[name] = value
+
+        # The repeatable CLI overrides defaults, accepts arbitrary consumer locations, and
+        # reports a requested missing consumer without claiming that it was checked.
+        consumer_a = _materialise(os.path.join(tmp, "consumer-a"), {"probe.md": "tt:cli-gone-a\n"})
+        consumer_b = _materialise(os.path.join(tmp, "consumer-b"), {"probe.md": "tt:cli-gone-b\n"})
+        missing = os.path.join(tmp, "missing-consumer")
+        captured = io.StringIO()
+        with contextlib.redirect_stdout(captured):
+            code = main(["--root", repo, "--external-root", consumer_a,
+                         "--external-root", consumer_b, "--external-root", missing, "--json"])
+        report = json.loads(captured.getvalue())
+        case("explicit roots detect both consumers", refs_of(report["findings"]),
+             [("tt:cli-gone-a", 1), ("tt:cli-gone-b", 1)])
+        case("explicit missing root replaces absent default", report["absent_roots"], [missing])
+        case("CLI exits nonzero for real external drift", code, 1)
+
+        pending = f"{RELEASING_BEGIN}\n- [ ] existing reminder\n{RELEASING_END}\n"
+        _materialise(repo, {"RELEASING.md": pending})
+        captured, notes = io.StringIO(), io.StringIO()
+        with contextlib.redirect_stdout(captured), contextlib.redirect_stderr(notes):
+            main(["--root", repo, "--external-root", missing, "--sync-releasing", "--json"])
+        with open(os.path.join(repo, "RELEASING.md"), encoding="utf-8") as fh:
+            case("CLI preserves pending checklist for explicit absent root", fh.read(), pending)
+        case("CLI reports why missing root prevented checklist sync", "skipped" in notes.getvalue(), True)
 
         # 1. a valid reference resolves, and a bare in-repo name resolves too
         _materialise(repo, {
@@ -1034,11 +1199,16 @@ def main(argv=None):
         description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter
     )
     parser.add_argument("--root", default=None)
+    parser.add_argument(
+        "--external-root", action="append", default=None, metavar="DIR",
+        help="consumer root to scan (repeatable); replaces default local-harness/skills "
+             "beside the primary checkout",
+    )
     parser.add_argument("--json", action="store_true")
     parser.add_argument("--self-test", action="store_true")
     parser.add_argument(
         "--sync-releasing", action="store_true",
-        help="write every EXTERNAL_ROOTS finding into RELEASING.md's pending-binding "
+        help="write every external consumer finding into RELEASING.md's pending-binding "
              "checklist (see #737); no-op if the managed block isn't there",
     )
     args = parser.parse_args(argv)
@@ -1047,7 +1217,7 @@ def main(argv=None):
         return run_self_test()
 
     root = os.path.abspath(args.root or _git_toplevel() or os.getcwd())
-    findings, stats = check_all(root)
+    findings, stats = check_all(root, external_roots=args.external_root)
 
     if not stats["catalog"]:
         print(f"ERROR: no */skills/*/SKILL.md found under {root} — nothing to resolve against",
