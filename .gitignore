@@ -27,6 +27,7 @@
 local/
 .local/
 .test/
+/.worktrees/
 
 # Python bytecode / tool caches
 __pycache__/
