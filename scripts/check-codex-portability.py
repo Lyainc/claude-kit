@@ -26,6 +26,7 @@ QUESTION_RULES = {
     "asynchronous reply gate": (
         "request_user_input_async", "only queues the question",
         "pending until the actual user reply arrives",
+        "continue only independent work meanwhile",
     ),
     "mode and purpose restrictions": (
         "Otherwise use `request_user_input` only when available and permitted",
@@ -33,12 +34,15 @@ QUESTION_RULES = {
         "never invent a tool or switch modes to enable it",
     ),
     "independent choices": (
-        "If multi-select is unsupported",
+        "If multi-select or the number of options is unsupported",
+        "use separate short questions or a free-text question accepting item IDs",
         "never silently turn independent keep/dismiss choices into a single-choice decision",
+        "or drop choices to fit a limit",
     ),
     "prior answers and non-answers": (
         "Reuse explicit prior answers and approvals",
         "Tool acceptance, preselected options", "elapsed time are not user answers or approval",
+        "missing/empty replies",
         "a skip is never an answer or approval and never advances a gate",
     ),
     "unavailable-tool fallback": (
@@ -47,6 +51,26 @@ QUESTION_RULES = {
         "never claim the interview completed",
     ),
 }
+
+# feedback-loop's individual overrides are covered by its plugin-local regression test.
+QUESTION_OVERRIDES = {
+    "thinking-tools/skills/issue-raise/SKILL.md": (
+        "use its native question path",
+    ),
+    "vault-bridge/skills/vault-commit/SKILL.md": (
+        "Codex: use the shared question contract above; empty or missing input keeps the commit pending",
+        "Claude Code: do NOT call AskUserQuestion here",
+        "Claude Code only: an empty or whitespace reply falls back to the auto-generated message",
+    ),
+}
+
+
+def check_question_override(path: str, text: str) -> list[str]:
+    normalized = " ".join(text.split())
+    return [
+        f"{path}: missing question override: {phrase}"
+        for phrase in QUESTION_OVERRIDES[path] if phrase not in normalized
+    ]
 
 
 def check_question_contract(text: str) -> list[str]:
@@ -68,8 +92,17 @@ def question_self_test() -> int:
         "For AskUserQuestion, ask a normal user-facing question and wait for the answer."))))
     cases.append(("weakened async gate fails", bool(check_question_contract(fixture.replace(
         "pending until the actual user reply arrives", "complete once submitted")))))
+    cases.append(("option-count adaptation loss fails", bool(check_question_contract(fixture.replace(
+        "or the number of options ", "")))))
     cases.append(("line wrapping preserves the contract", not check_question_contract(
         fixture.replace(" ", "\n"))))
+    overrides = {path: "\n".join(phrases) for path, phrases in QUESTION_OVERRIDES.items()}
+    cases.append(("complete individual question overrides pass", not any(
+        check_question_override(path, text) for path, text in overrides.items())))
+    for path, phrases in QUESTION_OVERRIDES.items():
+        for phrase in phrases:
+            cases.append((f"loss of {path}: {phrase} fails", bool(
+                check_question_override(path, overrides[path].replace(phrase, "")))))
     for label, ok in cases:
         print(f"  [{'OK' if ok else 'FAIL'}] {label}")
     if not all(ok for _, ok in cases):
@@ -158,6 +191,9 @@ def check(root: Path) -> list[str]:
                 continue
             if PORTABLE_MARKER not in text or "../../reference/codex-portability.md" not in text:
                 errors.append(f"{plugin}/{skill}: missing Codex adapter")
+            relative_path = path.relative_to(root).as_posix()
+            if relative_path in QUESTION_OVERRIDES:
+                errors.extend(check_question_override(relative_path, text))
     next_goal = root / "thinking-tools/skills/next-goal/SKILL.md"
     issue_raise = root / "thinking-tools/skills/issue-raise/SKILL.md"
     if next_goal.is_file():
