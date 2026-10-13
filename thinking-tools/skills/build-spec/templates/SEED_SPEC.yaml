@@ -82,13 +82,12 @@ issues:               # GitHub issues tied to this Seed — references only, nev
   tracking: []        # issues that implement this Seed (same notation) — kept distinct from source
 
 relations:            # edges, separate from the lifecycle decision above
-  version: 2         # exact paths; no implicit latest -vN redirection
-  parent: null        # parent Seed, or null. Same repo: repo-root relative path; other repo: owner/repo:docs/specs/x.yaml
-  refines: []         # parent item ids this Seed spells out, e.g. [constraint-3, acceptance-2]
-  link_reason: null   # why this Seed hangs off the parent: what the refined items leave open; with a parent and empty refines, why no parent item maps. null = not recorded — shown as 미확인, never guessed
-  depends_on: []      # sibling Seeds that must be finished before this one (same path/coordinate rules)
+  version: 3         # exact paths; child = takes a share of the parent's acceptance (reference/seed-lifecycle.md)
+  parent: null        # parent Seed, only when this Seed takes over parent acceptance items; else null. Same repo: repo-root relative path; other repo: owner/repo:docs/specs/x.yaml
+  refines: []         # parent acceptance ids this Seed delivers, e.g. [acceptance-2]; at least one when parent is set. Following a parent rule is a citation in this Seed's text, not refines
+  link_reason: null   # why this Seed takes those parent acceptance items. null = not recorded — shown as 미확인, never guessed
+  depends_on: []      # Seeds that must be finished before this one starts (same path/coordinate rules)
   children: []        # child Seeds (the parent side of each child's `parent` edge)
-  refines_map: []     # entries: {parent_item: constraint-3, child_items: [constraint-1, acceptance-1]}
   provenance: []      # entries: {seed: exact path/coordinate, commit: full Git SHA, items: [source id]}
   replaces: []        # explicit exact paths; replacement alone never marks its source completed
   transfers: []       # entries: {seed: exact destination path/coordinate, items: [own id]}

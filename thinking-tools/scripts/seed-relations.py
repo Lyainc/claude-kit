@@ -10,7 +10,7 @@ visited nodes, including closed/unknown Seeds; inactive nodes omit item_desc. Ev
 has lifecycle {state,outcome,reason} and eligibility {eligible,reason,excluded_items,
 review_required}. These are represented decision gates, never a judgment of fulfillment.
 
-relations.version 2 and lifecycle-bearing edges pin exact files. Only unversioned legacy
+relations.version 2 or 3 and lifecycle-bearing edges pin exact files. Only unversioned legacy
 edges to legacy targets retain latest -vN resolution. Provenance reads the exact recorded
 file at its full Git commit, or reports historical source unavailable. Other-repo reads
 use gh api, GH_BIN may override the executable; external walk nodes are not expanded.
@@ -214,6 +214,24 @@ class Seed:
         self.source = source            # issues.source, None = not recorded
         self.tracking = tracking or []  # issues.tracking
 
+    @staticmethod
+    def is_acceptance_id(item_id):
+        """`acceptance-N` (or legacy `acN`) is an acceptance id; constraints never are."""
+        return bool(ACCEPTANCE_ID.match(canonical_id(item_id)))
+
+    def acceptance_refines(self):
+        return [r for r in self.refines if self.is_acceptance_id(r)]
+
+    def is_child_edge(self):
+        """A parent edge is a child edge iff `refines` holds at least one acceptance id.
+
+        Any other parent edge (constraint ids only, or empty refines) is a reference edge.
+        """
+        return bool(self.parent) and bool(self.acceptance_refines())
+
+    def refines_acceptance(self, item_id):
+        return self.is_child_edge() and self.is_acceptance_id(item_id) and item_id in self.refines
+
 
 def parse_seed(text):
     top = {k: (inline, body) for k, inline, body in _mapping_blocks(text.splitlines())}
@@ -376,6 +394,7 @@ def qualified_id(seed_key, item_id):
 
 
 CANONICAL_ID = re.compile(r"^(constraint|acceptance)-(\d+)$")
+ACCEPTANCE_ID = re.compile(r"^acceptance-\d+$")
 
 
 def legacy_form(item_id):
@@ -634,7 +653,7 @@ def _newer_note(rel, self_res):
 
 
 def exact_edges(seed):
-    return seed.relations_version == 2 or seed.lifecycle is not None
+    return seed.relations_version in (2, 3) or seed.lifecycle is not None
 
 
 def lifecycle_summary(seed):
@@ -689,14 +708,17 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
         return result(False,"invalid lifecycle",review=True)
     lc = lifecycle_summary(seed)
     inactive = lc["state"] != "active"
+    # Only a child edge (parent + at least one acceptance in refines) is judged by the parent;
+    # a reference edge is evaluated as if it had no parent.
+    child_edge = seed.is_child_edge()
     if inactive:
         reason = "closed: " + str(lc["outcome"]) if lc["state"] == "closed" else "unknown lifecycle" if lc["state"] == "unknown" else lc["state"]
         # Finished Seeds stay history; paused/unknown ones get the same parent checks before any resume.
-        if lc["state"] == "closed" or not seed.parent:
+        if lc["state"] == "closed" or not child_edge:
             return result(False,reason)
     own = set(seed.item_map)
     excluded = {r["id"] for r in (seed.lifecycle or {}).get("withdrawn",[])}
-    if seed.parent:
+    if child_edge:
         loc = rd.norm(seed.parent,ctx_repo)
         trail = set(trail or ())
         if loc in trail:
@@ -717,37 +739,23 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
         pl = lifecycle_summary(ps)
         if wholly_withdrawn(ps):
             return result(False,"parent discontinued; child review required",own,True)
-        withdrawn = {r["id"] for r in (ps.lifecycle or {}).get("withdrawn",[])}
         # A legacy/unknown parent cannot substantiate a child's automatic candidacy.
         if pl["state"] == "unknown" and not inactive:
             return result(False,"parent lifecycle unknown",own,True)
-        if not seed.refines and withdrawn:
-            return result(False,"withdrawn parent items need mapping",own,True)
         if set(seed.refines)-set(ps.item_map):
             return result(False,"parent mapping invalid",own,True)
-        impacted = withdrawn & set(seed.refines)
-        if impacted:
-            maps = {r["parent_item"]:r["child_items"] for r in seed.relations_data.get("refines_map",[])}
-            if impacted-set(maps):
-                return result(False,"withdrawn parent items need mapping",own,True)
-            excluded.update(i for rid in impacted for i in maps[rid])
-        # Ancestor withdrawal holds propagate through item mappings without pruning traversal.
+        # Only the parent's withdrawn acceptance ids matter; the child is held whole, never pruned.
+        withdrawn = {r["id"] for r in (ps.lifecycle or {}).get("withdrawn",[]) if ps.is_acceptance_id(r["id"])}
+        if withdrawn & set(seed.refines):
+            return result(False,"withdrawn parent acceptance; child review required",own,True)
+        # An ancestor gate's review hold propagates; its excluded items do not.
         if pl["state"] == "active":
             gate = eligibility(rd,ps,parent.loc[0],trail)
             if gate["review_required"]:
                 return result(False,"ancestor review required",own,True)
-            if gate["excluded_items"]:
-                impacted = set(gate["excluded_items"]) & set(seed.refines)
-                if not gate["excluded_items"] or not seed.refines:
-                    return result(False,"ancestor review required",own,True)
-                maps = {r["parent_item"]:r["child_items"] for r in seed.relations_data.get("refines_map",[])}
-                if impacted-set(maps):
-                    return result(False,"withdrawn parent items need mapping",own,True)
-                excluded.update(i for rid in impacted for i in maps[rid])
-    mapped_hold = bool(excluded - {r["id"] for r in (seed.lifecycle or {}).get("withdrawn",[])})
     if inactive:
-        return result(False,reason,excluded,mapped_hold)
-    return result(bool(own-excluded),"mapped parent items withdrawn" if mapped_hold else "withdrawn items" if excluded else "active",excluded,False)
+        return result(False,reason,excluded)
+    return result(bool(own-excluded),"withdrawn items" if excluded else "active",excluded)
 
 
 # ---------------------------------------------------------------------------
@@ -756,7 +764,7 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
 
 def cmd_tree(rd, rel, seed):
     out = [_row("SEED", f"{rel}  (target: {seed.target or '(none)'})")]
-    self_res = rd.resolve_quiet((None, rel), seed.relations_version == 2 or seed.lifecycle is not None)
+    self_res = rd.resolve_quiet((None, rel), exact_edges(seed))
     out += _newer_note(rel, self_res)
     out.append(_row("SOURCE", seed.source or UNRECORDED))
     out.append(_row("TRACKING", ", ".join(seed.tracking) or "(없음)"))
@@ -850,7 +858,7 @@ def cmd_tree(rd, rel, seed):
     if kids:  # the parent-side view: each of this Seed's items -> the child Seeds that refine it
         readable = [ld for ld in kids if ld.seed is not None]
         for iid, desc in seed.items:
-            who = [ld for ld in readable if iid in ld.seed.refines]
+            who = [ld for ld in readable if ld.seed.refines_acceptance(iid)]
             mark = LINK_ONLY if any(ld.loc[0] is not None for ld in who) else ""
             out.append(_row("ITEM", f"{qualified_id(rel, iid)} · {_short(desc)}  refined by: "
                             f"{', '.join(key(ld.loc) for ld in who) if who else '(none)'}{mark}"))
@@ -859,16 +867,16 @@ def cmd_tree(rd, rel, seed):
                 out.append(_row("ITEM", f"(unreadable child {key(ld.loc)} — 대응 미확인)"))
 
     if parent is not None and parent.seed is not None:
-        refiners = []  # [(display, refines list)]
+        refiners = []  # [(display, Seed)]
         for ld in family:
             if ld.loc == self_res:
                 continue
             if ld.seed is not None:
-                refiners.append((key(ld.loc), ld.seed.refines))
-        refiners.append((rel, seed.refines))
+                refiners.append((key(ld.loc), ld.seed))
+        refiners.append((rel, seed))
         mark = LINK_ONLY if parent.loc[0] is not None else ""
         for iid, desc in parent.seed.items:
-            who = [name for name, refs in refiners if iid in refs]
+            who = [name for name, sd in refiners if sd.refines_acceptance(iid)]
             out.append(_row("PARENT-ITEM", f"{qualified_id(key(parent.loc), iid)} · {_short(desc)}  refined by: "
                             f"{', '.join(who) if who else '(none)'}{mark}"))
     return out, 0
@@ -882,7 +890,7 @@ def cmd_check(rd, rel, seed):
     mismatches = 0
     failed = 0
     edges = 0
-    self_res = rd.resolve_quiet((None, rel), seed.relations_version == 2 or seed.lifecycle is not None)
+    self_res = rd.resolve_quiet((None, rel), exact_edges(seed))
     out = _newer_note(rel, self_res)
     legacy_lines, legacy_seen = [], set()
 
@@ -1259,7 +1267,7 @@ def walk(seed_file, max_depth=3, max_nodes=25):
         if visited:  # every item of a Seed with a visited child, so unmapped items stay visible
             for iid, _ in s.items:
                 items.append({"owner": n.key, "id": iid,
-                              "refined_by": [v.key for v in visited if iid in v.seed.refines]})
+                              "refined_by": [v.key for v in visited if v.seed.refines_acceptance(iid)]})
 
     failures = [{"key": n.key, "error": n.error or ""} for n in nodes
                 if n.status == "external-failed"]
