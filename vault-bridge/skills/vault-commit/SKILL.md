@@ -151,11 +151,13 @@ If any group's commit fails, **stop** — do not continue. Report which groups c
 
 **Option C — "메시지 직접 입력 후 커밋"** (index 2):
 
-Do NOT call AskUserQuestion (it does not support freeform text). Instead, output this prompt and wait for the next user turn:
+Codex: use the shared question contract above; empty or missing input keeps the commit pending.
+Claude Code: do NOT call AskUserQuestion here; output this prompt and wait for the next user turn:
 
 > 커밋 메시지를 한 줄로 입력해 주세요. (예: `vault: 2026-04-18 session notes`)
 
-On the next turn, treat the user's reply as `{custom_msg}` (single-line, trimmed). If the reply is empty or only whitespace, fall back to the auto-generated message. Then run:
+Trim the actual reply into single-line `{custom_msg}`. Claude Code only: an empty or whitespace
+reply falls back to the auto-generated message. Then run:
 ```bash
 git -C "{vault_root}" commit -m "{custom_msg}"
 ```

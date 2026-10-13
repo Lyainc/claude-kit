@@ -16,9 +16,10 @@ Claude-only mechanics while preserving its decision rules and safety gates.
    - Otherwise use `request_user_input` only when available and permitted for this question
      in the current mode. A listed tool may still be restricted (for example to Plan mode,
      optional clarification, or non-approval questions); its runtime contract wins.
-   - Preserve the question's meaning and choices within the tool's limits. If multi-select
-     is unsupported, use separate short choices or a free-text question accepting item IDs;
-     never silently turn independent keep/dismiss choices into a single-choice decision.
+   - Preserve the question's meaning and all choices within the tool's limits. If multi-select
+     or the number of options is unsupported, use separate short questions or a free-text
+     question accepting item IDs; never silently turn independent keep/dismiss choices into
+     a single-choice decision or drop choices to fit a limit.
    - Reuse explicit prior answers and approvals. Tool acceptance, preselected options,
      missing/empty replies and elapsed time are not user answers or approval. Preserve each
      skill's required-answer and approval gates. Only a clarification the runtime lets you skip

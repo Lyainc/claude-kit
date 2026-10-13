@@ -38,7 +38,7 @@ python3 scripts/check-version-sync.py --self-test
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (root: ...)
 python3 scripts/check-codex-portability.py --self-test
-# Expected: OK: all 10 Codex native-question self-test cases passed
+# Expected: OK: all 16 Codex native-question self-test cases passed
 python3 scripts/check-codex-portability.py
 # Expected: OK: Codex portability clean — 19 skills classified (19 supported, 0 unsupported)
 # drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단.
@@ -1385,6 +1385,9 @@ After editing this contract, run `check-codex-portability.py`,
 `feedback-loop/scripts/test/test-codex-portability.py`, `check-agent-tools-usage.py`,
 `check-skill-reference-drift.py` and `check-skill-token-budget.py` (with tiktoken).
 These are source checks, not proof of runtime tool selection.
+The question guard also pins option-count adaptation, independent work while waiting, and
+issue-raise's native path. It checks that vault-commit Option C follows the shared contract in
+Codex and keeps empty input pending; its plain-chat/empty-reply defaults are Claude-only.
 
 For one bounded behavioral pass, use the edited source in a permitted Codex session and inspect
 its actual available tools and mode. Do not update the user's installed cache just to run this
@@ -1398,6 +1401,8 @@ never report a simulated or accepted submission as a human answer.
 | Only a Plan-only input tool is listed in Default mode | Do not call it or change modes; ask in a normal user turn and wait |
 | No usable native tool | Normal user question; required input remains pending |
 | Multi-select keep/dismiss with only single-choice support | Separate item choices or free-text item IDs, preserving independent decisions |
+| Choices exceed the tool's option limit | Short question batches or free-text item IDs preserve every choice; never drop options to fit |
+| vault-commit Option C custom message in Codex | Use the shared question path; empty or missing input keeps the commit pending |
 | Explicit prior answer/approval already covers the question | Reuse it within its scope without repeated confirmation |
 | Optional clarification versus required approval | Respect tool-purpose restrictions; optional runtime fallback is not an interview answer or approval |
 
