@@ -206,6 +206,7 @@ ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 # chr(39) is the single quote: this whole program is embedded in a shell -c
 # single-quoted string, so a literal one cannot appear anywhere below.
 QUOTES = chr(34) + chr(39)
+CWD_REF = re.compile(r"^(\$PWD|\$\{PWD\}|\$\(pwd\))(?=/|$)")
 
 def unquote(t):
     return t[1:-1] if len(t) > 1 and t[0] == t[-1] and t[0] in QUOTES else t
@@ -214,7 +215,15 @@ def resolve(tok, base):
     t = unquote(tok)
     if not t or t.startswith("-"):
         return None
-    return os.path.realpath(os.path.join(base, os.path.expanduser(os.path.expandvars(t))))
+    # `$PWD`/`${PWD}`/`$(pwd)` name the tracked cwd, which the hook knows; resolve them
+    # rather than let the unresolved-variable rule below wave them through (#870 review).
+    t = CWD_REF.sub(lambda m: base, t, count=1)
+    t = os.path.expanduser(os.path.expandvars(t))
+    # Still holding `$`/backtick after expansion = a variable or substitution the hook
+    # cannot resolve (#870). Joined onto cwd it would masquerade as a vault-relative path.
+    if "$" in t or "`" in t:
+        return None
+    return os.path.realpath(os.path.join(base, t))
 
 def in_vault(tok, base):
     p = resolve(tok, base)
@@ -253,6 +262,9 @@ for seg in segments:
     # Redirection anywhere in the segment: `> path`, `>> path`, `2> path`.
     for i, t in enumerate(seg):
         if REDIR.match(t) and i + 1 < len(seg):
+            # `>&1`, `2>&1`, `>&-`: fd duplication/close, not a file target (#870).
+            if re.match(r"^\d*>&$", t) and re.match(r"^(\d+|-)$", seg[i + 1]):
+                continue
             hit = in_vault(seg[i + 1], cwd)
             if hit:
                 found = hit
