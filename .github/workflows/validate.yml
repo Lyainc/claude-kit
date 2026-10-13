@@ -192,7 +192,7 @@ jobs:
 
       - name: Check shell hook syntax
         run: |
-          bash -n vault-bridge/hooks/*.sh
+          python3 scripts/test/test-shell-hook-syntax.py
           bash -n thinking-tools/hooks/session-start-welcome.sh
           bash -n thinking-tools/hooks/next-goal-context.sh
           bash -n scripts/rules-checklist-hook.sh
