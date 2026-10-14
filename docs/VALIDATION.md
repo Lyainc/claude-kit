@@ -1543,6 +1543,8 @@ checkout's cases instead of the current worktree's.
 ```bash
 claude plugin eval ./thinking-tools --tag trigger --ablation none --runs 3 --max-cost-usd 10 --trust-plugin --no-publish
 claude plugin eval ./vault-bridge --tag trigger --ablation none --runs 3 --max-cost-usd 10 --trust-plugin --no-publish
+claude plugin eval ./feedback-loop --tag trigger --ablation none --runs 3 --max-cost-usd 10 --trust-plugin --no-publish
+claude plugin eval ./obsidian-vault-manager --tag trigger --ablation none --runs 3 --max-cost-usd 10 --trust-plugin --no-publish
 # Expected: every case score 1.00 and exit 0 on a clean run; aggregate-result.json and report.html land in
 #   <plugin>/evals/results/<timestamp>/ (gitignored, not committed). Any case below 1.00 is a
 #   boundary regression unless its run ended on an infrastructure error (usage limit, auth, a
@@ -1554,6 +1556,11 @@ claude plugin eval ./vault-bridge --tag trigger --ablation none --runs 3 --max-c
 #   passed under the same cap). Its max_turns was raised to 8 to leave room for that variation;
 #   `--case substantive-rewrite-is-ordinary --runs 3` then passed 3/3, $0.27.
 #   All 21 suite runs passed every fires-/skips- grader.
+# Baseline (2026-10-15 KST, Claude Code 2.1.299, runs 3): feedback-loop 9/9 runs, $1.38
+#   (distill<->add-policy both directions, retro->distill); every add-policy run reached its
+#   4-turn cap after the Skill call. obsidian-vault-manager 6/6 runs, $0.79 (audit<->base both
+#   directions). An earlier attempt the same day lost 13 of 18 runs to a usage limit
+#   (score 0, no graders run); its 5 graded runs all passed.
 # Earlier single runs (runs 1, Claude Code 2.1.296): the first prompts passed 7/7 ($1.44).
 #   The rephrased prompts passed 6/7 across a suite run and a single-case retry of a
 #   usage-limited case; the seventh ended on a queued-API timeout.
