@@ -6,11 +6,12 @@ the expected shape of output, not additional rules.
 <example>
 user: "지난 세션 이어서 해줘"
 assistant: ".vault-link 확인 → notes/claude-kit 스코프.
-session-2026-04-10.md (status: active) 발견.
+session-*.md / status: active 없음 → manifest에서 가장 최근 작업 문서 notes/claude-kit/api-design-review.md (2026-04-10) 선택.
 현재 상태: API 설계 리뷰 진행 중 | 다음 단계: PR #42 머지 후 배포 | 블로커: 없음"
 <commentary>
 Session Restore (Mode 1): .vault-link scopes to bound project directory.
-Filters by status: active, sorts by date descending, outputs key context only.
+Legacy `session-*.md` with status: active wins when present; otherwise falls back to the manifest's
+most recent non-wiki documents (mtime descending) in that scope. Outputs key context only.
 No full-vault scan — targeted read via .vault-link project scope.
 </commentary>
 </example>
@@ -31,7 +32,7 @@ Results as numbered list — full content loads only on user selection.
 <example>
 user: "kubernetes 관련 vault 컨텍스트 불러와줘"
 assistant: ".vault-link 확인 → notes/my-service 스코프 발견.
-manifest.json kubernetes 태그 필터링 → 4건 (active session note 1 + notes 3).
+manifest.json kubernetes 태그 필터링 → 4건 (notes 4).
 [파일 로드 후 현재 진행 상황 요약 출력]"
 <commentary>
 Domain Context (Mode 2): .vault-link scopes to bound project.
@@ -52,10 +53,11 @@ vault-searcher never writes; all vault writes are user-initiated skills only.
 <example>
 user: "어제 하던 작업 이어서 할래, 세션 컨텍스트 불러와줘"
 assistant: [Mode 1 Session Restore — searches sources/session-*.md (and .vault-link project path if
-present) filtered by status: active. Sorts by date descending, returns the most recent active
-session with key context: current status, next steps, blockers. Read-only.]
+present) filtered by status: active; if none, falls back to the manifest's most recent non-wiki
+documents by mtime (scoped by .vault-link). Returns the most recent one with key context:
+current status, next steps, blockers. Read-only.]
 <commentary>
-"이어서" / "세션 컨텍스트 불러와" → Mode 1 session restore: load the latest active session note.
+"이어서" / "세션 컨텍스트 불러와" → Mode 1 session restore: load the latest active session note, else the most recent working document.
 Distinct from Mode 3 — Mode 1 targets the most recent in-progress session, NOT a topic keyword.
 A topic-scoped request ("API 설계 관련 예전 기록 찾아줘") routes to Mode 3 instead.
 Read-only: no files written or modified.
@@ -66,7 +68,7 @@ Read-only: no files written or modified.
 user: "프론트엔드 도메인 컨텍스트 로드해줘"
 assistant: [Mode 2 Domain Context — runs .vault-link discovery to determine search scope.
 Checks manifest.json for frontend-tagged entries; filters by type and tags.
-Sorts active notes first, then by mtime descending. Loads top ≤5 files.
+Sorts by Question-Type tier, then recent_commits, references_in, mtime. Loads top ≤5 files.
 Outputs structured summary: in-progress items, key notes, relevant decisions.]
 <commentary>
 "도메인 컨텍스트" → Mode 2. Manifest-first narrows candidates before file reads.

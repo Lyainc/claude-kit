@@ -22,7 +22,7 @@ vault-searcher auto-selects the appropriate mode based on natural language reque
 
 ### 1. Session Restore
 
-Load the most recent active session note to restore session context.
+Load the most recent working document (legacy active session note, else latest manifest entry in the `.vault-link` scope) to restore session context.
 
 ```
 "이전 세션 불러와"

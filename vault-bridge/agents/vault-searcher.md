@@ -87,7 +87,7 @@ Three modes. Auto-select based on the user's request.
 
 ### 1. Session Restore
 
-Find and load the most recent active session note to restore session context.
+Find and load the most recent working document to restore session context.
 
 **Triggers**: "resume last session", "what was I working on?", "{project} status", "이전 세션", "세션 복원"
 
@@ -95,12 +95,16 @@ Find and load the most recent active session note to restore session context.
 1. Search for session files with Glob:
    - With `.vault-link` found (project scope): `{vault_root}/{vault_path}/session-*.md`
    - Without pointer: `{vault_root}/sources/session-*.md` (canonical) + `{vault_root}/notes/*/session-*.md` (legacy / user-moved)
-2. Filter by frontmatter `status: active`.
-3. Sort by date descending. Select the most recent.
-4. If multiple projects have active session notes, show list and ask user to choose.
+2. Filter by frontmatter `status: active` (legacy vaults). If any match, sort by date descending, select the most recent, and skip step 3.
+3. If none match (current writers create neither `session-*` files nor `status:`), fall back to the manifest: when `{vault_root}/.vault-bridge/manifest.json` exists, take the 5 most recent non-`wiki` entries by `mtime` descending (type is shown, not ranked), scoped to `{vault_path}` (directory-boundary prefix) when `.vault-link` is found. Never `Read` the raw manifest; use:
+   ```bash
+   python3 -c 'import json,sys; vp=sys.argv[2]; f=[e for e in json.load(open(sys.argv[1]))["files"] if e.get("type")!="wiki" and (not vp or e["path"]==vp or e["path"].startswith(vp+"/"))]; f.sort(key=lambda e:e.get("mtime") or 0,reverse=True); [print(e["path"],e.get("type"),e.get("mtime"),e.get("title"),sep="\t") for e in f[:5]]' "{vault_root}/.vault-bridge/manifest.json" "{vault_path}"
+   ```
+   Read the top entry; list the rest as alternatives.
+4. If multiple projects have candidate documents, show list and ask user to choose.
 5. Output key information: current status, next steps, blockers, reference context.
 
-If no active session note found: output "active session note가 없습니다." and stop.
+If neither a legacy active session note nor a recent manifest document is found: output "복원할 최근 작업 문서가 없습니다." and stop.
 
 ### 2. Domain Context Load
 
@@ -125,7 +129,7 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
         --domain "{domain}" --vault-path "{vault_path}" "{vault_root}/.vault-bridge/manifest.json"
       ```
       Applies `type == wiki` (always included), `.vault-link` `vault_path`
-      directory-scoped prefix, domain-keyword tag/workstream match, or `status == active`.
+      directory-scoped prefix, or domain-keyword tag/workstream match.
       Output: `{"candidate_count": N, "candidates": [...]}`.
    b. **Truncation check**: apply § The truncation-check invariant in
       `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that section is the binding
@@ -133,7 +137,7 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
       standard scan below).
    c. **Sort + select**: apply § Candidate ranking order in
       `${CLAUDE_PLUGIN_ROOT}/reference/manifest-recall.md` — that section is the binding
-      sort contract (active → Question-Type Routing tier → `recent_commits` →
+      sort contract (Question-Type Routing tier → `recent_commits` →
       `references_in` → `type: wiki` tiebreak → `mtime`, then top ≤ 5).
    d. Read only those specific files. Skip the MOC/grep scan entirely.
    e. **Staleness check**: if manifest `generated_at` is older than 24 hours OR any candidate file's actual `mtime` (via `stat`) is newer than the manifest's `generated_at`, fall through to standard scan below and log a warning: "manifest가 오래되었거나 변경 파일이 있어 전체 스캔으로 대체합니다."
@@ -152,8 +156,7 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
      - Other / fallback: `grep -rl "{domain}" {search_root} --include="*.md"`
    - Comma-separated domains: query each individually, merge results.
 3. Collect titles and tags from matched notes.
-4. If a `status: active` session note exists for the domain, show as "In Progress" priority section.
-5. Apply the Question-Type Routing tier (§ above) as the top grouping, same as Mode 3: for a
+4. Apply the Question-Type Routing tier (§ above) as the top grouping, same as Mode 3: for a
    정의/사실 질문, show `wiki/` hits before `notes/`+`sources/` hits; for a 경위/이력 질문, the
    reverse (`type: discussion` joins the `notes/`+`sources/` group); for 분류 불가, skip this
    grouping (existing behavior) — the `search_root` order from
