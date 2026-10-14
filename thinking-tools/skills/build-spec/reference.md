@@ -310,7 +310,7 @@ SKILL.md compresses these passages and cites this section where more is needed. 
 
 ## Language Behavior
 
-- **Instructions**: English (optimized for LLM parsing)
+- **Instructions**: English
 - **Output**: Korean by default
   - If user writes in English → English output
   - Persona labels and STATE block keys: English

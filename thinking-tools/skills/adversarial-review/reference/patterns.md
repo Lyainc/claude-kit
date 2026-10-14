@@ -258,7 +258,7 @@ Step detail moved out of `SKILL.md` to fit Codex's 8,000-byte invoked-skill limi
 
 ### Language Behavior
 
-- **Instructions**: English (optimized for LLM parsing)
+- **Instructions**: English
 - **Output**: Korean by default
   - If user writes in English → English output
   - Persona labels: use English labels (Attacker, Judge, Steelman Coach)
