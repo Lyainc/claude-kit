@@ -1526,20 +1526,25 @@ a bare plugin name resolves to the installed directory-marketplace copy, which r
 checkout's cases instead of the current worktree's.
 
 ```bash
-claude plugin eval ./thinking-tools --tag trigger --ablation none --runs 1 --max-cost-usd 3 --trust-plugin --no-publish
-claude plugin eval ./vault-bridge --tag trigger --ablation none --runs 1 --max-cost-usd 3 --trust-plugin --no-publish
+claude plugin eval ./thinking-tools --tag trigger --ablation none --runs 3 --max-cost-usd 10 --trust-plugin --no-publish
+claude plugin eval ./vault-bridge --tag trigger --ablation none --runs 3 --max-cost-usd 10 --trust-plugin --no-publish
 # Expected: every case score 1.00, exit 0; aggregate-result.json and report.html land in
 #   <plugin>/evals/results/<timestamp>/ (gitignored, not committed). Any case below 1.00 is a
 #   boundary regression unless its run ended on an infrastructure error (usage limit, auth, a
-#   timeout with a queued API).
-# First measurement (2026-10-14 KST, Claude Code 2.1.296, runs 1): thinking-tools 5/5 $1.23,
-#   vault-bridge 2/2 $0.22. After the prompts dropped the descriptions' trigger phrases, the
-#   re-run passed 6/7. substantive-rewrite-is-ordinary timed out at 180s with no reply (queued
-#   API, 1133s wall clock), so its reply grader failed it; that case is unconfirmed.
-# `Reached maximum number of turns (4)` notes are expected: the graders only need the first
-#   Skill call, and the turn cap keeps each run cheap.
+#   timeout with a queued API) or failed only a reply grader; a failing fires-/skips- grader is
+#   the regression signal.
+# Baseline (2026-10-14 KST, Claude Code 2.1.296, runs 3, current prompts): vault-bridge 6/6
+#   runs, $0.71. thinking-tools 14/15 runs, $3.58: one substantive-rewrite-is-ordinary run hit
+#   its 4-turn cap while exploring the empty workspace and never replied. With that case's
+#   max_turns raised to 8, `--case substantive-rewrite-is-ordinary --runs 3` passed 3/3, $0.27.
+#   All 21 suite runs passed every fires-/skips- grader.
+# Earlier single runs (runs 1): the first prompts passed 7/7 ($1.45). The rephrased prompts
+#   passed 6/7, with the seventh ended by a queued-API timeout.
+# `Reached maximum number of turns` and `timed out` notes on a passing run are expected: the
+#   boundary graders only need the first Skill call, and the caps keep each run cheap. A case
+#   graded on the reply (substantive-rewrite-is-ordinary) needs the larger turn cap.
 ```
 
 `--ablation none` is deliberate: without the plugin no skill can fire, so the baseline arm adds
-cost but no trigger signal. Raise `--runs` (and `--max-cost-usd` proportionally) to measure
-variance before relying on a single pass.
+cost but no trigger signal. Keep `--runs 3` for a regression comparison; a single run cannot
+tell a flaky boundary from a broken one.
