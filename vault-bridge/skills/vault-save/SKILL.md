@@ -2,7 +2,7 @@
 name: vault-save
 description: "Save requested reference material to the configured Obsidian vault: source text/URLs/session dumps to sources/, authored prose to notes/. Use wiki for compiled domain knowledge, add-policy for behavioral rules, and issue-raise for repository work proposals. A generic save request needs an established vault destination; explicit file paths/formats win. KR triggers: '볼트에 저장', '자료 저장', '클리핑 저장', '인박스에 저장'. EN triggers: 'save to vault', 'vault save', 'save this link to the vault'. Examples: '/vault-save https://example.com/article', '/vault-save 오늘 회의에서 나온 API 변경점'."
 allowed-tools: Write Bash Glob Read
-model: haiku  # kept: mechanical write only, no LLM judgment — merges /capture + /note (#448, #480)
+model: haiku  # kept: mechanical write only, no LLM judgment — one skill covers both raw captures and authored notes
 ---
 
 **User language:** user-facing output (responses, generated content, file contents) is in Korean by default, or in English when the user writes in English.
