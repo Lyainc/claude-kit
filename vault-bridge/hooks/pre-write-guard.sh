@@ -219,7 +219,10 @@ def resolve(tok, base):
     # joining it onto cwd would fabricate an in-vault target, so leave it out of the judgment.
     if "$" in t or "`" in t:
         return None
-    return os.path.realpath(os.path.join(base, t))
+    # base None = an earlier `cd` went somewhere unresolvable; only absolute targets are known.
+    if base is None and not os.path.isabs(t):
+        return None
+    return os.path.realpath(os.path.join(base or "", t))
 
 def in_vault(tok, base):
     p = resolve(tok, base)
@@ -280,9 +283,9 @@ for seg in segments:
     # `cd` inside the command moves the base for later segments relative paths resolve against.
     if verb == "cd":
         if positional:
-            p = resolve(positional[0], cwd)
-            if p:
-                cwd = p
+            # An unresolvable `cd "$tmp"` leaves the base unknown (None), so later relative
+            # targets are not judged instead of being resolved against the vault.
+            cwd = resolve(positional[0], cwd)
         continue
     # sed only writes with -i.
     if verb == "sed" and not any(a.startswith("-i") for a in args):

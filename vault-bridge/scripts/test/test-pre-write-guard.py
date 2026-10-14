@@ -622,11 +622,14 @@ def case_bash_cwd_vault_targets(errors: list[str], vault_root: str) -> None:
             f'bash x.sh > {outside}/fm.json 2>/dev/null',
             f'bash x.sh > {outside}/fm.json 2>&-',
             f'bash x.sh > {outside}/fm.json',
+            'cd "$scan_tmp" && bash x.sh > fm.json',          # base unknown after cd
         ]
         deny = [
             'echo x > fm.json',                              # cwd = vault: really in the vault
             f'echo x > {vault_root}/notes/x.md 2>&1',        # in-vault target survives 2>&1
             'echo x > $HOME_UNSET_870/fm.json; echo y > fm.json',  # later literal in-vault write
+            f'cd "$scan_tmp" && echo x > {vault_root}/notes/x.md',  # absolute still judged
+            f'echo x >& {vault_root}/notes/x.md',            # >& FILE is a file target
         ]
         for cmd in allow:
             proc = _run(_make_bash_payload(cmd, agent_id_value="executor", cwd=vault_root),
