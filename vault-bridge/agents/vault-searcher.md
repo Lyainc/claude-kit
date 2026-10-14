@@ -97,11 +97,11 @@ Find and load the most recent work document to restore session context.
    python3 "${CLAUDE_PLUGIN_ROOT}/scripts/manifest-latest-work.py" \
      [--vault-path "{vault_path}"] "{vault_root}/.vault-bridge/manifest.json"
    ```
-   It selects manifest `type` in `capture|note|decision|session` (what vault-save writes, plus `session`; `wiki`/`discussion` are excluded) and sorts by `mtime` descending. Output: `{"candidate_count": N, "candidates": [...]}`. Apply the same truncation check as Mode 2 step 2b; on failure or exit 3, use step 2.
+   It selects manifest `type` in `capture|note|decision|session` (what vault-save writes, plus `session`; `wiki`/`discussion`/`clipping`/`moc` and dot-prefixed paths are excluded) and sorts by `mtime` descending. Output: `{"candidate_count": N, "candidates": [...]}`. Apply the same truncation check as Mode 2 step 2b; on failure or exit 3, use step 2.
    Then apply the Mode 2 step 2e staleness check to the top candidates; if it trips, use step 2 instead, because a note written after the manifest was generated would otherwise be missed.
 2. Fallback (manifest absent/unusable/stale): Glob `*.md` under `{vault_root}/{vault_path}/` (scoped) or `{vault_root}/notes/` + `{vault_root}/sources/` (no pointer) and pick the newest by `stat` mtime.
 3. Backward compatibility for older vaults: entries flagged `legacy_session: true` (`session-*.md` filename or frontmatter `status: active`) are included whatever their `type`, and sort by `mtime` like any other entry. In the fallback, also Glob `session-*.md` (`sources/` canonical, `notes/*/` legacy) into the same mtime ordering.
-4. Select the top candidate and Read it. If several projects tie closely and no `.vault-link` scoped the search, show the top 3 and ask the user to choose.
+4. Select the top candidate and Read it. If no `.vault-link` scoped the search and the top candidates span more than one project, do not Read any of them: list the top 3 (path, mtime) and ask the user to choose.
 5. Output key information: current status, next steps, blockers, reference context.
 
 If no work document is found: output "복원할 작업 문서가 없습니다." and stop.
