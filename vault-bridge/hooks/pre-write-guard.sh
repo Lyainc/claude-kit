@@ -217,13 +217,19 @@ def resolve(tok, base):
         return None
     # `$PWD`/`${PWD}`/`$(pwd)` name the tracked cwd, which the hook knows; resolve them
     # rather than let the unresolved-variable rule below wave them through (#870 review).
+    # An unknown base (None, after an unresolvable `cd`) cannot resolve them either.
+    if base is None and CWD_REF.match(t):
+        return None
     t = CWD_REF.sub(lambda m: base, t, count=1)
     t = os.path.expanduser(os.path.expandvars(t))
     # Still holding `$`/backtick after expansion = a variable or substitution the hook
     # cannot resolve (#870). Joined onto cwd it would masquerade as a vault-relative path.
     if "$" in t or "`" in t:
         return None
-    return os.path.realpath(os.path.join(base, t))
+    # base None = an earlier `cd` went somewhere unresolvable; only absolute targets are known.
+    if base is None and not os.path.isabs(t):
+        return None
+    return os.path.realpath(os.path.join(base or "", t))
 
 def in_vault(tok, base):
     p = resolve(tok, base)
@@ -284,9 +290,9 @@ for seg in segments:
     # `cd` inside the command moves the base for later segments relative paths resolve against.
     if verb == "cd":
         if positional:
-            p = resolve(positional[0], cwd)
-            if p:
-                cwd = p
+            # An unresolvable `cd "$tmp"` leaves the base unknown (None): later relative
+            # targets are not judged instead of being resolved against the vault.
+            cwd = resolve(positional[0], cwd)
         continue
     # sed only writes with -i.
     if verb == "sed" and not any(a.startswith("-i") for a in args):

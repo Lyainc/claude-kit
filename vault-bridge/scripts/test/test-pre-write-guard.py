@@ -615,12 +615,25 @@ def case_bash_reads_pass(errors: list[str], vault_root: str) -> None:
         f'script.sh {v} 2>&1',                               # fd dup, not <vault>/1
         f'script.sh {v} > /tmp/scan/fm.json 2>&1',           # outside literal target + fd dup
         'script.sh > "$scan_tmp/fm.json"',                   # unresolvable variable target
+        'cd "$scan_tmp" && bash x.sh > fm.json',             # base unknown after cd (#870)
+        'cd "$scan_tmp" && bash x.sh > fm.json 2>&1',
     ]
     for cmd in cwd_vault_commands:
         payload = _make_bash_payload(cmd, agent_id_value="vault-searcher", cwd=v)
         proc = _run(payload, vault_root=vault_root)
         _assert(proc.returncode == 0, f"exit 0 (cwd in vault): {cmd!r}", errors)
         _assert(proc.stdout.strip() == "", f"stdout empty (cwd in vault): {cmd!r} (got: {proc.stdout!r})", errors)
+
+    # #870: an unknown base still judges absolute targets; `>& FILE` is a file target.
+    cwd_vault_deny = [
+        f'cd "$scan_tmp" && echo x > {v}/notes/x.md',        # absolute survives unknown base
+        f'echo x >& {v}/notes/x.md',                         # >& FILE, not fd dup
+        'echo x >& fm.json',                                 # relative >& FILE, cwd = vault
+    ]
+    for cmd in cwd_vault_deny:
+        payload = _make_bash_payload(cmd, agent_id_value="vault-searcher", cwd=v)
+        proc = _run(payload, vault_root=vault_root)
+        _assert(_denied(proc.stdout), f"deny (cwd in vault): {cmd!r} (got: {proc.stdout!r})", errors)
 
 
 def case_bash_main_context_allowed(errors: list[str], vault_root: str) -> None:
