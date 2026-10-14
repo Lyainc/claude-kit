@@ -416,8 +416,8 @@ Step detail moved out of `SKILL.md` to fit Codex's 8,000-byte invoked-skill limi
 
 ### Language Behavior
 
-- **Instructions**: English (optimized for LLM parsing)
-- **Output**: MUST match input language
+- **Instructions**: English
+- **Output**: matches the input language
   - Korean input → Korean interview questions and report
   - English input → English interview questions and report
   - Mixed input → follow dominant language

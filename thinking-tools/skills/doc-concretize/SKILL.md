@@ -23,7 +23,7 @@ Transform abstract concepts into concrete, well-structured documentation through
 
 ## Language Behavior
 
-Output MUST match the input language (mixed input follows the dominant language); if the user
+Output matches the input language (mixed input follows the dominant language); if the user
 provides a reference document, match its language and tone.
 
 ## Prerequisites
