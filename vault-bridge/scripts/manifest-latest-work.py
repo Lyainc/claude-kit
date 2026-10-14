@@ -13,12 +13,15 @@ Selection:
     - type in {capture, note, decision, session}   (what vault-save writes, plus `session` for
       legacy/daily-style notes). `wiki` and `discussion` are excluded: they are repo-transcending
       knowledge pages, not "what I was working on".
+    - `clipping` and `moc` are excluded like wiki/discussion, even for a legacy-flagged entry;
+      dot-prefixed paths (`.vault-bridge/...`) are never candidates; an entry without a `path` is
+      tolerated (never crashes, never matches a --vault-path scope).
     - `_index.md` / `Home.md` hub pages are never candidates: housekeeping touches them.
     - with --vault-path (.vault-link scope): path == VP or startswith VP + "/" (directory
       boundary); surrounding slashes are stripped, so `notes/proj/` scopes like `notes/proj`.
     - legacy: an entry whose basename starts with `session-` or whose status == "active" is
-      flagged `legacy_session: true` and selected even if its `type` is unknown (never wiki or
-      discussion), so
+      flagged `legacy_session: true` and selected even if its `type` is unknown (never wiki,
+      discussion, clipping or moc), so
       older vaults keep working. It sorts by mtime like any other entry, so a stale session note
       never outranks newer work.
 
@@ -38,7 +41,7 @@ import sys
 from pathlib import Path
 
 _WORK_TYPES = {"capture", "note", "decision", "session"}
-_KNOWLEDGE_TYPES = {"wiki", "discussion"}
+_KNOWLEDGE_TYPES = {"wiki", "discussion", "clipping", "moc"}
 # Hub pages are touched by housekeeping, not by the work being restored.
 _HUB_NAMES = {"_index.md", "Home.md", "home.md"}
 _FIELDS = ("path", "type", "title", "summary", "status", "mtime")
@@ -59,7 +62,8 @@ def _in_scope(entry: dict, vault_path: str) -> bool:
 
 
 def _selectable(entry: dict) -> bool:
-    if str(entry.get("path") or "").rsplit("/", 1)[-1] in _HUB_NAMES:
+    path = str(entry.get("path") or "")
+    if path.rsplit("/", 1)[-1] in _HUB_NAMES or path.startswith("."):
         return False
     if entry.get("type") in _KNOWLEDGE_TYPES:
         return False

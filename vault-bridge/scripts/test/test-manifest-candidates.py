@@ -577,6 +577,22 @@ def main() -> int:
               "latest-work: works on a vault with no session-* files and no status at all")
         check(run(_LATEST_SCRIPT, tmp / "missing.json").returncode == 3,
               "latest-work: missing manifest -> rc=3")
+        lw_path.write_text(json.dumps({"files": [
+            _note("notes/proj/clip.md", "clipping", mtime=900, status="active"),
+            _note("notes/proj/map.md", "moc", mtime=800),
+            _note("notes/proj/session-moc.md", "moc", mtime=700),
+            _note(".vault-bridge/cache.md", "note", mtime=600),
+            {"type": "note", "mtime": 500},
+            _note("notes/proj/work.md", "note", mtime=100),
+        ]}), encoding="utf-8")
+        r = run(_LATEST_SCRIPT, lw_path)
+        order = [c["path"] for c in json.loads(r.stdout)["candidates"]]
+        check(r.returncode == 0 and order == [None, "notes/proj/work.md"],
+              f"latest-work: clipping/moc (even legacy-flagged) and dot paths excluded, pathless entry tolerated (got {order})")
+        r = run(_LATEST_SCRIPT, "--vault-path", "notes/proj", lw_path)
+        order = [c["path"] for c in json.loads(r.stdout)["candidates"]]
+        check(r.returncode == 0 and order == ["notes/proj/work.md"],
+              f"latest-work: a pathless entry never matches a vault-path scope (got {order})")
 
         # comma-separated domains are split and OR'd, matching the standard-scan fallback's
         # documented "query each individually, merge results" handling (vault-searcher.md
