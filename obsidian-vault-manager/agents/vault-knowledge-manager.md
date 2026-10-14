@@ -1,7 +1,7 @@
 ---
 name: vault-knowledge-manager
 description: "Obsidian vault knowledge base manager — vault search, audit coordination, and note/decision DRAFTING. Read-only: returns a complete draft to the main context; when vault-bridge is available, the user can save it via `/vault-save` or `/wiki`. Otherwise draft return completes the task. Example: 'search for kubernetes notes', 'run vault audit', 'draft a decision record for the API gateway'. Does not manage session lifecycle."
-model: sonnet  # kept (#648): drafting judgment, and effort medium sets the depth
+model: sonnet  # kept: drafting judgment, and effort medium sets the depth
 color: magenta
 memory: project
 effort: medium
