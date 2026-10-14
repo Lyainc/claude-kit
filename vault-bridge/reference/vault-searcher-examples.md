@@ -11,7 +11,7 @@ session-*.md / status: active 없음 → manifest에서 가장 최근 작업 문
 <commentary>
 Session Restore (Mode 1): .vault-link scopes to bound project directory.
 Legacy `session-*.md` with status: active wins when present; otherwise falls back to the manifest's
-most recent non-wiki documents (mtime descending) in that scope. Outputs key context only.
+most recent working documents (not wiki/clipping/moc) (mtime descending) in that scope. Outputs key context only.
 No full-vault scan — targeted read via .vault-link project scope.
 </commentary>
 </example>
@@ -53,7 +53,7 @@ vault-searcher never writes; all vault writes are user-initiated skills only.
 <example>
 user: "어제 하던 작업 이어서 할래, 세션 컨텍스트 불러와줘"
 assistant: [Mode 1 Session Restore — searches sources/session-*.md (and .vault-link project path if
-present) filtered by status: active; if none, falls back to the manifest's most recent non-wiki
+present) filtered by status: active; if none, falls back to the manifest's most recent working
 documents by mtime (scoped by .vault-link). Returns the most recent one with key context:
 current status, next steps, blockers. Read-only.]
 <commentary>

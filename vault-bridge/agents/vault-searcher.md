@@ -96,12 +96,12 @@ Find and load the most recent working document to restore session context.
    - With `.vault-link` found (project scope): `{vault_root}/{vault_path}/session-*.md`
    - Without pointer: `{vault_root}/sources/session-*.md` (canonical) + `{vault_root}/notes/*/session-*.md` (legacy / user-moved)
 2. Filter by frontmatter `status: active` (legacy vaults). If any match, sort by date descending, select the most recent, and skip step 3.
-3. If none match (current writers create neither `session-*` files nor `status:`), fall back to the manifest: when `{vault_root}/.vault-bridge/manifest.json` exists, take the 5 most recent non-`wiki` entries by `mtime` descending (type is shown, not ranked), scoped to `{vault_path}` (directory-boundary prefix) when `.vault-link` is found. Never `Read` the raw manifest; use:
+3. If none match (current writers create neither `session-*` files nor `status:`), fall back to the manifest: when `{vault_root}/.vault-bridge/manifest.json` exists, take the 5 most recent working entries (not `wiki`/`clipping`/`moc`) by `mtime` descending (type is shown, not ranked), scoped to `{vault_path}` (directory-boundary prefix) when `.vault-link` is found. Never `Read` the raw manifest; use:
    ```bash
-   python3 -c 'import json,sys; vp=sys.argv[2]; f=[e for e in json.load(open(sys.argv[1]))["files"] if e.get("type")!="wiki" and (not vp or e["path"]==vp or e["path"].startswith(vp+"/"))]; f.sort(key=lambda e:e.get("mtime") or 0,reverse=True); [print(e["path"],e.get("type"),e.get("mtime"),e.get("title"),sep="\t") for e in f[:5]]' "{vault_root}/.vault-bridge/manifest.json" "{vault_path}"
+   python3 -c 'import json,sys; vp=sys.argv[2].strip("/"); f=[e for e in json.load(open(sys.argv[1])).get("files",[]) if e.get("type") not in ("wiki","clipping","moc") and not e.get("path","").startswith(".") and (not vp or e.get("path","").startswith(vp+"/"))]; f.sort(key=lambda e:e.get("mtime") or 0,reverse=True); [print(e.get("path"),e.get("type"),e.get("mtime"),e.get("title"),sep="\t") for e in f[:5]]' "{vault_root}/.vault-bridge/manifest.json" "{vault_path}"
    ```
    Read the top entry; list the rest as alternatives.
-4. If multiple projects have candidate documents, show list and ask user to choose.
+4. Unscoped (no `.vault-link`) and the candidates span several projects: show the list and ask the user to choose instead of reading the top entry.
 5. Output key information: current status, next steps, blockers, reference context.
 
 If neither a legacy active session note nor a recent manifest document is found: output "복원할 최근 작업 문서가 없습니다." and stop.
