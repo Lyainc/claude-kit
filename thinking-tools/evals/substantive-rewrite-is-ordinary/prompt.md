@@ -1,8 +1,8 @@
 ---
 description: "Trigger boundary doc-polish-vs-concretize: expects neither doc-polish nor doc-concretize"
 tags: [trigger, doc-polish-vs-concretize]
-max_turns: 4
-timeout_seconds: 180
+max_turns: 8
+timeout_seconds: 300
 allowed_tools: [Read, Glob, Grep, Skill]
 ---
 
