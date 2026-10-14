@@ -607,6 +607,39 @@ def case_bash_reads_pass(errors: list[str], vault_root: str) -> None:
         _assert(proc.stdout.strip() == "", f"stdout empty (no deny): {cmd!r} (got: {proc.stdout!r})", errors)
 
 
+def case_bash_cwd_vault_targets(errors: list[str], vault_root: str) -> None:
+    """#870: with cwd = the vault, targets outside it must pass; in-vault ones stay denied.
+
+    Unresolved `$`/backtick targets used to be joined onto cwd (-> inside the vault) and
+    `2>&1` made `1` a file target. Both are unresolvable/non-file, so they are not judged."""
+    print("\ncase: bash_cwd_vault_targets")
+    outside = tempfile.mkdtemp()
+    try:
+        allow = [
+            'scan_tmp=/tmp/x; bash x.sh > "$scan_tmp/fm.json"',
+            'bash x.sh > "$(mktemp -d)/fm.json"',
+            f'bash x.sh {vault_root} > {outside}/fm.json 2>&1',
+            f'bash x.sh > {outside}/fm.json 2>/dev/null',
+            f'bash x.sh > {outside}/fm.json 2>&-',
+            f'bash x.sh > {outside}/fm.json',
+        ]
+        deny = [
+            'echo x > fm.json',                              # cwd = vault: really in the vault
+            f'echo x > {vault_root}/notes/x.md 2>&1',        # in-vault target survives 2>&1
+            'echo x > $HOME_UNSET_870/fm.json; echo y > fm.json',  # later literal in-vault write
+        ]
+        for cmd in allow:
+            proc = _run(_make_bash_payload(cmd, agent_id_value="executor", cwd=vault_root),
+                        vault_root=vault_root)
+            _assert(proc.stdout.strip() == "", f"allowed with cwd=vault: {cmd!r} (got: {proc.stdout!r})", errors)
+        for cmd in deny:
+            proc = _run(_make_bash_payload(cmd, agent_id_value="executor", cwd=vault_root),
+                        vault_root=vault_root)
+            _assert(_denied(proc.stdout), f"denied with cwd=vault: {cmd!r} (got: {proc.stdout!r})", errors)
+    finally:
+        shutil.rmtree(outside, ignore_errors=True)
+
+
 def case_bash_main_context_allowed(errors: list[str], vault_root: str) -> None:
     """Main context (no agent identifier) owns vault writes → Bash write passes."""
     print("\ncase: bash_main_context_allowed")
@@ -838,6 +871,7 @@ def main() -> int:
         case_kill_switch(errors, vault_root)
         case_bash_subagent_writes_denied(errors, vault_root)
         case_bash_reads_pass(errors, vault_root)
+        case_bash_cwd_vault_targets(errors, vault_root)
         case_bash_main_context_allowed(errors, vault_root)
         case_bash_warn_and_off_modes(errors, vault_root)
 

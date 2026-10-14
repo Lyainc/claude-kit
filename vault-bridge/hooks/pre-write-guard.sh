@@ -214,7 +214,12 @@ def resolve(tok, base):
     t = unquote(tok)
     if not t or t.startswith("-"):
         return None
-    return os.path.realpath(os.path.join(base, os.path.expanduser(os.path.expandvars(t))))
+    t = os.path.expanduser(os.path.expandvars(t))
+    # A $ or backtick surviving expansion is an unresolvable indirect path (KNOWN_EVASIONS):
+    # joining it onto cwd would fabricate an in-vault target, so leave it out of the judgment.
+    if "$" in t or "`" in t:
+        return None
+    return os.path.realpath(os.path.join(base, t))
 
 def in_vault(tok, base):
     p = resolve(tok, base)
@@ -253,6 +258,9 @@ for seg in segments:
     # Redirection anywhere in the segment: `> path`, `>> path`, `2> path`.
     for i, t in enumerate(seg):
         if REDIR.match(t) and i + 1 < len(seg):
+            # `>&1` / `2>&-`: fd duplication or close, not a file target.
+            if t.endswith(">&") and re.match(r"^(\d+|-)$", seg[i + 1]):
+                continue
             hit = in_vault(seg[i + 1], cwd)
             if hit:
                 found = hit
