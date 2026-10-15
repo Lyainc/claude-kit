@@ -23,7 +23,7 @@ and stop unmodified if unreadable or conflicting.
 - Hook: a script plus a merged `$CODEX_ROOT/hooks.json` definition, never replacing existing hooks
   (read `codex.md`, this site only). Hook trust is separate; never silently grant trust.
 
-On Codex, memory is not writable: skip §6's memory promotion/deletion and queue review.
+On Codex, skip §6's memory promotion/deletion and queue review (no memory store).
 
 # add-policy
 

@@ -58,6 +58,8 @@ _QUEUE_CLAIMS = [
     ("unsupported item is held", "**근거 없음 — 보류**"),
     ("cross-project signal", "**여러 프로젝트 (n곳)**: a priority signal for a machine-global site"),
     ("delete needs confirmation", "Never delete or write without it."),
+    ("delete uses §3 shape", "Deleting 이미 매립됨 items uses the §3 confirmation shape"),
+    ("zero is printed", "never end the review silently"),
     ("Codex unsupported", "on Codex report the review as unsupported"),
 ]
 

@@ -555,12 +555,14 @@ is still one item, reported with both so the mismatch is visible.
 **Unread is unverified, not empty.** Every path the scan's stderr names (an unreadable file or
 directory, a dead `awk`) goes in the output as **미확인** with that stderr line — never dropped,
 never counted as "no feedback memory there". If stderr cannot be tied to a path, the whole
-review is 미확인. Vanilla machine and zero candidates: as §6-memory-contract.
+review is 미확인. Vanilla machine or zero candidates: still print the output block with `0개`,
+never end the review silently.
 
 **Step 2 — judge each item** against the sites of §3-sites (the reminder channels, including the
 catalogue index plus its linked detail files; hook matchers and guard scripts; skills) and the
 memory's own project `CLAUDE.md`/`AGENTS.md` when its directory resolves. Exactly one verdict
-each, every verdict with its 근거:
+each, every verdict with its 근거 — one of the three below, or one of the two non-candidate
+outcomes after the table (근거 없음 — 보류, contradiction):
 
 | 판정 | When | 근거 required |
 |------|------|---------------|
@@ -589,9 +591,10 @@ memory 대기열 점검
 
 **Acting on it** goes through the existing gates, one item at a time: a 매립 후보 re-enters
 SKILL.md §1 only once the user picks it and confirms its rule text in this transcript (that is
-the source gate's utterance), then runs §3/§6 normally; deleting 이미 매립됨
-items needs one AskUserQuestion naming the exact files, then §6-memory-contract's removal rule
-(file and its `MEMORY.md` line, recoverable trash only). Never delete or write without it.
+the source gate's utterance), then runs §3/§6 normally. Deleting 이미 매립됨 items uses the §3 confirmation shape: the
+`## 분류 결과` block with `memory 중복` listing each exact file and its site `path:line` 근거, then
+AskUserQuestion; after a yes, §6-memory-contract's removal rule (file and its `MEMORY.md` line,
+recoverable trash only). Never delete or write without it.
 
 
 ## §6-supersede — why the exit path is a §6 verdict (#429)

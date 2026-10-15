@@ -22,7 +22,7 @@ adapters are tracked separately in [local-harness #23](https://github.com/Lyainc
 | session-close (optional external skill) | Session reconciliation, authorized close/sweep; invokes next-goal | A next prompt alone → next-goal; automatically running retro/distill |
 | retro | Observed session waste → deduplicated improvement issue | Vault structural audit; generic issue drafting; placing policies |
 | distill | Reusable procedural technique proposal | Writing/placing the accepted rule → add-policy; declarative facts → vault-save |
-| add-policy | Placing an accepted rule in reminder/hook/skill | Rediscovering its value; knowledge storage; owning all instruction-file edits |
+| add-policy | Placing an accepted rule in reminder/hook/skill; read-only review of the feedback memory queue | Rediscovering its value; knowledge storage; owning all instruction-file edits |
 | vault-save | Requested raw/source/authored reference capture | Compiled reusable domain knowledge → wiki; behavior rules → add-policy |
 | wiki | Compiling and reconciling domain knowledge for recall | Raw clippings/session dumps → vault-save; corpus structural audit |
 | audit | Vault-wide structural/metadata/link/wiki-health triage and authorized eligible fixes | Prose quality → doc-polish; session waste → retro |
