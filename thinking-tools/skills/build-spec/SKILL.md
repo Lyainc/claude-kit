@@ -67,8 +67,8 @@ keep backlog scan; ask 3-5 Goal questions; gate Goal ≥ 0.75. Emit Goal + best-
 
 Ask Goal, then lowest clarity (ties: Goal > Constraint > Success > Context); follow up while
 ambiguous. Score answers; show `[Round N] Dimension: {current}`. Picked Seed: its acceptance
-items this Seed delivers → child (`parent`+`refines`; ask unclear `link_reason`); none →
-`depends_on` or reference (cite in text). User's word only (§8).
+items this Seed delivers → child (`parent`+`refines`; ask unclear `link_reason`); none → offer
+a new parent acceptance, else `depends_on`/reference. User's word only (§8).
 
 ### Ambiguity Scoring (A1)
 
@@ -102,7 +102,7 @@ Output with only idle notifications and no final text after one re-request → u
 On gate/exit:
 
 1. `Write` `docs/specs/{slug}.yaml` (kebab-case; collision → `-v2`, `-v3`) using
-   `templates/SEED_SPEC.yaml`. child-only `parent`/`refines`; `issues.source`: stated origin
+   `templates/SEED_SPEC.yaml`. `issues.source`: stated origin
    issue or null, never guessed; `issues.tracking: []`.
 2. Child: `Edit` same-repo parent's `relations.children` (cross-repo: print, never write). Then `Bash`:
    `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" check <new-seed-path>`; show

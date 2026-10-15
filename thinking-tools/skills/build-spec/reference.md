@@ -203,6 +203,14 @@ kind, always from the user's answer (the common contract's "관계의 세 종류
 - **Child**: ask which of the picked Seed's `acceptance` items this Seed delivers. One or more →
   `relations.parent` + `relations.refines` (acceptance ids only, parent's local id such as `acceptance-2`;
   convention: `reference/identifiers.md`). `refines_map` is not used.
+- **Parent scope extension**: no acceptance item matches, but the user says this Seed belongs in the
+  picked Seed's scope. Ask "이 기능을 부모 Seed의 약속 범위에 새 완료 기준으로 추가할까요?" before
+  predecessor/reference. Yes and the parent is `active` → Phase 3 adds the next unused `acceptance-N` to
+  the parent and this Seed becomes its child (`refines: [acceptance-N]`). The parent amendment and the
+  child link are approved separately. `paused` parent → say it needs an approved resume first, and do not
+  treat this answer as one; `closed` parent → never amend it, offer a new Seed with pinned provenance. No →
+  continue below. Belonging alone never makes a child: without an amended parent there is nothing to
+  deliver, and a child edge would block the parent's completion for work it never promised.
 - **Predecessor**: no acceptance item, but the picked Seed must finish first → `relations.depends_on`,
   written only when the user says so, never inferred, because a guessed dependency blocks work that was
   never blocked.
@@ -239,8 +247,11 @@ completion evidence as evidence for the new work. Lifecycle and relationship rul
 
 **Phase 3 parent write (child only).** Use the chosen exact parent path and approved relationship facts.
 Record `refines` (parent acceptance ids) from interview evidence; a missing
-acceptance id is not permission to infer one, and the Seed is then a predecessor or reference instead. Same-repo parent: edit its `relations.children` only for
-an authorized new connection and validate both files. Do not redirect an explicit or closed
+acceptance id is not permission to infer one, and the Seed is then a predecessor or reference instead,
+unless the user approved a parent scope extension. Same-repo parent: edit its `relations.children` only for
+an authorized new connection and validate both files. For an approved scope extension, first preserve the
+parent file, add the new `success_criteria` item under the next unused `acceptance-N`, and run
+`seed-lifecycle.py check <parent> --before <prior-file>`. Do not redirect an explicit or closed
 parent to another generation. A closed source is preserved as provenance, not edited to attach
 new work. Legacy migration first reviews the actually resolved file and bilateral links.
 - Other-repo parent: never written. Each repo writes only itself, so a session here editing another
@@ -397,7 +408,7 @@ Quick Mode output format:
 [Round N] Dimension: {current}
 ```
 
-**Relations (only when a Seed was picked in Phase 0)**: ask which of its acceptance items this Seed delivers → child: record those ids for Phase 3 `relations.parent` + `relations.refines`. None → ask whether it must finish first (`relations.depends_on`, only if the user says so) or is only a reference (cite `<seed-slug>/constraint-N` in text, no `parent`). Never infer (`reference.md` §8). Child `relations.link_reason` (`reference.md` §8): ask if not evident; no answer → null, never fabricated.
+**Relations (only when a Seed was picked in Phase 0)**: ask which of its acceptance items this Seed delivers → child: record those ids for Phase 3 `relations.parent` + `relations.refines`. None → ask whether to add a new acceptance to the parent's scope (active parent only; parent amendment and child link approved separately) → child of that new id. Otherwise ask whether it must finish first (`relations.depends_on`, only if the user says so) or is only a reference (cite `<seed-slug>/constraint-N` in text, no `parent`). Never infer (`reference.md` §8). Child `relations.link_reason` (`reference.md` §8): ask if not evident; no answer → null, never fabricated.
 
 **Refine mode (A3)**: If user says '이 스펙 다듬어줘' with a prior seed file path:
 - Read metadata for `<prev-seed-path>` first, then relevant content. Restore scores and selected requirement/issue/relation facts only within current approved scope (§8 and [the lifecycle contract](../../reference/seed-lifecycle.md)); unknown/paused/closed never become current requirements merely by naming the file.
@@ -496,7 +507,8 @@ When gate opens OR user explicitly exits:
    - `issues.source` from Phase 0 (or null); `issues.tracking: []`.
 3. **Parent side (only for a child)**:
    - Same-repo parent → use the approved exact path, `Edit` its `relations.children` only for the authorized connection, and validate both files; no implicit generation redirect or child transfer (§8). Closed sources remain frozen provenance.
-   - Other-repo parent → never write there. Print one line telling the user to add it to that parent's `children` from a session in that repo (`reference.md` §8).
+   - Approved parent scope extension (same-repo `active` parent) → before the `children` edit, add the new `acceptance-N` to the parent's `success_criteria` and run `seed-lifecycle.py check <parent> --before <prior-file>` (§8).
+   - Other-repo parent → never write there. Print one line telling the user to add it to that parent's `children` (and any approved new acceptance) from a session in that repo (`reference.md` §8).
    - After writing, use `Bash` to run `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" check <new-seed-path>` and show `MISMATCH`/`FAILED` lines, and `UNRECORDED` lines as 미확인 items, not errors (`reference.md` §8).
 4. Display summary and file path, then the 연결 block (Seed Emission Display below; `tree` from either side: `reference.md` §8).
 5. The Seed file is the terminal deliverable — build-spec crystallizes *what* to build, not *how*.
