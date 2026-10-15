@@ -589,12 +589,14 @@ memory 대기열 점검
 - <path> — 미확인 — <stderr line>
 ```
 
-**Acting on it** goes through the existing gates, one item at a time: a 매립 후보 re-enters
-SKILL.md §1 only once the user picks it and confirms its rule text in this transcript (that is
-the source gate's utterance), then runs §3/§6 normally. Deleting 이미 매립됨 items uses the §3 confirmation shape: the
-`## 분류 결과` block with `memory 중복` listing each exact file and its site `path:line` 근거, then
-AskUserQuestion; after a yes, §6-memory-contract's removal rule (file and its `MEMORY.md` line,
-recoverable trash only). Never delete or write without it.
+**Acting on it** goes through the existing gates, one item at a time: a 매립 후보 re-enters SKILL.md §1
+only once the user picks it and confirms its rule text in this transcript (that is the source
+gate's utterance), then runs §3/§6 normally. Deleting 이미 매립됨 items uses the §3 confirmation shape,
+as a delete-only block: the `## 분류 결과` block with `규칙` (the memory's rule), `들어갈 곳: 없음 — 이미 <site
+path:line>`, `memory 중복` listing each exact file, and every other field `none`; then
+AskUserQuestion "이미 매립된 이 memory 항목을 지울까요?" (not §3's landing question); after a yes,
+§6-memory-contract's removal rule (file and its `MEMORY.md` line, recoverable trash only). Never
+delete or write without it.
 
 
 ## §6-supersede — why the exit path is a §6 verdict (#429)
