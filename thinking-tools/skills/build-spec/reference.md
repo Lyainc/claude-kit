@@ -220,12 +220,13 @@ kind, always from the user's answer (the common contract's "관계의 세 종류
   Seed stays a predecessor or reference until that repo adds the item; never `refines` an id the parent
   file does not contain. No → continue below. Belonging alone never makes a child: without an amended parent there is nothing to
   deliver, and a child edge would block the parent's completion for work it never promised.
-- **Predecessor**: no acceptance item, but the picked Seed must finish first → `relations.depends_on`,
-  written only when the user says so, never inferred, because a guessed dependency blocks work that was
-  never blocked. A child never `depends_on` its own parent or ancestor: the parent waits for the child to
-  close, so the two edges deadlock, and the validator does not report this mixed-edge loop as a cycle.
-  When only some parent items must come first, cite `<parent-slug>/acceptance-N` in this Seed's text, or,
-  if work selection must be held, split those items into a sibling Seed and `depends_on` that.
+- **Predecessor**: no acceptance item, but the picked Seed (or one of its items) must finish first →
+  `relations.depends_on`, written only when the user says so, never inferred, because a guessed
+  dependency blocks work that was never blocked. Name one item with a fragment
+  (`docs/specs/a.yaml#acceptance-1`) when only that item must come first. A child never `depends_on` its
+  own parent or ancestor as a whole Seed, nor an item it or its descendants `refines`: the parent waits
+  for the child to close, so those edges deadlock (`seed-relations.py check` reports them). When some
+  parent items must come first, point at those items.
 - **Reference**: follows the picked Seed's rule or is merely related → no field and no `parent`; cite
   `<seed-slug>/constraint-N` in this Seed's own text.
 

@@ -58,7 +58,9 @@ dataflow-native-foundation/constraint-1 · DB 스키마 생성
 The full identifier is computed at display time. Source files store only the local id — never
 the affiliation, never a second alias next to it. A `relations.refines` entry stores the
 parent's local acceptance id (`refines: [acceptance-2]`), because `relations.parent` already names the
-affiliation. `scripts/seed-relations.py` `qualified_id()` is the code form of this rule.
+affiliation. An item-level `relations.depends_on` entry stores the predecessor's path plus its local
+id as a fragment (`depends_on: [docs/specs/a.yaml#acceptance-1]`); the path is the affiliation, and
+the display form is computed from it (`a/acceptance-1 · …`). `scripts/seed-relations.py` `qualified_id()` is the code form of this rule.
 
 ## Legacy ids and migration
 

@@ -102,6 +102,16 @@ Open only the Seeds the walk visited — never list or read `docs/specs/` to loo
   is not finished is `held`; that predecessor itself becomes a candidate when it is startable. A
   predecessor in another repo stays unverified and the hold says so. A closed predecessor's
   recorded outcome/evidence stays historical; do not silently reopen or regrade it against HEAD.
+- `PREDECESSOR <from> <to> item=<id|-> item_state=<state>` lists every `depends_on` edge, including
+  one to a Seed the walk reached by another route (an ancestor shows as `DUP` too); read the hold
+  from these records, never from node relation alone. `item=-` is a whole-Seed predecessor (above).
+  An item edge holds `<from>` until that one item is met: observe its `measurable_via` in the repo,
+  as for any requirement. The target Seed `closed/completed` → met. No `measurable_via` →
+  `unverified`, never asserted as held. `item_state=withdrawn` → review the dependency, not a hold
+  or a pass; `missing` → the edge is broken (`check` reports it), `unverified`. A met item that
+  regresses holds again; nothing is recorded in either Seed. Another repo's target stays
+  unverified. Name the item in the hold reason (`선행 <slug>/acceptance-1 미충족`) so it reads apart
+  from a backlog issue's `PR #M 진행 중` hold.
 - `external` / `external-failed` nodes are another repo's Seeds: links only, never ranked or judged
   here (`decision: external`).
 - `STOP`, `CYCLE`, `FAILED` and `notfound` mark where the walk ended or could not read. They are

@@ -265,6 +265,11 @@ def validate(seed,root=None):
             errors.append('relations.refines, refines_map and link_reason require a parent')
         for name in ('refines','children','depends_on','replaces'):
             vals = strings(r.get(name,[]),'relations.'+name,errors)
+            if name == 'depends_on':
+                # `path.yaml#acceptance-1` names one item of the predecessor (#885).
+                if any('#' in v and not v.split('#',1)[1].strip() for v in vals):
+                    errors.append('relations.depends_on item fragment must not be empty')
+                vals = [v.split('#',1)[0] for v in vals]
             if name != 'refines' and any(not path(v) for v in vals):
                 errors.append('relations.'+name+' must name exact Seed files')
         if r.get('parent') is not None and not path(r['parent']):
