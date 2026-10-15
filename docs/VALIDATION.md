@@ -814,7 +814,7 @@ python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
 # unreadable path must be NAMED on stderr and must not drop readable results (BWK awk aborts a
 # `{} +` batch, which is why the snippet runs one awk per file).
 python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py --self-test
-# Expected: OK: all 9 self-test cases passed
+# Expected: OK: all 10 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py
 # Expected: OK: all add-policy-memory-queue checks passed.
 
