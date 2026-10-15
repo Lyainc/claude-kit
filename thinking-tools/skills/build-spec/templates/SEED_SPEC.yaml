@@ -84,7 +84,7 @@ issues:               # GitHub issues tied to this Seed — references only, nev
 relations:            # edges, separate from the lifecycle decision above
   version: 3         # exact paths; child = takes a share of the parent's acceptance (reference/seed-lifecycle.md)
   parent: null        # parent Seed, only when this Seed takes over parent acceptance items; else null. Same repo: repo-root relative path; other repo: owner/repo:docs/specs/x.yaml
-  refines: []         # parent acceptance ids this Seed delivers (not "refines" as in polishing), e.g. [acceptance-2]; at least one when parent is set. Following a parent rule is a citation in this Seed's text, not refines
+  refines: []         # parent acceptance ids this Seed delivers (not "refines" as in polishing), e.g. [acceptance-2]; at least one when parent is set. No matching item → amend the parent first or use depends_on/citation. Following a parent rule is a citation in this Seed's text, not refines
   link_reason: null   # why this Seed takes those parent acceptance items. null = not recorded — shown as 미확인, never guessed
   depends_on: []      # Seeds that must be finished before this one starts (same path/coordinate rules)
   children: []        # child Seeds (the parent side of each child's `parent` edge)
