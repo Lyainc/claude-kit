@@ -60,6 +60,7 @@ _QUEUE_CLAIMS = [
     ("delete needs confirmation", "Never delete or write without it."),
     ("delete uses §3 shape", "Deleting 이미 매립됨 items uses the §3 confirmation shape"),
     ("zero is printed", "never end the review silently"),
+    ("delete-only question", "이미 매립된 이 memory 항목을 지울까요?"),
     ("Codex unsupported", "on Codex report the review as unsupported"),
 ]
 
