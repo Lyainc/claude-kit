@@ -300,11 +300,18 @@ def check_open_pr_links() -> list[str]:
         '{"number":901,"url":"https://github.com/o/r/pull/901","body":"Fixes #12",'
         '"closingIssuesReferences":[]}]'
     )
+    full_page = ",".join(
+        f'{{"number":{i},"url":"https://github.com/o/r/pull/{i}","body":"{"Fixes #1" if i == nc.PR_LIMIT else ""}",'
+        '"closingIssuesReferences":[]}'
+        for i in range(1, nc.PR_LIMIT + 1)
+    )
     cases = [
         ("open PRs", f"cat <<'EOF'\n{prs}\nEOF", ({10: [900], 12: [901]}, False)),
         ("no PRs", "echo '[]'", ({}, False)),
         ("gh exits 1", "exit 1", ({}, True)),
         ("non-JSON stdout", "echo 'not json'", ({}, True)),
+        ("full page is unconfirmed",
+         f"echo '[{full_page}]'", ({1: [nc.PR_LIMIT]}, True)),
     ]
     for name, body, expected in cases:
         got = _open_pr_links_with_stub(body)
