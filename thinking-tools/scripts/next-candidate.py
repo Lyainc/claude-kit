@@ -29,6 +29,7 @@ import argparse
 import calendar
 import json
 import os
+import re
 import subprocess
 import sys
 import time
@@ -248,6 +249,41 @@ def open_issues(cwd, want_body):
     return issues, None
 
 
+CLOSING_RE = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+#(\d+)\b", re.I)
+
+
+def open_pr_links(cwd):
+    """Return ({issue: [open PR numbers]}, failed) for issues an open PR already closes (#880).
+
+    Without this, an issue that another session's open PR already `Closes` re-enters the pool
+    unmarked and gets picked again (PR #878 → duplicate PR #879). A failed lookup is reported
+    as failed, never as "no links" — the same could-not-look vs. empty split as open_issues.
+    Same-repo only: a closing reference into another repository is dropped by URL prefix, and
+    the body scan only matches bare `#N`, which GitHub resolves against this repo.
+    """
+    try:
+        p = subprocess.run(
+            ["gh", "pr", "list", "--state", "open", "--limit", "100",
+             "--json", "number,url,body,closingIssuesReferences"],
+            cwd=cwd, capture_output=True, text=True, timeout=15,
+        )
+        prs = json.loads(p.stdout) if p.returncode == 0 and p.stdout.strip() else None
+    except Exception:
+        prs = None
+    if not isinstance(prs, list):
+        return {}, True
+    links = {}
+    for pr in prs:
+        base = (pr.get("url") or "").rsplit("/pull/", 1)[0]
+        nums = {int(n) for n in CLOSING_RE.findall(pr.get("body") or "")}
+        for ref in pr.get("closingIssuesReferences") or []:
+            if (ref.get("url") or "").rsplit("/issues/", 1)[0] == base:
+                nums.add(ref["number"])
+        for n in nums:
+            links.setdefault(n, []).append(pr["number"])
+    return links, False
+
+
 def _which(binary):
     for d in os.environ.get("PATH", "").split(os.pathsep):
         candidate = os.path.join(d, binary)
@@ -334,12 +370,21 @@ def main():
     issues, reason = open_issues(cwd, want_body=bool(paths))
 
     if issues:
+        links, links_failed = open_pr_links(cwd)
+
+        def in_pr(num):
+            prs = links.get(num)
+            return f"  ← PR {', '.join(f'#{n}' for n in sorted(prs))} 진행 중" if prs else ""
+
         out.append(f"\n열린 이슈 {len(issues)}개 (백로그 전체):")
+        if links_failed:
+            out.append("  PR 연결 조회 못 함 — 열린 PR이 이미 닫으려는 이슈인지 미확인이에요. "
+                       "(연결이 없다는 뜻이 아니에요)")
         for it in sorted(issues, key=lambda x: -x["number"]):
             labels = ",".join(l["name"] for l in it.get("labels", []))
             d = age_days(it.get("updatedAt", ""))
             out.append(
-                f"  #{it['number']:<5} [{labels or '-'}] {d}d전 {it['title'][:64]}"
+                f"  #{it['number']:<5} [{labels or '-'}] {d}d전 {it['title'][:64]}{in_pr(it['number'])}"
             )
     elif reason:
         out.append("\n" + BACKLOG_UNAVAILABLE[reason])
@@ -357,7 +402,7 @@ def main():
         if hits:
             out.append("\n직전 작업과 연계되는 이슈 (본문이 이번에 바꾼 경로를 언급):")
             for num, title, matched in hits:
-                out.append(f"  #{num:<5} {title[:56]}  ← {', '.join(matched)}")
+                out.append(f"  #{num:<5} {title[:56]}  ← {', '.join(matched)}{in_pr(num)}")
 
     if out:
         print("\n".join(out))
