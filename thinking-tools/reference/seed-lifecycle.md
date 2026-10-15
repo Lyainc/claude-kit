@@ -68,7 +68,7 @@ active ↔ paused, active/paused → closed는 실제 승인에 따라 처리해
 
 | 종류 | 판별 | 표현 | 가리키는 대상 | 효과 |
 |---|---|---|---|---|
-| 자식 | 부모의 완료 기준을 나눠 맡는다 | `parent` + 부모의 `acceptance-N`을 하나 이상 담은 `refines` | 부모의 `acceptance` id | 부모 완료를 막고 철회가 전파돼요 |
+| 자식 | 부모의 완료 기준을 나눠 맡는다 | `parent` + 부모의 `acceptance-N`을 하나 이상 담은 `refines` | 부모의 `acceptance` id | 부모 완료를 막고, 부모 철회 시 재검토 대상이 돼요(자동 철회 아님) |
 | 선행 | 다른 Seed가 먼저 끝나야 시작할 수 있다 | `depends_on` | Seed 전체 | 이 Seed의 시작만 막아요 |
 | 참조 | 다른 Seed의 결과나 규칙을 따르거나 관련만 있다 | 필드 없이 본문에 `<seed-slug>/constraint-N`처럼 인용 | 인용한 항목 | 막거나 전파하지 않아요 |
 
