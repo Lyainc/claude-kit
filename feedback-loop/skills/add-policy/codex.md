@@ -3,6 +3,9 @@
 Use only for add-policy's hook site. The classification, source, conflict, necessity, approval,
 and user-authored-skill gates remain in SKILL.md; this is native registration detail only.
 
+The memory queue review (reference §6-queue-contract) is unsupported on Codex: it has no native
+memory store this skill may read. Report it as unsupported; never read `~/.claude` instead.
+
 Codex CLI 0.154 supports command hooks. A blocking PreToolUse guard can return
 `hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
 permissionDecisionReason: "..."}` or exit 2 with stderr. A recovery PostToolUse hook can exit 2
