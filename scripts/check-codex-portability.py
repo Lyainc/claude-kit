@@ -71,6 +71,62 @@ QUESTION_OVERRIDES = {
     ),
 }
 
+# Compact loaded contract plus the binding start gate; wording outside these sections cannot pass.
+NEXT_GOAL_CONDITION_RULES = {
+    "source-less fallback": ("skill", (
+        "source-less `session`/`backlog`: full problem, state, resume point, files and criteria",
+        "Never create a source just for brevity",
+    )),
+    "versioned source pointers": ("skill", (
+        "Seed path+committed full SHA, or issue repository+number+observed `updatedAt`",
+        "unverifiable pins use full text",
+    )),
+    "current source eligibility and hold": ("skill", (
+        "Require current metadata-first eligibility, version comparison, criteria and baseline changes in the conversation at start",
+        "Changed/unavailable sources hold application pending confirmation",
+        "pins never authorize historical/excluded requirements",
+    )),
+    "inline evaluator contract": ("skill", (
+        "Keep scope, exact check, independent review/base/round cap, protections, Git permissions, unresolved facts, turn/time cap",
+        "any unmet item means incomplete",
+    )),
+    "independent bounded review": ("skill", (
+        "one independent requirement-gap review of the explicit diff/base and requirements",
+        "Cap rounds separately from turns/time across tools and replacement agents",
+        "Infrastructure failure consumes the attempt",
+        "never retry elsewhere",
+    )),
+    "stop remains incomplete": ("skill", (
+        "reaching it means stop with unmet conditions and resume point, never completion",
+    )),
+    "metadata and source comparison before application": ("reference", (
+        "`seed-relations.py metadata <path> --json` before reading any requirement body",
+        "apply current lifecycle, eligibility, withdrawals and parent-impact gates",
+        "Compare the current Seed with the pinned tree",
+        "retrieve the issue's current body/state/`updatedAt` from the named repository",
+        "If the source changed, closed, became unavailable or ineligible, hold requirement application pending user confirmation",
+    )),
+    "criteria and progress visible after gates": ("reference", (
+        "After these gates pass, print selected criteria verbatim",
+        "`seed-relations.py read <path> --json` or the verified issue body",
+        "`git log <baseline>..HEAD` and relevant working-tree changes",
+        "one exact relevant check with exit 0",
+    )),
+}
+
+
+def check_next_goal_condition(skill: str, reference: str) -> list[str]:
+    sections = {
+        "skill": skill.partition("## Phase 2 — Condition")[2].split("\n## ", 1)[0],
+        "reference": reference.partition("## Pointer condition")[2].split("\n## ", 1)[0],
+    }
+    normalized = {source: " ".join(text.split()) for source, text in sections.items()}
+    return [
+        f"thinking-tools/next-goal: missing condition rule: {label}"
+        for label, (source, phrases) in NEXT_GOAL_CONDITION_RULES.items()
+        if any(phrase not in normalized[source] for phrase in phrases)
+    ]
+
 
 def check_question_override(path: str, text: str) -> list[str]:
     start, end, phrases = QUESTION_OVERRIDES[path]
@@ -129,6 +185,34 @@ def question_self_test() -> int:
     ):
         cases.append((f"loss of '{phrase}' fails", bool(check_question_contract(
             fixture.replace(phrase, "")))))
+    condition_lines = {label: " ".join(phrases) for label, (_, phrases) in NEXT_GOAL_CONDITION_RULES.items()}
+    condition = {
+        source: heading + "\n" + "\n".join(
+            condition_lines[label] for label, (owner, _) in NEXT_GOAL_CONDITION_RULES.items() if owner == source
+        )
+        for source, heading in (("skill", "## Phase 2 — Condition"), ("reference", "## Pointer condition"))
+    }
+    cases.append(("complete next-goal condition passes", not check_next_goal_condition(**condition)))
+    for label, (source, _) in NEXT_GOAL_CONDITION_RULES.items():
+        changed = {**condition, source: condition[source].replace(condition_lines[label], "")}
+        cases.append((f"next-goal loss of {label} fails", bool(check_next_goal_condition(**changed))))
+    for source, before, after in (
+        ("skill", "full problem, state, resume point, files and criteria", "short pointer"),
+        ("skill", "committed full SHA", "latest version"),
+        ("skill", "observed `updatedAt`", "read time"),
+        ("skill", "any unmet item means incomplete", "unmet items may still complete"),
+        ("skill", "Cap rounds separately from turns/time", "Cap turns only"),
+        ("reference", "before reading any requirement body", "after reading the body"),
+        ("reference", "hold requirement application pending user confirmation", "apply the latest scope"),
+        ("reference", "After these gates pass, print selected criteria verbatim", "Record a file name"),
+    ):
+        changed = {**condition, source: condition[source].replace(before, after)}
+        cases.append((f"next-goal weakened '{before}' fails", bool(check_next_goal_condition(**changed))))
+    wrapped = {source: text.split("\n", 1)[0] + "\n" + text.split("\n", 1)[1].replace(" ", "\n")
+               for source, text in condition.items()}
+    cases.append(("next-goal line wrapping preserves the condition", not check_next_goal_condition(**wrapped)))
+    outside = {source: text.replace("\n", "\n## Other\n", 1) for source, text in condition.items()}
+    cases.append(("next-goal phrases outside their sections fail", bool(check_next_goal_condition(**outside))))
     for label, ok in cases:
         print(f"  [{'OK' if ok else 'FAIL'}] {label}")
     if not all(ok for _, ok in cases):
@@ -230,6 +314,12 @@ def check(root: Path) -> list[str]:
     issue_raise = root / "thinking-tools/skills/issue-raise/SKILL.md"
     if next_goal.is_file():
         text = next_goal.read_text(encoding="utf-8")
+        try:
+            condition_reference = next_goal.with_name("reference.md").read_text(encoding="utf-8")
+        except OSError:
+            errors.append("thinking-tools/next-goal: missing condition reference")
+        else:
+            errors.extend(check_next_goal_condition(text, condition_reference))
         if ("one plain `GOAL` paragraph" not in text or "never a `/goal` fence" not in text
                 or "Do not load Claude runtime details in Codex." not in text
                 or "no nested Claude Skill call" not in text):

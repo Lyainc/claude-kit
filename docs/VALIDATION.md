@@ -38,7 +38,9 @@ python3 scripts/check-version-sync.py --self-test
 python3 scripts/check-version-sync.py
 # Expected: OK: version-sync clean — 4 plugin(s), no drift (root: ...)
 python3 scripts/check-codex-portability.py --self-test
-# Expected: OK: all 23 Codex native-question self-test cases passed
+# #862: pointer/full fallback, version/eligibility/start-evidence gates and bounded completion
+# clauses are also checked by removal, weakening, wrapping and section-boundary mutations.
+# Expected: OK: all 42 Codex native-question self-test cases passed
 python3 scripts/check-codex-portability.py
 # Expected: OK: Codex portability clean — 19 skills classified (19 supported, 0 unsupported)
 # drift 시 exit 1, manifest 누락 시 exit 3 = 릴리스 차단.
