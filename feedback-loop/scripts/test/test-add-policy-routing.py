@@ -704,14 +704,14 @@ SCAN_ROOT="$HOME/.claude/projects"
 # incomplete" — and a duplicate check that fails silently reports "no duplicates", which is
 # the wrong direction to fail. If anything lands on stderr, treat the scan as INCONCLUSIVE and
 # say so; do not report "memory 중복: none".
-# `{} \;`, not `{} +`: BWK awk (macOS) aborts its whole batch at the first unreadable file, so
+# `{} \\;`, not `{} +`: BWK awk (macOS) aborts its whole batch at the first unreadable file, so
 # the READABLE files after it vanish with no stderr of their own. One awk per file keeps each
 # loss to the path stderr names (#867).
 [ -d "$SCAN_ROOT" ] && find "$SCAN_ROOT" -path '*/memory/*.md' -not -name 'MEMORY.md' -exec awk '
   FNR==1 { n = ($0 ~ /^---[[:space:]]*$/) ? 0 : 9 }
   /^---[[:space:]]*$/ { n++ }
   n==1 && /^[[:space:]]*type:[[:space:]]*feedback[[:space:]]*$/ { print FILENAME }
-' {} \; | sort -u || true
+' {} \\; | sort -u || true
 ```
 """)
 
