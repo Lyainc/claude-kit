@@ -273,6 +273,46 @@ def check_open_issues_body_requested_only_when_needed() -> list[str]:
     return failures
 
 
+def _open_pr_links_with_stub(body: str):
+    """Run nc.open_pr_links with a stub `gh` (script body `body`) first on PATH."""
+    stub_dir = tempfile.mkdtemp(prefix="test-next-candidate-prstub-")
+    atexit.register(shutil.rmtree, stub_dir, ignore_errors=True)
+    stub = Path(stub_dir) / "gh"
+    stub.write_text(f"#!/usr/bin/env bash\n{body}\n")
+    stub.chmod(0o755)
+    orig_path = os.environ.get("PATH", "")
+    try:
+        os.environ["PATH"] = f"{stub_dir}:{orig_path}"
+        return nc.open_pr_links(stub_dir)
+    finally:
+        os.environ["PATH"] = orig_path
+
+
+def check_open_pr_links() -> list[str]:
+    """open_pr_links keeps same-repo closing refs and body `Fixes #N`, drops cross-repo refs,
+    and reports a failed lookup as failed rather than as no links (#880)."""
+    failures = []
+    prs = (
+        '[{"number":900,"url":"https://github.com/o/r/pull/900","body":"",'
+        '"closingIssuesReferences":['
+        '{"number":10,"url":"https://github.com/o/r/issues/10"},'
+        '{"number":11,"url":"https://github.com/x/y/issues/11"}]},'
+        '{"number":901,"url":"https://github.com/o/r/pull/901","body":"Fixes #12",'
+        '"closingIssuesReferences":[]}]'
+    )
+    cases = [
+        ("open PRs", f"cat <<'EOF'\n{prs}\nEOF", ({10: [900], 12: [901]}, False)),
+        ("no PRs", "echo '[]'", ({}, False)),
+        ("gh exits 1", "exit 1", ({}, True)),
+        ("non-JSON stdout", "echo 'not json'", ({}, True)),
+    ]
+    for name, body, expected in cases:
+        got = _open_pr_links_with_stub(body)
+        if got != expected:
+            failures.append(f"open_pr_links ({name}): expected {expected}, got {got}")
+    return failures
+
+
 def main() -> int:
     checks = [
         check_top_areas,
@@ -285,6 +325,7 @@ def main() -> int:
         check_maintenance_ratio_near_misses,
         check_maintenance_ratio_merge_commit,
         check_open_issues_body_requested_only_when_needed,
+        check_open_pr_links,
     ]
     failures = []
     for check in checks:

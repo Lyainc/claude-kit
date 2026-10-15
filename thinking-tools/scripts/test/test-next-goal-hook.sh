@@ -165,6 +165,31 @@ check "empty backlog renders as genuinely empty, not unconsulted" "$(jq -r '.hoo
 # metric line must appear (any repo with at least one commit has a well-defined ratio).
 check "payload carries the maintenance-ratio metric" "$(jq -r '.hookSpecificOutput.additionalContext' "$tmp/hook-local.json" | grep -c '유지보수 비율')" "1"
 
+# === 8. open PR links on backlog lines (#880) =======================================
+# `issue list` and `pr list` answer differently: #10 is closed by an open PR, #11 is not.
+pr_issues='[{"number":10,"title":"linked","labels":[],"updatedAt":"2026-08-15T00:00:00Z"},{"number":11,"title":"unlinked","labels":[],"updatedAt":"2026-08-15T00:00:00Z"}]'
+pr_list='[{"number":900,"url":"https://github.com/example/example/pull/900","body":"","closingIssuesReferences":[{"number":10,"url":"https://github.com/example/example/issues/10"}]}]'
+make_stub "case \"\$1 \$2\" in
+  'issue list') echo '$pr_issues' ;;
+  'pr list') echo '$pr_list' ;;
+  *) exit 1 ;;
+esac"
+out="$(env PATH="$stub_dir:$PATH" python3 "$script" --cwd "$tmp/gh" 2>/dev/null)"
+l10="$(printf '%s' "$out" | grep '#10 ')"
+l11="$(printf '%s' "$out" | grep '#11 ')"
+check "linked issue shows its open PR" "$(printf '%s' "$l10" | grep -c 'PR #.*진행 중')" "1"
+check "unlinked issue carries no PR mark" "$(printf '%s' "$l11" | grep -c 'PR #')" "0"
+check "successful PR lookup prints no failure line" "$(printf '%s' "$out" | grep -c 'PR 연결 조회 못 함')" "0"
+
+make_stub "case \"\$1 \$2\" in
+  'issue list') echo '$pr_issues' ;;
+  *) exit 1 ;;
+esac"
+out="$(env PATH="$stub_dir:$PATH" python3 "$script" --cwd "$tmp/gh" 2>/dev/null)"
+check "failed PR lookup is reported once as unconfirmed" "$(printf '%s' "$out" | grep -c 'PR 연결 조회 못 함')" "1"
+check "failed PR lookup still lists the issues" "$(printf '%s' "$out" | grep -c '^  #1[01] ')" "2"
+check "failed PR lookup marks no PR link" "$(printf '%s' "$out" | grep -c '← PR')" "0"
+
 if [ "$fail" -eq 0 ]; then
   echo "OK: all ${pass} next-goal-hook cases passed"
   exit 0

@@ -937,14 +937,15 @@ bash thinking-tools/scripts/test/test-session-start-welcome.sh
 # gh를 PATH에 스텁으로 깔아 네트워크 없이 결정적으로 돈다. 페이로드가 판정문(임팩트 바닥 등)을
 # 싣지 않는지도 함께 핀 — 판정은 SKILL.md 소유고 양쪽에 두면 경계를 가로지른 중복이다.
 bash thinking-tools/scripts/test/test-next-goal-hook.sh
-# Expected: OK: all 22 next-goal-hook cases passed
+# #880: 열린 PR 연결 표시(`← PR #M 진행 중`)와 PR 조회 실패 시 `PR 연결 조회 못 함`(미확인) 줄을 핀한다.
+# Expected: OK: all 28 next-goal-hook cases passed
 
 # next-candidate.py chain_depth()/top_areas() unit tests (#521) — the hook test above only
 # exercises these through single-commit e2e fixtures; this asserts the edges directly:
 # zero commits, a bare root file's `·`-prefixed area, and multi-area branching (including a
 # commit whose changed files span more than one area).
 python3 thinking-tools/scripts/test/test-next-candidate.py
-# Expected: OK: all 10 test-next-candidate checks passed
+# Expected: OK: all 11 test-next-candidate checks passed
 
 # seed-relations.py 회귀 (#780) — Seed 간 엣지(parent/refines/depends_on/children)를 읽는 결정론
 # 스크립트. 같은 레포 부모 1 + 자식 2의 tree 출력(refines 대응·PARENT-ITEM), `-vN` 해석(foo.yaml →
