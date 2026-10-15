@@ -1,10 +1,9 @@
 # Codex deterministic hook branch
 
-Use only for add-policy's hook site. The classification, source, conflict, necessity, approval,
-and user-authored-skill gates remain in SKILL.md; this is native registration detail only.
-
-The memory queue review (reference §6-queue-contract) is unsupported on Codex: it has no native
-memory store this skill may read. Report it as unsupported; never read `~/.claude` instead.
+Use only for add-policy's hook site; the last section only records the memory queue review's
+Codex status, which SKILL.md's Codex section already skips. The classification, source,
+conflict, necessity, approval, and user-authored-skill gates remain in SKILL.md; this is native
+registration detail only.
 
 Codex CLI 0.154 supports command hooks. A blocking PreToolUse guard can return
 `hookSpecificOutput: {hookEventName: "PreToolUse", permissionDecision: "deny",
@@ -32,3 +31,8 @@ bypass tool permissions or persist trust. A fixture run must observe deny before
 and recovery feedback after a safe command. Plain script tests do not prove native execution.
 
 Source: [official Codex hooks documentation](https://learn.chatgpt.com/docs/hooks).
+
+## Memory queue review
+
+The memory queue review (reference §6-queue-contract) is unsupported on Codex: it has no native
+memory store this skill may read. Report it as unsupported; never read `~/.claude` instead.
