@@ -6,8 +6,8 @@ auto-compaction re-attaches and Codex's 8,000-byte invoked-skill limit. **Two ki
 - **Binding** — the text a `SKILL.md` pointer says to "read and apply as written", or that defines
   an output the engine must produce: §0, §3, §3-gate-question, §3-sites, §3-tier, §4, §5, §7, §8,
   §6-new-site, §6-memory-contract, §6-snippet, §6-gate-contract, §6-supersede-contract,
-  §6-unused-contract, §6-shape-contract, §6-detail-contract. When SKILL.md points at one, read it
-  before acting; it is not optional background.
+  §6-unused-contract, §6-shape-contract, §6-detail-contract, §6-queue-contract. When SKILL.md
+  points at one, read it before acting; it is not optional background.
 - **Rationale** — every other section: why a rule reads the way it does, with measurements. Read it
   when changing the rule, not when applying it.
 
@@ -531,6 +531,67 @@ and never contemplated deleting the file, so it is not a carve-out this verdict 
 over ~2 weeks after landing, delete this skill") — cited here as a *form* (a rule that names the
 condition under which it should be removed), not as a claim about wrap's current status or as
 an endorsement of a time window.
+
+
+## §6-queue-contract — reviewing the whole memory queue, CANONICAL text (#867)
+
+BINDING (SKILL.md §1 "Queue review" points here). §6-memory-contract empties the queue one
+memory at a time, and only when the user happens to land a matching rule; this is the entry that
+shows the whole queue at once. It is the same queue, read with the same scan — not a new scan, not
+a new site, not a state store.
+
+**Read-only until a §3 confirmation.** The review lists and judges; it writes no site and deletes
+no memory. No counters, no registry, no automatic promotion.
+
+**Claude Code only.** Codex has no native memory store this skill may read (SKILL.md Codex
+Portability: never read `~/.claude`), so on Codex report the review as unsupported and stop.
+
+**Step 1 — list.** Run §6-snippet as written with the default machine-wide
+`SCAN_ROOT="$HOME/.claude/projects"`, or one project's dir if the user named one. Its matcher
+already reads `type: feedback` nested under `metadata:`. Key every item by its **file path**,
+never by its `name:` slug or its `MEMORY.md` title: a file whose basename differs from its slug
+is still one item, reported with both so the mismatch is visible.
+
+**Unread is unverified, not empty.** Every path the scan's stderr names (an unreadable file or
+directory, a dead `awk`) goes in the output as **미확인** with that stderr line — never dropped,
+never counted as "no feedback memory there". If stderr cannot be tied to a path, the whole
+review is 미확인. Vanilla machine and zero candidates: as §6-memory-contract.
+
+**Step 2 — judge each item** against the sites of §3-sites (the reminder channels, including the
+catalogue index plus its linked detail files; hook matchers and guard scripts; skills) and the
+memory's own project `CLAUDE.md`/`AGENTS.md` when its directory resolves. Exactly one verdict
+each, every verdict with its 근거:
+
+| 판정 | When | 근거 required |
+|------|------|---------------|
+| **이미 매립됨** — 삭제 후보 | a site already states the same rule (stricter or looser wording alike: the site wins) | the site `path:line` that states it |
+| **매립 후보** — 사이트 제안 | a reusable rule no site states | the memory's own evidence pointer — when, and which instruction or incident (its `Why:` line or equivalent) — plus the proposed site per §3-tier |
+| **프로젝트 고유 사실** — 유지 | a fact about one project, not a reusable work rule | one line on why it is project-bound |
+
+**No evidence pointer, no candidate.** A rule-shaped memory that cannot point at when and which
+instruction or incident produced it is **not** a 매립 후보: report it as **근거 없음 — 보류**
+(kept, not proposed). A memory that contradicts a site rule is reported as a contradiction
+(SKILL.md §6), not as 이미 매립됨.
+
+**Cross-project signal.** When the same lesson is written independently in two or more projects'
+memories, mark those items **여러 프로젝트 (n곳)**: a priority signal for a machine-global site,
+recurrence observed without a counter. A signal only — it neither lands anything nor overrides
+the evidence rule.
+
+**Output**, one block, then stop:
+
+```
+memory 대기열 점검
+- 스캔: <SCAN_ROOT> — <n>개 / 미확인 <m>개
+- <path> (name: <slug>[, 파일명 불일치]) — <판정> — 근거: <...> [— 여러 프로젝트 (n곳)]
+- <path> — 미확인 — <stderr line>
+```
+
+**Acting on it** goes through the existing gates, one item at a time: a 매립 후보 re-enters
+SKILL.md §1 only once the user picks it and confirms its rule text in this transcript (that is
+the source gate's utterance), then runs §3/§6 normally; deleting 이미 매립됨
+items needs one AskUserQuestion naming the exact files, then §6-memory-contract's removal rule
+(file and its `MEMORY.md` line, recoverable trash only). Never delete or write without it.
 
 
 ## §6-supersede — why the exit path is a §6 verdict (#429)

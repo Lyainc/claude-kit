@@ -805,6 +805,19 @@ python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
 python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
 # Expected: OK: all 11 add-policy-index-detail checks passed.
 
+# add-policy memory queue review (#867 — §6-memory-contract called feedback memories a promotion
+# queue, but it emptied only when a matching rule happened to be landed). Pins §6-queue-contract:
+# read-only, reuses §6-snippet, keys items by path so a filename/`name:` mismatch is still one
+# item, stderr-named paths stay 미확인, three verdicts each with 근거, no evidence -> no candidate,
+# cross-project repeats flagged; codex.md states Codex is unsupported. EXECUTES §6-snippet on a
+# `metadata:`-nested `type: feedback` in two projects plus an unreadable file and directory: each
+# unreadable path must be NAMED on stderr and must not drop readable results (BWK awk aborts a
+# `{} +` batch, which is why the snippet runs one awk per file).
+python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py --self-test
+# Expected: OK: all 9 self-test cases passed
+python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py
+# Expected: OK: all add-policy-memory-queue checks passed.
+
 # Codex feedback-loop portability regression: retro falls back to current-conversation waste,
 # distill continues confirmed proposals into Codex storage, and add-policy uses only safe Codex
 # instruction/skill paths while leaving Claude-only hook enforcement unavailable.

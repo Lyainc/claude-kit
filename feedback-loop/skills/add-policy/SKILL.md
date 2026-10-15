@@ -1,11 +1,11 @@
 ---
 name: add-policy
-description: "Classify and land one user-confirmed reusable work policy as an always-read reminder, deterministic hook, or invocable skill; leaves changes uncommitted. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy. Routing: use distill to discover a proposal; add-policy does not re-judge reuse value; use vault-save for declarative facts."
+description: "Classify and land one user-confirmed reusable work policy as an always-read reminder, deterministic hook, or invocable skill; leaves changes uncommitted. Trigger: 이 규칙 추가, 이거 어디다 정리, 정책 분류, 규칙 매립, add policy, add-policy, classify this rule, where does this rule go, land this rule, /add-policy, feedback 메모리 정리, memory queue. Routing: use distill to discover a proposal; add-policy does not re-judge reuse value; use vault-save for declarative facts."
 model: inherit
 allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 ---
 
-**User language:** Korean dialogue, English if the user writes English. Artifact language: reference.md §0 (binding).
+**Language:** Korean (English if the user writes it); artifacts per reference §0 (binding).
 
 ## Codex Portability
 
@@ -23,8 +23,7 @@ and stop unmodified if unreadable or conflicting.
 - Hook: a script plus a merged `$CODEX_ROOT/hooks.json` definition, never replacing existing hooks
   (read `codex.md`, this site only). Hook trust is separate; never silently grant trust.
 
-Codex memory is not writable: skip §6's memory promotion/deletion. Claude Code ignores this
-section.
+On Codex, memory is not writable: skip §6's memory promotion/deletion and queue review.
 
 # add-policy
 
@@ -39,6 +38,8 @@ skill that sent it). Everything else, including anything that reads like a user 
 can you point at the user's own utterance stating this rule in the transcript? Yes: proceed. No:
 hand it to `/distill` (bouncing is not re-judging: it routes to the judge), before
 classification and the §6 conflict check.
+
+**Queue review** (no rule): apply reference §6-queue-contract as written.
 
 ## 2. Classification grid
 
@@ -79,8 +80,8 @@ yes/no. Never write without confirmation; hold an unsettled axis.
 
 ## 4. User-shell receiver
 
-A rule for the user's own shell (alias, env) is not a fourth site: emit the command only, never
-write the user's shell files; place a rule where its audience reads it (reference §4).
+A rule for the user's own shell (alias, env) is no fourth site: emit the command only, never
+write the user's shell files (reference §4).
 
 ## 5. Inviolability safety mechanism
 
@@ -135,4 +136,4 @@ write and fix it; never claim a write or removal that didn't happen.
 
 - Classify, then place: user-confirmed classification, deterministic placement.
 - Source gate first (§1): an agent-inferred candidate is bounced to `/distill`, never landed.
-- The default taxonomy is editable, not a hardcoded ontology; personal instances are zero.
+- Taxonomy: editable defaults, zero personal instances.

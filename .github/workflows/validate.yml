@@ -283,6 +283,9 @@ jobs:
           # #340 add-policy §6 index+detail split (match an existing site's index+detail shape).
           python3 feedback-loop/scripts/test/test-add-policy-index-detail.py --self-test
           python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
+          # #867 add-policy memory queue review (read-only listing, verdicts with 근거, 미확인 paths).
+          python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py --self-test
+          python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py
           # Codex paths: conversation-only retro, durable distill handoff, no invented hooks.
           python3 feedback-loop/scripts/test/test-codex-portability.py --self-test
           python3 feedback-loop/scripts/test/test-codex-portability.py

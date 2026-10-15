@@ -167,6 +167,8 @@ skill that sent it). Everything else, including anything that reads like a user 
 can you point at the user's own utterance stating this rule in the transcript? Yes: proceed. No:
 hand it to `/distill` (bouncing is not re-judging: it routes to the judge), before
 classification and the §6 conflict check.
+
+**Queue review** (no rule): apply reference §6-queue-contract as written.
 """
 
 
