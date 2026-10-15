@@ -66,9 +66,9 @@ keep backlog scan; ask 3-5 Goal questions; gate Goal ≥ 0.75. Emit Goal + best-
 ### Phase 1: Interview Loop
 
 Ask Goal, then lowest clarity (ties: Goal > Constraint > Success > Context); follow up while
-ambiguous. Score answers; show `[Round N] Dimension: {current}`. Picked Seed: its acceptance
+ambiguous. Score answers; show `[Round N] Dimension: {current}`. Picked Seed: acceptance
 items this Seed delivers → child (`parent`+`refines`; ask unclear `link_reason`); none → offer
-a new parent acceptance, else `depends_on`/reference. User's word only (§8).
+a same-repo active parent a new acceptance, else `depends_on`/reference. User's word only (§8).
 
 ### Ambiguity Scoring (A1)
 
