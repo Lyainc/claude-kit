@@ -30,7 +30,6 @@ import calendar
 import concurrent.futures
 import json
 import os
-import re
 import subprocess
 import sys
 import time
@@ -251,7 +250,6 @@ def open_issues(cwd, want_body):
 
 
 PR_LIMIT = 100  # a full page means the list may be cut off, so it is reported as unconfirmed
-CLOSING_RE = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+#(\d+)\b", re.I)
 
 
 def open_pr_links(cwd):
@@ -260,15 +258,17 @@ def open_pr_links(cwd):
     Without this, an issue that another session's open PR already `Closes` re-enters the pool
     unmarked and gets picked again (PR #878 → duplicate PR #879). A failed lookup is reported
     as failed, never as "no links" — the same could-not-look vs. empty split as open_issues.
-    Same-repo only: a closing reference into another repository is dropped by URL prefix, and
-    the body scan only matches bare `#N`, which GitHub resolves against this repo.
+    Same-repo only: a closing reference into another repository is dropped by URL prefix.
+    ponytail: closingIssuesReferences only, no body scan. GitHub fills it from the body's
+    closing keywords for a PR into the default branch, so a stacked PR into a feature branch
+    shows no mark; scan bodies only if such a duplicate is ever measured.
     A page that hits PR_LIMIT returns its links but counts as failed: a PR past the cut-off
     would otherwise read as "not linked", the exact miss this exists to prevent.
     """
     try:
         p = subprocess.run(
             ["gh", "pr", "list", "--state", "open", "--limit", str(PR_LIMIT),
-             "--json", "number,url,body,closingIssuesReferences"],
+             "--json", "number,url,closingIssuesReferences"],
             cwd=cwd, capture_output=True, text=True, timeout=15,
         )
         prs = json.loads(p.stdout) if p.returncode == 0 and p.stdout.strip() else None
@@ -279,12 +279,9 @@ def open_pr_links(cwd):
     links = {}
     for pr in prs:
         base = (pr.get("url") or "").rsplit("/pull/", 1)[0]
-        nums = {int(n) for n in CLOSING_RE.findall(pr.get("body") or "")}
         for ref in pr.get("closingIssuesReferences") or []:
             if (ref.get("url") or "").rsplit("/issues/", 1)[0] == base:
-                nums.add(ref["number"])
-        for n in nums:
-            links.setdefault(n, []).append(pr["number"])
+                links.setdefault(ref["number"], []).append(pr["number"])
     return links, len(prs) >= PR_LIMIT
 
 

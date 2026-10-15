@@ -15,6 +15,7 @@ from __future__ import annotations
 import atexit
 import calendar
 import importlib.util
+import json
 import os
 import shutil
 import subprocess
@@ -289,29 +290,25 @@ def _open_pr_links_with_stub(body: str):
 
 
 def check_open_pr_links() -> list[str]:
-    """open_pr_links keeps same-repo closing refs and body `Fixes #N`, drops cross-repo refs,
+    """open_pr_links keeps same-repo closing refs, drops cross-repo refs, ignores the body,
     and reports a failed lookup as failed rather than as no links (#880)."""
     failures = []
-    prs = (
-        '[{"number":900,"url":"https://github.com/o/r/pull/900","body":"",'
-        '"closingIssuesReferences":['
-        '{"number":10,"url":"https://github.com/o/r/issues/10"},'
-        '{"number":11,"url":"https://github.com/x/y/issues/11"}]},'
-        '{"number":901,"url":"https://github.com/o/r/pull/901","body":"Fixes #12",'
-        '"closingIssuesReferences":[]}]'
-    )
-    full_page = ",".join(
-        f'{{"number":{i},"url":"https://github.com/o/r/pull/{i}","body":"{"Fixes #1" if i == nc.PR_LIMIT else ""}",'
-        '"closingIssuesReferences":[]}'
-        for i in range(1, nc.PR_LIMIT + 1)
-    )
+    def pr(num, refs=(), body=""):
+        return {"number": num, "url": f"https://github.com/o/r/pull/{num}", "body": body,
+                "closingIssuesReferences": [{"number": n, "url": f"https://github.com/{repo}/issues/{n}"}
+                                            for repo, n in refs]}
+
+    # #11 points into another repo; #13 appears only in a body, which is not read.
+    prs = json.dumps([pr(900, [("o/r", 10), ("x/y", 11)]), pr(901, [("o/r", 12)]),
+                      pr(902, body="Fixes #13")])
+    full_page = json.dumps([pr(i, [("o/r", 1)] if i == nc.PR_LIMIT else []) for i in range(1, nc.PR_LIMIT + 1)])
     cases = [
         ("open PRs", f"cat <<'EOF'\n{prs}\nEOF", ({10: [900], 12: [901]}, False)),
         ("no PRs", "echo '[]'", ({}, False)),
         ("gh exits 1", "exit 1", ({}, True)),
         ("non-JSON stdout", "echo 'not json'", ({}, True)),
         ("full page is unconfirmed",
-         f"echo '[{full_page}]'", ({1: [nc.PR_LIMIT]}, True)),
+         f"cat <<'EOF'\n{full_page}\nEOF", ({1: [nc.PR_LIMIT]}, True)),
     ]
     for name, body, expected in cases:
         got = _open_pr_links_with_stub(body)
