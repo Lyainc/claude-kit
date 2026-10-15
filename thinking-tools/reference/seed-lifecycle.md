@@ -60,13 +60,17 @@ active ↔ paused, active/paused → closed는 실제 승인에 따라 처리해
 
 ### 관계의 세 종류
 
+항목과 관계는 층이 달라요. `acceptance-N`(완료 기준, `success_criteria` 섹션의 id)과
+`constraint-N`(경계 조건)은 한 Seed 안의 항목이고, 아래 세 관계는 Seed 사이를 이어요. 관계마다
+가리키는 단위가 달라요. `refines`는 "다듬는다"가 아니라 "부모의 완료 기준을 이행한다"는 뜻이에요.
+
 판별 질문은 하나예요. **"이 Seed가 끝나지 않으면 다른 Seed가 약속한 완료 기준 중 하나가 미완인가?"**
 
-| 종류 | 판별 | 표현 |
-|---|---|---|
-| 자식 | 부모의 완료 기준을 나눠 맡는다 | `parent` + 부모의 `acceptance-N`을 하나 이상 담은 `refines` |
-| 선행 | 다른 Seed가 먼저 끝나야 시작할 수 있다 | `depends_on` |
-| 참조 | 다른 Seed의 결과나 규칙을 따르거나 관련만 있다 | 필드 없이 본문에 `<seed-slug>/constraint-N`처럼 인용 |
+| 종류 | 판별 | 표현 | 가리키는 대상 | 효과 |
+|---|---|---|---|---|
+| 자식 | 부모의 완료 기준을 나눠 맡는다 | `parent` + 부모의 `acceptance-N`을 하나 이상 담은 `refines` | 부모의 `acceptance` id | 부모 완료를 막고 철회가 전파돼요 |
+| 선행 | 다른 Seed가 먼저 끝나야 시작할 수 있다 | `depends_on` | Seed 전체 | 이 Seed의 시작만 막아요 |
+| 참조 | 다른 Seed의 결과나 규칙을 따르거나 관련만 있다 | 필드 없이 본문에 `<seed-slug>/constraint-N`처럼 인용 | 인용한 항목 | 막거나 전파하지 않아요 |
 
 부모의 제약을 따르는 것은 부모를 구성하는 것이 아니에요. 그래서 version 3의 `refines`는
 부모의 `acceptance` id만 담고, 부모가 있으면 하나 이상이어야 해요. 해당하는 부모 완료 기준이
