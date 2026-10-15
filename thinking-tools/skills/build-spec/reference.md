@@ -203,8 +203,10 @@ kind, always from the user's answer (the common contract's "관계의 세 종류
 - **Child**: ask which of the picked Seed's `acceptance` items this Seed delivers. One or more →
   `relations.parent` + `relations.refines` (acceptance ids only, parent's local id such as `acceptance-2`;
   convention: `reference/identifiers.md`). `refines_map` is not used. Show the parent's `hard: true`
-  constraints and ask whether this Seed conflicts with any; they apply to the child, and relaxing one
-  means amending the parent (the common contract's "자식에게 적용되는 부모 제약").
+  constraints (and readable ancestors' hard constraints) and ask whether this Seed conflicts with any;
+  they apply to the child, and relaxing one means amending the parent. A parent or ancestor file that
+  cannot be read is shown as 미확인, never as "no constraints" (the common contract's "자식에게 적용되는
+  부모 제약").
 - **Parent scope extension**: no acceptance item matches, but the user says this Seed belongs in the
   picked Seed's scope. Ask "이 기능을 부모 Seed의 약속 범위에 새 완료 기준으로 추가할까요?" before
   predecessor/reference. Yes and the parent is `active` → Phase 3 adds the next unused `acceptance-N` to
