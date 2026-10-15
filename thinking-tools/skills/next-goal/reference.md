@@ -108,7 +108,8 @@ Open only the Seeds the walk visited — never list or read `docs/specs/` to loo
   An item edge holds `<from>` until that one item is met: observe its `measurable_via` in the repo,
   as for any requirement. The target Seed `closed/completed` → met. No `measurable_via` →
   `unverified`, never asserted as held. `item_state=withdrawn` → review the dependency, not a hold
-  or a pass; `missing` → the edge is broken (`check` reports it), `unverified`. A met item that
+  or a pass; `missing` → the edge is broken (`check` reports it), `unverified`; `unread` (the walk stopped
+  or could not read the target) → `unverified`. A met item that
   regresses holds again; nothing is recorded in either Seed. Another repo's target stays
   unverified. Name the item in the hold reason (`선행 <slug>/acceptance-1 미충족`) so it reads apart
   from a backlog issue's `PR #M 진행 중` hold.

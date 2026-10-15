@@ -28,7 +28,9 @@ Scope, written together (an id renamed without its references would break the gr
     (A parent that still has the old ids keeps the old entries valid, so they are not touched.)
 A child or parent in another repository is never written: a `FOLLOW-UP` line gives the exact
 replacements to apply there. Prose that mentions the Seed together with a legacy id is reported
-as `REF <path>:<line>` (from `git ls-files`) for a person to convert deliberately; next-goal
+as `REF <path>:<line>` (from `git ls-files`) for a person to convert deliberately — that includes
+another Seed's item-level `depends_on: [<this seed>#ac1]`, which is never rewritten here (#885) and
+which `seed-relations.py check` reports as an id-form MISMATCH until converted; next-goal
 targets and START-PROMPT files outside the repository are not scanned.
 
 Before anything is written, every new text is re-parsed and verified: the same items in the same

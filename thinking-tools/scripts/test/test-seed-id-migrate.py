@@ -514,6 +514,28 @@ def check_ref_scan() -> list[str]:
     return failures
 
 
+def check_depends_on_fragment_is_reported() -> list[str]:
+    """#885: another Seed's `depends_on: [parent.yaml#ac1]` is not rewritten; it is a REF line
+    for a person to convert, and seed-relations check then names the id-form difference."""
+    failures = []
+    repo = _repo()
+    put(repo, "parent.yaml", seed("Parent", crit=("ac1",)))
+    other = seed("Other", crit=("acceptance-1",)).replace(
+        "  depends_on: []", "  depends_on: [docs/specs/parent.yaml#ac1]")
+    put(repo, "other.yaml", other)
+    line = other.split("\n").index("  depends_on: [docs/specs/parent.yaml#ac1]") + 1
+    git_add(repo)
+    code, out, err = run(repo, SP + "parent.yaml", "--apply")
+    if code != 0 or f"REF {SP}other.yaml:{line}" not in out:
+        failures.append(f"depends_on fragment: expected REF {SP}other.yaml:{line}, got {out} ({err!r})")
+    if read(repo, SP + "other.yaml") != other:
+        failures.append("depends_on fragment: another Seed's depends_on must never be rewritten")
+    code, out = relations_check(repo, SP + "other.yaml")
+    if code != 1 or not any("id form differs" in ln for ln in out):
+        failures.append(f"depends_on fragment: check must name the id-form difference: {code} {out}")
+    return failures
+
+
 def check_usage() -> list[str]:
     failures = []
     repo = _repo()
@@ -638,6 +660,7 @@ def main() -> int:
         check_cross_repo_follow_up,
         check_content_preservation,
         check_ref_scan,
+        check_depends_on_fragment_is_reported,
         check_usage,
         check_nothing_to_migrate_leaf,
         check_children_with_own_legacy_items,
