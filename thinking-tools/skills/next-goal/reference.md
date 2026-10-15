@@ -121,8 +121,9 @@ Open only the Seeds the walk visited — never list or read `docs/specs/` to loo
   fresh walk, refusing a visited node misidentified as a stopped target or a wrong cause.
   Visited means a NODE record, not that its requirements were evaluated. Keep other evaluation
   gaps in `unverified`; never explain STOP targets in unchecked free text. The renderer always
-  shows actual visited keys/depth/status and stopped edges/targets/causes, even if assertions
-  are omitted. A CYCLE is an edge cut to an already visited node, not an unvisited Seed.
+  retains stopped edges/targets/causes even if assertions are omitted. Plain output lists
+  visited keys/depth/status; the Claude box summarizes healthy walks and retains diagnostics
+  for incomplete walks. A CYCLE is an edge cut to an already visited node, not an unvisited Seed.
 
 **Seed handoff missing.** When the conversation shows the session worked from a Seed but no path was
 handed over, do not search for one: set `handoff: "missing"` so the result reads as a missing
@@ -176,7 +177,7 @@ fabricated goal, issue, or repeated search.
 
 **Every judgment, including no Seed/no pick, is rendered, not typed.** Write the
 judgment once as JSON and print what
-`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --cwd <repo> <<'JSON' ... JSON` returns,
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --runtime <claude|codex> --cwd <repo> <<'JSON' ... JSON` returns,
 via Bash, verbatim — its docstring holds the schema. Each candidate names its `via` (a walked Seed
 key, `session`, `backlog` or `issue:#N`), and the pick carries its `targets`, the observable unmet
 evidence, whether it is startable and why, and the user-facing change; each main alternative carries
@@ -190,7 +191,7 @@ the Seed: FROM's edge path and the extra `TRACE` line (start, visited scope, sto
 unverified, evidence id and time) come from that walk, never from the JSON, and a `via` the walk did
 not visit is refused — fix the judgment, never the path. For a Seed `via`, `targets` are that
 Seed's local item ids exactly as the walk lists them (`constraint-1`, `acceptance-2`; an unmigrated Seed's
-`c1` stays `c1`); the script shows each as its full identifier with the description, and refuses an id the
+`c1` stays `c1`); the plain form shows full identifiers and descriptions, and both forms refuse an id the
 Seed does not define or that current eligibility excludes. Missing eligibility, a blocked Seed or
 required review refuses the whole pick even when the judgment is stale. Name Seed items to the user the way `reference/identifiers.md` says, never by a bare
 `c1`/`ac1`. For `session`, `backlog` or `issue:#N`, `targets` is free text. A `[근거 변경됨 ...]` mark means the Seed
@@ -244,10 +245,19 @@ means stop with unmet conditions and the resume point; it does not prove complet
 
 ## Claude Code
 
-Place `/goal ` plus the paragraph in one plain three-backtick fence, with nothing following it.
-**Never nest fences** — an inner fence inside an outer one renders as literal backticks, not a
-code block. No tables and no box-drawing frames either; terminal width varies and both wrap into
-garbage. Keep the condition within the native 4,000-character limit. On a CLI without `/goal`,
+Pass `--runtime claude` to the renderer for the read-only NEXT/FROM/SKIPPED/TRACE display;
+the default and `--runtime codex` preserve the existing plain fields. The Claude display is an
+80-column box with hanging indentation. CJK/fullwidth characters use two columns, combining
+marks zero and ambiguous-width characters one. A terminal configured to widen ambiguous
+characters can misalign the border; that terminal configuration is not inferred or changed.
+Seed target descriptions appear for one or two targets; larger sets use ids with consecutive
+ranges. A healthy TRACE uses the edge path, visit/depth limits and a short walk fingerprint.
+Stops, failures, external or uncertain nodes and changed-evidence warnings remain visible.
+This is presentation only: judgment JSON, fresh walk and refusal rules are unchanged.
+
+Place `/goal ` plus the paragraph in a separate plain three-backtick fence, with nothing following
+it. **Never nest fences**. The table/frame prohibition applies to this copyable goal, not the
+read-only pick display. Keep the condition within the native 4,000-character limit. On a CLI without `/goal`,
 render a plain `GOAL` line instead and say the native feature is unavailable. No worthwhile
 candidate uses the no-goal outcome above instead of a fence.
 

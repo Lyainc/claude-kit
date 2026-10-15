@@ -58,16 +58,10 @@ put the injected maintenance streak in `FROM`, never as a blocker (§Maintenance
 (1) issues combining with what just shipped, (2) label and staleness; one theme is one unit; a Seed in
 play ranks its remaining criteria first. If nothing clears the floor, keep `pick: null`; render
 and use FROM's scoped conclusion for `GOAL · 없음`. Stop without a fabricated goal or repeated
-search. Render without narrating the ranking:
-
-```text
-NEXT     · {pick in one line}
-FROM     · {source; on a switch, why the thread's own pool failed the floor}
-SKIPPED  · {rejected candidates and brief reason}
-```
+search. Render NEXT/FROM/SKIPPED without narrating the ranking.
 
 **Render every judgment, including no Seed/no pick**, as JSON; print verbatim what
-`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --cwd
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --runtime <claude|codex> --cwd
 <repo> <<'JSON' ... JSON` returns via Bash (schema: its docstring; judgment fields: §Render). `TRACE`
 and FROM's edge path come from that output; a `via` the walk did not visit is refused (fix the
 judgment, never the path). TRACE retains gaps without a Seed; no pick distinguishes reviewed-scope
@@ -109,20 +103,21 @@ point, not completion.
 
 ## Output format
 
-**Called from a routine that owns its report shape**: return the three pick lines (plus `TRACE`) and
+**Called from a routine that owns its report shape**: return the pick display (including `TRACE`) and
 the paragraph for it to print as-is; render nothing yourself, or the pick prints twice. **Called
 directly**, render the three fields (and `TRACE`), then the condition. Nothing follows the condition.
 
 ## Claude Code
 
-Place `/goal ` plus the paragraph in one plain three-backtick fence, nothing following it. **Never nest
-fences**; no tables or box-drawing frames; stay within the native 4,000-character limit. On a CLI
+Use `--runtime claude` for the read-only pick box. Place `/goal ` plus the paragraph in a separate
+plain three-backtick fence, nothing following it. **Never nest fences**; no tables or frames in
+the goal; stay within the native 4,000-character limit. On a CLI
 without `/goal`, render a plain `GOAL` line and say the native feature is unavailable. The
 no-worthwhile-candidate outcome uses no fence.
 
 ## Codex Portability
 
-Render the three pick fields (and `TRACE` when rendered), then one plain `GOAL` paragraph; never a `/goal` fence.
+Use `--runtime codex`: plain pick fields (and `TRACE`), then one plain `GOAL` paragraph; never a `/goal` fence.
 Use only available native tools and conversation input; no nested Claude Skill call, Workflow, hook payload, or model-routing instruction is required or available.
 Do not load Claude runtime details in Codex. Native tool mapping: [the shared tool contract](../../reference/codex-portability.md).
 

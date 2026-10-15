@@ -189,7 +189,7 @@ export const register: Register = on => {
         // A board fault must never break the session: the result goes on as it was.
       }
     }
-    if (startSeq !== null && text.trimStart().startsWith('NEXT')) {
+    if (startSeq !== null && /^(?:NEXT|╭─ NEXT ─+╮(?:\r?\n|$))/.test(text.trimStart())) {
       try {
         await observeJudgment($, e.command, text, startSeq)
       } catch {
