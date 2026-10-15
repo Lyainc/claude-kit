@@ -214,15 +214,77 @@ commits, or pushes by itself.
 
 ## Condition evidence
 
-Write one self-contained paragraph centered on the **problem, current state, resume point,
-relevant files, protection conditions, and observable completion criteria**. Include authoritative
-baseline refs and unresolved facts when needed. Convert relative dates to absolute dates.
+Use the pointer contract below when a versioned source exists. Otherwise write one self-contained
+paragraph centered on the **problem, current state, resume point, relevant files, protection
+conditions, and observable completion criteria**. Include baseline refs and unresolved facts;
+convert relative dates to absolute dates.
 
 Describe the resulting behavior and proof, not a long predetermined execution plan. Name only
 checks relevant to the scope; a wrapper is useful only if it already exists or the work needs it.
 Passing checks are not repeated without changed files, a new failure, or an unresolved material
 issue. Source validation, installed contents, skill discovery, and live behavior are distinct
 claims requiring their own evidence when the task concerns installation or runtime compatibility.
+
+## Pointer condition
+
+A pointer removes repeated requirements and reconstructible context, not the evaluator's contract.
+It applies to a walked, eligible Seed or a verified GitHub issue (`owner/repo#N`), including an
+issue supplying a session/backlog candidate's requirements. A candidate without such a source
+keeps the full condition; do not create an issue, Seed, handoff file, hook or clipboard integration
+just to shorten it. These are the author's rules, not a new judgment JSON field or ranking rule.
+
+| Keep in the goal | Recover at start from the verified source and baseline |
+|---|---|
+| Source identity/version, selected ids or issue scope | Requirement text, problem detail and relevant files |
+| Current metadata/version gate, hold on change, criteria/change output | Full metadata/walk procedure and item descriptions |
+| Exact check/exit 0, independent review/base/round cap | Full review instructions and recovery rationale |
+| Protections, Git permissions, non-reconstructible facts, stop/incomplete clauses | Current implementation and resume point from Git/source |
+
+Use compact clauses instead of repeating this skill's procedure. For example, “시작 시 metadata·버전
+확인, 변경/미확인이면 보류·확인, 요구 원문·기준 이후 변경 출력” carries the start contract;
+the ordered steps below tell the executor how. “독립 요구사항 리뷰 0건(base <ref>, 최대 2회,
+인프라 실패 포함·우회 재시도 금지)” carries bounded review without a separate paragraph explaining
+it. The Seed clause can remain “Seed는 명세로 유지하고 진행 기록은 추가하지 않는다”. Never delete a
+gate to shorten a clause. If the required clauses remain long, use the body-only input method.
+
+Before authoring a Seed pointer, verify a full commit SHA containing the selected Seed and that
+the current file matches that committed version. An uncommitted or unavailable Seed version uses
+the full condition with its exact scope and protections instead of inventing a pin or requiring
+an unauthorized commit. Name the path, SHA and exact selected ids; compress only consecutive ids.
+Use a separately verified baseline SHA for implementation progress when it differs from the Seed
+commit. An issue pointer names the GitHub repository, number and the API's observed `updatedAt`
+(absolute UTC), never just `#N` or the time the author happened to read it.
+
+The goal requires this start sequence in the conversation:
+
+1. Recheck Git/worktree state and the baseline's availability. For a Seed, run
+   `seed-relations.py metadata <path> --json` before reading any requirement body, and apply current
+   lifecycle, eligibility, withdrawals and parent-impact gates. A historical pin grants no approval.
+2. Compare the current Seed with the pinned tree (`git diff <seed-sha> -- <path>`, accounting for
+   untracked paths), or retrieve the issue's current body/state/`updatedAt` from the named repository.
+   If the source changed, closed, became unavailable or ineligible, hold requirement application
+   pending user confirmation; never substitute the latest or the old scope silently.
+3. After these gates pass, print selected criteria verbatim from
+   `seed-relations.py read <path> --json` or the verified issue body, then surface
+   `git log <baseline>..HEAD` and relevant working-tree changes. This puts requirements and actual
+   progress where the evaluator can see them. File names or a claim that the source was read are
+   not evidence. Do not claim a source snapshot is an implementation baseline unless verified.
+
+Keep in the goal itself: selected source/scope; the start gate and criteria/progress output;
+one exact relevant check with exit 0; one independent requirement-gap review with base and round
+cap; any unmet item means incomplete; turn/time stop bound; protection and Git authorization limits;
+and facts that cannot be reconstructed. A pointer cannot waive these or an existing Seed clause.
+Do not invent a check, baseline, numeric target, permission or review result to make it shorter.
+If essential clauses cannot fit a short pointer, use the full condition and the long-input method
+below. Codex shares the same content contract and keeps its plain `GOAL` output.
+
+Illustrative shape (replace placeholders with verified values; this is not an executable goal):
+
+```text
+/goal <Seed path>@<full SHA>의 <selected ids>를 충족한다. <시작 시 원문·변경 출력, 검사·리뷰·보호·중단 조건>을 지킨다.
+```
+
+For example, in Korean: “<Seed path>@<full SHA>의 acceptance-1~4를 충족한다. 시작 시 현재 metadata·버전을 확인하고 변경/미확인이면 적용을 보류해 확인받으며, 통과 시 요구 원문과 <baseline> 이후 변경을 대화에 출력한다. <검사 명령> exit 0과 <base> 대비 독립 요구사항 리뷰 0건(2라운드 상한)을 보인다. <보호·Git 권한 제한>을 지킨다. 미충족 항목이 있으면 미완료이며 12턴 도달 시 중단한다.” The selected task determines the real check and limits.
 
 ## Seed-following condition
 
@@ -255,11 +317,23 @@ ranges. A healthy TRACE uses the edge path, visit/depth limits and a short walk 
 Stops, failures, external or uncertain nodes and changed-evidence warnings remain visible.
 This is presentation only: judgment JSON, fresh walk and refusal rules are unchanged.
 
-Place `/goal ` plus the paragraph in a separate plain three-backtick fence, with nothing following
-it. **Never nest fences**. The table/frame prohibition applies to this copyable goal, not the
+For a short pointer, place `/goal ` plus the paragraph in a separate plain three-backtick fence.
+For a full or still-long condition, first tell the user to type `/goal `, then provide a body-only
+fence to paste after that prefix. Never repeat `/goal` in that body. A caller owning report shape
+puts the input hint inside its report before the separate condition unit. Nothing follows the
+condition. **Never nest fences**. The table/frame prohibition applies to the copyable goal, not the
 read-only pick display. Keep the condition within the native 4,000-character limit. On a CLI without `/goal`,
 render a plain `GOAL` line instead and say the native feature is unavailable. No worthwhile
 candidate uses the no-goal outcome above instead of a fence.
+
+The distinction was observed once per route on Claude Code 2.1.300: a 332-character one-line
+pointer-shaped paste registered; a 1,679-character whole command collapsed into pasted content
+and was sent as an ordinary message; typing `/goal ` before pasting its 1,673-character body
+registered it. An interactive CLI starting prompt also registered a short `/goal` command.
+These are bracketed-paste PTY observations, not a universal folding threshold, OS clipboard
+proof or a guarantee for another CLI/terminal.
+The startup route is evidence only; this skill does not add shell-launch commands or require
+starting sessions through a different entrypoint.
 
 ## Example
 
@@ -270,7 +344,7 @@ SKIPPED  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 �
 ```
 
 ```
-/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 병렬로 돌리되 한 갈래 안의 경로 수정 여섯 지점은 순차로 처리하고, 기계적인 경로 치환과 manifest 필드 추가는 Workflow agent() 에 effort low 로 넘기고 판정이 걸린 audit E4 규칙 재작성은 메인에서 직접 본다 — 실물을 보고 난이도가 다르면 이 배정은 바꿔도 된다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 correctness는 /code-review high 로, 요구사항 갭은 subagent_type: "thinking-tools:requirement-gap-reviewer" 로 base ref 를 명시해 나눠 돌려 각각 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
+/goal <owner/repo#issue>@<observed updatedAt>의 <선택 범위>를 충족한다. 시작 시 원본 상태·버전을 재확인하고 변경/조회 실패면 적용을 보류해 확인받으며, 통과 시 요구 원문과 <baseline> 이후 변경을 대화에 출력한다. <검사 명령> exit 0과 <base> 대비 독립 요구사항 리뷰 0건(2라운드 상한)을 보인다. <보호·Git 권한 제한>을 지킨다. 미충족이면 미완료이고 12턴에서 중단한다.
 ```
 
 ## Reference links and Rules (original wording)
