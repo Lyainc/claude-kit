@@ -851,7 +851,7 @@ def check_walk_kinds() -> list[str]:
     if _snapshot(repo) != before:
         failures.append("walk kinds: the script changed files (it must be read-only)")
     tags = [ln.split("\t")[0] for ln in out]
-    order = ["WALK", "NODE", "ITEM", "DUP", "SUMMARY"]
+    order = ["WALK", "NODE", "ITEM", "PREDECESSOR", "DUP", "SUMMARY"]
     if [t for i, t in enumerate(tags) if i == 0 or t != tags[i - 1]] != order:
         failures.append(f"walk kinds: record order must be {order}, got {tags}")
 
@@ -1059,8 +1059,8 @@ def check_walk_json_text_agree() -> list[str]:
             failures.append(f"walk json/text {flags}: exit {code}/{jcode}")
             continue
         r = _recs(out)
-        if sorted(data) != sorted(["walk", "nodes", "items", "dups", "cycles", "stops", "failures",
-                                   "summary"]):
+        if sorted(data) != sorted(["walk", "nodes", "items", "predecessors", "dups", "cycles", "stops",
+                                   "failures", "summary"]):
             failures.append(f"walk json {flags}: unexpected top-level keys {sorted(data)}")
         if [f[3] for f in r["NODE"]] != [x["key"] for x in data["nodes"]]:
             failures.append(f"walk json/text {flags}: node keys differ")
@@ -1522,6 +1522,96 @@ def check_relations_v3() -> list[str]:
     return failures
 
 
+def _item_dep_pair(repo, dep, a_extra=""):
+    """a (children=[b], acceptance-1/2) and b (child of a, refines acceptance-2, depends_on dep)."""
+    crit = [("acceptance-1", "A first"), ("acceptance-2", "A second")]
+    _write(repo, "a.yaml", target="A", children=[SP + "b.yaml"], criteria=crit)
+    if a_extra:
+        with open(Path(repo) / "docs" / "specs" / "a.yaml", "a") as fh:
+            fh.write(a_extra)
+    _write(repo, "b.yaml", target="B", parent=SP + "a.yaml", refines=["acceptance-2"],
+           depends_on=[dep])
+
+
+_WITHDRAWN = (
+    "lifecycle:\n  state: active\n  outcome: null\n  reason: User decision\n"
+    "  approved_by: user request message 1\n  evidence:\n    commit: null\n    items: []\n"
+    "  withdrawn:\n    - id: acceptance-1\n      reason: Scope changed\n")
+
+
+def check_item_depends_on() -> list[str]:
+    """#885: item-level depends_on across check (deadlock MISMATCH), tree REQUIRES and walk."""
+    failures = []
+
+    def case(label, dep, a_extra="", mismatch=None, tree_has=None, state=None, item="-"):
+        repo = _repo()
+        _item_dep_pair(repo, dep, a_extra)
+        before = _snapshot(repo)
+        code, out, err = _run(repo, "check", SP + "b.yaml")
+        mm = [ln for ln in out if ln.startswith("MISMATCH")]
+        if mismatch is None:
+            if code != 0 or mm or not out or not out[-1].startswith("OK:"):
+                failures.append(f"item depends_on {label}: want clean OK: {code} {out} {err!r}")
+        elif code != 1 or not any(mismatch in ln for ln in mm):
+            failures.append(f"item depends_on {label}: want MISMATCH {mismatch!r}: {code} {out}")
+        tcode, tout, _ = _run(repo, "tree", SP + "b.yaml")
+        req = [ln for ln in tout if ln.startswith("REQUIRES")]
+        if tcode != 0 or len(req) != 1 or (tree_has and tree_has not in req[0]):
+            failures.append(f"item depends_on {label}: tree REQUIRES row {tree_has!r}: {tcode} {req}")
+        wcode, wout, _ = _walk(repo, SP + "b.yaml")
+        preds = _recs(wout).get("PREDECESSOR", [])
+        want = ["PREDECESSOR", SP + "b.yaml", SP + "a.yaml", f"item={item}", f"item_state={state}"]
+        if wcode != 0 or preds != [want]:
+            failures.append(f"item depends_on {label}: PREDECESSOR want {want}: {wcode} {preds}")
+        if _snapshot(repo) != before:
+            failures.append(f"item depends_on {label}: check/tree/walk changed files")
+        return repo, wout
+
+    # The #885 repro: the child waits for the parent's other item; the parent edge stays a DUP.
+    _, wout = case("repro", SP + "a.yaml#acceptance-1", tree_has="a/acceptance-1 · A first",
+                   state="defined", item="acceptance-1")
+    if not _recs(wout).get("DUP"):
+        failures.append(f"item depends_on repro: the DUP record must remain: {wout}")
+    case("whole ancestor", SP + "a.yaml", mismatch="as a whole Seed", tree_has="(Seed 전체)",
+         state="-")
+    case("refined item", SP + "a.yaml#acceptance-2", mismatch="which this Seed refines",
+         tree_has="a/acceptance-2 · A second", state="defined", item="acceptance-2")
+    case("missing item", SP + "a.yaml#acceptance-9", mismatch="does not define",
+         tree_has="[missing in target]", state="missing", item="acceptance-9")
+    case("withdrawn item", SP + "a.yaml#acceptance-1", a_extra=_WITHDRAWN,
+         mismatch="which is withdrawn", tree_has="[withdrawn]", state="withdrawn",
+         item="acceptance-1")
+
+    # A same-repo descendant refines the awaited item: b -> c -> d, d refines c's acceptance-1.
+    repo = _repo()
+    _write(repo, "b.yaml", target="B", children=[SP + "c.yaml"], depends_on=[SP + "c.yaml#acceptance-1"],
+           criteria=[("acceptance-1", "B first")])
+    _write(repo, "c.yaml", target="C", parent=SP + "b.yaml", refines=["acceptance-1"],
+           children=[SP + "d.yaml"], criteria=[("acceptance-1", "C first")])
+    _write(repo, "d.yaml", target="D", parent=SP + "c.yaml", refines=["acceptance-1"])
+    code, out, _ = _run(repo, "check", SP + "b.yaml")
+    if code != 1 or not any("which its descendant docs/specs/d.yaml refines" in ln for ln in out):
+        failures.append(f"item depends_on descendant: want MISMATCH naming d.yaml: {code} {out}")
+
+    # Cross-repo item edge: the sibling's requires line carries #item, with no gh read.
+    repo = _repo()
+    kids = [SP + "x.yaml", SP + "y.yaml"]
+    _write(repo, "p.yaml", target="P", children=kids)
+    _write(repo, "x.yaml", target="X", parent=SP + "p.yaml")
+    _write(repo, "y.yaml", target="Y", parent=SP + "p.yaml",
+           depends_on=["acme/other:docs/specs/x.yaml#acceptance-1"])
+    before = _snapshot(repo)
+    code, out, _ = _run(repo, "tree", SP + "x.yaml")
+    sib = [ln for ln in out if "requires" in ln and ln.startswith("SIBLING")]
+    if len(sib) != 1 or "#acceptance-1" not in sib[0] or "다른 레포 — 확인 못 함" not in sib[0]:
+        failures.append(f"item depends_on cross-repo: requires line: {sib}")
+    if any("FAILED" in ln for ln in out):
+        failures.append(f"item depends_on cross-repo: no gh read expected: {out}")
+    if _snapshot(repo) != before:
+        failures.append("item depends_on cross-repo: tree changed files")
+    return failures
+
+
 def main() -> int:
     checks = [
         check_tree_same_repo,
@@ -1554,6 +1644,7 @@ def main() -> int:
         check_duplicate_item_ids,
         check_walk_item_desc,
         check_relations_v3,
+        check_item_depends_on,
     ]
     failures = []
     for check in checks:

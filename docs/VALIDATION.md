@@ -959,13 +959,14 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # 식별자 규약(thinking-tools/reference/identifiers.md): 픽스처는 constraint-N/acceptance-N, tree는
 # `<slug>/<id> · <설명>`으로 보여 주고, 옛 c<N>/ac<N> Seed도 그대로 tree/check/walk되며 check는 종료 코드를
 # 바꾸지 않는 LEGACY 줄·id 형식 차이 MISMATCH의 seed-id-migrate.py 힌트·중복 id MISMATCH를 낸다.
+# #885: 항목 단위 depends_on·교착 MISMATCH·PREDECESSOR 레코드(tree REQUIRES 행 포함)를 검증한다.
 python3 thinking-tools/scripts/test/test-seed-relations.py
-# Expected: OK: all 30 test-seed-relations checks passed
+# Expected: OK: all 31 test-seed-relations checks passed
 
 # Seed 생애주기 (#814): 전이·완료 근거·철회 원문·고정 출처·부분 영향·소비자 후보 자격.
 # 임시 Git 픽스처로 검증하며 사용자 승인의 진위나 LLM 준수는 별도 실행 근거가 필요하다.
 python3 thinking-tools/scripts/test/test-seed-lifecycle.py
-# Expected: OK: all 36 Seed lifecycle regression fixtures passed
+# Expected: OK: all 37 Seed lifecycle regression fixtures passed
 
 # seed-id-migrate.py 회귀 — 옛 c<N>/ac<N> id를 constraint-<N>/acceptance-<N>로 바꾸는 유일한 경로.
 # 생애주기·구조화된 참조가 있는 파일은 부분 이름 변경을 거부하며 구형 ID 그대로 읽을 수 있다.

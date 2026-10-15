@@ -305,6 +305,13 @@ class LifecycleTests(unittest.TestCase):
         self.assertEqual(gate['reason'],'ancestor review required')
         self.assertFalse(gate['eligible']); self.assertTrue(gate['review_required'])
 
+    def test_depends_on_item_fragment(self):
+        # #885: `path.yaml#acceptance-1` names one predecessor item; an empty fragment is an error.
+        ok = spec(version=3); ok['relations']['depends_on'] = ['docs/specs/a.yaml#acceptance-1']
+        self.valid(ok)
+        bad = spec(version=3); bad['relations']['depends_on'] = ['docs/specs/a.yaml#']
+        self.invalid(bad,'relations.depends_on item fragment must not be empty')
+
     def test_version3_relations_validation(self):
         self.valid(spec(version=3))
         self.valid(spec(parent='docs/specs/p.yaml',refines=['acceptance-1'],version=3))

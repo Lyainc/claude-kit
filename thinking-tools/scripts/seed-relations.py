@@ -370,6 +370,20 @@ LEGACY_ID = re.compile(r"^(c|ac)(\d+)$")
 LEGACY_KIND = {"c": "constraint", "ac": "acceptance"}
 
 
+def split_dep(text):
+    """`path.yaml#acceptance-1` -> (path, item id); a whole-Seed depends_on has item None (#885).
+
+    The fragment is the predecessor's LOCAL item id (identifiers.md): the path already names
+    the affiliation, exactly as `relations.parent` does for `refines`.
+    """
+    path, sep, item = text.partition("#")
+    return path, (item.strip() if sep else None)
+
+
+def dep_label(loc, item):
+    return qualified_id(key(loc), item) if item else f"{key(loc)} (Seed 전체)"
+
+
 def canonical_id(item_id):
     """`c3` -> `constraint-3`, `ac2` -> `acceptance-2`; any other id is returned unchanged."""
     m = LEGACY_ID.match(item_id)
@@ -815,8 +829,25 @@ def cmd_tree(rd, rel, seed):
             family.append(ld)
     siblings = [ld for ld in family if ld.loc != self_res]
     listed = {ld.loc for ld in siblings} | {self_res}
+    if parent is not None:
+        listed.add(parent.loc)  # an item edge to the parent names a predecessor, not a sibling
     for d in seed.depends_on:
-        ld = rd.load(rd.norm(d, None), exact_edges(seed))
+        dpath, item = split_dep(d)
+        ld = rd.load(rd.norm(dpath, None), exact_edges(seed))
+        if ld.seed is None:
+            note = "[file not found]" if ld.status == "notfound" else "[unreadable]"
+        elif item is None:
+            note = "next-goal judges whether it is finished"
+        elif item not in ld.seed.item_map:
+            note = "[missing in target]"
+        else:
+            withdrawn = {r.get("id") for r in (ld.seed.lifecycle or {}).get("withdrawn", [])
+                         if isinstance(r, dict)}
+            note = _short(ld.seed.item_map[item]) + ("  [withdrawn]" if item in withdrawn else
+                                                     " — next-goal judges whether it is met")
+        out.append(_row("REQUIRES", f"{dep_label(ld.loc, item)} · {note}"
+                        + (LINK_ONLY if ld.loc[0] is not None else "")))
+        out += rd.failure_lines(ld)
         if ld.loc not in listed:
             listed.add(ld.loc)
             siblings.append(ld)
@@ -834,11 +865,13 @@ def cmd_tree(rd, rel, seed):
         if ld.seed is None:
             continue
         for dep in ld.seed.depends_on:
-            dloc = rd.norm(dep, ld.loc[0])
+            dpath, item = split_dep(dep)
+            dloc = rd.norm(dpath, ld.loc[0])
             dres = rd.resolve_quiet(dloc, exact_edges(ld.seed)) if dloc[0] is None else dloc
             note = ("same repo — next-goal judges whether it is finished" if dres[0] is None
                     else "다른 레포 — 확인 못 함")
-            out.append(_row("SIBLING", f"{disp(ld.orig, ld.loc)}  requires {disp(dloc, dres)} ({note})"))
+            what = disp(dloc, dres) + (f"#{item}" if item else "")
+            out.append(_row("SIBLING", f"{disp(ld.orig, ld.loc)}  requires {what} ({note})"))
 
     kids, kid_seen = [], set()  # the named Seed's children, deduplicated by resolved location
     for c in seed.children:
@@ -885,6 +918,70 @@ def cmd_tree(rd, rel, seed):
 # ---------------------------------------------------------------------------
 # check
 # ---------------------------------------------------------------------------
+
+def deadlock_mismatches(rd, rel, seed, self_res, limit=25):
+    """depends_on edges that can never be satisfied, as MISMATCH texts (#885).
+
+    A child-edge ancestor waits for this Seed to close, so depending on that ancestor as a whole
+    Seed deadlocks; an item edge deadlocks only when the item is delivered (refined) by this Seed
+    or one of its descendants. A missing or withdrawn target item can never be met either. Item
+    edges between different items are not deadlocks, so no general cycle detection is added.
+    Same-repo only beyond the first hop; another repo's descendants are not read.
+    """
+    out = []
+    ancestors, cur, trail = set(), seed, {self_res}
+    ctx = None
+    while cur is not None and cur.is_child_edge() and len(trail) < limit:
+        ld = rd.load(rd.norm(cur.parent, ctx), exact_edges(cur))
+        if ld.loc in trail:
+            break
+        trail.add(ld.loc)
+        ancestors.add(ld.loc)
+        if ld.seed is None or ld.loc[0] is not None:
+            break
+        cur, ctx = ld.seed, ld.loc[0]
+    family, seen, i = [(self_res, seed)], {self_res}, 0
+    while i < len(family) and len(family) < limit:
+        loc, sd = family[i]
+        i += 1
+        for c in sd.children:
+            ld = rd.load(rd.norm(c, loc[0]), exact_edges(sd))
+            if ld.seed is not None and ld.loc[0] is None and ld.loc not in seen:
+                seen.add(ld.loc)
+                family.append((ld.loc, ld.seed))
+    for d in seed.depends_on:
+        dpath, item = split_dep(d)
+        if not lifecycle.path(dpath):
+            continue  # the structural validator names the malformed path
+        ld = rd.load(rd.norm(dpath, None), exact_edges(seed))
+        if ld.seed is None:
+            continue  # a missing or unreadable target is reported by its own check
+        name = key(ld.loc)
+        if item is None:
+            if ld.loc in ancestors:
+                out.append(f"{rel} depends_on its ancestor {name} as a whole Seed — the ancestor "
+                           f"waits for this child to close; name the needed item ({name}#acceptance-N)")
+            continue
+        if item not in ld.seed.item_map:
+            text = f"{rel} depends_on {name}#{item}, which {name} does not define"
+            alt = other_id_form(item, ld.seed.item_map)
+            out.append(text + (f" — {name} has {alt}: the id form differs" if alt else ""))
+            continue
+        withdrawn = {r.get("id") for r in (ld.seed.lifecycle or {}).get("withdrawn", [])
+                     if isinstance(r, dict)}
+        if item in withdrawn:
+            out.append(f"{rel} depends_on {name}#{item}, which is withdrawn — review the dependency")
+        for loc, sd in family:
+            if not sd.parent or not sd.refines_acceptance(item):
+                continue
+            back = rd.resolve_quiet(rd.norm(sd.parent, loc[0]), exact_edges(sd))
+            if back == ld.loc:
+                who = "this Seed" if loc == self_res else f"its descendant {key(loc)}"
+                out.append(f"{rel} depends_on {name}#{item}, which {who} refines — "
+                           f"the item can never be met before this Seed starts")
+                break
+    return out
+
 
 def cmd_check(rd, rel, seed):
     mismatches = 0
@@ -995,6 +1092,8 @@ def cmd_check(rd, rel, seed):
             continue
         for entry in entries:
             target = entry.get("seed") if isinstance(entry,dict) else entry
+            if edge == "depends_on" and isinstance(target,str):
+                target = split_dep(target)[0]
             if not lifecycle.path(target):
                 continue
             ld = rd.load(rd.norm(target,None),exact_edges(seed) or edge != "depends_on")
@@ -1023,6 +1122,9 @@ def cmd_check(rd, rel, seed):
                     matches = [row for row in provenance if isinstance(row,dict) and lifecycle.path(row.get("seed")) and rd.norm(row["seed"],None) == ld.loc] if isinstance(provenance,list) else []
                     if not matches:
                         mismatch(f"{rel} replaces {key(ld.loc)} without pinned provenance")
+
+    for text in deadlock_mismatches(rd, rel, seed, self_res):
+        mismatch(text)
 
     out.extend(legacy_lines)
     if mismatches:
@@ -1084,6 +1186,8 @@ def _sha8(raw):
 def _edge_texts(seed, edge):
     if edge == "parent":
         return [seed.parent] if seed.parent else []
+    if edge == "depends_on":
+        return [split_dep(t)[0] for t in seed.depends_on]
     return list(getattr(seed, edge))
 
 
@@ -1269,6 +1373,33 @@ def walk(seed_file, max_depth=3, max_nodes=25):
                 items.append({"owner": n.key, "id": iid,
                               "refined_by": [v.key for v in visited if v.seed.refines_acceptance(iid)]})
 
+    # Every depends_on edge of a visited Seed, including one to a Seed already visited by another
+    # route (an ancestor), which the traversal otherwise records only as a DUP (#885). Data only:
+    # whether the predecessor or its item is met is next-goal's observation, never this script's.
+    preds = []
+    for n in nodes:
+        if n.status != "ok" or n.seed is None:
+            continue
+        for d in n.seed.depends_on:
+            dpath, item = split_dep(d)
+            nloc = rd.norm(dpath, n.loc[0])
+            tgt = by_orig.get(nloc)
+            if tgt is None and nloc[0] is None:
+                tgt = by_loc.get(rd.resolve_quiet(nloc, exact_edges(n.seed)))
+            state = "-"
+            if item:
+                if tgt is None or tgt.seed is None:
+                    state = "unread"
+                elif item not in tgt.seed.item_map:
+                    state = "missing"
+                elif item in {r.get("id") for r in (tgt.seed.lifecycle or {}).get("withdrawn", [])
+                              if isinstance(r, dict)}:
+                    state = "withdrawn"
+                else:
+                    state = "defined"
+            record(preds, {"from": n.key, "to": tgt.key if tgt else key(nloc),
+                           "item": item, "item_state": state})
+
     failures = [{"key": n.key, "error": n.error or ""} for n in nodes
                 if n.status == "external-failed"]
     summary = {
@@ -1289,7 +1420,7 @@ def walk(seed_file, max_depth=3, max_nodes=25):
         "walk": {"id": walk_id, "at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
                  "start": rel, "max_depth": max_depth, "max_nodes": max_nodes,
                  "fingerprint": fingerprint},
-        "nodes": node_dicts, "items": items, "dups": dups, "cycles": cycles, "stops": stops,
+        "nodes": node_dicts, "items": items, "predecessors": preds, "dups": dups, "cycles": cycles, "stops": stops,
         "failures": failures, "summary": summary,
     }
 
@@ -1333,6 +1464,10 @@ def render_walk_text(data):
         refined = csv(it["refined_by"]) if it["refined_by"] else "(none)"
         out.append("\t".join(["ITEM", _clean(it["owner"]), _clean(it["id"]),
                               f"refined_by={refined}"]))
+    for r in data.get("predecessors", []):
+        out.append("\t".join(["PREDECESSOR", _clean(r["from"]), _clean(r["to"]),
+                              f"item={_clean(r['item']) if r['item'] else '-'}",
+                              f"item_state={r['item_state']}"]))
     for tag, rows in (("DUP", data["dups"]), ("CYCLE", data["cycles"])):
         for r in rows:
             out.append("\t".join([tag, _clean(r["from"]), r["edge"], _clean(r["to"])]))
