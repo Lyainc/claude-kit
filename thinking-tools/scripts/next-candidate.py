@@ -27,6 +27,7 @@ Standalone use: python3 scripts/next-candidate.py [--hours N] [--commits N] [--c
 
 import argparse
 import calendar
+import concurrent.futures
 import json
 import os
 import re
@@ -249,6 +250,7 @@ def open_issues(cwd, want_body):
     return issues, None
 
 
+PR_LIMIT = 100  # a full page means the list may be cut off, so it is reported as unconfirmed
 CLOSING_RE = re.compile(r"\b(?:close[sd]?|fix(?:e[sd])?|resolve[sd]?)\s*:?\s+#(\d+)\b", re.I)
 
 
@@ -260,10 +262,12 @@ def open_pr_links(cwd):
     as failed, never as "no links" — the same could-not-look vs. empty split as open_issues.
     Same-repo only: a closing reference into another repository is dropped by URL prefix, and
     the body scan only matches bare `#N`, which GitHub resolves against this repo.
+    A page that hits PR_LIMIT returns its links but counts as failed: a PR past the cut-off
+    would otherwise read as "not linked", the exact miss this exists to prevent.
     """
     try:
         p = subprocess.run(
-            ["gh", "pr", "list", "--state", "open", "--limit", "100",
+            ["gh", "pr", "list", "--state", "open", "--limit", str(PR_LIMIT),
              "--json", "number,url,body,closingIssuesReferences"],
             cwd=cwd, capture_output=True, text=True, timeout=15,
         )
@@ -281,7 +285,7 @@ def open_pr_links(cwd):
                 nums.add(ref["number"])
         for n in nums:
             links.setdefault(n, []).append(pr["number"])
-    return links, False
+    return links, len(prs) >= PR_LIMIT
 
 
 def _which(binary):
@@ -367,10 +371,14 @@ def main():
         return 0
 
     paths = changed_paths(cwd, args.hours)
-    issues, reason = open_issues(cwd, want_body=bool(paths))
+    # Run the PR lookup alongside the issue lookup: back to back, their two 15s timeouts can
+    # outlast the hook's 20s budget and drop the whole payload, not just the PR marks.
+    with concurrent.futures.ThreadPoolExecutor(1) as pool:
+        pr_future = pool.submit(open_pr_links, cwd)
+        issues, reason = open_issues(cwd, want_body=bool(paths))
+        links, links_failed = pr_future.result() if issues else ({}, False)
 
     if issues:
-        links, links_failed = open_pr_links(cwd)
 
         def in_pr(num):
             prs = links.get(num)
