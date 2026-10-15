@@ -61,6 +61,8 @@ _QUEUE_CLAIMS = [
     ("delete uses §3 shape", "Deleting 이미 매립됨 items uses the §3 confirmation shape"),
     ("zero is printed", "never end the review silently"),
     ("delete-only question", "이미 매립된 이 memory 항목을 지울까요?"),
+    ("delete-only block", "as a delete-only block"),
+    ("delete-only memory 중복 tail", "— 이미 매립돼 지울게요` (not §3's \"매립 후\" tail)"),
     ("Codex unsupported", "on Codex report the review as unsupported"),
 ]
 
@@ -138,6 +140,7 @@ def _self_test() -> int:
         ("미확인 rule dropped", skill, ref.replace("**Unread is unverified, not empty.**", ""), codex),
         ("cross-project signal dropped", skill, ref.replace("**여러 프로젝트 (n곳)**", "여러 프로젝트"), codex),
         ("forked scan", skill, ref.replace("## §6-queue-contract", "## §6-queue-contract\n```bash\nfind ~ -name '*.md'\n```\n", 1), codex),
+        ("delete-only tail dropped", skill, ref.replace("이미 매립돼 지울게요", "매립 후 그 항목은 지울게요"), codex),
         ("codex note dropped", skill, ref, codex.replace("unsupported on Codex", "")),
         ("section renamed", skill, ref.replace("## §6-queue-contract", "## §6-queue"), codex),
     ]
