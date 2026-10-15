@@ -46,7 +46,9 @@ Seed does not define is refused, as is a legacy `c1`/`ac1` that matches only by 
 `session`, `backlog` and `issue:#N` the targets are free text and print as given.
 
 Usage:
-    next-goal-render.py [--cwd <repo>] < judgment.json
+    next-goal-render.py [--cwd <repo>] [--runtime claude|codex] < judgment.json
+
+Claude renders a fixed 80-column reading panel; the default and Codex keep the plain lines.
 
 Exit codes: 0 rendered, 1 judgment refused (reason on stderr, nothing on stdout), 2 bad usage.
 Stdlib only; Python 3.9.
@@ -54,11 +56,14 @@ Stdlib only; Python 3.9.
 
 from __future__ import annotations
 
+import argparse
+import hashlib
 import importlib.util
 import json
 import os
 import re
 import sys
+import unicodedata
 
 _TARGET_DESC_MAX = 80  # chars of one target description kept in FROM before '…'
 _SENTENCE_END = re.compile(r"[.?!。](?=\s|$)")
@@ -307,7 +312,102 @@ def _trace_line(j, data, current_id):
     return " · ".join(parts) + f" · 근거 {w['id']} @ {w['at']}" + stale
 
 
-def render(j, cwd):
+def _columns(text):
+    # Ambiguous characters stay narrow; combining marks occupy their base character's cell.
+    return sum(0 if unicodedata.combining(c) or unicodedata.category(c) in ("Mn", "Me") else
+               2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in text)
+
+
+def _wrap(text, prefix="", continuation=""):
+    """Wrap words, splitting long paths only when necessary; leave room for the two borders."""
+    lines, line = [], prefix
+    for word in str(text).split():
+        gap = " " if line != prefix else ""
+        if _columns(line + gap + word) <= 76:
+            line += gap + word
+            continue
+        if line != prefix:
+            lines.append(line)
+            prefix = continuation
+            line = prefix
+        for c in word:
+            if _columns(line + c) > 76:
+                lines.append(line)
+                prefix = continuation
+                line = prefix
+            line += c
+    lines.append(line)
+    return ["│ " + ln + " " * (76 - _columns(ln)) + " │" for ln in lines]
+
+
+def _compact_targets(rel, via, node, targets):
+    if not _is_seed_via(via) or len(targets) <= 2:
+        return "; ".join(_render_targets(rel, via, node, targets))
+    groups, i = [], 0
+    while i < len(targets):
+        first = targets[i].strip()
+        match = re.fullmatch(r"(constraint-|acceptance-)(\d+)", first)
+        end = i + 1
+        if match:
+            while end < len(targets) and targets[end].strip() == match[1] + str(int(match[2]) + end - i):
+                end += 1
+        label = rel.qualified_id(via, first)
+        if end > i + 1:
+            label += " … " + targets[end - 1].strip().rsplit("-", 1)[1]
+        groups.append(label)
+        i = end
+    return "; ".join(groups)
+
+
+def _box(j, nodes, rel, data, current_id, incomplete):
+    sections = [("NEXT", [("▸ ", j["pick"]["title"] if j.get("pick") else "없음")])]
+    pick = j.get("pick")
+    if pick is None:
+        source = [("", _from_line(j, nodes, rel, incomplete))]
+    else:
+        via = pick["via"]
+        name = ("● " + rel.qualified_id(via, "").rstrip("/") if _is_seed_via(via) else
+                "이번 세션 후속" if via == "session" else "백로그" if via == "backlog" else via[6:])
+        targets = _compact_targets(rel, via, nodes.get(via, {}), pick.get("targets") or [])
+        source = [("", name + (" → " + targets if targets else "")),
+                  ("근거  ", pick["evidence"]),
+                  ("착수  ", ("✓ 가능" if pick["startable"] == "yes" else "? 미확인") + ": " + pick["startable_reason"]),
+                  ("변화  ", pick["user_change"])]
+        if pick.get("note"):
+            source.append(("참고  ", pick["note"]))
+    sections.append(("FROM", source))
+    sections.append(("SKIPPED", [
+        ("○ ", _skipped_line({"alternatives": [a]})) for a in j.get("alternatives", [])
+    ] or [("", "없음")]))
+    if j["handoff"] != "none" or j["unverified"]:
+        abnormal = (data is None or current_id != j["walk_id"] or j["unverified"] or
+                    any(a["decision"] == "unverified" for a in j.get("alternatives", [])) or
+                    any(data["summary"].get(k) for k in ("stopped", "failed", "external", "notfound", "cycles")) or
+                    any(n.get("lifecycle", {}).get("state") == "unknown" or
+                        n.get("eligibility", {}).get("review_required") for n in nodes.values()))
+        if abnormal:
+            trace = [("! ", _trace_line(j, data, current_id))]
+            if data:
+                trace += [("! ", f"실패: {f['key']} — {f['error']}") for f in data["failures"]]
+                trace += [("! ", f"순환: {c['from']} →{c['edge']} {c['to']}") for c in data["cycles"]]
+        else:
+            w = data["walk"]
+            node = nodes.get(pick["via"]) if pick else None
+            path = [w["start"]] + [key for _, key in (node.get("via", []) if node else [])]
+            trace = [("", " ─▸ ".join(rel.qualified_id(key, "").rstrip("/") for key in path)),
+                     ("", f"{data['summary']['visited']}/{w['max_nodes']} 방문 · 깊이 ≤ {w['max_depth']} · 근거 #"
+                      + hashlib.sha256(w["id"].encode("utf-8")).hexdigest()[:8])]
+        sections.append(("TRACE", trace))
+    lines = []
+    for i, (title, rows) in enumerate(sections):
+        header = ("╭" if i == 0 else "├") + "─ " + title + " "
+        lines.append(header + "─" * (79 - _columns(header)) + ("╮" if i == 0 else "┤"))
+        for prefix, text in rows:
+            lines.extend(_wrap(text, prefix, " " * _columns(prefix)))
+    return lines + ["╰" + "─" * 78 + "╯"]
+
+
+def render(j, cwd, runtime="codex"):
     validate(j)
     lines = []
     data, nodes, current_id = None, {}, None
@@ -333,24 +433,21 @@ def render(j, cwd):
     lines.append(f"SKIPPED  · {_skipped_line(j)}")
     if j["handoff"] != "none" or j["unverified"]:
         lines.append(f"TRACE    · {_trace_line(j, data, current_id)}")
-    return lines
+    return _box(j, nodes, rel, data, current_id, incomplete) if runtime == "claude" else lines
 
 
 def main(argv):
-    cwd = os.getcwd()
-    args = argv[1:]
-    if args[:1] == ["--cwd"] and len(args) == 2:
-        cwd = args[1]
-    elif args:
-        print("usage: next-goal-render.py [--cwd <repo>] < judgment.json", file=sys.stderr)
-        return 2
+    parser = argparse.ArgumentParser(description="Render next-goal's judgment without changing it.", allow_abbrev=False)
+    parser.add_argument("--cwd", default=os.getcwd())
+    parser.add_argument("--runtime", choices=("claude", "codex"), default="codex")
+    args = parser.parse_args(argv[1:])
     try:
         j = json.loads(sys.stdin.read())
     except ValueError as exc:
         print(f"[next-goal-render REFUSED] JSON이 아니에요: {exc}", file=sys.stderr)
         return 1
     try:
-        lines = render(j, cwd)
+        lines = render(j, args.cwd, args.runtime)
     except Refused as exc:
         print(f"[next-goal-render REFUSED] {exc}", file=sys.stderr)
         return 1
