@@ -975,7 +975,7 @@ python3 thinking-tools/scripts/test/test-seed-lifecycle.py
 # 아무것도 쓰지 않고 거부하고, 중간에 끊긴 실행(부모만/자식만 기록)은 재실행으로 수렴하며, 다른 레포
 # 부모/자식은 FOLLOW-UP 줄만 내고 쓰지 않는다. 주석·따옴표·블록 스칼라·CRLF 보존과 REF 후보 스캔도 핀한다.
 python3 thinking-tools/scripts/test/test-seed-id-migrate.py
-# Expected: OK: all 14 test-seed-id-migrate checks passed
+# Expected: OK: all 15 test-seed-id-migrate checks passed
 
 # next-goal-render.py 회귀 (#792) — next-goal의 판단 JSON에서 NEXT/FROM/SKIPPED(+Seed가 있으면 TRACE)를
 # 렌더한다. FROM의 엣지 경로와 TRACE의 방문·실패 수는 JSON이 아니라 다시 돌린 walk에서 나오고, walk가
