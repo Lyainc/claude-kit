@@ -21,7 +21,9 @@ Four pieces ship together:
   (user-stated, or a `distill` proposal), classifies it, and lands it in one of
   three native sites — an always-read reminder, a deterministic hook guard, or an
   invocable skill — behind a single confirmation. Leaves the change in the working
-  tree; never commits.
+  tree; never commits. Given no rule, it reviews the accumulated `feedback` memory
+  queue read-only: already landed, landing candidate, or project fact, each with
+  its evidence (#867).
 - **telemetry** — an opt-in local event logger (`scripts/event-logger.sh`) plus
   analysis scripts (`report.py`, `sequence.py`, `validate-schema.py`). It records
   which skills/agents/commands ran so `retro` (and you) can spot waste and dead
@@ -42,7 +44,8 @@ never an import, fetch, or shared store. What ships today is the project-scoped 
 machine-level base — is the **deferred (YAGNI)** form of that same bridge (it lands
 only once there are 2+ projects and a real drift event). Either way it is a
 **suggestion you confirm** (carried by the `rule_fire` data contract), never a runtime
-or build dependency.
+or build dependency. (add-policy's queue review flagging one lesson repeated across
+projects is a read-only signal for the user, not this bridge.)
 
 **Zero local dependency = portability.** Because the bridge is nudge-only,
 feedback-loop runs **identically on a machine that has no local-harness at all** —
