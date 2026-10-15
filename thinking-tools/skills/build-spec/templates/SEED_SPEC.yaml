@@ -59,7 +59,7 @@ constraints:
   - id: constraint-1
     type: technical|resource|legal|temporal|other
     description: <constraint description>
-    hard: <true|false>
+    hard: <true|false>  # true also binds child Seeds; relaxing it for a child means amending this Seed
     rationale: <why this constraint exists>
   # add more: constraint-2, constraint-3, ...
 

@@ -202,7 +202,9 @@ unknown needs confirmation, paused needs approved resume, and closed is historic
 kind, always from the user's answer (the common contract's "관계의 세 종류" owns the definitions).
 - **Child**: ask which of the picked Seed's `acceptance` items this Seed delivers. One or more →
   `relations.parent` + `relations.refines` (acceptance ids only, parent's local id such as `acceptance-2`;
-  convention: `reference/identifiers.md`). `refines_map` is not used.
+  convention: `reference/identifiers.md`). `refines_map` is not used. Show the parent's `hard: true`
+  constraints and ask whether this Seed conflicts with any; they apply to the child, and relaxing one
+  means amending the parent (the common contract's "자식에게 적용되는 부모 제약").
 - **Parent scope extension**: no acceptance item matches, but the user says this Seed belongs in the
   picked Seed's scope. Ask "이 기능을 부모 Seed의 약속 범위에 새 완료 기준으로 추가할까요?" before
   predecessor/reference. Yes and the parent is `active` → Phase 3 adds the next unused `acceptance-N` to
@@ -408,7 +410,7 @@ Quick Mode output format:
 [Round N] Dimension: {current}
 ```
 
-**Relations (only when a Seed was picked in Phase 0)**: ask which of its acceptance items this Seed delivers → child: record those ids for Phase 3 `relations.parent` + `relations.refines`. None → ask whether to add a new acceptance to the parent's scope (active parent only; parent amendment and child link approved separately) → child of that new id. Otherwise ask whether it must finish first (`relations.depends_on`, only if the user says so) or is only a reference (cite `<seed-slug>/constraint-N` in text, no `parent`). Never infer (`reference.md` §8). Child `relations.link_reason` (`reference.md` §8): ask if not evident; no answer → null, never fabricated.
+**Relations (only when a Seed was picked in Phase 0)**: ask which of its acceptance items this Seed delivers → child: record those ids for Phase 3 `relations.parent` + `relations.refines`, and check conflicts with the parent's hard constraints. None → ask whether to add a new acceptance to the parent's scope (active parent only; parent amendment and child link approved separately) → child of that new id. Otherwise ask whether it must finish first (`relations.depends_on`, only if the user says so) or is only a reference (cite `<seed-slug>/constraint-N` in text, no `parent`). Never infer (`reference.md` §8). Child `relations.link_reason` (`reference.md` §8): ask if not evident; no answer → null, never fabricated.
 
 **Refine mode (A3)**: If user says '이 스펙 다듬어줘' with a prior seed file path:
 - Read metadata for `<prev-seed-path>` first, then relevant content. Restore scores and selected requirement/issue/relation facts only within current approved scope (§8 and [the lifecycle contract](../../reference/seed-lifecycle.md)); unknown/paused/closed never become current requirements merely by naming the file.
