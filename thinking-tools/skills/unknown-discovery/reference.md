@@ -81,6 +81,7 @@
 ### Phase 3
 - [ ] Discovery Report 생성
 - [ ] Critical 항목에 액션 아이템 포함
+- [ ] 미확인 Critical/Important 가정에 반박 관찰·최소 검증·달라질 판단 제안 (이미 확인된 사실이면 실험 대신 근거 기록; Quick Mode는 Critical만)
 - [ ] Post-Discovery 옵션 제시
 
 ## 6. Exploration Depth Scoring
@@ -458,6 +459,7 @@ Quick Mode output format:
 
 ### Findings
 1. [{C|I|N}] {finding}
+   ↳ 검증 제안: {refuting observation} / {cheapest check} / {decision it changes}   (Critical unconfirmed assumption only)
 2. [{C|I|N}] {finding}
 ...
 
@@ -549,14 +551,15 @@ Round N | Area: {current_area} (targeting lowest area) | 진행 중/충분
    - **Critical**: Could this cause project failure?
    - **Important**: Does this affect timeline/quality/cost?
    - **Nice-to-have**: Is this an optimization/improvement opportunity?
-3. Extract key insights
+3. For each Critical or Important `assumption` finding that is not already confirmed by evidence, add an assumption test: the observation that would refute it, the cheapest check that could produce that observation, and the decision that changes with the result. When existing evidence or a quick lookup already settles it, record that fact instead of prescribing an experiment. This is a proposal only: do not run the check, claim the assumption is resolved, or treat it as a Seed requirement or activation approval. In Quick Discovery Mode, apply this only to Critical findings that are unconfirmed assumptions, on the `↳ 검증 제안` line of the Quick output.
+4. Extract key insights
 
 #### Phase 3: Documentation & Bridge
 <!-- Active during Phase 3 only -->
 
 1. Discovery Report 생성 (템플릿: [templates/DISCOVERY_REPORT.md](templates/DISCOVERY_REPORT.md)) — YAML frontmatter 블록 선행 작성 후 서사체 본문 작성. frontmatter 누락 시: YAML 블록을 별도 출력하고 "보고서 앞에 붙이세요" 안내.
 2. Exploration Depth 요약 포함
-3. 권장 액션 아이템 도출
+3. 권장 액션 아이템 도출 — Phase 2의 가정 검증 제안은 해당 발견의 `action`에 담고, 확보한 사실과 제안한 검증을 구분한다. 검증 실행 승인이 아니며 Seed 요구사항이나 활성화 승인도 아니다.
 4. 인터뷰 메타데이터 기록
 5. **Post-Discovery Options** 제시 (AskUserQuestion):
    - **Expert Panel**: Critical 발견에 대해 다관점 전문가 토론 (`/expert-panel` 연계)
