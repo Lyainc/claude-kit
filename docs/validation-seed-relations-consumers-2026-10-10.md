@@ -231,23 +231,32 @@ S1·S2는 설치본을 현재 런타임에서 실행한 증거, S3는 local-harn
 한 번 거부한 뒤의 재시도는 통과시킨다. Seed 판별은 append 가드의 `reads_as_seed()`를 재사용하고, 서브에이전트는
 payload의 `agent_id`로 자기 기록(`<session>/subagents/agent-<id>.jsonl`)을 본다. 이 배치는 프로브 훅으로 실측했다.
 Claude 2.1.301에서 서브에이전트 payload의 `transcript_path`는 부모 기록을 가리켰다. 수정 전 소스에는 이 훅이
-없으므로 self-test의 미확인 Seed Read 거부 사례가 재현 테스트다(24개 통과).
+없으므로 self-test의 미확인 Seed Read 거부 사례가 재현 테스트다.
 
-재실측은 소스 `3f3b9af`의 thinking-tools를 `claude -p --plugin-dir`로 붙인 Claude Code 2.1.301 헤드리스
-세션(claude-sonnet-5-5)에서 새 fixture 사본으로 했다. 소스 플러그인의 현재 런타임 실행이며, 설치본 7.2.0에는
-이 훅이 없다. 설치본 갱신은 하지 않았다. 시각은 KST다.
+2라운드 검토에서 build-spec의 실제 intake 모양(`for s in …; do … metadata docs/specs/held-$s.yaml`)은 명령에
+basename이 없어 metadata를 이미 실행한 Seed도 거부된다는 오탐이 재현됐다. `49da514`에서 metadata 호출이 출력한
+`"path"`도 대조하도록 고쳤고(`sed -i` 편집은 읽기에서 제외), 원래 S2 transcript를 재생하면 held Seed 3개는
+통과하고 metadata를 부르지 않은 hub만 거부된다. 수정 전 판정은 held-paused를 거부했다. 이 루프 사례가 self-test
+재현 테스트다(28개 통과).
+
+최종 재실측은 소스 `49da514`의 thinking-tools를 `claude -p --plugin-dir`로 붙인 Claude Code 2.1.301 헤드리스
+세션(claude-sonnet-5-5)에서 새 fixture 사본으로 했다. 로드한 가드 바이트의 SHA-256은 `hooks/seed-read-guard.sh`
+`fb2cccb9654275b973ea9738b420e2fc93a12776ef35a6b0b53dafda02a55f5b`, `scripts/seed-read-check.py`
+`39e287d613a94f9fe2760b7b82be41bde45f97b5d86e8495127c85927ff2059b`, `.claude-plugin/plugin.json`
+`6c30e4dd8ad1172e537b7a851a3f4a416db1a4532716bc5e0b6ff6573d15b4e2`이다. 소스 플러그인의 현재 런타임 실행이며,
+설치본 7.2.0에는 이 훅이 없다. 설치본 갱신은 하지 않았다. 시각은 KST다.
 
 | 시나리오 | 실제 순서 | 적용·보류 | Seed 해시 |
 |---|---|---|---|
-| S4a 직접 읽기 | 15:53:02.987 Read 거부(`PreToolUse:Read hook error`) → 15:53:05.036 metadata → 15:53:07.677 Read 본문 | 재개 질문 후 멈춤, 쓰기 없음 | 전후 동일 |
-| S4a 서브에이전트 | Agent 15:53:04.050 → 15:53:07.174 서브에이전트 Read 거부 → 15:53:09.362 metadata → 본문 읽지 않고 멈춤 | 쓰기 없음 | 전후 동일 |
-| S4b 직접 읽기 | 15:53:01.753 Glob 경로 나열 → 15:53:03.157 `cat` 루프 거부 → 15:53:05.938 metadata ×4 → 15:53:08.791 hub 본문 Read | hub-1/2/3/5만 생성, 철회·paused·closed·unknown 미적용 | Seed 4개 동일 |
-| S1 next-goal | Skill → 15:53:03.986 metadata → walk·hub 본문 | 거부 0회. acceptance-5만 후보 | 전후 동일 |
+| S4a 직접 읽기 | 15:59:30.055 Read 거부(`PreToolUse:Read hook error`) → 15:59:32.338 metadata → 본문 읽지 않고 멈춤 | 재개 질문, 쓰기 없음 | 전후 동일 |
+| S4a 서브에이전트 | Agent 15:59:32.040 → 15:59:35.153 서브에이전트 Read 거부 → 15:59:37.492 metadata → 본문 읽지 않고 멈춤 | 쓰기 없음 | 전후 동일 |
+| S4b 직접 읽기 | 15:59:29.192 Glob 경로 나열 → 15:59:31.272 `cat` 루프 거부 → 15:59:33.743 루프 metadata ×4 → 15:59:37.312 hub 본문 `cat` | hub-1/2/3/5만 생성, 철회·paused·closed·unknown 미적용 | Seed 4개 동일 |
+| S1 next-goal | Skill → 15:59:32.259 metadata → walk·hub 본문 | 거부 0회. acceptance-5만 후보 | 전후 동일 |
 
 거부된 호출은 본문을 돌려주지 않았으므로, 네 시나리오 모두 Seed 본문이 모델에 전달되기 전에 metadata가
 성공했다. 서브에이전트에서 거부가 났다는 것은 훅이 서브에이전트 기록을 실제로 읽었다는 뜻이다(읽지 못하면
-통과한다). S4b의 metadata 명령은 `$f.yaml` 루프 변수를 써서 basename 매칭에 걸리지 않았지만, Seed당 한 번 규칙
-때문에 두 번째 거부는 없었다. 이것이 basename 휴리스틱의 실측 한계다. Bash 판정은 휴리스틱이라 모든 읽기를
-막는다고 주장하지 않으며(constraint-3), Codex에는 이 훅이 없다.
+통과한다). 같은 시나리오를 `3f3b9af` 판정으로 먼저 실행한 결과(15:53 KST)도 순서가 같았고 `rerun1/`에 보존했다.
+Bash 판정은 휴리스틱이라 `python3 -c open(...)`이나 공식 도구와 섞인 파이프 같은 읽기는 통과하며, 모든 읽기를
+막는다고 주장하지 않는다(constraint-3). Codex에는 이 훅이 없다.
 
-원시 stream 기록과 해시는 저장소 밖 증거 루트의 `rerun/`에 있다.
+원시 stream 기록과 해시는 저장소 밖 증거 루트의 `rerun/`(최종)과 `rerun1/`에 있다.
