@@ -60,8 +60,7 @@ def _words(segment: str) -> list[str]:
 def bash_candidates(command: str, cwd: str) -> list[str]:
     if ".yaml" not in command and ".yml" not in command:
         return []
-    if any(t in command for t in TOOLS):
-        return []
+    has_tool = any(t in command for t in TOOLS)
     wd = cwd or os.getcwd()
     found: list[str] = []
     for seg in SPLIT.split(command):
@@ -78,11 +77,19 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
             if not os.path.isdir(wd):
                 return []
             continue
-        if first not in READERS or (first == "sed" and any(w.startswith("-i") for w in words)):
+        # A segment running a Seed tool is that tool's own read. A loop header is skipped when the
+        # command runs one, since its body is usually the tool.
+        # ponytail: `walk a.yaml; for f in x.yaml; do cat $f; done` still passes; upgrade: parse loops.
+        if any(t in seg for t in TOOLS) or (has_tool and first in ("for", "while", "until")):
             continue
+        if first not in READERS or (first == "sed" and any(w.startswith(("-i", "--in-place")) for w in words)):
+            continue
+        prev = ""
         for w in words[1:]:
-            if not w.endswith((".yaml", ".yml")):
+            target, prev = prev in (">", ">>") or w.startswith(">"), w
+            if target or not w.endswith((".yaml", ".yml")):  # a redirect target is written, not read
                 continue
+            w = os.path.expanduser(w)
             p = w if os.path.isabs(w) else os.path.join(wd, w)
             if any(c in p for c in "*?["):
                 found.extend(sorted(glob.glob(p)))
@@ -113,17 +120,17 @@ def _strings(obj):
 
 
 def scan_transcript(tp: str):
-    """Return (metadata_commands, metadata_paths, denial_strings), or None when unreadable.
+    """Return (metadata_paths, denial_strings), or None when unreadable.
 
     metadata_paths are the `"path"` values a `seed-relations.py metadata` call printed, so a
-    loop like `for s in a b; do ... metadata docs/specs/$s.yaml; done` still counts.
+    loop like `for s in a b; do ... metadata docs/specs/$s.yaml; done` still counts and a failed
+    call (no JSON printed) does not.
     """
     try:
         with open(tp, encoding="utf-8", errors="replace") as f:
             lines = f.read().splitlines()
     except Exception:
         return None
-    commands: list[str] = []
     meta_ids: set[str] = set()
     paths: list[str] = []
     results: list[str] = []
@@ -143,7 +150,6 @@ def scan_transcript(tp: str):
             if e.get("type") == "assistant" and b.get("type") == "tool_use" and b.get("name") == "Bash":
                 cmd = (b.get("input") or {}).get("command")
                 if isinstance(cmd, str):
-                    commands.append(cmd)
                     if "seed-relations.py" in cmd and "metadata" in cmd and b.get("id"):
                         meta_ids.add(b["id"])
             elif b.get("type") == "tool_result":
@@ -151,7 +157,7 @@ def scan_transcript(tp: str):
                 results.extend(t for t in texts if MARKER in t)
                 if b.get("tool_use_id") in meta_ids:
                     paths.extend(m for t in texts for m in META_PATH.findall(t))
-    return commands, paths, results
+    return paths, results
 
 
 def decide(payload: dict) -> str:
@@ -173,16 +179,12 @@ def decide(payload: dict) -> str:
     scanned = scan_transcript(transcript_path(payload))
     if scanned is None:
         return ""
-    commands, paths, results = scanned
+    paths, results = scanned
     unseen = []
     for s in seeds:
-        base = os.path.basename(s)
-        # ponytail: path-suffix and basename match; ceiling: two Seeds whose relative paths (or
-        # basenames, for the command check) coincide in different repos share one metadata call;
-        # upgrade: resolve each metadata call's cwd.
-        if any(s == p or s.endswith("/" + p.lstrip("./")) for p in paths):
-            continue
-        if any("seed-relations.py" in c and "metadata" in c and base in c for c in commands):
+        # ponytail: relative-path suffix match; ceiling: two repos' Seeds at the same relative path
+        # share one metadata call; upgrade: resolve each metadata call's cwd.
+        if any(s == p or s.endswith("/" + p.removeprefix("./")) for p in paths):
             continue
         if any(s in r for r in results):  # already denied once for this Seed in this transcript
             continue
@@ -230,7 +232,7 @@ def _self_test() -> int:
         Path(tmpl).write_text('skill: build-spec\n')
         t_none, t_meta = f"{d}/t/none.jsonl", f"{d}/t/meta.jsonl"
         tr(t_none, commands=["ls"])
-        tr(t_meta, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'])
+        tr(t_meta, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'], outputs=[f'{{"path": "{seed}"}}'])
         # build-spec's real loop shape (#814 S2): the basename never appears in the command.
         t_loop = f"{d}/t/loop.jsonl"
         tr(t_loop, commands=['for s in x; do python3 /p/seed-relations.py metadata docs/specs/$s.yaml --json; done'],
@@ -238,13 +240,20 @@ def _self_test() -> int:
         t_walk = f"{d}/t/walk.jsonl"
         tr(t_walk, commands=['python3 /p/seed-relations.py walk docs/specs/$s.yaml --json'],
            outputs=['{"path": "docs/specs/x.yaml"}'])
+        # #895 review: a failed metadata call (no JSON) or another Seed's call does not count.
+        t_failed = f"{d}/t/failed.jsonl"
+        tr(t_failed, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'],
+           outputs=["seed-relations: not a file: x.yaml"])
+        t_other = f"{d}/t/other.jsonl"
+        tr(t_other, commands=['python3 /p/seed-relations.py metadata docs/specs/old-x.yaml --json'],
+           outputs=['{"path": "docs/specs/old-x.yaml"}'])
         t_denied = f"{d}/t/denied.jsonl"
         tr(t_denied, results=[f"{MARKER} metadata를 먼저 실행해요: ... {seed} ..."])
         # subagent layout: parent transcript t/main.jsonl, subagent at t/main/subagents/agent-a1.jsonl
         t_main = f"{d}/t/main.jsonl"
-        tr(t_main, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'])
+        tr(t_main, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'], outputs=[f'{{"path": "{seed}"}}'])
         tr(f"{d}/t/main/subagents/agent-a1.jsonl", commands=["ls"])
-        tr(f"{d}/t/main/subagents/agent-a2.jsonl", commands=[f'python3 /p/seed-relations.py metadata {seed} --json'])
+        tr(f"{d}/t/main/subagents/agent-a2.jsonl", commands=[f'python3 /p/seed-relations.py metadata {seed} --json'], outputs=[f'{{"path": "{seed}"}}'])
 
         def read(p, t):
             return {"tool_name": "Read", "tool_input": {"file_path": p}, "transcript_path": t}
@@ -259,6 +268,22 @@ def _self_test() -> int:
         check("read seed, walk output is not metadata", decide(read(seed, t_walk)), True)
         check("bash sed -i is an edit", decide(bash("sed -i '' s/a/b/ docs/specs/x.yaml", t_none)), False)
         check("bash sed -n still reads", decide(bash("sed -n 1,5p docs/specs/x.yaml", t_none)), True)
+        check("read seed, metadata failed", decide(read(seed, t_failed)), True)
+        check("read seed, metadata for old-x only", decide(read(seed, t_other)), True)
+        check("bash tool prefix is no bypass", decide(bash("python3 /p/seed-relations.py walk a.yaml; cat docs/specs/x.yaml", t_none)), True)
+        check("bash metadata loop over glob", decide(bash("for f in docs/specs/*.yaml; do python3 /p/seed-relations.py metadata $f; done", t_none)), False)
+        check("bash heredoc write is no read", decide(bash("cat > docs/specs/x.yaml <<'EOF'\nskill: build-spec\nEOF", t_none)), False)
+        check("bash append write is no read", decide(bash("cat a.txt >> docs/specs/x.yaml", t_none)), False)
+        check("bash sed --in-place is an edit", decide(bash("sed --in-place s/a/b/ docs/specs/x.yaml", t_none)), False)
+        home = os.environ.get("HOME")
+        os.environ["HOME"] = d
+        try:
+            check("bash ~ path expands", decide(bash("cat ~/docs/specs/x.yaml", t_none)), True)
+        finally:
+            if home is None:
+                os.environ.pop("HOME")
+            else:
+                os.environ["HOME"] = home
         check("read non-seed yaml", decide(read(plain, t_none)), False)
         check("read template", decide(read(tmpl, t_none)), False)
         check("read non-yaml", decide(read(f"{d}/nope.txt", t_none)), False)
