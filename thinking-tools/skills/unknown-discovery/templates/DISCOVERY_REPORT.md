@@ -28,7 +28,7 @@ findings:
     impact: <1-5>
     likelihood: <1-5>
     rationale: <one sentence>
-    action: <recommended action>
+    action: <recommended action; unconfirmed assumption → refuting observation, cheapest check, decision it changes (proposal, not run); wrap the whole value in double quotes>
 ---
 
 # Unknown Unknowns Discovery Report
