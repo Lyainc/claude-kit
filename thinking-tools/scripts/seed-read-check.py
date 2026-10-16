@@ -35,6 +35,7 @@ READERS = {"cat", "head", "tail", "sed", "less", "more", "grep", "egrep", "rg", 
 SPLIT = re.compile(r"&&|\|\||;|\||\n")
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 MARKER = "Seed 본문을 읽기 전에"
+META_PATH = re.compile(r'"path":\s*"([^"]+)"')
 
 
 def is_seed_file(path: str) -> bool:
@@ -77,7 +78,7 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
             if not os.path.isdir(wd):
                 return []
             continue
-        if first not in READERS:
+        if first not in READERS or (first == "sed" and any(w.startswith("-i") for w in words)):
             continue
         for w in words[1:]:
             if not w.endswith((".yaml", ".yml")):
@@ -112,13 +113,19 @@ def _strings(obj):
 
 
 def scan_transcript(tp: str):
-    """Return (metadata_commands, tool_result_strings), or None when unreadable."""
+    """Return (metadata_commands, metadata_paths, denial_strings), or None when unreadable.
+
+    metadata_paths are the `"path"` values a `seed-relations.py metadata` call printed, so a
+    loop like `for s in a b; do ... metadata docs/specs/$s.yaml; done` still counts.
+    """
     try:
         with open(tp, encoding="utf-8", errors="replace") as f:
             lines = f.read().splitlines()
     except Exception:
         return None
     commands: list[str] = []
+    meta_ids: set[str] = set()
+    paths: list[str] = []
     results: list[str] = []
     for line in lines:
         try:
@@ -137,9 +144,14 @@ def scan_transcript(tp: str):
                 cmd = (b.get("input") or {}).get("command")
                 if isinstance(cmd, str):
                     commands.append(cmd)
+                    if "seed-relations.py" in cmd and "metadata" in cmd and b.get("id"):
+                        meta_ids.add(b["id"])
             elif b.get("type") == "tool_result":
-                results.extend(s for s in _strings(b.get("content")) if MARKER in s)
-    return commands, results
+                texts = list(_strings(b.get("content")))
+                results.extend(t for t in texts if MARKER in t)
+                if b.get("tool_use_id") in meta_ids:
+                    paths.extend(m for t in texts for m in META_PATH.findall(t))
+    return commands, paths, results
 
 
 def decide(payload: dict) -> str:
@@ -161,12 +173,15 @@ def decide(payload: dict) -> str:
     scanned = scan_transcript(transcript_path(payload))
     if scanned is None:
         return ""
-    commands, results = scanned
+    commands, paths, results = scanned
     unseen = []
     for s in seeds:
         base = os.path.basename(s)
-        # ponytail: basename match; ceiling: two Seeds with the same basename in different dirs
-        # share one metadata call; upgrade: resolve the command's path.
+        # ponytail: path-suffix and basename match; ceiling: two Seeds whose relative paths (or
+        # basenames, for the command check) coincide in different repos share one metadata call;
+        # upgrade: resolve each metadata call's cwd.
+        if any(s == p or s.endswith("/" + p.lstrip("./")) for p in paths):
+            continue
         if any("seed-relations.py" in c and "metadata" in c and base in c for c in commands):
             continue
         if any(s in r for r in results):  # already denied once for this Seed in this transcript
@@ -189,11 +204,14 @@ def _self_test() -> int:
             failed += 1
             print(f"FAIL: {name}: got {got!r}", file=sys.stderr)
 
-    def tr(path, commands=(), results=()):
+    def tr(path, commands=(), results=(), outputs=()):
         rows = []
-        for c in commands:
+        for i, c in enumerate(commands):
             rows.append({"type": "assistant", "message": {"content": [
-                {"type": "tool_use", "name": "Bash", "input": {"command": c}}]}})
+                {"type": "tool_use", "id": f"t{i}", "name": "Bash", "input": {"command": c}}]}})
+            if i < len(outputs):
+                rows.append({"type": "user", "message": {"content": [
+                    {"type": "tool_result", "tool_use_id": f"t{i}", "content": outputs[i]}]}})
         for r in results:
             rows.append({"type": "user", "message": {"content": [
                 {"type": "tool_result", "content": r}]}})
@@ -213,6 +231,13 @@ def _self_test() -> int:
         t_none, t_meta = f"{d}/t/none.jsonl", f"{d}/t/meta.jsonl"
         tr(t_none, commands=["ls"])
         tr(t_meta, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'])
+        # build-spec's real loop shape (#814 S2): the basename never appears in the command.
+        t_loop = f"{d}/t/loop.jsonl"
+        tr(t_loop, commands=['for s in x; do python3 /p/seed-relations.py metadata docs/specs/$s.yaml --json; done'],
+           outputs=['{"path": "docs/specs/x.yaml", "title": "t", "lifecycle": {}}'])
+        t_walk = f"{d}/t/walk.jsonl"
+        tr(t_walk, commands=['python3 /p/seed-relations.py walk docs/specs/$s.yaml --json'],
+           outputs=['{"path": "docs/specs/x.yaml"}'])
         t_denied = f"{d}/t/denied.jsonl"
         tr(t_denied, results=[f"{MARKER} metadata를 먼저 실행해요: ... {seed} ..."])
         # subagent layout: parent transcript t/main.jsonl, subagent at t/main/subagents/agent-a1.jsonl
@@ -230,6 +255,10 @@ def _self_test() -> int:
         check("read seed unseen", decide(read(seed, t_none)), True)
         check("read seed seen", decide(read(seed, t_meta)), False)
         check("read seed already denied once", decide(read(seed, t_denied)), False)
+        check("read seed, loop metadata output", decide(read(seed, t_loop)), False)
+        check("read seed, walk output is not metadata", decide(read(seed, t_walk)), True)
+        check("bash sed -i is an edit", decide(bash("sed -i '' s/a/b/ docs/specs/x.yaml", t_none)), False)
+        check("bash sed -n still reads", decide(bash("sed -n 1,5p docs/specs/x.yaml", t_none)), True)
         check("read non-seed yaml", decide(read(plain, t_none)), False)
         check("read template", decide(read(tmpl, t_none)), False)
         check("read non-yaml", decide(read(f"{d}/nope.txt", t_none)), False)
