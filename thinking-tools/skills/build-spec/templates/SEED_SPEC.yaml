@@ -67,7 +67,7 @@ success_criteria:     # ids are acceptance-N; a child Seed's relations.refines p
   - id: acceptance-1
     description: <observable outcome>
     verifiable: <true|false>
-    measurable_via: <metric, test, or observation method>
+    measurable_via: <metric, test, or observation method; outcome improvement: baseline (or unknown + how to obtain), target and window, evaluation point, basis for the target — wrap a multi-part value in double quotes>
   # add more: acceptance-2, acceptance-3, ...
 
 context:
