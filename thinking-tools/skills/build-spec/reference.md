@@ -181,6 +181,8 @@ edits for unknown fields, journaling, disappearing ids and lifecycle violations.
 inherit that hook: preserve the prior file, explicitly run `seed-lifecycle.py check <seed>
 --before <prior-file>` and `seed-relations.py check <seed>`, and verify the actual user approval.
 For a new file omit `--before`. A passing validator cannot establish human approval by itself.
+`hooks/seed-read-guard.sh` denies a Claude Read/cat of a Seed body until `seed-relations.py
+metadata` ran for it in that transcript (once per Seed); Codex has no such hook.
 
 ## 8. Seed Relations — Phase 0 question and Phase 3 relation write (#780)
 
