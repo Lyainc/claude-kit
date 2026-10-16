@@ -259,4 +259,11 @@ basename이 없어 metadata를 이미 실행한 Seed도 거부된다는 오탐�
 Bash 판정은 휴리스틱이라 `python3 -c open(...)`이나 공식 도구와 섞인 파이프 같은 읽기는 통과하며, 모든 읽기를
 막는다고 주장하지 않는다(constraint-3). Codex에는 이 훅이 없다.
 
+PR #895 코드 리뷰(medium)에서 가드 결함 네 개가 재현됐다. 명령 어딘가에 Seed 도구가 있으면 모든 세그먼트를
+건너뛰어 `walk a.yaml; cat seed.yaml`이 통과했고, `cat > seed.yaml <<EOF` 같은 쓰기를 읽기로 거부했고, 실패했거나
+다른 Seed의 metadata 호출을 명령 문자열로 인정했고, `~` 경로를 펼치지 않았다. 같은 payload를 수정 전 판정에 넣으면
+네 가지가 모두 재현되고 수정 후에는 해소된다(self-test 36개). 기록된 next-goal·build-spec·session-close 소비와 최종
+next-goal 재실측 기록을 호출 직전까지 잘라 수정된 판정에 재생하면 거부는 0회다. 이 재생은 판정부 재실행이며 위
+헤드리스 재실측을 수정된 바이트로 다시 한 것은 아니다.
+
 원시 stream 기록과 해시는 저장소 밖 증거 루트의 `rerun/`(최종)과 `rerun1/`에 있다.
