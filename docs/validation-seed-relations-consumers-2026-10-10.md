@@ -149,3 +149,65 @@ mod 테스트를 다시 실행해 모두 통과했다. 위 실제 소비자 실�
 검증 실행 중에는 설치 변경·실제 vault 작업·커밋·push·PR·merge·이슈 쓰기를 하지 않았다.
 이후 사용자 지시로 renderer 수정과 이 문서를 커밋해 PR #839로 올렸다.
 Seed의 전체 완료나 closed 전환, 현재 원본 main과 설치본에서의 통합 실행은 이 결과로 주장하지 않는다.
+
+## 후속 · 2026-10-16: 생애주기 보류 소비 trace (#814, Claude)
+
+`docs/specs/seed-lifecycle-residual-validation.yaml`의 acceptance-2 중 **Claude 쪽**만 실측했다.
+Codex trace는 Codex 런타임에서만 얻을 수 있어 **미검증**으로 남긴다. acceptance-3·4는 다루지 않았다.
+
+### 기준과 로드한 바이트
+
+| 항목 | 관찰 |
+|---|---|
+| 소스 | origin/main `44f796a8f80386ac3a570c43b4690d0b287a2eb3` |
+| 로드 사본 | thinking-tools 7.2.0 설치본(`gitCommitSha` `d4fdc60`). S1·S2 Skill 결과의 `Base directory`가 이 경로 |
+| 소스 대비 | thinking-tools 추적 파일 103개 중 98개 SHA-256 일치. 차이 5개는 build-spec outcome 지표 문구와 unknown-discovery 최소 검증 문구뿐이고 `seed-relations.py`·`seed-lifecycle.md`·next-goal SKILL/reference·build-spec SKILL은 바이트 동일 |
+| session-close | `~/.claude/skills/session-close`는 local-harness 작업 트리로의 symlink. local-harness `dcfdeb3`(clean), SKILL.md SHA-256 `992a7c06…4a90a41` |
+| 런타임 | Claude Code 2.1.301, 새 컨텍스트 general-purpose 서브에이전트, 모델 claude-sonnet-5-5 |
+
+S1·S2는 설치본을 현재 런타임에서 실행한 증거, S3는 local-harness 소스 바이트의 Seed 대조 절만
+실행한 증거다. 셋 다 **합성 fixture** 대상이며 실제 제품 Seed나 새 세션의 설치본 discovery를 주장하지
+않는다(constraint-4). 설치본·local-harness는 갱신하지 않았다.
+
+### Fixture
+
+저장소 밖 임시 경로의 Git 저장소(커밋 `27ccc67`)에 version 3 Seed 네 개를 두었다. 시나리오마다
+독립 사본을 썼다. 네 파일 모두 `seed-relations.py check`와 `seed-lifecycle.py check`가 exit 0이다.
+
+| Seed | 상태 | metadata eligibility |
+|---|---|---|
+| `hub.yaml` | active, acceptance-4 철회, acceptance-1~3은 아래 자식이 이행 | eligible, `excluded_items: [acceptance-4]` |
+| `held-paused.yaml` | paused, hub acceptance-1 이행 | false, `paused` |
+| `held-closed.yaml` | closed/discontinued, hub acceptance-2 이행 | false, `closed: discontinued` |
+| `held-unknown.yaml` | 생애주기 없음, hub acceptance-3 이행 | false, `unknown lifecycle` |
+
+에이전트에는 사용자가 응답할 수 없으니 확인이 필요하면 질문만 적고 멈추라고 했고, metadata 순서는
+알려 주지 않았다. 원시 기록은 서브에이전트 transcript JSONL에서 뽑았으며 저장소 밖에 있어 이 문서만으로
+재열람할 수 없다.
+
+### 실제 도구 순서 (시각 KST)
+
+| 시나리오 | 첫 Seed 접근 | 이후 본문 접근 | 적용·보류 | Seed 해시 |
+|---|---|---|---|---|
+| S1 next-goal (Skill, hub 지정) | 15:24:25.412 metadata hub `toolu_011XoWtH8iRX6W9HtEj5WujJ` | 15:24:28.089 walk + 적격 hub 본문 `toolu_016WbMcvzD2U7MbCxwBEUWem`; 보류 자식 본문 읽기 없음 | NEXT=hub acceptance-5; acceptance-1/2/3은 자식 paused/closed/unknown으로, acceptance-4는 철회로 SKIPPED | 전후 동일 |
+| S2 build-spec (Skill, 세 held Seed refine + acceptance-4 복원 요청) | 15:24:24.873 metadata ×3 `toolu_01Mq7Qztb7mB9UKhgSYorqPt` | 없음 | intake에서 멈춤: paused 재개·unknown 적용 승인, closed는 새 Seed 제안, 철회 복원 거부. 쓰기 없음 | 전후 동일 |
+| S3 session-close ② Seed 대조 | 15:24:24.719 metadata ×4 `toolu_01GWLAmSogp5Er7Zb28in9Tb` | 15:24:29.211 walk + hub 본문·자식 relations 절 `toolu_01XaGkhCEyx6dBtExnMYcRZD` | 적용 없음. paused·unknown은 질문 후 보류, closed 동결, stage ③에는 hub acceptance-5만 직접 후보로 넘김 | 전후 동일 |
+| S4a 일반 직접 읽기 (`held-paused.yaml`대로 작업) | 15:24:22.148 `cat` 본문 `toolu_0132UGCQEtwbS6wh4ZvMZZsb`, metadata 호출 없음 | — | 파일 머리 AMENDMENT CONTRACT를 근거로 재개 질문 후 멈춤. 쓰기 없음 | 전후 동일 |
+| S4b 일반 직접 읽기 (`docs/specs/` 전체 구현) | 15:24:24.451 `cat` 전체 `toolu_01DvUjU2RqvsP9yf6ZnMaEPE`, metadata 호출 없음 | — | `proof/hub-{1,2,3,5}.txt`만 생성(15:24:27.606). hub-4·paused·closed·unknown 요구는 미적용 | Seed 4개 동일, proof 4개만 추가 |
+
+공식 소비 경로 세 개(S1~S3)는 metadata가 Seed 본문 읽기보다 먼저 성공했고 보류 상태의 요구가 적용
+후보에서 빠졌다. "미답 전후"는 각 에이전트가 질문을 남기고 멈춘 뒤의 해시와 시작 전 해시의 비교다.
+
+### 직접 읽기 한계와 관찰
+
+- 일반 직접 읽기(S4a·S4b)는 metadata 없이 본문을 먼저 읽었다. 이런 경로에 metadata를 앞세우는
+  장치는 없고, 보류는 파일 머리 계약을 읽은 모델의 판단으로만 일어났다. constraint-3대로 임의 읽기를
+  기술적으로 막는다고 주장하지 않는다. 두 실행 모두 보류 상태 요구는 적용하지 않았지만, 이는 이 모델·이
+  fixture의 관찰이지 보장이 아니다.
+- S4b는 보류된 자식이 이행하는 hub acceptance-1~3을 직접 충족했다. 철회되지 않은 active 항목이라 헤더
+  계약 위반은 아니지만, 같은 항목을 next-goal(S1)은 자식 상태 때문에 보류했다. 이 판단은 next-goal
+  reference의 Seed walk 규칙에만 있고 Seed 머리 계약에는 없다.
+- S1에서 next-goal-context 훅은 fixture가 아니라 서브에이전트 프로세스 작업 디렉터리(claude-kit)의
+  백로그를 주입했고, 에이전트는 다른 저장소 것이라 제외했다. Seed 보류 판정에는 영향이 없었다.
+
+결함 수정은 하지 않았다. 위 한계는 #814에 근거와 함께 남겼다.
