@@ -591,6 +591,37 @@ class LifecycleTests(unittest.TestCase):
         lines,code = sr.cmd_check(rd,'docs/specs/c.yaml',parse(relink))
         self.assertEqual(code,0,lines)
 
+    def test_pinned_provenance_is_append_only(self):
+        # A detached Seed could drop its previous-parent pin in a later edit and still pass.
+        pin = {'seed':'docs/specs/p.yaml','commit':'a'*40,'items':['acceptance-1']}
+        detached = spec(); detached['relations']['provenance'] = [pin]
+        before = parse(detached)
+        for rows in ([],[dict(pin,commit='b'*40)],[dict(pin,seed='docs/specs/q.yaml')],[dict(pin,items=[])]):
+            after = copy.deepcopy(detached); after['relations']['provenance'] = rows
+            self.assertIn('append-only',' '.join(lc.transition(before,parse(after))),rows)
+        # Keeping the row (respelled path, more items) and adding a new pin both pass.
+        kept = copy.deepcopy(detached)
+        kept['relations']['provenance'] = [dict(pin,seed='./docs/specs/p.yaml',items=['acceptance-1','acceptance-2']),
+                                           {'seed':'docs/specs/q.yaml','commit':'c'*40,'items':['acceptance-1']}]
+        self.assertEqual(lc.transition(before,parse(kept)),[])
+        # A repository reader treats this repo's own coordinate spelling as the same file.
+        rd = sr.Reader(str(self.root)); rd._self_repo = 'owner/repo'
+        coord = copy.deepcopy(detached); coord['relations']['provenance'] = [dict(pin,seed='owner/repo:docs/specs/p.yaml')]
+        self.assertEqual(lc.kept_provenance(before,parse(coord),rd),[])
+        self.assertTrue(lc.kept_provenance(before,parse(coord)))
+        # Correcting a wrong pin needs a new represented approval and reason.
+        fixed = copy.deepcopy(detached); fixed['relations']['provenance'] = [dict(pin,commit='b'*40)]
+        fixed['lifecycle']['approved_by'] = 'user pin correction 2'
+        self.assertEqual(lc.kept_provenance(before,parse(fixed)),[])
+        # The edit guard rejects a Write or an Edit that drops the pin.
+        dropped = copy.deepcopy(detached); dropped['relations']['provenance'] = []
+        target = str(self.root/'docs/specs/c.yaml')
+        payload = {'tool_name':'Write','tool_input':{'file_path':target,'content':dump(dropped)}}
+        self.assertIn('append-only',guard.decide(payload,read_file=lambda _:dump(detached)))
+        prior = dump(detached); line = next(l for l in prior.splitlines() if 'commit:' in l and 'a'*40 in l)
+        payload = {'tool_name':'Edit','tool_input':{'file_path':target,'old_string':line,'new_string':line.replace('a'*40,'b'*40)}}
+        self.assertIn('append-only',guard.decide(payload,read_file=lambda _:prior))
+
     def test_legacy_previous_parent_pins_the_resolved_generation(self):
         # Legacy parents keep latest -vN resolution; the pin must name that file, never a guess.
         self.write('p.yaml',self.legacy()); self.write('p-v2.yaml',self.legacy())

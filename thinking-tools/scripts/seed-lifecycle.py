@@ -347,6 +347,30 @@ def prior_parent_provenance(before,after,rd):
             + str(sorted(before.refines)) + ' in relations.provenance']
 
 
+def kept_provenance(before,after,rd=None):
+    """A pinned provenance row is history: later edits keep its seed and commit, and its items only grow.
+    Correcting a wrongly pinned row is a represented user-approved change, like any other transition."""
+    def rows(seed):
+        r = seed.relations_data.get('provenance') if isinstance(seed.relations_data,dict) else None
+        return [x for x in r if isinstance(x,dict)] if isinstance(r,list) else []
+    def key(v):
+        if not isinstance(v,str) or not v.strip():
+            return v
+        return rd.norm(v,None) if rd else (None,posixpath.normpath(v.strip().lstrip('/')))
+    def items(row):
+        return {i for i in row['items'] if isinstance(i,str)} if isinstance(row.get('items'),list) else set()
+    old,new = before.lifecycle,after.lifecycle
+    if (isinstance(old,dict) and isinstance(new,dict) and text(new.get('approved_by')) and text(new.get('reason'))
+            and new.get('approved_by') != old.get('approved_by')):
+        return []
+    kept = rows(after)
+    return [f'relations.provenance row {row.get("seed")}@{row.get("commit")} items {sorted(items(row))} was dropped or rewritten; '
+            'pinned provenance is append-only unless a new user approval and reason correct it'
+            for row in rows(before)
+            if not any(key(k.get('seed')) == key(row.get('seed')) and k.get('commit') == row.get('commit')
+                       and items(row) <= items(k) for k in kept)]
+
+
 def transition(before,after,reader=None,rel=None):
     """Validate before -> after. `reader`/`rel` (a seed-relations Reader and the repo-relative
     path of `after`) enable the parent-completion rule; without them it is skipped."""
@@ -366,6 +390,7 @@ def transition(before,after,reader=None,rel=None):
     # Only a child edge composed its parent; dropping a version 2 reference edge pins nothing.
     if before.parent and before.parent != after.parent and before.is_child_edge():
         errors += prior_parent_provenance(before,after,reader)
+    errors += kept_provenance(before,after,reader)
     if old != new and before.requirements != after.requirements:
         errors.append('lifecycle transition must preserve original requirement contents and IDs')
     rows = old.get('withdrawn',[]) if isinstance(old,dict) else []
