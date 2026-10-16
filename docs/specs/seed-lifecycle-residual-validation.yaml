@@ -98,7 +98,7 @@ success_criteria:
 context:
   existing_stack:
     - "Python lifecycle/relations validators"
-    - "Version-2 exact Seed relations"
+    - "Version-2 and version-3 exact Seed relations"
     - "Claude Code and Codex metadata-first consumers"
   dependencies:
     - "External local-harness session-close owner; source/install permission and runtime evidence remain separate"
