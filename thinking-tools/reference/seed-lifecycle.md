@@ -172,6 +172,7 @@ Refine으로 활성 Seed의 새 세대를 만드는 경우에도 새 파일 생�
 파일 내용을 읽어 상태를 알아낼 수 있어도 순서를 바꾸지 않아요. 명령 실패는 상태 미확인과
 구별해서 보고하고 본문 읽기·적용을 보류해요. 정적 문구 검사는 실제 실행 증거가 아니며,
 실행 검증은 metadata 도구 호출이 본문 호출보다 앞서는지와 승인 전 파일 보존을 확인해요.
+Claude Code는 `hooks/seed-read-guard.sh`가 같은 기록에서 metadata 없이 Seed 본문을 Read/cat하는 호출을 Seed당 한 번 거부하고, Codex에는 이 훅이 없으며 Bash 판정은 휴리스틱이라 모든 읽기를 막지 않아요.
 
 next-goal은 `eligibility`를 먼저 적용한 후 코드 근거로 남은 일을 판단해요. unknown/paused/
 closed와 철회·영향 불명 항목은 자동 후보에서 제외해요. build-spec과 unknown-discovery도
