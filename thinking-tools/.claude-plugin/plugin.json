@@ -77,6 +77,33 @@
             "if": "Edit(**/*.yml)"
           }
         ]
+      },
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-read-guard.sh",
+            "timeout": 5,
+            "if": "Read(**/*.yaml)"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-read-guard.sh",
+            "timeout": 5,
+            "if": "Read(**/*.yml)"
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-read-guard.sh",
+            "timeout": 5
+          }
+        ]
       }
     ]
   }

@@ -103,6 +103,10 @@ jobs:
           # carries a provenance date too.
           python3 thinking-tools/scripts/seed-append-check.py --self-test
 
+          # Seed read guard: a Read/cat of a Seed body is denied once per Seed until
+          # `seed-relations.py metadata` ran in the same transcript (main and subagent layouts).
+          python3 thinking-tools/scripts/seed-read-check.py --self-test
+
           # Release tooling self-tests (lockstep bump + per-plugin notes generation +
           # the release-trigger policy: label / backstop / bump derivation).
           python3 scripts/bump-version.py --self-test
