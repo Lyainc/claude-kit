@@ -604,10 +604,23 @@ class LifecycleTests(unittest.TestCase):
         kept['relations']['provenance'] = [dict(pin,seed='./docs/specs/p.yaml',items=['acceptance-1','acceptance-2']),
                                            {'seed':'docs/specs/q.yaml','commit':'c'*40,'items':['acceptance-1']}]
         self.assertEqual(lc.transition(before,parse(kept)),[])
-        # The edit guard rejects a Write that drops the pin.
+        # A repository reader treats this repo's own coordinate spelling as the same file.
+        rd = sr.Reader(str(self.root)); rd._self_repo = 'owner/repo'
+        coord = copy.deepcopy(detached); coord['relations']['provenance'] = [dict(pin,seed='owner/repo:docs/specs/p.yaml')]
+        self.assertEqual(lc.kept_provenance(before,parse(coord),rd),[])
+        self.assertTrue(lc.kept_provenance(before,parse(coord)))
+        # Correcting a wrong pin needs a new represented approval and reason.
+        fixed = copy.deepcopy(detached); fixed['relations']['provenance'] = [dict(pin,commit='b'*40)]
+        fixed['lifecycle']['approved_by'] = 'user pin correction 2'
+        self.assertEqual(lc.kept_provenance(before,parse(fixed)),[])
+        # The edit guard rejects a Write or an Edit that drops the pin.
         dropped = copy.deepcopy(detached); dropped['relations']['provenance'] = []
-        payload = {'tool_name':'Write','tool_input':{'file_path':str(self.root/'docs/specs/c.yaml'),'content':dump(dropped)}}
+        target = str(self.root/'docs/specs/c.yaml')
+        payload = {'tool_name':'Write','tool_input':{'file_path':target,'content':dump(dropped)}}
         self.assertIn('append-only',guard.decide(payload,read_file=lambda _:dump(detached)))
+        prior = dump(detached); line = next(l for l in prior.splitlines() if 'commit:' in l and 'a'*40 in l)
+        payload = {'tool_name':'Edit','tool_input':{'file_path':target,'old_string':line,'new_string':line.replace('a'*40,'b'*40)}}
+        self.assertIn('append-only',guard.decide(payload,read_file=lambda _:prior))
 
     def test_legacy_previous_parent_pins_the_resolved_generation(self):
         # Legacy parents keep latest -vN resolution; the pin must name that file, never a guess.
