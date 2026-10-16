@@ -211,13 +211,10 @@ S1·S2는 설치본을 현재 런타임에서 실행한 증거, S3는 local-harn
 
 ### 직접 읽기 한계와 관찰
 
-- **수용 한계.** 일반 직접 읽기(S4a·S4b)는 metadata 없이 본문을 먼저 읽었다. Seed 머리의
-  "Read metadata first" 계약은 파일을 읽어야만 보이므로 이 경로의 metadata 선행은 구조적으로 얻을 수
-  없다. 결함이 아니라 constraint-3에 따른 한계로 분류한다. 따라서 acceptance-2의 Claude 쪽은 공식 소비
-  경로에서만 충족이고, 직접 읽기의 metadata→읽기 trace는 성립하지 않는다. 이런 경로에 metadata를 앞세우는
-  장치는 없고, 보류는 파일 머리 계약을 읽은 모델의 판단으로만 일어났다. constraint-3대로 임의 읽기를
-  기술적으로 막는다고 주장하지 않는다. 두 실행 모두 보류 상태 요구는 적용하지 않았지만, 이는 이 모델·이
-  fixture의 관찰이지 보장이 아니다.
+- **7.2.0 런타임의 직접 읽기.** 위 S4a·S4b(설치본 7.2.0)는 metadata 없이 본문을 먼저 읽었다. Seed 머리의
+  "Read metadata first" 계약은 파일을 읽어야만 보여서 문서만으로는 순서를 얻을 수 없었다. 이 결함은 아래
+  "읽기 가드 재실측"의 `hooks/seed-read-guard.sh`로 Claude 쪽에서 고쳤다. 보류 자체는 두 실행 모두 파일 머리
+  계약을 읽은 모델의 판단으로 일어났다.
 - **범위 밖 결함 후보.** S4b는 보류된 자식이 이행하는 hub acceptance-1~3을 직접 충족했다. 철회되지 않은 active 항목이라 헤더
   계약 위반은 아니지만, 같은 항목을 next-goal(S1)은 자식 상태 때문에 보류했다. 이 판단은 next-goal
   reference의 Seed walk 규칙에만 있고 Seed 머리 계약과 `seed-lifecycle.md` 적용 조건에는 없다.
@@ -225,5 +222,32 @@ S1·S2는 설치본을 현재 런타임에서 실행한 증거, S3는 local-harn
 - **결함 아님.** S1에서 next-goal-context 훅은 fixture가 아니라 서브에이전트 프로세스 작업 디렉터리(claude-kit)의
   백로그를 주입했고, 에이전트는 다른 저장소 것이라 제외했다. Seed 보류 판정에는 영향이 없었다.
 
-코드 수정은 하지 않았다. 위 분류와 근거는
-[#814 코멘트](https://github.com/Lyainc/claude-kit/issues/814#issuecomment-6209559765)에 남겼다.
+처음 분류와 근거는 [#814 코멘트](https://github.com/Lyainc/claude-kit/issues/814#issuecomment-6209559765)에 남겼다.
+
+### 읽기 가드 재실측
+
+사용자 승인으로 `hooks/seed-read-guard.sh`(PreToolUse Read|Bash)와 판정부 `scripts/seed-read-check.py`를
+추가했다. 같은 기록에 그 Seed의 `seed-relations.py metadata` 실행이 없으면 Seed 본문 Read/cat을 거부하고, Seed당
+한 번 거부한 뒤의 재시도는 통과시킨다. Seed 판별은 append 가드의 `reads_as_seed()`를 재사용하고, 서브에이전트는
+payload의 `agent_id`로 자기 기록(`<session>/subagents/agent-<id>.jsonl`)을 본다. 이 배치는 프로브 훅으로 실측했다.
+Claude 2.1.301에서 서브에이전트 payload의 `transcript_path`는 부모 기록을 가리켰다. 수정 전 소스에는 이 훅이
+없으므로 self-test의 미확인 Seed Read 거부 사례가 재현 테스트다(24개 통과).
+
+재실측은 소스 `3f3b9af`의 thinking-tools를 `claude -p --plugin-dir`로 붙인 Claude Code 2.1.301 헤드리스
+세션(claude-sonnet-5-5)에서 새 fixture 사본으로 했다. 소스 플러그인의 현재 런타임 실행이며, 설치본 7.2.0에는
+이 훅이 없다. 설치본 갱신은 하지 않았다. 시각은 KST다.
+
+| 시나리오 | 실제 순서 | 적용·보류 | Seed 해시 |
+|---|---|---|---|
+| S4a 직접 읽기 | 15:53:02.987 Read 거부(`PreToolUse:Read hook error`) → 15:53:05.036 metadata → 15:53:07.677 Read 본문 | 재개 질문 후 멈춤, 쓰기 없음 | 전후 동일 |
+| S4a 서브에이전트 | Agent 15:53:04.050 → 15:53:07.174 서브에이전트 Read 거부 → 15:53:09.362 metadata → 본문 읽지 않고 멈춤 | 쓰기 없음 | 전후 동일 |
+| S4b 직접 읽기 | 15:53:01.753 Glob 경로 나열 → 15:53:03.157 `cat` 루프 거부 → 15:53:05.938 metadata ×4 → 15:53:08.791 hub 본문 Read | hub-1/2/3/5만 생성, 철회·paused·closed·unknown 미적용 | Seed 4개 동일 |
+| S1 next-goal | Skill → 15:53:03.986 metadata → walk·hub 본문 | 거부 0회. acceptance-5만 후보 | 전후 동일 |
+
+거부된 호출은 본문을 돌려주지 않았으므로, 네 시나리오 모두 Seed 본문이 모델에 전달되기 전에 metadata가
+성공했다. 서브에이전트에서 거부가 났다는 것은 훅이 서브에이전트 기록을 실제로 읽었다는 뜻이다(읽지 못하면
+통과한다). S4b의 metadata 명령은 `$f.yaml` 루프 변수를 써서 basename 매칭에 걸리지 않았지만, Seed당 한 번 규칙
+때문에 두 번째 거부는 없었다. 이것이 basename 휴리스틱의 실측 한계다. Bash 판정은 휴리스틱이라 모든 읽기를
+막는다고 주장하지 않으며(constraint-3), Codex에는 이 훅이 없다.
+
+원시 stream 기록과 해시는 저장소 밖 증거 루트의 `rerun/`에 있다.
