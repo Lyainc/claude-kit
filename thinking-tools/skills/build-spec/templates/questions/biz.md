@@ -22,7 +22,8 @@ Select the most relevant question per dimension per round. Adapt to user's speci
 ## Success Criteria
 
 - 3개월 후 이 프로젝트가 성공했는지 어떻게 알 수 있나요?
-- 구체적인 KPI 목표가 있나요? (예: 전환율 5%p 향상)
+- 구체적인 KPI 목표가 있나요? 그 목표 값은 무엇을 근거로 정했나요?
+- 그 지표의 지금 기준값은 얼마이고, 누구를 어느 기간 동안 재서 언제 판단하나요? 모르는 값은 모른다고 하셔도 돼요.
 - 이해관계자가 "성공"이라고 판단하는 기준은 무엇인가요?
 - 최소 성공 기준(MVP)은 무엇인가요?
 - 실패 시나리오를 어떻게 정의하나요?

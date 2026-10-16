@@ -30,6 +30,8 @@ For each dimension, evaluate after receiving the user's answer. Mark Y/N and wri
 | success-check-3 | 성공 기준이 목표와 직접 연결되나? | Criteria would actually validate the goal |
 | success-check-4 | 측정 방법 또는 관찰 방법이 제시됐나? | How to check if criterion is met is inferable |
 
+Outcome-improvement criteria (a user or business metric should move) make `measurable_via` carry the baseline, the measured target and window, the evaluation point, and the basis for the target value. A missing baseline or basis stays marked unknown together with how to obtain it; never invent numbers or user answers. Keep feature acceptance separate from post-launch outcome evaluation, and do not add a long-term evaluation the user has not confirmed as a completion gate. Feature-correctness criteria get no extra metric or question. A request mixing both keeps them as separate `acceptance-N` entries. Write the unknown inside `measurable_via`; a value marked unknown with how to obtain it keeps `verifiable: true` and still counts as an inferable check method for success-check-4.
+
 ### Context Clarity (3 questions, brownfield only)
 
 | # | Question | Y if... |
