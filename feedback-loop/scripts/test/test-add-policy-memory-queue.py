@@ -15,6 +15,10 @@ entry that lists the whole queue; this pins what it promises:
 3. EXECUTED: §6-snippet, run against a temp HOME, lists a `metadata:`-nested `type: feedback`
    whose filename differs from its slug in two projects, and an unreadable file or directory
    surfaces on stderr NAMING the path — the property "unread is 미확인, not empty" rests on.
+4. #891: deletion requires full coverage, stronger memories strengthen an existing entry,
+   and lossy Claude project keys never establish ownership. These are prose contract pins,
+   not an executable classifier. A temp fixture executes only the real read-only scan and
+   demonstrates the my-app / my/app key collision even when both directories exist.
 
 Usage:
     python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py
@@ -64,7 +68,22 @@ _QUEUE_CLAIMS = [
     ("delete-only block", "as a delete-only block"),
     ("delete-only memory 중복 tail", "— 이미 매립돼 지울게요` (not §3's \"매립 후\" tail)"),
     ("Codex unsupported", "on Codex report the review as unsupported"),
+    ("contradiction is not landed", "A memory that contradicts a site rule is reported as a contradiction"),
+    ("recoverable deletion only", "file and its `MEMORY.md` line, recoverable trash only"),
 ]
+
+# Each clause gets a deletion mutation below. These pin instructions to the LLM;
+# no Python keyword oracle pretends to make its coverage or ownership judgment.
+_REGRESSION_CLAIMS = [
+    ("full obligation coverage", "A site must fully cover every memory obligation, scope, and exception before 이미 매립됨."),
+    ("stronger memory strengthens existing entry", "If the memory is stronger, route it to strengthening the existing entry with its evidence; never delete it."),
+    ("exact deletion comparison", "Show the exact site text, memory text, and their diff side by side before delete confirmation."),
+    ("explicit project ownership evidence", "Resolve the project directory only from unambiguous explicit user, project, or session metadata evidence."),
+    ("lossy project name cannot establish ownership", "Never reverse the lossy projects directory name or treat directory existence alone as ownership evidence."),
+    ("unresolved ownership blocks project-site deletion", "For uncertain or conflicting ownership, report 프로젝트 디렉터리 미확인; do not use that project's site for deletion."),
+    ("independent global coverage remains valid", "Independently established machine-global site coverage may still apply."),
+]
+_QUEUE_CLAIMS += _REGRESSION_CLAIMS
 
 
 def _norm(text: str) -> str:
@@ -132,11 +151,47 @@ def _load() -> tuple[str, str, str]:
     return skill, ref, codex
 
 
+def check_project_collision(ref: str) -> list[str]:
+    """Execute the native listing against a disposable, ambiguous project fixture only."""
+    snippet = _routing._extract_memory_snippet(ref)
+    if snippet is None:
+        return ["no §6-snippet bash block for project collision fixture"]
+    errors = []
+    with tempfile.TemporaryDirectory() as tmp:
+        home = Path(tmp)
+        projects = (home / "work/my-app", home / "work/my/app")
+        for project in projects:
+            project.mkdir(parents=True)
+            (project / "CLAUDE.md").write_text(f"Project: {project}\n", encoding="utf-8")
+        # This lossy key deliberately describes both existing paths. It is not
+        # an ownership resolver; the prose contract must reject that inference.
+        keys = [str(project).replace("/", "-") for project in projects]
+        if keys[0] != keys[1] or not all(project.is_dir() for project in projects):
+            return ["my-app / my/app fixture did not produce two existing paths with one key"]
+        memory = home / ".claude/projects" / keys[0] / "memory"
+        memory.mkdir(parents=True)
+        item = memory / "feedback_ownership.md"
+        item.write_text("---\nname: feedback-ownership\ntype: feedback\n---\nKeep ownership evidence.\n", encoding="utf-8")
+        (memory / "MEMORY.md").write_text("- [ownership](feedback_ownership.md)\n", encoding="utf-8")
+        before = {p.relative_to(home): p.read_bytes() for p in home.rglob("*") if p.is_file()}
+        result = _routing._run_snippet(snippet, home, "/bin/sh")
+        if result.returncode or result.stderr or result.stdout.splitlines() != [str(item)]:
+            errors.append(f"ambiguous-project fixture memory not cleanly listed: {result!r}")
+        after = {p.relative_to(home): p.read_bytes() for p in home.rglob("*") if p.is_file()}
+        if after != before:
+            errors.append("native scan modified the ambiguous-project fixture")
+    return errors
+
+
 def _self_test() -> int:
     skill, ref, codex = _load()
     mutations = [
         ("pointer decays to a citation", skill.replace("apply reference §6-queue-contract as written", "see §6-queue-contract"), ref, codex),
         ("evidence rule dropped", skill, ref.replace("**No evidence pointer, no candidate.**", ""), codex),
+        ("no-evidence hold dropped", skill, ref.replace("**근거 없음 — 보류**", ""), codex),
+        ("contradiction guard dropped", skill, ref.replace("A memory that contradicts a site rule is reported as a contradiction", ""), codex),
+        ("delete confirmation dropped", skill, ref.replace("Never delete or write without it.", ""), codex),
+        ("recoverable trash dropped", skill, ref.replace("recoverable trash only", "permanent removal"), codex),
         ("미확인 rule dropped", skill, ref.replace("**Unread is unverified, not empty.**", ""), codex),
         ("cross-project signal dropped", skill, ref.replace("**여러 프로젝트 (n곳)**", "여러 프로젝트"), codex),
         ("forked scan", skill, ref.replace("## §6-queue-contract", "## §6-queue-contract\n```bash\nfind ~ -name '*.md'\n```\n", 1), codex),
@@ -144,9 +199,16 @@ def _self_test() -> int:
         ("codex note dropped", skill, ref, codex.replace("unsupported on Codex", "")),
         ("section renamed", skill, ref.replace("## §6-queue-contract", "## §6-queue"), codex),
     ]
+    mutations += [
+        (name + " dropped", skill, re.sub(r"\s+".join(map(re.escape, phrase.split())), "", ref), codex)
+        for name, phrase in _REGRESSION_CLAIMS
+    ]
     failed = 0
     ok = not check_static(skill, ref, codex)
     print(f"  [{'OK' if ok else 'FAIL'}] real files pass")
+    failed += not ok
+    ok = not check_project_collision(ref)
+    print(f"  [{'OK' if ok else 'FAIL'}] colliding existing project paths: native scan is read-only")
     failed += not ok
     for name, s, r, c in mutations:
         assert (s, r, c) != (skill, ref, codex), f"mutation no-opped: {name}"
@@ -159,7 +221,7 @@ def _self_test() -> int:
     if failed:
         print(f"\nSELF-TEST FAILED: {failed} case(s)")
         return 1
-    print(f"\nOK: all {len(mutations) + 2} self-test cases passed")
+    print(f"\nOK: all {len(mutations) + 3} self-test cases passed")
     return 0
 
 
@@ -167,7 +229,7 @@ def main(argv: list[str]) -> int:
     if argv[:1] == ["--self-test"]:
         return _self_test()
     skill, ref, codex = _load()
-    errors = check_static(skill, ref, codex) + check_snippet(ref)
+    errors = check_static(skill, ref, codex) + check_snippet(ref) + check_project_collision(ref)
     for e in errors:
         print(f"  [FAIL] {e}")
     if errors:
