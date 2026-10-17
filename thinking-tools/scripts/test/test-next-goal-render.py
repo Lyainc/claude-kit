@@ -409,18 +409,32 @@ def main():
                   for line in text.splitlines()]
         check("Claude panel uses exactly 80 display cells", code == 0 and widths and
               all(width == 80 for width in widths), f"{code} {widths} {text!r} {err}")
-        content = " ".join(line[2:-2].strip() for line in text.splitlines() if line.startswith("│ "))
+        content = " ".join(" ".join(line[2:-2] for line in text.splitlines() if line.startswith("| ")).split())
         return text, content
 
     boxed, content = panel(panel_j)
-    check("Claude box has labeled sections and a closed frame", re.fullmatch(r"╭─ NEXT ─+╮", boxed.splitlines()[0])
-          and all("├─ " + label + " " in boxed for label in ("FROM", "SKIPPED", "TRACE"))
-          and boxed.splitlines()[-1] == "╰" + "─" * 78 + "╯", boxed)
-    check("healthy TRACE is compact and names the selected path", "c ─▸ p" in content and
+    check("Claude box has one closed frame and content labels", boxed.splitlines()[0] == "+" + "-" * 78 + "+"
+          and all("| " + label + " " in boxed for label in ("NEXT", "FROM", "SKIPPED", "TRACE"))
+          and boxed.splitlines()[-1] == "+" + "-" * 78 + "+"
+          and "├" not in boxed and all(line[2:-2].strip() for line in boxed.splitlines()[1:-1]), boxed)
+    check("healthy TRACE keeps the actual edge and compact evidence", "c →parent p" in content and
           "2/25 방문 · 깊이 ≤ 3 · 근거 #" in content and re.search(r"근거 #[0-9a-f]{8}\b", content)
           and "방문 대상:" not in content and " @ " not in content and panel_id not in content, content)
-    check("FROM preserves small target descriptions and separate labels", "p/acceptance-1 · parent outcome" in content
-          and all(label in content for label in ("근거", "착수", "변화")), content)
+    check("FROM names the source and keeps scope plus why/readiness/benefit", "FROM Seed p acceptance-1 · parent outcome" in content
+          and all(value in content for value in (panel_j["pick"]["evidence"], panel_j["pick"]["startable_reason"],
+                                                panel_j["pick"]["user_change"]))
+          and all(label in content for label in ("근거", "착수", "변화"))
+          and "p/acceptance-1" not in content, content)
+
+    sibling_repo = _repo()
+    sibling_parent = Path(sibling_repo) / "docs/specs/p.yaml"
+    sibling_parent.write_text(sibling_parent.read_text().replace(
+        "other/repo:docs/specs/x.yaml", "docs/specs/sibling.yaml"))
+    (Path(sibling_repo) / "docs/specs/sibling.yaml").write_text(
+        (Path(sibling_repo) / "docs/specs/c.yaml").read_text().replace("target: child", "target: sibling"))
+    _, content = panel(_judgment(_walk_id(sibling_repo), pick_via="docs/specs/sibling.yaml", alternatives=[]), sibling_repo)
+    check("healthy TRACE preserves parent and child edges", "c →parent p →children sibling" in content
+          and "FROM Seed sibling acceptance-1 · child outcome" in content, content)
 
     long_path = "docs/" + "한글Ａé" * 70 + "/target.yaml"
     wide = {"handoff": "none", "pick": {"title": "한글·●✓…→ Ａ é " * 30, "via": "session",
@@ -428,23 +442,37 @@ def main():
             "startable_reason": "확인 대기", "user_change": "변경 확인", "note": "유지보수 기록 보존"}, "alternatives": []}
     boxed, content = panel(wide)
     check("unbroken paths and combining marks survive wrapping", long_path in content.replace(" ", "")
-          and "é" in content and not any(line.startswith("│ ́") for line in boxed.splitlines()), boxed)
-    check("long labeled paragraphs use hanging indentation", any(line.startswith("│       ") and "긴 근거" in line
-          for line in boxed.splitlines()) and "? 미확인" in content and "유지보수 기록 보존" in content, boxed)
+          and "é" in content and not any(line.startswith("| ́") for line in boxed.splitlines()), boxed)
+    check("long labeled paragraphs use hanging indentation", any(line.startswith("|       ") and "긴 근거" in line
+          for line in boxed.splitlines()) and "미확인: 확인 대기" in content and "유지보수 기록 보존" in content, boxed)
     for tone in ("〮", "〯"):
         wide["pick"]["title"] = "a" * 72 + "한" + tone
         boxed, _ = panel(wide)
         check("Hangul combining tone stays with its base at the wrap boundary",
               any("한" + tone in line for line in boxed.splitlines()), boxed)
 
-    # Only truly consecutive runs collapse; a sparse selection never implies the missing id.
+    # Every selected requirement keeps its own meaning, even with more than two targets.
+    descriptions = {2: "선행 승인 없이 파일을 덮어쓰지 않아요", 3: "선택하지 않은 요구사항",
+                    4: "검사 실패 시 기존 파일과 오류 근거를 보존해요", 5: "사용자가 결과를 다시 검증할 수 있어요"}
     panel_parent.write_text(panel_parent.read_text() + "\n" + "".join(
-        "  - id: acceptance-%d\n    description: target description %d\n" % (i, i) for i in range(2, 6)))
+        "  - id: acceptance-%d\n    description: %s\n" % (i, desc) for i, desc in descriptions.items()))
     many = _judgment(_walk_id(panel_repo), alternatives=[])
     many["pick"]["targets"] = ["acceptance-1", "acceptance-2", "acceptance-4", "acceptance-5"]
     _, content = panel(many)
-    check("sparse ranges never include omitted targets", "p/acceptance-1 … 2; p/acceptance-4 … 5" in content
-          and "target description" not in content and "parent outcome" not in content, content)
+    check("many targets keep every literal id and meaningful description", all(
+        "acceptance-%d · %s" % (i, desc) in content
+        for i, desc in {1: "parent outcome", **descriptions}.items() if i != 3)
+          and "acceptance-3" not in content and descriptions[3] not in content and " … " not in content, content)
+    check("selected affiliation is stated once in FROM", content.count("Seed p") == 1
+          and "p/acceptance-" not in content, content)
+
+    long_meaning = "요구사항의 중요한 의미를 잘라내지 않고 보존하는 동작을 확인해요 " * 4
+    panel_parent.write_text(panel_parent.read_text().replace(descriptions[2], long_meaning))
+    many["walk_id"] = _walk_id(panel_repo)
+    _, content = panel(many)
+    expected_desc = ngr._shorten_desc(long_meaning.strip())
+    check("many targets retain the existing 80-character description budget", expected_desc in content
+          and expected_desc.endswith("…") and len(expected_desc) > 60, content)
 
     for handoff, gaps in (("none", []), ("none", [gap]), ("missing", [gap])):
         _, content = panel({"handoff": handoff, "pick": None, "alternatives": [], "unverified": gaps})
@@ -480,7 +508,7 @@ def main():
     reversed_args = subprocess.run([sys.executable, str(_SCRIPT), "--runtime", "claude", "--cwd", panel_repo],
                                   input=json.dumps(no_seed), capture_output=True, encoding="utf-8", env=_env())
     check("runtime and cwd flags accept either order", reversed_args.returncode == 0
-          and reversed_args.stdout.startswith("╭─ NEXT "), str(reversed_args))
+          and reversed_args.stdout.startswith("+" + "-" * 78 + "+\n| NEXT"), str(reversed_args))
     default_args = subprocess.run([sys.executable, str(_SCRIPT)], cwd=panel_repo,
                                  input=json.dumps(no_seed), capture_output=True, encoding="utf-8", env=_env())
     check("CLI defaults to cwd and plain output", (default_args.returncode, default_args.stdout, default_args.stderr)

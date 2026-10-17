@@ -1007,9 +1007,10 @@ python3 thinking-tools/scripts/test/test-seed-id-migrate.py
 python3 thinking-tools/scripts/test/test-next-goal-render.py
 # #826: no-pick scoped absence vs unevaluated scope vs missing handoff; unavailable backlog
 # survives handoff none/missing; STOP assertions match actual walker targets and causes.
-# #861: --runtime claude renders an 80-column CJK-aware box with compact healthy TRACE;
-# default/--runtime codex stay plain. Width, wrapping, sparse ids, warnings and identical refusal
-# behavior are checked; the seed-board mod tests also accept the boxed success output.
+# #861: --runtime claude uses one closed 80-column CJK-aware frame, content labels and compact
+# healthy TRACE with actual edges. Every selected id keeps its description, including >2 targets;
+# FROM names their affiliation once. Plain/default Codex, wrapping, sparse scope, warnings and
+# identical refusals stay covered; seed-board mod tests also accept boxed success output.
 # Expected: OK: all test-next-goal-render checks passed
 
 # Seed board Mods (#815) — CI의 seed-board-mods job이 Claude Code CLI 2.1.296으로 고정해 같은 두 명령을

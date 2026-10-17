@@ -103,17 +103,14 @@ const judgeOut = (pick: Pick | null): string =>
   ].join('\n')
 
 const boxedOut = (body: string, trace = 'walk visited=5'): string => {
-  const row = (text: string) => `│ ${text.padEnd(76)} │`
+  const row = (text: string) => `| ${text.padEnd(76)} |`
   return [
-    `╭─ NEXT ${'─'.repeat(71)}╮`,
-    row(`▸ ${body}`),
-    `├─ FROM ${'─'.repeat(71)}┤`,
-    row(A),
-    `├─ SKIPPED ${'─'.repeat(68)}┤`,
-    row('none'),
-    `├─ TRACE ${'─'.repeat(70)}┤`,
-    row(trace),
-    `╰${'─'.repeat(78)}╯`,
+    `+${'-'.repeat(78)}+`,
+    row(`NEXT ${body}`),
+    row(`FROM ${A}`),
+    row('SKIPPED none'),
+    row(`TRACE ${trace}`),
+    `+${'-'.repeat(78)}+`,
   ].join('\n')
 }
 
@@ -538,7 +535,7 @@ test('rejected renderers and missing stdout never become judgments', async ($, o
   b.out = { text: '', isError: false, omitText: true }
   await $.tool.call({ tool: 'Bash', command })
   // A border without the renderer's NEXT heading is not a successful judgment either.
-  await bash($, b, command, output.replace('╭─ NEXT ', '╭─ ERROR '))
+  await bash($, b, command, output.replace('| NEXT ', '| ERROR '))
   const ui = await mountPane($, 'terminal')
   expect(await texts(ui)).toEqual(['아직 Seed 탐색 결과가 없어요. next-goal이 Seed를 탐색하면 여기에 보여요.'])
   expect(b.forbidden).toEqual([])
