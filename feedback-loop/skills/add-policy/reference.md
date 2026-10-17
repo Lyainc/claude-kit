@@ -560,15 +560,26 @@ never end the review silently.
 
 **Step 2 — judge each item** against the sites of §3-sites (the reminder channels, including the
 catalogue index plus its linked detail files; hook matchers and guard scripts; skills) and the
-memory's own project `CLAUDE.md`/`AGENTS.md` when its directory resolves. Exactly one verdict
-each, every verdict with its 근거 — one of the three below, or one of the two non-candidate
-outcomes after the table (근거 없음 — 보류, contradiction):
+memory's own project `CLAUDE.md`/`AGENTS.md` only after ownership is established.
+Resolve the project directory only from unambiguous explicit user, project, or session metadata
+evidence. Never reverse the lossy projects directory name or treat directory existence alone as
+ownership evidence. For uncertain or conflicting ownership, report 프로젝트 디렉터리 미확인;
+do not use that project's site for deletion. Independently established machine-global site
+coverage may still apply. A missing or unreadable referenced directory is also unverified.
+Exactly one verdict each, every verdict with its 근거 — one of the three below, or one of the two
+non-candidate outcomes after the table (근거 없음 — 보류, contradiction):
+
+A site must fully cover every memory obligation, scope, and exception before 이미 매립됨.
 
 | 판정 | When | 근거 required |
 |------|------|---------------|
-| **이미 매립됨** — 삭제 후보 | a site already states the same rule (stricter or looser wording alike: the site wins) | the site `path:line` that states it |
-| **매립 후보** — 사이트 제안 | a reusable rule no site states | the memory's own evidence pointer — when, and which instruction or incident (its `Why:` line or equivalent) — plus the proposed site per §3-tier |
+| **이미 매립됨** — 삭제 후보 | a verified site fully covers the memory rule; no obligation, scope, or exception is lost | the site `path:line` that states it |
+| **매립 후보** — 사이트 제안 | a reusable rule no site states, or an evidenced strengthening of an existing entry | the memory's own evidence pointer — when, and which instruction or incident (its `Why:` line or equivalent) — plus the proposed site per §3-tier |
 | **프로젝트 고유 사실** — 유지 | a fact about one project, not a reusable work rule | one line on why it is project-bound |
+
+If the memory is stronger, route it to strengthening the existing entry with its evidence;
+never delete it. Existing no-evidence and contradiction outcomes below take priority; uncertain
+coverage stays on hold, never a deletion candidate.
 
 **No evidence pointer, no candidate.** A rule-shaped memory that cannot point at when and which
 instruction or incident produced it is **not** a 매립 후보: report it as **근거 없음 — 보류**
@@ -594,8 +605,11 @@ memory 대기열 점검
 gate's utterance), then runs §3/§6 normally. Deleting 이미 매립됨 items uses the §3 confirmation
 shape, as a delete-only block: the `## 분류 결과` block with `규칙` (the memory's rule), `들어갈 곳: 없음 —
 이미 <site path:line>`, `memory 중복: memory에도 있어요: <path...> — 이미 매립돼 지울게요` (not §3's "매립 후" tail),
-`필요성: 통과` (no gate question), and every other field `none`; then AskUserQuestion "이미 매립된 이
-memory 항목을 지울까요?" (not §3's landing question); after a yes, §6-memory-contract's removal rule
+`필요성: 통과` (no gate question), and every other field `none`.
+Show the exact site text, memory text, and their diff side by side before delete confirmation.
+Add `site 규칙: <verbatim site clause>`, `memory 규칙: <verbatim memory clause>`, and
+`차이: <coverage comparison, including scope and exceptions>` to that block; a path alone or a
+paraphrase is insufficient. Then AskUserQuestion "이미 매립된 이 memory 항목을 지울까요?" (not §3's landing question); after a yes, §6-memory-contract's removal rule
 (file and its `MEMORY.md` line, recoverable trash only). Never delete or write without it.
 
 

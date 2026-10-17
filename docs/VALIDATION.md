@@ -809,12 +809,15 @@ python3 feedback-loop/scripts/test/test-add-policy-index-detail.py
 # queue, but it emptied only when a matching rule happened to be landed). Pins §6-queue-contract:
 # read-only, reuses §6-snippet, keys items by path so a filename/`name:` mismatch is still one
 # item, stderr-named paths stay 미확인, three verdicts each with 근거, no evidence -> no candidate,
-# cross-project repeats flagged; codex.md states Codex is unsupported. EXECUTES §6-snippet on a
+# cross-project repeats flagged; #891 requires full coverage, stronger-rule preservation, exact
+# delete comparison, and authoritative project ownership (never a lossy name guess).
+# A colliding my-app/my/app fixture confirms listing is read-only; codex.md stays unsupported.
+# EXECUTES §6-snippet on a
 # `metadata:`-nested `type: feedback` in two projects plus an unreadable file and directory: each
 # unreadable path must be NAMED on stderr and must not drop readable results (BWK awk aborts a
 # `{} +` batch, which is why the snippet runs one awk per file).
 python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py --self-test
-# Expected: OK: all 10 self-test cases passed
+# Expected: OK: all 22 self-test cases passed
 python3 feedback-loop/scripts/test/test-add-policy-memory-queue.py
 # Expected: OK: all add-policy-memory-queue checks passed.
 
