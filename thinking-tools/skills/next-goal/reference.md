@@ -214,7 +214,7 @@ commits, or pushes by itself.
 
 ## Condition evidence
 
-Use the pointer contract below when a versioned source exists. Otherwise write one self-contained
+Abbreviation is optional and independent of source safety. Without a verified pointer, write one self-contained
 paragraph centered on the **problem, current state, resume point, relevant files, protection
 conditions, and observable completion criteria**. Include baseline refs and unresolved facts;
 convert relative dates to absolute dates.
@@ -225,66 +225,66 @@ Passing checks are not repeated without changed files, a new failure, or an unre
 issue. Source validation, installed contents, skill discovery, and live behavior are distinct
 claims requiring their own evidence when the task concerns installation or runtime compatibility.
 
-## Pointer condition
+## Source safety
 
-A pointer removes repeated requirements and reconstructible context, not the evaluator's contract.
-It applies to a walked, eligible Seed or a verified GitHub issue (`owner/repo#N`), including an
-issue supplying a session/backlog candidate's requirements. A candidate without such a source
-keeps the full condition; do not create an issue, Seed, handoff file, hook or clipboard integration
-just to shorten it. These are the author's rules, not a new judgment JSON field or ranking rule.
+Apply this whether the condition is full or abbreviated. A source pin is provenance, never
+approval. Before authoring a Seed pointer, verify the full commit contains the selected Seed
+and the current file matches it. An issue pin is the API's observed `updatedAt` in absolute UTC,
+not read time. Do not invent a pin, implementation baseline, check, target or permission.
 
-| Keep in the goal | Recover at start from the verified source and baseline |
-|---|---|
-| Source identity/version, selected ids or issue scope | Requirement text, problem detail and relevant files |
-| Current metadata/version gate, hold on change, criteria/change output | Full metadata/walk procedure and item descriptions |
-| Exact check/exit 0, independent review/base/round cap | Full review instructions and recovery rationale |
-| Protections, Git permissions, non-reconstructible facts, stop/incomplete clauses | Current implementation and resume point from Git/source |
+The next session's source gate is:
 
-Use compact clauses instead of repeating this skill's procedure. For example, “시작 시 metadata·버전
-확인, 변경/미확인이면 보류·확인, 요구 원문·기준 이후 변경 출력” carries the start contract;
-the ordered steps below tell the executor how. “독립 요구사항 리뷰 0건(base <ref>, 최대 2회,
-인프라 실패 포함·우회 재시도 금지)” carries bounded review without a separate paragraph explaining
-it. The Seed clause can remain “Seed는 명세로 유지하고 진행 기록은 추가하지 않는다”. Never delete a
-gate to shorten a clause. If the required clauses remain long, use the body-only input method.
-
-Before authoring a Seed pointer, verify a full commit SHA containing the selected Seed and that
-the current file matches that committed version. An uncommitted or unavailable Seed version uses
-the full condition with its exact scope and protections instead of inventing a pin or requiring
-an unauthorized commit. Name the path, SHA and exact selected ids; compress only consecutive ids.
-Use a separately verified baseline SHA for implementation progress when it differs from the Seed
-commit. An issue pointer names the GitHub repository, number and the API's observed `updatedAt`
-(absolute UTC), never just `#N` or the time the author happened to read it.
-
-The goal requires this start sequence in the conversation:
-
-1. Recheck Git/worktree state and the baseline's availability. For a Seed, run
-   `seed-relations.py metadata <path> --json` before reading any requirement body, and apply current
-   lifecycle, eligibility, withdrawals and parent-impact gates. A historical pin grants no approval.
-2. Compare the current Seed with the pinned tree (`git diff <seed-sha> -- <path>`, accounting for
-   untracked paths), or retrieve the issue's current body/state/`updatedAt` from the named repository.
+1. Recheck Git/worktree state and implementation baseline availability. For a Seed, run
+   `seed-relations.py metadata <path> --json` before reading any requirement body and
+   apply current lifecycle, eligibility, withdrawals and parent-impact gates.
+2. Compare the current Seed with the pinned tree, accounting for untracked files, or
+   retrieve the issue's current body/state/`updatedAt` from the named repository.
    If the source changed, closed, became unavailable or ineligible, hold requirement application
-   pending user confirmation; never substitute the latest or the old scope silently.
+   pending user confirmation. Never silently substitute old or latest requirements.
 3. After these gates pass, print selected criteria verbatim from
    `seed-relations.py read <path> --json` or the verified issue body, then surface
-   `git log <baseline>..HEAD` and relevant working-tree changes. This puts requirements and actual
-   progress where the evaluator can see them. File names or a claim that the source was read are
-   not evidence. Do not claim a source snapshot is an implementation baseline unless verified.
+   `git log <baseline>..HEAD` and relevant working-tree changes. A source version is not
+   an implementation baseline unless separately verified.
 
-Keep in the goal itself: selected source/scope; the start gate and criteria/progress output;
-one exact relevant check with exit 0; one independent requirement-gap review with base and round
-cap; any unmet item means incomplete; turn/time stop bound; protection and Git authorization limits;
-and facts that cannot be reconstructed. A pointer cannot waive these or an existing Seed clause.
-Do not invent a check, baseline, numeric target, permission or review result to make it shorter.
-If essential clauses cannot fit a short pointer, use the full condition and the long-input method
-below. Codex shares the same content contract and keeps its plain `GOAL` output.
+In the goal carry only one compact start clause: “시작 시 현재 metadata·원본/기준 버전을 확인하고
+변경·미확인·부적격이면 적용을 보류해 확인받는다. 통과하면 선택 요구 원문과 기준 이후 변경을
+대화에 출력한다.” Use only the applicable source checks; do not copy this numbered procedure
+into the goal. A source-less session still checks current work/ownership, without Seed gates.
 
-Illustrative shape (replace placeholders with verified values; this is not an executable goal):
+## Abbreviation
 
-```text
-/goal <Seed path>@<full SHA>의 <selected ids>를 충족한다. <시작 시 원문·변경 출력, 검사·리뷰·보호·중단 조건>을 지킨다.
-```
+Use a pointer only when it is shorter without losing meaning and its verified source contains
+all requirements being omitted. Never create a source or require an unauthorized commit merely
+to shorten a goal. Seed pointers name path+full commit+selected ids; issue pointers name
+repository+number+observed `updatedAt`. Unverified pins and source-less session/backlog candidates
+retain a full condition. A verified pin does not require abbreviation.
 
-For example, in Korean: “<Seed path>@<full SHA>의 acceptance-1~4를 충족한다. 시작 시 현재 metadata·버전을 확인하고 변경/미확인이면 적용을 보류해 확인받으며, 통과 시 요구 원문과 <baseline> 이후 변경을 대화에 출력한다. <검사 명령> exit 0과 <base> 대비 독립 요구사항 리뷰 0건(2라운드 상한)을 보인다. <보호·Git 권한 제한>을 지킨다. 미충족 항목이 있으면 미완료이며 12턴 도달 시 중단한다.” The selected task determines the real check and limits.
+| Keep inline | May be replaced by a verified source pointer |
+|---|---|
+| Selected scope and compact start gate | Problem background and requirement retelling |
+| All caller checks, options and scoring/interpretation caveats | Source-owned file lists and examples |
+| Independent review/base/round cap and unmet/stop conditions | Repeated procedural explanations |
+| Protections, actual Git limits and non-reconstructible facts | Implementation context recoverable at the named baseline |
+
+Preserve **all** caller-mandated checks, not one representative check. With no caller-supplied
+check, require at least one relevant verified check with exit 0; if unknown, say so and keep
+completion unverified. Include their required
+exit/result semantics and known execution options; do not replace a known command with “look
+up the docs”. In particular scoring caveats and cost/publication flags are not expendable
+background. Unknown commands stay explicitly unknown, never fabricated. Carry one independent
+requirement-gap review with base and round cap; a stricter caller limit wins.
+
+Do not add commit/push/PR authority because work is proposed. State the caller's actual permission
+or that unapproved actions remain on hold. Preserve exclusions and source-specific constraints.
+The full and pointer forms share this same safety/evaluation contract. Check each inline clause
+against the caller/source before emitting; dropping a caveat is not successful abbreviation.
+
+Compact shape (placeholders are illustrative, not executable):
+“<Seed path>@<full SHA>의 <selected ids>를 충족한다. <compact source gate>. <all required checks and
+result semantics>; <base> 대비 독립 요구사항 리뷰 0건(최대 <cap>회, 인프라 실패 포함·우회 재시도 금지).
+<protection/Git limits and unresolved facts>. Seed는 명세로 유지하고 진행 기록을 추가하지 않는다.
+미충족이면 미완료이며 <caller cap>에서 중단하고 재개 지점을 남긴다.”
+Do not append the source's requirements or this skill's detailed procedures again.
 
 ## Seed-following condition
 
