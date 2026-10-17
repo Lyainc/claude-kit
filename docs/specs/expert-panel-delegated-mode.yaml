@@ -199,6 +199,10 @@ context:
     원출처, #201(CLOSED) Workflow schema 방어가 dev-harness로 이관 후 CUT되어 이 레포 밖.
     무충돌 확인 — #767 #750 #708 #741 #763.
 
+issues:
+  source: "#768"
+  tracking: ["#864"]
+
 blindspots:
   - area: assumptions
     question: >-
