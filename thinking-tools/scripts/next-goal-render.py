@@ -337,47 +337,32 @@ def _wrap(text, prefix="", continuation=""):
                 line = prefix
             line += c
     lines.append(line)
-    return ["│ " + ln + " " * (76 - _columns(ln)) + " │" for ln in lines]
-
-
-def _compact_targets(rel, via, node, targets):
-    if not _is_seed_via(via) or len(targets) <= 2:
-        return "; ".join(_render_targets(rel, via, node, targets))
-    groups, i = [], 0
-    while i < len(targets):
-        first = targets[i].strip()
-        match = re.fullmatch(r"(constraint-|acceptance-)(\d+)", first)
-        end = i + 1
-        if match:
-            while end < len(targets) and targets[end].strip() == match[1] + str(int(match[2]) + end - i):
-                end += 1
-        label = rel.qualified_id(via, first)
-        if end > i + 1:
-            label += " … " + targets[end - 1].strip().rsplit("-", 1)[1]
-        groups.append(label)
-        i = end
-    return "; ".join(groups)
+    return ["| " + ln + " " * (76 - _columns(ln)) + " |" for ln in lines]
 
 
 def _box(j, nodes, rel, data, current_id, incomplete):
-    sections = [("NEXT", [("▸ ", j["pick"]["title"] if j.get("pick") else "없음")])]
+    sections = [("NEXT", [("", j["pick"]["title"] if j.get("pick") else "없음")])]
     pick = j.get("pick")
     if pick is None:
         source = [("", _from_line(j, nodes, rel, incomplete))]
     else:
         via = pick["via"]
-        name = ("● " + rel.qualified_id(via, "").rstrip("/") if _is_seed_via(via) else
+        name = ("Seed " + rel.qualified_id(via, "").rstrip("/") if _is_seed_via(via) else
                 "이번 세션 후속" if via == "session" else "백로그" if via == "backlog" else via[6:])
-        targets = _compact_targets(rel, via, nodes.get(via, {}), pick.get("targets") or [])
-        source = [("", name + (" → " + targets if targets else "")),
-                  ("근거  ", pick["evidence"]),
-                  ("착수  ", ("✓ 가능" if pick["startable"] == "yes" else "? 미확인") + ": " + pick["startable_reason"]),
-                  ("변화  ", pick["user_change"])]
+        targets = _render_targets(rel, via, nodes.get(via, {}), pick.get("targets") or [])
+        if _is_seed_via(via):
+            # FROM names the affiliation once; every local id still keeps its own description.
+            affiliation = rel.qualified_id(via, "")
+            targets = [target[len(affiliation):] for target in targets]
+        source = [("", name)] + [("", target) for target in targets]
+        source += [("근거  ", pick["evidence"]),
+                   ("착수  ", ("가능" if pick["startable"] == "yes" else "미확인") + ": " + pick["startable_reason"]),
+                   ("변화  ", pick["user_change"])]
         if pick.get("note"):
             source.append(("참고  ", pick["note"]))
     sections.append(("FROM", source))
     sections.append(("SKIPPED", [
-        ("○ ", _skipped_line({"alternatives": [a]})) for a in j.get("alternatives", [])
+        ("", _skipped_line({"alternatives": [a]})) for a in j.get("alternatives", [])
     ] or [("", "없음")]))
     if j["handoff"] != "none" or j["unverified"]:
         abnormal = (data is None or current_id != j["walk_id"] or j["unverified"] or
@@ -393,18 +378,18 @@ def _box(j, nodes, rel, data, current_id, incomplete):
         else:
             w = data["walk"]
             node = nodes.get(pick["via"]) if pick else None
-            path = [w["start"]] + [key for _, key in (node.get("via", []) if node else [])]
-            trace = [("", " ─▸ ".join(rel.qualified_id(key, "").rstrip("/") for key in path)),
+            trace = [("", rel.qualified_id(w["start"], "").rstrip("/") + "".join(
+                         " →" + edge + " " + rel.qualified_id(key, "").rstrip("/")
+                         for edge, key in (node.get("via", []) if node else []))),
                      ("", f"{data['summary']['visited']}/{w['max_nodes']} 방문 · 깊이 ≤ {w['max_depth']} · 근거 #"
                       + hashlib.sha256(w["id"].encode("utf-8")).hexdigest()[:8])]
         sections.append(("TRACE", trace))
-    lines = []
-    for i, (title, rows) in enumerate(sections):
-        header = ("╭" if i == 0 else "├") + "─ " + title + " "
-        lines.append(header + "─" * (79 - _columns(header)) + ("╮" if i == 0 else "┤"))
-        for prefix, text in rows:
-            lines.extend(_wrap(text, prefix, " " * _columns(prefix)))
-    return lines + ["╰" + "─" * 78 + "╯"]
+    lines = ["+" + "-" * 78 + "+"]
+    for title, rows in sections:
+        for i, (prefix, text) in enumerate(rows):
+            label = title + " " if i == 0 else "  "
+            lines.extend(_wrap(text, label + prefix, " " * (_columns(label + prefix))))
+    return lines + ["+" + "-" * 78 + "+"]
 
 
 def render(j, cwd, runtime="codex"):
