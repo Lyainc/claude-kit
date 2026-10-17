@@ -180,6 +180,10 @@ context:
     하위에 없다. #140 · #113의 "세 번째 저작 도구 → 신규 플러그인" 트리거는 이 스펙이
     신규 스킬을 만들지 않으므로 발동하지 않는다.
 
+issues:
+  source: "#418"
+  tracking: ["#899"]
+
 blindspots:
   - area: assumptions
     question: >

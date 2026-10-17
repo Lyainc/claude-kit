@@ -153,6 +153,10 @@ context:
     #113(doc primitive 전용 플러그인 분리)은 다른 축이라 비충돌이며 3자 충돌 이슈와 relates로
     연결한다. #111(build-spec의 thinking-tools 잔류 확정)은 이 전제와 양립한다.
 
+issues:
+  source: "#430"
+  tracking: ["#899"]
+
 blindspots:
   - area: blind-spots
     question: >-

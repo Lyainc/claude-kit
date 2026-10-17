@@ -189,6 +189,10 @@ context:
     - "#204 (OMC glue 제거): OMC 의존 0 설계가 동기를 공유"
     - "#132 (OMC→native): native 대체 가능성의 근거"
 
+issues:
+  source: "#216"
+  tracking: ["#899"]
+
 ambiguity:
   overall: 0.15
   gate_passed: true
