@@ -102,8 +102,20 @@ const judgeOut = (pick: Pick | null): string =>
     'TRACE walk visited=5',
   ].join('\n')
 
+const boxedOut = (body: string, trace = 'walk visited=5'): string => {
+  const row = (text: string) => `| ${text.padEnd(76)} |`
+  return [
+    `+${'-'.repeat(78)}+`,
+    row(`NEXT ${body}`),
+    row(`FROM ${A}`),
+    row('SKIPPED none'),
+    row(`TRACE ${trace}`),
+    `+${'-'.repeat(78)}+`,
+  ].join('\n')
+}
+
 type Bench = {
-  out: { text: string; isError: boolean; gate?: Promise<void>; started?: () => void }
+  out: { text: string; isError: boolean; omitText?: boolean; gate?: Promise<void>; started?: () => void }
   fills: { text: string; mode?: string }[]
   opens: { id: string; title?: string }[]
   forbidden: string[]
@@ -117,6 +129,7 @@ const bench = (on: On): Bench => {
     const out = b.out
     out.started?.()
     if (out.gate) await out.gate
+    if (out.omitText) return { result: { stdout: '', stderr: '', interrupted: false } } as never
     return out.isError
       ? ({ isError: true, result: out.text, text: out.text } as never)
       : ({ result: { stdout: out.text, stderr: '', interrupted: false }, text: out.text } as never)
@@ -246,6 +259,36 @@ for (const surface of SURFACES) {
     expect(open).toContain('착수 가능: yes — 입력이 다 있어요')
     await ui.press({ key: 'cand:대안 하나' })
     expect(await texts(ui)).toContain('결정: 보류 (held)')
+    await ui.unmount()
+  })
+
+  test(`Claude boxed judgments are observed verbatim (${surface})`, async ($, on) => {
+    const b = bench(on)
+    const pick = { title: 'close c1', via: PARENT }
+    const command = judgeCmd({ walkId: 'w1', pick }).replace('next-goal-render.py', 'next-goal-render.py --runtime claude')
+    const output = `${boxedOut(pick.title)}\n`
+    const ran = await bash($, b, command, output)
+    expect(ran.text).toBe(output)
+    const ui = await mountPane($, surface)
+    for (const line of output.trimEnd().split('\n')) expect(await texts(ui)).toContain(line)
+    expect((await ui.findAll({ type: 'Button' })).map(x => x.key)).toContain('cand:close c1')
+    expect(b.forbidden).toEqual([])
+    await ui.unmount()
+  })
+
+  test(`Claude boxed no-pick judgments retain TRACE and unverified scope (${surface})`, async ($, on) => {
+    const b = bench(on)
+    const gap = 'backlog unavailable'
+    const command = judgeCmd({ walkId: null, seed: null, handoff: 'none', pick: null, unverified: [gap] })
+      .replace('next-goal-render.py', 'next-goal-render.py --runtime claude')
+    const output = boxedOut('none', `no walk; unverified: ${gap}`)
+    const ran = await bash($, b, command, output)
+    expect(ran.text).toBe(output)
+    const ui = await mountPane($, surface)
+    const all = await texts(ui)
+    for (const line of output.split('\n')) expect(all).toContain(line)
+    expect(all).toContain(`미확인: ${gap}`)
+    expect(all).toContain('선택한 후보 없음 — 검토 범위와 미확인은 FROM/TRACE 참고')
     await ui.unmount()
   })
 
@@ -476,6 +519,26 @@ test('7 malformed output or heredoc leaves the tool result unchanged and does no
 
   const ui = await mountPane($, 'terminal')
   expect(await texts(ui)).toEqual(['아직 Seed 탐색 결과가 없어요. next-goal이 Seed를 탐색하면 여기에 보여요.'])
+  await ui.unmount()
+})
+
+test('rejected renderers and missing stdout never become judgments', async ($, on) => {
+  const b = bench(on)
+  const command = judgeCmd({ walkId: null, seed: null, handoff: 'none', pick: null })
+    .replace('next-goal-render.py', 'next-goal-render.py --runtime claude')
+  const output = boxedOut('none')
+  const failed = await bash($, b, command, output, true)
+  expect(failed.isError).toBe(true)
+  expect(failed.text).toBe(output)
+  await bash($, b, command, 'next-goal-render: invalid judgment', true)
+  await bash($, b, command, '')
+  b.out = { text: '', isError: false, omitText: true }
+  await $.tool.call({ tool: 'Bash', command })
+  // A border without the renderer's NEXT heading is not a successful judgment either.
+  await bash($, b, command, output.replace('| NEXT ', '| ERROR '))
+  const ui = await mountPane($, 'terminal')
+  expect(await texts(ui)).toEqual(['아직 Seed 탐색 결과가 없어요. next-goal이 Seed를 탐색하면 여기에 보여요.'])
+  expect(b.forbidden).toEqual([])
   await ui.unmount()
 })
 

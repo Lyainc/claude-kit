@@ -24,6 +24,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import unicodedata
 from pathlib import Path
 
 _SCRIPT = Path(__file__).resolve().parents[1] / "next-goal-render.py"
@@ -58,8 +59,8 @@ def _env():
     return {**os.environ, "GH_BIN": "/nonexistent/gh"}
 
 
-def _render(repo, judgment):
-    p = subprocess.run([sys.executable, str(_SCRIPT), "--cwd", repo], input=json.dumps(judgment),
+def _render(repo, judgment, *args):
+    p = subprocess.run([sys.executable, str(_SCRIPT), "--cwd", repo, *args], input=json.dumps(judgment),
                        capture_output=True, encoding="utf-8", env=_env())
     return p.returncode, p.stdout, p.stderr
 
@@ -369,6 +370,9 @@ def main():
         p.write_text(original.replace("  state: active\n  outcome: null\n  reason: requested\n  approved_by: fixture user request\n  evidence:\n    commit: null\n    items: []\n  withdrawn: []\n", replacement), encoding="utf-8")
         code, out, err = _render(repo, _judgment(wid))
         check(label + " after judgment refuses pick before printing", code == 1 and out == "", f"{code} {out!r} {err!r}")
+        for runtime in ("claude", "codex"):
+            check(label + " refusal is unchanged in " + runtime,
+                  _render(repo, _judgment(wid), "--runtime", runtime) == (code, out, err))
     p.write_text(original.replace("lifecycle:\n  state: active\n  outcome: null\n  reason: requested\n  approved_by: fixture user request\n  evidence:\n    commit: null\n    items: []\n  withdrawn: []\n", ""), encoding="utf-8")
     code, out, err = _render(repo, _judgment(wid))
     check("absent lifecycle refuses legacy pick", code == 1 and out == "", f"{code} {out!r} {err!r}")
@@ -385,6 +389,130 @@ def main():
     code, out, err = _render(legacy, j)
     check("new-form target on a legacy Seed is refused with a hint", code == 1 and "'ac1'" in err
           and "seed-id-migrate.py" in err, f"{code} {err!r}")
+
+    # #861: runtime selection changes presentation only, including refusals and diagnostics.
+    panel_repo = _repo()
+    panel_parent = Path(panel_repo) / "docs/specs/p.yaml"
+    panel_parent.write_text(panel_parent.read_text().replace(', other/repo:docs/specs/x.yaml', ''))
+    panel_id = _walk_id(panel_repo)
+    panel_j = _judgment(panel_id, alternatives=[])
+    plain = _render(panel_repo, panel_j)
+    codex = _render(panel_repo, panel_j, "--runtime", "codex")
+    check("explicit Codex preserves plain output", (plain[0], no_clock(plain[1]), plain[2]) ==
+          (codex[0], no_clock(codex[1]), codex[2]), str(codex))
+
+    def panel(judgment, repo=panel_repo):
+        code, text, err = _render(repo, judgment, "--runtime", "claude")
+        # Measure the complete panel, not the wrapper's private helpers.
+        widths = [sum(0 if unicodedata.combining(c) or unicodedata.category(c) in ("Mn", "Me")
+                      else 2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in line)
+                  for line in text.splitlines()]
+        check("Claude panel uses exactly 80 display cells", code == 0 and widths and
+              all(width == 80 for width in widths), f"{code} {widths} {text!r} {err}")
+        content = " ".join(" ".join(line[2:-2] for line in text.splitlines() if line.startswith("| ")).split())
+        return text, content
+
+    boxed, content = panel(panel_j)
+    check("Claude box has one closed frame and content labels", boxed.splitlines()[0] == "+" + "-" * 78 + "+"
+          and all("| " + label + " " in boxed for label in ("NEXT", "FROM", "SKIPPED", "TRACE"))
+          and boxed.splitlines()[-1] == "+" + "-" * 78 + "+"
+          and "├" not in boxed and all(line[2:-2].strip() for line in boxed.splitlines()[1:-1]), boxed)
+    check("healthy TRACE keeps the actual edge and compact evidence", "c →parent p" in content and
+          "2/25 방문 · 깊이 ≤ 3 · 근거 #" in content and re.search(r"근거 #[0-9a-f]{8}\b", content)
+          and "방문 대상:" not in content and " @ " not in content and panel_id not in content, content)
+    check("FROM names the source and keeps scope plus why/readiness/benefit", "FROM Seed p acceptance-1 · parent outcome" in content
+          and all(value in content for value in (panel_j["pick"]["evidence"], panel_j["pick"]["startable_reason"],
+                                                panel_j["pick"]["user_change"]))
+          and all(label in content for label in ("근거", "착수", "변화"))
+          and "p/acceptance-1" not in content, content)
+
+    sibling_repo = _repo()
+    sibling_parent = Path(sibling_repo) / "docs/specs/p.yaml"
+    sibling_parent.write_text(sibling_parent.read_text().replace(
+        "other/repo:docs/specs/x.yaml", "docs/specs/sibling.yaml"))
+    (Path(sibling_repo) / "docs/specs/sibling.yaml").write_text(
+        (Path(sibling_repo) / "docs/specs/c.yaml").read_text().replace("target: child", "target: sibling"))
+    _, content = panel(_judgment(_walk_id(sibling_repo), pick_via="docs/specs/sibling.yaml", alternatives=[]), sibling_repo)
+    check("healthy TRACE preserves parent and child edges", "c →parent p →children sibling" in content
+          and "FROM Seed sibling acceptance-1 · child outcome" in content, content)
+
+    long_path = "docs/" + "한글Ａé" * 70 + "/target.yaml"
+    wide = {"handoff": "none", "pick": {"title": "한글·●✓…→ Ａ é " * 30, "via": "session",
+            "targets": [long_path], "evidence": "긴 근거 " * 65, "startable": "unknown",
+            "startable_reason": "확인 대기", "user_change": "변경 확인", "note": "유지보수 기록 보존"}, "alternatives": []}
+    boxed, content = panel(wide)
+    check("unbroken paths and combining marks survive wrapping", long_path in content.replace(" ", "")
+          and "é" in content and not any(line.startswith("| ́") for line in boxed.splitlines()), boxed)
+    check("long labeled paragraphs use hanging indentation", any(line.startswith("|       ") and "긴 근거" in line
+          for line in boxed.splitlines()) and "미확인: 확인 대기" in content and "유지보수 기록 보존" in content, boxed)
+    for tone in ("〮", "〯"):
+        wide["pick"]["title"] = "a" * 72 + "한" + tone
+        boxed, _ = panel(wide)
+        check("Hangul combining tone stays with its base at the wrap boundary",
+              any("한" + tone in line for line in boxed.splitlines()), boxed)
+
+    # Every selected requirement keeps its own meaning, even with more than two targets.
+    descriptions = {2: "선행 승인 없이 파일을 덮어쓰지 않아요", 3: "선택하지 않은 요구사항",
+                    4: "검사 실패 시 기존 파일과 오류 근거를 보존해요", 5: "사용자가 결과를 다시 검증할 수 있어요"}
+    panel_parent.write_text(panel_parent.read_text() + "\n" + "".join(
+        "  - id: acceptance-%d\n    description: %s\n" % (i, desc) for i, desc in descriptions.items()))
+    many = _judgment(_walk_id(panel_repo), alternatives=[])
+    many["pick"]["targets"] = ["acceptance-1", "acceptance-2", "acceptance-4", "acceptance-5"]
+    _, content = panel(many)
+    check("many targets keep every literal id and meaningful description", all(
+        "acceptance-%d · %s" % (i, desc) in content
+        for i, desc in {1: "parent outcome", **descriptions}.items() if i != 3)
+          and "acceptance-3" not in content and descriptions[3] not in content and " … " not in content, content)
+    check("selected affiliation is stated once in FROM", content.count("Seed p") == 1
+          and "p/acceptance-" not in content, content)
+
+    long_meaning = "요구사항의 중요한 의미를 잘라내지 않고 보존하는 동작을 확인해요 " * 4
+    panel_parent.write_text(panel_parent.read_text().replace(descriptions[2], long_meaning))
+    many["walk_id"] = _walk_id(panel_repo)
+    _, content = panel(many)
+    expected_desc = ngr._shorten_desc(long_meaning.strip())
+    check("many targets retain the existing 80-character description budget", expected_desc in content
+          and expected_desc.endswith("…") and len(expected_desc) > 60, content)
+
+    for handoff, gaps in (("none", []), ("none", [gap]), ("missing", [gap])):
+        _, content = panel({"handoff": handoff, "pick": None, "alternatives": [], "unverified": gaps})
+        check("Claude no-pick preserves the scope conclusion", ("검토한 범위 안" in content if not gaps else
+              gap in content and "가치 있는 후속 후보가 없어요" not in content), content)
+    _, content = panel(bounded, repo)
+    check("Claude retains actual depth-stop diagnostics", "상한으로 중단" in content and "중단:" in content
+          and "other/repo:docs/specs/x.yaml (depth)" in content, content)
+    _, content = panel(_judgment(wid, pick=None, alternatives=[], unverified=[gap]), repo)
+    check("Claude retains failed/external lookup, stale and uncertainty", "조회 실패 1곳" in content
+          and "other/repo:docs/specs/x.yaml" in content and "실패:" in content
+          and "근거 변경됨" in content and gap in content, content)
+    panel_parent.write_text(panel_parent.read_text().replace("parent: null", "parent: docs/specs/c.yaml", 1))
+    _, content = panel(_judgment(_walk_id(panel_repo), pick=None, alternatives=[]))
+    check("Claude retains cycle diagnostics", "순환 1곳" in content and "순환:" in content, content)
+    panel_parent.write_text(panel_parent.read_text().replace("parent: docs/specs/c.yaml", "parent: null", 1)
+                            .replace("children: [docs/specs/c.yaml]", "children: [docs/specs/c.yaml, docs/specs/missing.yaml]"))
+    _, content = panel(_judgment(_walk_id(panel_repo), pick=None, alternatives=[]))
+    check("Claude retains missing-file diagnostic", "없는 파일 1곳" in content and "docs/specs/missing.yaml" in content, content)
+
+    for invalid in (_judgment(wid, pick_via="docs/specs/never.yaml"),
+                    _judgment(wid, pick_via="other/repo:docs/specs/x.yaml"),
+                    {**no_seed, "unverified": [None]},
+                    {**bounded, "walk_stops": [{**stop, "target": "wrong.yaml"}]}):
+        baseline = _render(repo, invalid)
+        for runtime in ("claude", "codex"):
+            result = _render(repo, invalid, "--runtime", runtime)
+            check("refusal is identical for " + runtime, result == baseline and result[0] == 1 and result[1] == "", str(result))
+    for args in (("--runtime", "invalid"), ("--runtime",), ("--runtime", "claude", "extra"),
+                 ("--unknown",), ("--cwd",)):
+        result = _render(panel_repo, no_seed, *args)
+        check("bad CLI arguments exit 2 without output", result[0] == 2 and result[1] == "", str(result))
+    reversed_args = subprocess.run([sys.executable, str(_SCRIPT), "--runtime", "claude", "--cwd", panel_repo],
+                                  input=json.dumps(no_seed), capture_output=True, encoding="utf-8", env=_env())
+    check("runtime and cwd flags accept either order", reversed_args.returncode == 0
+          and reversed_args.stdout.startswith("+" + "-" * 78 + "+\n| NEXT"), str(reversed_args))
+    default_args = subprocess.run([sys.executable, str(_SCRIPT)], cwd=panel_repo,
+                                 input=json.dumps(no_seed), capture_output=True, encoding="utf-8", env=_env())
+    check("CLI defaults to cwd and plain output", (default_args.returncode, default_args.stdout, default_args.stderr)
+          == _render(panel_repo, no_seed, "--runtime", "codex"), str(default_args))
 
     if failures:
         print("\n".join("FAIL " + f for f in failures))

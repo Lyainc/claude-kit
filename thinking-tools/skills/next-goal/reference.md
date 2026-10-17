@@ -121,8 +121,9 @@ Open only the Seeds the walk visited — never list or read `docs/specs/` to loo
   fresh walk, refusing a visited node misidentified as a stopped target or a wrong cause.
   Visited means a NODE record, not that its requirements were evaluated. Keep other evaluation
   gaps in `unverified`; never explain STOP targets in unchecked free text. The renderer always
-  shows actual visited keys/depth/status and stopped edges/targets/causes, even if assertions
-  are omitted. A CYCLE is an edge cut to an already visited node, not an unvisited Seed.
+  retains stopped edges/targets/causes even if assertions are omitted. Plain output lists
+  visited keys/depth/status; the Claude box summarizes healthy walks and retains diagnostics
+  for incomplete walks. A CYCLE is an edge cut to an already visited node, not an unvisited Seed.
 
 **Seed handoff missing.** When the conversation shows the session worked from a Seed but no path was
 handed over, do not search for one: set `handoff: "missing"` so the result reads as a missing
@@ -176,7 +177,7 @@ fabricated goal, issue, or repeated search.
 
 **Every judgment, including no Seed/no pick, is rendered, not typed.** Write the
 judgment once as JSON and print what
-`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --cwd <repo> <<'JSON' ... JSON` returns,
+`python3 "${CLAUDE_PLUGIN_ROOT}/scripts/next-goal-render.py" --runtime <claude|codex> --cwd <repo> <<'JSON' ... JSON` returns,
 via Bash, verbatim — its docstring holds the schema. Each candidate names its `via` (a walked Seed
 key, `session`, `backlog` or `issue:#N`), and the pick carries its `targets`, the observable unmet
 evidence, whether it is startable and why, and the user-facing change; each main alternative carries
@@ -190,7 +191,7 @@ the Seed: FROM's edge path and the extra `TRACE` line (start, visited scope, sto
 unverified, evidence id and time) come from that walk, never from the JSON, and a `via` the walk did
 not visit is refused — fix the judgment, never the path. For a Seed `via`, `targets` are that
 Seed's local item ids exactly as the walk lists them (`constraint-1`, `acceptance-2`; an unmigrated Seed's
-`c1` stays `c1`); the script shows each as its full identifier with the description, and refuses an id the
+`c1` stays `c1`); the plain form shows full identifiers and descriptions, and both forms refuse an id the
 Seed does not define or that current eligibility excludes. Missing eligibility, a blocked Seed or
 required review refuses the whole pick even when the judgment is stale. Name Seed items to the user the way `reference/identifiers.md` says, never by a bare
 `c1`/`ac1`. For `session`, `backlog` or `issue:#N`, `targets` is free text. A `[근거 변경됨 ...]` mark means the Seed
@@ -213,15 +214,77 @@ commits, or pushes by itself.
 
 ## Condition evidence
 
-Write one self-contained paragraph centered on the **problem, current state, resume point,
-relevant files, protection conditions, and observable completion criteria**. Include authoritative
-baseline refs and unresolved facts when needed. Convert relative dates to absolute dates.
+Abbreviation is optional and independent of source safety. Without a verified pointer, write one self-contained
+paragraph centered on the **problem, current state, resume point, relevant files, protection
+conditions, and observable completion criteria**. Include baseline refs and unresolved facts;
+convert relative dates to absolute dates.
 
 Describe the resulting behavior and proof, not a long predetermined execution plan. Name only
 checks relevant to the scope; a wrapper is useful only if it already exists or the work needs it.
 Passing checks are not repeated without changed files, a new failure, or an unresolved material
 issue. Source validation, installed contents, skill discovery, and live behavior are distinct
 claims requiring their own evidence when the task concerns installation or runtime compatibility.
+
+## Source safety
+
+Apply this whether the condition is full or abbreviated. A source pin is provenance, never
+approval. Before authoring a Seed pointer, verify the full commit contains the selected Seed
+and the current file matches it. An issue pin is the API's observed `updatedAt` in absolute UTC,
+not read time. Do not invent a pin, implementation baseline, check, target or permission.
+
+The next session's source gate is:
+
+1. Recheck Git/worktree state and implementation baseline availability. For a Seed, run
+   `seed-relations.py metadata <path> --json` before reading any requirement body and
+   apply current lifecycle, eligibility, withdrawals and parent-impact gates.
+2. Compare the current Seed with the pinned tree, accounting for untracked files, or
+   retrieve the issue's current body/state/`updatedAt` from the named repository.
+   If the source changed, closed, became unavailable or ineligible, hold requirement application
+   pending user confirmation. Never silently substitute old or latest requirements.
+3. After these gates pass, print selected criteria verbatim from
+   `seed-relations.py read <path> --json` or the verified issue body, then surface
+   `git log <baseline>..HEAD` and relevant working-tree changes. A source version is not
+   an implementation baseline unless separately verified.
+
+In the goal carry only one compact start clause: “시작 시 현재 metadata·원본/기준 버전을 확인하고
+변경·미확인·부적격이면 적용을 보류해 확인받는다. 통과하면 선택 요구 원문과 기준 이후 변경을
+대화에 출력한다.” Use only the applicable source checks; do not copy this numbered procedure
+into the goal. A source-less session still checks current work/ownership, without Seed gates.
+
+## Abbreviation
+
+Use a pointer only when it is shorter without losing meaning and its verified source contains
+all requirements being omitted. Never create a source or require an unauthorized commit merely
+to shorten a goal. Seed pointers name path+full commit+selected ids; issue pointers name
+repository+number+observed `updatedAt`. Unverified pins and source-less session/backlog candidates
+retain a full condition. A verified pin does not require abbreviation.
+
+| Keep inline | May be replaced by a verified source pointer |
+|---|---|
+| Selected scope and compact start gate | Problem background and requirement retelling |
+| All caller checks, options and scoring/interpretation caveats | Source-owned file lists and examples |
+| Independent review/base/round cap and unmet/stop conditions | Repeated procedural explanations |
+| Protections, actual Git limits and non-reconstructible facts | Implementation context recoverable at the named baseline |
+
+Preserve **all** caller-mandated checks, not one representative check. With no caller-supplied
+check, require at least one relevant verified check with exit 0; if unknown, say so and keep
+completion unverified. Include their required
+exit/result semantics and known execution options; do not replace a known command with “look
+up the docs”. In particular scoring caveats and cost/publication flags are not expendable
+background. Unknown commands stay explicitly unknown, never fabricated. Carry one independent
+requirement-gap review with base and round cap; a stricter caller limit wins.
+
+Do not add commit/push/PR authority because work is proposed. State the caller's actual permission
+or that unapproved actions remain on hold. Preserve exclusions and source-specific constraints.
+The full and pointer forms share this same safety/evaluation contract. Check each inline clause
+against the caller/source before emitting; dropping a caveat is not successful abbreviation.
+
+Compact shape (placeholders are illustrative, not executable):
+“<Seed path>@<full SHA>의 <selected ids>를 충족한다. <compact source gate>. <all required checks and
+result semantics>; <base> 대비 독립 요구사항 리뷰 0건(최대 <cap>회, 인프라 실패 포함·우회 재시도 금지).
+<protection/Git limits and unresolved facts>. Seed는 명세로 유지하고 진행 기록을 추가하지 않는다.
+미충족이면 미완료이며 <caller cap>에서 중단하고 재개 지점을 남긴다.”
+Do not append the source's requirements or this skill's detailed procedures again.
 
 ## Seed-following condition
 
@@ -244,12 +307,51 @@ means stop with unmet conditions and the resume point; it does not prove complet
 
 ## Claude Code
 
-Place `/goal ` plus the paragraph in one plain three-backtick fence, with nothing following it.
-**Never nest fences** — an inner fence inside an outer one renders as literal backticks, not a
-code block. No tables and no box-drawing frames either; terminal width varies and both wrap into
-garbage. Keep the condition within the native 4,000-character limit. On a CLI without `/goal`,
+Pass `--runtime claude` to the renderer for the read-only NEXT/FROM/SKIPPED/TRACE display;
+the default and `--runtime codex` preserve the existing plain fields. The Claude display is one closed
+80-column ASCII frame with hanging indentation; section labels are content, not repeated rules. CJK/fullwidth characters use two columns, combining
+marks zero and ambiguous-width characters one. A terminal configured to widen ambiguous
+characters can misalign the border; that terminal configuration is not inferred or changed.
+FROM names the source once. Each selected target keeps its literal local id and the existing
+first-sentence/80-character description, regardless of target count; only repeated affiliation is
+abbreviated. A healthy TRACE uses the edge path, visit/depth limits and a short walk fingerprint.
+Stops, failures, external or uncertain nodes and changed-evidence warnings remain visible.
+This is presentation only: judgment JSON, fresh walk and refusal rules are unchanged.
+
+Each row answers a different question; never replace its meaning with an id range:
+
+| Row | Decision it supports |
+|---|---|
+| NEXT | What cohesive work is proposed? |
+| FROM + target rows | Where did it come from, and what requirements are selected? |
+| 근거 | What observed gap makes it necessary? |
+| 착수 | Why can work start now, or what remains unknown? |
+| 변화 | What can the user do differently after completion? |
+| SKIPPED | Why were the other candidates held or rejected? |
+| TRACE | What was explored, with which evidence, warnings or failures? |
+
+Safe abbreviation removes repeated affiliation or healthy verbose provenance, preserving scope,
+requirement descriptions, actual traversal edges and abnormal diagnostics. This reading display
+never substitutes for the completion condition.
+
+
+For a short pointer, place `/goal ` plus the paragraph in a separate plain three-backtick fence.
+For a full or still-long condition, first tell the user to type `/goal `, then provide a body-only
+fence to paste after that prefix. Never repeat `/goal` in that body. A caller owning report shape
+puts the input hint inside its report before the separate condition unit. Nothing follows the
+condition. **Never nest fences**. The table/frame prohibition applies to the copyable goal, not the
+read-only pick display. Keep the condition within the native 4,000-character limit. On a CLI without `/goal`,
 render a plain `GOAL` line instead and say the native feature is unavailable. No worthwhile
 candidate uses the no-goal outcome above instead of a fence.
+
+The distinction was observed once per route on Claude Code 2.1.300: a 332-character one-line
+pointer-shaped paste registered; a 1,679-character whole command collapsed into pasted content
+and was sent as an ordinary message; typing `/goal ` before pasting its 1,673-character body
+registered it. An interactive CLI starting prompt also registered a short `/goal` command.
+These are bracketed-paste PTY observations, not a universal folding threshold, OS clipboard
+proof or a guarantee for another CLI/terminal.
+The startup route is evidence only; this skill does not add shell-launch commands or require
+starting sessions through a different entrypoint.
 
 ## Example
 
@@ -260,7 +362,7 @@ SKIPPED  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 �
 ```
 
 ```
-/goal vault 폴더 재편 에픽(#B·#C·#D)을 한 번에 닫는다: inbox/ 를 sources/ 로 개명하고 그 경로를 참조하는 여섯 지점(capture 기본 경로, pre-write-guard 경로 검증, audit E10 배치 규칙, generate-manifest.py, v4 §3.1 문서, CLAUDE.md 규약표)을 갱신하고, audit E4 규칙을 새 배치에 맞게 다시 쓰고, manifest 스키마에 sources/notes 구분 필드를 추가한다. 세 갈래는 파일이 안 겹치므로 병렬로 돌리되 한 갈래 안의 경로 수정 여섯 지점은 순차로 처리하고, 기계적인 경로 치환과 manifest 필드 추가는 Workflow agent() 에 effort low 로 넘기고 판정이 걸린 audit E4 규칙 재작성은 메인에서 직접 본다 — 실물을 보고 난이도가 다르면 이 배정은 바꿔도 된다. 완료 상태는 scripts/check-test-exitcode.py 가 exit 0 을 내고 마크다운 링크 26개 중 이동 영향권에 든 것이 전부 갱신되고 audit 이 E4·E10 오탐 0 으로 도는 것이다. 최종 diff에 correctness는 /code-review high 로, 요구사항 갭은 subagent_type: "thinking-tools:requirement-gap-reviewer" 로 base ref 를 명시해 나눠 돌려 각각 0을 확인하되 스타일 지적은 무시하고, 커밋은 논리 단위로 쪼개 푸시까지만 한다 — 세 갈래가 각각 PR감이지만 PR은 다음 세션이 판단하므로 이번엔 열지 않는다. 또는 80턴 후 정지.
+/goal <owner/repo#issue>@<observed updatedAt>의 <선택 범위>를 충족한다. 시작 시 원본 상태·버전을 재확인하고 변경/조회 실패면 적용을 보류해 확인받으며, 통과 시 요구 원문과 <baseline> 이후 변경을 대화에 출력한다. <검사 명령> exit 0과 <base> 대비 독립 요구사항 리뷰 0건(2라운드 상한)을 보인다. <보호·Git 권한 제한>을 지킨다. 미충족이면 미완료이고 12턴에서 중단한다.
 ```
 
 ## Reference links and Rules (original wording)
