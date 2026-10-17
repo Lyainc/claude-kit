@@ -12,7 +12,6 @@ allowed-tools: Read Bash
 # Next Goal
 
 Output Korean (English for English input). Read-only: no file/issue/PR/commit/push/merge.
-Read cited `reference.md` sections at that step.
 
 First Seed call, before `walk`/`read`: Bash:
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json`
@@ -71,23 +70,26 @@ when the original stays. A pick change never starts work, edits an issue, commit
 
 ## Phase 2 — Condition
 
-Seed/verified GitHub issue: short pointer; source-less `session`/`backlog`: full problem, state,
-resume point, files and criteria. Never create a source just for brevity. Read `reference.md`
-§Pointer condition (binding): Seed path+committed full SHA, or issue repository+number+observed
-`updatedAt`; unverifiable pins use full text. Require current metadata-first eligibility, version
-comparison, criteria and baseline changes in the conversation at start. Changed/unavailable sources
-hold application pending confirmation; pins never authorize historical/excluded requirements.
-Keep scope, exact check, independent review/base/round cap, protections, Git permissions, unresolved
-facts, turn/time cap and “any unmet item means incomplete” inline. Only reconstructible context
-moves out; dates are absolute.
-Use §Pointer condition's compact shape; do not retell this skill's detailed procedure in the goal.
+**Source safety (all lengths).** Read `reference.md` §Source safety. At start require
+current metadata-first eligibility and version checks; changed/unavailable sources hold application
+pending confirmation. Surface selected criteria and baseline changes. Pins never authorize
+historical/excluded requirements. Use one compact start clause and a verified check/exit 0; unknown checks stay unknown.
 
-Carry the caller's Git completion contract: verified work includes its authorized commits and push;
-open a PR only for a reviewable thread unit, with owner authorization. Explicit commit/push/PR
-exclusions override it and stay visible. A push/PR exclusion does not by itself exclude local commits.
-Never call local work published; never mandate a merge.
+**Optional abbreviation.** Read `reference.md` §Abbreviation. Verified sources only:
+Seed path+committed full SHA, or issue repository+number+observed `updatedAt`;
+unverifiable pins use full text. For source-less `session`/`backlog`: full problem, state,
+resume point, files and criteria. Never create a source just for brevity.
+Keep scope, all caller checks/options/scoring caveats, independent review/base/round cap,
+protections, Git permissions, unresolved facts, turn/time cap and “any unmet item means incomplete”
+inline. Omit only source-owned requirement retelling and recoverable context. Abbreviate
+only without loss; else full text. Use absolute dates.
 
-State behavior and relevant proof, not a plan. Repeat passing checks only for changes, failures or
+Keep the caller's Git completion contract: verified work includes authorized commits and push.
+Explicit exclusions override it; a push/PR exclusion does not by itself exclude local commits.
+PR needs a reviewable unit and owner authorization. Missing approval stays on hold;
+never call local work published or mandate a merge.
+
+State behavior and proof, not a plan. Repeat passing checks only for changes, failures or
 unresolved material issues. Source, installed contents, discovery and live behavior need separate evidence.
 
 Nontrivial work needs one independent requirement-gap review of the explicit diff/base and
@@ -118,7 +120,7 @@ characters. Without native `/goal`, say unavailable and use plain `GOAL`. No pic
 ## Codex Portability
 
 Use `--runtime codex`: plain pick fields (and `TRACE`), then one plain `GOAL` paragraph; never a `/goal` fence.
-Use only available native tools and conversation input; no nested Claude Skill call, Workflow, hook payload, or model-routing instruction is required or available.
+Use available native tools and conversation input; no nested Claude Skill call, Workflow, hooks or model routing.
 Do not load Claude runtime details in Codex. Native tool mapping: [the shared tool contract](../../reference/codex-portability.md).
 
 ## Rules
