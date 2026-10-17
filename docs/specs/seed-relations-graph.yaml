@@ -265,6 +265,10 @@ context:
     Seed 안의 constraint/acceptance 항목까지는 연결하지 못해 대체 관계는 아니다. 닫힌 build-spec/next-goal 이슈
     8건은 제목 기준 충돌 없음.
 
+issues:
+  source: "#780"
+  tracking: ["#899"]
+
 blindspots: []
 
 ambiguity:
