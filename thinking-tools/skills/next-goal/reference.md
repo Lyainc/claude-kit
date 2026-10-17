@@ -308,14 +308,32 @@ means stop with unmet conditions and the resume point; it does not prove complet
 ## Claude Code
 
 Pass `--runtime claude` to the renderer for the read-only NEXT/FROM/SKIPPED/TRACE display;
-the default and `--runtime codex` preserve the existing plain fields. The Claude display is an
-80-column box with hanging indentation. CJK/fullwidth characters use two columns, combining
+the default and `--runtime codex` preserve the existing plain fields. The Claude display is one closed
+80-column ASCII frame with hanging indentation; section labels are content, not repeated rules. CJK/fullwidth characters use two columns, combining
 marks zero and ambiguous-width characters one. A terminal configured to widen ambiguous
 characters can misalign the border; that terminal configuration is not inferred or changed.
-Seed target descriptions appear for one or two targets; larger sets use ids with consecutive
-ranges. A healthy TRACE uses the edge path, visit/depth limits and a short walk fingerprint.
+FROM names the source once. Each selected target keeps its literal local id and the existing
+first-sentence/80-character description, regardless of target count; only repeated affiliation is
+abbreviated. A healthy TRACE uses the edge path, visit/depth limits and a short walk fingerprint.
 Stops, failures, external or uncertain nodes and changed-evidence warnings remain visible.
 This is presentation only: judgment JSON, fresh walk and refusal rules are unchanged.
+
+Each row answers a different question; never replace its meaning with an id range:
+
+| Row | Decision it supports |
+|---|---|
+| NEXT | What cohesive work is proposed? |
+| FROM + target rows | Where did it come from, and what requirements are selected? |
+| 근거 | What observed gap makes it necessary? |
+| 착수 | Why can work start now, or what remains unknown? |
+| 변화 | What can the user do differently after completion? |
+| SKIPPED | Why were the other candidates held or rejected? |
+| TRACE | What was explored, with which evidence, warnings or failures? |
+
+Safe abbreviation removes repeated affiliation or healthy verbose provenance, preserving scope,
+requirement descriptions, actual traversal edges and abnormal diagnostics. This reading display
+never substitutes for the completion condition.
+
 
 For a short pointer, place `/goal ` plus the paragraph in a separate plain three-backtick fence.
 For a full or still-long condition, first tell the user to type `/goal `, then provide a body-only
