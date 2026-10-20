@@ -612,7 +612,21 @@ class LifecycleTests(unittest.TestCase):
         # Correcting a wrong pin needs a new represented approval and reason.
         fixed = copy.deepcopy(detached); fixed['relations']['provenance'] = [dict(pin,commit='b'*40)]
         fixed['lifecycle']['approved_by'] = 'user pin correction 2'
+        self.assertTrue(lc.kept_provenance(before,parse(fixed)))  # a new approver alone, reusing the old reason, corrects nothing
+        for reason in ('','  '):
+            fixed['lifecycle']['reason'] = reason
+            self.assertTrue(lc.kept_provenance(before,parse(fixed)))
+        fixed['lifecycle']['reason'] = 'pinned the wrong commit'
         self.assertEqual(lc.kept_provenance(before,parse(fixed)),[])
+        fixed['lifecycle']['approved_by'] = detached['lifecycle']['approved_by']
+        self.assertTrue(lc.kept_provenance(before,parse(fixed)))  # a new reason without a new approval does not either
+        # Commit case is the same SHA; a malformed pinned row must stay exactly as written.
+        upper = copy.deepcopy(detached); upper['relations']['provenance'] = [dict(pin,commit='A'*40)]
+        self.assertEqual(lc.kept_provenance(before,parse(upper)),[])
+        broken = copy.deepcopy(detached); broken['relations']['provenance'] = [dict(pin,items='acceptance-1')]
+        moved = copy.deepcopy(detached); moved['relations']['provenance'] = [dict(pin,items=['acceptance-9'])]
+        self.assertTrue(lc.kept_provenance(parse(broken),parse(moved)))
+        self.assertEqual(lc.kept_provenance(parse(broken),parse(broken)),[])
         # The edit guard rejects a Write or an Edit that drops the pin.
         dropped = copy.deepcopy(detached); dropped['relations']['provenance'] = []
         target = str(self.root/'docs/specs/c.yaml')
