@@ -143,7 +143,7 @@ version 2 연결을 정리하는 경우(부모를 지우고 `depends_on`이나 �
 파일 경로를 가리켜요. `depends_on`만 `#<로컬 항목 id>`를 붙여 항목 하나를 가리킬 수 있어요. version 3은 위 "관계의 세 종류"를 따르고, version 2는 같은 경로 규칙에
 위 "version 2 읽기"를 적용해요. version 2 파일을 3으로 올릴 때는 자식·선행·참조를 실제로
 검토해서 승인받아요. 일괄 전환은 하지 않아요. `provenance`는 `{seed, commit, items}`로 파일과 커밋까지 고정해요.
-고정한 행은 이후 편집에서도 지우거나 seed·commit을 바꾸지 않고 items만 늘릴 수 있어요. 잘못 고정한 행의 교정은 새 사용자 승인과 이유를 남긴 변경으로만 해요. `seed-lifecycle.py check --before`와 Claude의 Edit/Write 편집 훅이 이를 검사하고, 그 밖의 쓰기 경로는 `check --before`를 직접 실행해야 검사돼요.
+고정한 행은 이후 편집에서도 지우거나 seed·commit을 바꾸지 않고 items만 늘릴 수 있어요. 잘못 고정한 행의 교정은 `lifecycle.approved_by`와 `reason`을 둘 다 새 값으로 남긴 변경으로만 해요. 검사기는 이 기록이 바뀌었는지만 보고 실제 사용자가 승인했는지는 확인하지 못하므로, 승인 없이 이 두 값을 바꾸면 안 돼요. `seed-lifecycle.py check --before`와 Claude의 Edit/Write 편집 훅이 이를 검사하고, 그 밖의 쓰기 경로는 `check --before`를 직접 실행해야 검사돼요.
 역사적 출처를 조회할 때 해당 커밋을 읽고, 읽지 못하면 미확인으로 표시해요.
 
 생애주기와 관계 버전이 없는 구형 관계만 기존 `-vN` 최신 세대 해석을 유지해요. 명시적

@@ -358,17 +358,22 @@ def kept_provenance(before,after,rd=None):
             return v
         return rd.norm(v,None) if rd else (None,posixpath.normpath(v.strip().lstrip('/')))
     def items(row):
-        return {i for i in row['items'] if isinstance(i,str)} if isinstance(row.get('items'),list) else set()
+        v = row.get('items')
+        return set(v) if isinstance(v,list) and all(text(i) for i in v) else None
+    def keeps(k,row):
+        if not text(row.get('seed')) or not text(row.get('commit')) or items(row) is None:
+            return k == row  # a malformed pinned row has no safe respelling; keep it verbatim
+        return (key(k.get('seed')) == key(row.get('seed')) and isinstance(k.get('commit'),str)
+                and k['commit'].lower() == row['commit'].lower() and items(k) is not None and items(row) <= items(k))
     old,new = before.lifecycle,after.lifecycle
+    # A correction is a new approval with its own reason; reusing the prior reason is not one.
     if (isinstance(old,dict) and isinstance(new,dict) and text(new.get('approved_by')) and text(new.get('reason'))
-            and new.get('approved_by') != old.get('approved_by')):
+            and new.get('approved_by') != old.get('approved_by') and new.get('reason') != old.get('reason')):
         return []
     kept = rows(after)
-    return [f'relations.provenance row {row.get("seed")}@{row.get("commit")} items {sorted(items(row))} was dropped or rewritten; '
-            'pinned provenance is append-only unless a new user approval and reason correct it'
-            for row in rows(before)
-            if not any(key(k.get('seed')) == key(row.get('seed')) and k.get('commit') == row.get('commit')
-                       and items(row) <= items(k) for k in kept)]
+    return [f'relations.provenance row {row.get("seed")}@{row.get("commit")} items {row.get("items")} was dropped or rewritten; '
+            'pinned provenance is append-only unless a new user approval and a new reason correct it'
+            for row in rows(before) if not any(keeps(k,row) for k in kept)]
 
 
 def transition(before,after,reader=None,rel=None):
