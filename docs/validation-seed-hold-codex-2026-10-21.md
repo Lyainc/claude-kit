@@ -5,7 +5,7 @@
 `docs/specs/seed-lifecycle-residual-validation.yaml`(#814)의 acceptance-2 중 **Codex 쪽**만 실측했다.
 검증 전에 `seed-relations.py metadata`로 대상을 읽었고 상태는 active, 적격(eligible)이었다. Claude 쪽은
 [validation-seed-relations-consumers-2026-10-10.md](validation-seed-relations-consumers-2026-10-10.md)의
-"후속 · 2026-10-16" 절(PR #895)에 있다. acceptance-1·3은 이미 충족했고 acceptance-4(local-harness 소유)는 다루지 않았다. 나머지 Seed 요구를
+"후속 · 2026-10-16" 절(PR #895)에 있다. acceptance-1(#894)·acceptance-3(#903, `docs/validation-seed-lifecycle-approved-writes-2026-10-20.md`)은 별도로 다뤘고 acceptance-4(local-harness 소유)는 다루지 않았다. 나머지 Seed 요구를
 새로 완료 판정하지 않는다. Codex에는 Claude의 `seed-read-guard.sh`가 없으므로 훅 보호를 주장하지 않는다.
 
 | 항목 | 관찰 |
@@ -14,7 +14,7 @@
 | 로드 사본 | Codex 설치본 thinking-tools 7.2.0 `~/.codex/plugins/cache/Lyainc-claude-kit/thinking-tools/7.2.0`. 기록된 `cat` 호출이 이 경로의 SKILL.md·reference를 읽었다 |
 | 소스 대비 | 공통 추적 파일 103개 중 92개 SHA-256 일치. 차이 11개 중 Seed 관련은 `reference/seed-lifecycle.md`(Edit/Write 한 번 쓰기·고정 출처 교정·Claude 읽기 가드 문장 추가), `scripts/seed-lifecycle.py`, `scripts/test/test-seed-lifecycle.py`, build-spec `reference.md`·`SEED_SPEC.yaml`. "발견과 소비"의 metadata 선행 문단은 두 사본이 같다 |
 | 런타임 | codex-cli 0.163.0 `codex exec --json -s workspace-write`, 모델 gpt-6.1-sol, approval `on-request`, network 차단. `codex`는 cmux 래퍼 shim이며 매 실행에 `--dangerously-bypass-hook-trust` 경고가 나왔다(전역 훅은 Orca 연동뿐이고 Seed 판정은 없다) |
-| 설정 | 검증자는 `~/.codex/config.toml`·설치본·local-harness를 편집하지 않았다. 다만 `codex exec`가 실행 디렉터리 trust 항목(`[projects."…/codex-a2/runs/<run>"]`, `trust_level = "trusted"`)을 config.toml에 자동 추가해 C1·C4·M3·M2 네 개가 남았다(병렬 실행이라 여덟 개 중 일부만 남은 것으로 보인다). 원복 여부는 사용자 결정으로 남겼다. M 실행만 그 실행에 `--disable memories` 플래그를 붙였다 |
+| 설정 | 검증자는 `~/.codex/config.toml`·설치본·local-harness를 편집하지 않았다. 다만 `codex exec`가 실행 디렉터리 trust 항목(`[projects."…/codex-a2/runs/<run>"]`, `trust_level = "trusted"`)을 config.toml에 자동 추가해 C1·C4·M3·M2 네 경로가 있고 C2·C3·M1·M4 경로는 없다. 나머지 네 개가 빠진 원인과 다른 항목 손실 여부는 실행 전 사본이 없어 확인하지 못했다. 원복 여부는 사용자 결정으로 남겼다. M 실행만 그 실행에 `--disable memories` 플래그를 붙였다 |
 
 소스와 설치본에서 같은 SHA-256(설치본 바이트가 실제 로드됨):
 
@@ -98,4 +98,7 @@ memory 끔(`--disable memories`):
 - **샌드박스.** 첫 metadata 실패는 Codex `workspace-write` 샌드박스가 기본 uv 캐시를 막은 결과다. 우회는 Codex
   모델이 실행 중에 고른 환경 변수이며, 검증자가 설정을 바꾸거나 재시도하지 않았다. 실패를 상태 미확인으로
   오인해 본문을 읽은 실행은 없었다.
+- **판정 범위.** 이 기록은 Codex 실행 증거이며 acceptance-2 완료 판정이 아니다. 일반 직접 읽기의 metadata 선행은
+  memory 없이 충족되지 않았다. 철회 항목은 C4·M4 직접 읽기에서도 제외 대상으로 질문됐다. 실행 바이트는 설치본
+  7.2.0이며 소스 7.3.0의 차이 파일(`seed-lifecycle.md`, `seed-lifecycle.py`, build-spec `reference.md` 등)로는 실행하지 않았다.
 - 원시 rollout, 이벤트 JSONL, 전후 해시 파일은 저장소 밖 세션 scratchpad에 있어 이 문서만으로 재열람할 수 없다.
