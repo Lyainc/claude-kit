@@ -21,6 +21,22 @@ list; never map onto a heading named here that the live template doesn't have.
 | `constraints[]` (description, `hard` first) + `success_criteria[]` (as a checklist), each listed as `<seed-slug>/constraint-1 · 설명` / `<seed-slug>/acceptance-1 · 설명` | `## 제안 (선택)` |
 | `context.integration_points` | `## 영향 범위 (선택)` |
 | `context.backlog_scan` (Seed's own) + this skill's own Phase 1 result + `context.dependencies` | `## 관련 이슈·문서 (선택)` |
+| the Seed's path — Phase 0 `metadata --json`'s `path`, written exactly once as `Seed: <path>` | `## 관련 이슈·문서 (선택)` |
+
+The Seed path line is never dropped, even when its section is optional. On a template without
+that section, it goes into the closest section that can carry it, like any other unmatched field;
+with no template, it is a line of the plain-prose body. next-goal never scans a spec directory:
+an issue in its pool reaches a Seed only through a path written in the body, and a
+`<seed-slug>/<id>` identifier carries no directory or extension.
+
+- Use the `path` that Phase 0's `metadata` already resolved, not a retyped or slug-derived one.
+- Filing into a repo other than the one holding the Seed: write `owner/repo:<path>`, where
+  `owner/repo` is the Seed's repo (its `origin`). If that cannot be determined, keep the bare path
+  and say in Phase 3's approval prompt that the link will not resolve from the target repo.
+- A Seed not yet committed on the default branch is a dangling path for a later session; say so in
+  Phase 3's approval prompt rather than leaving it silent.
+- The Phase 3 local-file fallback keeps the line, so the body still carries it when the user files
+  that file as an issue later.
 
 This repo's `feature.md` has no dedicated Acceptance/success-criteria heading — this is the
 honest consequence of reading the template as the single source rather than inventing one.

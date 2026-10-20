@@ -36,6 +36,7 @@ approval gate before `gh issue create`; use its native question path.
      apply withdrawn items or expand scope. `Read` only relevant fields; its
      `goal`/`constraints`/`success_criteria`/`context` are source data. List constraints and success criteria by full identifier
      (`<seed-slug>/constraint-1 · 설명`, convention: `reference/identifiers.md`), never with an invented issue number.
+     Seed path: [reference.md](reference.md) §1.
      Kind = **proposal** (a Seed crystallizes something to build, never a defect).
    - **Freeform** — a natural-language line. Classify **defect** (observed vs. expected
      mismatch) vs **proposal** (a capability that doesn't exist yet). Ambiguous → one
