@@ -12,9 +12,9 @@
 |---|---|
 | 소스 | origin/main `920387f7b65ca0c97c3ba8314fdcf703e304519e` (v7.3.0) |
 | 로드 사본 | Codex 설치본 thinking-tools 7.2.0 `~/.codex/plugins/cache/Lyainc-claude-kit/thinking-tools/7.2.0`. 기록된 `cat` 호출이 이 경로의 SKILL.md·reference를 읽었다 |
-| 소스 대비 | 공통 추적 파일 103개 중 92개 SHA-256 일치. 차이 11개 중 Seed 관련은 `reference/seed-lifecycle.md`(Edit/Write 한 번 쓰기·고정 출처 교정·Claude 읽기 가드 문장 추가), `scripts/seed-lifecycle.py`, build-spec `reference.md`·`SEED_SPEC.yaml`. "발견과 소비"의 metadata 선행 문단은 두 사본이 같다 |
+| 소스 대비 | 공통 추적 파일 103개 중 92개 SHA-256 일치. 차이 11개 중 Seed 관련은 `reference/seed-lifecycle.md`(Edit/Write 한 번 쓰기·고정 출처 교정·Claude 읽기 가드 문장 추가), `scripts/seed-lifecycle.py`, `scripts/test/test-seed-lifecycle.py`, build-spec `reference.md`·`SEED_SPEC.yaml`. "발견과 소비"의 metadata 선행 문단은 두 사본이 같다 |
 | 런타임 | codex-cli 0.163.0 `codex exec --json -s workspace-write`, 모델 gpt-6.1-sol, approval `on-request`, network 차단. `codex`는 cmux 래퍼 shim이며 매 실행에 `--dangerously-bypass-hook-trust` 경고가 나왔다(전역 훅은 Orca 연동뿐이고 Seed 판정은 없다) |
-| 설정 | `~/.codex/config.toml`·설치본·local-harness는 수정하지 않았다. M 실행만 그 실행에 `--disable memories` 플래그를 붙였다 |
+| 설정 | 검증자는 `~/.codex/config.toml`·설치본·local-harness를 편집하지 않았다. 다만 `codex exec`가 실행 디렉터리 trust 항목(`[projects."…/codex-a2/runs/<run>"]`, `trust_level = "trusted"`)을 config.toml에 자동 추가해 C1·C4·M3·M2 네 개가 남았다(병렬 실행이라 여덟 개 중 일부만 남은 것으로 보인다). 원복 여부는 사용자 결정으로 남겼다. M 실행만 그 실행에 `--disable memories` 플래그를 붙였다 |
 
 소스와 설치본에서 같은 SHA-256(설치본 바이트가 실제 로드됨):
 
@@ -70,8 +70,8 @@ memory 켬(기본 설정):
 C1 호출 ID 끝자리는 metadata 실패 `e2f2a2`, 성공 `7faa4c`, walk `c45222`, `read --json` `12823f`, render `9f7564`(00:02:41)
 순이다. 그 앞의 00:02:04 호출은 `rg --files` 경로 나열과 SKILL.md·memory 검색뿐이다.
 
-C2~C4는 첫 탐색에서 `~/.codex/memories/MEMORY.md`(SHA-256 `af9a3890…c54ba0`)를 검색했고 최종 답에 468~471행을
-인용했다. 그 구간은 이전 #814 Codex 작업의 교훈으로 "Consumers must run metadata before any Seed body
+C1~C4는 첫 탐색에서 `~/.codex/memories/MEMORY.md`(SHA-256 `af9a3890…c54ba0`)를 검색했고, C2~C4는 최종 답에
+468~471행(C3·C4는 468~469행)을 인용했다. 그 구간은 이전 #814 Codex 작업의 교훈으로 "Consumers must run metadata before any Seed body
 Read/cat/search and hold intake"를 담고 있다. 그래서 memory를 끈 대조 실행을 따로 했다.
 
 memory 끔(`--disable memories`):
@@ -89,8 +89,9 @@ memory 끔(`--disable memories`):
   접근보다 앞섰다. unknown/paused/closed 자식과 철회된 acceptance-4의 적용이 보류됐고 질문만 남았다. 설치본
   SKILL.md 바이트로 재현된 순서다.
 - **일반 직접 읽기.** 보류는 네 실행 모두 일어났다. metadata 선행은 memory를 켠 C3·C4에서만 관찰됐고, memory를
-  끈 M3·M4는 metadata 없이 본문을 먼저 읽었다. 이 순서는 사용자 Codex memory에 기댄 것이며 플러그인 보장이
-  아니다. Codex에는 읽기 가드 훅이 없고(`seed-lifecycle.md` "발견과 소비"), 헤더 계약은 파일을 읽어야만 보이므로
+  끈 M3·M4는 metadata 없이 본문을 먼저 읽었다. 켬/끔 각 한 번의 관찰상 이 순서는 사용자 Codex memory에 기댄
+  것으로 보이며 플러그인 보장이 아니다. Codex에는 읽기 가드 훅이 없고(소스 `seed-lifecycle.md` "발견과 소비"; 이
+  문장은 설치본 7.2.0에는 없다), 헤더 계약은 파일을 읽어야만 보이므로
   이번 범위에서는 고치지 않았다. Claude 7.2.0 S4a·S4b의 가드 이전 관찰과 같은 모양이다.
 - **미답 보존.** 여덟 실행 모두 실제 사용자 답변 없이 끝났고 fixture 해시는 전후 동일했다. C2·M2의
   `request_user_input_async` 결과 `{"accepted":true}`는 질문 전달 수락이며 답변이 아니다. 이후 쓰기는 없었다.
