@@ -352,7 +352,7 @@ def kept_provenance(before,after,rd=None):
     Correcting a wrongly pinned row is a represented user-approved change, like any other transition."""
     def rows(seed):
         r = seed.relations_data.get('provenance') if isinstance(seed.relations_data,dict) else None
-        return [x for x in r if isinstance(x,dict)] if isinstance(r,list) else []
+        return list(r) if isinstance(r,list) else []
     def key(v):
         if not isinstance(v,str) or not v.strip():
             return v
@@ -361,17 +361,20 @@ def kept_provenance(before,after,rd=None):
         v = row.get('items')
         return set(v) if isinstance(v,list) and all(text(i) for i in v) else None
     def keeps(k,row):
-        if not text(row.get('seed')) or not text(row.get('commit')) or items(row) is None:
+        if not isinstance(row,dict) or not text(row.get('seed')) or not text(row.get('commit')) or items(row) is None:
             return k == row  # a malformed pinned row has no safe respelling; keep it verbatim
-        return (key(k.get('seed')) == key(row.get('seed')) and isinstance(k.get('commit'),str)
+        return (isinstance(k,dict) and key(k.get('seed')) == key(row.get('seed')) and isinstance(k.get('commit'),str)
                 and k['commit'].lower() == row['commit'].lower() and items(k) is not None and items(row) <= items(k))
     old,new = before.lifecycle,after.lifecycle
-    # A correction is a new approval with its own reason; reusing the prior reason is not one.
+    # A correction is a new approval with its own reason; reusing the prior reason is not one, and an
+    # approval given for another lifecycle or parent change does not also approve rewriting a pin.
+    rest = lambda lc: {f:v for f,v in lc.items() if f not in ('approved_by','reason')}
     if (isinstance(old,dict) and isinstance(new,dict) and text(new.get('approved_by')) and text(new.get('reason'))
-            and new.get('approved_by') != old.get('approved_by') and new.get('reason') != old.get('reason')):
+            and new.get('approved_by') != old.get('approved_by') and new.get('reason') != old.get('reason')
+            and rest(old) == rest(new) and before.parent == after.parent):
         return []
     kept = rows(after)
-    return [f'relations.provenance row {row.get("seed")}@{row.get("commit")} items {row.get("items")} was dropped or rewritten; '
+    return [f'relations.provenance row {row!r} was dropped or rewritten; '
             'pinned provenance is append-only unless a new user approval and a new reason correct it'
             for row in rows(before) if not any(keeps(k,row) for k in kept)]
 

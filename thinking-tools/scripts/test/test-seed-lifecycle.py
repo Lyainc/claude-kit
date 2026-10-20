@@ -618,8 +618,12 @@ class LifecycleTests(unittest.TestCase):
             self.assertTrue(lc.kept_provenance(before,parse(fixed)))
         fixed['lifecycle']['reason'] = 'pinned the wrong commit'
         self.assertEqual(lc.kept_provenance(before,parse(fixed)),[])
+        paused = copy.deepcopy(fixed); paused['lifecycle']['state'] = 'paused'
+        self.assertTrue(lc.kept_provenance(before,parse(paused)))  # an approval for a state change does not cover the pin
         fixed['lifecycle']['approved_by'] = detached['lifecycle']['approved_by']
         self.assertTrue(lc.kept_provenance(before,parse(fixed)))  # a new reason without a new approval does not either
+        odd = copy.deepcopy(detached); odd['relations']['provenance'] = ['docs/specs/p.yaml@'+'a'*40,pin]
+        self.assertTrue(lc.kept_provenance(parse(odd),parse(detached)))  # a non-mapping pinned row is history too
         # Commit case is the same SHA; a malformed pinned row must stay exactly as written.
         upper = copy.deepcopy(detached); upper['relations']['provenance'] = [dict(pin,commit='A'*40)]
         self.assertEqual(lc.kept_provenance(before,parse(upper)),[])
