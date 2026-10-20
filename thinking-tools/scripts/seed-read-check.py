@@ -36,6 +36,7 @@ HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
 SED_INPLACE = re.compile(r"-[A-Za-z]*i")
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 MARKER = "Seed 본문을 읽기 전에"
+LAUNCHERS = {"uv", "run", "bun", "env", "exec", "sh", "bash", "do", "then", "else", "if", "while", "until", "time", "nohup"}
 DENY_HEAD = MARKER + " metadata를 먼저 실행해요: python3 "  # the guard's own deny output opens like this
 META_PATH = re.compile(r'"path":\s*"([^"]+)"')
 
@@ -118,10 +119,11 @@ def _segments(command: str) -> list[list[str]]:
 
 def _tool_call(words: list[str]) -> int:
     """Index of a Seed tool script named as the program or the interpreter's script, else -1."""
-    for i, w in enumerate(words[:5]):
-        if os.path.basename(w) in TOOLS:
-            return i
-    return -1
+    i = 0  # skip launchers and their flags; a tool name later in the arguments is just an argument
+    while i < len(words) and (words[i].startswith("-") or os.path.basename(words[i]) in LAUNCHERS
+                              or os.path.basename(words[i]).startswith("python")):
+        i += 1
+    return i if i < len(words) and os.path.basename(words[i]) in TOOLS else -1
 
 
 def bash_candidates(command: str, cwd: str) -> list[str]:
@@ -381,6 +383,8 @@ def _self_test() -> int:
         check("read seed already denied once", decide(read(seed, t_denied)), False)
         check("read seed, loop metadata output", decide(read(seed, t_loop)), False)
         check("read seed, walk output is not metadata", decide(read(seed, t_walk)), True)
+        check("bash tool name only as an argument still reads", decide(bash("cat docs/specs/x.yaml seed-relations.py", t_none)), True)
+        check("bash launcher-run tool is its own read", decide(bash("uv run python3 -I scripts/seed-relations.py walk docs/specs/x.yaml", t_none)), False)
         check("bash sed -i is an edit", decide(bash("sed -i '' s/a/b/ docs/specs/x.yaml", t_none)), False)
         check("bash sed -n still reads", decide(bash("sed -n 1,5p docs/specs/x.yaml", t_none)), True)
         check("read seed, metadata failed", decide(read(seed, t_failed)), True)
