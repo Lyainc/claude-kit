@@ -274,7 +274,7 @@ next-goal 재실측 기록을 호출 직전까지 잘라 수정된 판정에 재
 거부 문장으로 시작하는 결과만 이전 거부로 본다. 위 헤드리스 재실측의 로드 바이트는 `49da514`이고, `465b55f` 판정으로는
 헤드리스 재실측도 기록 재생도 다시 하지 않았다. 남은 한계는 다음과 같다. `git show HEAD:seed.yaml`(리비전 읽기)는
 허용한다. `grep -rn goal docs/specs/`처럼 명령에 `.yaml`/`.yml`이 없는 디렉터리 읽기는 훅의 빠른 종료로 통과한다.
-큰따옴표 안 치환 `"$(cat seed.yaml)"`은 놓친다. Claude Code 헤드리스로 다시 확인한 결과(2026-10-20), 실제 거부 결과는 `PreToolUse:Read hook error: ` 또는
+큰따옴표 안 치환 `"$(cat seed.yaml)"`은 놓친다. `timeout 5 cat seed.yaml`, `sudo cat`, `env cat`, `if grep -q x seed.yaml; then`처럼 다른 명령 뒤에 붙은 읽기도 놓친다. 반대로 `cat a.txt 2>log.yaml` 같은 쓰기 리다이렉트나 `for f in seed.yaml; do echo $f; done` 같은 목록 출력은 읽기로 거부하는 엄격한 쪽 오탐이며 metadata를 한 번 실행하면 풀린다. `8701d8f`에서는 도구 이름이 인자에만 있는 구간(`cat seed.yaml seed-relations.py`)도 건너뛰지 않게 했다. 런처·플래그·셸 키워드 다음의 프로그램 단어만 도구로 본다. Claude Code 헤드리스로 다시 확인한 결과(2026-10-20), 실제 거부 결과는 `PreToolUse:Read hook error: ` 또는
 `PreToolUse:Bash hook error: ` 바로 뒤에 가드 문장이 와서 앞 300자 안의 `DENY_HEAD` 판정에 걸린다. Bash 매처에
 `if: "Bash(*.yaml*)"`·`"Bash(*.yml*)"`를 붙인 사본으로도 복합 명령 `cd docs && head -3 specs/<seed>.yaml`이 거부되는
 것을 확인하고 같은 필터를 적용했다. 두 문자열을 모두 담은 명령은 훅이 두 번 돌지만 판정은 같다.
