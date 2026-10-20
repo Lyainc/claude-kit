@@ -449,7 +449,7 @@ python3 thinking-tools/scripts/seed-append-check.py --self-test
 
 # Seed 읽기 가드 self-test — metadata 실행 전 Seed 본문 Read/cat은 같은 기록에서 Seed당 한 번 deny (메인·서브에이전트 기록 모두)
 python3 thinking-tools/scripts/seed-read-check.py --self-test
-# Expected: OK: all 36 seed-read-check self-test cases passed
+# Expected: OK: all 49 seed-read-check self-test cases passed
 
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test
