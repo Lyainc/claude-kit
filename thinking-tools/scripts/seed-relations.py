@@ -2,11 +2,13 @@
 """Read-only Seed relationship and lifecycle discovery (#780, #814).
 
 Usage: tree|check <seed>; walk <seed> [--max-depth N] [--max-nodes N] [--json];
-       metadata|read <seed> [--json]. A named file is always required.
+       metadata|read <seed> [--json]; index <dir>... --json. Other commands name one file.
 
 metadata returns title, short goal, lifecycle/reason and eligibility without requirement
-bodies. read explicitly returns requirement bodies. walk preserves bounded BFS and all
-visited nodes, including closed/unknown Seeds; inactive nodes omit item_desc. Every node
+bodies. index returns that same record for every Seed under the named directories, plus
+declared relations, typed edges and per-Seed read errors. read explicitly returns
+requirement bodies. walk preserves bounded BFS and all visited nodes, including
+closed/unknown Seeds; inactive nodes omit item_desc. Every node
 has lifecycle {state,outcome,reason} and eligibility {eligible,reason,excluded_items,
 review_required}. These are represented decision gates, never a judgment of fulfillment.
 
@@ -16,8 +18,9 @@ file at its full Git commit, or reports historical source unavailable. Other-rep
 use gh api, GH_BIN may override the executable; external walk nodes are not expanded.
 
 check validates lifecycle and relationships; failed reads are visible. Exit codes: check
-0 consistent, 1 mismatch, 2 read failure; metadata/read 1 malformed input; tree/walk are
-read-only data (0), bad usage is 2. Stdlib only; unsupported YAML fails visibly.
+0 consistent, 1 mismatch, 2 read failure; metadata/read 1 malformed input; index 1 when
+any Seed is in errors (the others still print); tree/walk are read-only data (0), bad
+usage is 2. Stdlib only; unsupported YAML fails visibly.
 """
 
 from __future__ import annotations
@@ -55,6 +58,7 @@ UNRECORDED = "(기록 없음 — 미확인)"
 USAGE = ("usage: seed-relations.py tree|check <seed-path>\n"
          "       seed-relations.py metadata|read <seed-path> [--json]\n"
          "       seed-relations.py walk <seed-path> [--max-depth N] [--max-nodes N] [--json]\n"
+         "       seed-relations.py index <dir>... --json\n"
          "(a named Seed is required)")
 _UNSET = object()
 
@@ -1535,8 +1539,104 @@ def _parse_walk_args(args):
 
 
 # ---------------------------------------------------------------------------
+# metadata / index
+# ---------------------------------------------------------------------------
+
+def metadata_data(rd, rel, seed):
+    """The `metadata --json` record; `index` reuses it so both read one interpretation."""
+    return {"path":rel,"title":seed.title,"goal":seed.short_goal,
+            "lifecycle":lifecycle_summary(seed),"reason":lifecycle_summary(seed)["reason"],
+            "eligibility":eligibility(rd,seed)}
+
+
+INDEX_SCHEMA = 1
+INDEX_EDGES = ("parent", "children", "depends_on")
+
+
+def _seed_files(directory):
+    out = []
+    for d, subdirs, files in os.walk(directory):
+        subdirs[:] = sorted(s for s in subdirs if not s.startswith("."))
+        out += [os.path.join(d, f) for f in sorted(files)
+                if f.endswith((".yaml", ".yml")) and not f.startswith(".")]
+    return out
+
+
+def cmd_index(args):
+    """`index <dir>... --json`: every Seed under the named directories, as one JSON document.
+
+    Each entry is the metadata record plus the declared relations. Edge targets are classified
+    without reading other repos: indexed, unindexed (a local file outside the named
+    directories), notfound, or external. One unreadable Seed lands in `errors`; the rest print.
+    """
+    dirs = [a for a in args if a != "--json"]
+    if "--json" not in args or not dirs or any(a.startswith("--") for a in dirs):
+        print("usage: seed-relations.py index <dir>... --json", file=sys.stderr)
+        return 2
+    for d in dirs:
+        if not os.path.isdir(d):
+            print(f"seed-relations: not a directory: {d}", file=sys.stderr)
+            return 2
+    readers, seeds, errors, found = {}, [], [], {}
+    for d in dirs:
+        for f in _seed_files(d):
+            root = find_root(f)
+            rel = posixpath.normpath(os.path.relpath(os.path.realpath(f), root).replace(os.sep, "/"))
+            if (root, rel) in found:
+                continue  # overlapping directories name the same Seed once
+            found[(root, rel)] = None
+            try:
+                with open(f, encoding="utf-8") as fh:
+                    seed = parse_seed(fh.read())
+            except (OSError, UnicodeError) as exc:
+                errors.append({"path": rel, "error": f"unreadable: {exc.__class__.__name__}"})
+                continue
+            except Exception as exc:  # an unsupported YAML shape must not hide the other Seeds
+                errors.append({"path": rel, "error": f"unparseable: {exc}"})
+                continue
+            rd = readers.setdefault(root, Reader(root))
+            seed.location = (None, rel)
+            entry = metadata_data(rd, rel, seed)
+            entry["relations"] = {"parent": seed.parent, "refines": list(seed.refines),
+                                  "depends_on": list(seed.depends_on),
+                                  "children": list(seed.children)}
+            if seed.format_errors:
+                errors.append({"path": rel, "error": "malformed: " + "; ".join(seed.format_errors)})
+            seeds.append(entry)
+            found[(root, rel)] = seed
+    indexed = {(root, rel) for (root, rel), s in found.items() if s is not None}
+    edges = {e: [] for e in INDEX_EDGES}
+    for (root, rel), seed in found.items():
+        if seed is None:
+            continue
+        rd = readers[root]
+        declared = {"parent": [seed.parent] if seed.parent else [], "children": seed.children,
+                    "depends_on": seed.depends_on}
+        for edge in INDEX_EDGES:
+            for text in declared[edge]:
+                path, item = split_dep(text) if edge == "depends_on" else (text, None)
+                nloc = rd.norm(path, None)
+                if nloc[0] is not None:
+                    tgt, status = key(nloc), "external"
+                else:
+                    tgt = rd.resolve_quiet(nloc, exact_edges(seed))[1]
+                    status = ("indexed" if (root, tgt) in indexed else
+                              "unindexed" if os.path.isfile(os.path.join(root, tgt)) else "notfound")
+                rec = {"from": rel, "to": tgt, "target": status}
+                if edge == "depends_on":
+                    rec["item"] = item
+                edges[edge].append(rec)
+    print(json.dumps({"schema_version": INDEX_SCHEMA,
+                      "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+                      "seeds": seeds, "edges": edges, "errors": errors}, ensure_ascii=False))
+    return 1 if errors else 0
+
+
+# ---------------------------------------------------------------------------
 
 def main(argv):
+    if len(argv) >= 2 and argv[1] == "index":
+        return cmd_index(argv[2:])
     if len(argv) < 3 or argv[1] not in ("tree", "check", "walk", "metadata", "read") or argv[2].startswith("--"):
         print(USAGE, file=sys.stderr)
         return 2
@@ -1568,9 +1668,7 @@ def main(argv):
     rd = Reader(root)
     seed.location = (None,rel)
     if cmd in ("metadata","read"):
-        data = {"path":rel,"title":seed.title,"goal":seed.short_goal,
-                "lifecycle":lifecycle_summary(seed),"reason":lifecycle_summary(seed)["reason"],
-                "eligibility":eligibility(rd,seed)}
+        data = metadata_data(rd, rel, seed)
         if cmd == "read":
             data["requirements"] = seed.requirements or {i:{"id":i,"description":d} for i,d in seed.items}
         print(json.dumps(data,ensure_ascii=False))

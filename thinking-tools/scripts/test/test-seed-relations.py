@@ -1612,6 +1612,91 @@ def check_item_depends_on() -> list[str]:
     return failures
 
 
+def _index_json(repo, *dirs, gh=NO_GH):
+    env = dict(os.environ, GH_BIN=gh)
+    p = subprocess.run([sys.executable, str(_SCRIPT_PATH), "index", *dirs, "--json"], cwd=repo,
+                       env=env, capture_output=True, text=True)
+    return p.returncode, (json.loads(p.stdout) if p.stdout.strip() else None), p.stderr
+
+
+def check_index() -> list[str]:
+    """#896: index reuses metadata/read per Seed, survives an unreadable Seed, types edge ends."""
+    failures = []
+    repo = _repo()
+    _write(repo, "p.yaml", target="Parent", children=[SP + "c.yaml", SP + "ghost.yaml"],
+           constraints=[("constraint-1", "P c1")], criteria=[("acceptance-1", "P ac1")])
+    _write(repo, "c.yaml", target="Child", parent=SP + "p.yaml", refines=["acceptance-1"],
+           depends_on=[SP + "p.yaml#constraint-1", "acme/other:docs/specs/x.yaml",
+                       "docs/elsewhere/out.yaml"])
+    (Path(repo) / "docs" / "elsewhere").mkdir()
+    (Path(repo) / "docs" / "elsewhere" / "out.yaml").write_text(_seed_text("Outside"))
+    (Path(repo) / "docs" / "specs" / "bad.yaml").write_bytes(b"target: \xff\xfe broken\n")
+    before = _snapshot(repo)
+    code, data, err = _index_json(repo, "docs/specs")
+    if data is None:
+        return [f"index: no JSON output (exit {code}): {err}"]
+    if code != 1:
+        failures.append(f"index: an errored Seed should exit 1, got {code}")
+    if data.get("schema_version") != 1 or not data.get("generated_at"):
+        failures.append(f"index: top-level schema/generated_at missing: {list(data)}")
+    paths = [s["path"] for s in data["seeds"]]
+    if paths != [SP + "c.yaml", SP + "p.yaml"]:
+        failures.append(f"index: expected the two readable Seeds in path order, got {paths}")
+    if [e["path"] for e in data["errors"]] != [SP + "bad.yaml"] or \
+            not data["errors"][0]["error"].startswith("unreadable"):
+        failures.append(f"index: the unreadable Seed should be the one error, got {data['errors']}")
+    for entry in data["seeds"]:
+        _, meta, _ = _index_meta(repo, "metadata", entry["path"])
+        _, full, _ = _index_meta(repo, "read", entry["path"])
+        got = {k: v for k, v in entry.items() if k != "relations"}
+        if got != meta:
+            failures.append(f"index: {entry['path']} differs from metadata --json:\n{got}\n{meta}")
+        if {k: full[k] for k in meta} != meta:
+            failures.append(f"index: read --json and metadata --json disagree for {entry['path']}")
+    child = next((s for s in data["seeds"] if s["path"] == SP + "c.yaml"), {})
+    if child.get("relations") != {"parent": SP + "p.yaml", "refines": ["acceptance-1"],
+                                  "depends_on": [SP + "p.yaml#constraint-1",
+                                                 "acme/other:docs/specs/x.yaml",
+                                                 "docs/elsewhere/out.yaml"],
+                                  "children": []}:
+        failures.append(f"index: declared relations not carried verbatim: {child.get('relations')}")
+    want = {
+        "parent": [{"from": SP + "c.yaml", "to": SP + "p.yaml", "target": "indexed"}],
+        "children": [{"from": SP + "p.yaml", "to": SP + "c.yaml", "target": "indexed"},
+                     {"from": SP + "p.yaml", "to": SP + "ghost.yaml", "target": "notfound"}],
+        "depends_on": [
+            {"from": SP + "c.yaml", "to": SP + "p.yaml", "target": "indexed", "item": "constraint-1"},
+            {"from": SP + "c.yaml", "to": "acme/other:docs/specs/x.yaml", "target": "external",
+             "item": None},
+            {"from": SP + "c.yaml", "to": "docs/elsewhere/out.yaml", "target": "unindexed",
+             "item": None}],
+    }
+    if data["edges"] != want:
+        failures.append(f"index: edges\n got {data['edges']}\nwant {want}")
+    if _snapshot(repo) != before:
+        failures.append("index: must be read-only")
+
+    # Overlapping directories list a Seed once; usage errors exit 2.
+    _, data, _ = _index_json(repo, "docs/specs", "docs")
+    paths = [s["path"] for s in data["seeds"]] if data else []
+    if paths != [SP + "c.yaml", SP + "p.yaml", "docs/elsewhere/out.yaml"]:
+        failures.append(f"index: overlapping directories should list each Seed once, got {paths}")
+    if data and data["edges"]["depends_on"][2]["target"] != "indexed":
+        failures.append("index: a Seed inside a named directory is indexed, not unindexed")
+    for argv in (["index", "docs/specs"], ["index", "--json"], ["index", "nope", "--json"]):
+        p = subprocess.run([sys.executable, str(_SCRIPT_PATH), *argv], cwd=repo,
+                           capture_output=True, text=True)
+        if p.returncode != 2 or p.stdout:
+            failures.append(f"index usage {argv}: expected exit 2 and no stdout, got {p.returncode}")
+    return failures
+
+
+def _index_meta(repo, cmd, rel):
+    p = subprocess.run([sys.executable, str(_SCRIPT_PATH), cmd, rel, "--json"], cwd=repo,
+                       env=dict(os.environ, GH_BIN=NO_GH), capture_output=True, text=True)
+    return p.returncode, json.loads(p.stdout), p.stderr
+
+
 def main() -> int:
     checks = [
         check_tree_same_repo,
@@ -1645,6 +1730,7 @@ def main() -> int:
         check_walk_item_desc,
         check_relations_v3,
         check_item_depends_on,
+        check_index,
     ]
     failures = []
     for check in checks:
