@@ -32,9 +32,11 @@ TOOLS = ("seed-relations.py", "seed-lifecycle.py", "seed-id-migrate.py",
          "seed-append-check.py", "seed-read-check.py")
 READERS = {"cat", "head", "tail", "sed", "less", "more", "grep", "egrep", "rg", "awk",
            "nl", "bat", "view", "yq", "for", "do", "while", "until", "xargs"}
-SPLIT = re.compile(r"&&|\|\||;|\||\n")
+HEREDOC = re.compile(r"(?<!<)<<(?!<)-?\s*(['\"]?)([A-Za-z_][A-Za-z0-9_]*)\1")
+SED_INPLACE = re.compile(r"-[A-Za-z]*i")
 ASSIGN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*=")
 MARKER = "Seed 본문을 읽기 전에"
+DENY_HEAD = MARKER + " metadata를 먼저 실행해요: python3 "  # the guard's own deny output opens like this
 META_PATH = re.compile(r'"path":\s*"([^"]+)"')
 
 
@@ -50,26 +52,87 @@ def is_seed_file(path: str) -> bool:
         return False
 
 
-def _words(segment: str) -> list[str]:
-    try:
-        return shlex.split(segment)
-    except ValueError:
-        return segment.split()
+def _strip_heredocs(command: str) -> str:
+    """Drop heredoc bodies: their lines are data, not commands."""
+    out: list[str] = []
+    pending: list[str] = []
+    for line in command.split("\n"):
+        if pending:
+            if line.strip() == pending[0]:
+                pending.pop(0)
+            continue
+        out.append(line)
+        pending = [m.group(2) for m in HEREDOC.finditer(line)]
+    return "\n".join(out)
+
+
+def _segments(command: str) -> list[list[str]]:
+    """Split a command into simple-command word lists at unquoted `&&`, `||`, `;`, `|`, `&`,
+    newline, parentheses, `$(` and backticks; quotes keep `|`/`;` literal and `#` starts a comment."""
+    segs: list[str] = []
+    cur: list[str] = []
+    quote = ""
+    i, n = 0, len(command)
+    while i < n:
+        c = command[i]
+        if quote:
+            cur.append(c)
+            if c == "\\" and quote == '"' and i + 1 < n:
+                cur.append(command[i + 1])
+                i += 1
+            elif c == quote:
+                quote = ""
+        elif c == "\\" and i + 1 < n:
+            cur.append(command[i:i + 2])
+            i += 1
+        elif c in "'\"":
+            quote = c
+            cur.append(c)
+        elif c == "#" and (not cur or cur[-1].isspace()):
+            while i < n and command[i] != "\n":
+                i += 1
+            continue
+        elif c in ";|&()`\n":
+            if c == "&" and command[i - 1:i] in (">", "<"):  # `2>&1`, `&>` are redirects
+                cur.append(c)
+            else:
+                segs.append("".join(cur))
+                cur = []
+        else:
+            cur.append(c)
+        i += 1
+    segs.append("".join(cur))
+    out = []
+    for seg in segs:
+        seg = seg.strip().removesuffix("$").strip()
+        try:
+            words = shlex.split(seg)
+        except ValueError:
+            words = seg.split()
+        while words and ASSIGN.match(words[0]):
+            words.pop(0)
+        if words:
+            out.append(words)
+    return out
+
+
+def _tool_call(words: list[str]) -> int:
+    """Index of a Seed tool script named as the program or the interpreter's script, else -1."""
+    for i, w in enumerate(words[:5]):
+        if os.path.basename(w) in TOOLS:
+            return i
+    return -1
 
 
 def bash_candidates(command: str, cwd: str) -> list[str]:
     if ".yaml" not in command and ".yml" not in command:
         return []
-    has_tool = any(t in command for t in TOOLS)
+    segments = _segments(_strip_heredocs(command))
+    has_tool = any(_tool_call(w) >= 0 for w in segments)
     wd = cwd or os.getcwd()
     found: list[str] = []
-    for seg in SPLIT.split(command):
-        words = _words(seg.strip())
-        while words and ASSIGN.match(words[0]):
-            words.pop(0)
-        if not words:
-            continue
-        first = words[0]
+    for words in segments:
+        first = os.path.basename(words[0])
         if first == "cd":
             if len(words) != 2 or words[1].startswith("-") or "$" in words[1] or words[1].startswith("~"):
                 return []
@@ -80,9 +143,10 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
         # A segment running a Seed tool is that tool's own read. A loop header is skipped when the
         # command runs one, since its body is usually the tool.
         # ponytail: `walk a.yaml; for f in x.yaml; do cat $f; done` still passes; upgrade: parse loops.
-        if any(t in seg for t in TOOLS) or (has_tool and first in ("for", "while", "until")):
+        if _tool_call(words) >= 0 or (has_tool and first in ("for", "while", "until")):
             continue
-        if first not in READERS or (first == "sed" and any(w.startswith(("-i", "--in-place")) for w in words)):
+        if first not in READERS or (first == "sed" and any(
+                w.startswith("--in-place") or SED_INPLACE.match(w) for w in words[1:])):
             continue
         prev = ""
         for w in words[1:]:
@@ -119,20 +183,39 @@ def _strings(obj):
             yield from _strings(v)
 
 
-def scan_transcript(tp: str):
-    """Return (metadata_paths, denial_strings), or None when unreadable.
+def _metadata_call(command: str, cwd: str):
+    """(literal Seed path or None, cwd) when a command runs `seed-relations.py metadata|read`."""
+    segments = _segments(_strip_heredocs(command))
+    moved = any(os.path.basename(w[0]) == "cd" for w in segments)
+    for words in segments:
+        i = _tool_call(words)
+        if i < 0 or os.path.basename(words[i]) != "seed-relations.py":
+            continue
+        args = [w for w in words[i + 1:] if not w.startswith("-")]
+        if len(args) < 2 or args[0] not in ("metadata", "read"):
+            continue
+        target = args[1]
+        if moved or any(c in target for c in "$*?[`~") or not (cwd or os.path.isabs(target)):
+            return None, cwd  # the file name is not literal here; match by the printed path
+        return os.path.realpath(os.path.join(cwd, target)), cwd
+    return None
 
-    metadata_paths are the `"path"` values a `seed-relations.py metadata` call printed, so a
-    loop like `for s in a b; do ... metadata docs/specs/$s.yaml; done` still counts and a failed
-    call (no JSON printed) does not.
+
+def scan_transcript(tp: str):
+    """Return (metadata calls, denial strings), or None when unreadable.
+
+    A metadata call is (printed path, literal Seed path or None, cwd) for a Bash call whose
+    command ran `seed-relations.py metadata|read` and whose output printed a `"path"`, so a loop
+    like `for s in a b; do ... metadata docs/specs/$s.yaml; done` still counts and a failed call
+    (no JSON printed) does not. A denial is a tool_result opening with the guard's own deny text.
     """
     try:
         with open(tp, encoding="utf-8", errors="replace") as f:
             lines = f.read().splitlines()
     except Exception:
         return None
-    meta_ids: set[str] = set()
-    paths: list[str] = []
+    meta_calls: dict[str, tuple] = {}
+    calls: list[tuple] = []
     results: list[str] = []
     for line in lines:
         try:
@@ -149,22 +232,41 @@ def scan_transcript(tp: str):
                 continue
             if e.get("type") == "assistant" and b.get("type") == "tool_use" and b.get("name") == "Bash":
                 cmd = (b.get("input") or {}).get("command")
-                if isinstance(cmd, str):
-                    if "seed-relations.py" in cmd and "metadata" in cmd and b.get("id"):
-                        meta_ids.add(b["id"])
+                if isinstance(cmd, str) and b.get("id"):
+                    call = _metadata_call(cmd, e.get("cwd") or "")
+                    if call:
+                        meta_calls[b["id"]] = call
             elif b.get("type") == "tool_result":
                 texts = list(_strings(b.get("content")))
-                results.extend(t for t in texts if MARKER in t)
-                if b.get("tool_use_id") in meta_ids:
-                    paths.extend(m for t in texts for m in META_PATH.findall(t))
-    return paths, results
+                results.extend(t for t in texts if DENY_HEAD in t[:300])
+                if b.get("tool_use_id") in meta_calls:
+                    literal, cwd = meta_calls[b["tool_use_id"]]
+                    calls.extend((m, literal, cwd) for t in texts for m in META_PATH.findall(t))
+    return calls, results
+
+
+def _seen(seed: str, call: tuple) -> bool:
+    printed, literal, cwd = call
+    if literal:  # the metadata call named this exact file
+        return seed == literal
+    printed = printed.removeprefix("./")
+    if not seed.endswith("/" + printed):
+        return False
+    if not cwd:
+        return True
+    # The loop variable hides the file name; the printed path is relative to the Seed's repo root,
+    # so that root must contain, or be contained in, the directory the call ran in.
+    root = seed[:-len(printed) - 1]
+    cwd = os.path.realpath(cwd)
+    return cwd == root or cwd.startswith(root + "/") or root.startswith(cwd.rstrip("/") + "/")
 
 
 def decide(payload: dict) -> str:
     ti = payload.get("tool_input") or {}
     tool = payload.get("tool_name")
     if tool == "Read":
-        cands = [ti.get("file_path") or ""]
+        fp = ti.get("file_path") or ""
+        cands = [fp if os.path.isabs(fp) or not fp else os.path.join(payload.get("cwd") or os.getcwd(), fp)]
     elif tool == "Bash":
         cands = bash_candidates(ti.get("command") or "", payload.get("cwd") or "")
     else:
@@ -179,12 +281,10 @@ def decide(payload: dict) -> str:
     scanned = scan_transcript(transcript_path(payload))
     if scanned is None:
         return ""
-    paths, results = scanned
+    calls, results = scanned
     unseen = []
     for s in seeds:
-        # ponytail: relative-path suffix match; ceiling: two repos' Seeds at the same relative path
-        # share one metadata call; upgrade: resolve each metadata call's cwd.
-        if any(s == p or s.endswith("/" + p.removeprefix("./")) for p in paths):
+        if any(_seen(os.path.realpath(s), c) for c in calls):
             continue
         if any(s in r for r in results):  # already denied once for this Seed in this transcript
             continue
@@ -206,10 +306,10 @@ def _self_test() -> int:
             failed += 1
             print(f"FAIL: {name}: got {got!r}", file=sys.stderr)
 
-    def tr(path, commands=(), results=(), outputs=()):
+    def tr(path, commands=(), results=(), outputs=(), cwd=None):
         rows = []
         for i, c in enumerate(commands):
-            rows.append({"type": "assistant", "message": {"content": [
+            rows.append({"type": "assistant", **({"cwd": cwd} if cwd else {}), "message": {"content": [
                 {"type": "tool_use", "id": f"t{i}", "name": "Bash", "input": {"command": c}}]}})
             if i < len(outputs):
                 rows.append({"type": "user", "message": {"content": [
@@ -248,7 +348,22 @@ def _self_test() -> int:
         tr(t_other, commands=['python3 /p/seed-relations.py metadata docs/specs/old-x.yaml --json'],
            outputs=['{"path": "docs/specs/old-x.yaml"}'])
         t_denied = f"{d}/t/denied.jsonl"
-        tr(t_denied, results=[f"{MARKER} metadata를 먼저 실행해요: ... {seed} ..."])
+        tr(t_denied, results=[f'{DENY_HEAD}"/p/seed-relations.py" metadata {seed} --json (seed-lifecycle.md)'])
+        # #895 review: a file that merely quotes the marker and the path (a Read of this script or a doc)
+        # is not a deny.
+        t_quoted = f"{d}/t/quoted.jsonl"
+        tr(t_quoted, results=["1\t#!/usr/bin/env python3\n" + "x\n" * 200 + f"{MARKER} metadata를 먼저 실행해요: {seed}"])
+        # #895 review: a loop's metadata call run in another repo does not cover this repo's Seed.
+        t_foreign = f"{d}/t/foreign.jsonl"
+        tr(t_foreign, commands=['for s in x; do python3 /p/seed-relations.py metadata docs/specs/$s.yaml --json; done'],
+           outputs=['{"path": "docs/specs/x.yaml"}'], cwd="/elsewhere/other-repo")
+        t_here = f"{d}/t/here.jsonl"
+        tr(t_here, commands=['for s in x; do python3 /p/seed-relations.py metadata docs/specs/$s.yaml --json; done'],
+           outputs=['{"path": "docs/specs/x.yaml"}'], cwd=d)
+        # #895 review: `metadata` in a walk's file name must not turn walk output into a metadata call.
+        t_walkmeta = f"{d}/t/walkmeta.jsonl"
+        tr(t_walkmeta, commands=['python3 /p/seed-relations.py walk docs/specs/metadata-y.yaml --json'],
+           outputs=['{"nodes": [{"path": "docs/specs/x.yaml"}]}'])
         # subagent layout: parent transcript t/main.jsonl, subagent at t/main/subagents/agent-a1.jsonl
         t_main = f"{d}/t/main.jsonl"
         tr(t_main, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'], outputs=[f'{{"path": "{seed}"}}'])
@@ -284,6 +399,19 @@ def _self_test() -> int:
                 os.environ.pop("HOME")
             else:
                 os.environ["HOME"] = home
+        check("read relative path uses payload cwd", decide({**read("docs/specs/x.yaml", t_none), "cwd": d}), True)
+        check("read quoting the marker is no prior deny", decide(read(seed, t_quoted)), True)
+        check("read, metadata ran in another repo", decide(read(seed, t_foreign)), True)
+        check("read, metadata ran in this repo", decide(read(seed, t_here)), False)
+        check("read, walk output with metadata in a file name", decide(read(seed, t_walkmeta)), True)
+        check("bash grep pattern keeps its pipe", decide(bash("grep -n 'goal|ambiguity' docs/specs/x.yaml", t_none)), True)
+        check("bash sed script keeps its semicolon", decide(bash("sed -n '1p;3p' docs/specs/x.yaml", t_none)), True)
+        check("bash tool name in a comment is no bypass", decide(bash("cat docs/specs/x.yaml  # seed-relations.py", t_none)), True)
+        check("bash tool name as an argument is no bypass", decide(bash("cat docs/specs/x.yaml | grep seed-relations.py", t_none)), True)
+        check("bash absolute reader path", decide(bash("/bin/cat docs/specs/x.yaml", t_none)), True)
+        check("bash command substitution", decide(bash("echo $(cat docs/specs/x.yaml)", t_none)), True)
+        check("bash sed -Ei is an edit", decide(bash("sed -Ei s/a/b/ docs/specs/x.yaml", t_none)), False)
+        check("bash heredoc body is no command", decide(bash("python3 - <<'EOF'\ncat docs/specs/x.yaml\nEOF", t_none)), False)
         check("read non-seed yaml", decide(read(plain, t_none)), False)
         check("read template", decide(read(tmpl, t_none)), False)
         check("read non-yaml", decide(read(f"{d}/nope.txt", t_none)), False)
