@@ -101,7 +101,14 @@
           {
             "type": "command",
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-read-guard.sh",
-            "timeout": 5
+            "timeout": 5,
+            "if": "Bash(*.yaml*)"
+          },
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/hooks/seed-read-guard.sh",
+            "timeout": 5,
+            "if": "Bash(*.yml*)"
           }
         ]
       }

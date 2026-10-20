@@ -348,7 +348,7 @@ def _self_test() -> int:
         tr(t_other, commands=['python3 /p/seed-relations.py metadata docs/specs/old-x.yaml --json'],
            outputs=['{"path": "docs/specs/old-x.yaml"}'])
         t_denied = f"{d}/t/denied.jsonl"
-        tr(t_denied, results=[f'{DENY_HEAD}"/p/seed-relations.py" metadata {seed} --json (seed-lifecycle.md)'])
+        tr(t_denied, results=[f'PreToolUse:Read hook error: {DENY_HEAD}"/p/seed-relations.py" metadata {seed} --json (seed-lifecycle.md)'])
         # #895 review: a file that merely quotes the marker and the path (a Read of this script or a doc)
         # is not a deny.
         t_quoted = f"{d}/t/quoted.jsonl"
