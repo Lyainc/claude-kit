@@ -154,6 +154,7 @@ Seed의 전체 완료나 closed 전환, 현재 원본 main과 설치본에서의
 
 `docs/specs/seed-lifecycle-residual-validation.yaml`의 acceptance-2 중 **Claude 쪽**만 실측했다.
 Codex trace는 Codex 런타임에서만 얻을 수 있어 **미검증**으로 남긴다. acceptance-3·4는 다루지 않았다.
+Codex 쪽 실측은 [2026-10-21 기록](validation-seed-hold-codex-2026-10-21.md)에 있다.
 
 ### 기준과 로드한 바이트
 
