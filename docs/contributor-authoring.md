@@ -90,7 +90,7 @@ portable metadata를 소유하며 Claude manifest와 `name`/`version`만 lockste
 ## Adding a New Plugin
 
 1. `{plugin-name}/` 디렉토리 생성
-2. `{plugin-name}/plugin.json`에 portable Codex metadata 작성
+2. `{plugin-name}/plugin.json`에 portable Codex metadata 작성. Codex 훅을 싣는 플러그인은 여기에 agent-plugins `$schema`를 넣지 않고 `.codex-plugin/plugin.json`의 `hooks`로 선언합니다 — codex-cli 0.163.0은 그 `$schema`가 있으면 Agent Plugins 매니페스트로 읽어 플러그인 훅을 하나도 등록하지 않습니다(thinking-tools, #814)
 3. `{plugin-name}/.claude-plugin/plugin.json`에 Claude metadata 작성 (`name`/`version`은 portable manifest와 lockstep)
 4. `{plugin-name}/skills/` 하위에 스킬 추가
 5. `.claude-plugin/marketplace.json`과 `.agents/plugins/marketplace.json`의 `plugins` 배열에 항목 추가 (각 source 경로·Codex policy/category 포함)
