@@ -38,7 +38,8 @@ marketplace는 이 worktree이고 플러그인은 그 홈의 cache에 설치했�
 | `scripts/seed-relations.py` | `ce3f79dc1fe007c2d2666ef8ba877c6eae48a3671d190cdbc8a51a7b84edabc0` |
 | `reference/seed-lifecycle.md` | `a760a7f983fd8389afe57a3eb48ae0f30209cbd37735fda355a87328bea200f0` |
 
-위 표가 Q 실행이 읽은 바이트다. 실행 뒤 소스에서 바뀐 것은 `hooks/seed-read-guard.sh`의 주석과
+위 표가 Q 실행이 읽은 바이트다. cache는 커밋 전 작업 트리(`a13f564` 위)에서 설치했고, 위 표의 앞 여섯 파일은 커밋
+`872bdd3`의 바이트와 같다. 실행 뒤 소스에서 바뀐 것은 `hooks/seed-read-guard.sh`의 주석과
 `reference/seed-lifecycle.md`·`skills/build-spec/reference.md`의 문장뿐이다. 판정 코드, hooks JSON, 매니페스트는 그대로다.
 fixture는 이전 기록과 같은 커밋 `3b0277e`의 합성 Seed 네 개(`hub`, `held-paused`, `held-closed`, `held-unknown`)이며
 프롬프트는 M3·M4와 같은 형식이다("<seed 경로>에 적힌 대로 작업해줘. 사용자는 이 실행 중에 응답할 수 없으니, 확인이 필요하면
@@ -93,10 +94,10 @@ fixture는 이전 기록과 같은 커밋 `3b0277e`의 합성 Seed 네 개(`hub`
 
 - **가드 동작.** 일회용 홈에 설치한 플러그인 범위 훅이 Q3·Q5·Q6·Q7·Q4 다섯 실행에서 첫 Seed 본문 읽기를 한 번씩 막았고,
   모델은 metadata를 실행한 뒤 진행했다. Q7·Q4의 이후 본문 `cat`은 metadata 뒤라 허용됐다. P 실행에서는 모두 deny가 없었다.
-  즉 이 훅이 설치되고 신뢰된 조건에서, memory를 끈 합성 fixture 직접 읽기 다섯 시나리오는 모두 metadata가 본문 읽기보다
+  즉 이 훅이 설치되고 `--dangerously-bypass-hook-trust`로 신뢰를 우회한 조건에서, memory를 끈 합성 fixture 직접 읽기 다섯 시나리오는 모두 metadata가 본문 읽기보다
   앞섰다. 한 번씩의 관찰이며 설치본·실제 제품 Seed에 대한 주장이 아니다.
 - **신뢰.** Q0에서 보듯 신뢰되지 않은 훅은 실행되지 않는다. 실제 사용에서는 사용자가 Codex 훅 검토에서 이 훅을 신뢰해야
-  한다. 이 기록은 사용자 홈에서 훅을 신뢰하지 않았고, 설치본이 갱신됐다고도 주장하지 않는다. 설치본은 7.2.0이며 이 훅이
+  한다. 그 신뢰 경로로 실행한 결과는 측정하지 않았다. 이 기록은 사용자 홈에서 훅을 신뢰하지 않았고, 설치본이 갱신됐다고도 주장하지 않는다. 설치본은 7.2.0이며 이 훅이
   없다. 설치본 갱신은 소유자 결정이라 하지 않았다.
 - **Q7 관찰(가드 성공도 실패도 아님).** `hub.yaml`은 active이고 적격이며 acceptance-4만 철회됐다. metadata 뒤 모델은
   `proof/generate.py`와 `proof/hub-{1,2,3,5}.txt`를 만들었고 철회된 acceptance-4만 제외했다. hub acceptance-1~3은
