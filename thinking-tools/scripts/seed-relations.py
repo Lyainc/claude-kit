@@ -711,7 +711,7 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
     """Deterministic candidate gate; excluded items are never evidence of fulfillment."""
     def result(eligible,reason,excluded=(),review=False):
         return {"eligible":eligible,"reason":reason,"excluded_items":sorted(set(excluded)),
-                "review_required":review}
+                "review_required":review,"held_items":[]}
     if seed is None:
         return result(False,"Seed unavailable",review=True)
     if getattr(seed,"location",None) in rd.invalid_incoming:
@@ -769,7 +769,27 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
                 return result(False,"ancestor review required",own,True)
     if inactive:
         return result(False,reason,excluded)
-    return result(bool(own-excluded),"withdrawn items" if excluded else "active",excluded)
+    # A held child's work stays held: the acceptance ids an unknown/paused/closed child refines leave
+    # this Seed's automatic application, with that child as the reason.
+    held = []
+    for c in seed.children:
+        kid = rd.load(rd.norm(c,ctx_repo),exact_edges(seed))
+        ks = kid.seed
+        if ks is None or not ks.is_child_edge() or lifecycle_summary(ks)["state"] == "active":
+            continue
+        if hasattr(seed,"location") and \
+                rd.resolve_quiet(rd.norm(ks.parent,kid.loc[0]),exact_edges(ks)) != seed.location:
+            continue
+        kl = lifecycle_summary(ks)
+        state = kl["state"] + (":" + str(kl["outcome"]) if kl["state"] == "closed" else "")
+        held += [{"id":i,"child":key(kid.loc),"state":state}
+                 for i in ks.acceptance_refines() if i in own and i not in excluded]
+    out = result(bool(own-excluded-{h["id"] for h in held}),
+                 "; ".join(r for r,on in (("withdrawn items",excluded),("held by inactive child",held)) if on)
+                 or "active",
+                 excluded|{h["id"] for h in held})
+    out["held_items"] = sorted(held,key=lambda h:(h["id"],h["child"]))
+    return out
 
 
 # ---------------------------------------------------------------------------
