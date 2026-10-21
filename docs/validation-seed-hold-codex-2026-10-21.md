@@ -102,3 +102,5 @@ memory 끔(`--disable memories`):
   memory 없이 충족되지 않았다. 철회 항목은 C4·M4 직접 읽기에서도 제외 대상으로 질문됐다. 실행 바이트는 설치본
   7.2.0이며 소스 7.3.0의 차이 파일(`seed-lifecycle.md`, `seed-lifecycle.py`, build-spec `reference.md` 등)로는 실행하지 않았다.
 - 원시 rollout, 이벤트 JSONL, 전후 해시 파일은 저장소 밖 세션 scratchpad에 있어 이 문서만으로 재열람할 수 없다.
+
+후속: memory 없는 직접 읽기의 metadata 선행 공백은 [Codex 플러그인 읽기 가드 검증](validation-seed-read-guard-codex-2026-10-21.md)에서 다룬다.
