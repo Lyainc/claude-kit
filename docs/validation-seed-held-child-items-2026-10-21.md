@@ -99,7 +99,79 @@ codex-cli 0.163.0, 모델 `gpt-6.1-sol`(medium), sandbox `workspace-write`, appr
   metadata를 거쳐 hub-5만 만들었고, 수정 전 Q7(같은 가드, `held_items` 없음)이 hub-1~3까지 만든 것과 갈린다.
   따라서 Codex 직접 읽기의 보류는 PR #904와 이 변경이 모두 들어가야 성립한다.
 - **분리해서 본 주장(constraint-4).** 세 실행 모두 합성 fixture에 대한 소스 기준 실행이며 각 한 번의 관찰이다. 사용자 설치본의
-  discovery, memory를 켠 동작, 실제 제품 Seed, Claude Code 런타임은 이 기록의 주장이 아니다. D2는 신뢰를 우회한 훅 조건이다.
+  discovery, memory를 켠 동작, 실제 제품 Seed는 이 기록의 주장이 아니다. D2는 신뢰를 우회한 훅 조건이다. Claude Code
+  런타임은 아래 "Claude Code 실행" 절에서 따로 다룬다.
 - **관찰하지 않은 것.** closed/completed 자식은 테스트에서만 확인했고 Codex 실행 fixture에는 없다. 다른 레포 자식, 다른 소비 스킬
   (build-spec, unknown-discovery)의 실행은 하지 않았다.
 - 원시 rollout, 이벤트 JSONL, 전후 해시 파일은 저장소 밖 세션 scratchpad에 있어 이 문서만으로 재열람할 수 없다.
+
+## Claude Code 실행 (2026-10-21)
+
+### 환경과 로드한 바이트
+
+Claude Code 2.1.306, 모델 `claude-opus-5-5[1m]`(기본 effort). 모든 실행은 위 fixture(커밋 `4d5da91`)의 새 사본에서
+`claude -p … --plugin-dir <이 브랜치 worktree>/thinking-tools --settings '{"enabledPlugins":{"thinking-tools@Lyainc-claude-kit":false}}'
+--output-format stream-json --verbose --permission-mode acceptEdits --allowedTools Bash Read Write Edit Glob Grep Skill`로 돌렸다.
+`--settings`는 이 세션에만 설치본 thinking-tools를 끄는 인자이고 사용자 `~/.claude/settings.json` SHA-256은 실행 전후 같았다.
+각 실행의 stream-json `init` 이벤트가 `thinking-tools` 경로를 `…/.worktrees/814-held-child-claude/thinking-tools`
+(`source` = `thinking-tools@inline`, 7.3.0)로 보고했다. 그 디렉터리는 이 브랜치 head `a7e7ddc` 체크아웃이고 실행 중 바뀌지 않았다.
+사용자 설정의 다른 플러그인(feedback-loop, vault-bridge 등)은 그대로 로드됐다. 아래 표의 해시는 그 디렉터리 소스 파일의 값이며,
+"경로 근거"는 실행이 그 파일을 그 경로에서 썼다는 증거가 trace에 있는지를 구분한다. 확인은 도구 입력이나 출력에 worktree 절대 경로가
+찍힌 경우, 추정은 플러그인 루트로부터의 상대 위치뿐인 경우, 미관찰은 실행이 그 파일을 쓴 흔적이 없는 경우다.
+
+| 파일(`thinking-tools/` 기준, 소스) | SHA-256 | 경로 근거 |
+|---|---|---|
+| `scripts/seed-relations.py` | `ab3df30610314b784cde519ebb94541e950f7ab664e4baba68045edc985dbb61` | 확인: CD·CN의 `metadata` Bash 명령이 worktree 절대 경로로 실행 |
+| `scripts/seed-read-check.py` | `2f97ee583ffa6941969dd61c36a280d34e20f281fa594f3397dc2cbddc271414` | 확인: CD의 DENY 문구(이 스크립트가 `PLUGIN_ROOT`로 조립)가 worktree 경로를 담음 |
+| `skills/next-goal/reference.md` | `76241dcf606fcbbc9432f93f7e546a8cf14cacc04d15cabab1e9c545c7131326` | 확인: CN이 worktree 절대 경로로 `Read` |
+| `scripts/next-goal-render.py` | `7e0c1226ecb3a59ab1367093051c4887c39feafe63c6cbb01e2cb9707f441592` | 확인: CN이 worktree 절대 경로로 실행 |
+| `hooks/seed-read-guard.sh` | `fb2cccb9654275b973ea9738b420e2fc93a12776ef35a6b0b53dafda02a55f5b` | 추정: DENY가 났으나 훅 명령 경로는 trace에 없음 |
+| `.claude-plugin/plugin.json` | `36b18e9cfcf14d0071a2e2ca2a5f26625aa05b74b5f23ab40b358e672bcdce8e` | 추정: `init`의 플러그인 경로와 훅 동작뿐 |
+| `skills/next-goal/SKILL.md` | `91a864d116a8b76c9a32e2e97f313ee69342b357c1f981ac073f13020cb9537a` | 추정: 슬래시 명령으로 주입돼 파일 경로가 trace에 없음 |
+| `reference/seed-lifecycle.md` | `5970af23312875e42b90382a28322c2f1added0bde6a28dabe8882bea5710deb` | 미관찰: 세 실행 모두 읽지 않음. 실행 뒤 같은 문장의 줄바꿈만 바꿔 저장소 해시는 다르다 |
+| `hooks/next-goal-context.sh` | `94e3eacfbda3760fd0c066458284925ddc2ae0415e2d5825c98bcd996e3d9fa1` | 미관찰: CN TRACE가 훅 컨텍스트 미도착을 적음 |
+
+`seed-relations.py`와 `seed-lifecycle.md`는 위 Codex 표의 바이트가 아니라 그 뒤 고친 이 브랜치 head의 바이트다. Claude 읽기
+가드(`seed-read-guard.sh`·`seed-read-check.py`)는 main에 있던 그대로이며 이 변경이 다시 구현하지 않았다. 프롬프트는 Codex와 같은
+문장이고, next-goal은 `/thinking-tools:next-goal docs/specs/hub.yaml 다음에 할 작업을 정해줘. …`(같은 꼬리)다. 세 실행의 실행 전
+fixture 해시는 위 fixture 표와 같다.
+
+### 실제 도구 순서 (시각 KST)
+
+| 시나리오 | 세션 조건 | 도구 순서 | 결과 | 실행 전후 해시 diff |
+|---|---|---|---|---|
+| CD 직접 읽기 | persistence 켬(기본), session `8d47b889-10af-4ad7-b84e-1733cce057f3` | 14:00:18 `cat docs/specs/hub.yaml && …` **DENY**(가드: metadata 먼저) → 14:00:21 hub `metadata` → 14:00:24 `cat docs/specs/hub.yaml` 허용 → 14:00:30 `proof/hub-5.txt` 작성 | acceptance-5만 구현. 1(`held-paused.yaml`, paused), 2(`held-closed.yaml`, `closed:discontinued`), 3(`held-unknown.yaml`, unknown), 4(철회)를 사유와 함께 **보류·보고**하고 1~3 재개 여부를 질문으로만 적음 | `proof/hub-5.txt` 추가 |
+| CN next-goal | `--no-session-persistence`, 13:59:10~14:00:02 | ① hub `metadata --json` → ② `walk` + `cat docs/specs/hub.yaml` → `reference.md` 읽기 → `next-goal-render.py` | NEXT = hub acceptance-5. SKIPPED에 acceptance-1~3을 자식 경로·상태와 함께, 4를 철회로 **보고** | 없음 |
+| CD0 직접 읽기 | `--no-session-persistence`, 13:59:10~13:59:41 | `cat docs/specs/hub.yaml && …`(metadata 없음, 가드 통과) → `proof_cli.py` 작성 → hub-1·2·3·5 생성 | 철회된 4번만 빼고 hub-1·2·3·5 구현. 자식 Seed는 손대지 않았다고 보고했지만 부모 항목 1~3은 **보류하지 않음** | `proof_cli.py`, `proof/hub-{1,2,3,5}.txt` 추가 |
+
+CN은 transcript가 없어 도구별 시각 대신 실행 시작·종료 시각과 stream-json 순서만 적었다. 세 실행 모두 Seed 네 개,
+`README.md`, `proof/.gitkeep` 해시는 실행 전과 같았고, 셋 다 `.claude-kit/telemetry/events/events-2026-10-21.jsonl`이 새로
+생겼다(사용자 설정으로 로드된 다른 플러그인의 telemetry이며 Seed 판정과 무관하다). 답한 질문은 없다. 추가된 파일의 실행 후 해시는
+아래와 같다.
+
+| 시나리오 | 파일 | 실행 후 SHA-256 |
+|---|---|---|
+| CD | `proof/hub-5.txt`(추가) | `23af668047eae9c936086d9c07a318fed0757455177757fd3d849fa1faf4614d` |
+| CD | `.claude-kit/telemetry/events/events-2026-10-21.jsonl`(추가) | `b9c55c553c0d97f81a7b4e7147cb4fca5da927b8c55d62e6965e7bd6068d17bc` |
+| CN | `.claude-kit/telemetry/events/events-2026-10-21.jsonl`(추가) | `bf3ee4b9c2bddbe42a9dea6d08fcd05ec54532bb21f0aff71c947473be67ac6e` |
+| CD0 | `proof_cli.py`(추가) | `60b6b82fec6cbc12129ce412123726434b2c8da0ad24c2052ae5dd032807ab8a` |
+| CD0 | `proof/hub-1.txt`·`hub-2.txt`·`hub-3.txt`·`hub-5.txt`(추가, 빈 파일) | 각각 `e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855` |
+| CD0 | `.claude-kit/telemetry/events/events-2026-10-21.jsonl`(추가) | `1f425eaeb93abccf1cb876cc08b4b8fa44ee1a5111fb9462a5e37930d134d753` |
+
+### 판정과 한계
+
+- **공식 소비(CN).** next-goal은 metadata를 본문보다 먼저 실행했고 acceptance-1~3을 보류 자식과 상태로, 4를 철회로 보고하며
+  acceptance-5만 후보로 냈다. Codex N1과 같은 결과다.
+- **직접 읽기(CD).** 기본 세션에서 Claude 읽기 가드가 metadata 없는 첫 본문 읽기를 막았고, 이어진 metadata의 `held_items`대로
+  acceptance-5만 구현하고 1~3을 보류·보고했다. Codex D1(가드 없음)과 달리 이 변경만으로 성립하는데, main에 이미 있는 Claude
+  가드와 이 변경의 `held_items`가 함께 작동한 결과다.
+- **CD0는 실행 설계 결함의 관찰이다.** `--no-session-persistence` 세션에서 가드는 첫 본문 읽기를 막지 않았다. `seed-read-check.py`는
+  transcript를 읽을 수 없으면 통과(fail-open)하도록 되어 있고, 같은 바이트에 없는 transcript 경로를 주면 출력 없이 exit 0, 빈
+  transcript 파일을 주면 DENY 문구를 낸다는 것을 재현했다. 그 세션이 실제로 어떤 `transcript_path`를 넘겼는지는 확인하지 않았다.
+  persistence를 끈 비대화형 실행에서는 직접 읽기 보류가 보장되지 않는다. 가드의 fail-open은 main의 설계이며 이 변경 범위가 아니다.
+- **분리해서 본 주장(constraint-4).** 세 실행 모두 합성 fixture에 대한 `--plugin-dir` 소스 기준 실행이고 각 한 번의 관찰이다.
+  사용자 설치본 discovery, 실제 제품 Seed, 대화형 세션은 이 절의 주장이 아니다. CN에서 `next-goal-context.sh` 훅 컨텍스트는
+  도착하지 않았다고 next-goal이 TRACE에 적었고, 그 원인은 확인하지 않았다.
+- **관찰하지 않은 것.** Codex 절과 같다. closed/completed 자식, 다른 레포 자식, 다른 소비 스킬(build-spec, unknown-discovery)의
+  Claude 실행은 하지 않았다.
+- 원시 stream-json, 전후 해시 파일은 저장소 밖 세션 scratchpad에 있어 이 문서만으로 재열람할 수 없다.
