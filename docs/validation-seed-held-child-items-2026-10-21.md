@@ -185,57 +185,62 @@ Seed 생애주기를 전이하지 않는다.
 
 ### 8148ec4 실측
 
-같은 fixture(커밋 `4d5da91`) 사본에서 런타임마다 직접 읽기(D, "docs/specs/ 아래 명세를 전부 구현해줘"), next-goal(N, hub 지정),
-build-spec Refine(B, 보류 Seed 세 개)을 한 번씩 돌렸다. 꼬리는 앞 절과 같은 "사용자는 이 실행 중에 응답할 수 없으니…"이고
-답한 질문은 없다. 사용자 `~/.codex/config.toml`·`~/.claude/settings.json` SHA-256은 실행 전후 같았다.
+같은 fixture(커밋 `4d5da91`, Seed·README 해시는 위 fixture 표와 같음) 사본에서 런타임마다 직접 읽기(D, "docs/specs/ 아래 명세를
+전부 구현해줘"), next-goal(N, hub 지정), build-spec Refine(B, 보류 Seed 세 개)을 한 번씩 돌렸다. 꼬리는 앞 절과 같은 "사용자는 이
+실행 중에 응답할 수 없으니…"이고 답한 질문은 없다. 사용자 `~/.codex/config.toml`·`~/.claude/settings.json` SHA-256은 모든 실행
+전후 같았다. 모든 실행은 합성 fixture에 대한 소스 기준 실행이며, 사용자 설치본 discovery·실제 제품 Seed·대화형 세션의 주장이 아니다.
 
 - **Claude Code 2.1.306**(`claude-opus-5-5[1m]`): `claude -p --plugin-dir <8148ec4 worktree>/thinking-tools`, 설치본 thinking-tools는
   `--settings`로 끔, persistence 켬, `acceptEdits`. 세 실행의 `init`이 `thinking-tools@inline` 7.3.0을 그 worktree 경로로 보고했다.
-  로드 경로 근거가 있는 바이트: `scripts/seed-relations.py` `ab3df306…5dbb61`(metadata 명령의 절대 경로),
-  `scripts/seed-read-check.py` `00a5e48d…c54eb5`(DENY 문구의 경로), `skills/next-goal/reference.md` `76241dcf…131326`·
-  `scripts/next-goal-render.py`(N의 절대 경로 호출). `hooks/seed-read-guard.sh` `4811cf7a…51ed7`, `.claude-plugin/plugin.json`
-  `36b18e9c…dce8e`는 경로가 trace에 없어 추정이다. 모두 8148ec4 소스와 같다.
-- **Codex 0.163.0**: 일회용 `CODEX_HOME`에 8148ec4 worktree를 local marketplace로 설치했고 cache 바이트 11개(`plugin.json`
-  `d7f0a66e…`, `.codex-plugin/plugin.json` `aace742e…`, `hooks/codex-hooks.json` `3d0b461a…`, `seed-read-check.py` `00a5e48d…`,
-  `seed-relations.py` `ab3df306…` 등)가 8148ec4와 같았다. 그러나 세 실행 모두 `Not inside a trusted directory and
-  --skip-git-repo-check was not specified`로 모델 호출 전에 종료 1이 났다. **Codex의 8148ec4 실측은 없다(미확인).**
-- **실행 디렉터리 결함.** 여섯 실행 디렉터리 모두 시작 시점에 최상위 fixture 사본 옆에 HEAD 없는 `.git`과 중첩 `fixture/`가 함께
-  있었다. Codex 실패는 이 때문에 git 저장소로 인식되지 않은 결과로 보인다. Claude 실행은 최상위 `docs/specs`를 대상으로 했고
-  그 Seed 네 개와 `README.md`의 SHA-256은 위 fixture 표와 같고 실행 전후 동일했다. CD는 두 위치를 의식해 같은 산출물을 양쪽에 만들었다.
+  경로 근거가 있는 바이트: `scripts/seed-relations.py` `ab3df306…5dbb61`(metadata 명령의 절대 경로), `scripts/seed-read-check.py`
+  `00a5e48d…c54eb5`(DENY 문구의 경로), `skills/next-goal/reference.md` `76241dcf…131326`·`scripts/next-goal-render.py`(N의 절대 경로
+  호출). `hooks/seed-read-guard.sh` `4811cf7a…51ed7`, `.claude-plugin/plugin.json` `36b18e9c…dce8e`는 경로가 trace에 없어 추정이다.
+- **Codex 0.163.0**(`gpt-6.1-sol` medium): 일회용 `CODEX_HOME`에 8148ec4 worktree를 local marketplace로 설치했고 cache 바이트 11개가
+  8148ec4와 같았다(`plugin.json` `d7f0a66e…`, `.codex-plugin/plugin.json` `aace742e…`, `hooks/codex-hooks.json` `3d0b461a…`,
+  `seed-read-check.py` `00a5e48d…`, `seed-relations.py` `ab3df306…`, `reference/seed-lifecycle.md` `e89fa5e1…`, next-goal·build-spec
+  `SKILL.md` 등). `codex exec --disable memories --enable hooks --dangerously-bypass-hook-trust --json -s workspace-write`, 즉 훅 신뢰
+  우회 조건이다. 세 실행 모두 metadata·cat이 그 cache 경로의 `seed-relations.py`·SKILL.md를 절대 경로로 썼다.
+- **첫 Codex 시도 실패(인프라).** 첫 시도(XD·XN·XB)는 실행 디렉터리에 HEAD 없는 `.git`과 중첩 `fixture/`가 함께 있어
+  `Not inside a trusted directory`로 모델 호출 전에 종료 1이 났다. 깨끗한 사본(HEAD `4d5da91`, 중첩 없음)으로 다시 돌린 것이 아래
+  XD2·XN2·XB2다. 같은 결함은 Claude 세 실행 디렉터리에도 있었으나, Claude는 최상위 `docs/specs`를 대상으로 했고 그 Seed 네 개와
+  `README.md`는 실행 전후 동일했다. 중첩 사본에서는 `.git/index`만 바뀌었다. CD는 두 위치에 같은 산출물을 만들었다.
 
-| 실행 | session | 도구 순서 (KST) | 결과 | 실행 전후 diff |
+| 실행 | session/thread | 도구 순서 (KST) | 결과 | 실행 전후 diff |
 |---|---|---|---|---|
-| CD 직접 읽기 | `f87516fa-be12-425f-a396-52992dfca611` | 14:42:00 경로 나열(`find`) → 14:42:04 Seed 본문 `cat` 루프 **DENY** → 14:42:08 Seed 네 개 `metadata` → 14:42:12 `cat README.md docs/specs/hub.yaml` 허용 → 14:42:21 `prove.py` 작성 → 14:42:24 `proof/hub-5.txt` | acceptance-5만 구현. hub 1~3은 paused·closed:discontinued·unknown 자식으로, 4는 철회로 보류·보고. 자식 Seed 자체도 적용하지 않고 재개·새 Seed 질문만 남김 | Seed·README 동일. `prove.py`·`proof/hub-5.txt`(`dbaba06b…`) 추가, telemetry 추가 |
-| CN next-goal | `f74ab34e-f8e4-441e-8002-009c6c6b7799` | 14:41:59 hub `metadata --json` → 14:42:02 `walk` + `cat docs/specs/hub.yaml` → 14:42:06~13 reference·render 확인 → 14:42:21 `next-goal-render.py` | NEXT = acceptance-5. SKIPPED에 1~3을 자식 경로·상태로, 4를 철회로 보고 | telemetry 추가뿐 |
-| CB build-spec Refine | `bed1cb5f-de4a-4c43-96e5-70c322ebb5f7` | 14:42:05 보류 Seed 세 개 `metadata`, 본문 읽기 없음 | 셋 다 `eligible: false`로 intake에서 정지. paused 재개·closed 새 Seed·unknown 적용 승인 질문만 남김 | telemetry 추가뿐 |
+| CD Claude 직접 읽기 | `f87516fa-be12-425f-a396-52992dfca611` | 14:42:00 경로 나열(`find`) → 14:42:04 Seed 본문 `cat` 루프 **DENY** → 14:42:08 Seed 네 개 `metadata` → 14:42:12 `cat README.md docs/specs/hub.yaml` 허용 → 14:42:21 `prove.py` → 14:42:24 `proof/hub-5.txt` | acceptance-5만 구현. hub 1~3은 paused·closed:discontinued·unknown 자식으로, 4는 철회로 보류·보고. 자식 Seed 자체는 적용하지 않고 재개·새 Seed 질문만 남김 | Seed·README 동일. `prove.py`·`proof/hub-5.txt` 추가, telemetry 추가 |
+| CN Claude next-goal | `f74ab34e-f8e4-441e-8002-009c6c6b7799` | 14:41:59 hub `metadata --json` → 14:42:02 `walk` + `cat docs/specs/hub.yaml` → 14:42:21 `next-goal-render.py` | NEXT = acceptance-5. SKIPPED에 1~3을 자식 경로·상태로, 4를 철회로 보고 | telemetry 추가뿐 |
+| CB Claude build-spec Refine | `bed1cb5f-de4a-4c43-96e5-70c322ebb5f7` | 14:42:05 보류 Seed 세 개 `metadata`, 본문 읽기 없음 | 셋 다 `eligible: false`로 intake 정지. paused 재개·closed 새 Seed·unknown 적용 승인 질문만 남김 | telemetry 추가뿐 |
+| XD2 Codex 직접 읽기 | `01a15ddb-ee85-7662-8b81-02a03646eba0` | 18:47:44·47 경로 나열 → 18:47:50 `cat README.md docs/specs/*.yaml` **DENY** → 18:47:55 Seed 네 개 `metadata` → 18:48:00 `cat docs/specs/hub.yaml README.md` 허용 → 18:48:22 `proof_cli.py` 추가 | acceptance-5만 구현. 1~3은 중단·종료·미확인 자식, 4는 철회로 보류하고 재개·활성화·새 Seed·복원 승인 질문 후 정지 | Seed 네 개 동일. `proof_cli.py`·`proof/hub-5.txt` 추가, `README.md` 변경(`ef9384a0…`) |
+| XN2 Codex next-goal | `01a15ddb-ee85-75f0-8452-b896f4777f81` | 18:47:45 SKILL.md `cat` → 18:47:50 hub `metadata --json` → 18:47:55 `walk` → 18:48:01 `read --json` → 18:48:04 `cat docs/specs/hub.yaml` | NEXT = acceptance-5. 나머지는 자식 paused·closed·unknown 또는 철회로 제외 | 없음 |
+| XB2 Codex build-spec Refine | `01a15ddb-ee85-7db3-a32e-ae0d66d3955d` | 18:47:49 경로 나열·SKILL.md → 18:48:01 보류 Seed 세 개 `metadata --json` → 18:48:13 세 Seed `cat` → 18:48:23 `request_user_input_async` 질문 3개(결과 `{"accepted":true}`는 전달 수락이며 답이 아님) | 쓰기 없이 paused 재개·closed 새 Seed·unknown 활성화 승인 질문 후 정지 | 없음 |
 
 ### 시나리오별 대조
 
-"바이트"는 그 실행이 실제로 로드한 thinking-tools 바이트다. 8148ec4 열만 현재 병합 소스 기준이고, 나머지는 다른 바이트의 기존
-증거다. 모든 실행은 합성 fixture에 대한 한 번씩의 관찰이며, 설치본 discovery나 실제 제품 Seed에 대한 주장은 따로 표기한 것 외에 없다.
+"바이트"는 그 실행이 실제로 로드한 thinking-tools 바이트다. 8148ec4 열만 현재 병합 소스 기준이고, 오른쪽은 다른 바이트의 기존 증거다.
 
 | 대상 | 소비 | 런타임 | 8148ec4 | 다른 바이트의 기존 증거 |
 |---|---|---|---|---|
-| Seed 자체 paused/closed/unknown | 공식 소비 | Claude | **보류**: CB, 전후 동일 | S2 build-spec(설치본 7.2.0 `d4fdc60`) |
-| | | Codex | 미확인 | C2·M2 build-spec(설치본 7.2.0) |
+| Seed 자체 paused/closed/unknown | 공식 소비 | Claude | **보류**: CB | S2 build-spec(설치본 7.2.0 `d4fdc60`) |
+| | | Codex | **보류**: XB2 | C2·M2 build-spec(설치본 7.2.0) |
 | | 직접 읽기 | Claude | **보류**: CD(DENY→metadata), 자식 세 Seed 미적용 | S4a·S4b 재실측(소스 `3f3b9af`) |
-| | | Codex | 미확인 | Q3·Q5·Q6(가드 `00a5e48d…` 같음, `seed-relations.py` `ce3f79dc…` 다름, 훅 신뢰 우회) |
+| | | Codex | **보류**: XD2(DENY→metadata) | Q3·Q5·Q6(`seed-relations.py` `ce3f79dc…`) |
 | 철회 항목(hub acceptance-4) | 공식 소비 | Claude | **보류**: CN | S1(7.2.0, `3f3b9af`), 앞 절 CN(`a7e7ddc`) |
-| | | Codex | 미확인 | C1·M1(7.2.0), N1(`782559a`) |
+| | | Codex | **보류**: XN2 | C1·M1(7.2.0), N1(`782559a`) |
 | | 직접 읽기 | Claude | **보류**: CD | S4b(`3f3b9af`), 앞 절 CD(`a7e7ddc`) |
-| | | Codex | 미확인 | Q4·Q7(`872bdd3` 계열), D2(미커밋 `411930d`, 신뢰 우회) |
+| | | Codex | **보류**: XD2 | Q4·Q7, D2(미커밋 `411930d`) |
 | 보류 자식이 맡은 부모 항목(hub 1~3) | 공식 소비 | Claude | **보류**: CN SKIPPED에 자식 경로·상태 | 앞 절 CN(`a7e7ddc`) |
-| | | Codex | 미확인 | N1(`782559a`, `held_items` 있음, 가드 없음) |
-| | 직접 읽기 | Claude | **보류**: CD, `held_items`대로 1~3 제외 | 앞 절 CD(`a7e7ddc`); CD0(`--no-session-persistence`)는 가드 fail-open으로 **미보류** |
-| | | Codex | 미확인 | D2(미커밋 `411930d`, 신뢰 우회)만 보류. D1(가드 없음)·Q7(`held_items` 없음)은 미보류 |
+| | | Codex | **보류**: XN2 | N1(`782559a`) |
+| | 직접 읽기 | Claude | **보류**: CD, `held_items`대로 1~3 제외 | 앞 절 CD(`a7e7ddc`); CD0(`--no-session-persistence`)는 fail-open으로 미보류 |
+| | | Codex | **보류**: XD2 | D2(미커밋 `411930d`)만 보류, D1(가드 없음)·Q7(`held_items` 없음)은 미보류 |
 
 ### 판정
 
-- **Claude 여섯 칸: 충족.** 8148ec4 바이트로 공식 소비(CN, CB)와 직접 읽기(CD) 모두 metadata가 Seed 본문보다 먼저 성공했고
-  unknown/paused/closed 자식, 철회 항목, 보류 자식이 맡은 부모 항목을 적용하지 않았으며 미답 상태에서 Seed 해시가 전후 같았다.
-  조건은 persistence를 켠 `--plugin-dir` 소스 실행이다. `--no-session-persistence`에서는 가드가 fail-open한다(앞 절 CD0, 알려진 한계).
-- **Codex 여섯 칸: 미확인.** 8148ec4 실측이 실행 디렉터리 결함으로 모델 호출 전에 끝났다. 기존 증거는 모두 다른 바이트이고,
-  직접 읽기의 보류는 훅 신뢰를 우회한 조건에서만 관찰됐다(알려진 한계).
-- **acceptance-2 전체: 미충족.** 두 런타임 모두에서 현재 소스 바이트로 확인해야 하는데 Codex 쪽이 비어 있다. 남은 일은 깨끗한
-  git 사본(또는 `--skip-git-repo-check`)에서 Codex D·N·B를 8148ec4 바이트로 한 번씩 다시 돌리는 것이다.
-- 원시 stream-json·Claude transcript·전후 해시 파일은 저장소 밖 세션 scratchpad와 `~/.claude/projects`에 있다.
+- **acceptance-2: 충족(아래 조건 안에서).** 8148ec4 바이트로 두 런타임의 공식 소비(N, B)와 직접 읽기(D) 열두 칸 모두에서
+  metadata가 Seed 본문보다 먼저 성공했고, unknown/paused/closed 자식, 철회 항목, 보류 자식이 맡은 부모 항목을 적용하지 않았으며,
+  미답 상태에서 Seed 네 개의 해시가 전후 같았다.
+- **조건과 알려진 한계(그대로 둠).** 합성 fixture에 대한 소스 기준 실행이고 칸마다 한 번의 관찰이다. Claude는 persistence를 켠
+  `--plugin-dir` 실행이며 `--no-session-persistence`에서는 가드가 fail-open한다(앞 절 CD0). Codex는 훅 신뢰 우회 조건이며, 사용자가
+  Codex 훅 검토에서 신뢰하는 경로와 사용자 설치본(7.2.0, 이 훅 없음)은 측정하지 않았다. Codex 직접 읽기 보류는 #904 가드와 #905
+  `held_items`가 함께 있어야 성립한다(D1·Q7).
+- Seed 생애주기 전이는 하지 않았고 owner 결정으로 남긴다.
+- 원시 stream-json·rollout·전후 해시 파일은 저장소 밖 세션 scratchpad, `~/.claude/projects`, 일회용 `CODEX_HOME`에 있다.
