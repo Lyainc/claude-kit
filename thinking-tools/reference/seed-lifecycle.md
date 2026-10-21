@@ -182,8 +182,8 @@ closed와 철회·영향 불명 항목은 자동 후보에서 제외해요. acti
 자동 적용에서 제외해요. 그 일은 자식이 맡았으니, 자식이 보류면 부모 쪽에서 대신 구현하지 않고,
 닫힌 자식(completed 포함)이어도 자동 구현하지 않고 이행 여부를 부모 완료 규칙대로 따로 판단해요.
 `eligibility`는 그 항목을 `excluded_items`에 넣고 `held_items`(해당이 없으면 빈 목록)에 항목·자식
-경로·자식 상태를 사유로 내놓으며, 소비자는
-그 항목을 구현하지 않고 보고해요. 재검토 표시는 붙이지 않아요. build-spec과 unknown-discovery도
+경로·자식 상태를 사유로 내놓아요. 소비자는 그 항목을 구현하지 않고 보고하며, 재검토 표시는
+붙이지 않아요. build-spec과 unknown-discovery도
 동일 계약을 사용하고, 과거 Seed를 현재 요구사항으로 자동 승격하지 않아요.
 
 session-close 연동은 local-harness 소스에서 별도 변경·검증해요. claude-kit은 local-harness가
