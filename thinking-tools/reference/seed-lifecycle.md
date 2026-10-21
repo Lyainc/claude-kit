@@ -177,7 +177,13 @@ Refine으로 활성 Seed의 새 세대를 만드는 경우에도 새 파일 생�
 Claude Code는 `hooks/seed-read-guard.sh`가 같은 기록에서 metadata 없이 Seed 본문을 Read/cat하는 호출을 Seed당 한 번 거부하고, Codex에는 이 훅이 없으며 Bash 판정은 휴리스틱이라 모든 읽기를 막지 않아요.
 
 next-goal은 `eligibility`를 먼저 적용한 후 코드 근거로 남은 일을 판단해요. unknown/paused/
-closed와 철회·영향 불명 항목은 자동 후보에서 제외해요. build-spec과 unknown-discovery도
+closed와 철회·영향 불명 항목은 자동 후보에서 제외해요. active Seed라도 unknown·paused·closed
+자식(위 정의의 자식이고 그 `parent`가 이 Seed로 해석되는 경우)이 `refines`하는 `acceptance`는
+자동 적용에서 제외해요. 그 일은 자식이 맡았으니, 자식이 보류면 부모 쪽에서 대신 구현하지 않고,
+닫힌 자식(completed 포함)이어도 자동 구현하지 않고 이행 여부를 부모 완료 규칙대로 따로 판단해요.
+`eligibility`는 그 항목을 `excluded_items`에 넣고 `held_items`(해당이 없으면 빈 목록)에 항목·자식
+경로·자식 상태를 사유로 내놓으며, 소비자는
+그 항목을 구현하지 않고 보고해요. 재검토 표시는 붙이지 않아요. build-spec과 unknown-discovery도
 동일 계약을 사용하고, 과거 Seed를 현재 요구사항으로 자동 승격하지 않아요.
 
 session-close 연동은 local-harness 소스에서 별도 변경·검증해요. claude-kit은 local-harness가

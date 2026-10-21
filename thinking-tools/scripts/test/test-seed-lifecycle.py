@@ -200,6 +200,30 @@ class LifecycleTests(unittest.TestCase):
         child = spec(parent='docs/specs/p.yaml',refines=['constraint-2','acceptance-1'])
         self.assertTrue(sr.eligibility(self.rd,parse(child))['review_required'])
 
+    def test_held_child_holds_the_parent_items_it_refines(self):
+        # Before the fix a Codex run implemented parent items its paused/closed/unknown children refine.
+        parent = spec(children=['docs/specs/kid.yaml'],version=3)
+        parent['success_criteria'].append({'id':'acceptance-2','description':'Second result'})
+        ppath = self.write('p.yaml',parent)
+        for state,outcome,label in (('paused',None,'paused'),('unknown',None,'unknown'),
+                                    ('closed','completed','closed:completed'),
+                                    ('closed','discontinued','closed:discontinued')):
+            with self.subTest(state=label):
+                self.write('kid.yaml',spec(state,outcome,parent='docs/specs/p.yaml',refines=['acceptance-1'],version=3))
+                out = subprocess.run([sys.executable,str(SCRIPTS/'seed-relations.py'),'metadata',str(ppath),'--json'],
+                                     capture_output=True,text=True)
+                gate = json.loads(out.stdout)['eligibility']
+                self.assertEqual(gate['excluded_items'],['acceptance-1'])
+                self.assertEqual(gate['held_items'],[{'id':'acceptance-1','child':'docs/specs/kid.yaml','state':label}])
+                self.assertEqual((gate['eligible'],gate['reason'],gate['review_required']),
+                                 (True,'held by inactive child',False))
+        # An active child, or a stale children entry whose parent points elsewhere, holds nothing.
+        for kid in (spec(parent='docs/specs/p.yaml',refines=['acceptance-1'],version=3),
+                    spec('paused',parent='docs/specs/other.yaml',refines=['acceptance-1'],version=3)):
+            self.write('kid.yaml',kid)
+            gate = sr.walk(str(ppath))['nodes'][0]['eligibility']
+            self.assertEqual((gate['excluded_items'],gate['held_items'],gate['reason']),([],[],'active'))
+
     def test_version2_constraint_only_child_is_a_reference(self):
         whole = spec('closed','discontinued',withdrawn=['constraint-1','constraint-2','acceptance-1'])
         for parent in (whole,spec(withdrawn=['constraint-1']),spec(withdrawn=['acceptance-1'])):
