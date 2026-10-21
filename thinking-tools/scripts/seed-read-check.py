@@ -21,6 +21,7 @@ import shlex
 import sys
 import tempfile
 from pathlib import Path
+from urllib.parse import unquote, urlparse
 
 HERE = Path(__file__).resolve().parent
 PLUGIN_ROOT = HERE.parent
@@ -210,6 +211,9 @@ def scan_transcript(tp: str):
     command ran `seed-relations.py metadata|read` and whose output printed a `"path"`, so a loop
     like `for s in a b; do ... metadata docs/specs/$s.yaml; done` still counts and a failed call
     (no JSON printed) does not. A denial is a tool_result opening with the guard's own deny text.
+    A Codex rollout carries the same facts under `payload`: each shell command it ran is a
+    `CommandExecution` item (command, file:// cwd, aggregated_output), and a denied command
+    leaves only the tool output `Command blocked by PreToolUse hook: <reason>`.
     """
     try:
         with open(tp, encoding="utf-8", errors="replace") as f:
@@ -226,7 +230,24 @@ def scan_transcript(tp: str):
             continue
         if not isinstance(e, dict):
             continue
-        content = (e.get("message") or {}).get("content") if isinstance(e.get("message"), dict) else None
+        p = e.get("payload")
+        if isinstance(p, dict):
+            # shortcut: only code-mode `exec` → exec_command records were observed (codex-cli 0.163.0);
+            # parse other Codex tool shapes if a rollout shows them.
+            it = p.get("item") if p.get("type") == "item_completed" else None
+            if isinstance(it, dict) and it.get("type") == "CommandExecution":
+                argv = it.get("command")
+                cmd = argv[2] if isinstance(argv, list) and len(argv) == 3 and argv[1] in ("-lc", "-c") \
+                    else shlex.join(argv) if isinstance(argv, list) else argv
+                cwd = unquote(urlparse(it.get("cwd") or "").path)
+                call = _metadata_call(cmd, cwd) if isinstance(cmd, str) else None
+                if call:
+                    literal, cwd = call
+                    calls.extend((m, literal, cwd) for m in META_PATH.findall(str(it.get("aggregated_output") or "")))
+            elif p.get("type") in ("custom_tool_call_output", "function_call_output"):
+                results.extend(t for t in _strings(p.get("output")) if DENY_HEAD in t[:300])
+            continue
+        content =(e.get("message") or {}).get("content") if isinstance(e.get("message"), dict) else None
         if not isinstance(content, list):
             continue
         for b in content:
@@ -372,6 +393,25 @@ def _self_test() -> int:
         tr(f"{d}/t/main/subagents/agent-a1.jsonl", commands=["ls"])
         tr(f"{d}/t/main/subagents/agent-a2.jsonl", commands=[f'python3 /p/seed-relations.py metadata {seed} --json'], outputs=[f'{{"path": "{seed}"}}'])
 
+        # Codex rollout (#814 acceptance-2): codex-cli 0.163.0 records shapes, observed live.
+        def cx(path, runs=(), outputs=()):
+            rows = [{"type": "item_completed", "item": {"type": "CommandExecution", "command": argv,
+                     "cwd": "file://" + cwd, "aggregated_output": out, "exit_code": 0}} for argv, cwd, out in runs]
+            rows += [{"type": "custom_tool_call_output", "call_id": "c", "output": [
+                {"type": "input_text", "text": "Script failed\n"}, {"type": "input_text", "text": o}]} for o in outputs]
+            Path(path).write_text("\n".join(json.dumps({"type": "event_msg" if "item" in r else "response_item",
+                                                        "payload": r}) for r in rows) + "\n")
+        meta_rel = 'python3 /p/seed-relations.py metadata docs/specs/x.yaml --json'
+        c_meta, c_none, c_failed, c_denied, c_foreign, c_argv = (f"{d}/t/c-{n}.jsonl" for n in
+                                                                  ("meta", "none", "failed", "denied", "foreign", "argv"))
+        cx(c_meta, runs=[(["/bin/zsh", "-lc", meta_rel], d, '{"path": "docs/specs/x.yaml"}')])
+        cx(c_none, runs=[(["/bin/zsh", "-lc", "ls"], d, "docs")])
+        cx(c_failed, runs=[(["/bin/zsh", "-lc", meta_rel], d, "seed-relations: not a file")])
+        cx(c_denied, outputs=[f'Script error:\nCommand blocked by PreToolUse hook: {DENY_HEAD}"/p/seed-relations.py" metadata {seed} --json'])
+        cx(c_foreign, runs=[(["/bin/zsh", "-lc", 'for s in x; do python3 /p/seed-relations.py metadata docs/specs/$s.yaml; done'],
+                             "/elsewhere/other-repo", '{"path": "docs/specs/x.yaml"}')])
+        cx(c_argv, runs=[(["python3", "/p/seed-relations.py", "metadata", seed, "--json"], "/", f'{{"path": "{seed}"}}')])
+
         def read(p, t):
             return {"tool_name": "Read", "tool_input": {"file_path": p}, "transcript_path": t}
 
@@ -437,6 +477,13 @@ def _self_test() -> int:
         check("no transcript_path", decide({"tool_name": "Read", "tool_input": {"file_path": seed}}), False)
         check("other tool", decide({"tool_name": "Grep", "tool_input": {}}), False)
         check("reason has command", "seed-relations.py" in decide(read(seed, t_none)), True)
+        # Before #814's Codex branch, a Codex rollout never showed the metadata call: always denied.
+        check("codex, metadata ran before cat", decide(bash("head -3 docs/specs/x.yaml", c_meta)), False)
+        check("codex, no metadata", decide(bash("cat docs/specs/x.yaml", c_none)), True)
+        check("codex, metadata failed", decide(bash("cat docs/specs/x.yaml", c_failed)), True)
+        check("codex, already denied once", decide(bash("cat docs/specs/x.yaml", c_denied)), False)
+        check("codex, metadata ran in another repo", decide(bash("cat docs/specs/x.yaml", c_foreign)), True)
+        check("codex, argv command", decide(bash("cat docs/specs/x.yaml", c_argv)), False)
 
     total += 1
     import subprocess
