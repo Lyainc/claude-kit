@@ -268,7 +268,7 @@ export const register: Register = on => {
       summary.push(<Text dimColor>아직 next-goal 판단이 없어요.</Text>)
     } else {
       if (isStale) summary.push(<Text color="yellow" bold>{STALE_BADGE}</Text>)
-      for (const line of judgment.lines.slice(0, 12)) summary.push(<Text>{line}</Text>)
+      for (const line of judgment.lines) summary.push(<Text>{line}</Text>)
     }
 
     // 관계 트리
