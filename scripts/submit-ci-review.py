@@ -121,7 +121,7 @@ def main():
 
     prior = json.loads(_gh(base, "--paginate", "--slurp"))
     for r in (r for page in prior for r in page):
-        if (r["user"]["login"] == BOT and r["id"] != review["id"]
+        if (r["user"]["login"] == BOT
                 and r["state"] in ("APPROVED", "CHANGES_REQUESTED")):
             _gh(f"{base}/{r['id']}/dismissals", "--method", "PUT",
                 "-f", f"message=Superseded by the review of {head}.", "-f", "event=DISMISS")
