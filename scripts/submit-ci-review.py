@@ -31,11 +31,14 @@ _HUNK = re.compile(r"^@@ -\d+(?:,\d+)? \+(\d+)(?:,\d+)? @@")
 
 def commentable_lines(diff):
     """{path: set(RIGHT-side line numbers)} a review comment may anchor to."""
-    lines, path, n = {}, None, 0
+    lines, path, n, prev = {}, None, 0, ""
     for raw in diff.splitlines():
-        if raw.startswith("+++ "):
+        # A header `+++` always follows `---`; an added line reading `++ x` does not.
+        if raw.startswith("+++ ") and prev.startswith("--- "):
+            prev = raw
             path = raw[6:] if raw.startswith("+++ b/") else None
             continue
+        prev = raw
         m = _HUNK.match(raw)
         if m:
             n = int(m.group(1))
@@ -105,7 +108,14 @@ def main():
         return 1
 
     base = f"repos/{repo}/pulls/{pr}/reviews"
-    review = json.loads(_gh(base, "--method", "POST", "--input", "-", data=json.dumps(payload)))
+    try:
+        review = json.loads(_gh(base, "--method", "POST", "--input", "-", data=json.dumps(payload)))
+    except RuntimeError:
+        if "comments" not in payload:
+            raise
+        # A rejected anchor fails the whole review; the body already holds every finding.
+        payload.pop("comments")
+        review = json.loads(_gh(base, "--method", "POST", "--input", "-", data=json.dumps(payload)))
     print(f"Submitted review {review['id']}: {review['state']} ({blocking} P0/P1, "
           f"{len(payload.get('comments', []))} inline)")
 
@@ -130,7 +140,7 @@ index 1..2 100644
  keep
 -gone
 +new1
-+new2
++++ added line that looks like a header
  tail
 diff --git a/old.py b/old.py
 deleted file mode 100644

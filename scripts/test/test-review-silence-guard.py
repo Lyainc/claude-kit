@@ -133,6 +133,8 @@ def run_checks(text):
         # or `env.SINCE` in the filter resolves to nothing and every re-run passes.
         ("the review-start timestamp is recorded before the review runs",
          text.index("id: review_start") < text.index("id: claude-review")),
+        ("both pipelines run under pipefail (`shell: bash`)",
+         text.count("shell: bash") >= 2),
         ("the verify step reads that timestamp", "SINCE: ${{ steps.review_start.outputs.at }}" in text),
         ("the verify step scopes to the PR head",
          "HEAD_SHA: ${{ github.event.pull_request.head.sha }}" in text.split("Verify a review was submitted")[-1]),
@@ -154,8 +156,11 @@ def run_checks(text):
         # The verdict must leave only through the submit step: a PR write tool in the agent's
         # allowlist would let a prompt-injected review post (or approve) on its own.
         ("the reviewer holds no PR write tool",
-         "gh pr comment" not in text.split("--allowed-tools")[-1].split("\n")[0]
-         and "mcp__github_inline_comment" not in text.split("--allowed-tools")[-1].split("\n")[0]),
+         not any(t in text.split("--allowed-tools")[-1].split("\n")[0] for t in
+                 ("gh pr comment", "gh pr review", "gh api", "mcp__github_inline_comment"))),
+        # A PR must not be judged by a submit script it rewrote itself.
+        ("the submit script runs from the base commit, not the workspace",
+         'git show "$BASE_SHA:scripts/submit-ci-review.py" | python3 -' in text),
         # A required check skipped by a path filter never reports, so the PR pends forever.
         # `paths-ignore:` skips it the same way, so both spellings are rejected.
         ("no active `paths:`/`paths-ignore:` filter on the trigger",
