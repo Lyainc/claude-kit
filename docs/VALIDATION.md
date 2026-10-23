@@ -371,22 +371,26 @@ uv tool run ruff check .
 # shellcheck, which run-linters.py would then enforce too. Not caught: runtime-only 3.10 APIs
 # such as `isinstance(x, int | str)` or `zip(strict=True)`.
 
-# claude-review 침묵 방지 가드 회귀 (#451): 리뷰 job이 코멘트를 0개 남기고도 초록불이던
+# claude-review 침묵 방지 가드 회귀 (#451): 리뷰 job이 아무것도 남기지 않고도 초록불이던
 # 문제 — Checks 탭에서 "리뷰했는데 지적이 없음"과 "리뷰가 안 돎"이 같은 체크로 보였다.
-# workflow의 verify step이 이번 라운드 코멘트를 세서 0이면 job을 실패시키는데, 그 세는
-# 로직(jq 필터)을 워크플로에서 EXTRACT해 실제 jq로 픽스처에 돌린다 — 특히 이전 라운드
-# 코멘트가 이번 라운드를 만족시키면 안 된다(createdAt 절이 빠지면 synchronize 재실행마다
-# 통과해 가드가 꺼짐). 나머지는 정적 확인: step 존재 + `if: always()` + 0에서 nonzero,
-# 프롬프트의 짝(깨끗해도 LGTM 코멘트 필수) — 워크플로만 넣으면 깨끗한 PR이 전부 빨간불,
-# 그리고 `paths:` 필터 부재(required check가 스킵되면 상태를 리포트 안 해 영구 pending).
-# jq 부재는 skip이 아니라 exit 2 — 스스로 꺼지는 검사가 이 파일이 잡으려는 바로 그 실패다.
+# 이제 판정은 PR 리뷰 객체(APPROVE / REQUEST_CHANGES)이고, verify step이 이번 라운드의
+# 리뷰 객체를 세서 0이면 job을 실패시킨다. 그 세는 로직(jq 필터)을 워크플로에서 EXTRACT해
+# 실제 jq로 픽스처에 돌린다 — 이전 라운드 리뷰, 다른 head의 리뷰, 사람 리뷰, DISMISSED
+# 리뷰가 이번 라운드를 만족시키면 안 되고, self-test는 범위 절 하나를 뺀 변이 필터가
+# 반드시 어떤 픽스처에서 걸리는지 확인한다. 나머지는 정적 확인: step 존재 + `if: always()`
+# + 0에서 nonzero, 리뷰어의 `--json-schema` 출력과 PR 쓰기 도구 부재, submit step의
+# `if: always()`, `paths:` 필터 부재(required check가 스킵되면 영구 pending), 빈 SINCE 실패,
+# concurrency 그룹. jq 부재는 skip이 아니라 exit 2 — 스스로 꺼지는 검사가 이 파일이 잡으려는
+# 바로 그 실패다.
 python3 scripts/test/test-review-silence-guard.py --self-test
-# Expected: OK: all 6 review-silence-guard self-test cases passed
+# Expected: OK: all 8 review-silence-guard self-test cases passed
 python3 scripts/test/test-review-silence-guard.py
-# Expected: OK: all 18 review-silence-guard checks passed.
-# 라운드 스코핑이 기대는 두 조건도 함께 핀: 빈 SINCE는 필터를 넓히지 말고 실패할 것
-# (jq의 `>`는 ""에 대해 항상 참), 그리고 concurrency 그룹 — 한 PR에 겹쳐 도는 두 실행은
-# 나중 것의 창이 먼저 것의 코멘트보다 앞서서 형제 실행의 리뷰로 통과할 수 있다.
+# Expected: OK: all 22 review-silence-guard checks passed.
+# CI 리뷰 판정 제출기 회귀: scripts/submit-ci-review.py가 리뷰어의 JSON을 리뷰 1건으로 바꾼다.
+# P0/P1이면 REQUEST_CHANGES + diff 안 라인만 인라인, 없으면 APPROVE(LGTM), 본문은 모든
+# 지적과 `Reviewed head:` 줄을 담고, 비었거나 깨진 출력은 게시 전에 거부(승인으로 세탁 금지).
+python3 scripts/submit-ci-review.py --self-test
+# Expected: OK: all 8 submit-ci-review self-test cases passed
 
 # 서브에이전트 git 부수효과 가드 회귀 (#209): scripts/subagent-git-guard.sh PreToolUse Bash
 # 훅이 subagent context의 git commit/push·gh pr create|merge를 deny하는지 검증 (인메모리
