@@ -1,31 +1,32 @@
 #!/usr/bin/env python3
 """Regression test: the CI review job cannot pass while having said nothing (#451).
 
-`.github/workflows/claude-code-review.yml` only ever ASKED for a review comment. A run
+`.github/workflows/claude-code-review.yml` once only ASKED for a review comment. A run
 that posted none finished green, so from the Checks tab "reviewed, found nothing" and
 "never actually reviewed" were the same tick — the silent-guard-off failure class of
-#447/#454/#456. The fix is a verify step that counts this round's comments and fails at
-zero; this file pins it, because a deleted step leaves no other trace.
+#447/#454/#456. The verdict is now a PR review object (APPROVE / REQUEST_CHANGES, submitted
+by scripts/submit-ci-review.py from the reviewer's JSON), and a verify step counts this
+round's review objects and fails at zero; this file pins it, because a deleted step leaves
+no other trace.
 
 Two halves, matching what can actually break:
 
-1. EXECUTED. The counting is a jq filter, and its subtle part is `select(.createdAt >
-   env.SINCE)`. Drop that clause and the guard still looks right while passing every
-   `synchronize` re-run as soon as round 1 left a comment behind — silence goes
-   undetected exactly where it is hardest to notice. So the filter is EXTRACTED from the
-   workflow and RUN through real `jq` over fixtures, including a prior-round comment that
-   must NOT satisfy the current round.
+1. EXECUTED. The counting is a jq filter, and its subtle parts are the clauses that scope
+   it to THIS round: `submitted_at > env.SINCE`, `commit_id == env.HEAD_SHA`, the bot
+   author, and a decision state (a DISMISSED prior round is not a verdict). Drop one and the
+   guard still looks right while passing on something round 1 left behind. So the filter is
+   EXTRACTED from the workflow and RUN through real `jq` over fixtures.
 2. STATIC. The step exists, runs `if: always()` (a review that died mid-run is the case
-   that must not be laundered into a pass), and exits nonzero at zero comments. Plus the
-   paired prompt clause — the prompt must REQUIRE a comment even on a clean review, or
-   the workflow half turns every clean PR red — and the `paths:` filter must stay out
+   that must not be laundered into a pass), and exits nonzero at zero reviews. Plus the
+   paired halves — the reviewer must emit `--json-schema` output and hold no PR write tool,
+   and the submit step must run `if: always()` — and the `paths:` filter must stay out
    (a required check skipped by a path filter reports no status and pends forever).
    Two more conditions the round-scoping rests on, both found by review of this file's
-   first version: an EMPTY `SINCE` must fail rather than widen the filter to "any claude
-   comment ever" (jq's `>` holds against "" for every timestamp, and the `echo "at=$(date
+   first version: an EMPTY `SINCE` must fail rather than widen the filter to "any bot
+   review ever" (jq's `>` holds against "" for every timestamp, and the `echo "at=$(date
    ...)"` that produces it exits 0 even when date does not), and the workflow must hold a
    `concurrency:` group — two overlapping runs on one PR give the later one a window that
-   predates the earlier one's comment, so it can pass on a sibling's review.
+   predates the earlier one's review, so it can pass on a sibling's review.
 
 jq is a hard dependency here, not an optional nicety: no jq means the executed half
 cannot run, and a check that skips itself is the very thing this file exists to catch,
@@ -51,11 +52,12 @@ _HERE = os.path.dirname(os.path.abspath(__file__))
 _ROOT = os.path.dirname(os.path.dirname(_HERE))
 _WORKFLOW = os.path.join(_ROOT, ".github", "workflows", "claude-code-review.yml")
 
-# The verify step's own `--jq '...'`. Anchored on `gh pr view` + `--json comments` so it
-# cannot latch onto some other gh call the workflow may grow later.
-_JQ_RE = re.compile(r"gh pr view[^\n]*--json comments[^\n]*--jq\s+'([^']+)'")
+# The verify step's own `| jq '...'`. Anchored on the reviews endpoint so it cannot latch
+# onto some other gh call the workflow may grow later.
+_JQ_RE = re.compile(r"pulls/\$PR/reviews\"[^\n]*\| jq '([^']+)'")
 
 _SINCE = "2026-07-31T00:00:00Z"
+_HEAD = "abc123"
 
 
 def extract_jq_filter(text):
@@ -64,50 +66,40 @@ def extract_jq_filter(text):
     return m.group(1) if m else None
 
 
-def count_with_jq(jq_filter, comments, since=_SINCE):
-    """Run the workflow's own filter over a fixture comment list; return its number."""
-    payload = json.dumps({"comments": comments})
+def count_with_jq(jq_filter, reviews, since=_SINCE):
+    """Run the workflow's own filter over fixture reviews (as one `--slurp`ed page)."""
+    payload = json.dumps([reviews])
     out = subprocess.run(
         ["jq", jq_filter],
         input=payload,
         capture_output=True,
         text=True,
-        env={**os.environ, "SINCE": since},
+        env={**os.environ, "SINCE": since, "HEAD_SHA": _HEAD},
     )
     if out.returncode != 0:
         raise RuntimeError(f"jq failed on the extracted filter: {out.stderr.strip()}")
     return int(out.stdout.strip())
 
 
-def _comment(login, created_at):
-    return {"author": {"login": login}, "createdAt": created_at}
+def _review(at, login="github-actions[bot]", commit=_HEAD, state="APPROVED"):
+    return {"user": {"login": login}, "submitted_at": at, "commit_id": commit, "state": state}
 
 
-# (label, comments, expected count). The pass cases and the silent cases both matter:
+_NOW, _BEFORE = "2026-07-31T00:05:00Z", "2026-07-30T23:00:00Z"
+
+# (label, reviews, expected count). The pass cases and the silent cases both matter:
 # a filter that counts everything never fails, one that counts nothing always does.
 _FIXTURES = [
-    ("this round's claude comment counts", [_comment("claude", "2026-07-31T00:05:00Z")], 1),
-    ("no comments at all is silence", [], 0),
-    (
-        "a PRIOR round's comment does not satisfy this round",
-        [_comment("claude", "2026-07-30T23:00:00Z")],
-        0,
-    ),
-    (
-        "a prior comment plus a fresh one still counts the fresh one",
-        [_comment("claude", "2026-07-30T23:00:00Z"), _comment("claude", "2026-07-31T00:05:00Z")],
-        1,
-    ),
-    (
-        "a human comment in the window is not a review comment",
-        [_comment("Lyainc", "2026-07-31T00:05:00Z")],
-        0,
-    ),
-    (
-        "the login match is case-insensitive (claude[bot], Claude)",
-        [_comment("Claude[bot]", "2026-07-31T00:05:00Z")],
-        1,
-    ),
+    ("this round's APPROVE counts", [_review(_NOW)], 1),
+    ("this round's REQUEST_CHANGES counts", [_review(_NOW, state="CHANGES_REQUESTED")], 1),
+    ("no reviews at all is silence", [], 0),
+    ("a PRIOR round's review does not satisfy this round", [_review(_BEFORE)], 0),
+    ("a prior review plus a fresh one still counts the fresh one",
+     [_review(_BEFORE), _review(_NOW)], 1),
+    ("a human review in the window is not the bot's verdict", [_review(_NOW, login="Lyainc")], 0),
+    ("a review on another head is not this round's", [_review(_NOW, commit="old999")], 0),
+    ("a DISMISSED or COMMENTED review is not a verdict",
+     [_review(_NOW, state="DISMISSED"), _review(_NOW, state="COMMENTED")], 0),
 ]
 
 
@@ -116,11 +108,11 @@ def run_checks(text):
     cases = []
 
     jq_filter = extract_jq_filter(text)
-    cases.append(("verify step counts comments via `gh pr view --json comments --jq`", jq_filter is not None))
+    cases.append(("verify step counts review objects via the reviews endpoint", jq_filter is not None))
     if jq_filter:
-        for label, comments, expected in _FIXTURES:
+        for label, reviews, expected in _FIXTURES:
             try:
-                got = count_with_jq(jq_filter, comments)
+                got = count_with_jq(jq_filter, reviews)
                 ok = got == expected
                 label = f"{label} (expected {expected}, got {got})"
             except RuntimeError as exc:
@@ -129,19 +121,21 @@ def run_checks(text):
 
     cases.extend([
         ("the verify step exists by name",
-         "Verify a review comment was posted (no silent pass)" in text),
+         "Verify a review was submitted (no silent pass)" in text),
         # `if: always()` — without it a failed review step skips the check that would have
         # reported WHY the job is red, and a cancelled one skips it silently.
         ("the verify step runs `if: always()`",
-         bool(re.search(r"Verify a review comment was posted[^\n]*\n\s*if:\s*always\(\)", text))),
-        ("zero comments exits nonzero", bool(re.search(r'\[ "\$count" -lt 1 \]', text))
-         and "exit 1" in text.split("Verify a review comment was posted")[-1]),
+         bool(re.search(r"Verify a review was submitted[^\n]*\n\s*if:\s*always\(\)", text))),
+        ("zero reviews exits nonzero", bool(re.search(r'\[ "\$count" -lt 1 \]', text))
+         and "exit 1" in text.split("Verify a review was submitted")[-1]),
         ("the failure is annotated for the Checks tab", "::error::" in text),
         # The window the count is measured against must be captured BEFORE the review,
         # or `env.SINCE` in the filter resolves to nothing and every re-run passes.
         ("the review-start timestamp is recorded before the review runs",
          text.index("id: review_start") < text.index("id: claude-review")),
         ("the verify step reads that timestamp", "SINCE: ${{ steps.review_start.outputs.at }}" in text),
+        ("the verify step scopes to the PR head",
+         "HEAD_SHA: ${{ github.event.pull_request.head.sha }}" in text.split("Verify a review was submitted")[-1]),
         # An empty SINCE widens the filter to "any claude comment ever" instead of failing:
         # jq's `>` holds against "" for every timestamp, and the `echo "at=$(date ...)"` that
         # produces it exits 0 even when date does not.
@@ -151,11 +145,17 @@ def run_checks(text):
         # later one's window predates the earlier one's comment, so it can count a sibling's.
         ("only one review run per PR at a time",
          bool(re.search(r"^concurrency:\n\s+group: claude-review-", text, re.MULTILINE))),
-        # The workflow half is only enforceable because the prompt half requires a comment
-        # on a clean review too. Ship one without the other and every clean PR goes red.
-        ("the prompt forbids silence", "Silence is not a review" in text),
-        ("the prompt requires a comment even when nothing was found",
-         "P0/P1 없음 — LGTM" in text),
+        # The verify half is only satisfiable because the reviewer always emits JSON and the
+        # submit step always turns it into a review — a clean one included (APPROVE).
+        ("the reviewer emits `--json-schema` output", "--json-schema '" in text),
+        ("the submit step runs `if: always()` on that output",
+         bool(re.search(r"Submit the review verdict[^\n]*\n\s*if:\s*always\(\)", text))
+         and "REVIEW_JSON: ${{ steps.claude-review.outputs.structured_output }}" in text),
+        # The verdict must leave only through the submit step: a PR write tool in the agent's
+        # allowlist would let a prompt-injected review post (or approve) on its own.
+        ("the reviewer holds no PR write tool",
+         "gh pr comment" not in text.split("--allowed-tools")[-1].split("\n")[0]
+         and "mcp__github_inline_comment" not in text.split("--allowed-tools")[-1].split("\n")[0]),
         # A required check skipped by a path filter never reports, so the PR pends forever.
         # `paths-ignore:` skips it the same way, so both spellings are rejected.
         ("no active `paths:`/`paths-ignore:` filter on the trigger",
@@ -169,10 +169,10 @@ def run_checks(text):
 
 
 _GOOD_SNIPPET = """
-      - name: Verify a review comment was posted (no silent pass)
+      - name: Verify a review was submitted (no silent pass)
         if: always()
         run: |
-          count=$(gh pr view "$PR" --json comments --jq '[.comments[] | select(.author.login | test("claude"; "i")) | select(.createdAt > env.SINCE)] | length')
+          count=$(gh api "repos/$GITHUB_REPOSITORY/pulls/$PR/reviews" --paginate --slurp | jq '[.[][] | select(.user.login == "github-actions[bot]") | select(.commit_id == env.HEAD_SHA) | select(.state == "APPROVED" or .state == "CHANGES_REQUESTED") | select(.submitted_at > env.SINCE)] | length')
 """
 
 
@@ -191,14 +191,17 @@ def _self_test():
     cases.append(("the good filter passes every fixture",
                   all(count_with_jq(good, c) == e for _, c, e in _FIXTURES)))
 
-    # The point of the fixtures: a filter that dropped the createdAt clause must be caught.
-    no_time = '[.comments[] | select(.author.login | test("claude"; "i"))] | length'
-    cases.append(("a filter without the createdAt clause FAILS the prior-round fixture",
-                  any(count_with_jq(no_time, c) != e for _, c, e in _FIXTURES)))
-    # ...and one that ignores the author must be caught too.
-    no_author = "[.comments[] | select(.createdAt > env.SINCE)] | length"
-    cases.append(("a filter without the author clause FAILS the human-comment fixture",
-                  any(count_with_jq(no_author, c) != e for _, c, e in _FIXTURES)))
+    # The point of the fixtures: dropping ANY scoping clause must be caught by some fixture.
+    clauses = [
+        'select(.user.login == "github-actions[bot]")',
+        "select(.commit_id == env.HEAD_SHA)",
+        'select(.state == "APPROVED" or .state == "CHANGES_REQUESTED")',
+        "select(.submitted_at > env.SINCE)",
+    ]
+    for clause in clauses:
+        mutant = good.replace(f" | {clause}", "")
+        cases.append((f"a filter without `{clause}` FAILS some fixture",
+                      mutant != good and any(count_with_jq(mutant, c) != e for _, c, e in _FIXTURES)))
 
     for label, ok in cases:
         print(f"  [{'OK' if ok else 'FAIL'}] {label}")

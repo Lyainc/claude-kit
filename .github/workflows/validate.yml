@@ -187,6 +187,7 @@ jobs:
           # skips), plus the static step/prompt contract it depends on.
           python3 scripts/test/test-review-silence-guard.py --self-test
           python3 scripts/test/test-review-silence-guard.py
+          python3 scripts/submit-ci-review.py --self-test
           # #259 no-PyYAML guard: deny/allow/warn/off + regex boundary + rule_fire emit on/off.
           bash scripts/test/test-no-pyyaml-guard.sh
           # #594 worktree isolation guard: real repos + a real linked worktree; fire condition,
