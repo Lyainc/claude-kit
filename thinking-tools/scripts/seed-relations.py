@@ -1566,8 +1566,12 @@ def cmd_index(args):
     """`index <dir>... --json`: every Seed under the named directories, as one JSON document.
 
     Each entry is the metadata record plus the declared relations. Edge targets are classified
-    without reading other repos: indexed, unindexed (a local file outside the named
-    directories), notfound, or external. One unreadable Seed lands in `errors`; the rest print.
+    without reading other repos: indexed, error (a Seed inside the named directories that failed
+    to read or parse; also listed in `errors`), unindexed (a local file inside the repo but
+    outside the named directories), notfound (missing, absolute, or resolving outside the repo
+    root), or external. A YAML file is a Seed only if it has a top-level `target:` key (the key
+    every Seed template carries and parse_seed reads); other YAML, such as CI config, is
+    skipped silently. One unreadable Seed lands in `errors`; the rest print.
     """
     dirs = [a for a in args if a != "--json"]
     if "--json" not in args or not dirs or any(a.startswith("--") for a in dirs):
@@ -1587,7 +1591,15 @@ def cmd_index(args):
             found[(root, rel)] = None
             try:
                 with open(f, encoding="utf-8") as fh:
-                    seed = parse_seed(fh.read())
+                    text = fh.read()
+                try:
+                    is_seed = any(k == "target" for k, _, _ in _mapping_blocks(text.splitlines()))
+                except Exception:
+                    is_seed = True  # let parse_seed report the malformed Seed
+                if not is_seed:
+                    del found[(root, rel)]
+                    continue
+                seed = parse_seed(text)
             except (OSError, UnicodeError) as exc:
                 errors.append({"path": rel, "error": f"unreadable: {exc.__class__.__name__}"})
                 continue
@@ -1620,8 +1632,14 @@ def cmd_index(args):
                     tgt, status = key(nloc), "external"
                 else:
                     tgt = rd.resolve_quiet(nloc, exact_edges(seed))[1]
-                    status = ("indexed" if (root, tgt) in indexed else
-                              "unindexed" if os.path.isfile(os.path.join(root, tgt)) else "notfound")
+                    real_root = os.path.realpath(root)
+                    real_tgt = os.path.realpath(os.path.join(root, tgt))
+                    inside = (not os.path.isabs(tgt)
+                              and os.path.commonpath([real_root, real_tgt]) == real_root)
+                    status = ("notfound" if not inside else
+                              "indexed" if (root, tgt) in indexed else
+                              "error" if (root, tgt) in found else
+                              "unindexed" if os.path.isfile(real_tgt) else "notfound")
                 rec = {"from": rel, "to": tgt, "target": status}
                 if edge == "depends_on":
                     rec["item"] = item
