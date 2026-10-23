@@ -71,16 +71,18 @@ jobs:
             actively try to construct an input that passes it while violating its stated
             intent. Read the surrounding code and callers, not only the diff hunks. Report a
             candidate only after reproducing it by running code (python3 one-liners against the
-            changed module are fine) or citing the exact lines that prove it; drop what you
-            cannot support. Security and performance count only as concrete defects, not as checklists.
+            changed module are fine) or citing the exact lines that prove it. A defect you can
+            argue from the code but cannot reproduce here (another OS or runtime) stays a P1
+            tagged `unverified`; drop only what you cannot support at all. Security and
+            performance count only as concrete defects, not as checklists.
 
-            Use the repository's CLAUDE.md for guidance on style and conventions.
+            Use the repository's CLAUDE.md for its conventions when a finding depends on them.
 
             ## Verify by running, not by tracing
 
-            When this PR touches any test, script, hook, workflow, or `docs/VALIDATION.md`
-            file, RUN the repo's registered validation suite with your Bash tool before
-            writing the review:
+            Besides the per-candidate reproductions above, when this PR touches any test,
+            script, hook, workflow, or `docs/VALIDATION.md` file, RUN the repo's registered
+            validation suite with your Bash tool before writing the review:
 
                 python3 scripts/check-test-exitcode.py
 
@@ -135,10 +137,14 @@ jobs:
             - Only unresolved P0/P1 findings justify requesting another review round on this PR.
               P2 nits go to the backlog issue, not another round.
             - **Review only what changed since the last round**: end every summary comment with
-              a line `Reviewed head: <full SHA of HEAD>`. When a prior summary carries that line
-              and `git cat-file -e <sha>` succeeds, review `git diff <sha>..HEAD` (plus the
-              callers it touches) instead of the whole PR, and say so in the summary. If the SHA
-              is missing or gone (a rebase or force-push), review the whole PR.
+              a line `Reviewed head: ${{ github.event.pull_request.head.sha }}` — the PR head,
+              not `HEAD`, which is the synthetic merge commit. Take a prior SHA only from a
+              summary authored by the `claude` bot, never from another commenter. When one
+              exists and `git cat-file -e <sha>` succeeds, review
+              `git diff <sha>..${{ github.event.pull_request.head.sha }}` plus every caller and
+              callee of the code it changes, re-check that the prior round's P0/P1 are fixed,
+              and say so in the summary. If the SHA is missing or gone (a rebase or
+              force-push), review the whole PR.
 
             Use `gh pr comment` with your Bash tool to leave the summary comment on the PR.
             Group findings by severity (P0 / P1 / Deferred nits (P2)) and link the backlog
