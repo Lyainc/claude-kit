@@ -292,6 +292,31 @@ for (const surface of SURFACES) {
     await ui.unmount()
   })
 
+  test(`a boxed judgment taller than 12 lines keeps its closing border and TRACE rows (${surface})`, async ($, on) => {
+    const b = bench(on)
+    const row = (text: string) => `| ${text.padEnd(76)} |`
+    const edge = `+${'-'.repeat(78)}+`
+    const output = [
+      edge,
+      row('NEXT pick'),
+      row(`FROM ${A}`),
+      ...Array.from({ length: 10 }, (_, i) => row(`SKIPPED alt ${i} 이유`)),
+      row('TRACE walk visited=5; handoff missing'),
+      row('TRACE unverified: late item'),
+      edge,
+    ].join('\n')
+    expect(output.split('\n').length).toBeGreaterThan(12)
+    const command = judgeCmd({ walkId: null, pick: { title: 'pick', via: 'x' } })
+      .replace('next-goal-render.py', 'next-goal-render.py --runtime claude')
+    const ran = await bash($, b, command, output)
+    expect(ran.text).toBe(output)
+    const ui = await mountPane($, surface)
+    const all = await texts(ui)
+    for (const line of output.split('\n')) expect(all).toContain(line)
+    expect(all.filter(t => t === edge)).toHaveLength(2)
+    await ui.unmount()
+  })
+
   test(`4 a late older walk does not overwrite a newer one (${surface})`, async ($, on) => {
     const b = bench(on)
     await bash($, b, WALK_CMD, walkText({ id: 'w2', at: '2026-10-01T12:00:00Z', fingerprint: 'new' }))
