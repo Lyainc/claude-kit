@@ -1623,7 +1623,8 @@ def check_index() -> list[str]:
     """#896: index reuses metadata/read per Seed, survives an unreadable Seed, types edge ends."""
     failures = []
     repo = _repo()
-    _write(repo, "p.yaml", target="Parent", children=[SP + "c.yaml", SP + "ghost.yaml"],
+    _write(repo, "p.yaml", target="Parent", children=[SP + "c.yaml", SP + "ghost.yaml", SP + "bad.yaml",
+                                          "../../../../etc/passwd"],
            constraints=[("constraint-1", "P c1")], criteria=[("acceptance-1", "P ac1")])
     _write(repo, "c.yaml", target="Child", parent=SP + "p.yaml", refines=["acceptance-1"],
            depends_on=[SP + "p.yaml#constraint-1", "acme/other:docs/specs/x.yaml",
@@ -1631,6 +1632,7 @@ def check_index() -> list[str]:
     (Path(repo) / "docs" / "elsewhere").mkdir()
     (Path(repo) / "docs" / "elsewhere" / "out.yaml").write_text(_seed_text("Outside"))
     (Path(repo) / "docs" / "specs" / "bad.yaml").write_bytes(b"target: \xff\xfe broken\n")
+    (Path(repo) / "docs" / "specs" / "ci.yaml").write_text("name: ci\non: push\n")
     before = _snapshot(repo)
     code, data, err = _index_json(repo, "docs/specs")
     if data is None:
@@ -1663,7 +1665,9 @@ def check_index() -> list[str]:
     want = {
         "parent": [{"from": SP + "c.yaml", "to": SP + "p.yaml", "target": "indexed"}],
         "children": [{"from": SP + "p.yaml", "to": SP + "c.yaml", "target": "indexed"},
-                     {"from": SP + "p.yaml", "to": SP + "ghost.yaml", "target": "notfound"}],
+                     {"from": SP + "p.yaml", "to": SP + "ghost.yaml", "target": "notfound"},
+                     {"from": SP + "p.yaml", "to": SP + "bad.yaml", "target": "error"},
+                     {"from": SP + "p.yaml", "to": "../../../../etc/passwd", "target": "notfound"}],
         "depends_on": [
             {"from": SP + "c.yaml", "to": SP + "p.yaml", "target": "indexed", "item": "constraint-1"},
             {"from": SP + "c.yaml", "to": "acme/other:docs/specs/x.yaml", "target": "external",

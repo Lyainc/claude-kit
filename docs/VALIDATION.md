@@ -985,7 +985,8 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # 바꾸지 않는 LEGACY 줄·id 형식 차이 MISMATCH의 seed-id-migrate.py 힌트·중복 id MISMATCH를 낸다.
 # #885: 항목 단위 depends_on·교착 MISMATCH·PREDECESSOR 레코드(tree REQUIRES 행 포함)를 검증한다.
 # #896: index의 Seed별 항목이 metadata/read --json과 필드 단위로 같고, 읽지 못한 Seed는 errors에 남으며
-# 엣지 끝점이 indexed/unindexed/notfound/external로 구분되는지 검증한다.
+# 엣지 끝점이 indexed/error/unindexed/notfound/external로 구분되고(저장소 밖 경로는 notfound),
+# `target:` 없는 YAML은 건너뛰는지 검증한다.
 python3 thinking-tools/scripts/test/test-seed-relations.py
 # Expected: OK: all 32 test-seed-relations checks passed
 
