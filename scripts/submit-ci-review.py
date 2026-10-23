@@ -121,7 +121,7 @@ def main():
 
     prior = json.loads(_gh(base, "--paginate", "--slurp"))
     for r in (r for page in prior for r in page):
-        if (r["user"]["login"] == BOT
+        if (r["user"]["login"] == BOT and r["id"] != review["id"]
                 and r["state"] in ("APPROVED", "CHANGES_REQUESTED")):
             _gh(f"{base}/{r['id']}/dismissals", "--method", "PUT",
                 "-f", f"message=Superseded by the review of {head}.", "-f", "event=DISMISS")
@@ -187,3 +187,4 @@ def _self_test():
 
 if __name__ == "__main__":
     sys.exit(_self_test() if sys.argv[1:] == ["--self-test"] else main())
+
