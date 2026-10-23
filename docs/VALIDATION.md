@@ -385,7 +385,7 @@ uv tool run ruff check .
 python3 scripts/test/test-review-silence-guard.py --self-test
 # Expected: OK: all 8 review-silence-guard self-test cases passed
 python3 scripts/test/test-review-silence-guard.py
-# Expected: OK: all 22 review-silence-guard checks passed.
+# Expected: OK: all 24 review-silence-guard checks passed.
 # CI 리뷰 판정 제출기 회귀: scripts/submit-ci-review.py가 리뷰어의 JSON을 리뷰 1건으로 바꾼다.
 # P0/P1이면 REQUEST_CHANGES + diff 안 라인만 인라인, 없으면 APPROVE(LGTM), 본문은 모든
 # 지적과 `Reviewed head:` 줄을 담고, 비었거나 깨진 출력은 게시 전에 거부(승인으로 세탁 금지).

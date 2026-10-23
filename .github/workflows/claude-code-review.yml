@@ -159,7 +159,8 @@ jobs:
           # prompt-injection route to CLAUDE_CODE_OAUTH_TOKEN.
           # The agent holds no PR write tool at all (no `gh pr comment`, no inline-comment MCP):
           # its verdict leaves only as `--json-schema` output, and the submit step below is what
-          # approves or requests changes. A prompt-injected agent therefore cannot approve a PR.
+          # approves or requests changes. That is not a sandbox — Bash(python3:*) can still touch
+          # the runner — which is why the agent reads no stranger-written text at all.
           # --model/--effort are pinned: the old prompt on the action's default effort passed
           # PRs #894/#895 on every round while a local /code-review medium found 7-8 real defects
           # in them. On #894's pre-fix commit (d1886f4), with this prompt and python3, Sonnet high
@@ -177,6 +178,10 @@ jobs:
       # Empty or malformed output exits 1 before posting anything. `if: always()` so a review
       # that died still reaches the "produced nothing" error rather than skipping it.
       # The output travels through env, never `${{ }}` inside `run:`: it is model text.
+      # The script runs from the BASE commit, not the workspace: a PR (or the agent, which can
+      # write files) could otherwise rewrite the very code that decides its own verdict. So a
+      # PR that adds or changes this script is judged by the previous version, and the PR that
+      # first adds it has none to run — it goes red, like any PR that edits this workflow.
       - name: Submit the review verdict
         if: always()
         env:
@@ -184,7 +189,11 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           REVIEW_JSON: ${{ steps.claude-review.outputs.structured_output }}
-        run: python3 scripts/submit-ci-review.py
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        # `shell: bash` is what adds `-o pipefail`: the default `bash -e` would let a failed
+        # `git show` feed python3 an empty script that exits 0.
+        shell: bash
+        run: git show "$BASE_SHA:scripts/submit-ci-review.py" | python3 -
 
       # The submit step above can only fail loudly; this step proves something was actually
       # submitted (#451). Without it a green job could still mean "reviewed, found nothing"
@@ -220,6 +229,9 @@ jobs:
           PR: ${{ github.event.pull_request.number }}
           HEAD_SHA: ${{ github.event.pull_request.head.sha }}
           SINCE: ${{ steps.review_start.outputs.at }}
+        # pipefail (via `shell: bash`): a failed `gh api` must stop here, not hand jq nothing
+        # and leave `[ "" -lt 1 ]` to error inside an `if`, which reads as a pass.
+        shell: bash
         run: |
           # An empty SINCE is not a harmless default: jq's `>` is true against "" for every
           # timestamp, so the filter would silently widen to "any bot review on this head" —
