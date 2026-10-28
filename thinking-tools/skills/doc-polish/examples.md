@@ -94,6 +94,9 @@ Auto-fixed (2 items):
   ✓ Line 7: Added space after ## → "## Features"
   ✓ Line 14: (No auto-fix for language tag - requires verification)
 
+Checks (docs/VALIDATION.md, covering README.md):
+  ✓ check-test-exitcode.py: PASS
+
 Remaining issues requiring manual review:
 
 Layer 2 - Consistency: No issues
