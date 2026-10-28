@@ -311,26 +311,29 @@ human and stops. Auto-correcting here would quietly make this skill a writer.
 
 ```
 1. Create backup: file.md.bak
-2. Apply Layer 1 fixes in order:
+2. If the file is inside a repository, pick its registered checks and run them once
+   as a baseline:
+   - docs/VALIDATION.md lists them; scripts/check-test-exitcode.py runs the whole list
+   - pick the checks that cover the fixed file (e.g. check-skill-token-budget.py for a
+     SKILL.md); when the mapping is unclear, run check-test-exitcode.py
+   - File outside a repository, or no registered checks → skip steps 2 and 4 and report
+     "Checks: not run (<reason>)"
+3. Apply Layer 1 fixes in order:
    a. Run markdownlint --fix
    b. Fix heading hierarchy
    c. Add missing blank lines
-3. Re-run the repository's registered checks (the file is inside a repository):
-   a. Find them in docs/VALIDATION.md or scripts/check-test-exitcode.py; run at
-      least the checks that cover the fixed file (e.g. a SKILL.md byte/token budget)
-   b. All pass → the fixes stand
-   c. A check fails → revert the fix that caused it (restore from the .bak if it
-      cannot be isolated) and re-run, or keep it and report the failing check, its
-      output, and the fix that triggered it; never report a failing state as fixed
-   d. File outside a repository, or no registered checks → run nothing and report
-      "Checks: not run (<reason>)"
-4. Report applied changes with line numbers and the check result
-5. List remaining issues requiring manual review
+4. Re-run the same checks and compare with the baseline:
+   a. No new failure → the fixes stand (a baseline failure is reported as pre-existing)
+   b. New failure → revert the fix that caused it and re-run; if the cause cannot be
+      isolated, restore the .bak (every fix is reverted). Report the failing check,
+      its output, and each reverted fix under "Reverted", never under "Auto-fixed"
+5. Report applied changes with line numbers and the check result
+6. List remaining issues requiring manual review
 ```
 
 A mechanical fix still changes bytes: one blank line around a fence can push a SKILL.md
-over a byte cap the repository enforces. Step 3 never widens the fix scope; a failing check
-is resolved by reverting or reporting, not by editing meaning or structure to make it pass.
+over a byte cap the repository enforces. Step 4 never widens the fix scope; a new failure
+is resolved by reverting and reporting, not by editing meaning or structure to make it pass.
 
 ### Rollback
 
@@ -492,18 +495,22 @@ File: path/to/document.md
 Auto-fixed:
 - Line 15: Fixed trailing whitespace
 - Line 23: Added language tag to code block
-- Line 45: Fixed heading hierarchy
+
+Reverted:
+- Line 45: Added blank lines around code fence
 
 Checks (docs/VALIDATION.md):
-- check-skill-token-budget.py: PASS
-(on failure: "check-skill-token-budget.py: FAIL 8006 bytes (> 8000) → reverted Line 45 fix")
-(or: "Checks: not run (file outside a repository)")
+- check-skill-token-budget.py: FAIL after Line 45 fix (8006 bytes > 8000) → reverted, re-run PASS
 
 Remaining issues (require manual review):
 - Line 30: Term inconsistency "사용자/유저" → unify to "사용자"
 - Line 52: Sentence exceeds 50 chars → suggest splitting
 - Line 61: 어긋남 — 문서는 #564를 "열려 있음"으로 서술하지만 `gh issue view 564`는 CLOSED
 ```
+
+Omit `Reverted:` when nothing was reverted. All checks passing prints `- <check>: PASS`; a
+baseline failure prints `- <check>: FAIL (pre-existing, not caused by --fix)`; a file outside
+a repository or with no registered checks prints `Checks: not run (<reason>)`.
 
 > **Removed**: `--report` 플래그(상세 리포트 모드)는 더 이상 지원하지 않아요. AI 표현(LLM trope) 감사가 필요하면 Humanize KR 같은 전용 휴머나이저를 쓰세요.
 
