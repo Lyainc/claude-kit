@@ -315,9 +315,22 @@ human and stops. Auto-correcting here would quietly make this skill a writer.
    a. Run markdownlint --fix
    b. Fix heading hierarchy
    c. Add missing blank lines
-3. Report applied changes with line numbers
-4. List remaining issues requiring manual review
+3. Re-run the repository's registered checks (the file is inside a repository):
+   a. Find them in docs/VALIDATION.md or scripts/check-test-exitcode.py; run at
+      least the checks that cover the fixed file (e.g. a SKILL.md byte/token budget)
+   b. All pass → the fixes stand
+   c. A check fails → revert the fix that caused it (restore from the .bak if it
+      cannot be isolated) and re-run, or keep it and report the failing check, its
+      output, and the fix that triggered it; never report a failing state as fixed
+   d. File outside a repository, or no registered checks → run nothing and report
+      "Checks: not run (<reason>)"
+4. Report applied changes with line numbers and the check result
+5. List remaining issues requiring manual review
 ```
+
+A mechanical fix still changes bytes: one blank line around a fence can push a SKILL.md
+over a byte cap the repository enforces. Step 3 never widens the fix scope; a failing check
+is resolved by reverting or reporting, not by editing meaning or structure to make it pass.
 
 ### Rollback
 
@@ -480,6 +493,11 @@ Auto-fixed:
 - Line 15: Fixed trailing whitespace
 - Line 23: Added language tag to code block
 - Line 45: Fixed heading hierarchy
+
+Checks (docs/VALIDATION.md):
+- check-skill-token-budget.py: PASS
+(on failure: "check-skill-token-budget.py: FAIL 8006 bytes (> 8000) → reverted Line 45 fix")
+(or: "Checks: not run (file outside a repository)")
 
 Remaining issues (require manual review):
 - Line 30: Term inconsistency "사용자/유저" → unify to "사용자"
