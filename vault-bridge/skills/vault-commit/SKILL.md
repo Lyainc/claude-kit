@@ -171,7 +171,7 @@ git -C "{vault_root}" reset HEAD
 ```
 
 Output:
-> 커밋을 건너뛰었습니다. Step 4a에서 스테이징한 변경사항은 해제됐어요. 작업 트리는 그대로 유지됩니다.
+> 커밋을 건너뛰었습니다. Step 4a의 스테이징은 해제했습니다. 작업 트리는 그대로 유지됩니다.
 
 Stop. Do not run any other git commands.
 
