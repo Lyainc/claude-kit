@@ -134,9 +134,9 @@ Both modes open with `[Document Polish Summary]` (default) or `[Document Polish 
   `Layer 2 (Consistency): ...`, `Layer 3 (Semantic): N warnings`, and
   `Layer 4 (Fact): N mismatch` (omit this line when the gate did not fire), then
   "Run with --fix to apply auto-corrections (Layer 4 mismatches are never among them)."
-- **Fix (`--fix`)**: an `Auto-fixed:` list (`Line N: ...`) then `Remaining issues (require manual
-  review):` including any 어긋남 line such as `Line 61: 어긋남 — 문서는 #564를 "열려 있음"으로
-  서술하지만 gh issue view 564는 CLOSED`.
+- **Fix (`--fix`)**: an `Auto-fixed:` list (`Line N: ...`), a `Checks:` result (registered
+  checks re-run per `reference.md` §Fix Process), then `Remaining issues (require manual
+  review):`, including any 어긋남 line.
 
 `--report` is no longer supported; for an LLM-trope audit use a dedicated humanizer such as Humanize KR.
 
