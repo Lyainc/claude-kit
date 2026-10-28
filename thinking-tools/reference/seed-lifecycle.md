@@ -125,12 +125,6 @@ version 2 연결을 정리하는 경우(부모를 지우고 `depends_on`이나 �
   `closed`인 자식은 기록으로 두어요. 부모 검증 실패도 같은 기준으로 표시해요.
 - 일부 철회는 철회된 `acceptance`를 `refines`한 자식만 재검토 대상으로 만들어요. 다른 유효 항목만
   맡은 자식은 계속 후보가 될 수 있어요. 자식 내부 항목 단위의 부분 제외는 하지 않아요.
-
-**version 2 읽기.** 기존 version 2 Seed는 고치지 않고 이렇게 읽어요. `refines`에 `acceptance` id가
-하나 이상 있는 `parent` 연결만 자식이고, 나머지(`constraint` id만 있거나 비어 있음)는 참조예요.
-자식의 `refines` 안에서도 `acceptance` id만 철회 영향에 쓰고, `refines_map`은 형식만 검증하고
-판정에 쓰지 않아요. 참조로 읽힌 연결은 차단하지 않으며 자동으로 `depends_on`으로 바꾸지 않아요.
-정말 먼저 끝나야 하는 관계만 사용자 승인으로 `depends_on`을 추가해요.
 - 재연결은 별도 사용자 승인 후 부모·자식 양방향 링크를 함께 검증해요. 철회 승인은 재연결
   승인이 아니에요. 적절한 부모가 없으면 독립 Seed로 유지하고 이전 출처를 보존해요.
   유효한 자식의 소속이 부적절해졌다면 다른 적절한 Seed로 옮기는 안을 먼저 제안해요.
@@ -138,6 +132,12 @@ version 2 연결을 정리하는 경우(부모를 지우고 `depends_on`이나 �
 - `relations.transfers`의 `{seed, items}`는 자기 항목의 명시적 이관이에요. 도착 Seed에는
   `relations.provenance`로 원본의 정확한 파일·커밋·선택 항목을 남겨요.
 - `relations.replaces`는 대체 파일을 명시해요. 출처 고정은 별도의 `provenance`가 맡아요.
+
+**version 2 읽기.** 기존 version 2 Seed는 고치지 않고 이렇게 읽어요. `refines`에 `acceptance` id가
+하나 이상 있는 `parent` 연결만 자식이고, 나머지(`constraint` id만 있거나 비어 있음)는 참조예요.
+자식의 `refines` 안에서도 `acceptance` id만 철회 영향에 쓰고, `refines_map`은 형식만 검증하고
+판정에 쓰지 않아요. 참조로 읽힌 연결은 차단하지 않으며 자동으로 `depends_on`으로 바꾸지 않아요.
+정말 먼저 끝나야 하는 관계만 사용자 승인으로 `depends_on`을 추가해요.
 
 ## 버전 해석과 호환
 
