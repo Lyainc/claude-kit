@@ -73,7 +73,7 @@ claude plugin install obsidian-vault-manager@Lyainc-claude-kit
 | `/vault-commit` | vault 변경사항 커밋 |
 | `/vault-manifest-refresh` | vault 매니페스트 캐시를 강제 재생성 — staleness 검사 우회 |
 
-이 외에 결정형 훅 3종(SessionStart 매니페스트 갱신 + 접근·쓰기 가드, 턴당 LLM 비용 0)이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
+이 외에 결정형 훅 2종(SessionStart 매니페스트 갱신 + 쓰기 가드, 턴당 LLM 비용 0)이 있어요. 자세한 동작·정책은 [vault-bridge/README.md](vault-bridge/README.md) 참조.
 
 ```bash
 claude plugin install vault-bridge@Lyainc-claude-kit
