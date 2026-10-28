@@ -133,7 +133,7 @@ version 2 연결을 정리하는 경우(부모를 지우고 `depends_on`이나 �
   `relations.provenance`로 원본의 정확한 파일·커밋·선택 항목을 남겨요.
 - `relations.replaces`는 대체 파일을 명시해요. 출처 고정은 별도의 `provenance`가 맡아요.
 
-**version 2 읽기.** 기존 version 2 Seed는 고치지 않고 이렇게 읽어요. `refines`에 `acceptance` id가
+**version 2 읽기.** 위 철회·자식 판정을 기존 version 2 Seed에 적용할 때는 Seed를 고치지 않고 이렇게 읽어요. `refines`에 `acceptance` id가
 하나 이상 있는 `parent` 연결만 자식이고, 나머지(`constraint` id만 있거나 비어 있음)는 참조예요.
 자식의 `refines` 안에서도 `acceptance` id만 철회 영향에 쓰고, `refines_map`은 형식만 검증하고
 판정에 쓰지 않아요. 참조로 읽힌 연결은 차단하지 않으며 자동으로 `depends_on`으로 바꾸지 않아요.
