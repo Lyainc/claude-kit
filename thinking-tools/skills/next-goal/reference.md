@@ -140,7 +140,7 @@ commit and cannot be automatically recomputed into a new outcome.
 
 Also ask it positively, in the direction the floor test alone misses: **once this is done, what
 can the user do differently that they couldn't before?** "Nothing — just less broken" passes the
-floor test (a guard that was silently failing is a real problem) but is still maintenance, not
+floor test (a guard that was silently failing is a real problem only if it has affected targets now) but is still maintenance, not
 felt change. When the pick is maintenance, surface the injected maintenance streak (how many
 consecutive recent commits, per `next-candidate.py`, did not touch a `SKILL.md`/`agents/*.md`
 body) in `FROM` — e.g. "이번까지 연속 N번째 유지보수 픽". This is a data point for the user to
@@ -167,7 +167,9 @@ unit — several backlog issues sharing one theme are one unit here. With a Seed
 eligible remaining criteria within the current request rank ahead of unrelated backlog issues: they are the declared scope of the
 thread that just ran, not a new one.
 
-If, after widening, nothing clears the floor, keep `pick: null` and render the judgment.
+Backlog candidates must clear the floor on current impact evidence (§Floor test). If, after
+widening, nothing clears the floor, keep `pick: null` and render the judgment; expansion forced
+by chain depth never obliges a pick.
 Use `GOAL · 없음` with the same conclusion as FROM: no worthwhile candidate within the reviewed
 scope, unevaluated scope remains, or Seed handoff is missing. Preserve TRACE's limits and gaps;
 never turn unavailable backlog or a bounded walk into whole-project absence. Stop without a
@@ -388,6 +390,14 @@ Ask it in the negative: **if this were never done, what would actually be worse?
 positively the question is self-satisfying and always answers yes. "Nothing, it would just be
 tidier" is below the floor — cleanup, wording, formatting, typos, and review nits on this
 session's own PR almost always are.
+
+For a backlog candidate (`via: backlog` / `issue:#N`), answer from current impact evidence, not
+the issue body: affected targets actually present in the repo or runtime, a user-experienced
+occurrence, or a failing check. Record the check method and result in `evidence`. A reproduction
+recorded in the issue body alone (e.g. one built on a fixture) is not enough. Impact not
+checked is `unverified`; checked with zero affected targets is `below-floor`. This does not
+change the session's own follow-up candidates, and `unverified` stays distinct from absence
+within the reviewed scope.
 
 Phase 2, caller's Git completion contract:
 

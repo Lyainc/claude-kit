@@ -35,14 +35,14 @@ is a link only. Unknown/paused/closed/withdrawn items are excluded;
 honor `eligibility` and exclusions. Naming never resumes. Read relevant active items only;
 verify unmet `measurable_via` in the repo; unresolved evidence stays unresolved.
 Before ranking, read
-`reference.md` §Seed walk (binding record semantics): an unfinished same-repo predecessor → `held`; a
+`reference.md` §Seed walk (binding): an unfinished same-repo predecessor → `held`; a
 child already satisfying its criteria → `done`, never re-proposed; `external` is never ranked;
 `STOP`/`CYCLE`/`FAILED`/`notfound` are not absence. Copy STOP claims to `walk_stops`;
 keep other gaps in `unverified`. Worked from a Seed without its path: do not search; set `handoff: "missing"`.
 
 ## Phase 1 — Pick
 
-**Step 0 — Group.** Take the highest-ROI *group* of related follow-ups, not one item (§Cohesion and value).
+**Step 0 — Group.** Take the highest-ROI *group* of related follow-ups (§Cohesion and value).
 
 **Step 1 — Floor test.** Ask negatively: **if this were never done, what would actually be worse?**
 "Nothing, just tidier" is below the floor (cleanup, wording, typos, this session's own-PR
@@ -53,7 +53,8 @@ put the injected maintenance streak in `FROM`, never as a blocker (§Maintenance
 
 **Step 3 — Widen to the backlog** when a candidate fails either bar or chain depth ≥ 3: rank by
 (1) issues combining with what just shipped, (2) label and staleness; one theme is one unit; a Seed in
-play ranks its remaining criteria first. If nothing clears the floor, keep `pick: null`; render
+play ranks its remaining criteria first. Backlog clears it only on current impact evidence
+(§Floor test). If none does, even depth-forced, keep `pick: null`; render
 and use FROM's scoped conclusion for `GOAL · 없음`. Stop without a fabricated goal or repeated
 search. Render NEXT/FROM/SKIPPED without narrating the ranking.
 
@@ -65,8 +66,7 @@ judgment, never the path). TRACE retains gaps without a Seed; no pick distinguis
 absence, unevaluated scope and missing handoff. On `[근거 변경됨 ...]`, re-walk and re-judge.
 
 **User switch**: an eligible candidate the user names becomes the pick; stale id → re-walk;
-render again, rewrite the condition. Read `reference.md` §User switch (binding) for the prefill form and
-when the original stays. A pick change never starts work, edits an issue, commits, or pushes.
+render again, rewrite the condition. Read `reference.md` §User switch (binding). A pick change never starts work, edits an issue, commits, or pushes.
 
 ## Phase 2 — Condition
 
