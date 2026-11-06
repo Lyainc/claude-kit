@@ -293,6 +293,11 @@ def main():
                               {"item_desc": {"constraint-1": "DB 스키마\n생성"}}, ["constraint-1"])
     check("cross-repo key shows owner/repo: prefix", got == ["other/repo:x/constraint-1 · DB 스키마 생성"], str(got))
 
+    # #913: zero-width format characters (Cf) occupy no column; a plain letter takes one.
+    check("zero-width format chars count as 0 columns",
+          ngr._columns("a\u200bb\u200dc") == 3 and ngr._columns("\u200b\u200d") == 0,
+          str(ngr._columns("a\u200bb\u200dc")))
+
     # #854: a target description is cut to its first sentence and a fixed cap, '…' marks what was dropped.
     cap = ngr._TARGET_DESC_MAX
     desc_of = lambda d: ngr._render_targets(rel, "docs/specs/x.yaml", {"item_desc": {"constraint-1": d}},

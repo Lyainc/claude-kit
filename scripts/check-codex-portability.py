@@ -2,6 +2,7 @@
 """Check the Codex manifests and the 19-skill portability contract."""
 import argparse
 import json
+import re
 from pathlib import Path
 
 PLUGINS = {
@@ -130,9 +131,15 @@ NEXT_GOAL_CONDITION_RULES = {
 }
 
 
+def _heading_section(text: str, heading: str) -> str:
+    """Body after a line that is exactly `heading` (same level), up to the next level-2 heading."""
+    match = re.search(rf"^{re.escape(heading)}[ \t]*$", text, re.M)
+    return text[match.end():].split("\n## ", 1)[0] if match else ""
+
+
 def check_next_goal_condition(skill: str, reference: str) -> list[str]:
     sections = {
-        name: (skill if name == "skill" else reference).partition(heading)[2].split("\n## ", 1)[0]
+        name: _heading_section(skill if name == "skill" else reference, heading)
         for name, heading in NEXT_GOAL_SECTIONS.items()
     }
     normalized = {source: " ".join(text.split()) for source, text in sections.items()}
