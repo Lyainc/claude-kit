@@ -126,7 +126,7 @@ def git_add(repo):
 
 
 def _family(repo, parent_cons=("c1", "c2"), parent_crit=("ac1",), kid_a=("c1", "ac1"),
-            kid_b=("c2",)):
+            kid_b=("c2", "ac1")):
     put(repo, "parent.yaml", seed("Parent", children=[SP + "kid-a.yaml", SP + "kid-b.yaml"],
                                   cons=parent_cons, crit=parent_crit))
     put(repo, "kid-a.yaml", seed("Kid A", parent=SP + "parent.yaml", refines=list(kid_a),
@@ -149,6 +149,7 @@ def check_basic_migration() -> list[str]:
                  f"REFINES   {SP}kid-a.yaml  c1 -> constraint-1",
                  f"REFINES   {SP}kid-a.yaml  ac1 -> acceptance-1",
                  f"REFINES   {SP}kid-b.yaml  c2 -> constraint-2",
+                 f"REFINES   {SP}kid-b.yaml  ac1 -> acceptance-1",
                  "DRY-RUN: 3 file(s) would change; re-run with --apply to write"):
         if want not in out:
             failures.append(f"dry run plan: missing {want!r} in {out}")
@@ -178,7 +179,7 @@ def check_basic_migration() -> list[str]:
     if "    - constraint-1   # item" not in read(repo, SP + "kid-a.yaml") or \
             "    - acceptance-1   # item" not in read(repo, SP + "kid-a.yaml"):
         failures.append("apply: block-list refines of kid-a not rewritten in place")
-    if "  refines: [constraint-2]   # parent items" not in read(repo, SP + "kid-b.yaml"):
+    if "  refines: [constraint-2, acceptance-1]   # parent items" not in read(repo, SP + "kid-b.yaml"):
         failures.append("apply: flow refines of kid-b not rewritten in place")
     for rel in (SP + "parent.yaml", SP + "kid-a.yaml", SP + "kid-b.yaml"):
         code, out = relations_check(repo, rel)
@@ -274,7 +275,7 @@ def check_interrupted_runs_converge() -> list[str]:
     failures = []
     for name in ("parent written first", "child written first"):
         repo = _repo()
-        _family(repo, kid_b=("c2",))
+        _family(repo)
         full = _repo()
         _family(full)
         run(full, SP + "parent.yaml", "--apply")
@@ -338,10 +339,10 @@ def check_same_id_in_unrelated_seeds() -> list[str]:
     """`c1` in two unrelated Seeds: migrating one leaves the other and its refines alone."""
     failures = []
     repo = _repo()
-    put(repo, "alpha.yaml", seed("Alpha", children=[SP + "alpha-kid.yaml"], cons=["c1"]))
-    put(repo, "alpha-kid.yaml", seed("Alpha kid", parent=SP + "alpha.yaml", refines=["c1"]))
-    put(repo, "beta.yaml", seed("Beta", children=[SP + "beta-kid.yaml"], cons=["c1"]))
-    put(repo, "beta-kid.yaml", seed("Beta kid", parent=SP + "beta.yaml", refines=["c1"]))
+    put(repo, "alpha.yaml", seed("Alpha", children=[SP + "alpha-kid.yaml"], cons=["c1"], crit=["ac1"]))
+    put(repo, "alpha-kid.yaml", seed("Alpha kid", parent=SP + "alpha.yaml", refines=["c1", "ac1"]))
+    put(repo, "beta.yaml", seed("Beta", children=[SP + "beta-kid.yaml"], cons=["c1"], crit=["ac1"]))
+    put(repo, "beta-kid.yaml", seed("Beta kid", parent=SP + "beta.yaml", refines=["c1", "ac1"]))
     before = snapshot(repo)
     code, out, err = run(repo, SP + "alpha.yaml", "--apply")
     after = snapshot(repo)
