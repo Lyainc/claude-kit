@@ -1757,6 +1757,14 @@ def check_index() -> list[str]:
         failures.append(f"index symlink: expected one 'outside repo' error, exit 1: {code} {data['errors']}")
     if data["edges"]["children"] != [{"from": SP + "in.yaml", "to": SP + "link.yaml", "target": "notfound"}]:
         failures.append(f"index symlink: the edge to it stays notfound: {data['edges']['children']}")
+
+    # #915 follow-up: a hand-written Seed without `skill:` (seen in a consumer repo) is still a Seed.
+    repo = _repo()
+    (Path(repo) / "docs" / "specs" / "noskill.yaml").write_text(
+        _seed_text("No skill").replace("skill: build-spec\n", ""))
+    code, data, err = _index_json(repo, "docs/specs")
+    if data is None or [s["path"] for s in data["seeds"]] != [SP + "noskill.yaml"]:
+        failures.append(f"index: a Seed without skill: should be indexed (exit {code}): {data or err}")
     return failures
 
 
