@@ -20,6 +20,8 @@ parsing the SKILL.md mode-toggle declarations and asserting:
 8. (#793) The Moderator label names the actual mode in the transcript/summary templates, the
    reference.md transcript format, the delegated section and the worker: `진행자 종합` inline and
    delegated, `독립 최종 검토` isolated only — never one mode's wording hard-coded for all.
+9. (#864) Every `held:*` hold reason (and hold row) in SKILL.md, reference.md, examples.md, the
+   templates and the worker belongs to the enum defined once in SKILL.md § Topic Conclusion.
 
 This is a structural / static check — it does not execute any LLM logic.
 
@@ -732,6 +734,58 @@ def role_label_checks(transcript: str, summary: str, ref_text: str, worker_text:
     ]
 
 
+# --- #864: every hold reason in the expert-panel prose belongs to the one canonical enum ---
+# The enum is defined once, in SKILL.md § Topic Conclusion's Hold bullet; the sweep reads it from
+# there. Pre-#851 free-text reasons and code-less hold rows are rejected alongside unknown codes.
+
+_HOLD_BULLET_RE = re.compile(r"^\d+\. \*\*Hold\*\*[^\n]*$", re.MULTILINE)
+_HELD_TOKEN_RE = re.compile(r"held:(?:\{([a-z|]+)\}|([A-Za-z_-]+))")
+_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*|\*\*결론\*\*: 보류[ (]|\| 보류 \(")
+_LEGACY_HOLD_PHRASES = ("유저 개입 필요", "구조적 한계", "정보 부족 / 의견 대립")
+
+
+def canonical_hold_enum(skill_text: str) -> set[str]:
+    m = _HOLD_BULLET_RE.search(skill_text)
+    return set(re.findall(r"`held:([a-z]+)`", m.group(0))) if m else set()
+
+
+def hold_enum_violations(files: dict[str, str], enum: set[str]) -> list[str]:
+    """Return 'file:line: problem' for each hold reason outside the enum (or missing on a hold row)."""
+    out: list[str] = []
+    for name, text in files.items():
+        for n, line in enumerate(text.splitlines(), 1):
+            for brace, plain in _HELD_TOKEN_RE.findall(line):
+                for v in (brace.split("|") if brace else [plain]):
+                    if v not in enum:
+                        out.append(f"{name}:{n}: non-enum hold reason held:{v}")
+            for phrase in _LEGACY_HOLD_PHRASES:
+                if phrase in line:
+                    out.append(f"{name}:{n}: legacy free-text hold reason {phrase!r}")
+            if _HOLD_ROW_RE.search(line) and "held:" not in line:
+                out.append(f"{name}:{n}: hold row without a held:* code")
+    return out
+
+
+def _hold_sweep_files(skill: str, ref_text: str, worker: str) -> dict[str, str]:
+    files = {"SKILL.md": skill, "reference.md": ref_text, "expert-panel-worker.md": worker}
+    for p in (_TEMPLATES_DIR.glob("*.md") if _TEMPLATES_DIR.is_dir() else []):
+        files[f"templates/{p.name}"] = p.read_text(encoding="utf-8")
+    ex = _SKILL_PATH.parent / "examples.md"
+    if ex.is_file():
+        files["examples.md"] = ex.read_text(encoding="utf-8")
+    return files
+
+
+def hold_enum_checks(skill: str, ref_text: str, worker: str) -> list[tuple[bool, str]]:
+    enum = canonical_hold_enum(skill)
+    bad = hold_enum_violations(_hold_sweep_files(skill, ref_text, worker), enum)
+    return [
+        (enum == {"tie", "evidence", "quorum"}, f"SKILL.md Hold bullet defines the enum {sorted(enum)}"),
+        (not bad, "every hold reason in expert-panel files is in the canonical enum"
+         + ("" if not bad else ": " + "; ".join(bad))),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -754,7 +808,8 @@ def run_checks(text: str, ref_text: str) -> tuple[int, int]:
     ] + reference_checks(text, ref_text) + delegated_reference_checks(text, ref_text) + worker_audit_checks(
         _WORKER_PATH.read_text(encoding="utf-8")) + role_label_checks(
         _TRANSCRIPT_TEMPLATE_PATH.read_text(encoding="utf-8"), _SUMMARY_TEMPLATE_PATH.read_text(encoding="utf-8"),
-        ref_text, _WORKER_PATH.read_text(encoding="utf-8"))
+        ref_text, _WORKER_PATH.read_text(encoding="utf-8")) + hold_enum_checks(
+        text, ref_text, _WORKER_PATH.read_text(encoding="utf-8"))
 
     passed = failed = 0
     for ok, msg in checks:
@@ -1326,6 +1381,19 @@ def _self_test() -> int:
          (_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _CLEAN_REF, _WORKER_QUALIFIER_ALLOWED)),
     ):
         cases.append((f"role label: {desc} -> FAIL", not all(ok for ok, _ in role_label_checks(*args))))
+
+    # --- #864: the hold-enum sweep catches values outside the canonical enum ---
+    live_skill, live_ref = _load_skill(), _load_reference()
+    live_worker = _WORKER_PATH.read_text(encoding="utf-8")
+    cases.append(("hold enum: live files pass", all(ok for ok, _ in hold_enum_checks(live_skill, live_ref, live_worker))))
+    for desc, mutate in (
+        ("unknown code held:other injected", lambda t: t + "\n보류 (`held:other`)\n"),
+        ("brace form with an unknown member", lambda t: t + "\nheld:{tie|stalemate}\n"),
+        ("pre-#851 free-text reason revived", lambda t: t + "\n| 보류 사유 | 구조적 한계 |\n"),
+        ("code-less hold conclusion", lambda t: t + "\n**결론**: 보류 - 확인 필요\n"),
+    ):
+        cases.append((f"hold enum: {desc} -> FAIL",
+                      not all(ok for ok, _ in hold_enum_checks(live_skill, mutate(live_ref), live_worker))))
 
     failed = [name for name, passed in cases if not passed]
     for name, passed in cases:
