@@ -1633,6 +1633,9 @@ def check_index() -> list[str]:
     (Path(repo) / "docs" / "elsewhere" / "out.yaml").write_text(_seed_text("Outside"))
     (Path(repo) / "docs" / "specs" / "bad.yaml").write_bytes(b"target: \xff\xfe broken\n")
     (Path(repo) / "docs" / "specs" / "ci.yaml").write_text("name: ci\non: push\n")
+    # #915: a top-level `target:` alone (a docker bake file) does not make a Seed.
+    (Path(repo) / "docs" / "specs" / "bake.yaml").write_text(
+        "group:\n  default:\n    targets: [app]\ntarget:\n  app:\n    context: .\n")
     before = _snapshot(repo)
     code, data, err = _index_json(repo, "docs/specs")
     if data is None:
@@ -1692,6 +1695,24 @@ def check_index() -> list[str]:
                            capture_output=True, text=True)
         if p.returncode != 2 or p.stdout:
             failures.append(f"index usage {argv}: expected exit 2 and no stdout, got {p.returncode}")
+
+    # #915: a symlinked Seed whose real path is outside the repo is an error, not an entry under
+    # a path relative to another root; the edge to it reads notfound, as before.
+    repo = _repo()
+    outside = _repo()
+    (Path(outside) / "docs" / "specs" / "o.yaml").write_text(_seed_text("Outside"))
+    (Path(repo) / "docs" / "specs" / "link.yaml").symlink_to(Path(outside) / "docs" / "specs" / "o.yaml")
+    _write(repo, "in.yaml", target="Inside", children=[SP + "link.yaml"])
+    code, data, err = _index_json(repo, "docs/specs")
+    if data is None:
+        return failures + [f"index symlink: no JSON output (exit {code}): {err}"]
+    if [s["path"] for s in data["seeds"]] != [SP + "in.yaml"]:
+        failures.append(f"index symlink: only the in-repo Seed is indexed: {data['seeds']}")
+    if code != 1 or [(e["path"], e["error"].split(":")[0]) for e in data["errors"]] != [
+            (SP + "link.yaml", "outside repo")]:
+        failures.append(f"index symlink: expected one 'outside repo' error, exit 1: {code} {data['errors']}")
+    if data["edges"]["children"] != [{"from": SP + "in.yaml", "to": SP + "link.yaml", "target": "notfound"}]:
+        failures.append(f"index symlink: the edge to it stays notfound: {data['edges']['children']}")
     return failures
 
 
