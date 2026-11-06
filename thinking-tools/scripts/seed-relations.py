@@ -1649,9 +1649,13 @@ def full_entry(entry, seed):
     evidence = {"commit": commit if isinstance(commit, str) else None,
                 "items": _list_of(ev.get("items"))}
     entry["lifecycle"]["evidence"] = evidence
-    evidenced = {r.get("id") for r in evidence["items"] if isinstance(r, dict)}
-    withdrawn = {r.get("id") for r in _list_of(lc.get("withdrawn")) if isinstance(r, dict)}
-    held = {h["id"] for h in entry["eligibility"].get("held_items", [])}
+    # Only string ids name an item; a malformed (e.g. block-list) id matches nothing and must not
+    # crash the whole index.
+    def ids(rows):
+        return {r.get("id") for r in rows if isinstance(r, dict) and isinstance(r.get("id"), str)}
+    evidenced = ids(evidence["items"])
+    withdrawn = ids(_list_of(lc.get("withdrawn")))
+    held = ids(entry["eligibility"].get("held_items", []))
     entry["acceptance"] = [
         {"id": iid, "satisfied": iid in evidenced,
          "out_of_scope": "withdrawn" if iid in withdrawn else "held" if iid in held else None}
