@@ -619,6 +619,15 @@ def _run_git(directory, *args):
     return p.stdout.strip() if p.returncode == 0 and p.stdout.strip() else None
 
 
+def _ref_in_children(parent_name, child_rel):
+    return (f"{parent_name} children lists {child_rel}, a reference link "
+            f"(refines has no acceptance id) — remove it from children")
+
+
+def _inside(root_real, path_real):
+    return os.path.commonpath([root_real, path_real]) == root_real
+
+
 def find_root(seed_file):
     d = os.path.dirname(os.path.realpath(seed_file))
     top = _run_git(d, "rev-parse", "--show-toplevel")
@@ -1078,8 +1087,7 @@ def cmd_check(rd, rel, seed):
             if not seed.is_child_edge():
                 # A reference link (no acceptance id in refines) belongs outside children (#907).
                 if self_res in kids:
-                    mismatch(f"{pname} children lists {rel}, a reference link "
-                             f"(refines has no acceptance id) — remove it from children")
+                    mismatch(_ref_in_children(pname, rel))
             elif self_res not in kids:
                 if parent.loc[0] is None:
                     mismatch(f"{pname} children is missing {rel}")
@@ -1115,8 +1123,7 @@ def cmd_check(rd, rel, seed):
         if back_res != self_res:
             mismatch(f"{key(child.loc)} parent does not point back to {rel}")
         elif not child.seed.is_child_edge():
-            mismatch(f"{rel} children lists {key(child.loc)}, a reference link "
-                     f"(refines has no acceptance id) — remove it from children")
+            mismatch(_ref_in_children(rel, key(child.loc)))
         else:
             for rid in child.seed.refines:
                 if rid not in seed.item_map:
@@ -1598,11 +1605,16 @@ def cmd_index(args):
             print(f"seed-relations: not a directory: {d}", file=sys.stderr)
             return 2
     readers, seeds, errors, found = {}, [], [], {}
+    roots = {}  # find_root depends only on the real directory of the Seed file
     for d in dirs:
         dir_root = find_root(os.path.join(d, "x"))  # the repo the named directory belongs to
         for f in _seed_files(d):
-            root = find_root(f)
-            rel = posixpath.normpath(os.path.relpath(os.path.realpath(f), root).replace(os.sep, "/"))
+            real_f = os.path.realpath(f)
+            real_dir = os.path.dirname(real_f)
+            if real_dir not in roots:
+                roots[real_dir] = find_root(f)
+            root = roots[real_dir]
+            rel = posixpath.normpath(os.path.relpath(real_f, root).replace(os.sep, "/"))
             if (root, rel) in found:
                 continue  # overlapping directories name the same Seed once
             found[(root, rel)] = None
@@ -1617,8 +1629,7 @@ def cmd_index(args):
                 if not is_seed:
                     del found[(root, rel)]
                     continue
-                real_f = os.path.realpath(f)
-                if os.path.commonpath([dir_root, real_f]) != dir_root:
+                if not _inside(dir_root, real_f):
                     del found[(root, rel)]
                     seen_as = os.path.normpath(os.path.join(
                         os.path.relpath(os.path.realpath(d), dir_root), os.path.relpath(f, d)))
@@ -1661,8 +1672,7 @@ def cmd_index(args):
                     tgt = rd.resolve_quiet(nloc, exact_edges(seed))[1]
                     real_root = os.path.realpath(root)
                     real_tgt = os.path.realpath(os.path.join(root, tgt))
-                    inside = (not os.path.isabs(tgt)
-                              and os.path.commonpath([real_root, real_tgt]) == real_root)
+                    inside = not os.path.isabs(tgt) and _inside(real_root, real_tgt)
                     status = ("notfound" if not inside else
                               "indexed" if (root, tgt) in indexed else
                               "error" if (root, tgt) in found else
