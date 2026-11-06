@@ -239,8 +239,9 @@ def scan_transcript(tp: str):
                 argv = it.get("command")
                 cmd = argv[2] if isinstance(argv, list) and len(argv) == 3 and argv[1] in ("-lc", "-c") \
                     else shlex.join(argv) if isinstance(argv, list) else argv
-                cwd = unquote(urlparse(it.get("cwd") or "").path) if isinstance(it.get("cwd") or "", str) else None
-                call = _metadata_call(cmd, cwd) if isinstance(cmd, str) and cwd is not None else None
+                raw_cwd = it.get("cwd") or ""
+                call = _metadata_call(cmd, unquote(urlparse(raw_cwd).path)) \
+                    if isinstance(cmd, str) and isinstance(raw_cwd, str) else None
                 if call:
                     literal, cwd = call
                     calls.extend((m, literal, cwd) for m in META_PATH.findall(str(it.get("aggregated_output") or "")))
