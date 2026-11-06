@@ -605,7 +605,7 @@ memory 대기열 점검
 gate's utterance), then runs §3/§6 normally. Deleting 이미 매립됨 items uses the §3 confirmation
 shape, as a delete-only block: the `## 분류 결과` block with `규칙` (the memory's rule), `들어갈 곳: 없음 —
 이미 <site path:line>`, `memory 중복: memory에도 있어요: <path...> — 이미 매립돼 지울게요` (not §3's "매립 후" tail),
-`필요성: 통과` (no gate question), and every other field `none`.
+`필요성: 통과` (no gate question), and every other field `none` (except the `site 규칙`/`memory 규칙`/`차이` fields added below).
 Show the exact site text, memory text, and their diff side by side before delete confirmation.
 Add `site 규칙: <verbatim site clause>`, `memory 규칙: <verbatim memory clause>`, and
 `차이: <coverage comparison, including scope and exceptions>` to that block; a path alone or a
