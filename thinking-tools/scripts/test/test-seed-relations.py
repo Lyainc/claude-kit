@@ -1768,6 +1768,176 @@ def check_index() -> list[str]:
     return failures
 
 
+_SHA = "a" * 40
+_FULL_KEYS = {"relations", "lifecycle", "acceptance", "open_questions", "blindspots", "issues",
+              "created"}
+
+
+def _index_full_repo():
+    """src (evidence + withdrawn) and new (replaces/transfers/provenance to src, a ghost, an
+    external Seed) in one repo; Seeds carry open_questions, blindspots and created."""
+    repo = _repo()
+    spec_dir = Path(repo) / "docs" / "specs"
+    kw = dict(constraints=[("constraint-1", "Rule")],
+              criteria=[("acceptance-1", "Done"), ("acceptance-2", "Dropped")])
+    src = _versioned(_seed_text("Src", tracking=["#7"], **kw), 3).replace(
+        "\ntarget: Src\n", "\ntarget: Src\ncreated: 2026-05-19\n", 1)
+    src += ("lifecycle:\n  state: active\n  outcome: null\n  reason: User decision\n"
+            "  approved_by: user request message 1\n  evidence:\n    commit: null\n    items:\n"
+            "      - id: acceptance-1\n        refs: [test-a]\n"
+            "  withdrawn:\n    - id: acceptance-2\n      reason: Scope changed\n\n"
+            "open_questions:\n  - Who owns it?\n\n"
+            "blindspots:\n  - area: scope\n    question: What about X?\n")
+    (spec_dir / "src.yaml").write_text(src)
+    new = _versioned(_seed_text("New", **kw), 3).replace(
+        "  children: []\n",
+        "  children: []\n  replaces: [docs/specs/src.yaml]\n  transfers:\n"
+        "    - seed: docs/specs/src.yaml\n      items: [acceptance-1]\n  provenance:\n"
+        f"    - seed: docs/specs/src.yaml\n      commit: {_SHA}\n      items: [constraint-1]\n"
+        f"    - seed: docs/specs/ghost.yaml\n      commit: {_SHA}\n      items: [constraint-1]\n"
+        f"    - seed: acme/other:docs/specs/x.yaml\n      commit: {_SHA}\n      items: [constraint-1]\n", 1)
+    (spec_dir / "new.yaml").write_text(new)
+    return repo
+
+
+def check_index_full() -> list[str]:
+    """#919: `index --json --full` adds the remaining fields and edge kinds; plain stays as is."""
+    failures = []
+    repo = _index_full_repo()
+    before = _snapshot(repo)
+    code, plain, err = _index_json(repo, "docs/specs")
+    fcode, full, ferr = _index_json_full(repo, "docs/specs")
+    if plain is None or full is None:
+        return [f"index --full: no JSON output ({code}/{fcode}): {err} {ferr}"]
+    # Non-full output is unchanged: same keys, same edge kinds, none of the full fields.
+    if list(plain) != ["schema_version", "generated_at", "seeds", "edges", "errors"] or \
+            list(plain["edges"]) != ["parent", "children", "depends_on"] or \
+            any(_FULL_KEYS & (set(e) - {"relations", "lifecycle"}) or set(e["relations"]) != {
+                "parent", "refines", "depends_on", "children"} or set(e["lifecycle"]) != {
+                "state", "outcome", "reason"} for e in plain["seeds"]):
+        failures.append(f"index plain: output shape changed: {list(plain)} {list(plain['edges'])}")
+    if full.get("schema") != "seed-index-full/1" or "schema" in plain:
+        failures.append(f"index --full: schema marker: {full.get('schema')!r} / plain {plain.get('schema')!r}")
+    if code != 0 or fcode != 0:
+        failures.append(f"index --full: exit codes {code}/{fcode}: {plain['errors']} {full['errors']}")
+    # Everything non-full carries over identically; --full only adds.
+    for a, b in zip(plain["seeds"], full["seeds"]):
+        a2 = {k: v for k, v in b.items() if k not in _FULL_KEYS}
+        a2["relations"] = {k: b["relations"][k] for k in a["relations"]}
+        a2["lifecycle"] = {k: b["lifecycle"][k] for k in a["lifecycle"]}
+        if a != a2:
+            failures.append(f"index --full: base fields differ for {a['path']}")
+    for kind in ("parent", "children", "depends_on"):
+        if plain["edges"][kind] != full["edges"][kind]:
+            failures.append(f"index --full: {kind} edges differ from plain")
+    by = {s["path"]: s for s in full["seeds"]}
+    if list(by) != [SP + "new.yaml", SP + "src.yaml"]:
+        return failures + [f"index --full: seeds {list(by)}"]
+    # Per-seed key set and types.
+    for path, s in by.items():
+        if not _FULL_KEYS <= set(s):
+            failures.append(f"index --full: {path} lacks {_FULL_KEYS - set(s)}")
+        rel = s["relations"]
+        types = {"replaces": list, "transfers": list, "provenance": list, "refines_map": list,
+                 "link_reason": (str, type(None))}
+        for k, t in types.items():
+            if not isinstance(rel.get(k), t):
+                failures.append(f"index --full: {path} relations.{k} type: {rel.get(k)!r}")
+        ev = s["lifecycle"]["evidence"]
+        if not isinstance(ev, dict) or set(ev) != {"commit", "items"} or not isinstance(ev["items"], list):
+            failures.append(f"index --full: {path} lifecycle.evidence: {ev!r}")
+        if not isinstance(s["open_questions"], list) or not isinstance(s["blindspots"], list):
+            failures.append(f"index --full: {path} open_questions/blindspots must be lists")
+        if set(s["issues"]) != {"source", "tracking"} or not isinstance(s["issues"]["tracking"], list):
+            failures.append(f"index --full: {path} issues: {s['issues']!r}")
+        if not all(set(a) == {"id", "satisfied", "out_of_scope"} and isinstance(a["satisfied"], bool)
+                   for a in s["acceptance"]):
+            failures.append(f"index --full: {path} acceptance rows: {s['acceptance']!r}")
+    src, new = by[SP + "src.yaml"], by[SP + "new.yaml"]
+    if src["acceptance"] != [{"id": "acceptance-1", "satisfied": True, "out_of_scope": None},
+                             {"id": "acceptance-2", "satisfied": False, "out_of_scope": "withdrawn"}]:
+        failures.append(f"index --full: acceptance satisfaction/withdrawn: {src['acceptance']}")
+    if src["lifecycle"]["evidence"] != {"commit": None, "items": [{"id": "acceptance-1", "refs": ["test-a"]}]}:
+        failures.append(f"index --full: evidence: {src['lifecycle']['evidence']}")
+    if src["created"] != "2026-05-19" or new["created"] is not None:
+        failures.append(f"index --full: created: {src['created']!r} {new['created']!r}")
+    if src["open_questions"] != ["Who owns it?"] or \
+            src["blindspots"] != [{"area": "scope", "question": "What about X?"}] or new["blindspots"] != []:
+        failures.append(f"index --full: open_questions/blindspots: {src['open_questions']} {src['blindspots']}")
+    if src["issues"] != {"source": "#1", "tracking": ["#7"]}:
+        failures.append(f"index --full: issues: {src['issues']}")
+    if new["relations"]["replaces"] != [SP + "src.yaml"] or \
+            new["relations"]["transfers"] != [{"seed": SP + "src.yaml", "items": ["acceptance-1"]}] or \
+            [r["seed"] for r in new["relations"]["provenance"]] != [
+                SP + "src.yaml", SP + "ghost.yaml", "acme/other:docs/specs/x.yaml"]:
+        failures.append(f"index --full: new relations: {new['relations']}")
+    want_edges = {
+        "replaces": [{"from": SP + "new.yaml", "to": SP + "src.yaml", "target": "indexed"}],
+        "transfers": [{"from": SP + "new.yaml", "to": SP + "src.yaml", "target": "indexed",
+                       "items": ["acceptance-1"]}],
+        "provenance": [
+            {"from": SP + "new.yaml", "to": SP + "src.yaml", "target": "indexed",
+             "items": ["constraint-1"], "commit": _SHA},
+            {"from": SP + "new.yaml", "to": SP + "ghost.yaml", "target": "notfound",
+             "items": ["constraint-1"], "commit": _SHA},
+            {"from": SP + "new.yaml", "to": "acme/other:docs/specs/x.yaml", "target": "external",
+             "items": ["constraint-1"], "commit": _SHA}],
+    }
+    for kind, want in want_edges.items():
+        if full["edges"].get(kind) != want:
+            failures.append(f"index --full: {kind} edges\n got {full['edges'].get(kind)}\nwant {want}")
+    if _snapshot(repo) != before:
+        failures.append("index --full: must be read-only")
+    # A held acceptance (inactive child refines it) is marked out of scope.
+    repo = _repo()
+    kw = dict(constraints=[("constraint-1", "Rule")], criteria=[("acceptance-1", "Done")])
+    spec_dir = Path(repo) / "docs" / "specs"
+    life = "lifecycle:\n  state: active\n  outcome: null\n  reason: r\n  approved_by: u\n" \
+           "  evidence:\n    commit: null\n    items: []\n  withdrawn: []\n"
+    (spec_dir / "p.yaml").write_text(_versioned(
+        _seed_text("P", children=[SP + "k.yaml"], **kw), 3) + life)
+    (spec_dir / "k.yaml").write_text(_versioned(
+        _seed_text("K", parent=SP + "p.yaml", refines=["acceptance-1"], **kw), 3)
+        + life.replace("state: active", "state: paused"))
+    _, data, _ = _index_json_full(repo, "docs/specs")
+    pacc = {s["path"]: s for s in data["seeds"]}[SP + "p.yaml"]["acceptance"] if data else None
+    if pacc != [{"id": "acceptance-1", "satisfied": False, "out_of_scope": "held"}]:
+        failures.append(f"index --full: held acceptance: {pacc}")
+    # --full needs --json like the plain form.
+    p = subprocess.run([sys.executable, str(_SCRIPT_PATH), "index", "docs/specs", "--full"],
+                       cwd=repo, capture_output=True, text=True)
+    if p.returncode != 2 or p.stdout:
+        failures.append(f"index --full without --json: expected exit 2, got {p.returncode}")
+    return failures
+
+
+def _index_json_full(repo, *dirs, gh=NO_GH):
+    env = dict(os.environ, GH_BIN=gh)
+    p = subprocess.run([sys.executable, str(_SCRIPT_PATH), "index", *dirs, "--json", "--full"],
+                       cwd=repo, env=env, capture_output=True, text=True)
+    return p.returncode, (json.loads(p.stdout) if p.stdout.strip() else None), p.stderr
+
+
+def check_tree_provenance() -> list[str]:
+    """#910: tree prints each provenance row as a PROVENANCE line; no row, no line."""
+    failures = []
+    repo = _index_full_repo()
+    before = _snapshot(repo)
+    code, out, err = _run(repo, "tree", SP + "new.yaml")
+    prov = [ln for ln in out if ln.startswith("PROVENANCE")]
+    want = [f"PROVENANCE {SP}src.yaml @ {_SHA[:8]} · items: constraint-1",
+            f"PROVENANCE {SP}ghost.yaml @ {_SHA[:8]} · items: constraint-1",
+            f"PROVENANCE acme/other:docs/specs/x.yaml @ {_SHA[:8]} · items: constraint-1"]
+    if code != 0 or prov != want:
+        failures.append(f"tree provenance: want {want}, got {code} {prov} {err!r}")
+    _, out, _ = _run(repo, "tree", SP + "src.yaml")
+    if any(ln.startswith("PROVENANCE") for ln in out):
+        failures.append(f"tree provenance: a Seed without rows prints none: {out}")
+    if _snapshot(repo) != before:
+        failures.append("tree provenance: tree changed files")
+    return failures
+
+
 def _index_meta(repo, cmd, rel):
     p = subprocess.run([sys.executable, str(_SCRIPT_PATH), cmd, rel, "--json"], cwd=repo,
                        env=dict(os.environ, GH_BIN=NO_GH), capture_output=True, text=True)
@@ -1809,6 +1979,8 @@ def main() -> int:
         check_item_depends_on,
         check_reference_links,
         check_index,
+        check_index_full,
+        check_tree_provenance,
     ]
     failures = []
     for check in checks:
