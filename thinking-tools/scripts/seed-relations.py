@@ -900,7 +900,10 @@ def cmd_tree(rd, rel, seed):
     kids, kid_seen = [], set()  # the named Seed's children, deduplicated by resolved location
     for c in seed.children:
         ld = rd.load(rd.norm(c, None), exact_edges(seed))
-        line = _row("CHILD", disp(ld.orig, ld.loc))
+        # A readable Seed whose parent link is not a child edge (no acceptance id in refines) is a
+        # reference (seed-lifecycle.md "version 2 읽기"); it never counts as a child (#907).
+        reference = ld.seed is not None and not ld.seed.is_child_edge()
+        line = _row("REFERENCE" if reference else "CHILD", disp(ld.orig, ld.loc))
         if ld.status == "notfound":
             line += "  [file not found]"
         elif ld.seed is not None:
@@ -908,6 +911,8 @@ def cmd_tree(rd, rel, seed):
                                           or "(none)"))
         out.append(line)
         out += rd.failure_lines(ld)
+        if reference:
+            continue
         if ld.loc not in kid_seen:
             kid_seen.add(ld.loc)
             kids.append(ld)
@@ -1070,7 +1075,12 @@ def cmd_check(rd, rel, seed):
             for error in lifecycle.validate(parent.seed,rd.root if parent.loc[0] is None else None):
                 mismatch(pname + ": " + error)
             kids = {rd.resolve_quiet(rd.norm(c, parent.loc[0]), exact_edges(parent.seed)) for c in parent.seed.children}
-            if self_res not in kids:
+            if not seed.is_child_edge():
+                # A reference link (no acceptance id in refines) belongs outside children (#907).
+                if self_res in kids:
+                    mismatch(f"{pname} children lists {rel}, a reference link "
+                             f"(refines has no acceptance id) — remove it from children")
+            elif self_res not in kids:
                 if parent.loc[0] is None:
                     mismatch(f"{pname} children is missing {rel}")
                 else:
@@ -1104,6 +1114,9 @@ def cmd_check(rd, rel, seed):
         back_res = rd.resolve_quiet(rd.norm(back, child.loc[0]), exact_edges(child.seed)) if back else None
         if back_res != self_res:
             mismatch(f"{key(child.loc)} parent does not point back to {rel}")
+        elif not child.seed.is_child_edge():
+            mismatch(f"{rel} children lists {key(child.loc)}, a reference link "
+                     f"(refines has no acceptance id) — remove it from children")
         else:
             for rid in child.seed.refines:
                 if rid not in seed.item_map:

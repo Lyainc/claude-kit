@@ -988,9 +988,12 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # #885: 항목 단위 depends_on·교착 MISMATCH·PREDECESSOR 레코드(tree REQUIRES 행 포함)를 검증한다.
 # #896: index의 Seed별 항목이 metadata/read --json과 필드 단위로 같고, 읽지 못한 Seed는 errors에 남으며
 # 엣지 끝점이 indexed/error/unindexed/notfound/external로 구분되고(저장소 밖 경로는 notfound),
-# `target:` 없는 YAML은 건너뛰는지 검증한다.
+# `skill:`과 `target:`을 함께 갖지 않은 YAML(예: docker bake)은 건너뛰고, 저장소 밖을 가리키는 심볼릭 링크 Seed는
+# errors에 남기는지 검증한다(#915).
+# #907: `refines`에 acceptance id가 없는 parent 연결은 tree에서 CHILD가 아닌 REFERENCE 행으로 나오고,
+# check는 자식 연결만 부모 `children`에 있어야 하며 참조 연결이 `children`에 있으면 양쪽에서 MISMATCH로 알려 준다.
 python3 thinking-tools/scripts/test/test-seed-relations.py
-# Expected: OK: all 32 test-seed-relations checks passed
+# Expected: OK: all 33 test-seed-relations checks passed
 
 # Seed 생애주기 (#814): 전이·완료 근거·철회 원문·고정 출처·부분 영향·소비자 후보 자격.
 # 임시 Git 픽스처로 검증하며 사용자 승인의 진위나 LLM 준수는 별도 실행 근거가 필요하다.
