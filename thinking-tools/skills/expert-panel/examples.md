@@ -424,7 +424,7 @@ e3는 e2 대비 새 논점·반박이 없음(전원 수렴, UX는 재진술) →
 
 STATE: `Votes: [t1:security:A:High, t1:performance:A:High, t1:ux:B:High, t1:legal:B:High]` · `Tie-break: [t1:margin:0]` · `Topic-status: [t1:held:tie]`
 
-SUMMARY.md 행: | 인증 방식 | 보류 (동점 6:6) | 선택지 A·B 동점 | — |
+SUMMARY.md 행: | 인증 방식 | 보류 (`held:tie`, 6:6) | 선택지 A·B 동점 | — |
 UNRESOLVED.md 행: | 1 | 인증 방식 | A vs B | 동점 | 추가 근거 확보 후 재논의 |
 
 승자도 조건부 승인도 기록하지 않아요. Moderator subagent는 expert의 최종 position summary와 `t1-review.md`를 받아 독립 최종 검토를 하지만, 투표를 바꾸거나 동점을 깨지 못해요. 참고로 4명 중 1명이 Medium이었다면 6 대 5(margin 1)라 `tie-broken` + SUMMARY에 "조건부"가 붙었을 거예요.

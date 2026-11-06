@@ -20,6 +20,8 @@ parsing the SKILL.md mode-toggle declarations and asserting:
 8. (#793) The Moderator label names the actual mode in the transcript/summary templates, the
    reference.md transcript format, the delegated section and the worker: `진행자 종합` inline and
    delegated, `독립 최종 검토` isolated only — never one mode's wording hard-coded for all.
+9. (#864) Every `held:*` hold reason (and hold row) in SKILL.md, reference.md, examples.md, the
+   templates and the worker belongs to the enum defined once in SKILL.md § Topic Conclusion.
 
 This is a structural / static check — it does not execute any LLM logic.
 
@@ -732,6 +734,114 @@ def role_label_checks(transcript: str, summary: str, ref_text: str, worker_text:
     ]
 
 
+# --- #864: every hold reason in the expert-panel prose belongs to the one canonical enum ---
+# The enum is defined once, in SKILL.md § Topic Conclusion's Hold bullet; the sweep reads it from
+# there. Pre-#851 free-text reasons and code-less hold rows are rejected alongside unknown codes.
+
+_HOLD_BULLET_RE = re.compile(r"^\d+\. \*\*Hold\*\*[^\n]*$", re.MULTILINE)
+_HELD_TOKEN_RE = re.compile(r"held:\s*(?:\{([^}]*)\}|([A-Za-z0-9_-]*)(?![A-Za-z0-9_-]))")
+# Keyed hold rows ("| 보류 사유 | ..." / "- **보류 사유**") always need a code on the line.
+_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*")
+# Hold verdicts, scoped to table cells that open with 보류, "**결론**: 보류" lines, and backticked
+# spans; free prose that merely discusses holds (and the "보류 사유" column label) is not scanned.
+_HOLD_VERDICT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류|`\s*보류(?!\s*사유)")
+# A 보류 is a verdict (not prose discussing holds) when a delimiter or the end follows it; a count
+# ("1개 보류") or a quoted checklist phrase ("명시적 보류") is not one.
+_HOLD_LEAD = r"(?<!개 )(?<!명시적 )"
+_HOLD_FOLLOW = r"(?=\s*(?:[:(),;/|*`\-]|$))"
+# Off a table a "보류 사유" label is not a verdict; inside a cell it is (the bare label cell is skipped).
+_HOLD_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?!\s*사유)" + _HOLD_FOLLOW)
+_HOLD_CELL_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?:\s*사유)?" + _HOLD_FOLLOW)
+_SEP_RE = re.compile(r"[-:\s]*")
+# Non-table lines scanned per occurrence: list items, hold verdicts, and "보류 (reason)" spans.
+_HOLD_SCAN_LINE_RE = re.compile(r"^\s*- |보류 \(")
+_LEGACY_HOLD_PHRASES = ("유저 개입 필요", "구조적 한계", "정보 부족 / 의견 대립")
+
+
+def canonical_hold_enum(skill_text: str) -> set[str]:
+    m = _HOLD_BULLET_RE.search(skill_text)
+    return set(re.findall(r"`held:([a-z]+)`", m.group(0))) if m else set()
+
+
+def _cells(line: str) -> list[str]:
+    return [c.strip() for c in line.strip().strip("|").split("|")]
+
+
+def _uncoded_holds(text: str, word_re: re.Pattern) -> int:
+    """Count verdict-shaped 보류 with no held: token between it and the next 보류 (or the end)."""
+    starts = [m.start() for m in re.finditer("보류", text)] + [len(text)]
+    return sum(1 for a, b in zip(starts, starts[1:]) if word_re.match(text, a) and "held:" not in text[a:b])
+
+
+def _hold_token_problems(name: str, n: int, line: str, enum: set[str]) -> list[str]:
+    out: list[str] = []
+    for brace, plain in _HELD_TOKEN_RE.findall(line):
+        members = re.split(r"[|,]", brace) if brace else [plain]
+        for v in (m.strip() for m in members):
+            if not v:
+                out.append(f"{name}:{n}: held: without a code")
+            elif v not in enum:
+                out.append(f"{name}:{n}: non-enum hold reason held:{v}")
+    out.extend(f"{name}:{n}: legacy free-text hold reason {ph!r}" for ph in _LEGACY_HOLD_PHRASES if ph in line)
+    return out
+
+
+def _hold_uncoded_problem(name: str, n: int, line: str, cells: list[str] | None) -> str | None:
+    """Return the problem for a hold row/verdict missing a held:* code; cells is None off a table row."""
+    if _HOLD_ROW_RE.search(line) and "held:" not in line:
+        return f"{name}:{n}: hold row without a held:* code"
+    if cells is not None:
+        bad = any(c != "보류 사유" and not _SEP_RE.fullmatch(c) and _uncoded_holds(c, _HOLD_CELL_WORD_RE)
+                  for c in cells)
+    else:
+        bad = bool((_HOLD_VERDICT_RE.search(line) or _HOLD_SCAN_LINE_RE.search(line))
+                   and _uncoded_holds(line, _HOLD_WORD_RE))
+    return f"{name}:{n}: hold verdict without a held:* code" if bad else None
+
+
+def hold_enum_violations(files: dict[str, str], enum: set[str]) -> list[str]:
+    """Return 'file:line: problem' for each hold reason outside the enum (or missing on a hold row)."""
+    out: list[str] = []
+    for name, text in files.items():
+        reason_col: int | None = None  # index of the 보류 사유 column of the table being read
+        prev_table = False
+        for n, line in enumerate(text.splitlines(), 1):
+            cells = _cells(line) if line.lstrip().startswith("|") else None
+            out.extend(_hold_token_problems(name, n, line, enum))
+            problem = _hold_uncoded_problem(name, n, line, cells)
+            if problem:
+                out.append(problem)
+            if cells is None:
+                reason_col = None
+            elif not prev_table:
+                reason_col = cells.index("보류 사유") if "보류 사유" in cells else None
+            elif (reason_col is not None and reason_col < len(cells)
+                  and not _SEP_RE.fullmatch(cells[reason_col]) and "held:" not in cells[reason_col]):
+                out.append(f"{name}:{n}: 보류 사유 cell without a held:* code")
+            prev_table = cells is not None
+    return out
+
+
+def _hold_sweep_files(skill: str, ref_text: str, worker: str) -> dict[str, str]:
+    files = {"SKILL.md": skill, "reference.md": ref_text, "expert-panel-worker.md": worker}
+    for p in (_TEMPLATES_DIR.glob("*.md") if _TEMPLATES_DIR.is_dir() else []):
+        files[f"templates/{p.name}"] = p.read_text(encoding="utf-8")
+    ex = _SKILL_PATH.parent / "examples.md"
+    if ex.is_file():
+        files["examples.md"] = ex.read_text(encoding="utf-8")
+    return files
+
+
+def hold_enum_checks(skill: str, ref_text: str, worker: str) -> list[tuple[bool, str]]:
+    enum = canonical_hold_enum(skill)
+    bad = hold_enum_violations(_hold_sweep_files(skill, ref_text, worker), enum)
+    return [
+        (enum == {"tie", "evidence", "quorum"}, f"SKILL.md Hold bullet defines the enum {sorted(enum)}"),
+        (not bad, "every hold reason in expert-panel files is in the canonical enum"
+         + ("" if not bad else ": " + "; ".join(bad))),
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Runner
 # ---------------------------------------------------------------------------
@@ -754,7 +864,8 @@ def run_checks(text: str, ref_text: str) -> tuple[int, int]:
     ] + reference_checks(text, ref_text) + delegated_reference_checks(text, ref_text) + worker_audit_checks(
         _WORKER_PATH.read_text(encoding="utf-8")) + role_label_checks(
         _TRANSCRIPT_TEMPLATE_PATH.read_text(encoding="utf-8"), _SUMMARY_TEMPLATE_PATH.read_text(encoding="utf-8"),
-        ref_text, _WORKER_PATH.read_text(encoding="utf-8"))
+        ref_text, _WORKER_PATH.read_text(encoding="utf-8")) + hold_enum_checks(
+        text, ref_text, _WORKER_PATH.read_text(encoding="utf-8"))
 
     passed = failed = 0
     for ok, msg in checks:
@@ -1326,6 +1437,49 @@ def _self_test() -> int:
          (_CLEAN_TRANSCRIPT, _CLEAN_SUMMARY, _CLEAN_REF, _WORKER_QUALIFIER_ALLOWED)),
     ):
         cases.append((f"role label: {desc} -> FAIL", not all(ok for ok, _ in role_label_checks(*args))))
+
+    # --- #864: the hold-enum sweep catches values outside the canonical enum ---
+    live_skill, live_ref = _load_skill(), _load_reference()
+    live_worker = _WORKER_PATH.read_text(encoding="utf-8")
+    cases.append(("hold enum: live files pass", all(ok for ok, _ in hold_enum_checks(live_skill, live_ref, live_worker))))
+    for desc, mutate in (
+        ("unknown code held:other injected", lambda t: t + "\n보류 (`held:other`)\n"),
+        ("brace form with an unknown member", lambda t: t + "\nheld:{tie|stalemate}\n"),
+        ("pre-#851 free-text reason revived", lambda t: t + "\n| 보류 사유 | 구조적 한계 |\n"),
+        ("code-less hold conclusion", lambda t: t + "\n**결론**: 보류 - 확인 필요\n"),
+        ("brace form, comma separator", lambda t: t + "\nheld:{tie,other}\n"),
+        ("brace form, case-variant member", lambda t: t + "\nheld:{Tie|other}\n"),
+        ("space after the colon", lambda t: t + "\nheld: other\n"),
+        ("code-less inline-code hold note", lambda t: t + "\n> 비고: `보류 (동점 6:6)`, `보류 (정족수 미달)`\n"),
+        ("code-less table verdict with a comma", lambda t: t + "\n| 인증 | 보류, 6:6 | x |\n"),
+        ("code-less bare table verdict", lambda t: t + "\n| 인증 | 보류 | x |\n"),
+        ("code-less table verdict, no space", lambda t: t + "\n| 인증 | 보류(동점) | x |\n"),
+        ("code-less conclusion, bare", lambda t: t + "\n**결론**: 보류\n"),
+        ("code-less conclusion, double space", lambda t: t + "\n**결론**:  보류 (동점)\n"),
+        ("bold conclusion hold", lambda t: t + "\n**결론**: **보류**\n"),
+        ("conclusion hold, space before colon", lambda t: t + "\n**결론** : 보류\n"),
+        ("table cell 보류 사유: reason", lambda t: t + "\n| 인증 | 보류 사유: 동점 | x |\n"),
+        ("table cell 판정: 보류", lambda t: t + "\n| 인증 | 판정: 보류 | x |\n"),
+        ("table cell A 보류", lambda t: t + "\n| 인증 | A 보류 | x |\n"),
+        ("table row, second hold cell uncoded",
+         lambda t: t + "\n| 인증 | 보류 (held:tie) |  | 보류 (동점) |\n"),
+        ("line with two holds, one code", lambda t: t + "\n비고: `보류 (held:tie) / 보류 (동점)`\n"),
+        ("list item hold with reason", lambda t: t + "\n- 보류: 동점\n"),
+        ("bare parenthesised hold outside backticks", lambda t: t + "\n보류 (동점 6:6)\n"),
+        ("held: with no code", lambda t: t + "\n보류 (held:)\n"),
+        ("held: code with a suffix", lambda t: t + "\n보류 (held:tie2)\n"),
+        ("UNRESOLVED row without a code", lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b | 동점 |\n"),
+    ):
+        cases.append((f"hold enum: {desc} -> FAIL",
+                      not all(ok for ok, _ in hold_enum_checks(live_skill, mutate(live_ref), live_worker))))
+    for desc, mutate in (
+        ("canonical coded forms", lambda t: t + "\n> 비고: `보류 (`held:tie`, 6:6)`\n| 인증 | 보류 (`held:quorum`) | x |\n"
+         "**결론**: 보류 (`held:evidence`)\nheld:{tie | quorum}\nheld:{evidence,tie}\n"),
+        ("UNRESOLVED row with a code and an empty placeholder row",
+         lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b | 동점 (held:tie) |\n| 2 | | | |\n"),
+    ):
+        cases.append((f"hold enum: {desc} -> PASS",
+                      all(ok for ok, _ in hold_enum_checks(live_skill, mutate(live_ref), live_worker))))
 
     failed = [name for name, passed in cases if not passed]
     for name, passed in cases:
