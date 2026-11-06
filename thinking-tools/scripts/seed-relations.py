@@ -1582,9 +1582,9 @@ def cmd_index(args):
     without reading other repos: indexed, error (a Seed inside the named directories that failed
     to read or parse; also listed in `errors`), unindexed (a local file inside the repo but
     outside the named directories), notfound (missing, absolute, or resolving outside the repo
-    root), or external. A YAML file is a Seed only if it has both top-level `skill:` and
-    `target:` keys (both are in every Seed template; `target:` alone also marks other tools'
-    YAML such as a docker bake file); other YAML, such as CI config, is skipped silently. A Seed
+    root), or external. A YAML file is a Seed only if it has both top-level `target:` and
+    `success_criteria:` keys (every Seed carries both, including hand-written ones without
+    `skill:`; `target:` alone also marks other tools' YAML such as a docker bake file); other YAML, such as CI config, is skipped silently. A Seed
     reached through a symlink whose real path leaves the repo of its named directory lands in
     `errors` (edges to it are `notfound` for the same reason). One unreadable Seed lands in
     `errors`; the rest print.
@@ -1611,7 +1611,7 @@ def cmd_index(args):
                     text = fh.read()
                 try:
                     keys = {k for k, _, _ in _mapping_blocks(text.splitlines())}
-                    is_seed = {"skill", "target"} <= keys
+                    is_seed = {"target", "success_criteria"} <= keys
                 except Exception:
                     is_seed = True  # let parse_seed report the malformed Seed
                 if not is_seed:
