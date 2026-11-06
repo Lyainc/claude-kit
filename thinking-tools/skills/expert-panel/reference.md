@@ -585,7 +585,7 @@ Use clean, professional formatting without emoji:
 |---------|--------|---------|
 | Topic header | `### TOPIC N: {title}` | `### TOPIC 1: 인증 방식` |
 | Speaker | `**[Role]**:` | `**[Optimistic Practitioner]**:` |
-| Conclusion | `**결론**:` or `**결론**: 보류` | `**결론**: JWT + Refresh Token 방식 합의` |
+| Conclusion | `**결론**:` or `**결론**: 보류 (held:tie / held:evidence / held:quorum)` | `**결론**: JWT + Refresh Token 방식 합의` |
 | Footer | `───` + metadata | `*3개 토픽 논의 완료 · 2개 합의, 1개 보류*` |
 
 ### Output Integrity Principle
