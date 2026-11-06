@@ -749,9 +749,8 @@ _HOLD_VERDICT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류|`\s*보류(?!\
 # ("1개 보류") or a quoted checklist phrase ("명시적 보류") is not one.
 _HOLD_LEAD = r"(?<!개 )(?<!명시적 )"
 _HOLD_FOLLOW = r"(?=\s*(?:[:(),;/|*`\-]|$))"
-_HOLD_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?!\s*사유)" + _HOLD_FOLLOW)
-_HOLD_CELL_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?:\s*사유)?" + _HOLD_FOLLOW)
-_HOLD_ANY_RE = re.compile(r"보류")
+_HOLD_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?:\s*사유)?" + _HOLD_FOLLOW)
+_SEP_RE = re.compile(r"[-:\s]*")
 # Non-table lines scanned per occurrence: list items, hold verdicts, and "보류 (reason)" spans.
 _HOLD_SCAN_LINE_RE = re.compile(r"^\s*- |보류 \(")
 _LEGACY_HOLD_PHRASES = ("유저 개입 필요", "구조적 한계", "정보 부족 / 의견 대립")
@@ -766,16 +765,42 @@ def _cells(line: str) -> list[str]:
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
 
-def _uncoded_holds(text: str, word_re: re.Pattern[str]) -> int:
-    """Count 보류 occurrences with no held: token between them and the next occurrence (or the end)."""
-    starts = [m.start() for m in word_re.finditer(text)]
-    all_starts = [m.start() for m in _HOLD_ANY_RE.finditer(text)]
-    bad = 0
-    for st in starts:
-        nxt = next((a for a in all_starts if a > st), len(text))
-        if "held:" not in text[st:nxt]:
+def _uncoded_holds(text: str) -> int:
+    """Count verdict-shaped 보류 with no held: token between it and the next 보류 (or the end)."""
+    bad = pos = 0
+    head, *rest = text.split("보류")
+    pos = len(head)
+    for seg in rest:
+        if _HOLD_WORD_RE.match(text, pos) and "held:" not in seg:
             bad += 1
+        pos += len("보류") + len(seg)
     return bad
+
+
+def _hold_token_problems(name: str, n: int, line: str, enum: set[str]) -> list[str]:
+    out: list[str] = []
+    for brace, plain in _HELD_TOKEN_RE.findall(line):
+        members = re.split(r"[|,]", brace) if brace else [plain]
+        for v in (m.strip() for m in members):
+            if not v:
+                out.append(f"{name}:{n}: held: without a code")
+            elif v not in enum:
+                out.append(f"{name}:{n}: non-enum hold reason held:{v}")
+    out.extend(f"{name}:{n}: legacy free-text hold reason {ph!r}" for ph in _LEGACY_HOLD_PHRASES if ph in line)
+    return out
+
+
+def _hold_uncoded_problem(name: str, n: int, line: str, cells: list[str] | None) -> str | None:
+    """Return the problem for a hold row/verdict missing a held:* code; cells is None off a table row."""
+    msg = f"{name}:{n}: hold verdict without a held:* code"
+    if _HOLD_ROW_RE.search(line) and "held:" not in line:
+        return f"{name}:{n}: hold row without a held:* code"
+    if cells is not None:
+        bad = any(c != "보류 사유" and not _SEP_RE.fullmatch(c) and _uncoded_holds(c) for c in cells)
+        return msg if bad else None
+    if (_HOLD_VERDICT_RE.search(line) or _HOLD_SCAN_LINE_RE.search(line)) and _uncoded_holds(line):
+        return msg
+    return None
 
 
 def hold_enum_violations(files: dict[str, str], enum: set[str]) -> list[str]:
@@ -785,37 +810,19 @@ def hold_enum_violations(files: dict[str, str], enum: set[str]) -> list[str]:
         reason_col: int | None = None  # index of the 보류 사유 column of the table being read
         prev_table = False
         for n, line in enumerate(text.splitlines(), 1):
-            is_row = line.lstrip().startswith("|")
-            for brace, plain in _HELD_TOKEN_RE.findall(line):
-                members = re.split(r"[|,]", brace) if brace else [plain]
-                for v in (m.strip() for m in members):
-                    if not v:
-                        out.append(f"{name}:{n}: held: without a code")
-                    elif v not in enum:
-                        out.append(f"{name}:{n}: non-enum hold reason held:{v}")
-            for phrase in _LEGACY_HOLD_PHRASES:
-                if phrase in line:
-                    out.append(f"{name}:{n}: legacy free-text hold reason {phrase!r}")
-            if _HOLD_ROW_RE.search(line) and "held:" not in line:
-                out.append(f"{name}:{n}: hold row without a held:* code")
-            elif is_row:
-                for c in _cells(line):
-                    if c != "보류 사유" and not re.fullmatch(r"[-:\s]*", c) and _uncoded_holds(c, _HOLD_CELL_WORD_RE):
-                        out.append(f"{name}:{n}: hold verdict without a held:* code")
-                        break
-            elif (_HOLD_VERDICT_RE.search(line) or _HOLD_SCAN_LINE_RE.search(line)) \
-                    and _uncoded_holds(line, _HOLD_WORD_RE):
-                out.append(f"{name}:{n}: hold verdict without a held:* code")
-            if is_row:
-                cells = _cells(line)
-                if not prev_table:
-                    reason_col = cells.index("보류 사유") if "보류 사유" in cells else None
-                elif reason_col is not None and reason_col < len(cells) and not re.fullmatch(r"[-:\s]*", cells[reason_col]) \
-                        and "held:" not in cells[reason_col]:
-                    out.append(f"{name}:{n}: 보류 사유 cell without a held:* code")
-            else:
+            cells = _cells(line) if line.lstrip().startswith("|") else None
+            out.extend(_hold_token_problems(name, n, line, enum))
+            problem = _hold_uncoded_problem(name, n, line, cells)
+            if problem:
+                out.append(problem)
+            if cells is None:
                 reason_col = None
-            prev_table = is_row
+            elif not prev_table:
+                reason_col = cells.index("보류 사유") if "보류 사유" in cells else None
+            elif (reason_col is not None and reason_col < len(cells)
+                  and not _SEP_RE.fullmatch(cells[reason_col]) and "held:" not in cells[reason_col]):
+                out.append(f"{name}:{n}: 보류 사유 cell without a held:* code")
+            prev_table = cells is not None
     return out
 
 
