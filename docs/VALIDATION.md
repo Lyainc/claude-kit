@@ -887,7 +887,7 @@ python3 thinking-tools/scripts/test/check-agent-trigger-regression.py origin/mai
 # A seventh mutation drops the worker's ban on a mode qualifier after the label: a 2026-10-12
 # delegated run labeled correctly but appended "(inline 체크리스트 적용, …)".
 python3 thinking-tools/scripts/test/test-mode-compose.py --self-test
-# Expected: OK: all 87 self-test cases passed
+# Expected: OK: all 99 self-test cases passed
 python3 thinking-tools/scripts/test/test-mode-compose.py
 # Expected: OK: all 65 mode-compose checks passed.
 # (static check against the live SKILL.md)
