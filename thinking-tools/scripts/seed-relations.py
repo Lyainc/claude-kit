@@ -1569,9 +1569,12 @@ def cmd_index(args):
     without reading other repos: indexed, error (a Seed inside the named directories that failed
     to read or parse; also listed in `errors`), unindexed (a local file inside the repo but
     outside the named directories), notfound (missing, absolute, or resolving outside the repo
-    root), or external. A YAML file is a Seed only if it has a top-level `target:` key (the key
-    every Seed template carries and parse_seed reads); other YAML, such as CI config, is
-    skipped silently. One unreadable Seed lands in `errors`; the rest print.
+    root), or external. A YAML file is a Seed only if it has both top-level `skill:` and
+    `target:` keys (both are in every Seed template; `target:` alone also marks other tools'
+    YAML such as a docker bake file); other YAML, such as CI config, is skipped silently. A Seed
+    reached through a symlink whose real path leaves the repo of its named directory lands in
+    `errors` (edges to it are `notfound` for the same reason). One unreadable Seed lands in
+    `errors`; the rest print.
     """
     dirs = [a for a in args if a != "--json"]
     if "--json" not in args or not dirs or any(a.startswith("--") for a in dirs):
@@ -1583,6 +1586,7 @@ def cmd_index(args):
             return 2
     readers, seeds, errors, found = {}, [], [], {}
     for d in dirs:
+        dir_root = find_root(os.path.join(d, "x"))  # the repo the named directory belongs to
         for f in _seed_files(d):
             root = find_root(f)
             rel = posixpath.normpath(os.path.relpath(os.path.realpath(f), root).replace(os.sep, "/"))
@@ -1593,11 +1597,21 @@ def cmd_index(args):
                 with open(f, encoding="utf-8") as fh:
                     text = fh.read()
                 try:
-                    is_seed = any(k == "target" for k, _, _ in _mapping_blocks(text.splitlines()))
+                    keys = {k for k, _, _ in _mapping_blocks(text.splitlines())}
+                    is_seed = {"skill", "target"} <= keys
                 except Exception:
                     is_seed = True  # let parse_seed report the malformed Seed
                 if not is_seed:
                     del found[(root, rel)]
+                    continue
+                real_f = os.path.realpath(f)
+                if os.path.commonpath([dir_root, real_f]) != dir_root:
+                    del found[(root, rel)]
+                    seen_as = os.path.normpath(os.path.join(
+                        os.path.relpath(os.path.realpath(d), dir_root), os.path.relpath(f, d)))
+                    errors.append({"path": seen_as.replace(os.sep, "/"),
+                                   "error": "outside repo: resolves to a file outside the "
+                                            "repo root, so it is not indexed"})
                     continue
                 seed = parse_seed(text)
             except (OSError, UnicodeError) as exc:
