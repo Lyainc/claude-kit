@@ -139,10 +139,10 @@ commit and cannot be automatically recomputed into a new outcome.
 ## Maintenance streak
 
 Also ask it positively, in the direction the floor test alone misses: **once this is done, what
-can the user do differently that they couldn't before?** "Nothing — just less broken" passes the
-floor test (a guard that was silently failing is a real problem only if it has affected targets now) but is still maintenance, not
-felt change. When the pick is maintenance, surface the injected maintenance streak (how many
-consecutive recent commits, per `next-candidate.py`, did not touch a `SKILL.md`/`agents/*.md`
+can the user do differently that they couldn't before?** "Nothing — just less broken" can pass the
+floor test (a silently failing guard that has affected targets now is a real problem; one with
+zero affected targets is `below-floor`) but is still maintenance, not felt change. When the
+pick is maintenance, surface the injected maintenance streak (how many consecutive recent commits, per `next-candidate.py`, did not touch a `SKILL.md`/`agents/*.md`
 body) in `FROM` — e.g. "이번까지 연속 N번째 유지보수 픽". This is a data point for the user to
 weigh, never a rule that blocks the pick: a broken guard is worth fixing whether or not it is the
 Nth one in a row. ponytail: the streak's ceiling is the same as the ratio's — a felt change to a
