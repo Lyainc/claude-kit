@@ -1538,8 +1538,8 @@ def check_reference_links() -> list[str]:
     if rows != ["REFERENCE docs/specs/ref.yaml  refines: parent/constraint-1",
                 "CHILD     docs/specs/kid.yaml  refines: parent/acceptance-1"]:
         failures.append(f"reference tree: only the acceptance link is CHILD: {rows} {err!r}")
-    flagged = (f"MISMATCH  docs/specs/parent.yaml children lists docs/specs/ref.yaml, a reference link "
-               f"(refines has no acceptance id) — remove it from children")
+    flagged = ("MISMATCH  docs/specs/parent.yaml children lists docs/specs/ref.yaml, a reference link "
+               "(refines has no acceptance id) — remove it from children")
     for name in ("parent", "ref"):
         code, out, _ = _run(repo, "check", SP + name + ".yaml")
         if code != 1 or flagged not in out:
