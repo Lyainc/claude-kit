@@ -156,6 +156,14 @@ Step 0 addition: A Seed's eligible unmet `success_criteria[]` within current sco
 construction. Group them with the session's own follow-ups that touch the same files rather than
 ranking criteria one at a time.
 
+Step 1 addition (Floor test, backlog): for a backlog candidate (`via: backlog` / `issue:#N`), answer from current impact evidence, not
+the issue body: affected targets actually present in the repo or runtime, a user-experienced
+occurrence, or a failing check. Record the check method and result in `evidence`. A reproduction
+recorded in the issue body alone (e.g. one built on a fixture) is not enough. Impact not
+checked is `unverified`; checked with zero affected targets is `below-floor`. This does not
+change the session's own follow-up candidates, and `unverified` stays distinct from absence
+within the reviewed scope.
+
 Step 2 (Size test): There is no minimum session size, spawn quota, or obligation to exhaust capacity — a small valid
 fix may stand alone. Bundle only related work with independent value; never widen scope solely
 to manufacture parallelism or fill a session. Investigations must name the evidence or decision
@@ -167,7 +175,7 @@ unit — several backlog issues sharing one theme are one unit here. With a Seed
 eligible remaining criteria within the current request rank ahead of unrelated backlog issues: they are the declared scope of the
 thread that just ran, not a new one.
 
-Backlog candidates must clear the floor on current impact evidence (§Floor test). If, after
+Backlog candidates must clear the floor on current impact evidence (§Step detail, Step 1 addition). If, after
 widening, nothing clears the floor, keep `pick: null` and render the judgment; expansion forced
 by chain depth never obliges a pick.
 Use `GOAL · 없음` with the same conclusion as FROM: no worthwhile candidate within the reviewed
@@ -390,14 +398,6 @@ Ask it in the negative: **if this were never done, what would actually be worse?
 positively the question is self-satisfying and always answers yes. "Nothing, it would just be
 tidier" is below the floor — cleanup, wording, formatting, typos, and review nits on this
 session's own PR almost always are.
-
-For a backlog candidate (`via: backlog` / `issue:#N`), answer from current impact evidence, not
-the issue body: affected targets actually present in the repo or runtime, a user-experienced
-occurrence, or a failing check. Record the check method and result in `evidence`. A reproduction
-recorded in the issue body alone (e.g. one built on a fixture) is not enough. Impact not
-checked is `unverified`; checked with zero affected targets is `below-floor`. This does not
-change the session's own follow-up candidates, and `unverified` stays distinct from absence
-within the reviewed scope.
 
 Phase 2, caller's Git completion contract:
 

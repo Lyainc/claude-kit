@@ -54,7 +54,7 @@ put the injected maintenance streak in `FROM`, never as a blocker (§Maintenance
 **Step 3 — Widen to the backlog** when a candidate fails either bar or chain depth ≥ 3: rank by
 (1) issues combining with what just shipped, (2) label and staleness; one theme is one unit; a Seed in
 play ranks its remaining criteria first. Backlog clears it only on current impact evidence
-(§Floor test). If none does, even depth-forced, keep `pick: null`; render
+(§Step detail). If none does, even depth-forced, keep `pick: null`; render
 and use FROM's scoped conclusion for `GOAL · 없음`. Stop without a fabricated goal or repeated
 search. Render NEXT/FROM/SKIPPED without narrating the ranking.
 
