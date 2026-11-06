@@ -563,6 +563,9 @@ def main() -> int:
         r = run(_LATEST_SCRIPT, "--vault-path", "notes/proj/", lw_path)
         check([c["path"] for c in json.loads(r.stdout)["candidates"]] == order,
               "latest-work: a trailing slash in the .vault-link path scopes the same")
+        out = json.loads(run(_LATEST_SCRIPT, "--limit", "2", lw_path).stdout)
+        check(len(out["candidates"]) == 2 and out["candidate_count"] == 2,
+              f"latest-work: candidate_count equals len(candidates) when --limit cuts matches (got {out['candidate_count']})")
         lw_path.write_text(json.dumps({"files": [
             _note("notes/proj/_index.md", "note", mtime=900),
             _note("wiki/old-active.md", "wiki", mtime=800, status="active"),
