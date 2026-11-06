@@ -58,7 +58,7 @@ UNRECORDED = "(기록 없음 — 미확인)"
 USAGE = ("usage: seed-relations.py tree|check <seed-path>\n"
          "       seed-relations.py metadata|read <seed-path> [--json]\n"
          "       seed-relations.py walk <seed-path> [--max-depth N] [--max-nodes N] [--json]\n"
-         "       seed-relations.py index <dir>... --json\n"
+         "       seed-relations.py index <dir>... --json [--full]\n"
          "(a named Seed is required)")
 _UNSET = object()
 
@@ -275,6 +275,10 @@ def parse_seed(text):
     seed.requirements = {}
     seed.semantic = {}
     seed.title = _short(target)
+    seed.top_blocks = top  # raw top-level blocks; `index --full` reads open_questions/blindspots from here
+    seed.created = _scalar(*top["created"]) if "created" in top else None
+    if _null(seed.created):
+        seed.created = None
     goal = {k: (v,b) for k,v,b in _mapping_blocks(top.get("goal", ("",[]))[1])}
     seed.short_goal = _short(_scalar(*goal["statement"])) if "statement" in goal else ""
     strict = "lifecycle" in top or any(k in rel for k in ("version","refines_map","provenance","replaces","transfers"))
@@ -849,6 +853,18 @@ def cmd_tree(rd, rel, seed):
             out.append(_row("LINK", "(기록 없음 — 미확인; 대응 부모 항목도 비어 있음)"))
         else:
             out.append(_row("LINK", UNRECORDED))
+
+    # Pinned provenance: where this Seed's selected requirements came from. Only this Seed's own
+    # rows are shown; the reverse lookup (who points at this Seed) needs a repo-wide scan, so it
+    # lives in `index --full` edges instead.
+    prov = seed.relations_data.get("provenance", []) if isinstance(seed.relations_data, dict) else []
+    for row in prov if isinstance(prov, list) else []:
+        if not isinstance(row, dict) or not isinstance(row.get("seed"), str):
+            continue
+        commit = row.get("commit")
+        items = row.get("items")
+        out.append(_row("PROVENANCE", f"{row['seed']} @ {commit[:8] if isinstance(commit, str) and commit else '(no commit)'}"
+                        f" · items: {', '.join(i for i in items if isinstance(i, str)) if isinstance(items, list) and items else '(none)'}"))
 
     # Family = the parent's children (resolved) — used for siblings and for who refines what.
     family = []  # [(resolved loc, display, Loaded)]
@@ -1571,6 +1587,8 @@ def metadata_data(rd, rel, seed):
 
 INDEX_SCHEMA = 1
 INDEX_EDGES = ("parent", "children", "depends_on")
+INDEX_FULL_EDGES = ("replaces", "transfers", "provenance")
+INDEX_FULL_SCHEMA = "seed-index-full/1"
 
 
 def _seed_files(directory):
@@ -1580,6 +1598,66 @@ def _seed_files(directory):
         out += [os.path.join(d, f) for f in sorted(files)
                 if f.endswith((".yaml", ".yml")) and not f.startswith(".")]
     return out
+
+
+def _edge_status(rd, root, seed, path, found, indexed):
+    """Resolve an edge target and classify it (see `cmd_index`) without reading other repos."""
+    nloc = rd.norm(path, None)
+    if nloc[0] is not None:
+        return key(nloc), "external"
+    tgt = rd.resolve_quiet(nloc, exact_edges(seed))[1]
+    real_root = os.path.realpath(root)
+    real_tgt = os.path.realpath(os.path.join(root, tgt))
+    inside = not os.path.isabs(tgt) and _inside(real_root, real_tgt)
+    status = ("notfound" if not inside else
+              "indexed" if (root, tgt) in indexed else
+              "error" if (root, tgt) in found else
+              "unindexed" if os.path.isfile(real_tgt) else "notfound")
+    return tgt, status
+
+
+def _list_of(value):
+    return list(value) if isinstance(value, list) else []
+
+
+def _top_list(seed, name):
+    """A top-level list field (`open_questions`, `blindspots`) via the shared block parser."""
+    block = getattr(seed, "top_blocks", {}).get(name)
+    if block is None:
+        return []
+    try:
+        return _list_of(lifecycle.parse_block(*block))
+    except lifecycle.FormatError:
+        return []
+
+
+def full_entry(entry, seed):
+    """The extra `index --full` fields; `entry` is the metadata + relations record."""
+    rdata = seed.relations_data if isinstance(seed.relations_data, dict) else {}
+    entry["relations"].update({
+        "replaces": _list_of(rdata.get("replaces")),
+        "transfers": _list_of(rdata.get("transfers")),
+        "provenance": _list_of(rdata.get("provenance")),
+        "link_reason": seed.link_reason,
+        "refines_map": _list_of(rdata.get("refines_map")),
+    })
+    lc = seed.lifecycle if isinstance(seed.lifecycle, dict) else {}
+    ev = lc.get("evidence") if isinstance(lc.get("evidence"), dict) else {}
+    commit = ev.get("commit")
+    evidence = {"commit": commit if isinstance(commit, str) else None,
+                "items": _list_of(ev.get("items"))}
+    entry["lifecycle"]["evidence"] = evidence
+    evidenced = {r.get("id") for r in evidence["items"] if isinstance(r, dict)}
+    withdrawn = {r.get("id") for r in _list_of(lc.get("withdrawn")) if isinstance(r, dict)}
+    held = {h["id"] for h in entry["eligibility"].get("held_items", [])}
+    entry["acceptance"] = [
+        {"id": iid, "satisfied": iid in evidenced,
+         "out_of_scope": "withdrawn" if iid in withdrawn else "held" if iid in held else None}
+        for iid, _ in seed.items if seed.is_acceptance_id(iid)]
+    entry["open_questions"] = _top_list(seed, "open_questions")
+    entry["blindspots"] = _top_list(seed, "blindspots")
+    entry["issues"] = {"source": seed.source, "tracking": list(seed.tracking)}
+    entry["created"] = seed.created
 
 
 def cmd_index(args):
@@ -1595,10 +1673,16 @@ def cmd_index(args):
     reached through a symlink whose real path leaves the repo of its named directory lands in
     `errors` (edges to it are `notfound` for the same reason). One unreadable Seed lands in
     `errors`; the rest print.
+
+    `--full` adds, per Seed, the remaining relation fields (replaces, transfers, provenance,
+    link_reason, refines_map), open_questions, blindspots, lifecycle.evidence, issues, created
+    and per-acceptance satisfaction (`acceptance`), plus replaces/transfers/provenance edges and
+    a top-level `schema` marker. Without it the output is unchanged.
     """
-    dirs = [a for a in args if a != "--json"]
+    full = "--full" in args
+    dirs = [a for a in args if a not in ("--json", "--full")]
     if "--json" not in args or not dirs or any(a.startswith("--") for a in dirs):
-        print("usage: seed-relations.py index <dir>... --json", file=sys.stderr)
+        print("usage: seed-relations.py index <dir>... --json [--full]", file=sys.stderr)
         return 2
     for d in dirs:
         if not os.path.isdir(d):
@@ -1650,12 +1734,15 @@ def cmd_index(args):
             entry["relations"] = {"parent": seed.parent, "refines": list(seed.refines),
                                   "depends_on": list(seed.depends_on),
                                   "children": list(seed.children)}
+            if full:
+                full_entry(entry, seed)
             if seed.format_errors:
                 errors.append({"path": rel, "error": "malformed: " + "; ".join(seed.format_errors)})
             seeds.append(entry)
             found[(root, rel)] = seed
     indexed = {(root, rel) for (root, rel), s in found.items() if s is not None}
-    edges = {e: [] for e in INDEX_EDGES}
+    edge_kinds = INDEX_EDGES + (INDEX_FULL_EDGES if full else ())
+    edges = {e: [] for e in edge_kinds}
     for (root, rel), seed in found.items():
         if seed is None:
             continue
@@ -1665,25 +1752,32 @@ def cmd_index(args):
         for edge in INDEX_EDGES:
             for text in declared[edge]:
                 path, item = split_dep(text) if edge == "depends_on" else (text, None)
-                nloc = rd.norm(path, None)
-                if nloc[0] is not None:
-                    tgt, status = key(nloc), "external"
-                else:
-                    tgt = rd.resolve_quiet(nloc, exact_edges(seed))[1]
-                    real_root = os.path.realpath(root)
-                    real_tgt = os.path.realpath(os.path.join(root, tgt))
-                    inside = not os.path.isabs(tgt) and _inside(real_root, real_tgt)
-                    status = ("notfound" if not inside else
-                              "indexed" if (root, tgt) in indexed else
-                              "error" if (root, tgt) in found else
-                              "unindexed" if os.path.isfile(real_tgt) else "notfound")
+                tgt, status = _edge_status(rd, root, seed, path, found, indexed)
                 rec = {"from": rel, "to": tgt, "target": status}
                 if edge == "depends_on":
                     rec["item"] = item
                 edges[edge].append(rec)
-    print(json.dumps({"schema_version": INDEX_SCHEMA,
-                      "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
-                      "seeds": seeds, "edges": edges, "errors": errors}, ensure_ascii=False))
+        if not full:
+            continue
+        rdata = seed.relations_data if isinstance(seed.relations_data, dict) else {}
+        for edge in INDEX_FULL_EDGES:
+            for row in _list_of(rdata.get(edge)):
+                path = row.get("seed") if isinstance(row, dict) else row
+                if not lifecycle.path(path):
+                    continue  # a malformed row stays in `relations`; there is no endpoint to classify
+                tgt, status = _edge_status(rd, root, seed, path, found, indexed)
+                rec = {"from": rel, "to": tgt, "target": status}
+                if isinstance(row, dict):
+                    rec["items"] = _list_of(row.get("items"))
+                    if edge == "provenance":
+                        rec["commit"] = row.get("commit")
+                edges[edge].append(rec)
+    doc = {"schema_version": INDEX_SCHEMA,
+           "generated_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+           "seeds": seeds, "edges": edges, "errors": errors}
+    if full:
+        doc["schema"] = INDEX_FULL_SCHEMA
+    print(json.dumps(doc, ensure_ascii=False))
     return 1 if errors else 0
 
 

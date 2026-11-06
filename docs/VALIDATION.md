@@ -990,10 +990,12 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # 엣지 끝점이 indexed/error/unindexed/notfound/external로 구분되고(저장소 밖 경로는 notfound),
 # `target:`과 `success_criteria:`를 함께 갖지 않은 YAML(예: docker bake)은 건너뛰되 `skill:` 없는 Seed는 색인하고, 저장소 밖을 가리키는 심볼릭 링크 Seed는
 # errors에 남기는지 검증한다(#915).
+# #919: `index --json --full`의 스키마(`seed-index-full/1`, Seed별 키·타입, acceptance 충족·withdrawn/held 표시, replaces/transfers/provenance 엣지 끝점 분류)와
+# 일반 `index --json` 출력 불변을, #910: tree의 PROVENANCE 줄을 검증한다.
 # #907: `refines`에 acceptance id가 없는 parent 연결은 tree에서 CHILD가 아닌 REFERENCE 행으로 나오고,
 # check는 자식 연결만 부모 `children`에 있어야 하며 참조 연결이 `children`에 있으면 양쪽에서 MISMATCH로 알려 준다.
 python3 thinking-tools/scripts/test/test-seed-relations.py
-# Expected: OK: all 33 test-seed-relations checks passed
+# Expected: OK: all 35 test-seed-relations checks passed
 
 # Seed 생애주기 (#814): 전이·완료 근거·철회 원문·고정 출처·부분 영향·소비자 후보 자격.
 # 임시 Git 픽스처로 검증하며 사용자 승인의 진위나 LLM 준수는 별도 실행 근거가 필요하다.
