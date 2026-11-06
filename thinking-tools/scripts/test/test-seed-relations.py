@@ -1903,6 +1903,13 @@ def check_index_full() -> list[str]:
     pacc = {s["path"]: s for s in data["seeds"]}[SP + "p.yaml"]["acceptance"] if data else None
     if pacc != [{"id": "acceptance-1", "satisfied": False, "out_of_scope": "held"}]:
         failures.append(f"index --full: held acceptance: {pacc}")
+    # A block-list evidence id parses without format errors; --full must still print every Seed.
+    (spec_dir / "p.yaml").write_text(_versioned(
+        _seed_text("P", children=[SP + "k.yaml"], **kw), 3)
+        + life.replace("    items: []\n", "    items:\n      - id:\n          - a\n"))
+    code, data, err = _index_json(repo, "docs/specs", extra=("--full",))
+    if data is None or len(data["seeds"]) != 2:
+        failures.append(f"index --full: a block-list evidence id must not crash the index: {code} {err!r}")
     # --full needs --json like the plain form.
     p = subprocess.run([sys.executable, str(_SCRIPT_PATH), "index", "docs/specs", "--full"],
                        cwd=repo, capture_output=True, text=True)
