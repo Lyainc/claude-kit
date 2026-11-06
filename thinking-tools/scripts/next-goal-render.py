@@ -313,8 +313,9 @@ def _trace_line(j, data, current_id):
 
 
 def _columns(text):
-    # Ambiguous characters stay narrow; combining marks occupy their base character's cell.
-    return sum(0 if unicodedata.combining(c) or unicodedata.category(c) in ("Mn", "Me") else
+    # Ambiguous characters stay narrow; combining marks occupy their base character's cell;
+    # zero-width format characters (Cf: ZWSP, ZWJ) take none.
+    return sum(0 if unicodedata.combining(c) or unicodedata.category(c) in ("Mn", "Me", "Cf") else
                2 if unicodedata.east_asian_width(c) in ("W", "F") else 1 for c in text)
 
 
