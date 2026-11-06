@@ -220,8 +220,11 @@ kind, always from the user's answer (the common contract's "관계의 세 종류
   withdrawn number. The parent amendment and the child link are approved separately, and the parent is
   amended only in the Phase 3 that writes this child: a declined link or an exit before Phase 3 leaves the
   parent untouched. Lifecycle-less (unknown) parent → user confirmation first; `paused` parent → say it
-  needs an approved resume first, and do not treat this answer as one; `closed` parent → never amend it,
-  offer a new Seed with pinned provenance. Other-repo parent → it cannot be amended from here, so this
+  needs an approved resume first, and do not treat this answer as one; `closed` parent → never amend or reopen it; follow "닫힌 부모의 범위" in
+  [the lifecycle contract](../../reference/seed-lifecycle.md): default to an independent Seed, show the parent's and
+  readable ancestors' `hard: true` constraints, copy the picked ones with provenance, and tell the user once
+  "닫힌 부모는 완료 기록이라 다시 열면 그 기록이 덮어써져요. 새 Seed에 출처를 고정해서 이어 갈게요." A new parent
+  generation only on the user's decision (shared new parent-level criterion); say upfront that closed children do not move. Other-repo parent → it cannot be amended from here, so this
   Seed stays a predecessor or reference until that repo adds the item; never `refines` an id the parent
   file does not contain. No → continue below. Belonging alone never makes a child: without an amended parent there is nothing to
   deliver, and a child edge would block the parent's completion for work it never promised.
