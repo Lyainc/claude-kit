@@ -1656,9 +1656,9 @@ def check_item_depends_on() -> list[str]:
     return failures
 
 
-def _index_json(repo, *dirs, gh=NO_GH):
+def _index_json(repo, *dirs, gh=NO_GH, extra=()):
     env = dict(os.environ, GH_BIN=gh)
-    p = subprocess.run([sys.executable, str(_SCRIPT_PATH), "index", *dirs, "--json"], cwd=repo,
+    p = subprocess.run([sys.executable, str(_SCRIPT_PATH), "index", *dirs, *extra, "--json"], cwd=repo,
                        env=env, capture_output=True, text=True)
     return p.returncode, (json.loads(p.stdout) if p.stdout.strip() else None), p.stderr
 
@@ -1806,7 +1806,7 @@ def check_index_full() -> list[str]:
     repo = _index_full_repo()
     before = _snapshot(repo)
     code, plain, err = _index_json(repo, "docs/specs")
-    fcode, full, ferr = _index_json_full(repo, "docs/specs")
+    fcode, full, ferr = _index_json(repo, "docs/specs", extra=("--full",))
     if plain is None or full is None:
         return [f"index --full: no JSON output ({code}/{fcode}): {err} {ferr}"]
     # Non-full output is unchanged: same keys, same edge kinds, none of the full fields.
@@ -1899,7 +1899,7 @@ def check_index_full() -> list[str]:
     (spec_dir / "k.yaml").write_text(_versioned(
         _seed_text("K", parent=SP + "p.yaml", refines=["acceptance-1"], **kw), 3)
         + life.replace("state: active", "state: paused"))
-    _, data, _ = _index_json_full(repo, "docs/specs")
+    _, data, _ = _index_json(repo, "docs/specs", extra=("--full",))
     pacc = {s["path"]: s for s in data["seeds"]}[SP + "p.yaml"]["acceptance"] if data else None
     if pacc != [{"id": "acceptance-1", "satisfied": False, "out_of_scope": "held"}]:
         failures.append(f"index --full: held acceptance: {pacc}")
@@ -1909,13 +1909,6 @@ def check_index_full() -> list[str]:
     if p.returncode != 2 or p.stdout:
         failures.append(f"index --full without --json: expected exit 2, got {p.returncode}")
     return failures
-
-
-def _index_json_full(repo, *dirs, gh=NO_GH):
-    env = dict(os.environ, GH_BIN=gh)
-    p = subprocess.run([sys.executable, str(_SCRIPT_PATH), "index", *dirs, "--json", "--full"],
-                       cwd=repo, env=env, capture_output=True, text=True)
-    return p.returncode, (json.loads(p.stdout) if p.stdout.strip() else None), p.stderr
 
 
 def check_tree_provenance() -> list[str]:

@@ -177,6 +177,14 @@ def _list(inline, body):
     return items
 
 
+def _list_of(value):
+    return list(value) if isinstance(value, list) else []
+
+
+def _relations_dict(seed):
+    return seed.relations_data if isinstance(seed.relations_data, dict) else {}
+
+
 def _items(body):
     """`- id: c1 / description: ...` entries -> [(id, description)]."""
     starts = [(i, m) for i, m in ((i, ITEM_RE.match(ln)) for i, ln in enumerate(body)) if m]
@@ -857,8 +865,7 @@ def cmd_tree(rd, rel, seed):
     # Pinned provenance: where this Seed's selected requirements came from. Only this Seed's own
     # rows are shown; the reverse lookup (who points at this Seed) needs a repo-wide scan, so it
     # lives in `index --full` edges instead.
-    prov = seed.relations_data.get("provenance", []) if isinstance(seed.relations_data, dict) else []
-    for row in prov if isinstance(prov, list) else []:
+    for row in _list_of(_relations_dict(seed).get("provenance")):
         if not isinstance(row, dict) or not isinstance(row.get("seed"), str):
             continue
         commit = row.get("commit")
@@ -1600,13 +1607,12 @@ def _seed_files(directory):
     return out
 
 
-def _edge_status(rd, root, seed, path, found, indexed):
+def _edge_status(rd, root, real_root, seed, path, found, indexed):
     """Resolve an edge target and classify it (see `cmd_index`) without reading other repos."""
     nloc = rd.norm(path, None)
     if nloc[0] is not None:
         return key(nloc), "external"
     tgt = rd.resolve_quiet(nloc, exact_edges(seed))[1]
-    real_root = os.path.realpath(root)
     real_tgt = os.path.realpath(os.path.join(root, tgt))
     inside = not os.path.isabs(tgt) and _inside(real_root, real_tgt)
     status = ("notfound" if not inside else
@@ -1616,13 +1622,9 @@ def _edge_status(rd, root, seed, path, found, indexed):
     return tgt, status
 
 
-def _list_of(value):
-    return list(value) if isinstance(value, list) else []
-
-
 def _top_list(seed, name):
     """A top-level list field (`open_questions`, `blindspots`) via the shared block parser."""
-    block = getattr(seed, "top_blocks", {}).get(name)
+    block = seed.top_blocks.get(name)
     if block is None:
         return []
     try:
@@ -1633,7 +1635,7 @@ def _top_list(seed, name):
 
 def full_entry(entry, seed):
     """The extra `index --full` fields; `entry` is the metadata + relations record."""
-    rdata = seed.relations_data if isinstance(seed.relations_data, dict) else {}
+    rdata = _relations_dict(seed)
     entry["relations"].update({
         "replaces": _list_of(rdata.get("replaces")),
         "transfers": _list_of(rdata.get("transfers")),
@@ -1743,6 +1745,7 @@ def cmd_index(args):
     indexed = {(root, rel) for (root, rel), s in found.items() if s is not None}
     edge_kinds = INDEX_EDGES + (INDEX_FULL_EDGES if full else ())
     edges = {e: [] for e in edge_kinds}
+    real_roots = {r: os.path.realpath(r) for r, _ in found}
     for (root, rel), seed in found.items():
         if seed is None:
             continue
@@ -1752,20 +1755,20 @@ def cmd_index(args):
         for edge in INDEX_EDGES:
             for text in declared[edge]:
                 path, item = split_dep(text) if edge == "depends_on" else (text, None)
-                tgt, status = _edge_status(rd, root, seed, path, found, indexed)
+                tgt, status = _edge_status(rd, root, real_roots[root], seed, path, found, indexed)
                 rec = {"from": rel, "to": tgt, "target": status}
                 if edge == "depends_on":
                     rec["item"] = item
                 edges[edge].append(rec)
         if not full:
             continue
-        rdata = seed.relations_data if isinstance(seed.relations_data, dict) else {}
+        rdata = _relations_dict(seed)
         for edge in INDEX_FULL_EDGES:
             for row in _list_of(rdata.get(edge)):
                 path = row.get("seed") if isinstance(row, dict) else row
                 if not lifecycle.path(path):
                     continue  # a malformed row stays in `relations`; there is no endpoint to classify
-                tgt, status = _edge_status(rd, root, seed, path, found, indexed)
+                tgt, status = _edge_status(rd, root, real_roots[root], seed, path, found, indexed)
                 rec = {"from": rel, "to": tgt, "target": status}
                 if isinstance(row, dict):
                     rec["items"] = _list_of(row.get("items"))
