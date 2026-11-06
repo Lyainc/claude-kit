@@ -239,15 +239,15 @@ def scan_transcript(tp: str):
                 argv = it.get("command")
                 cmd = argv[2] if isinstance(argv, list) and len(argv) == 3 and argv[1] in ("-lc", "-c") \
                     else shlex.join(argv) if isinstance(argv, list) else argv
-                cwd = unquote(urlparse(it.get("cwd") or "").path)
-                call = _metadata_call(cmd, cwd) if isinstance(cmd, str) else None
+                cwd = unquote(urlparse(it.get("cwd") or "").path) if isinstance(it.get("cwd") or "", str) else None
+                call = _metadata_call(cmd, cwd) if isinstance(cmd, str) and cwd is not None else None
                 if call:
                     literal, cwd = call
                     calls.extend((m, literal, cwd) for m in META_PATH.findall(str(it.get("aggregated_output") or "")))
             elif p.get("type") in ("custom_tool_call_output", "function_call_output"):
                 results.extend(t for t in _strings(p.get("output")) if DENY_HEAD in t[:300])
             continue
-        content =(e.get("message") or {}).get("content") if isinstance(e.get("message"), dict) else None
+        content = (e.get("message") or {}).get("content") if isinstance(e.get("message"), dict) else None
         if not isinstance(content, list):
             continue
         for b in content:
@@ -410,6 +410,11 @@ def _self_test() -> int:
         cx(c_denied, outputs=[f'Script error:\nCommand blocked by PreToolUse hook: {DENY_HEAD}"/p/seed-relations.py" metadata {seed} --json'])
         cx(c_foreign, runs=[(["/bin/zsh", "-lc", 'for s in x; do python3 /p/seed-relations.py metadata docs/specs/$s.yaml; done'],
                              "/elsewhere/other-repo", '{"path": "docs/specs/x.yaml"}')])
+        c_badcwd, c_badcmd = f"{d}/t/c-badcwd.jsonl", f"{d}/t/c-badcmd.jsonl"
+        for path, over in ((c_badcwd, {"cwd": 5}), (c_badcmd, {"command": {"x": 1}})):
+            item = {"type": "CommandExecution", "command": ["/bin/zsh", "-lc", meta_rel], "cwd": "file://" + d,
+                    "aggregated_output": '{"path": "docs/specs/x.yaml"}', "exit_code": 0, **over}
+            Path(path).write_text(json.dumps({"type": "event_msg", "payload": {"type": "item_completed", "item": item}}) + "\n")
         cx(c_argv, runs=[(["python3", "/p/seed-relations.py", "metadata", seed, "--json"], "/", f'{{"path": "{seed}"}}')])
 
         def read(p, t):
@@ -483,6 +488,8 @@ def _self_test() -> int:
         check("codex, metadata failed", decide(bash("cat docs/specs/x.yaml", c_failed)), True)
         check("codex, already denied once", decide(bash("cat docs/specs/x.yaml", c_denied)), False)
         check("codex, metadata ran in another repo", decide(bash("cat docs/specs/x.yaml", c_foreign)), True)
+        check("codex, non-str cwd is no metadata call", decide(bash("cat docs/specs/x.yaml", c_badcwd)), True)
+        check("codex, non-str non-list command is no metadata call", decide(bash("cat docs/specs/x.yaml", c_badcmd)), True)
         check("codex, argv command", decide(bash("cat docs/specs/x.yaml", c_argv)), False)
 
     total += 1
