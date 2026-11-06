@@ -27,7 +27,8 @@ Selection:
 
 Order: mtime descending, then path. Top --limit (default 5).
 
-Output (stdout, one line, `candidate_count` first = total matches before --limit):
+Output (stdout, one line, `candidate_count` first = len(candidates) after --limit, so a caller's
+`len(candidates) != candidate_count` check flags only a truncated capture):
     {"candidate_count": N, "candidates": [{path,type,title,summary,status,mtime,legacy_session}, ...]}
 
 Exit codes: 0 ok (empty list is a normal result); 3 manifest absent/unparseable/malformed.
@@ -105,7 +106,7 @@ def main(argv: list) -> int:
             {**{k: f.get(k) for k in _FIELDS}, "legacy_session": _is_legacy(f)}
             for f in picked[: max(args.limit, 0)]
         ]
-        payload = {"candidate_count": len(picked), "candidates": candidates}
+        payload = {"candidate_count": len(candidates), "candidates": candidates}
     except (OSError, ValueError, KeyError, TypeError, AttributeError) as e:
         print(f"manifest unusable at {path}: {e}", file=sys.stderr)
         return 3
