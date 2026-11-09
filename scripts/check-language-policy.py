@@ -153,10 +153,17 @@ def scan_body(text, rel, plugin):
 def check_bodies(root, report):
     """Scan every target body under `root`; append to `report` and return this scan's violations."""
     found = []
-    present = [p for p in BODY_PLUGINS if os.path.isdir(os.path.join(root, p))]
-    if present:  # a plugin repo: every target plugin must exist and yield bodies, or the gate scans nothing
+    # A target plugin is required when the marketplace lists it or its directory exists, so a
+    # renamed or moved layout cannot make the gate scan nothing and still pass.
+    try:
+        with open(os.path.join(root, ".claude-plugin", "marketplace.json"), encoding="utf-8") as fh:
+            listed = {p.get("name") for p in json.load(fh).get("plugins", []) if isinstance(p, dict)}
+    except (OSError, ValueError, AttributeError):
+        listed = set()  # a missing/unreadable marketplace is already fatal in the metadata check
+    required = [p for p in BODY_PLUGINS if p in listed or os.path.isdir(os.path.join(root, p))]
+    if required:
         seen = {p for p, _ in _iter_body_files(root)}
-        for plugin in BODY_PLUGINS:
+        for plugin in required:
             if plugin not in seen:
                 found.append({"fatal": f"[{plugin}] no skills/*/SKILL.md or agents/*.md bodies found"})
                 report["fatal"] = True
@@ -348,15 +355,25 @@ def run_self_test():
                 failures.append(f"  {name}: expected ok=True, got {report['violations']}")
         elif ok or expected not in kinds:
             failures.append(f"  {name}: expected flagged {expected}, got ok={ok} {report['violations']}")
-    # A target plugin that yields no bodies (renamed/moved layout) must not pass as clean.
-    with tempfile.TemporaryDirectory() as tmp:
-        _build(tmp, "Plugin", ["skills"], "Plugin", ["skills"])
-        os.makedirs(os.path.join(tmp, "thinking-tools", "agents"))
-        with open(os.path.join(tmp, "thinking-tools", "agents", "a.md"), "w", encoding="utf-8") as fh:
-            fh.write(fm + CONTRACT_SENTENCE + "\n")
-        ok, report = check_language_policy(tmp)
-    if ok or not any("no skills/*/SKILL.md" in v.get("fatal", "") for v in report["violations"]):
-        failures.append(f"  empty target plugin: expected fatal, got ok={ok} {report['violations']}")
+    # A target plugin the marketplace lists (or whose directory exists) must yield bodies, so a
+    # renamed/moved layout cannot pass as clean: one plugin missing, and every plugin missing.
+    for label, dirs in (("one target plugin missing", ["thinking-tools"]), ("all target plugins missing", [])):
+        with tempfile.TemporaryDirectory() as tmp:
+            _build(tmp, "Plugin", ["skills"], "Plugin", ["skills"])
+            mp = os.path.join(tmp, ".claude-plugin", "marketplace.json")
+            with open(mp, encoding="utf-8") as fh:
+                data = json.load(fh)
+            data["plugins"] += [{"name": p, "version": "1.0.0", "description": "x", "keywords": ["x"],
+                                 "source": f"./{p}/"} for p in BODY_PLUGINS]
+            with open(mp, "w", encoding="utf-8") as fh:
+                json.dump(data, fh)
+            for p in dirs:
+                os.makedirs(os.path.join(tmp, p, "agents"))
+                with open(os.path.join(tmp, p, "agents", "a.md"), "w", encoding="utf-8") as fh:
+                    fh.write(fm + CONTRACT_SENTENCE + "\n")
+            ok, report = check_language_policy(tmp)
+        if ok or not any("no skills/*/SKILL.md" in v.get("fatal", "") for v in report["violations"]):
+            failures.append(f"  {label}: expected fatal, got ok={ok} {report['violations']}")
     # Missing marketplace.json is fatal (exit 2).
     with tempfile.TemporaryDirectory() as tmp:
         ok, report = check_language_policy(tmp)
