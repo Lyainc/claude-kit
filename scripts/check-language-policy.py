@@ -141,25 +141,29 @@ def scan_body(text, rel, plugin):
     if count != 1:
         violations.append({"kind": "body", "source": rel, "plugin": plugin, "body": "contract-sentence",
                            "detail": f"appears {count} time(s), expected exactly 1"})
+    lowered = body.lower()
     for phrase in BODY_FORBIDDEN:
-        if phrase in body:
+        if phrase.lower() in lowered:
             violations.append({"kind": "body", "source": rel, "plugin": plugin,
                                "body": "forbidden-phrase", "detail": f'contains "{phrase}"'})
     return violations
 
 
 def check_bodies(root, report):
-    """Scan every target body under `root`, appending violations to `report`."""
+    """Scan every target body under `root`; append to `report` and return this scan's violations."""
+    found = []
     for plugin, rel in _iter_body_files(root):
         try:
             with open(os.path.join(root, rel), encoding="utf-8") as fh:
                 text = fh.read()
         except OSError as exc:
-            report["violations"].append({"fatal": f"[{plugin}] {rel} unreadable: {exc}"})
+            found.append({"fatal": f"[{plugin}] {rel} unreadable: {exc}"})
             report["fatal"] = True
             continue
         report.setdefault("bodies_checked", []).append(rel)
-        report["violations"].extend(scan_body(text, rel, plugin))
+        found.extend(scan_body(text, rel, plugin))
+    report["violations"].extend(found)
+    return found
 
 
 def check_language_policy(root):
@@ -222,9 +226,8 @@ def check_language_policy(root):
             report["violations"].extend(pv)
             ok = False
 
-    nbefore = len(report["violations"])
-    check_bodies(root, report)
-    ok = ok and not any(v.get("kind") == "body" or "fatal" in v for v in report["violations"][nbefore:])
+    if check_bodies(root, report):
+        ok = False
 
     return ok, report
 
@@ -312,6 +315,9 @@ def run_self_test():
          "forbidden-phrase"),
         ("'MUST be in Korean'",
          {"vault-bridge/skills/s/SKILL.md": fm + CONTRACT_SENTENCE + "\nReplies MUST be in Korean.\n"},
+         "forbidden-phrase"),
+        ("forbidden phrase in other case",
+         {"vault-bridge/skills/s/SKILL.md": fm + CONTRACT_SENTENCE + "\nReplies must be in korean.\n"},
          "forbidden-phrase"),
     )
     for name, files, expected in body_cases:

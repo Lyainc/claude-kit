@@ -64,7 +64,7 @@ python3 scripts/check-type-optin.py
 python3 scripts/check-language-policy.py --self-test
 # Expected: OK: all check-language-policy self-test cases passed
 python3 scripts/check-language-policy.py
-# Expected: OK: language-policy clean — 8 metadata source(s) checked, no Hangul ... 25 skill/agent body(ies) carry the language contract once
+# Expected: OK: language-policy clean — 8 metadata source(s) checked, no Hangul ... N skill/agent body(ies) carry the language contract once
 python3 scripts/check-banned-words.py --self-test
 # Expected: OK: all check-banned-words self-test cases passed
 python3 scripts/check-banned-words.py
