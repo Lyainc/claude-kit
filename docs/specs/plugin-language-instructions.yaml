@@ -36,14 +36,47 @@ domain: "tech"
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: "active"
-  outcome: null
-  reason: "사용자가 열린 이슈의 유효한 잔여 요구를 새 독립 active Seed로 정리하는 범위를 확정했다. 미충족 요구의 명세이며 현재 저작은 기능 구현·완료·설치 증거가 아니다."
-  approved_by: "2026-10-11 실제 사용자 답변: 수정한 계획대로 8개 Seed와 3개 이슈 작업으로 확정 (추천). 질문에서 #835·#814 active, #741·#824·#812·#769·#708·#770 paused, 새 8개는 독립 Seed이며 부분 선행 조건은 제약·완료조건으로 표현한다고 명시했다."
+  state: closed
+  outcome: completed
+  reason: "철회하지 않은 constraint 4개와 success_criteria 3개가 지정 커밋에서 모두 충족됐다."
+  approved_by: "2026-11-09 사용자 확인: 항목별 근거와 실측 검토 후 completed 전환 승인"
   evidence:
-    commit: null
-    items: []
+    commit: "b476edc72152d8a20cde8af70c30bb8cb0cda37f"
+    items:
+      - id: constraint-1
+        refs:
+          - "python3 scripts/check-language-policy.py: exit 0, 8 metadata source 검사, 25개 skill/agent 본문에 언어 계약이 정확히 한 번"
+          - "thinking-tools/skills/expert-panel/SKILL.md:27"
+          - "vault-bridge/skills/wiki/SKILL.md:7"
+      - id: constraint-2
+        refs:
+          - "thinking-tools/skills/diverse-sampling/SKILL.md:128"
+          - "thinking-tools/skills/doc-concretize/SKILL.md:166"
+      - id: constraint-3
+        refs:
+          - "vault-bridge/skills/vault-save/reference.md:11"
+          - "vault-bridge/skills/vault-save/reference.md:18"
+      - id: constraint-4
+        refs:
+          - "git diff 540809043da3 b476edc: AGENTS.md·CLAUDE.md 변경 없음, 바뀐 SKILL.md·agents/*.md 25개의 frontmatter가 바이트 단위로 같음"
+          - "python3 thinking-tools/scripts/test/check-trigger-regression.py 540809043da3 b476edc: exit 0, RESULT: no trigger removals."
+      - id: acceptance-1
+        refs:
+          - "python3 scripts/check-language-policy.py: exit 0, 8 metadata source 검사, 25개 skill/agent 본문에 언어 계약이 정확히 한 번"
+          - "thinking-tools/skills/unknown-discovery/SKILL.md:26-27"
+          - "thinking-tools/skills/doc-polish/SKILL.md:34-36"
+      - id: acceptance-2
+        refs:
+          - "git diff 540809043da3 b476edc: 바뀐 SKILL.md·agents/*.md 25개의 frontmatter(description 포함)가 바이트 단위로 같음"
+          - "python3 thinking-tools/scripts/test/check-trigger-regression.py 540809043da3 b476edc: exit 0, RESULT: no trigger removals."
+      - id: acceptance-3
+        refs:
+          - "python3 scripts/check-language-policy.py --self-test: exit 0"
+          - "uv run --with tiktoken python3 scripts/check-skill-token-budget.py: exit 0, SKILL.md 전부 8000바이트 이하"
+          - "python3 scripts/check-skill-reference-drift.py: exit 0, 41개 참조 해석"
+          - "python3 scripts/check-agent-tools-usage.py: exit 0, 25개 agent/skill 도구 선언 일치"
   withdrawn: []
+
 goal:
   statement: "플러그인 사용자 응답의 언어 계약을 유지하면서 본문의 압박형 반복과 불필요한 이력 참조를 정리한다."
   clarity_score: 0.9
