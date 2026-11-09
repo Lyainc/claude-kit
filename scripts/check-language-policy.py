@@ -348,6 +348,15 @@ def run_self_test():
                 failures.append(f"  {name}: expected ok=True, got {report['violations']}")
         elif ok or expected not in kinds:
             failures.append(f"  {name}: expected flagged {expected}, got ok={ok} {report['violations']}")
+    # A target plugin that yields no bodies (renamed/moved layout) must not pass as clean.
+    with tempfile.TemporaryDirectory() as tmp:
+        _build(tmp, "Plugin", ["skills"], "Plugin", ["skills"])
+        os.makedirs(os.path.join(tmp, "thinking-tools", "agents"))
+        with open(os.path.join(tmp, "thinking-tools", "agents", "a.md"), "w", encoding="utf-8") as fh:
+            fh.write(fm + CONTRACT_SENTENCE + "\n")
+        ok, report = check_language_policy(tmp)
+    if ok or not any("no skills/*/SKILL.md" in v.get("fatal", "") for v in report["violations"]):
+        failures.append(f"  empty target plugin: expected fatal, got ok={ok} {report['violations']}")
     # Missing marketplace.json is fatal (exit 2).
     with tempfile.TemporaryDirectory() as tmp:
         ok, report = check_language_policy(tmp)
