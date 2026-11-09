@@ -29,40 +29,102 @@ brownfield: true
 refine_generation: 0
 
 lifecycle:
-  state: active
-  outcome: null
-  reason: "관계·생애주기·guard·render 회귀는 통과했다. 실제 next-goal의 metadata 선행 도구 trace·선행 보류 판단 및 자식 Refine 왕복이 남아 있어 로컬 검증 대상으로 활성화한다."
-  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
+  state: closed
+  outcome: completed
+  reason: "철회하지 않은 constraint 12개와 success_criteria 10개가 지정 커밋에서 모두 충족됐다."
+  approved_by: "2026-11-09 사용자 확인: 항목별 근거와 실측 검토 후 completed 전환 승인"
   evidence:
-    commit: null
+    commit: "b476edc72152d8a20cde8af70c30bb8cb0cda37f"
     items:
+      - id: constraint-1
+        refs:
+          - "thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml:84-93"
+          - "thinking-tools/scripts/seed-append-check.py:534-555"
+      - id: constraint-2
+        refs:
+          - "thinking-tools/scripts/test/test-seed-relations.py:255-286"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:169"
+      - id: constraint-3
+        refs:
+          - "thinking-tools/scripts/seed-append-check.py:28-36"
+          - "thinking-tools/scripts/seed-append-check.py:150"
+          - "thinking-tools/scripts/test/test-seed-relations.py:296"
+      - id: constraint-4
+        refs:
+          - "thinking-tools/scripts/test/test-seed-relations.py:296"
+          - "thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml:84-93"
+      - id: constraint-5
+        refs:
+          - "thinking-tools/scripts/seed-relations.py:486-489"
+          - "thinking-tools/scripts/test/test-seed-relations.py:363"
+      - id: constraint-6
+        refs:
+          - "thinking-tools/skills/build-spec/SKILL.md:107"
+          - "thinking-tools/scripts/test/test-seed-relations.py:496"
+      - id: constraint-7
+        refs:
+          - "thinking-tools/skills/next-goal/SKILL.md:31-34"
+          - "thinking-tools/scripts/test/test-seed-relations.py:553"
+      - id: constraint-8
+        refs:
+          - "thinking-tools/scripts/seed-append-check.py:502-555"
+          - "python3 thinking-tools/scripts/seed-append-check.py --self-test: exit 0, all 76 cases passed"
+      - id: constraint-9
+        refs:
+          - "thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml:84-93"
+      - id: constraint-10
+        refs:
+          - "thinking-tools/skills/build-spec/SKILL.md:61-63"
+          - "thinking-tools/skills/build-spec/SKILL.md:69-71"
+      - id: constraint-11
+        refs:
+          - "thinking-tools/skills/next-goal/reference.md:101-110"
+          - "thinking-tools/scripts/test/test-seed-relations.py:404"
+      - id: constraint-12
+        refs:
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:574"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:618"
+          - "thinking-tools/skills/build-spec/SKILL.md:111"
       - id: acceptance-1
         refs:
-          - "thinking-tools/scripts/test/test-seed-relations.py"
-          - "thinking-tools/scripts/seed-relations.py"
+          - "thinking-tools/scripts/test/test-seed-relations.py:188"
+          - "python3 thinking-tools/scripts/test/test-seed-relations.py: exit 0, all 35 checks passed"
+      - id: acceptance-2
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §2 seed-relations-graph (acceptance-2)"
+          - "thinking-tools/skills/next-goal/SKILL.md:31-34"
+          - "python3 thinking-tools/scripts/test/test-next-goal-render.py: exit 0"
       - id: acceptance-3
         refs:
-          - "thinking-tools/scripts/test/test-seed-relations.py"
-          - "thinking-tools/scripts/test/test-seed-lifecycle.py"
+          - "thinking-tools/scripts/test/test-seed-relations.py:255"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:169"
       - id: acceptance-4
         refs:
-          - "thinking-tools/scripts/test/test-seed-relations.py"
-          - "thinking-tools/scripts/seed-relations.py"
+          - "thinking-tools/scripts/test/test-seed-relations.py:296"
       - id: acceptance-5
         refs:
-          - "thinking-tools/scripts/seed-append-check.py"
-          - "thinking-tools/scripts/test/test-seed-lifecycle.py"
+          - "thinking-tools/scripts/seed-append-check.py:502-555"
+          - "python3 thinking-tools/scripts/seed-append-check.py --self-test: exit 0, all 76 cases passed"
       - id: acceptance-6
         refs:
-          - "thinking-tools/scripts/test/test-seed-relations.py"
-          - "thinking-tools/scripts/seed-relations.py"
+          - "thinking-tools/scripts/test/test-seed-relations.py:363"
+      - id: acceptance-7
+        refs:
+          - "thinking-tools/scripts/test/test-seed-relations.py:404"
+          - "thinking-tools/skills/next-goal/reference.md:101-110"
       - id: acceptance-8
         refs:
-          - "thinking-tools/scripts/seed-append-check.py"
-          - "thinking-tools/scripts/test/test-seed-relations.py"
+          - "thinking-tools/scripts/seed-append-check.py:576"
+          - "thinking-tools/scripts/test/test-seed-relations.py:296"
       - id: acceptance-9
         refs:
-          - "thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml"
+          - "thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml:17-19"
+          - "thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml:84-93"
+      - id: acceptance-10
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §2 seed-relations-graph (acceptance-10)"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:574"
+          - "thinking-tools/skills/build-spec/SKILL.md:61-63"
   withdrawn: []
 
 goal:
