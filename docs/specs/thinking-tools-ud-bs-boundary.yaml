@@ -127,6 +127,10 @@ success_criteria:
     verifiable: true
     measurable_via: build-spec SKILL.md Phase 2.5의 스킵 조건 문구 + acceptance-2 왕복 시 STATE 확인
 
+issues:
+  source: "#430"
+  tracking: ["#899"]
+
 context:
   existing_stack:
     - thinking-tools 플러그인 (스킬 9개 + thinking-facilitator·requirement-gap-reviewer·expert-panel-worker 에이전트)
