@@ -165,10 +165,21 @@ def _command_str(command) -> str:
     return command if isinstance(command, str) else ""
 
 
+def _reads_only_template(command: str, out: str) -> bool:
+    """True only for a plain read of the template alone: no substitution, no comment, one body."""
+    if TEMPLATE_PATH not in command or any(t in command for t in ("$(", "`", "#", ";", "&&", "||", "|")):
+        return False
+    try:
+        paths = [w for w in shlex.split(command, posix=True)[1:] if not w.startswith("-")]
+    except ValueError:
+        return False
+    return bool(paths) and all(p.endswith(TEMPLATE_PATH) for p in paths) and len(SEED_KEYS[1].findall(out)) <= 1
+
+
 def bash_candidates(command: str, cwd: str) -> list[str]:
     # Pre-filter: a yaml name, `specs`, or a glob character (a glob can expand to Seed YAML files
     # without naming one). Candidates are still filtered by is_seed_file() in decide().
-    if not any(t in command for t in (".yaml", ".yml", "specs", "*")):
+    if not any(t in command for t in (".yaml", ".yml", "specs") + tuple(GLOB_CHARS)):
         return []
     segments = _segments(_strip_heredocs(command))
     has_tool = any(_tool_call(w) >= 0 for w in segments)
@@ -424,9 +435,9 @@ def decide_post(payload: dict) -> str:
     command = _command_str((payload.get("tool_input") or {}).get("command"))
     cwd = payload.get("cwd") or os.getcwd()
     seeds = _identify_seeds(command, out, cwd)
-    if not seeds and TEMPLATE_PATH in command:
-        # The command names the template itself. Emitted Seeds keep the template's header lines, so
-        # the output text alone cannot tell the template from a Seed; only the command can.
+    if not seeds and _reads_only_template(command, out):
+        # Emitted Seeds keep the template's header lines, so the output text alone cannot tell the
+        # template from a Seed; only a command that reads nothing but the template is exempt.
         return ""
     cur = _metadata_call(command, cwd)  # this call's own metadata/read output may not be in the transcript yet
     extra = [(m, cur[0], cur[1]) for m in META_PATH.findall(out)] if cur else []
@@ -607,6 +618,8 @@ def _self_test() -> int:
         check("bash for over dir glob", decide(bash('for f in docs/specs/*; do cat "$f"; done', t_none)), True)
         check("bash cat partial-name glob", decide(bash("cat docs/specs/h*", t_none)), True)
         check("bash cat ? glob", decide(bash("cat docs/specs/?.yaml", t_none)), True)
+        check("bash ? glob with no yaml/specs text", decide(bash("cat docs/spec?/x.y?ml", t_none)), True)
+        check("bash [] glob with no yaml/specs text", decide(bash("cat docs/spec[s]/x.yam[l]", t_none)), True)
         check("bash dir glob, metadata seen", decide(bash("cat docs/specs/x*", t_meta)), False)
         check("bash dir glob loop running the tool", decide(bash('for f in docs/specs/*; do python3 /p/seed-relations.py metadata "$f"; done', t_none)), False)
         check("bash echo dir glob is no read", decide(bash("echo docs/specs/*", t_none)), False)
@@ -688,6 +701,10 @@ def _self_test() -> int:
             "cat thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml", f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), False)
         check("post, a Seed keeping the template header still blocks", decide_post(post(
             subst, f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), True)
+        check("post, template plus substituted Seeds still blocks", decide_post(post(
+            "cat skills/build-spec/templates/SEED_SPEC.yaml $(ls docs/specs/*.yaml)", f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), True)
+        check("post, a template path in a comment still blocks", decide_post(post(
+            "cat $(git ls-files docs) # templates/SEED_SPEC.yaml", f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), True)
         check("post, a metadata call's own output counts", decide_post(post(
             'python3 /p/seed-relations.py read docs/specs/x.yaml', f'{{"path": "docs/specs/x.yaml"}}\n{pref}', t_none)), False)
         check("post, walk output is no metadata", decide_post(post(

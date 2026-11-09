@@ -28,10 +28,10 @@ payload=$(cat 2>/dev/null || true)
 
 # Fast exit on the command / file_path field only (cwd and transcript_path hold arbitrary paths):
 # no yaml/yml, `specs`, or `*` means no Seed read worth checking (a glob such as `cat docs/specs/*`
-# names no yaml, so it must pass this filter). Bare `?`/`[` are left to the python check.
+# names no yaml, so it must pass this filter). `?` and `[` globs pass too; python re-validates.
 target=$(printf '%s' "$payload" | jq -r '(.tool_input.command // .tool_input.file_path // "") | if type == "array" then map(tostring) | join(" ") else . end | strings' 2>/dev/null || true)
 case "$target" in
-  *.yaml*|*.yml*|*specs*|*\**) ;;
+  *.yaml*|*.yml*|*specs*|*\**|*\?*|*\[*) ;;
   *) exit 0 ;;
 esac
 
