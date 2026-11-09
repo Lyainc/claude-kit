@@ -162,6 +162,10 @@ success_criteria:
     verifiable: true
     measurable_via: 해당 문서 Governance 규칙 (항목 완료 시 resolved 표기)
 
+issues:
+  source: "#418"
+  tracking: ["#899"]
+
 context:
   existing_stack:
     - thinking-tools/skills/expert-panel (격리 서브에이전트 논증, PR #77 도입 · #145 멀티턴 확장)
