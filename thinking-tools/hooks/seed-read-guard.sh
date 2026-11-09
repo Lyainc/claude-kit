@@ -26,10 +26,11 @@ command -v python3 >/dev/null 2>&1 || exit 0
 payload=$(cat 2>/dev/null || true)
 [ -z "$payload" ] && exit 0
 
-# Fast exit: no yaml/yml, `specs`, or `*` anywhere in the payload means no Seed read worth
-# checking (a glob such as `cat docs/specs/*` names no yaml, so it must pass this filter).
-# `?` and `[` are left out because the JSON payload nearly always contains `[`.
-case "$payload" in
+# Fast exit on the command / file_path field only (cwd and transcript_path hold arbitrary paths):
+# no yaml/yml, `specs`, or `*` means no Seed read worth checking (a glob such as `cat docs/specs/*`
+# names no yaml, so it must pass this filter). Bare `?`/`[` are left to the python check.
+target=$(printf '%s' "$payload" | jq -r '(.tool_input.command // .tool_input.file_path // "") | strings' 2>/dev/null || true)
+case "$target" in
   *.yaml*|*.yml*|*specs*|*\**) ;;
   *) exit 0 ;;
 esac
