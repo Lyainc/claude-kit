@@ -55,7 +55,7 @@ constraints:
     rationale: "역사적 출처·요구 ID·승인 범위를 잃지 않고 이미 구현된 보장과 미검증 실행을 구분하기 위해서다."
   - id: "constraint-2"
     type: "technical"
-    description: "실제로 해석된 이전 부모의 정확한 파일·전체 commit SHA·선택 항목을 보존하는 전이 정책을 먼저 확정하며 legacy 최신 경로를 임의 추정하지 않는다."
+    description: "전이 시 실제로 해석된 이전 부모의 정확한 파일·전체 commit SHA·선택 항목을 보존하며 legacy 최신 경로를 임의 추정하지 않는다. 기존 구현과 회귀 근거를 재사용한다."
     hard: true
     rationale: "역사적 출처·요구 ID·승인 범위를 잃지 않고 이미 구현된 보장과 미검증 실행을 구분하기 위해서다."
   - id: "constraint-3"
@@ -82,15 +82,15 @@ success_criteria:
   - id: "acceptance-1"
     description: "정확 부모/commit/항목 출처를 버리는 독립 전환·재연결이 실패하고 보존한 전환은 양방향 관계와 함께 통과한다."
     verifiable: true
-    measurable_via: "수정 전 실패 재현·수정 후 lifecycle/relations 회귀·legacy 해석 fixture"
+    measurable_via: "기존 lifecycle/relations 회귀와 legacy 해석 fixture 근거"
   - id: "acceptance-2"
     description: "현재 소스 SHA와 실제 로드한 바이트를 확인한 공식 소비 및 일반 직접 읽기 시나리오가 unknown/paused/closed/withdrawn 적용을 보류한다."
     verifiable: true
-    measurable_via: "Claude/Codex별 실제 metadata→읽기 도구 trace·미답 전후 파일 해시"
+    measurable_via: "기존 Claude/Codex metadata→읽기 trace와 미답 전후 해시를 재사용한다. https://github.com/Lyainc/claude-kit/issues/814#issuecomment-6313078887 결과는 확인한 소스 바이트·훅 신뢰 확인 우회·persistence 조건에 한정한다. 다른 Git 작업 디렉터리에서의 독립 소비와 실제 설치·훅 신뢰는 미확인이다."
   - id: "acceptance-3"
     description: "실제 승인 후 신규 활성화·상태 전환·철회·재연결·completed/discontinued 쓰기가 승인 범위대로 검증된다."
     verifiable: true
-    measurable_via: "실제 사용자 답변과 제한된 fixture의 before/after·공통 검증 결과"
+    measurable_via: "docs/validation-seed-lifecycle-approved-writes-2026-10-20.md의 실제 사용자 답변과 제한된 fixture 검증 결과"
   - id: "acceptance-4"
     description: "외부 session-close의 로드 사본 불명·cross-repo hold·원본 보존·절대 경로 분기의 현재 실행 결과와 미지원 한계가 구분된다."
     verifiable: true

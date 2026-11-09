@@ -139,7 +139,8 @@ constraints:
     type: technical
     description: >
       텔레메트리는 기존 telemetry/ 인프라(event-logger.sh, report.py, lifecycle view)를
-      재사용. 규칙 fire 이벤트를 로깅해 never-fired(죽은 규칙)/stale 규칙을 색출한다.
+      재사용한다. 기록된 규칙 fire 이벤트로 관측된 규칙의 위반 탐지 횟수를 집계한다.
+      규칙 목록이 없으므로 한 번도 관측되지 않은 규칙은 이 집계로 판정하지 않는다.
     hard: false
     rationale: 관측·자가개선 레이어. 새로 만들지 않고 기존 레일 재사용.
 
@@ -170,6 +171,10 @@ success_criteria:
     description: OMC 심볼·경로 의존 0건. 새 플러그인·새 스킬 0건.
     verifiable: true
     measurable_via: omc/oh-my-claudecode 참조 grep = 0, plugin.json·SKILL.md 신규 = 0
+
+issues:
+  source: null
+  tracking: ["#899"]
 
 context:
   existing_stack:

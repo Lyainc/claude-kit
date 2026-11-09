@@ -60,7 +60,7 @@ constraints:
     rationale: "확정된 응답 언어를 적용하되 안전·형식·기여 계약과 의미를 보존하고 과도한 재설계로 범위를 넓히지 않기 위해서다."
   - id: "constraint-3"
     type: "technical"
-    description: "규칙의 기능적 이유와 동작은 남기며 역사적 버전·이슈 번호를 없애는 작업이 결정 기록 자체를 삭제하지 않는다."
+    description: "규칙의 기능적 이유·동작·결정 기록을 보존한다. 언어 규칙과 모델 핀의 이력 정리는 반영됐으며, 남은 이력 정리는 wiki/SKILL.md와 vault-save/SKILL.md 본문의 v5 참조 네 곳이다."
     hard: true
     rationale: "확정된 응답 언어를 적용하되 안전·형식·기여 계약과 의미를 보존하고 과도한 재설계로 범위를 넓히지 않기 위해서다."
   - id: "constraint-4"
