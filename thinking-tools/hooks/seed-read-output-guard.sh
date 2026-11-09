@@ -24,16 +24,19 @@ set -uo pipefail
 command -v jq >/dev/null 2>&1 || exit 0
 command -v python3 >/dev/null 2>&1 || exit 0
 
-payload=$(cat 2>/dev/null || true)
-[ -z "$payload" ] && exit 0
+tmp=$(mktemp 2>/dev/null) || exit 0
+trap 'rm -f "$tmp"' EXIT
+cat >"$tmp" 2>/dev/null || exit 0
+[ -s "$tmp" ] || exit 0
 
-# Fast exit: a Seed body always carries both top-level keys (or the amendment-contract header).
-case "$payload" in
-  *lifecycle:*success_criteria:*|*success_criteria:*lifecycle:*|*"AMENDMENT CONTRACT"*) ;;
-  *) exit 0 ;;
-esac
+# Fast exit without loading the (possibly multi-MB) output into a shell variable: a Seed body
+# always carries the `lifecycle:` and `success_criteria:` keys or the amendment-contract header.
+# JSON keeps newlines escaped, so each signature is a plain substring of the payload.
+grep -q -F -e 'AMENDMENT CONTRACT' "$tmp" || {
+  grep -q -F -e 'lifecycle:' "$tmp" && grep -q -F -e 'success_criteria:' "$tmp"
+} || exit 0
 
-reason=$(printf '%s' "$payload" | python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-read-check.py" --post 2>/dev/null || true)
+reason=$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-read-check.py" --post <"$tmp" 2>/dev/null || true)
 [ -z "$reason" ] && exit 0
 
 jq -nc --arg reason "$reason" '{decision:"block", reason:$reason}'
