@@ -30,21 +30,56 @@ brownfield: true
 refine_generation: 0
 
 lifecycle:
-  state: active
-  outcome: null
-  reason: "공유 풀·원문 입력·rank 1 계약과 결정론 회귀는 확인했고 W8 설명의 입력·동률 기준을 수정했다. 실제 두 세션 STATE·오프풀·소비자 결과 대조가 남아 있어 active를 유지한다."
-  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
+  state: closed
+  outcome: completed
+  reason: "철회하지 않은 constraint 6개와 success_criteria 6개가 지정 커밋에서 모두 충족됐다."
+  approved_by: "2026-11-09 사용자 확인: 항목별 근거와 실제 세션 실측 검토 후 completed 전환 승인"
   evidence:
-    commit: null
+    commit: "540809043da303ce804d5ec69f1ba8ac4388427d"
     items:
+      - id: constraint-1
+        refs:
+          - "thinking-tools/reference/personas.md:3"
+          - "thinking-tools/skills/expert-panel/SKILL.md:36"
+          - "thinking-tools/skills/adversarial-review/SKILL.md:49"
+      - id: constraint-2
+        refs:
+          - "thinking-tools/reference/personas.md:14-16"
+          - "thinking-tools/reference/personas.md:77-79"
+          - "thinking-tools/skills/expert-panel/reference.md:698-700"
       - id: constraint-3
         refs:
           - "thinking-tools/reference/personas.md:39"
-          - "thinking-tools/reference/personas.md:49"
+          - "thinking-tools/reference/personas.md:49-64"
+          - "python3 thinking-tools/scripts/test/test-persona-selection.py: exit 0"
+      - id: constraint-4
+        refs:
+          - "thinking-tools/reference/personas.md:8-12"
+          - "thinking-tools/skills/adversarial-review/SKILL.md:49"
+      - id: constraint-5
+        refs:
+          - "thinking-tools/reference/personas.md:26-35"
+      - id: constraint-6
+        refs:
+          - "python3 thinking-tools/scripts/test/test-mode-compose.py: exit 0"
+          - "python3 scripts/check-test-exitcode.py: exit 0, 180개 등록 명령 전부 exit 0"
       - id: acceptance-1
         refs:
           - "thinking-tools/reference/personas.md:3"
           - "thinking-tools/skills/expert-panel/SKILL.md:36"
+          - "thinking-tools/skills/adversarial-review/SKILL.md:49"
+      - id: acceptance-2
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/899#issuecomment-6731751569"
+      - id: acceptance-3
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/899#issuecomment-6731751569"
+      - id: acceptance-4
+        refs:
+          - "python3 scripts/check-test-exitcode.py: exit 0, 180개 등록 명령 전부 exit 0"
+      - id: acceptance-5
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/899#issuecomment-6731751569"
       - id: acceptance-6
         refs:
           - "thinking-tools/docs/improvement-matrix.md:44"
@@ -161,6 +196,10 @@ success_criteria:
       resolved_in 기재로 갱신된다.
     verifiable: true
     measurable_via: 해당 문서 Governance 규칙 (항목 완료 시 resolved 표기)
+
+issues:
+  source: "#418"
+  tracking: ["#899"]
 
 context:
   existing_stack:
