@@ -26,6 +26,7 @@ import json
 import os
 import re
 import shlex
+import shutil
 import sys
 import tempfile
 from pathlib import Path
@@ -55,6 +56,9 @@ _PREFIX = r"(?:[ \t]*\d+\t|(?:[^\s:]+[:-])?(?:\d+[:-])?)"
 SEED_KEYS = tuple(re.compile(r"(?m)^" + _PREFIX + k) for k in ("lifecycle:", "success_criteria:"))
 GLOB_CHARS = "*?["
 GLOB_CAP = 500
+GENERIC_HEAD = POST_HEAD + ": 출력에 Seed 본문이 있는데 어느 Seed인지"  # the post guard's unidentified block opens like this
+PATTERN_CMDS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}  # first non-option argument is a pattern/script
+PATTERN_OPT = re.compile(r"-[A-Za-z]*[ef]$")  # short option cluster ending in -e/-f takes a value
 
 
 def is_seed_file(path: str) -> bool:
@@ -143,13 +147,21 @@ def _tool_call(words: list[str]) -> int:
 
 
 def _expand(pattern: str, wd: str) -> list[str]:
-    """Seed-candidate YAML files a glob matches: capped lazily, sorted after the cap. A pattern whose
-    fixed prefix is `/` or `~`, or lies outside the working directory with nothing fixed, is skipped."""
+    """Seed-candidate YAML files a glob matches: filtered to YAML, capped lazily, then sorted. A pattern
+    whose fixed prefix is exactly `/` or the home directory itself is skipped (too broad)."""
     fixed = re.split(r"[*?\[]", pattern, maxsplit=1)[0]
-    base = os.path.dirname(fixed) or "/"
-    if base in ("/", "~") or not (os.path.abspath(base) + "/").startswith(os.path.abspath(wd).rstrip("/") + "/"):
+    prefix = os.path.normpath(os.path.expanduser(fixed)) if fixed else ""
+    if prefix in ("/", os.path.normpath(os.path.expanduser("~"))):
         return []
-    return sorted(m for m in itertools.islice(glob.iglob(pattern), GLOB_CAP) if m.endswith((".yaml", ".yml")))
+    return sorted(itertools.islice((m for m in glob.iglob(pattern, recursive=True)
+                                    if m.endswith((".yaml", ".yml"))), GLOB_CAP))
+
+
+def _command_str(command) -> str:
+    """A hook payload's command as one string; a Codex argv list is unwrapped or shell-joined."""
+    if isinstance(command, list) and all(isinstance(a, str) for a in command):
+        return command[2] if len(command) == 3 and command[1] in ("-lc", "-c") else shlex.join(command)
+    return command if isinstance(command, str) else ""
 
 
 def bash_candidates(command: str, cwd: str) -> list[str]:
@@ -179,10 +191,24 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
                 w.startswith("--in-place") or SED_INPLACE.match(w) for w in words[1:])):
             continue
         prev = ""
+        need_pattern, skip_next = first in PATTERN_CMDS, False
         for w in words[1:]:
             target, prev = prev in (">", ">>") or w.startswith(">"), w
             if target:  # a redirect target is written, not read
                 continue
+            if skip_next:  # the value of -e/-f/--regexp is a pattern or script file, not a read path
+                skip_next = False
+                continue
+            if need_pattern or first in PATTERN_CMDS:
+                if w.startswith("-") and w != "-":
+                    if w in ("--regexp", "--file") or PATTERN_OPT.match(w):
+                        skip_next, need_pattern = True, False
+                    elif w.startswith(("--regexp=", "--file=")):
+                        need_pattern = False
+                    continue
+                if need_pattern:  # the first non-option argument is the pattern/script
+                    need_pattern = False
+                    continue
             has_glob = any(c in w for c in GLOB_CHARS)
             if not has_glob and not w.endswith((".yaml", ".yml")):
                 continue
@@ -261,6 +287,7 @@ def scan_transcript(tp: str):
             continue
         if not isinstance(e, dict):
             continue
+        results.extend(t for t in _strings(e) if GENERIC_HEAD in t[:300])
         p = e.get("payload")
         if isinstance(p, dict):
             # shortcut: only code-mode `exec` → exec_command records were observed (codex-cli 0.163.0);
@@ -337,6 +364,12 @@ def unseen_seeds(seeds: list[str], payload: dict, extra_calls=(), skip_denied: b
             and not (skip_denied and any(s in r for r in results))]
 
 
+def _generic_blocked(payload: dict) -> bool:
+    """The unidentified-Seed block was already given once in this transcript."""
+    scanned = scan_transcript(transcript_path(payload))
+    return bool(scanned) and any(GENERIC_HEAD in r[:300] for r in scanned[1])
+
+
 def _metadata_cmds(seeds: list[str]) -> str:
     script = f"{PLUGIN_ROOT}/scripts/seed-relations.py"
     return " ; ".join(f'python3 "{script}" metadata {shlex.quote(s)} --json' for s in seeds)
@@ -349,7 +382,7 @@ def decide(payload: dict) -> str:
         fp = ti.get("file_path") or ""
         cands = [fp if os.path.isabs(fp) or not fp else os.path.join(payload.get("cwd") or os.getcwd(), fp)]
     elif tool == "Bash":
-        cands = bash_candidates(ti.get("command") or "", payload.get("cwd") or "")
+        cands = bash_candidates(_command_str(ti.get("command")), payload.get("cwd") or "")
     else:
         return ""
     seeds = _seed_files(cands)
@@ -387,7 +420,7 @@ def decide_post(payload: dict) -> str:
     out = "\n".join(_strings(payload.get("tool_response")))
     if not has_seed_body(out):
         return ""  # fast path: no signature
-    command = (payload.get("tool_input") or {}).get("command") or ""
+    command = _command_str((payload.get("tool_input") or {}).get("command"))
     cwd = payload.get("cwd") or os.getcwd()
     seeds = _identify_seeds(command, out, cwd)
     if not seeds and TEMPLATE_HEAD in out:
@@ -397,8 +430,11 @@ def decide_post(payload: dict) -> str:
     unseen = unseen_seeds(seeds, payload, extra, skip_denied=False)
     if unseen is None:
         return ""
-    if not seeds:
-        return (f"{POST_HEAD}: 출력에 Seed 본문이 있는데 어느 Seed인지 확인하지 못했어요. 그 본문의 항목을 하나도 적용하지 말고, "
+    # More Seed bodies than identified Seeds: some body is unidentified. Block that generically, but once
+    # per transcript, so non-Seed YAML that merely has these keys (fixtures, diffs) cannot loop forever.
+    bodies = len(SEED_KEYS[1].findall(out))
+    if (not seeds or bodies > len(seeds)) and not _generic_blocked(payload):
+        return (f"{GENERIC_HEAD} 확인하지 못했어요. 그 본문의 항목을 하나도 적용하지 말고, "
                 f'출력에 나온 Seed마다 python3 "{PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json 을 먼저 실행해요 (seed-lifecycle.md §발견과 소비)')
     if not unseen:
         return ""
@@ -577,6 +613,29 @@ def _self_test() -> int:
         check("bash glob matching only non-seed", decide(bash("cat docs/specs/p*", t_none)), False)
         check("bash glob matching nothing", decide(bash("cat docs/nothing/*", t_none)), False)
         check("bash glob with a quoted pattern arg", decide(bash("grep 'specs/*' README.md", t_none)), False)
+        sib = os.path.realpath(tempfile.mkdtemp(dir=os.path.dirname(d)))
+        try:
+            os.makedirs(f"{sib}/docs/specs")
+            Path(f"{sib}/docs/specs/s.yaml").write_text("skill: build-spec\ngoal: s\n")
+            check("bash glob outside the working directory", decide(bash(f"cat {sib}/docs/specs/*", t_none)), True)
+            check("bash ** recursive glob", decide(bash(f"cat {sib}/**/s.yaml", t_none)), True)
+            check("bash glob of the root is skipped", decide(bash("cat /*", t_none)), False)
+            check("bash glob of the home dir is skipped", decide(bash("cat ~/*", t_none)), False)
+        finally:
+            shutil.rmtree(sib, ignore_errors=True)
+        many = f"{d}/many"
+        os.makedirs(many)
+        for i in range(GLOB_CAP + 5):
+            Path(f"{many}/n{i:04d}.txt").write_text("x\n")
+        Path(f"{many}/zz.yaml").write_text("skill: build-spec\ngoal: z\n")
+        check("bash glob cap counts only yaml files", decide(bash("cat many/*", t_none)), True)
+        check("bash grep -rn pattern is not expanded", decide(bash("grep -rn 'specs/*' .", t_none)), False)
+        check("bash rg pattern with a class is not expanded", decide(bash("rg '[a-z]+' docs/nothing", t_none)), False)
+        check("bash grep -e pattern is not expanded, file read", decide(bash("grep -e 'specs/*' docs/specs/x.yaml", t_none)), True)
+        check("bash grep -e pattern alone is no read", decide(bash("grep -e 'docs/specs/*' README.md", t_none)), False)
+        check("bash grep file arg after pattern still reads", decide(bash("grep goal docs/specs/*.yaml", t_none)), True)
+        check("codex argv command", decide({"tool_name": "Bash", "tool_input": {"command": ["bash", "-lc", "cat docs/specs/x.yaml"]},
+                                           "transcript_path": t_none, "cwd": d}), True)
         check("subagent, metadata only in parent", decide({**read(seed, t_main), "agent_id": "a1"}), True)
         check("subagent, metadata in subagent", decide({**read(seed, t_main), "agent_id": "a2"}), False)
         check("main, metadata in main", decide(read(seed, t_main)), False)
@@ -635,6 +694,18 @@ def _self_test() -> int:
         check("post, other tool", decide_post({**post(subst, body, t_none), "tool_name": "Read"}), False)
         check("post, codex rollout with metadata", decide_post(post(subst, pref, c_meta)), False)
         check("post, codex rollout without metadata", decide_post(post(subst, body, c_none)), True)
+        t_gen = f"{d}/t/generic.jsonl"
+        tr(t_gen, results=[f"{POST_HEAD}: 출력에 Seed 본문이 있는데 어느 Seed인지 확인하지 못했어요. 그 본문의"])
+        check("post, unidentified block only once per transcript", decide_post(post("cat $(ls)", stranger, t_gen)), False)
+        two = pref + "other.yaml:3:success_criteria:\n"
+        check("post, more bodies than identified seeds blocks despite metadata", decide_post(post(subst, two, t_meta)), True)
+        t_genmeta = f"{d}/t/genmeta.jsonl"
+        tr(t_genmeta, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'], outputs=[f'{{"path": "{seed}"}}'],
+           results=[f"{POST_HEAD}: 출력에 Seed 본문이 있는데 어느 Seed인지 확인하지 못했어요. 그 본문의"])
+        check("post, partial identification blocks only once", decide_post(post(subst, two, t_genmeta)), False)
+        r = decide_post(post(subst, two, t_gen))
+        check("post, generic given once, identified unseen still gets the specific block", "<seed>" not in r and seed in r, True)
+        check("post, one body per identified seed is not generic", "<seed>" in decide_post(post(subst, pref, t_none)), False)
         check("post, no tool_response", decide_post({"tool_name": "Bash", "tool_input": {"command": "ls"}}), False)
 
     import subprocess
