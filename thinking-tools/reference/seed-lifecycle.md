@@ -186,7 +186,7 @@ Seed가 아니라서 조용히 건너뛰어요. 현황판은 이 출력을 읽�
 파일 내용을 읽어 상태를 알아낼 수 있어도 순서를 바꾸지 않아요. 명령 실패는 상태 미확인과
 구별해서 보고하고 본문 읽기·적용을 보류해요. 정적 문구 검사는 실제 실행 증거가 아니며,
 실행 검증은 metadata 도구 호출이 본문 호출보다 앞서는지와 승인 전 파일 보존을 확인해요.
-Claude Code는 `hooks/seed-read-guard.sh`가 같은 기록에서 metadata 없이 Seed 본문을 Read/cat하는 호출을 Seed당 한 번 거부해요. Codex는 같은 가드를 플러그인 PreToolUse(Bash) 훅(`hooks/codex-hooks.json`)으로 실행하되, 사용자가 Codex 훅 검토에서 신뢰해야 돌아요. Bash 판정은 휴리스틱이라 모든 읽기를 막지 않아요.
+Claude Code는 `hooks/seed-read-guard.sh`가 같은 기록에서 metadata 없이 Seed 본문을 Read/cat하는 호출을 Seed당 한 번 거부해요. Codex는 같은 가드를 플러그인 PreToolUse(Bash) 훅(`hooks/codex-hooks.json`)으로 실행하되, 사용자가 Codex 훅 검토에서 신뢰해야 돌아요. Bash 판정은 휴리스틱이라 모든 읽기를 막지 않아요. 명령 치환(`cat $(git ls-files docs)`)처럼 명령문에 Seed가 드러나지 않는 읽기는 `hooks/seed-read-output-guard.sh`(PostToolUse Bash, Claude·Codex)가 출력에서 Seed 본문 서명(`lifecycle:`·`success_criteria:` 최상위 키 또는 AMENDMENT CONTRACT 머리말)을 찾아, 그 Seed의 metadata 기록이 없거나 Seed를 식별하지 못하면 본문을 적용하지 말고 metadata를 먼저 실행하라는 block 피드백을 줘요. 이미 실행된 읽기를 되돌리지는 못하고, 이 판정도 휴리스틱이에요.
 
 next-goal은 `eligibility`를 먼저 적용한 후 코드 근거로 남은 일을 판단해요. unknown/paused/
 closed와 철회·영향 불명 항목은 자동 후보에서 제외해요. active Seed라도 unknown·paused·closed
