@@ -29,7 +29,8 @@ Plain expansion or structuring routes to `doc-concretize` or ordinary editing.
 
 ## Language Behavior and Options
 
-Output matches the input language (mixed: dominant language). Options: "전부 보여줘"/all,
+Write user-facing output in Korean; if the user writes in English, answer in English.
+Exception: produced alternatives and text use the user-specified language, else the input's (mixed: dominant). Options: "전부 보여줘"/all,
 "제일 나은 것"/best, "N개 만들어줘" (clamped to 3-10 with a notice; non-numeric ignored; default 5).
 
 ## Invocation Detection

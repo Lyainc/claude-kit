@@ -31,8 +31,9 @@ uses ordinary editing, not this skill's restricted fix mode.
 
 ## Language Behavior
 
-- **Output**: matches the document's original language
-- **Report language**: Match dominant language of document
+Write user-facing output in Korean; if the user writes in English, answer in English.
+Exception: the polished document keeps the user-specified language, else its original language
+(mixed: dominant language).
 
 ## Prerequisites
 

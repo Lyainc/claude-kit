@@ -5,7 +5,7 @@ model: inherit
 allowed-tools: Read Edit Write Bash Grep AskUserQuestion
 ---
 
-**Language:** Korean (English if the user writes it); artifacts per reference §0 (binding).
+Write user-facing output in Korean; if the user writes in English, answer in English. Artifacts: reference §0 (binding).
 
 ## Codex Portability
 
@@ -15,8 +15,7 @@ target and its parent first; create a missing one only after the existing one-cl
 and stop unmodified if unreadable or conflicting.
 
 - SOFT reminder: inspect `$CODEX_ROOT/AGENTS.md` and its declared source/catalogue. A work-rule
-  updates the existing shared catalogue entry when available (global file stays a thin pointer, no
-  duplicate rule prose); other reminders edit the declared managed source plus its installed copy
+  updates the existing shared catalogue entry when available (global file stays a thin pointer); other reminders edit the declared managed source plus its installed copy
   in the same exact-diff approval. Preserve symlinks; unclear ownership or sync: stop; edit an
   unmanaged file only with no catalogue.
 - Procedure: only `$HOME/.agents/skills/<name>/SKILL.md` (§5).

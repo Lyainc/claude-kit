@@ -24,17 +24,19 @@ TYPOGRAPHY (en-dash `–`, em-dash `—`, arrows `↔` `→`, circled digits `�
 "ASCII-only" rule would be FP-laden and would flag sanctioned typography. We therefore
 flag ONLY Hangul codepoints, which is the precise signal the policy mandates against.
 
-SOFT REMAINDER (deferred to RULES.md, NOT enforced here): body-language — the policy's
-"Skill instructions / Agent instructions: English for LLM-optimized parsing" for
-SKILL.md and agents/*.md BODIES — is a GRAY ZONE. Those bodies contain sanctioned Korean
-zones (Korean I/O directives, trigger examples, Korean template content). Per claude-kit-work-rules/constraint-6, a check
-there would be either FP-laden or require taste-laden zone carve-outs, so body-language
-stays a SOFT rule documented in RULES.md, not a hard gate in this script.
+BODY CONTRACT (plugin-language-instructions, #835): the bodies (frontmatter excluded) of
+`skills/*/SKILL.md` and `agents/*.md` in feedback-loop, thinking-tools, obsidian-vault-manager
+and vault-bridge carry the user-facing language instruction exactly once, as the sentence
+`Write user-facing output in Korean; if the user writes in English, answer in English.`
+This script pins only three narrow, deterministic facts per body: that sentence appears
+exactly once, the phrase "English for LLM" is absent, and "MUST be in Korean" is absent.
+Sanctioned Korean zones (trigger examples, Korean templates, artifact-language exceptions)
+stay unchecked, so this is not a general body-language gate.
 
 Usage:
     python3 scripts/check-language-policy.py [--root DIR] [--json] [--self-test]
 
-Exit codes: 0 = clean (no Hangul in mandated metadata), 1 = violations found,
+Exit codes: 0 = clean (no Hangul in mandated metadata; body contract held), 1 = violations found,
             2 = usage / unreadable input.
 """
 import argparse
@@ -47,6 +49,19 @@ import sys
 # Fields on each plugin (in BOTH plugin.json and the marketplace entry) that the
 # Language Policy mandates as English. `description` is a string; `keywords` is a list.
 MANDATED_FIELDS = ("description", "keywords")
+
+# Plugins whose skill/agent BODIES must carry the language contract exactly once.
+BODY_PLUGINS = ("feedback-loop", "thinking-tools", "obsidian-vault-manager", "vault-bridge")
+BODY_GLOBS = (("skills", "SKILL.md"), ("agents", None))  # (subdir, fixed filename | None = *.md)
+
+CONTRACT_SENTENCE = (
+    "Write user-facing output in Korean; if the user writes in English, answer in English."
+)
+# phrases that must NOT appear in a target body: (label, compiled regex)
+BODY_FORBIDDEN = (
+    ("English for LLM", re.compile(r"English for LLM")),
+    ("MUST be in Korean", re.compile(r"MUST be in Korean")),
+)
 
 # Hangul codepoint ranges (syllables + all Jamo blocks). A single regex character class.
 _HANGUL = re.compile(
@@ -103,6 +118,69 @@ def scan_fields(obj, source_label, plugin_name):
                 "hangul": hangul,
             })
     return violations
+
+
+def _strip_frontmatter(text):
+    """Return the body of a markdown file, dropping a leading `---` ... `---` block."""
+    lines = text.split("\n")
+    if lines and lines[0].strip() == "---":
+        for i in range(1, len(lines)):
+            if lines[i].strip() == "---":
+                return "\n".join(lines[i + 1:])
+    return text
+
+
+def _iter_body_files(root):
+    """Yield (plugin, repo-relative path) for each target skill/agent file that exists."""
+    for plugin in BODY_PLUGINS:
+        pdir = os.path.join(root, plugin)
+        skills_dir = os.path.join(pdir, "skills")
+        if os.path.isdir(skills_dir):
+            for name in sorted(os.listdir(skills_dir)):
+                f = os.path.join(skills_dir, name, "SKILL.md")
+                if os.path.isfile(f):
+                    yield plugin, os.path.relpath(f, root)
+        agents_dir = os.path.join(pdir, "agents")
+        if os.path.isdir(agents_dir):
+            for name in sorted(os.listdir(agents_dir)):
+                f = os.path.join(agents_dir, name)
+                if name.endswith(".md") and os.path.isfile(f):
+                    yield plugin, os.path.relpath(f, root)
+
+
+def scan_body(text, rel, plugin):
+    """Return body-contract violation dicts for one skill/agent file's text."""
+    body = _strip_frontmatter(text)
+    violations = []
+    count = body.count(CONTRACT_SENTENCE)
+    if count != 1:
+        violations.append({"source": rel, "plugin": plugin, "body": "contract-sentence",
+                           "detail": f"appears {count} time(s), expected exactly 1"})
+    for label, pattern in BODY_FORBIDDEN:
+        if pattern.search(body):
+            violations.append({"source": rel, "plugin": plugin, "body": "forbidden-phrase",
+                               "detail": f'contains "{label}"'})
+    return violations
+
+
+def check_bodies(root, report):
+    """Scan every target body under `root`; return True when all are clean."""
+    ok = True
+    for plugin, rel in _iter_body_files(root):
+        try:
+            with open(os.path.join(root, rel), encoding="utf-8") as fh:
+                text = fh.read()
+        except OSError as exc:
+            report["violations"].append({"fatal": f"[{plugin}] {rel} unreadable: {exc}"})
+            report["fatal"] = True
+            ok = False
+            continue
+        report.setdefault("bodies_checked", []).append(rel)
+        found = scan_body(text, rel, plugin)
+        if found:
+            report["violations"].extend(found)
+            ok = False
+    return ok
 
 
 def check_language_policy(root):
@@ -164,6 +242,9 @@ def check_language_policy(root):
         if pv:
             report["violations"].extend(pv)
             ok = False
+
+    if not check_bodies(root, report):
+        ok = False
 
     return ok, report
 
@@ -229,6 +310,64 @@ def run_self_test():
         if ok:
             failures.append("  jamo desc: expected ok=False (compatibility jamo), got ok=True")
 
+    # BODY CONTRACT fixtures: a target body must carry the contract sentence exactly once.
+    def _write_body(tmp, rel, text):
+        path = os.path.join(tmp, *rel.split("/"))
+        os.makedirs(os.path.dirname(path), exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(text)
+
+    def _body_run(files):
+        with tempfile.TemporaryDirectory() as tmp:
+            _build(tmp, "Plugin", ["skills"], "Plugin", ["skills"])
+            for rel, text in files.items():
+                _write_body(tmp, rel, text)
+            return check_language_policy(tmp)
+
+    ok_skill = ("---\nname: s\ndescription: \"English for LLM MUST be in Korean (frontmatter ignored)\"\n---\n\n"
+                + CONTRACT_SENTENCE + " Artifacts keep their own language.\n")
+    ok_agent = "---\nname: a\n---\n\n" + CONTRACT_SENTENCE + "\n"
+
+    # CLEAN: contract once in a skill and an agent (frontmatter phrases ignored). FP=0.
+    ok, report = _body_run({"thinking-tools/skills/s/SKILL.md": ok_skill,
+                            "vault-bridge/agents/a.md": ok_agent})
+    if not ok or report["violations"]:
+        failures.append(f"  clean bodies: expected ok=True, got {report['violations']}")
+    if len(report.get("bodies_checked", [])) != 2:
+        failures.append(f"  clean bodies: expected 2 bodies checked, got {report.get('bodies_checked')}")
+
+    # CLEAN: files outside the four plugins' skills/agents trees are not scanned.
+    ok, report = _body_run({"other-plugin/skills/s/SKILL.md": "no contract here\n",
+                            "thinking-tools/skills/s/reference.md": "no contract here\n"})
+    if not ok or report["violations"]:
+        failures.append(f"  out-of-scope files: expected ok=True, got {report['violations']}")
+
+    def _flagged(report, kind):
+        return any(v.get("body") == kind for v in report["violations"])
+
+    # VIOLATION: contract sentence missing.
+    ok, report = _body_run({"feedback-loop/skills/s/SKILL.md": "---\nname: s\n---\n\nNo language rule.\n"})
+    if ok or not _flagged(report, "contract-sentence"):
+        failures.append(f"  missing contract: expected flagged, got ok={ok} {report['violations']}")
+
+    # VIOLATION: contract sentence repeated.
+    ok, report = _body_run({"obsidian-vault-manager/agents/a.md":
+                            "---\nname: a\n---\n\n" + CONTRACT_SENTENCE + "\n\n" + CONTRACT_SENTENCE + "\n"})
+    if ok or not _flagged(report, "contract-sentence"):
+        failures.append(f"  duplicated contract: expected flagged, got ok={ok} {report['violations']}")
+
+    # VIOLATION: "English for LLM" in the body.
+    ok, report = _body_run({"thinking-tools/agents/a.md":
+                            "---\nname: a\n---\n\n" + CONTRACT_SENTENCE + "\nInstructions are English for LLM parsing.\n"})
+    if ok or not _flagged(report, "forbidden-phrase"):
+        failures.append(f"  'English for LLM': expected flagged, got ok={ok} {report['violations']}")
+
+    # VIOLATION: "MUST be in Korean" in the body.
+    ok, report = _body_run({"vault-bridge/skills/s/SKILL.md":
+                            "---\nname: s\n---\n\n" + CONTRACT_SENTENCE + "\nReplies MUST be in Korean.\n"})
+    if ok or not _flagged(report, "forbidden-phrase"):
+        failures.append(f"  'MUST be in Korean': expected flagged, got ok={ok} {report['violations']}")
+
     # Missing marketplace.json is fatal (exit 2).
     with tempfile.TemporaryDirectory() as tmp:
         ok, report = check_language_policy(tmp)
@@ -266,20 +405,29 @@ def main(argv=None):
                 print(f"ERROR: {v['fatal']}")
     else:
         n = len(report["checked"])
+        b = len(report.get("bodies_checked", []))
+        meta_v = [v for v in report["violations"] if "hangul" in v]
+        body_v = [v for v in report["violations"] if "body" in v]
         if ok:
             print(f"OK: language-policy clean — {n} metadata source(s) checked, "
-                  "no Hangul in marketplace-facing description/keywords")
+                  "no Hangul in marketplace-facing description/keywords; "
+                  f"{b} skill/agent body(ies) carry the language contract once")
         else:
-            print("VIOLATION: Hangul found in English-mandated marketplace metadata:")
-            for v in report["violations"]:
-                if "fatal" in v:
-                    continue
-                chars = " ".join(v["hangul"])
-                print(f"  - {v['source']} [{v['plugin']}] {v['field']}: contains Hangul ({chars})")
-            print("Fix: keep description/keywords ASCII-English in BOTH "
-                  ".claude-plugin/plugin.json and .claude-plugin/marketplace.json "
-                  "(CLAUDE.md 'Language Policy' — README descriptions: English by default). "
-                  "Typographic symbols (–, →, ⑤) are allowed; Hangul is not.")
+            if meta_v:
+                print("VIOLATION: Hangul found in English-mandated marketplace metadata:")
+                for v in meta_v:
+                    chars = " ".join(v["hangul"])
+                    print(f"  - {v['source']} [{v['plugin']}] {v['field']}: contains Hangul ({chars})")
+                print("Fix: keep description/keywords ASCII-English in BOTH "
+                      ".claude-plugin/plugin.json and .claude-plugin/marketplace.json "
+                      "(CLAUDE.md 'Language Policy' — README descriptions: English by default). "
+                      "Typographic symbols (–, →, ⑤) are allowed; Hangul is not.")
+            if body_v:
+                print("VIOLATION: skill/agent body breaks the language contract:")
+                for v in body_v:
+                    print(f"  - {v['source']} [{v['plugin']}] {v['detail']}")
+                print(f'Fix: state "{CONTRACT_SENTENCE}" exactly once in the body, '
+                      'and drop "English for LLM" / "MUST be in Korean" wording.')
 
     if report.get("fatal"):
         return 2

@@ -24,7 +24,7 @@ first. Its Codex rules override Claude-only mechanics below; Claude Code ignores
 
 ## Overview
 
-Output Korean (English if the user writes English). Modes (composable): **자동 방어**, **격리 실행**, **요약 출력** (verdict-only), **빠른 모드** ("빠르게", "quick": skip Steelman, 2 attack rounds per claim).
+Write user-facing output in Korean; if the user writes in English, answer in English. Modes (composable): **자동 방어**, **격리 실행**, **요약 출력** (verdict-only), **빠른 모드** ("빠르게", "quick": skip Steelman, 2 attack rounds per claim).
 
 ## Core Workflow
 

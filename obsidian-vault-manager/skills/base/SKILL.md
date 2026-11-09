@@ -4,7 +4,7 @@ description: "Generate a new, non-destructive Obsidian Bases (.base) view from b
 allowed-tools: Read Write Bash Glob AskUserQuestion
 ---
 
-**User language:** user-facing output (responses, generated content, file contents) is in Korean by default, or in English when the user writes in English.
+Write user-facing output in Korean; if the user writes in English, answer in English.
 
 ## Codex Portability
 

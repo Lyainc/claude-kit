@@ -23,8 +23,10 @@ Transform abstract concepts into concrete, well-structured documentation through
 
 ## Language Behavior
 
-Output matches the input language (mixed input follows the dominant language); if the user
-provides a reference document, match its language and tone.
+Write user-facing output in Korean; if the user writes in English, answer in English.
+Exception: the document you write follows the user-specified language, else the input's language
+(mixed input: the dominant language); if the user provides a reference document, match its language
+and tone.
 
 ## Prerequisites
 

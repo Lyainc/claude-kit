@@ -4,14 +4,14 @@ description: "Compile domain knowledge learned during work into a ~/vault/wiki/ 
 allowed-tools: Read Write Bash AskUserQuestion
 ---
 
-**User language:** user-facing output (responses, AskUserQuestion prompts, generated content, file contents) is in Korean by default, or in English when the user writes in English.
+Write user-facing output in Korean; if the user writes in English, answer in English.
 
 ## Codex Portability
 
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
-Compile the domain knowledge in `$ARGUMENTS` into a page under `~/vault/wiki/` (A layer, v5). Browsing is OVM `/base`, not this skill. Rationale and edge cases: [reference.md](reference.md), read at the section named in each phase.
+Compile the domain knowledge in `$ARGUMENTS` into a page under `~/vault/wiki/`. Browsing is OVM `/base`, not this skill. Rationale and edge cases: [reference.md](reference.md), read at the section named in each phase.
 
 **This is a gated, explicit compile action — never always-on.** Run inline in the main context — do NOT fork to a subagent (`pre-write-guard.sh` denies subagent vault writes per the Write Role Contract).
 
@@ -23,7 +23,7 @@ Pipeline: SYNTHESIZE → U7 ROUTE → DEDUP → PLAN → WRITE. Do not collapse 
 
 Turn `$ARGUMENTS` (plus session context) into self-contained, reusable **domain knowledge** a future model can act on — not a transcript dump or question. If `$ARGUMENTS` is empty or only a question, use AskUserQuestion to ask what is worth saving — do not invent content.
 
-## Phase 2 — U7 ROUTE (v5 §10)
+## Phase 2 — U7 ROUTE
 
 Destinations: GitHub issue / wiki / AGENTS.md. Redirect wording and mixed input: `reference.md` §Phase 2.
 

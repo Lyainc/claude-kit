@@ -5,7 +5,7 @@ allowed-tools: Write Bash Glob Read
 model: haiku  # kept: mechanical write only, no LLM judgment — one skill covers both raw captures and authored notes
 ---
 
-**User language:** user-facing output (responses, generated content, file contents) is in Korean by default, or in English when the user writes in English.
+Write user-facing output in Korean; if the user writes in English, answer in English.
 
 ## Codex Portability
 
@@ -31,7 +31,7 @@ The split is **authorship, not quality** (`reference.md` §Destination notes).
 | `--type discussion {topic}` — a thinking-tools session artifact (expert-panel SUMMARY/UNRESOLVED, adversarial-review result, unknown-discovery report) | `{vault_root}/wiki/` | `discussion` | `{slug}.md` (no date prefix) |
 
 - `{slug}`: 2–4 kebab-case words from the topic or title. Unsure? Text that would survive unchanged without you is source → `sources/`.
-- `--type decision` is for non-repo-bound decisions only. A **repo-bound** design decision belongs in a GitHub issue (v5 §10) — say so and stop rather than writing one.
+- `--type decision` is for non-repo-bound decisions only. A **repo-bound** design decision belongs in a GitHub issue — say so and stop rather than writing one.
 - `--type discussion` is the one case that writes to `wiki/`; no date prefix in the filename (the date lives only in `created:`).
 
 ## Frontmatter
@@ -47,8 +47,8 @@ provenance: "{where this came from — URL, session topic, conversation, book, m
 ---
 ```
 
-- **`provenance` is required on every file** (v5 §5); never write a file without it. If the origin is just "this conversation", say that.
-- **No `status:` field**; do not offer to promote anything (v5 §5/§6).
+- **`provenance` is required on every file**; never write a file without it. If the origin is just "this conversation", say that.
+- **No `status:` field**; do not offer to promote anything.
 - URL saves add `url:` and, when an H1 was extracted, `title:` (see below). Quote both values.
 - `type: discussion` keeps rejected alternatives and their assumptions in the body; link related `wiki/` pages with `[[wikilinks]]`. More: `reference.md` §Frontmatter notes.
 

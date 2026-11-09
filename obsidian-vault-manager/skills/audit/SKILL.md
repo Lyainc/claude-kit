@@ -4,7 +4,7 @@ description: "Audit an Obsidian vault for structural, metadata, link, placement,
 allowed-tools: Read Edit Bash AskUserQuestion
 ---
 
-**User language:** Korean by default, English if the user writes English (all user-facing output).
+Write user-facing output in Korean; if the user writes in English, answer in English.
 
 ## Codex Portability
 

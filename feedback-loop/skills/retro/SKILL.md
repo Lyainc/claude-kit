@@ -5,7 +5,7 @@ model: inherit
 allowed-tools: Bash AskUserQuestion Read
 ---
 
-**User language:** user-facing output (status lines, AskUserQuestion prompts, confirmation messages, reports) is in Korean by default, or in English when the user writes in English.
+Write user-facing output in Korean; if the user writes in English, answer in English.
 
 ## Codex Portability
 
@@ -39,7 +39,7 @@ Repository design documents refer here; they are not required runtime inputs.
   output) and *invokes* leaf capabilities via `gh`. It NEVER modifies
   leaf-plugin code and nothing in a leaf depends back on `retro`.
 - **User-confirmed gate (silent forbidden)**: issue filing is proposed as a
-  candidate and applied ONLY on explicit user confirmation.
+  candidate (AskUserQuestion) and applied ONLY on explicit user confirmation.
 - **Read-only scope**: zero vault writes and zero rule-file edits; the only applied
   output is a GitHub issue. Route other requests directly to their owning skill.
 
