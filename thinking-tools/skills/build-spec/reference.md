@@ -502,8 +502,8 @@ context — rationale in `reference.md` §2.
 Runs **exactly once**, after the gate opens and before the Seed is written, never before it. It looks at dimensions nobody asked about, which the clarity gate never scores (`reference.md` §10).
 
 **Skip condition — UD handoff** (`reference.md` §6): `<feedback>` is an `unknown-discovery` Discovery
-Report (`skill: unknown-discovery`, or user-named) → skip, record `blindspot_pass: skipped`
-in STATE (`"already covered by prior unknown-discovery pass"`), Phase 3.
+Report (`skill: unknown-discovery`, or user-named) → skip, record `blindspot_pass: skipped: covered by UD report`
+in STATE, Phase 3.
 
 - One `Agent` call. Pass `{the drafted Seed fields + the Phase 0 backlog scan result}` and ask for **at
   most 3** findings the interview never covered, each stated as a falsifiable question against the spec
@@ -513,8 +513,8 @@ in STATE (`"already covered by prior unknown-discovery pass"`), Phase 3.
   the Seed's `blindspots:` list; if the user answers one inline, fold that answer into the matching
   constraint or success criterion instead. No new interview round either way.
 - STATE records `blindspot_pass: {done|pending|skipped: reason}` — keep `pending` until the user's actual
-  keep/dismiss answer arrives, then `done`; `skipped` when the `Agent` call fails (skip silently
-  in that case). Tool acceptance, empty replies and elapsed time never complete this step.
+  keep/dismiss answer arrives, then `done`; `skipped: no Agent` when the `Agent` call fails (no user
+  notice in that case). Tool acceptance, empty replies and elapsed time never complete this step.
   A subagent that returns only
   idle notifications and no final text after one re-request counts as unavailable (#647).
 
