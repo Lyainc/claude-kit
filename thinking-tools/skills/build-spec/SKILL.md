@@ -91,10 +91,10 @@ Output with only idle notifications and no final text after one re-request → u
 ### Phase 2.5: Blind-spot Pass
 
 **Once**, after gate opens, before Seed. **Skip** for an `unknown-discovery` Discovery Report
-in `<feedback>` (§6): `blindspot_pass: skipped`. One `Agent` call (binding input/tagging: §11.6)
+in `<feedback>` (§6): `skipped: covered by UD report`. One `Agent` call (binding input/tagging: §11.6)
 returns ≤3 falsifiable missed findings. Present all in **one** `AskUserQuestion` (multiSelect):
 keep/dismiss. Kept → `blindspots:`; inline answers → matching constraint/criterion; no new round.
-`blindspot_pass`: `pending` → `done`; failed/unavailable call → `skipped` silently.
+`pending` → `done`; failed/unavailable call → `skipped: no Agent`, no notice.
 Output with only idle notifications and no final text after one re-request → unavailable.
 
 ### Phase 3: Seed Emit
