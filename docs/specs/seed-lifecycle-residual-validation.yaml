@@ -36,14 +36,57 @@ domain: "tech"
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: "active"
-  outcome: null
-  reason: "사용자가 열린 이슈의 유효한 잔여 요구를 새 독립 active Seed로 정리하는 범위를 확정했다. 미충족 요구의 명세이며 현재 저작은 기능 구현·완료·설치 증거가 아니다."
-  approved_by: "2026-10-11 실제 사용자 답변: 수정한 계획대로 8개 Seed와 3개 이슈 작업으로 확정 (추천). 질문에서 #835·#814 active, #741·#824·#812·#769·#708·#770 paused, 새 8개는 독립 Seed이며 부분 선행 조건은 제약·완료조건으로 표현한다고 명시했다."
+  state: closed
+  outcome: completed
+  reason: "철회하지 않은 constraint 6개와 success_criteria 4개가 지정 커밋에서 모두 충족됐다."
+  approved_by: "2026-11-09 사용자 확인: 항목별 근거와 실측 검토 후 completed 전환 승인"
   evidence:
-    commit: null
-    items: []
+    commit: "b476edc72152d8a20cde8af70c30bb8cb0cda37f"
+    items:
+      - id: constraint-1
+        refs:
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:290"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:429"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:444"
+      - id: constraint-2
+        refs:
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:574"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:667"
+      - id: constraint-3
+        refs:
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:542"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:618"
+          - "docs/validation-active-seed-closure-2026-11-09.md §4 seed-lifecycle-residual-validation (acceptance-2)"
+      - id: constraint-4
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §공통 조건"
+          - "docs/validation-seed-lifecycle-approved-writes-2026-10-20.md"
+      - id: constraint-5
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §4 seed-lifecycle-residual-validation (acceptance-4)"
+      - id: constraint-6
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §4 seed-lifecycle-residual-validation (acceptance-2)"
+      - id: acceptance-1
+        refs:
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:299"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:574"
+          - "thinking-tools/scripts/test/test-seed-lifecycle.py:667"
+          - "python3 thinking-tools/scripts/test/test-seed-lifecycle.py: exit 0, all 39 fixtures passed"
+      - id: acceptance-2
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §4 seed-lifecycle-residual-validation (acceptance-2)"
+          - "thinking-tools/hooks/seed-read-guard.sh:42"
+          - "thinking-tools/hooks/seed-read-output-guard.sh:1-9"
+          - "python3 thinking-tools/scripts/seed-read-check.py --self-test: exit 0, all 121 cases passed"
+      - id: acceptance-3
+        refs:
+          - "docs/validation-seed-lifecycle-approved-writes-2026-10-20.md"
+      - id: acceptance-4
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §4 seed-lifecycle-residual-validation (acceptance-4)"
   withdrawn: []
+
 goal:
   statement: "독립 전환·재연결의 이전 부모 출처 보존과 현재 소스의 승인·소비 경계를 검증해 Seed 생애주기의 남은 보장을 완성한다."
   clarity_score: 0.9
