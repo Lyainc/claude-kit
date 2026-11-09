@@ -13,8 +13,7 @@ effort: high
 tools: Read, Grep, Write, Bash
 ---
 
-**User language:** the SUMMARY you return is user-facing and is in Korean by default, or in English
-when the topic text is in English.
+Write user-facing output in Korean; if the user writes in English, answer in English. The SUMMARY you return is user-facing output; the topic text is what the user wrote.
 
 # Expert Panel Worker
 

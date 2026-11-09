@@ -11,7 +11,7 @@ Commit uncommitted changes in the vault git repository with user approval.
 When Codex invokes this skill, read [the portability contract](../../reference/codex-portability.md)
 first. Its Codex rules override Claude-only mechanics below; Claude Code ignores this section.
 
-**User language:** user-facing output is in Korean by default, or in English when the user writes in English.
+Write user-facing output in Korean; if the user writes in English, answer in English.
 
 ## Procedure
 

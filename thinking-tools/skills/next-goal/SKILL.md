@@ -11,7 +11,7 @@ allowed-tools: Read Bash
 
 # Next Goal
 
-Output Korean (English for English input). Read-only: no file/issue/PR/commit/push/merge.
+Write user-facing output in Korean; if the user writes in English, answer in English. Read-only: no file/issue/PR/commit/push/merge.
 
 First Seed call, before `walk`/`read`: Bash:
 `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json`
@@ -66,7 +66,7 @@ judgment, never the path). TRACE retains gaps without a Seed; no pick distinguis
 absence, unevaluated scope and missing handoff. On `[근거 변경됨 ...]`, re-walk and re-judge.
 
 **User switch**: an eligible candidate the user names becomes the pick; stale id → re-walk;
-render again, rewrite the condition. Read `reference.md` §User switch (binding). A pick change never starts work, edits an issue, commits, or pushes.
+render again, rewrite the condition. Read `reference.md` §User switch (binding).
 
 ## Phase 2 — Condition
 

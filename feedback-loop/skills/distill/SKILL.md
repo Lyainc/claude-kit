@@ -5,8 +5,7 @@ model: inherit
 allowed-tools: Read Bash Grep AskUserQuestion
 ---
 
-**User language:** user-facing output (status lines, AskUserQuestion prompts,
-confirmations, reports) is in Korean by default, or in English when the user writes in English.
+Write user-facing output in Korean; if the user writes in English, answer in English.
 
 ## Codex Portability
 

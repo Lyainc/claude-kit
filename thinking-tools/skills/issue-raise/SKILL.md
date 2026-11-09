@@ -154,5 +154,4 @@ scope. Form-scanner, template-drift and regex-diff limits: [reference.md](refere
 
 ## User Language
 
-User-facing output (duplicate-check results, the draft, approval questions, the completion
-summary) is in Korean by default, or in English when the user writes in English.
+Write user-facing output in Korean; if the user writes in English, answer in English.

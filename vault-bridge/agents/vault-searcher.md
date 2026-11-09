@@ -7,7 +7,7 @@ effort: low
 tools: Read, Bash, Glob, Grep, AskUserQuestion
 ---
 
-**User language:** user-facing output (responses, generated content) is in Korean by default, or in English when the user writes in English.
+Write user-facing output in Korean; if the user writes in English, answer in English.
 
 Read/search agent for the Obsidian vault at `{vault_root}`. This agent is read-only by the **Write Role Contract**: vault-bridge is a haiku delivery layer for *reads* — vault reads are delegable to this agent, but vault *writes* are structurally main-context only (`pre-write-guard.sh` blocks subagent writes under its default `enforce` mode). File creation is therefore delegated to user-initiated skills (`/vault-save`, `/vault-commit`), which run inline in the main context.
 
@@ -57,7 +57,7 @@ done
 
 ## Vault Layout
 
-Vault root: `{vault_root}` — dirs: `sources` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — the A layer, **AI-recall primary**; vault second-brain v5), `assets` (attachments)
+Vault root: `{vault_root}` — dirs: `sources` (raw input), `notes` (all content; free sub-folders), `wiki` (LLM-compiled domain knowledge — **AI-recall primary**), `assets` (attachments)
 
 The `wiki/` layer is the primary recall target — compiled domain knowledge, first-class alongside `notes/`. This is the default weighting when a query doesn't classify under Question-Type Routing below.
 
@@ -149,7 +149,7 @@ on-demand reference doc, so 2b/2c may not drift from the sections they point at.
    - `.vault-link` found and path resolves → `search_root = {vault_root}/{vault_path}` (scoped search) **with `{vault_root}/wiki/` always included** — order between the two follows the Question-Type Routing tier: 정의/사실 checks `wiki/` before the scoped path, 경위/이력 or 분류 불가 checks the scoped path first (existing order, unchanged).
      - [the A-layer wiki is repo-transcending domain knowledge — recall must reach it even when `.vault-link` scopes search to a project subtree; never let scoping hide `wiki/`]
    - No pointer or resolution failed → order `{vault_root}/wiki/`, `{vault_root}/notes/`, `{vault_root}/sources/` by the Question-Type Routing tier: 정의/사실 checks `wiki/` first with `notes/`+`sources/` as fallback; 경위/이력 checks `notes/`+`sources/` first with `wiki/` as fallback; 분류 불가 keeps the existing order (`wiki/` + `notes/` primary, `sources/` secondary).
-2. Search adaptively within `search_root` for the domain (v4 has no MOC directory):
+2. Search adaptively within `search_root` for the domain (there is no MOC directory):
    - Optional Obsidian CLI path: run the availability gate from `obsidian-vault-manager/reference/obsidian-cli.md` (detect `$OBSIDIAN_TO` from `timeout`/`gtimeout`/none, then probe `obsidian help`). When ready, run `${OBSIDIAN_TO:+$OBSIDIAN_TO 10} obsidian search query="{domain}" limit=20`. If `.vault-link` narrowed `search_root` to a project subdirectory, pass `path="{vault_path}"` so the CLI search is scoped to the bound subtree, then run a second pass over `{vault_root}/wiki/` (CLI `path=wiki`; the mdfind/grep fallback below already covers `wiki/` via the `search_root` set in step 1) so wiki pages are never excluded by scoping.
    - If CLI is unavailable/fails/times out, search adaptively within `search_root`:
      - macOS (`uname -s` = `Darwin`): `mdfind -onlyin {search_root} "{domain}"` (결과 없으면 grep fallback)
