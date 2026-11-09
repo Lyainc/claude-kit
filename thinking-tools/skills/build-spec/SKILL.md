@@ -94,7 +94,7 @@ Output with only idle notifications and no final text after one re-request → u
 in `<feedback>` (§6): `blindspot_pass: skipped`. One `Agent` call (binding input/tagging: §11.6)
 returns ≤3 falsifiable missed findings. Present all in **one** `AskUserQuestion` (multiSelect):
 keep/dismiss. Kept → `blindspots:`; inline answers → matching constraint/criterion; no new round.
-`blindspot_pass`: `pending` → `done`; call failure/unavailability → `skipped` silently.
+`blindspot_pass`: `pending` → `done`; failed/unavailable call → `skipped` silently.
 Output with only idle notifications and no final text after one re-request → unavailable.
 
 ### Phase 3: Seed Emit
@@ -135,7 +135,7 @@ target: {name} | domain: {tech|biz|creative} | brownfield: {true|false}
 round: {N} | refine_generation: {N or 0} | refine_source / refine_feedback (Refine only)
 clarity: [goal:{score:.2f}] [constraint:{score:.2f}] [success:{score:.2f}] [context:{score:.2f}]
 ambiguity: {value:.2f} | gate: {open|closed} | consecutive_gate: {0|1|2+}
-scoring_isolated: {true|false} | blindspot_pass: {done|skipped|pending}
+scoring_isolated: {true|false} | blindspot_pass: {done|pending|skipped: reason}
 scoring_rationale: {last rationale per dimension; context may be N/A}
 <!-- /STATE -->
 ```
