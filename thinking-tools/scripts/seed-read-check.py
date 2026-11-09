@@ -50,7 +50,8 @@ LAUNCHERS = {"uv", "run", "bun", "env", "exec", "sh", "bash", "do", "then", "els
 DENY_HEAD = MARKER + " metadata를 먼저 실행해요: python3 "  # the guard's own deny output opens like this
 META_PATH = re.compile(r'"path":\s*"([^"]+)"')
 POST_HEAD = "Seed 본문이 metadata 없이 출력됐어요"
-TEMPLATE_HEAD = "Seed Spec — output template"  # first line of templates/SEED_SPEC.yaml
+TEMPLATE_HEAD = "Seed Spec — output template"  # first line of templates/SEED_SPEC.yaml (emitted Seeds keep it)
+TEMPLATE_PATH = "templates/SEED_SPEC.yaml"
 # Output lines may carry a `cat -n` / `grep -n` / `grep <file>` prefix before the YAML key.
 _PREFIX = r"(?:[ \t]*\d+\t|(?:[^\s:]+[:-])?(?:\d+[:-])?)"
 SEED_KEYS = tuple(re.compile(r"(?m)^" + _PREFIX + k) for k in ("lifecycle:", "success_criteria:"))
@@ -423,8 +424,10 @@ def decide_post(payload: dict) -> str:
     command = _command_str((payload.get("tool_input") or {}).get("command"))
     cwd = payload.get("cwd") or os.getcwd()
     seeds = _identify_seeds(command, out, cwd)
-    if not seeds and TEMPLATE_HEAD in out:
-        return ""  # the Seed template itself, not a Seed
+    if not seeds and TEMPLATE_PATH in command:
+        # The command names the template itself. Emitted Seeds keep the template's header lines, so
+        # the output text alone cannot tell the template from a Seed; only the command can.
+        return ""
     cur = _metadata_call(command, cwd)  # this call's own metadata/read output may not be in the transcript yet
     extra = [(m, cur[0], cur[1]) for m in META_PATH.findall(out)] if cur else []
     unseen = unseen_seeds(seeds, payload, extra, skip_denied=False)
@@ -681,7 +684,10 @@ def _self_test() -> int:
         check("post, cat -n prefix keeps the signature", decide_post(post(subst, "     1\tskill: build-spec\n     2\tlifecycle:\n     9\tsuccess_criteria:\n", t_none)), True)
         check("post, path-prefixed lines identify the seed", seed in decide_post(post(
             "grep -rn . docs", "docs/specs/x.yaml:2:lifecycle:\ndocs/specs/x.yaml:9:success_criteria:\n", t_none)), True)
-        check("post, template alone is no seed", decide_post(post("cat t.yaml", f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), False)
+        check("post, a command naming the template is no seed", decide_post(post(
+            "cat thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml", f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), False)
+        check("post, a Seed keeping the template header still blocks", decide_post(post(
+            subst, f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), True)
         check("post, a metadata call's own output counts", decide_post(post(
             'python3 /p/seed-relations.py read docs/specs/x.yaml', f'{{"path": "docs/specs/x.yaml"}}\n{pref}', t_none)), False)
         check("post, walk output is no metadata", decide_post(post(
