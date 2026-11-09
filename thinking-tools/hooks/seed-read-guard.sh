@@ -8,7 +8,8 @@
 # that contract, and the Seed's own header cannot enforce it because the header is only visible
 # after the body is read. At most one deny per Seed per transcript, zero when metadata already ran.
 # Bash detection is heuristic (reader commands, cd tracking, glob expansion) and never claims to
-# block every read (seed-residual constraint-3).
+# block every read (seed-residual constraint-3). A read it cannot see (command substitution) is
+# covered only after the fact by hooks/seed-read-output-guard.sh (PostToolUse, output-based).
 #
 # Fails open in every direction: opt-out set, no jq, no python3, empty/unparseable payload,
 # unreadable transcript → exit 0 silent. Decision logic + self-test: scripts/seed-read-check.py.

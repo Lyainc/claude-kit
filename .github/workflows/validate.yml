@@ -104,7 +104,8 @@ jobs:
           python3 thinking-tools/scripts/seed-append-check.py --self-test
 
           # Seed read guard: a Read/cat of a Seed body is denied once per Seed until
-          # `seed-relations.py metadata` ran in the same transcript (main and subagent layouts).
+          # `seed-relations.py metadata` ran in the same transcript (main and subagent layouts); its
+          # `--post` mode flags Bash output that carries a Seed body without metadata.
           python3 thinking-tools/scripts/seed-read-check.py --self-test
 
           # Release tooling self-tests (lockstep bump + per-plugin notes generation +

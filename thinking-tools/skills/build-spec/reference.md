@@ -184,6 +184,8 @@ For a new file omit `--before`. A passing validator cannot establish human appro
 `hooks/seed-read-guard.sh` denies a Claude Read/cat of a Seed body until `seed-relations.py
 metadata` ran for it in that transcript (once per Seed). On Codex the same guard runs as a plugin
 PreToolUse(Bash) hook (`hooks/codex-hooks.json`) only after the user trusts it in Codex's hook review.
+`hooks/seed-read-output-guard.sh` (PostToolUse Bash, both runtimes) inspects Bash output for a Seed body that a
+command-substitution read printed without metadata and returns block feedback not to apply it; heuristic, not complete.
 
 ## 8. Seed Relations — Phase 0 question and Phase 3 relation write (#780)
 

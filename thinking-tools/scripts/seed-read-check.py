@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Seed read check — decision logic for hooks/seed-read-guard.sh (PreToolUse Read|Bash).
+"""Seed read check — decision logic for hooks/seed-read-guard.sh (PreToolUse Read|Bash) and
+hooks/seed-read-output-guard.sh (PostToolUse Bash, `--post`).
 
 Denies (once per Seed per transcript) a Read/cat of a build-spec Seed body when
 `seed-relations.py metadata` has not run for that Seed in the same transcript
@@ -7,7 +8,13 @@ Denies (once per Seed per transcript) a Read/cat of a build-spec Seed body when
 one-line deny reason or nothing. Always exits 0: any exception, unparseable input or unreadable
 file fails open. Bash detection is a heuristic and never claims to block every read.
 
+The `--post` mode covers what the static PreToolUse check cannot see (a read built by command
+substitution such as `cat $(git ls-files docs)`): it inspects the Bash tool OUTPUT for a Seed body
+signature and, when the transcript shows no metadata for the Seed(s) (or the Seed cannot be
+identified), prints feedback telling the model not to apply the body. Still a heuristic.
+
     echo '<payload json>' | seed-read-check.py
+    echo '<PostToolUse payload json>' | seed-read-check.py --post
     seed-read-check.py --self-test
 """
 from __future__ import annotations
@@ -40,6 +47,12 @@ MARKER = "Seed 본문을 읽기 전에"
 LAUNCHERS = {"uv", "run", "bun", "env", "exec", "sh", "bash", "do", "then", "else", "if", "while", "until", "time", "nohup"}
 DENY_HEAD = MARKER + " metadata를 먼저 실행해요: python3 "  # the guard's own deny output opens like this
 META_PATH = re.compile(r'"path":\s*"([^"]+)"')
+POST_HEAD = "Seed 본문이 metadata 없이 출력됐어요"
+TEMPLATE_HEAD = "Seed Spec — output template"  # first line of templates/SEED_SPEC.yaml
+# Output lines may carry a `cat -n` / `grep -n` / `grep <file>` prefix before the YAML key.
+_PREFIX = r"(?:[ \t]*\d+\t|(?:[^\s:]+[:-])?(?:\d+[:-])?)"
+SEED_KEYS = tuple(re.compile(r"(?m)^" + _PREFIX + k) for k in ("lifecycle:", "success_criteria:"))
+SKIP_DIRS = {".git", "node_modules", ".venv", "venv", "__pycache__", ".tox", "dist", "build"}
 
 
 def is_seed_file(path: str) -> bool:
@@ -327,6 +340,101 @@ def decide(payload: dict) -> str:
     return f"{MARKER} metadata를 먼저 실행해요: {cmds} (seed-lifecycle.md §발견과 소비)"
 
 
+def has_seed_body(out: str) -> bool:
+    """Output carries a Seed body: the template's amendment-contract header, or both top-level
+    `lifecycle:` and `success_criteria:` keys (every Seed the template emits has them). Heuristic."""
+    if "AMENDMENT CONTRACT" in out and "Read metadata first" in out:
+        return True
+    return all(k.search(out) for k in SEED_KEYS)
+
+
+def _repo_root(cwd: str) -> str:
+    p = os.path.abspath(cwd)
+    for _ in range(12):
+        if os.path.exists(os.path.join(p, ".git")):
+            return p
+        parent = os.path.dirname(p)
+        if parent == p:
+            break
+        p = parent
+    return os.path.abspath(cwd)
+
+
+def _repo_seeds(root: str, cap: int = 2000) -> list[str]:
+    """Seed files under root; bounded by the number of YAML files examined."""
+    found: list[str] = []
+    seen = 0
+    for base, dirs, files in os.walk(root):
+        dirs[:] = [x for x in dirs if x not in SKIP_DIRS]
+        for f in files:
+            if not f.endswith((".yaml", ".yml")):
+                continue
+            seen += 1
+            if seen > cap:
+                return found
+            p = os.path.join(base, f)
+            if is_seed_file(p):
+                found.append(p)
+    return found
+
+
+def _identify_seeds(command: str, out: str, cwd: str) -> list[str]:
+    """Seeds the output most likely printed: files the command names (globs expanded) plus repo
+    Seeds whose path prefixes an output line or whose top-level `target:` line appears in it."""
+    ids: list[str] = []
+    for c in bash_candidates(command, cwd):
+        c = os.path.abspath(c)
+        if c not in ids and is_seed_file(c):
+            ids.append(c)
+    root = _repo_root(cwd)
+    for s in _repo_seeds(root):
+        if s in ids:
+            continue
+        rel = os.path.relpath(s, root)
+        try:
+            text = Path(s).read_text(encoding="utf-8", errors="replace")
+        except Exception:
+            continue
+        m = re.search(r"(?m)^target:[ \t]*(\S.*?)\s*$", text)
+        by_target = bool(m) and not m.group(1).startswith("<") and bool(re.search(
+            r"(?m)^" + _PREFIX + r"target:[ \t]*" + re.escape(m.group(1)) + r"[ \t]*$", out))
+        by_path = bool(re.search(r"(?m)^(?:==> )?" + re.escape(rel) + r"(?:[:\- ]|$)", out))
+        if by_target or by_path:
+            ids.append(s)
+    return ids
+
+
+def decide_post(payload: dict) -> str:
+    """Feedback text when a Bash call's OUTPUT holds a Seed body with no metadata on record."""
+    if payload.get("tool_name") != "Bash":
+        return ""
+    out = "\n".join(_strings(payload.get("tool_response")))
+    if not has_seed_body(out):
+        return ""  # fast path: no signature
+    command = (payload.get("tool_input") or {}).get("command") or ""
+    cwd = payload.get("cwd") or os.getcwd()
+    seeds = _identify_seeds(command, out, cwd)
+    if not seeds and TEMPLATE_HEAD in out:
+        return ""  # the Seed template itself, not a Seed
+    scanned = scan_transcript(transcript_path(payload))
+    if scanned is None:
+        return ""
+    calls = list(scanned[0])
+    cur = _metadata_call(command, cwd)  # this call's own metadata/read output may not be in the transcript yet
+    if cur:
+        calls.extend((m, cur[0], cur[1]) for m in META_PATH.findall(out))
+    script = f"{PLUGIN_ROOT}/scripts/seed-relations.py"
+    if not seeds:
+        return (f"{POST_HEAD}: 출력에 Seed 본문이 있는데 어느 Seed인지 확인하지 못했어요. 그 본문의 항목을 하나도 적용하지 말고, "
+                f'출력에 나온 Seed마다 python3 "{script}" metadata <seed> --json 을 먼저 실행해요 (seed-lifecycle.md §발견과 소비)')
+    unseen = [s for s in seeds if not any(_seen(os.path.realpath(s), c) for c in calls)]
+    if not unseen:
+        return ""
+    cmds = " ; ".join(f'python3 "{script}" metadata {shlex.quote(s)} --json' for s in unseen)
+    return (f"{POST_HEAD}: 그 본문의 항목을 하나도 적용하지 말고, 먼저 실행해요: {cmds} "
+            "(unknown/paused/closed 상태나 철회·보류 항목은 자동 적용 대상이 아니에요, seed-lifecycle.md §발견과 소비)")
+
+
 def _self_test() -> int:
     total = failed = 0
 
@@ -356,7 +464,7 @@ def _self_test() -> int:
         specs = f"{d}/docs/specs"
         os.makedirs(specs)
         seed, plain = f"{specs}/x.yaml", f"{specs}/plain.yaml"
-        Path(seed).write_text('skill: build-spec\ngoal: g\n')
+        Path(seed).write_text('skill: build-spec\ntarget: x-target\ngoal: g\n')
         Path(plain).write_text("a: 1\n")
         Path(f"{specs}/hello.yaml").write_text('skill: build-spec\ngoal: h\n')
         tmpl = f"{d}/skills/build-spec/templates/SEED_SPEC.yaml"
@@ -515,13 +623,65 @@ def _self_test() -> int:
         check("codex, non-str non-list command is no metadata call", decide(bash("cat docs/specs/x.yaml", c_badcmd)), True)
         check("codex, argv command", decide(bash("cat docs/specs/x.yaml", c_argv)), False)
 
-    total += 1
+        # PostToolUse: the output carries a Seed body that no static read check could predict.
+        body = ("# AMENDMENT CONTRACT\nskill: build-spec\ntarget: x-target\nlifecycle:\n  state: paused\n"
+                "success_criteria:\n  - id: acceptance-1\n")
+        stranger = body.replace("x-target", "no-such-target")
+
+        def post(c, out, t, **kw):
+            return {"tool_name": "Bash", "tool_input": {"command": c}, "tool_response": {"stdout": out, "stderr": ""},
+                    "transcript_path": t, "cwd": d, **kw}
+
+        subst = 'for f in $(git ls-files docs AGENTS.md); do cat "$f"; done'
+        r = decide_post(post(subst, body, t_none))
+        check("post, seed body without metadata", r, True)
+        check("post, block names the identified seed", seed in r and "metadata" in r, True)
+        check("post, same body after metadata", decide_post(post(subst, body, t_meta)), False)
+        check("post, output without a seed body", decide_post(post(subst, "docs\nAGENTS.md\n", t_none)), False)
+        check("post, only one signature key is no seed body", decide_post(post(subst, "lifecycle:\n  state: x\n", t_none)), False)
+        r = decide_post(post("cat $(ls)", stranger, t_none))
+        check("post, unidentifiable seed body", r, True)
+        check("post, unidentifiable block is generic", "<seed>" in r and seed not in r, True)
+        check("post, unidentifiable body even after metadata", decide_post(post("cat $(ls)", stranger, t_meta)), True)
+        check("post, command names the seed", decide_post(post("cat docs/specs/x.yaml", stranger, t_none)), True)
+        check("post, command names the seed, metadata seen", decide_post(post("cat docs/specs/x.yaml", stranger, t_meta)), False)
+        check("post, grep -n prefix keeps the signature", decide_post(post(subst, "1:target: x-target\n2:lifecycle:\n9:success_criteria:\n", t_none)), True)
+        check("post, cat -n prefix keeps the signature", decide_post(post(subst, "     1\ttarget: x-target\n     2\tlifecycle:\n     9\tsuccess_criteria:\n", t_none)), True)
+        check("post, path-prefixed lines identify the seed", seed in decide_post(post(
+            "grep -rn . docs", "docs/specs/x.yaml:2:lifecycle:\ndocs/specs/x.yaml:9:success_criteria:\n", t_none)), True)
+        check("post, template alone is no seed", decide_post(post("cat t.yaml", f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), False)
+        check("post, a metadata call's own output counts", decide_post(post(
+            'python3 /p/seed-relations.py read docs/specs/x.yaml', f'{{"path": "docs/specs/x.yaml"}}\n{body}', t_none)), False)
+        check("post, walk output is no metadata", decide_post(post(
+            'python3 /p/seed-relations.py walk docs/specs/x.yaml', body, t_walk)), True)
+        check("post, metadata ran in another repo", decide_post(post("cat docs/specs/x.yaml", body, t_foreign)), True)
+        check("post, string tool_response", decide_post({**post(subst, "", t_none), "tool_response": body}), True)
+        check("post, subagent transcript without metadata", decide_post({**post(subst, body, t_main), "agent_id": "a1"}), True)
+        check("post, subagent transcript with metadata", decide_post({**post(subst, body, t_main), "agent_id": "a2"}), False)
+        check("post, missing transcript fails open", decide_post(post(subst, body, f"{d}/t/missing.jsonl")), False)
+        check("post, other tool", decide_post({**post(subst, body, t_none), "tool_name": "Read"}), False)
+        check("post, codex rollout with metadata", decide_post(post(subst, body, c_meta)), False)
+        check("post, codex rollout without metadata", decide_post(post(subst, body, c_none)), True)
+        check("post, no tool_response", decide_post({"tool_name": "Bash", "tool_input": {"command": "ls"}}), False)
+
     import subprocess
-    p = subprocess.run([sys.executable, str(Path(__file__).resolve())], input="not json{",
-                       capture_output=True, text=True)
-    if p.stdout or p.returncode != 0:
-        failed += 1
-        print("FAIL: garbage stdin", file=sys.stderr)
+    for args, stdin, want_out in (([], "not json{", False), (["--post"], "not json{", False), (["--post"], "[]", False)):
+        total += 1
+        p = subprocess.run([sys.executable, str(Path(__file__).resolve()), *args], input=stdin,
+                           capture_output=True, text=True)
+        if bool(p.stdout) != want_out or p.returncode != 0:
+            failed += 1
+            print(f"FAIL: garbage stdin {args}", file=sys.stderr)
+    with tempfile.TemporaryDirectory() as d2:
+        total += 1
+        pl = {"tool_name": "Bash", "tool_input": {"command": "cat $(ls)"}, "cwd": d2, "transcript_path": f"{d2}/t.jsonl",
+              "tool_response": {"stdout": "target: zz\nlifecycle:\nsuccess_criteria:\n"}}
+        Path(f"{d2}/t.jsonl").write_text("{}\n")
+        p = subprocess.run([sys.executable, str(Path(__file__).resolve()), "--post"], input=json.dumps(pl),
+                           capture_output=True, text=True)
+        if POST_HEAD not in p.stdout or p.returncode != 0:
+            failed += 1
+            print("FAIL: --post end to end", file=sys.stderr)
 
     if failed:
         print(f"FAIL: {failed}/{total} seed-read-check case(s) failed", file=sys.stderr)
@@ -536,7 +696,7 @@ def main() -> int:
     try:
         payload = json.load(sys.stdin)
         if isinstance(payload, dict):
-            reason = decide(payload)
+            reason = (decide_post if "--post" in sys.argv else decide)(payload)
             if reason:
                 print(reason)
     except Exception:
