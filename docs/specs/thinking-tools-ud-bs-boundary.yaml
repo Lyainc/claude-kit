@@ -30,25 +30,46 @@ brownfield: true
 refine_generation: 0
 
 lifecycle:
-  state: active
-  outcome: null
-  reason: "역할 경계·샘플 판정표·질문 큐·메인 소유권 계약은 확인했다. 현행 계약의 분리 세션 UD→BS 왕복과 사용자 답·skipped STATE 도구 trace는 미검증이므로 로컬 검증 대상으로 활성화한다."
-  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
+  state: closed
+  outcome: completed
+  reason: "철회하지 않은 constraint 5개와 success_criteria 3개가 지정 커밋에서 모두 충족됐다."
+  approved_by: "2026-11-09 사용자 확인: 항목별 근거와 실측 검토 후 completed 전환 승인"
   evidence:
-    commit: null
+    commit: "b476edc72152d8a20cde8af70c30bb8cb0cda37f"
     items:
       - id: constraint-1
         refs:
           - "thinking-tools/reference/ud-bs-boundary.md:9"
           - "thinking-tools/reference/ud-bs-boundary.md:25"
+          - "thinking-tools/reference/ud-bs-boundary.md:40"
+      - id: constraint-2
+        refs:
+          - "thinking-tools/skills/unknown-discovery/reference.md:497"
+          - "3a0258a의 unknown-discovery/SKILL.md:93과 같은 한도(soft 12-15, hard 20), 단계 0~3 동일"
       - id: constraint-3
         refs:
-          - "thinking-tools/reference/ud-bs-boundary.md:52"
-          - "thinking-tools/reference/ud-bs-boundary.md:86"
+          - "PR #498(#430) 머지 2026-08-02T13:20:18Z, 변경 파일에 INTERVIEW_STATE.md·doc-concretize 없음(gh pr view 498 --json files)"
+          - "#431은 PR #501(2026-08-02T14:06:04Z 머지), #432는 41ca691(2026-08-02T13:55Z)로 모두 #430 머지 뒤에 들어옴"
+      - id: constraint-4
+        refs:
+          - "python3 thinking-tools/scripts/test/check-trigger-regression.py 3a0258a b476edc: unknown-discovery·build-spec 트리거 제거 0건(diverse-sampling 3건만 보고되어 exit 1)"
+      - id: constraint-5
+        refs:
+          - "python3 scripts/check-version-sync.py: exit 0, 4 plugin(s), no drift"
+          - "git log -G'\"version\"' 3a0258a..b476edc -- thinking-tools/plugin.json thinking-tools/.claude-plugin/plugin.json: 버전 변경은 chore(release) 커밋뿐, e3ab2a6은 기존 버전 5.0.0으로 portable manifest를 새로 만든 커밋"
       - id: acceptance-1
         refs:
-          - "thinking-tools/reference/ud-bs-boundary.md:71"
+          - "thinking-tools/reference/ud-bs-boundary.md:71-73"
           - "thinking-tools/reference/ud-bs-boundary.md:94"
+      - id: acceptance-2
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §3 thinking-tools-ud-bs-boundary (acceptance-2)"
+          - "docs/specs/harness-doctor-v2.yaml:24"
+      - id: acceptance-3
+        refs:
+          - "thinking-tools/skills/build-spec/SKILL.md:94"
+          - "thinking-tools/skills/build-spec/SKILL.md:138"
+          - "docs/validation-active-seed-closure-2026-11-09.md §3 thinking-tools-ud-bs-boundary (acceptance-3)"
   withdrawn: []
 
 goal:
