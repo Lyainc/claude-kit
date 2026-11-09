@@ -512,7 +512,7 @@ in STATE (`"already covered by prior unknown-discovery pass"`), Phase 3.
 - Present all of them in **one** `AskUserQuestion` (multiSelect): keep or dismiss. Kept findings land in
   the Seed's `blindspots:` list; if the user answers one inline, fold that answer into the matching
   constraint or success criterion instead. No new interview round either way.
-- STATE records `blindspot_pass: {done|skipped|pending}` — keep `pending` until the user's actual
+- STATE records `blindspot_pass: {done|pending|skipped: reason}` — keep `pending` until the user's actual
   keep/dismiss answer arrives, then `done`; `skipped` when the `Agent` call fails (skip silently
   in that case). Tool acceptance, empty replies and elapsed time never complete this step.
   A subagent that returns only
@@ -573,7 +573,7 @@ target: {name} | domain: {tech|biz|creative} | brownfield: {true|false}
 round: {N} | refine_generation: {N or 0}
 clarity: [goal:{score:.2f}] [constraint:{score:.2f}] [success:{score:.2f}] [context:{score:.2f}]
 ambiguity: {value:.2f} | gate: {open|closed} | consecutive_gate: {0|1|2+}
-scoring_isolated: {true|false} | blindspot_pass: {done|skipped|pending}
+scoring_isolated: {true|false} | blindspot_pass: {done|pending|skipped: reason}
 scoring_rationale:
   goal: "{last rationale}"
   constraint: "{last rationale}"
