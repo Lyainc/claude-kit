@@ -1480,6 +1480,16 @@ def _self_test() -> int:
     ):
         cases.append((f"hold enum: {desc} -> PASS",
                       all(ok for ok, _ in hold_enum_checks(live_skill, mutate(live_ref), live_worker))))
+    # Every swept file, not only reference.md: a code-less hold in each one must be reported.
+    live_files = _hold_sweep_files(live_skill, live_ref, live_worker)
+    enum = canonical_hold_enum(live_skill)
+    for name in sorted(live_files):
+        files = dict(live_files, **{name: live_files[name] + "\n| 인증 | 보류 (동점) | x |\n"})
+        cases.append((f"hold enum: code-less hold in {name} -> FAIL",
+                      any(v.startswith(name + ":") for v in hold_enum_violations(files, enum))))
+    cases.append(("hold enum: SKILL.md enum bullet loses a code -> FAIL",
+                  not all(ok for ok, _ in hold_enum_checks(
+                      live_skill.replace("`held:quorum`", "`held:other`", 1), live_ref, live_worker))))
 
     failed = [name for name, passed in cases if not passed]
     for name, passed in cases:
