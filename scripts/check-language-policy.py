@@ -40,6 +40,7 @@ Exit codes: 0 = clean (no Hangul in mandated metadata; body contract held), 1 = 
             2 = usage / unreadable input.
 """
 import argparse
+import fnmatch
 import glob
 import json
 import os
@@ -152,6 +153,13 @@ def scan_body(text, rel, plugin):
 def check_bodies(root, report):
     """Scan every target body under `root`; append to `report` and return this scan's violations."""
     found = []
+    present = [p for p in BODY_PLUGINS if os.path.isdir(os.path.join(root, p))]
+    if present:  # a plugin repo: every target plugin must exist and yield bodies, or the gate scans nothing
+        seen = {p for p, _ in _iter_body_files(root)}
+        for plugin in BODY_PLUGINS:
+            if plugin not in seen:
+                found.append({"fatal": f"[{plugin}] no skills/*/SKILL.md or agents/*.md bodies found"})
+                report["fatal"] = True
     for plugin, rel in _iter_body_files(root):
         try:
             with open(os.path.join(root, rel), encoding="utf-8") as fh:
@@ -323,6 +331,11 @@ def run_self_test():
     for name, files, expected in body_cases:
         with tempfile.TemporaryDirectory() as tmp:
             _build(tmp, "Plugin", ["skills"], "Plugin", ["skills"])
+            files = dict(files)
+            for plugin in BODY_PLUGINS:  # every target plugin needs at least one body
+                if not any(fnmatch.fnmatch(rel, f"{plugin}/{pat}") for rel in files
+                           for pat in ("skills/*/SKILL.md", "agents/*.md")):
+                    files[f"{plugin}/agents/base.md"] = fm + CONTRACT_SENTENCE + "\n"
             for rel, text in files.items():
                 path = os.path.join(tmp, *rel.split("/"))
                 os.makedirs(os.path.dirname(path), exist_ok=True)
