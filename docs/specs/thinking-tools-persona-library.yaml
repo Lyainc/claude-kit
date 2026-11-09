@@ -30,21 +30,55 @@ brownfield: true
 refine_generation: 0
 
 lifecycle:
-  state: active
-  outcome: null
-  reason: "공유 풀·원문 입력·rank 1 계약과 결정론 회귀는 확인했고 W8 설명의 입력·동률 기준을 수정했다. 실제 두 세션 STATE·오프풀·소비자 결과 대조가 남아 있어 active를 유지한다."
-  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
+  state: closed
+  outcome: completed
+  reason: "철회하지 않은 constraint 6개와 success_criteria 6개가 지정 커밋에서 모두 충족됐다."
+  approved_by: "2026-11-09 사용자 확인: 항목별 근거와 실측 검토 후 completed 전환 승인"
   evidence:
-    commit: null
+    commit: "b476edc72152d8a20cde8af70c30bb8cb0cda37f"
     items:
+      - id: constraint-1
+        refs:
+          - "thinking-tools/reference/personas.md:3-5"
+          - "thinking-tools/skills/expert-panel/SKILL.md:36"
+      - id: constraint-2
+        refs:
+          - "thinking-tools/reference/personas.md:14-15"
+          - "docs/validation-active-seed-closure-2026-11-09.md §1 thinking-tools-persona-library"
       - id: constraint-3
         refs:
-          - "thinking-tools/reference/personas.md:39"
           - "thinking-tools/reference/personas.md:49"
+          - "python3 thinking-tools/scripts/test/test-persona-selection.py: exit 0, 10 pool entries, 7 topic fixtures, 20 decoy words, 3 shared-input consumers"
+      - id: constraint-4
+        refs:
+          - "thinking-tools/reference/personas.md:11"
+          - "thinking-tools/skills/adversarial-review/SKILL.md:49"
+      - id: constraint-5
+        refs:
+          - "thinking-tools/reference/personas.md:26-35"
+      - id: constraint-6
+        refs:
+          - "python3 thinking-tools/scripts/test/test-mode-compose.py: exit 0, 65 checks"
+          - "python3 scripts/check-test-exitcode.py: exit 0, 180개 등록 명령 전부 exit 0"
       - id: acceptance-1
         refs:
           - "thinking-tools/reference/personas.md:3"
           - "thinking-tools/skills/expert-panel/SKILL.md:36"
+          - "thinking-tools/skills/adversarial-review/SKILL.md:49"
+      - id: acceptance-2
+        refs:
+          - "docs/validation-active-seed-closure-2026-11-09.md §1 thinking-tools-persona-library"
+      - id: acceptance-3
+        refs:
+          - "thinking-tools/reference/personas.md:72"
+          - "docs/validation-active-seed-closure-2026-11-09.md §1 thinking-tools-persona-library"
+      - id: acceptance-4
+        refs:
+          - "python3 scripts/check-test-exitcode.py: exit 0, 180개 등록 명령 전부 exit 0"
+      - id: acceptance-5
+        refs:
+          - "thinking-tools/reference/personas.md:81-83"
+          - "docs/validation-active-seed-closure-2026-11-09.md §1 thinking-tools-persona-library"
       - id: acceptance-6
         refs:
           - "thinking-tools/docs/improvement-matrix.md:44"
