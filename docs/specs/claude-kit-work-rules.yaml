@@ -28,28 +28,59 @@ refine_generation: 1   # v1 = 플러그인화 전제. v2(this) = adversarial-rev
 # ─────────────────────────────────────────────────────────────
 
 lifecycle:
-  state: active
-  outcome: null
-  reason: "사용자 지시에 따라 로컬 진단·수정을 활성화한다. Codex marketplace 리마인더 누락을 수정하고 회귀 5개·CI 등록 121/121을 확인했다. 전수 실행과 zero-fire/stale 규칙 관측은 완료되지 않아 active를 유지한다."
-  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
+  state: closed
+  outcome: completed
+  reason: "철회하지 않은 constraint 8개와 success_criteria 5개가 지정 커밋에서 모두 충족됐다."
+  approved_by: "2026-11-09 사용자 확인: 항목별 근거 검토 후 completed 전환과 RULES.md §6 정합 승인"
   evidence:
-    commit: null
+    commit: "8947715056604f75869c4a426ac95c3ea68f7bb4"
     items:
+      - id: constraint-1
+        refs:
+          - "rules/RULES.md:14-17"
+      - id: constraint-2
+        refs:
+          - "rules/RULES.md:308"
+          - "#216 구현 커밋 02ad24a가 추가한 plugin.json·SKILL.md 0건(git show --diff-filter=A --name-only 02ad24a)"
+      - id: constraint-3
+        refs:
+          - "git grep -i -w 'omc|oh-my-claudecode'(docs/specs·docs/validation-*·docs/design 제외): 의존·import·경로 사용 0건. 남은 언급은 .gitignore:52 무시 규칙과 feedback-loop/README.md:5, feedback-loop/skills/distill/reference.md:14, thinking-tools/agents/thinking-facilitator.md:153, docs/native-instruction-risk-review.md:21의 설명 문장"
       - id: constraint-4
         refs:
           - "scripts/run-linters.py"
+          - "ruff.toml"
       - id: constraint-5
         refs:
-          - "rules/RULES.md:206"
+          - "rules/RULES.md:204"
           - "scripts/rules-checklist-hook.sh:42"
+      - id: constraint-6
+        refs:
+          - "rules/RULES.md:150"
       - id: constraint-7
         refs:
-          - "rules/rca-checklist.md"
-          - "feedback-loop/skills/retro/SKILL.md"
+          - "rules/rca-checklist.md:4"
+          - "rules/rca-checklist.md:37"
       - id: constraint-8
         refs:
           - "feedback-loop/scripts/event-logger.sh:314"
-          - "feedback-loop/scripts/report.py:664"
+          - "feedback-loop/scripts/report.py:660-667"
+      - id: acceptance-1
+        refs:
+          - "rules/RULES.md:299-317"
+      - id: acceptance-2
+        refs:
+          - "python3 scripts/check-test-exitcode.py: exit 0, 180개 등록 명령 전부 exit 0"
+      - id: acceptance-3
+        refs:
+          - "scripts/run-linters.py"
+      - id: acceptance-4
+        refs:
+          - "git grep -E 'line-length|quote-style|indent-width|max-line' -- scripts/: 스타일 상수 0건(scripts/check-hooks-installed.py:224는 설명 주석)"
+          - "ruff.toml"
+      - id: acceptance-5
+        refs:
+          - "git grep -i -w 'omc|oh-my-claudecode'(docs/specs·docs/validation-*·docs/design 제외): 의존·import·경로 사용 0건. 남은 언급은 .gitignore:52 무시 규칙과 feedback-loop/README.md:5, feedback-loop/skills/distill/reference.md:14, thinking-tools/agents/thinking-facilitator.md:153, docs/native-instruction-risk-review.md:21의 설명 문장"
+          - "#216 구현 커밋 02ad24a가 추가한 plugin.json·SKILL.md 0건(git show --diff-filter=A --name-only 02ad24a)"
   withdrawn: []
 
 goal:
