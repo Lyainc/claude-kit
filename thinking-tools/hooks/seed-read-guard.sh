@@ -25,9 +25,11 @@ command -v python3 >/dev/null 2>&1 || exit 0
 payload=$(cat 2>/dev/null || true)
 [ -z "$payload" ] && exit 0
 
-# Fast exit: no yaml/yml mention anywhere in the payload means no Seed can be read.
+# Fast exit: no yaml/yml, `specs`, or `*` anywhere in the payload means no Seed read worth
+# checking (a glob such as `cat docs/specs/*` names no yaml, so it must pass this filter).
+# `?` and `[` are left out because the JSON payload nearly always contains `[`.
 case "$payload" in
-  *.yaml*|*.yml*) ;;
+  *.yaml*|*.yml*|*specs*|*\**) ;;
   *) exit 0 ;;
 esac
 

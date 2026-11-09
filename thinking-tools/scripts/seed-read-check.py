@@ -128,7 +128,9 @@ def _tool_call(words: list[str]) -> int:
 
 
 def bash_candidates(command: str, cwd: str) -> list[str]:
-    if ".yaml" not in command and ".yml" not in command:
+    # Pre-filter: a yaml name, `specs`, or a glob character (a glob can expand to Seed YAML files
+    # without naming one). Candidates are still filtered by is_seed_file() in decide().
+    if not any(t in command for t in (".yaml", ".yml", "specs", "*", "?", "[")):
         return []
     segments = _segments(_strip_heredocs(command))
     has_tool = any(_tool_call(w) >= 0 for w in segments)
@@ -154,12 +156,17 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
         prev = ""
         for w in words[1:]:
             target, prev = prev in (">", ">>") or w.startswith(">"), w
-            if target or not w.endswith((".yaml", ".yml")):  # a redirect target is written, not read
+            if target:  # a redirect target is written, not read
+                continue
+            is_yaml = w.endswith((".yaml", ".yml"))
+            if not is_yaml and not any(c in w for c in "*?["):
                 continue
             w = os.path.expanduser(w)
             p = w if os.path.isabs(w) else os.path.join(wd, w)
             if any(c in p for c in "*?["):
-                found.extend(sorted(glob.glob(p)))
+                # A non-yaml glob (`docs/specs/*`, `h*`) can expand to Seed YAML files too; the
+                # matches are filtered by is_seed_file() later. Capped to bound the work.
+                found.extend(sorted(glob.glob(p))[:500])
             else:
                 found.append(p)
     return found
@@ -351,6 +358,7 @@ def _self_test() -> int:
         seed, plain = f"{specs}/x.yaml", f"{specs}/plain.yaml"
         Path(seed).write_text('skill: build-spec\ngoal: g\n')
         Path(plain).write_text("a: 1\n")
+        Path(f"{specs}/hello.yaml").write_text('skill: build-spec\ngoal: h\n')
         tmpl = f"{d}/skills/build-spec/templates/SEED_SPEC.yaml"
         os.makedirs(os.path.dirname(tmpl))
         Path(tmpl).write_text('skill: build-spec\n')
@@ -476,6 +484,20 @@ def _self_test() -> int:
         check("bash cd missing dir", decide(bash("cd nowhere && cat docs/specs/x.yaml", t_none)), False)
         check("bash cat seen", decide(bash("cat docs/specs/x.yaml", t_meta)), False)
         check("bash no yaml", decide(bash("cat README.md", t_none)), False)
+        # Glob/directory-wide reads that name no yaml (#814 live repro).
+        check("bash cat dir glob", decide(bash("cat docs/specs/*", t_none)), True)
+        check("bash for over dir glob", decide(bash('for f in docs/specs/*; do cat "$f"; done', t_none)), True)
+        check("bash cat partial-name glob", decide(bash("cat docs/specs/h*", t_none)), True)
+        check("bash cat ? glob", decide(bash("cat docs/specs/?.yaml", t_none)), True)
+        check("bash dir glob, metadata seen", decide(bash("cat docs/specs/x*", t_meta)), False)
+        check("bash dir glob loop running the tool", decide(bash('for f in docs/specs/*; do python3 /p/seed-relations.py metadata "$f"; done', t_none)), False)
+        check("bash echo dir glob is no read", decide(bash("echo docs/specs/*", t_none)), False)
+        check("bash ls dir glob is no read", decide(bash("ls docs/specs/*", t_none)), False)
+        check("bash git dir glob is no read", decide(bash("git add docs/specs/*", t_none)), False)
+        check("bash glob redirect target is no read", decide(bash("echo hi > docs/specs/*", t_none)), False)
+        check("bash glob matching only non-seed", decide(bash("cat docs/specs/p*", t_none)), False)
+        check("bash glob matching nothing", decide(bash("cat docs/nothing/*", t_none)), False)
+        check("bash glob with a quoted pattern arg", decide(bash("grep 'specs/*' README.md", t_none)), False)
         check("subagent, metadata only in parent", decide({**read(seed, t_main), "agent_id": "a1"}), True)
         check("subagent, metadata in subagent", decide({**read(seed, t_main), "agent_id": "a2"}), False)
         check("main, metadata in main", decide(read(seed, t_main)), False)
