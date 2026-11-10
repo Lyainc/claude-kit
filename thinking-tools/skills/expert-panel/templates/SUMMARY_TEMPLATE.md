@@ -61,7 +61,7 @@
 
 보류된 토픽은 `UNRESOLVED.md`에 있어요 (없으면 `없음`):
 
-- [토픽] — 보류 사유 held:{tie|evidence|quorum}, 자세한 내용은 `UNRESOLVED.md` 참고
+- [토픽] — 보류 사유 [held:tie / held:evidence / held:quorum 중 하나], 자세한 내용은 `UNRESOLVED.md` 참고
 
 ---
 

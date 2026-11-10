@@ -791,7 +791,12 @@ def _uncoded_holds(text: str, in_cell: bool) -> int:
 
 def _hold_token_problems(name: str, n: int, line: str, enum: set[str]) -> list[str]:
     out: list[str] = []
+    schema = name == "reference.md" and "Topic-status" in line
     for brace, plain in _HELD_TOKEN_RE.findall(line):
+        if brace and not schema:
+            # held:{a|b} lists choices; only the STATE Topic-status schema may write it (#928). Anywhere
+            # else it is copied verbatim as if it were a value.
+            out.append(f"{name}:{n}: choice notation held:{{{brace}}} outside the Topic-status schema")
         members = re.split(r"[|,]", brace) if brace else [plain]
         for v in (m.strip() for m in members):
             if not v:
@@ -1482,6 +1487,8 @@ def _self_test() -> int:
         ("brace form with an unknown member", lambda t: t + "\nheld:{tie|stalemate}\n"),
         ("pre-#851 free-text reason revived", lambda t: t + "\n| 보류 사유 | 구조적 한계 |\n"),
         ("code-less hold conclusion", lambda t: t + "\n**결론**: 보류 - 확인 필요\n"),
+        ("brace choice notation outside the schema", lambda t: t + "\n- [토픽] — 보류 사유 held:{tie|evidence|quorum}\n"),
+        ("brace with valid members in a verdict", lambda t: t + "\n**결론**: 보류 (held:{evidence,tie})\n"),
         ("brace form, comma separator", lambda t: t + "\nheld:{tie,other}\n"),
         ("brace form, case-variant member", lambda t: t + "\nheld:{Tie|other}\n"),
         ("space after the colon", lambda t: t + "\nheld: other\n"),
@@ -1540,7 +1547,8 @@ def _self_test() -> int:
                       not all(ok for ok, _ in hold_enum_checks(live_skill, mutate(live_ref), live_worker))))
     for desc, mutate in (
         ("canonical coded forms", lambda t: t + "\n> 비고: `보류 (`held:tie`, 6:6)`\n| 인증 | 보류 (`held:quorum`) | x |\n"
-         "**결론**: 보류 (`held:evidence`)\nheld:{tie | quorum}\nheld:{evidence,tie}\n"),
+         "**결론**: 보류 (`held:evidence`)\n"),
+        ("brace choice notation in the Topic-status schema", lambda t: t + "\nTopic-status: [t{n}:held:{tie | quorum}]\n"),
         # #928: a word after 보류 is prose about holds, not a verdict.
         ("prose list items about holds", lambda t: t + "\n- 보류된 토픽은 다음 세션에 다시 다뤄요.\n- 보류 상태는 재투표하지 않아요.\n"),
         ("a code written before its hold", lambda t: t + "\n- held:tie 이후 보류 (동점)\n"),
