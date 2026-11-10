@@ -60,6 +60,11 @@ GLOB_CAP = 500
 GENERIC_HEAD = POST_HEAD + ": 출력에 Seed 본문이 있는데 어느 Seed인지"  # the post guard's unidentified block opens like this
 PATTERN_CMDS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}  # first non-option argument is a pattern/script
 PATTERN_OPT = re.compile(r"-[A-Za-z]*[ef]$")  # short option cluster ending in -e/-f takes a value
+VAR_REF = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
+# A plain template read may print it with these programs; anything else is not a template read.
+TEMPLATE_READERS = {"cat", "head", "tail", "sed", "nl", "bat", "less", "more", "grep", "egrep", "fgrep", "rg", "awk"}
+FD_REDIRECT = re.compile(r"^(?:\d*>&\d+|\d*>&-|&?>>?/dev/null|\d+>>?/dev/null)$")  # `2>&1`, `2>/dev/null`
+COUNT = re.compile(r"^\+?\d+$")  # `head -n 5`, `tail -n +3`: a count value, not a path
 
 
 def is_seed_file(path: str) -> bool:
@@ -125,12 +130,28 @@ def _segments(command: str) -> list[list[str]]:
         i += 1
     segs.append("".join(cur))
     out = []
+    env: dict[str, str] = {}
     for seg in segs:
-        seg = seg.strip().removesuffix("$").strip()
+        seg = seg.strip()
+        subst = seg.endswith("$")  # `S=$(…)` was cut at `(`: the value is a substitution
+        seg = seg.removesuffix("$").strip()
         try:
             words = shlex.split(seg)
         except ValueError:
             words = seg.split()
+        # `S=…/seed-relations.py; python3 "$S" metadata …` (observed live, 2026-11-09): a plain
+        # assignment-only segment defines a variable that later segments expand, so a tool named
+        # through it is still recognised. Anything else ($(…), loop variables) stays literal.
+        assigns = words[1:] if words[:1] == ["export"] else words
+        if assigns and all(ASSIGN.match(w) for w in assigns):
+            for name, value in (w.split("=", 1) for w in assigns):
+                if subst or "$" in value or "`" in value:
+                    env.pop(name, None)
+                else:
+                    env[name] = value
+            continue
+        if env:
+            words = [VAR_REF.sub(lambda m: env.get(m.group(1) or m.group(2), m.group(0)), w) for w in words]
         while words and ASSIGN.match(words[0]):
             words.pop(0)
         if words:
@@ -166,14 +187,43 @@ def _command_str(command) -> str:
 
 
 def _reads_only_template(command: str, out: str) -> bool:
-    """True only for a plain read of the template alone: no substitution, no comment, one body."""
-    if TEMPLATE_PATH not in command or any(t in command for t in ("$(", "`", "#", ";", "&&", "||", "|")):
+    """True only for a plain read of the template alone: one reader program, no substitution, no
+    comment, no second command, one body. Option flags, a count value (`head -n 5`), the sed/grep/awk
+    script word and fd redirects (`2>&1`) are not paths (#934); a yaml word in any of them is."""
+    if TEMPLATE_PATH not in command or any(t in command for t in ("$(", "`", "#", ";", "|", "\n", "<")) \
+            or re.search(r"(?<!>)&(?!>)", command):
         return False
     try:
-        paths = [w for w in shlex.split(command, posix=True)[1:] if not w.startswith("-")]
+        words = shlex.split(command, posix=True)
     except ValueError:
         return False
-    return bool(paths) and all(p.endswith(TEMPLATE_PATH) for p in paths) and len(SEED_KEYS[1].findall(out)) <= 1
+    prog = os.path.basename(words[0]) if words else ""
+    if prog not in TEMPLATE_READERS:
+        return False
+    need_script, skip_next, paths = prog in PATTERN_CMDS, False, []
+    for w in words[1:]:
+        is_template = w.endswith(TEMPLATE_PATH)
+        if not is_template and (".yaml" in w or ".yml" in w):  # may be a read (`sed 'r x.yaml'`, --file=)
+            return False
+        if skip_next:  # the value of -e/-f/--regexp
+            skip_next = False
+            continue
+        if is_template:
+            paths.append(w)
+            continue
+        if FD_REDIRECT.match(w) or COUNT.match(w):
+            continue
+        if w.startswith("-") and w != "-":
+            if prog in PATTERN_CMDS and (w in ("--regexp", "--file") or PATTERN_OPT.match(w)):
+                skip_next, need_script = True, False
+            elif w.startswith(("--regexp=", "--file=")):
+                need_script = False
+            continue
+        if need_script:
+            need_script = False
+            continue
+        return False  # another path (or `-` for stdin)
+    return bool(paths) and len(SEED_KEYS[1].findall(out)) <= 1
 
 
 def bash_candidates(command: str, cwd: str) -> list[str]:
@@ -201,6 +251,8 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
             continue
         if first not in READERS or (first == "sed" and any(
                 w.startswith("--in-place") or SED_INPLACE.match(w) for w in words[1:])):
+            continue
+        if first == "rg" and "--files" in words:  # lists file names only; reads no body (#934)
             continue
         prev = ""
         need_pattern, skip_next = first in PATTERN_CMDS, False
@@ -525,6 +577,14 @@ def _self_test() -> int:
         t_walkmeta = f"{d}/t/walkmeta.jsonl"
         tr(t_walkmeta, commands=['python3 /p/seed-relations.py walk docs/specs/metadata-y.yaml --json'],
            outputs=['{"nodes": [{"path": "docs/specs/x.yaml"}]}'])
+        # #934 live shape (2026-11-09 cd1): the tool and the Seed directory come through variables.
+        t_var = f"{d}/t/var.jsonl"
+        tr(t_var, commands=['S=/p/seed-relations.py; D=docs/specs; for f in x; do echo "=== $f"; '
+                            'python3 "$S" metadata "$D/$f.yaml" --json; done'],
+           outputs=['=== x\n{"path": "docs/specs/x.yaml", "title": "t"}'], cwd=d)
+        t_varsub = f"{d}/t/varsub.jsonl"  # a substituted value is not literal: no metadata call
+        tr(t_varsub, commands=['S=$(command -v seed-relations.py); python3 "$S" metadata docs/specs/x.yaml'],
+           outputs=['{"path": "docs/specs/x.yaml"}'], cwd=d)
         # subagent layout: parent transcript t/main.jsonl, subagent at t/main/subagents/agent-a1.jsonl
         t_main = f"{d}/t/main.jsonl"
         tr(t_main, commands=[f'python3 /p/seed-relations.py metadata {seed} --json'], outputs=[f'{{"path": "{seed}"}}'])
@@ -650,6 +710,23 @@ def _self_test() -> int:
         check("bash grep -e pattern is not expanded, file read", decide(bash("grep -e 'specs/*' docs/specs/x.yaml", t_none)), True)
         check("bash grep -e pattern alone is no read", decide(bash("grep -e 'docs/specs/*' README.md", t_none)), False)
         check("bash grep file arg after pattern still reads", decide(bash("grep goal docs/specs/*.yaml", t_none)), True)
+        # #934: a listing reads no body (live Codex shape), but a content search still does.
+        check("bash rg --files with spec globs is no read", decide(bash(
+            "pwd; rg --files -g 'AGENTS.md' -g 'docs/specs/**' -g 'pnpm-lock.yaml'", t_none)), False)
+        check("bash rg --files over the spec dir is no read", decide(bash("rg --files docs/specs", t_none)), False)
+        check("bash ls of the spec dir is no read", decide(bash("ls -la docs/specs; ls docs/specs/*.yaml", t_none)), False)
+        check("bash rg content search still reads", decide(bash("rg goal -g '*.yaml' docs/specs/x.yaml", t_none)), True)
+        check("bash rg --files beside a cat still reads", decide(bash("rg --files docs; cat docs/specs/x.yaml", t_none)), True)
+        # #934: metadata through a variable (live cd1/CDS/CB shape) is metadata, before and after.
+        check("bash metadata loop through $S is not denied", decide(bash(
+            'S=/p/seed-relations.py; for f in docs/specs/x.yaml; do python3 "$S" metadata "$f" --json; done', t_none)), False)
+        check("bash exported tool variable", decide(bash(
+            "export S=/p/seed-relations.py; python3 ${S} metadata docs/specs/x.yaml", t_none)), False)
+        check("read seed after metadata through variables", decide(bash("cat README.md docs/specs/x.yaml", t_var)), False)
+        check("bash variable naming a reader still reads", decide(bash("R=cat; $R docs/specs/x.yaml", t_none)), True)
+        check("bash variable tool beside a cat still reads", decide(bash(
+            "S=/p/seed-relations.py; python3 $S walk a.yaml; cat docs/specs/x.yaml", t_none)), True)
+        check("read seed, substituted tool variable is no metadata", decide(bash("cat docs/specs/x.yaml", t_varsub)), True)
         check("codex argv command", decide({"tool_name": "Bash", "tool_input": {"command": ["bash", "-lc", "cat docs/specs/x.yaml"]},
                                            "transcript_path": t_none, "cwd": d}), True)
         check("subagent, metadata only in parent", decide({**read(seed, t_main), "agent_id": "a1"}), True)
@@ -705,6 +782,21 @@ def _self_test() -> int:
             "cat skills/build-spec/templates/SEED_SPEC.yaml $(ls docs/specs/*.yaml)", f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), True)
         check("post, a template path in a comment still blocks", decide_post(post(
             "cat $(git ls-files docs) # templates/SEED_SPEC.yaml", f"# {TEMPLATE_HEAD}\n" + stranger, t_none)), True)
+        # #934: a plain template read with a count, a sed script or an fd redirect is not a Seed body.
+        tp = "thinking-tools/skills/build-spec/templates/SEED_SPEC.yaml"
+        tout = f"# {TEMPLATE_HEAD}\n" + stranger
+        for c in (f"head -n 5 {tp}", f"sed -n '1,40p' {tp}", f"cat {tp} 2>&1", f"cat {tp} 2>/dev/null",
+                  f"tail -n +3 {tp}", f"grep -n 'success_criteria' {tp}"):
+            check(f"post, template-only read: {c[:18]}", decide_post(post(c, tout, t_none)), False)
+        for c in (f"sed 'r docs/specs/x.yaml' {tp}", f"cat {tp} -", f"grep -f {tp} README.md",
+                  f"cat {tp} README.md", f"cat {tp} & cat README.md", f"cat {tp} < README.md",
+                  f"python3 x.py {tp}", f"head -n 5 {tp}\ncat README.md"):
+            check(f"post, template plus another read still blocks: {c[-22:]}", decide_post(post(c, tout, t_none)), True)
+        # #934: the live cd1 re-read after a variable-driven metadata loop.
+        check("post, re-read after metadata through variables", decide_post(post(
+            "cat README.md docs/specs/x.yaml", stranger, t_var)), False)
+        check("post, re-read after substituted-variable metadata still blocks", decide_post(post(
+            "cat README.md docs/specs/x.yaml", stranger, t_varsub)), True)
         check("post, a metadata call's own output counts", decide_post(post(
             'python3 /p/seed-relations.py read docs/specs/x.yaml', f'{{"path": "docs/specs/x.yaml"}}\n{pref}', t_none)), False)
         check("post, walk output is no metadata", decide_post(post(
