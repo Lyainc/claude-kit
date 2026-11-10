@@ -62,7 +62,9 @@ PATTERN_CMDS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}  # first non-optio
 PATTERN_OPT = re.compile(r"-[A-Za-z]*[ef]$")  # short option cluster ending in -e/-f takes a value
 VAR_REF = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
 # A plain template read may print it with these programs; anything else is not a template read.
-TEMPLATE_READERS = {"cat", "head", "tail", "sed", "nl", "bat", "less", "more", "grep", "egrep", "fgrep", "rg", "awk"}
+# None of them can run a command from its arguments (awk `system()`, sed `e`, rg `--pre` can).
+TEMPLATE_READERS = {"cat", "head", "tail", "sed", "nl", "grep", "egrep", "fgrep"}
+SAFE_SED = re.compile(r"[\d,;$pq ]+")  # `1,40p`: line addresses and print only, no `e`/`r`/`w`
 FD_REDIRECT = re.compile(r"^(?:\d*>&\d+|\d*>&-|&?>>?/dev/null|\d+>>?/dev/null)$")  # `2>&1`, `2>/dev/null`
 COUNT = re.compile(r"^\+?\d+$")  # `head -n 5`, `tail -n +3`: a count value, not a path
 
@@ -207,6 +209,8 @@ def _reads_only_template(command: str, out: str) -> bool:
             return False
         if skip_next:  # the value of -e/-f/--regexp
             skip_next = False
+            if prog == "sed" and not SAFE_SED.fullmatch(w):
+                return False
             continue
         if is_template:
             paths.append(w)
@@ -214,13 +218,17 @@ def _reads_only_template(command: str, out: str) -> bool:
         if FD_REDIRECT.match(w) or COUNT.match(w):
             continue
         if w.startswith("-") and w != "-":
+            if prog == "sed" and (w.startswith(("--expression", "--file")) or re.match(r"-[A-Za-z]*f", w)):
+                return False  # a sed script we do not inspect (file or `--expression=` form)
             if prog in PATTERN_CMDS and (w in ("--regexp", "--file") or PATTERN_OPT.match(w)):
                 skip_next, need_script = True, False
             elif w.startswith(("--regexp=", "--file=")):
                 need_script = False
             continue
-        if need_script:
+        if need_script:  # grep's pattern is inert; sed's script may run or read (`e`, `r`)
             need_script = False
+            if prog == "sed" and not SAFE_SED.fullmatch(w):
+                return False
             continue
         return False  # another path (or `-` for stdin)
     return bool(paths) and len(SEED_KEYS[1].findall(out)) <= 1
@@ -790,7 +798,10 @@ def _self_test() -> int:
             check(f"post, template-only read: {c[:18]}", decide_post(post(c, tout, t_none)), False)
         for c in (f"sed 'r docs/specs/x.yaml' {tp}", f"cat {tp} -", f"grep -f {tp} README.md",
                   f"cat {tp} README.md", f"cat {tp} & cat README.md", f"cat {tp} < README.md",
-                  f"python3 x.py {tp}", f"head -n 5 {tp}\ncat README.md"):
+                  f"python3 x.py {tp}", f"head -n 5 {tp}\ncat README.md",
+                  # review round 1: a script word that runs or reads a file is no template read
+                  f"awk 'BEGIN{{system(\"cat docs/specs/x*\")}}' {tp}", f"sed -n '1e cat docs/specs/x*' {tp}",
+                  f"sed -n -e '1r README.md' {tp}", f"sed -f s.sed {tp}", f"rg --pre ./p . {tp}"):
             check(f"post, template plus another read still blocks: {c[-22:]}", decide_post(post(c, tout, t_none)), True)
         # #934: the live cd1 re-read after a variable-driven metadata loop.
         check("post, re-read after metadata through variables", decide_post(post(
