@@ -745,10 +745,12 @@ _HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*")
 # Hold verdicts, scoped to table cells that open with 보류, "**결론**: 보류" lines, and backticked
 # spans; free prose that merely discusses holds (and the "보류 사유" column label) is not scanned.
 _HOLD_VERDICT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류|`\s*보류(?!\s*사유)")
-# A 보류 is a verdict (not prose discussing holds) when a delimiter or the end follows it; a count
-# ("1개 보류") or a quoted checklist phrase ("명시적 보류") is not one.
+# A 보류 is a verdict (not prose discussing holds) when it ends a word: after optional spaces comes
+# any non-word character or the end, never a word ("보류된", "보류 상태"). Classifying by "no word
+# follows" rather than listing delimiters keeps an unlisted one ("—", "·", "–", "→") from passing
+# (#928). A count ("1개 보류") or a quoted checklist phrase ("명시적 보류") is not one.
 _HOLD_LEAD = r"(?<!개 )(?<!명시적 )"
-_HOLD_FOLLOW = r"(?=\s*(?:[:(),;/|*`\-—.·]|$))"
+_HOLD_FOLLOW = r"(?=\s*(?:[^\w\s]|$))"
 # Off a table a "보류 사유" label is not a verdict; inside a cell it is (the bare label cell is skipped).
 _HOLD_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?!\s*사유)" + _HOLD_FOLLOW)
 _HOLD_CELL_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?:\s*사유)?" + _HOLD_FOLLOW)
@@ -1471,6 +1473,18 @@ def _self_test() -> int:
         ("table verdict, em dash", lambda t: t + "\n| 인증 | 보류 — 동점 | x |\n"),
         ("list hold, period", lambda t: t + "\n- 보류. 정족수 미달\n"),
         ("list hold, middle dot", lambda t: t + "\n- 결과: 보류 · 재논의\n"),
+        # #928: each delimiter in every scoped verdict place, plus delimiters no list ever named.
+        ("conclusion hold, em dash", lambda t: t + "\n**결론**: 보류 — 동점\n"),
+        ("conclusion hold, period", lambda t: t + "\n**결론**: 보류. 정족수 미달\n"),
+        ("conclusion hold, middle dot", lambda t: t + "\n**결론**: 보류 · 재논의\n"),
+        ("table verdict, period", lambda t: t + "\n| 인증 | 보류. 정족수 미달 | x |\n"),
+        ("table verdict, middle dot", lambda t: t + "\n| 인증 | 결과: 보류 · 재논의 | x |\n"),
+        ("list hold, em dash", lambda t: t + "\n- 보류 — 동점\n"),
+        ("backticked hold, em dash", lambda t: t + "\n비고: `보류 — 동점`\n"),
+        ("list hold, en dash", lambda t: t + "\n- 보류 – 동점\n"),
+        ("list hold, arrow", lambda t: t + "\n- 보류 → 재논의\n"),
+        ("table verdict, exclamation", lambda t: t + "\n| 인증 | 보류! | x |\n"),
+        ("bold list hold, em dash", lambda t: t + "\n- **보류** — 동점\n"),
         ("UNRESOLVED row without a code", lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b | 동점 |\n"),
     ):
         cases.append((f"hold enum: {desc} -> FAIL",
@@ -1478,6 +1492,9 @@ def _self_test() -> int:
     for desc, mutate in (
         ("canonical coded forms", lambda t: t + "\n> 비고: `보류 (`held:tie`, 6:6)`\n| 인증 | 보류 (`held:quorum`) | x |\n"
          "**결론**: 보류 (`held:evidence`)\nheld:{tie | quorum}\nheld:{evidence,tie}\n"),
+        # #928: a word after 보류 is prose about holds, not a verdict.
+        ("prose list items about holds", lambda t: t + "\n- 보류된 토픽은 다음 세션에 다시 다뤄요.\n- 보류 상태는 재투표하지 않아요.\n"),
+        ("coded holds with the new delimiters", lambda t: t + "\n- 보류 — 동점 (held:tie)\n**결론**: 보류 · 재논의 (`held:evidence`)\n"),
         ("UNRESOLVED row with a code and an empty placeholder row",
          lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b | 동점 (held:tie) |\n| 2 | | | |\n"),
     ):
