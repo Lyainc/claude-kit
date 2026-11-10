@@ -322,9 +322,12 @@ def _strings(obj):
 
 
 def _metadata_call(command: str, cwd: str):
-    """(literal Seed path or None, cwd) when a command runs `seed-relations.py metadata|read`."""
+    """(literal Seed paths, cwd) when a command runs `seed-relations.py metadata|read`; a call whose
+    file name is not literal contributes None. Several calls in one command (live Codex, #934) each
+    keep their own literal; `_literal_for` pairs every printed path with the call that printed it."""
     segments = _segments(_strip_heredocs(command))
     moved = any(os.path.basename(w[0]) == "cd" for w in segments)
+    literals: list = []
     for words in segments:
         i = _tool_call(words)
         if i < 0 or os.path.basename(words[i]) != "seed-relations.py":
@@ -334,9 +337,20 @@ def _metadata_call(command: str, cwd: str):
             continue
         target = args[1]
         if moved or any(c in target for c in "$`~" + GLOB_CHARS) or not (cwd or os.path.isabs(target)):
-            return None, cwd  # the file name is not literal here; match by the printed path
-        return os.path.realpath(os.path.join(cwd, target)), cwd
-    return None
+            literals.append(None)  # the file name is not literal here; match by the printed path
+        else:
+            literals.append(os.path.realpath(os.path.join(cwd, target)))
+    return (tuple(literals), cwd) if literals else None
+
+
+def _literal_for(printed: str, literals: tuple):
+    """The literal path of the call that printed `printed`; None (match by printed path) when only a
+    non-literal call can have printed it; else the first literal, which then matches no other Seed."""
+    rel = "/" + printed.removeprefix("./")
+    for lit in literals:
+        if lit and (lit.endswith(rel) or lit == printed):
+            return lit
+    return None if None in literals else literals[0]
 
 
 def scan_transcript(tp: str):
@@ -380,7 +394,7 @@ def scan_transcript(tp: str):
                     if isinstance(cmd, str) and isinstance(raw_cwd, str) else None
                 if call:
                     literal, cwd = call
-                    calls.extend((m, literal, cwd) for m in META_PATH.findall(str(it.get("aggregated_output") or "")))
+                    calls.extend((m, _literal_for(m, literal), cwd) for m in META_PATH.findall(str(it.get("aggregated_output") or "")))
             elif p.get("type") in ("custom_tool_call_output", "function_call_output"):
                 results.extend(t for t in _strings(p.get("output")) if DENY_HEAD in t[:300])
             continue
@@ -401,7 +415,7 @@ def scan_transcript(tp: str):
                 results.extend(t for t in texts if DENY_HEAD in t[:300])
                 if b.get("tool_use_id") in meta_calls:
                     literal, cwd = meta_calls[b["tool_use_id"]]
-                    calls.extend((m, literal, cwd) for t in texts for m in META_PATH.findall(t))
+                    calls.extend((m, _literal_for(m, literal), cwd) for t in texts for m in META_PATH.findall(t))
     return calls, results
 
 
@@ -506,7 +520,7 @@ def decide_post(payload: dict) -> str:
         # template from a Seed; only a command that reads nothing but the template is exempt.
         return ""
     cur = _metadata_call(command, cwd)  # this call's own metadata/read output may not be in the transcript yet
-    extra = [(m, cur[0], cur[1]) for m in META_PATH.findall(out)] if cur else []
+    extra = [(m, _literal_for(m, cur[0]), cur[1]) for m in META_PATH.findall(out)] if cur else []
     unseen = unseen_seeds(seeds, payload, extra, skip_denied=False)
     if unseen is None:
         return ""
@@ -628,6 +642,11 @@ def _self_test() -> int:
                     "aggregated_output": '{"path": "docs/specs/x.yaml"}', "exit_code": 0, **over}
             Path(path).write_text(json.dumps({"type": "event_msg", "payload": {"type": "item_completed", "item": item}}) + "\n")
         cx(c_argv, runs=[(["python3", "/p/seed-relations.py", "metadata", seed, "--json"], "/", f'{{"path": "{seed}"}}')])
+        # #934 live x-xd shape: one exec runs several literal metadata calls, one per line.
+        c_multi, c_multi1 = f"{d}/t/c-multi.jsonl", f"{d}/t/c-multi1.jsonl"
+        multi = "\n".join(f"python3 /p/seed-relations.py metadata {d}/docs/specs/{n}.yaml --json" for n in ("x", "hello"))
+        cx(c_multi, runs=[(["/bin/zsh", "-lc", multi], d, '{"path": "docs/specs/x.yaml"}\n{"path": "docs/specs/hello.yaml"}')])
+        cx(c_multi1, runs=[(["/bin/zsh", "-lc", multi.split("\n")[1]], d, '{"path": "docs/specs/hello.yaml"}')])
 
         def read(p, t):
             return {"tool_name": "Read", "tool_input": {"file_path": p}, "transcript_path": t}
@@ -759,6 +778,9 @@ def _self_test() -> int:
         check("codex, non-str cwd is no metadata call", decide(bash("cat docs/specs/x.yaml", c_badcwd)), True)
         check("codex, non-str non-list command is no metadata call", decide(bash("cat docs/specs/x.yaml", c_badcmd)), True)
         check("codex, argv command", decide(bash("cat docs/specs/x.yaml", c_argv)), False)
+        check("codex, second of several metadata calls counts", decide(bash("cat docs/specs/hello.yaml", c_multi)), False)
+        check("codex, first of several metadata calls counts", decide(bash("cat docs/specs/x.yaml", c_multi)), False)
+        check("codex, metadata for another seed only", decide(bash("cat docs/specs/x.yaml", c_multi1)), True)
 
         # PostToolUse: the output carries a Seed body that no static read check could predict.
         body = ("# AMENDMENT CONTRACT\nskill: build-spec\nlifecycle:\n  state: paused\n"
@@ -815,6 +837,12 @@ def _self_test() -> int:
         # #934: the live cd1 re-read after a variable-driven metadata loop.
         check("post, re-read after metadata through variables", decide_post(post(
             "cat README.md docs/specs/x.yaml", stranger, t_var)), False)
+        # #934 live x-xd: `rg --files` lines identify every Seed; all had metadata in one exec.
+        listing = "docs/specs/hello.yaml\ndocs/specs/x.yaml\n"
+        check("post, re-read after several metadata calls in one exec", decide_post(post(
+            "cat docs/specs/x.yaml\nrg --files", stranger + listing, c_multi)), False)
+        check("post, listed seed without metadata still blocks", decide_post(post(
+            "cat docs/specs/hello.yaml\nrg --files", stranger + listing, c_multi1)), True)
         check("post, re-read after substituted-variable metadata still blocks", decide_post(post(
             "cat README.md docs/specs/x.yaml", stranger, t_varsub)), True)
         check("post, a metadata call's own output counts", decide_post(post(
