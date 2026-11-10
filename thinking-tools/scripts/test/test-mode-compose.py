@@ -742,7 +742,11 @@ _HOLD_BULLET_RE = re.compile(r"^\d+\. \*\*Hold\*\*[^\n]*$", re.MULTILINE)
 _HELD_TOKEN_RE = re.compile(r"held:\s*(?:\{([^}]*)\}|([A-Za-z0-9_-]*)(?![A-Za-z0-9_-]))")
 # Keyed hold rows ("| 보류 사유 | ..." / "- **보류 사유**") always need a code on the line, unless the
 # row is a table header (the next line is a separator row) or an empty placeholder.
-_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*")
+_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^\s*- .*보류 사유")
+# A slot that is itself the verdict: the "**결론**:" value or a table cell that opens with 보류. Its
+# 보류 needs a code even where prose rules would exempt it ("**결론**: 보류 중", "| 보류 상태 |").
+_HOLD_SLOT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류")
+_HOLD_CELL_OPEN_RE = re.compile(r"\**\s*보류(?!\s*사유)")
 # Hold verdict places: table cells, "**결론**: 보류" lines, backticked spans, list items and
 # "보류 (reason)" spans. Free prose outside these places (headings, paragraphs) is not scanned.
 _HOLD_VERDICT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류|`\s*보류(?!\s*사유)")
@@ -817,11 +821,12 @@ def _hold_uncoded_problem(name: str, n: int, line: str, cells: list[str] | None,
             and not (cells is not None and all(_SEP_RE.fullmatch(c) for c in cells[1:]))):
         return f"{name}:{n}: hold row without a held:* code"
     if cells is not None:
-        bad = not header and any(c != "보류 사유" and not _SEP_RE.fullmatch(c) and _uncoded_holds(c, True)
+        bad = not header and any(c != "보류 사유" and not _SEP_RE.fullmatch(c)
+                                 and (_uncoded_holds(c, True) or (_HOLD_CELL_OPEN_RE.match(c) and "held:" not in c))
                                  for c in cells)
     else:
         bad = bool((_HOLD_VERDICT_RE.search(line) or _HOLD_SCAN_LINE_RE.search(line))
-                   and _uncoded_holds(line, False))
+                   and _uncoded_holds(line, False)) or bool(_HOLD_SLOT_RE.search(line) and "held:" not in line)
     return f"{name}:{n}: hold verdict without a held:* code" if bad else None
 
 
@@ -1487,6 +1492,11 @@ def _self_test() -> int:
         ("brace form with an unknown member", lambda t: t + "\nheld:{tie|stalemate}\n"),
         ("pre-#851 free-text reason revived", lambda t: t + "\n| 보류 사유 | 구조적 한계 |\n"),
         ("code-less hold conclusion", lambda t: t + "\n**결론**: 보류 - 확인 필요\n"),
+        # #928 final review: the filled SUMMARY line and verdict slots that prose rules would exempt.
+        ("filled SUMMARY hold line without a code", lambda t: t + "\n- 인증 — 보류 사유 동점, 자세한 내용은 `UNRESOLVED.md` 참고\n"),
+        ("conclusion 보류 중", lambda t: t + "\n**결론**: 보류 중\n"),
+        ("conclusion 보류 상태", lambda t: t + "\n**결론**: 보류 상태\n"),
+        ("table cell opening with 보류 중", lambda t: t + "\n| 인증 | 보류 중 | x |\n"),
         ("brace choice notation outside the schema", lambda t: t + "\n- [토픽] — 보류 사유 held:{tie|evidence|quorum}\n"),
         ("brace with valid members in a verdict", lambda t: t + "\n**결론**: 보류 (held:{evidence,tie})\n"),
         ("brace form, comma separator", lambda t: t + "\nheld:{tie,other}\n"),
@@ -1548,6 +1558,7 @@ def _self_test() -> int:
     for desc, mutate in (
         ("canonical coded forms", lambda t: t + "\n> 비고: `보류 (`held:tie`, 6:6)`\n| 인증 | 보류 (`held:quorum`) | x |\n"
          "**결론**: 보류 (`held:evidence`)\n"),
+        ("filled SUMMARY hold line with a code", lambda t: t + "\n- 인증 — 보류 사유 held:tie (동점), 자세한 내용은 `UNRESOLVED.md` 참고\n"),
         ("brace choice notation in the Topic-status schema", lambda t: t + "\nTopic-status: [t{n}:held:{tie | quorum}]\n"),
         # #928: a word after 보류 is prose about holds, not a verdict.
         ("prose list items about holds", lambda t: t + "\n- 보류된 토픽은 다음 세션에 다시 다뤄요.\n- 보류 상태는 재투표하지 않아요.\n"),
