@@ -754,12 +754,12 @@ _HOLD_SCAN_LINE_RE = re.compile(r"^\s*- |보류 \(")
 # names ("보류됨", "보류로", "보류 처리", "보류 — 동점", "보류 6:6") is a verdict. The 보류 사유
 # label is a verdict inside a table cell (the bare label cell is skipped), never off a table.
 _HOLD_PROSE_RE = re.compile(
-    r"보류(?:(?:된|되는|되면|되어|돼|하는|하면|하고|할|한|는|은|를|을|가|이|의|에|와|과|도|만)(?![가-힣])"
-    r"|\s*(?:시|상태|토픽|결과|여부|항목|대상|중))")
+    r"보류(?:하|합|했|되|됐|돼|된|될"                       # a verb form: 보류합니다, 보류되었어요, 보류된 (not 보류됨)
+    r"|(?:는|은|를|을|가|이|의|에|와|과|도|만)"              # an attached particle: 보류는, 보류에서, 보류이며
+    r"|\s*(?:시|상태|토픽|결과|여부|항목|대상|중|이유))")    # a noun 보류 modifies: 보류 시, 보류 이유를
 _HOLD_LEAD_RE = re.compile(r"(?:개|명시적) $")
 _HOLD_LABEL_RE = re.compile(r"보류\s*사유")
 _SEP_RE = re.compile(r"[-:\s]*")
-_HELD_AT_RE = re.compile(r"held:")
 _LEGACY_HOLD_PHRASES = ("유저 개입 필요", "구조적 한계", "정보 부족 / 의견 대립")
 
 
@@ -779,11 +779,13 @@ def _is_hold_verdict(text: str, i: int, in_cell: bool) -> bool:
 
 
 def _uncoded_holds(text: str, in_cell: bool) -> int:
-    """Count hold verdicts in text left without a held: code. Each code belongs to the verdict nearest
-    to it, so a code written before its 보류 still counts and one verdict's code never covers another."""
+    """Count hold verdicts in text left without a held: code. A verdict owns the codes from itself up to
+    the next verdict, so a long reason cannot hand its code to a later 보류 and one verdict's code never
+    covers another; codes written before the first verdict belong to it ("held:tie 이후 보류 (동점)")."""
     verdicts = [m.start() for m in re.finditer("보류", text) if _is_hold_verdict(text, m.start(), in_cell)]
-    coded = {min(verdicts, key=lambda v: abs(v - c.start())) for c in _HELD_AT_RE.finditer(text)} if verdicts else set()
-    return len(verdicts) - len(coded)
+    bounds = verdicts + [len(text)]
+    return sum(1 for i, (a, b) in enumerate(zip(bounds, bounds[1:]))
+               if "held:" not in text[0 if i == 0 else a:b])
 
 
 def _hold_token_problems(name: str, n: int, line: str, enum: set[str]) -> list[str]:
@@ -1537,6 +1539,12 @@ def _self_test() -> int:
         ("prose list items about holds", lambda t: t + "\n- 보류된 토픽은 다음 세션에 다시 다뤄요.\n- 보류 상태는 재투표하지 않아요.\n"),
         ("a code written before its hold", lambda t: t + "\n- held:tie 이후 보류 (동점)\n"),
         ("보류 사유 header row", lambda t: t + "\n\n| 보류 사유 | 필요 조치 |\n|---|---|\n| held:tie (동점) | 재논의 |\n"),
+        ("two coded holds, the first with a long reason",
+         lambda t: t + "\n- 보류 (정족수가 부족하고 증거도 모자람, held:quorum) / 보류 (held:tie)\n"),
+        ("prose verb and particle forms in list items", lambda t: t + "\n- 보류합니다\n- 보류하지 않아요.\n"
+         "- 보류되었어요.\n- 보류에서 제외돼요.\n- 보류이며 다음 세션에 다뤄요.\n- 보류만 남겨요.\n"),
+        ("prose nouns after 보류 in list items", lambda t: t + "\n- 보류 이유를 적어요.\n- 보류 중인 토픽\n"
+         "- 보류 결과를 정리해요.\n- 보류 여부를 정해요.\n- 보류 대상 토픽\n"),
         ("prose 보류 nouns in a table cell", lambda t: t + "\n| 맴돎 | 결론은 Topic Conclusion(보류 시 UNRESOLVED.md) |\n"),
         ("coded holds with the new delimiters", lambda t: t + "\n- 보류 — 동점 (held:tie)\n**결론**: 보류 · 재논의 (`held:evidence`)\n"),
         ("UNRESOLVED row with a code and an empty placeholder row",
