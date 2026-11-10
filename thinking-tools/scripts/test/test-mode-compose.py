@@ -740,23 +740,26 @@ def role_label_checks(transcript: str, summary: str, ref_text: str, worker_text:
 
 _HOLD_BULLET_RE = re.compile(r"^\d+\. \*\*Hold\*\*[^\n]*$", re.MULTILINE)
 _HELD_TOKEN_RE = re.compile(r"held:\s*(?:\{([^}]*)\}|([A-Za-z0-9_-]*)(?![A-Za-z0-9_-]))")
-# Keyed hold rows ("| 보류 사유 | ..." / "- **보류 사유**") always need a code on the line.
+# Keyed hold rows ("| 보류 사유 | ..." / "- **보류 사유**") always need a code on the line, unless the
+# row is a table header (the next line is a separator row) or an empty placeholder.
 _HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*")
-# Hold verdicts, scoped to table cells that open with 보류, "**결론**: 보류" lines, and backticked
-# spans; free prose that merely discusses holds (and the "보류 사유" column label) is not scanned.
+# Hold verdict places: table cells, "**결론**: 보류" lines, backticked spans, list items and
+# "보류 (reason)" spans. Free prose outside these places (headings, paragraphs) is not scanned.
 _HOLD_VERDICT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류|`\s*보류(?!\s*사유)")
-# A 보류 is a verdict (not prose discussing holds) when it ends a word: after optional spaces comes
-# any non-word character or the end, never a word ("보류된", "보류 상태"). Classifying by "no word
-# follows" rather than listing delimiters keeps an unlisted one ("—", "·", "–", "→") from passing
-# (#928). A count ("1개 보류") or a quoted checklist phrase ("명시적 보류") is not one.
-_HOLD_LEAD = r"(?<!개 )(?<!명시적 )"
-_HOLD_FOLLOW = r"(?=\s*(?:[^\w\s]|$))"
-# Off a table a "보류 사유" label is not a verdict; inside a cell it is (the bare label cell is skipped).
-_HOLD_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?!\s*사유)" + _HOLD_FOLLOW)
-_HOLD_CELL_WORD_RE = re.compile(_HOLD_LEAD + r"보류(?:\s*사유)?" + _HOLD_FOLLOW)
-_SEP_RE = re.compile(r"[-:\s]*")
-# Non-table lines scanned per occurrence: list items, hold verdicts, and "보류 (reason)" spans.
 _HOLD_SCAN_LINE_RE = re.compile(r"^\s*- |보류 \(")
+# Inside a verdict place every 보류 is a verdict that needs its own held:* code, except where the
+# grammar makes it a noun in a sentence (#928): an attached particle or modifier ("보류된 토픽은",
+# "보류는", "보류를"), a following noun that the 보류 modifies ("보류 시", "보류 상태"), a count
+# ("1개 보류") or a quoted checklist phrase ("명시적 보류"). The test fails closed: a form no rule
+# names ("보류됨", "보류로", "보류 처리", "보류 — 동점", "보류 6:6") is a verdict. The 보류 사유
+# label is a verdict inside a table cell (the bare label cell is skipped), never off a table.
+_HOLD_PROSE_RE = re.compile(
+    r"보류(?:(?:된|되는|되면|되어|돼|하는|하면|하고|할|한|는|은|를|을|가|이|의|에|와|과|도|만)(?![가-힣])"
+    r"|\s*(?:시|상태|토픽|결과|여부|항목|대상|중))")
+_HOLD_LEAD_RE = re.compile(r"(?:개|명시적) $")
+_HOLD_LABEL_RE = re.compile(r"보류\s*사유")
+_SEP_RE = re.compile(r"[-:\s]*")
+_HELD_AT_RE = re.compile(r"held:")
 _LEGACY_HOLD_PHRASES = ("유저 개입 필요", "구조적 한계", "정보 부족 / 의견 대립")
 
 
@@ -769,10 +772,18 @@ def _cells(line: str) -> list[str]:
     return [c.strip() for c in line.strip().strip("|").split("|")]
 
 
-def _uncoded_holds(text: str, word_re: re.Pattern) -> int:
-    """Count verdict-shaped 보류 with no held: token between it and the next 보류 (or the end)."""
-    starts = [m.start() for m in re.finditer("보류", text)] + [len(text)]
-    return sum(1 for a, b in zip(starts, starts[1:]) if word_re.match(text, a) and "held:" not in text[a:b])
+def _is_hold_verdict(text: str, i: int, in_cell: bool) -> bool:
+    if _HOLD_LEAD_RE.search(text[max(0, i - 4):i]) or _HOLD_PROSE_RE.match(text, i):
+        return False
+    return in_cell or not _HOLD_LABEL_RE.match(text, i)
+
+
+def _uncoded_holds(text: str, in_cell: bool) -> int:
+    """Count hold verdicts in text left without a held: code. Each code belongs to the verdict nearest
+    to it, so a code written before its 보류 still counts and one verdict's code never covers another."""
+    verdicts = [m.start() for m in re.finditer("보류", text) if _is_hold_verdict(text, m.start(), in_cell)]
+    coded = {min(verdicts, key=lambda v: abs(v - c.start())) for c in _HELD_AT_RE.finditer(text)} if verdicts else set()
+    return len(verdicts) - len(coded)
 
 
 def _hold_token_problems(name: str, n: int, line: str, enum: set[str]) -> list[str]:
@@ -788,38 +799,57 @@ def _hold_token_problems(name: str, n: int, line: str, enum: set[str]) -> list[s
     return out
 
 
-def _hold_uncoded_problem(name: str, n: int, line: str, cells: list[str] | None) -> str | None:
+def _is_sep_row(line: str | None) -> bool:
+    return bool(line and line.lstrip().startswith("|") and all(_SEP_RE.fullmatch(c) for c in _cells(line)))
+
+
+def _hold_uncoded_problem(name: str, n: int, line: str, cells: list[str] | None, header: bool) -> str | None:
     """Return the problem for a hold row/verdict missing a held:* code; cells is None off a table row."""
-    if _HOLD_ROW_RE.search(line) and "held:" not in line:
+    if (_HOLD_ROW_RE.search(line) and "held:" not in line and not header
+            and not (cells is not None and all(_SEP_RE.fullmatch(c) for c in cells[1:]))):
         return f"{name}:{n}: hold row without a held:* code"
     if cells is not None:
-        bad = any(c != "보류 사유" and not _SEP_RE.fullmatch(c) and _uncoded_holds(c, _HOLD_CELL_WORD_RE)
-                  for c in cells)
+        bad = not header and any(c != "보류 사유" and not _SEP_RE.fullmatch(c) and _uncoded_holds(c, True)
+                                 for c in cells)
     else:
         bad = bool((_HOLD_VERDICT_RE.search(line) or _HOLD_SCAN_LINE_RE.search(line))
-                   and _uncoded_holds(line, _HOLD_WORD_RE))
+                   and _uncoded_holds(line, False))
     return f"{name}:{n}: hold verdict without a held:* code" if bad else None
+
+
+def _row_has_content(cells: list[str], skip: int) -> bool:
+    """A data row with something besides a row number: an all-empty or number-only row is a placeholder."""
+    return any(c and not _SEP_RE.fullmatch(c) and not c.isdigit() for i, c in enumerate(cells) if i != skip)
 
 
 def hold_enum_violations(files: dict[str, str], enum: set[str]) -> list[str]:
     """Return 'file:line: problem' for each hold reason outside the enum (or missing on a hold row)."""
     out: list[str] = []
     for name, text in files.items():
+        lines = text.splitlines()
         reason_col: int | None = None  # index of the 보류 사유 column of the table being read
+        last_header: tuple[int, int] | None = None  # (column count, 보류 사유 index) of the last such header
         prev_table = False
-        for n, line in enumerate(text.splitlines(), 1):
+        for n, line in enumerate(lines, 1):
             cells = _cells(line) if line.lstrip().startswith("|") else None
+            header = cells is not None and not prev_table and _is_sep_row(lines[n] if n < len(lines) else None)
             out.extend(_hold_token_problems(name, n, line, enum))
-            problem = _hold_uncoded_problem(name, n, line, cells)
+            problem = _hold_uncoded_problem(name, n, line, cells, header)
             if problem:
                 out.append(problem)
             if cells is None:
                 reason_col = None
-            elif not prev_table:
+            elif header:
                 reason_col = cells.index("보류 사유") if "보류 사유" in cells else None
-            elif (reason_col is not None and reason_col < len(cells)
-                  and not _SEP_RE.fullmatch(cells[reason_col]) and "held:" not in cells[reason_col]):
-                out.append(f"{name}:{n}: 보류 사유 cell without a held:* code")
+                if reason_col is not None:
+                    last_header = (len(cells), reason_col)
+            else:
+                if not prev_table:  # a table block with no header row takes the last matching header's column
+                    reason_col = last_header[1] if last_header and last_header[0] == len(cells) else None
+                if (reason_col is not None and reason_col < len(cells) and not _is_sep_row(line)
+                        and "held:" not in cells[reason_col]
+                        and (not _SEP_RE.fullmatch(cells[reason_col]) or _row_has_content(cells, reason_col))):
+                    out.append(f"{name}:{n}: 보류 사유 cell without a held:* code")
             prev_table = cells is not None
     return out
 
@@ -1485,6 +1515,17 @@ def _self_test() -> int:
         ("list hold, arrow", lambda t: t + "\n- 보류 → 재논의\n"),
         ("table verdict, exclamation", lambda t: t + "\n| 인증 | 보류! | x |\n"),
         ("bold list hold, em dash", lambda t: t + "\n- **보류** — 동점\n"),
+        # #928 owner comment: forms no delimiter rule could see, code placement, reason columns.
+        ("list hold, 보류됨", lambda t: t + "\n- 보류됨\n"),
+        ("list hold, 보류로", lambda t: t + "\n- 보류로 처리\n"),
+        ("table verdict, 보류 처리", lambda t: t + "\n| 인증 | 보류 처리 | x |\n"),
+        ("conclusion hold followed by a word", lambda t: t + "\n**결론**: 보류 동점\n"),
+        ("list hold followed by a score", lambda t: t + "\n- 보류 6:6\n"),
+        ("code covers only its nearest hold", lambda t: t + "\n- held:tie 보류 (동점) / 보류 (정족수)\n"),
+        ("UNRESOLVED row with an empty reason cell",
+         lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b |  |\n"),
+        ("headerless block after a 보류 사유 header",
+         lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b | held:tie |\n\n본문\n\n| 2 | c | d | 동점 |\n"),
         ("UNRESOLVED row without a code", lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b | 동점 |\n"),
     ):
         cases.append((f"hold enum: {desc} -> FAIL",
@@ -1494,6 +1535,9 @@ def _self_test() -> int:
          "**결론**: 보류 (`held:evidence`)\nheld:{tie | quorum}\nheld:{evidence,tie}\n"),
         # #928: a word after 보류 is prose about holds, not a verdict.
         ("prose list items about holds", lambda t: t + "\n- 보류된 토픽은 다음 세션에 다시 다뤄요.\n- 보류 상태는 재투표하지 않아요.\n"),
+        ("a code written before its hold", lambda t: t + "\n- held:tie 이후 보류 (동점)\n"),
+        ("보류 사유 header row", lambda t: t + "\n\n| 보류 사유 | 필요 조치 |\n|---|---|\n| held:tie (동점) | 재논의 |\n"),
+        ("prose 보류 nouns in a table cell", lambda t: t + "\n| 맴돎 | 결론은 Topic Conclusion(보류 시 UNRESOLVED.md) |\n"),
         ("coded holds with the new delimiters", lambda t: t + "\n- 보류 — 동점 (held:tie)\n**결론**: 보류 · 재논의 (`held:evidence`)\n"),
         ("UNRESOLVED row with a code and an empty placeholder row",
          lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b | 동점 (held:tie) |\n| 2 | | | |\n"),
