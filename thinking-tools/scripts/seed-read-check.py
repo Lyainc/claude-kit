@@ -65,6 +65,8 @@ VAR_REF = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*
 # None of them can run a command from its arguments (awk `system()`, sed `e`, rg `--pre` can).
 TEMPLATE_READERS = {"cat", "head", "tail", "sed", "nl", "grep", "egrep", "fgrep"}
 SAFE_SED = re.compile(r"[\d,;$pq ]+")  # `1,40p`: line addresses and print only, no `e`/`r`/`w`
+SED_FLAGS = {"-n", "-E", "-r", "-s", "-u", "-z", "--quiet", "--silent", "--posix", "--regexp-extended",
+             "--separate", "--unbuffered", "--null-data"}
 FD_REDIRECT = re.compile(r"^(?:\d*>&\d+|\d*>&-|&?>>?/dev/null|\d+>>?/dev/null)$")  # `2>&1`, `2>/dev/null`
 COUNT = re.compile(r"^\+?\d+$")  # `head -n 5`, `tail -n +3`: a count value, not a path
 
@@ -218,8 +220,12 @@ def _reads_only_template(command: str, out: str) -> bool:
         if FD_REDIRECT.match(w) or COUNT.match(w):
             continue
         if w.startswith("-") and w != "-":
-            if prog == "sed" and (w.startswith(("--expression", "--file")) or re.match(r"-[A-Za-z]*f", w)):
-                return False  # a sed script we do not inspect (file or `--expression=` form)
+            if prog == "sed":  # only known-inert flags; an attached or abbreviated script is not inspected
+                if w in ("-e", "--expression"):
+                    skip_next = True
+                elif w not in SED_FLAGS:
+                    return False
+                continue
             if prog in PATTERN_CMDS and (w in ("--regexp", "--file") or PATTERN_OPT.match(w)):
                 skip_next, need_script = True, False
             elif w.startswith(("--regexp=", "--file=")):
@@ -801,7 +807,10 @@ def _self_test() -> int:
                   f"python3 x.py {tp}", f"head -n 5 {tp}\ncat README.md",
                   # review round 1: a script word that runs or reads a file is no template read
                   f"awk 'BEGIN{{system(\"cat docs/specs/x*\")}}' {tp}", f"sed -n '1e cat docs/specs/x*' {tp}",
-                  f"sed -n -e '1r README.md' {tp}", f"sed -f s.sed {tp}", f"rg --pre ./p . {tp}"):
+                  f"sed -n -e '1r README.md' {tp}", f"sed -f s.sed {tp}", f"rg --pre ./p . {tp}",
+                  # review round 2: a script attached to its option or under an abbreviated long option
+                  f"sed -n -e'1e cat docs/specs/x*' {tp}", f"sed -n --expr='1e cat docs/specs/x*' {tp}",
+                  f"sed -ne '1e cat docs/specs/x*' {tp}"):
             check(f"post, template plus another read still blocks: {c[-22:]}", decide_post(post(c, tout, t_none)), True)
         # #934: the live cd1 re-read after a variable-driven metadata loop.
         check("post, re-read after metadata through variables", decide_post(post(
