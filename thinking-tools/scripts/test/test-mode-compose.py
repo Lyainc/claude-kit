@@ -742,11 +742,15 @@ _HOLD_BULLET_RE = re.compile(r"^\d+\. \*\*Hold\*\*[^\n]*$", re.MULTILINE)
 _HELD_TOKEN_RE = re.compile(r"held:\s*(?:\{([^}]*)\}|([A-Za-z0-9_-]*)(?![A-Za-z0-9_-]))")
 # Keyed hold rows ("| 보류 사유 | ..." / "- **보류 사유**") always need a code on the line, unless the
 # row is a table header (the next line is a separator row) or an empty placeholder.
-_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^\s*- .*보류 사유")
-# A slot that is itself the verdict: the "**결론**:" value or a table cell that opens with 보류. Its
-# 보류 needs a code even where prose rules would exempt it ("**결론**: 보류 중", "| 보류 상태 |").
-_HOLD_SLOT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류")
-_HOLD_CELL_OPEN_RE = re.compile(r"\**\s*보류(?!\s*사유)")
+_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*|^\s*- .*—\s*보류 사유(?![가-힣])")
+# A slot that is itself the verdict: the "**결론**:" value or a table cell that reads just 보류, 보류 중
+# or 보류 상태 before punctuation or the end. Its 보류 needs a code even where prose rules would exempt
+# it ("**결론**: 보류 중", "| 보류 상태 |"); longer prose ("| 보류 토픽 수 |",
+# "**결론**: 보류된 토픽 없이 합의") stays out. Off a table, a 보류 사유 list line counts only in the
+# SUMMARY_TEMPLATE shape ("- 토픽 — 보류 사유 …"), not in prose that mentions the label.
+_HOLD_BARE = r"\**\s*보류(?:\s*(?:중|상태))?(?=\**\s*(?:[^\w\s*]|$))"  # 보류 / 보류 중 / 보류 상태, then end or punctuation
+_HOLD_SLOT_RE = re.compile(r"\*\*결론\*\*\s*:\s*" + _HOLD_BARE)
+_HOLD_CELL_OPEN_RE = re.compile(_HOLD_BARE)
 # Hold verdict places: table cells, "**결론**: 보류" lines, backticked spans, list items and
 # "보류 (reason)" spans. Free prose outside these places (headings, paragraphs) is not scanned.
 _HOLD_VERDICT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류|`\s*보류(?!\s*사유)")
@@ -1559,6 +1563,11 @@ def _self_test() -> int:
         ("canonical coded forms", lambda t: t + "\n> 비고: `보류 (`held:tie`, 6:6)`\n| 인증 | 보류 (`held:quorum`) | x |\n"
          "**결론**: 보류 (`held:evidence`)\n"),
         ("filled SUMMARY hold line with a code", lambda t: t + "\n- 인증 — 보류 사유 held:tie (동점), 자세한 내용은 `UNRESOLVED.md` 참고\n"),
+        # #928 last-commit review: prose that merely opens with or mentions 보류 in a strict slot.
+        ("table cell counting held topics", lambda t: t + "\n| 보류 토픽 수 | 1 |\n"),
+        ("prose list items mentioning 보류 사유", lambda t: t + "\n- 보류 사유는 UNRESOLVED.md에 적어요.\n"
+         "- 각 토픽의 보류 사유 코드를 확인해요.\n"),
+        ("consensus conclusion mentioning held topics", lambda t: t + "\n**결론**: 보류된 토픽 없이 합의\n"),
         ("brace choice notation in the Topic-status schema", lambda t: t + "\nTopic-status: [t{n}:held:{tie | quorum}]\n"),
         # #928: a word after 보류 is prose about holds, not a verdict.
         ("prose list items about holds", lambda t: t + "\n- 보류된 토픽은 다음 세션에 다시 다뤄요.\n- 보류 상태는 재투표하지 않아요.\n"),
