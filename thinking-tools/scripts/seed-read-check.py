@@ -324,7 +324,7 @@ def _strings(obj):
 def _metadata_call(command: str, cwd: str):
     """(literal Seed paths, cwd) when a command runs `seed-relations.py metadata|read`; a call whose
     file name is not literal contributes None. Several calls in one command (live Codex, #934) each
-    keep their own literal; `_literal_for` pairs every printed path with the call that printed it."""
+    keep their own literal; `_pair_literals` pairs every printed path with the call that printed it."""
     segments = _segments(_strip_heredocs(command))
     moved = any(os.path.basename(w[0]) == "cd" for w in segments)
     literals: list = []
@@ -343,14 +343,21 @@ def _metadata_call(command: str, cwd: str):
     return (tuple(literals), cwd) if literals else None
 
 
-def _literal_for(printed: str, literals: tuple):
-    """The literal path of the call that printed `printed`; None (match by printed path) when only a
+def _pair_literals(printed: list, literals: tuple) -> list:
+    """(printed path, literal) for each printed path, in output order. A path takes the first literal of
+    a call that ends with it and is not yet used (two repos' `docs/specs/x.yaml` in one command, #934
+    final review), else the first such literal again; None (match by printed path) when only a
     non-literal call can have printed it; else the first literal, which then matches no other Seed."""
-    rel = "/" + printed.removeprefix("./")
-    for lit in literals:
-        if lit and (lit.endswith(rel) or lit == printed):
-            return lit
-    return None if None in literals else literals[0]
+    used: set = set()
+    out = []
+    for m in printed:
+        rel = "/" + m.removeprefix("./")
+        hits = [lit for lit in literals if lit and (lit.endswith(rel) or lit == m)]
+        free = [lit for lit in hits if lit not in used]
+        lit = (free or hits or [None if None in literals else literals[0]])[0]
+        used.add(lit)
+        out.append((m, lit))
+    return out
 
 
 def scan_transcript(tp: str):
@@ -394,7 +401,7 @@ def scan_transcript(tp: str):
                     if isinstance(cmd, str) and isinstance(raw_cwd, str) else None
                 if call:
                     literal, cwd = call
-                    calls.extend((m, _literal_for(m, literal), cwd) for m in META_PATH.findall(str(it.get("aggregated_output") or "")))
+                    calls.extend((m, lit, cwd) for m, lit in _pair_literals(META_PATH.findall(str(it.get("aggregated_output") or "")), literal))
             elif p.get("type") in ("custom_tool_call_output", "function_call_output"):
                 results.extend(t for t in _strings(p.get("output")) if DENY_HEAD in t[:300])
             continue
@@ -415,7 +422,7 @@ def scan_transcript(tp: str):
                 results.extend(t for t in texts if DENY_HEAD in t[:300])
                 if b.get("tool_use_id") in meta_calls:
                     literal, cwd = meta_calls[b["tool_use_id"]]
-                    calls.extend((m, _literal_for(m, literal), cwd) for t in texts for m in META_PATH.findall(t))
+                    calls.extend((m, lit, cwd) for m, lit in _pair_literals([m for t in texts for m in META_PATH.findall(t)], literal))
     return calls, results
 
 
@@ -520,7 +527,7 @@ def decide_post(payload: dict) -> str:
         # template from a Seed; only a command that reads nothing but the template is exempt.
         return ""
     cur = _metadata_call(command, cwd)  # this call's own metadata/read output may not be in the transcript yet
-    extra = [(m, _literal_for(m, cur[0]), cur[1]) for m in META_PATH.findall(out)] if cur else []
+    extra = [(m, lit, cur[1]) for m, lit in _pair_literals(META_PATH.findall(out), cur[0])] if cur else []
     unseen = unseen_seeds(seeds, payload, extra, skip_denied=False)
     if unseen is None:
         return ""
@@ -781,6 +788,21 @@ def _self_test() -> int:
         check("codex, second of several metadata calls counts", decide(bash("cat docs/specs/hello.yaml", c_multi)), False)
         check("codex, first of several metadata calls counts", decide(bash("cat docs/specs/x.yaml", c_multi)), False)
         check("codex, metadata for another seed only", decide(bash("cat docs/specs/x.yaml", c_multi1)), True)
+        # #934 final review: the same repo-relative path in two repos, both in one command.
+        other = os.path.realpath(tempfile.mkdtemp(dir=os.path.dirname(d)))
+        try:
+            os.makedirs(f"{other}/docs/specs")
+            Path(f"{other}/docs/specs/x.yaml").write_text("skill: build-spec\ngoal: o\n")
+            c_two = f"{d}/t/c-two.jsonl"
+            two_cmd = "\n".join(f"python3 /p/seed-relations.py metadata {r}/docs/specs/x.yaml --json" for r in (other, d))
+            cx(c_two, runs=[(["/bin/zsh", "-lc", two_cmd], d, '{"path": "docs/specs/x.yaml"}\n{"path": "docs/specs/x.yaml"}')])
+            check("codex, same relative path in two repos, second call counts", decide(bash("cat docs/specs/x.yaml", c_two)), False)
+            c_one = f"{d}/t/c-one.jsonl"
+            cx(c_one, runs=[(["/bin/zsh", "-lc", two_cmd], d, '{"path": "docs/specs/x.yaml"}')])
+            check("codex, same relative path, only one printed, other repo's call still unseen",
+                  decide(bash("cat docs/specs/x.yaml", c_one)), True)
+        finally:
+            shutil.rmtree(other, ignore_errors=True)
 
         # PostToolUse: the output carries a Seed body that no static read check could predict.
         body = ("# AMENDMENT CONTRACT\nskill: build-spec\nlifecycle:\n  state: paused\n"
