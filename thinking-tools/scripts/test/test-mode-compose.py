@@ -779,13 +779,14 @@ def _is_hold_verdict(text: str, i: int, in_cell: bool) -> bool:
 
 
 def _uncoded_holds(text: str, in_cell: bool) -> int:
-    """Count hold verdicts in text left without a held: code. A verdict owns the codes from itself up to
-    the next verdict, so a long reason cannot hand its code to a later 보류 and one verdict's code never
-    covers another; codes written before the first verdict belong to it ("held:tie 이후 보류 (동점)")."""
-    verdicts = [m.start() for m in re.finditer("보류", text) if _is_hold_verdict(text, m.start(), in_cell)]
-    bounds = verdicts + [len(text)]
-    return sum(1 for i, (a, b) in enumerate(zip(bounds, bounds[1:]))
-               if "held:" not in text[0 if i == 0 else a:b])
+    """Count hold verdicts in text left without a held: code. Every 보류, verdict or prose, ends the code
+    range of the one before it, so a verdict owns only the codes up to the next 보류 of any kind: a long
+    reason cannot hand its code to a later 보류, and a code after a prose 보류 never covers an earlier
+    verdict. Codes written before the first 보류 belong to it ("held:tie 이후 보류 (동점)")."""
+    starts = [m.start() for m in re.finditer("보류", text)]
+    bounds = starts + [len(text)]
+    return sum(1 for i, a in enumerate(starts)
+               if _is_hold_verdict(text, a, in_cell) and "held:" not in text[0 if i == 0 else a:bounds[i + 1]])
 
 
 def _hold_token_problems(name: str, n: int, line: str, enum: set[str]) -> list[str]:
@@ -1523,6 +1524,11 @@ def _self_test() -> int:
         ("table verdict, 보류 처리", lambda t: t + "\n| 인증 | 보류 처리 | x |\n"),
         ("conclusion hold followed by a word", lambda t: t + "\n**결론**: 보류 동점\n"),
         ("list hold followed by a score", lambda t: t + "\n- 보류 6:6\n"),
+        # PR #938 review: a prose 보류 ends the earlier verdict's code range.
+        ("code after a prose 보류 covers no earlier verdict", lambda t: t + "\n- 보류 (동점) / 보류된 토픽: held:tie\n"),
+        ("code after a counted 보류 covers no earlier verdict", lambda t: t + "\n- 보류 (정족수) / 1개 보류 held:tie\n"),
+        ("cell code after 보류 시 covers no earlier verdict", lambda t: t + "\n| 인증 | 보류 (동점) · 보류 시 held:tie | x |\n"),
+        ("code after 보류는 covers no earlier verdict", lambda t: t + "\n- 보류 (동점) 이후 보류는 held:tie\n"),
         ("code covers only its nearest hold", lambda t: t + "\n- held:tie 보류 (동점) / 보류 (정족수)\n"),
         ("UNRESOLVED row with an empty reason cell",
          lambda t: t + "\n\n| # | 토픽 | 쟁점 | 보류 사유 |\n|---|---|---|---|\n| 1 | a | b |  |\n"),
