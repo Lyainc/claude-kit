@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tempfile
 import unittest
+import unittest.mock
 from pathlib import Path
 
 # Fixture dirs must not be found inside an enclosing repository (a TMPDIR under a checkout),
@@ -482,6 +483,42 @@ class LifecycleTests(unittest.TestCase):
             other.cleanup()
         self.assertEqual((gate['eligible'],gate['reason']),(False,'invalid lifecycle'))
         self.assertTrue(any(isinstance(e,lc.Unverifiable) for e in gate['errors']) and any(not isinstance(e,lc.Unverifiable) for e in gate['errors']))
+
+    def test_commit_status_shallow_clone_is_unverifiable(self):
+        def git(*args):
+            return subprocess.run(['git','-C',str(self.root),*args],capture_output=True,text=True,check=True).stdout.strip()
+        git('init','-q'); (self.root/'f.txt').write_text('x\n')
+        git('add','f.txt'); git('-c','user.email=a@b','-c','user.name=a','commit','-q','-m','one')
+        head = git('rev-parse','HEAD'); blob = git('rev-parse','HEAD:f.txt')
+        (self.root/'.git/shallow').write_text(head+'\n')
+        self.assertEqual(git('rev-parse','--is-shallow-repository'),'true')
+        self.assertEqual(lc.commit_status(str(self.root),'c'*40),('unverifiable','shallow clone'))
+        self.assertEqual(lc.commit_status(str(self.root),head),('commit',''))
+        self.assertEqual(lc.commit_status(str(self.root),blob),('missing',''))
+
+    def test_commit_status_git_not_runnable_is_unverifiable(self):
+        for exc in (OSError('no git'),subprocess.TimeoutExpired('git',1)):
+            with self.subTest(exc=type(exc).__name__):
+                with unittest.mock.patch.object(lc.subprocess,'run',side_effect=exc):
+                    self.assertEqual(lc.commit_status(str(self.root),'a'*40),('unverifiable','git not runnable'))
+
+    def test_parent_unverifiable_commit_is_separated_from_record_defects(self):
+        rel = 'docs/specs/c.yaml'
+        child = spec(parent='docs/specs/p.yaml',refines=['acceptance-1'],version=3)
+        for name,parent in (('closed',self.completed_parent([rel])),
+                            ('active',spec(children=[rel]))):
+            with self.subTest(parent=name):
+                if name == 'active':
+                    parent['lifecycle']['evidence'] = {'commit':'a'*40,'items':[]}
+                self.write('p.yaml',parent)
+                gate = sr.eligibility(self.rd,parse(child))
+                self.assertEqual((gate['eligible'],gate['reason'],gate['review_required']),(False,'parent lifecycle unverifiable',True))
+                self.assertTrue(gate['errors'] and all(isinstance(e,lc.Unverifiable) for e in gate['errors']),gate['errors'])
+        mixed = self.completed_parent([rel]); mixed['lifecycle']['reason'] = ''
+        self.write('p.yaml',mixed)
+        gate = sr.eligibility(self.rd,parse(child))
+        self.assertEqual((gate['eligible'],gate['reason']),(False,'parent lifecycle invalid'))
+        self.assertTrue(gate['errors'])
 
     def test_gh_failure_is_unverifiable_but_404_is_unavailable(self):
         obj = spec(); obj['relations']['provenance'] = [{'seed':'acme/source:docs/specs/source.yaml','commit':'b'*40,'items':['constraint-1']}]
