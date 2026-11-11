@@ -740,21 +740,20 @@ def role_label_checks(transcript: str, summary: str, ref_text: str, worker_text:
 
 _HOLD_BULLET_RE = re.compile(r"^\d+\. \*\*Hold\*\*[^\n]*$", re.MULTILINE)
 _HELD_TOKEN_RE = re.compile(r"held:\s*(?:\{([^}]*)\}|([A-Za-z0-9_-]*)(?![A-Za-z0-9_-]))")
-# Keyed hold rows ("| 보류 사유 | ..." / "- **보류 사유**") always need a code on the line, unless the
-# row is a table header (the next line is a separator row) or an empty placeholder.
-_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*|^\s*- .*[—–-]\s*\**\s*보류 사유(?![가-힣])")
-# A slot that is itself the verdict: the "**결론**:" value or a table cell that reads just 보류, 보류 중
-# or 보류 상태 before punctuation or the end. Its 보류 needs a code even where prose rules would exempt
-# it ("**결론**: 보류 중", "| 보류 상태 |"); longer prose ("| 보류 토픽 수 |",
-# "**결론**: 보류된 토픽 없이 합의") stays out. Off a table, a 보류 사유 list line counts only in the
-# SUMMARY_TEMPLATE shape ("- 토픽 — 보류 사유 …"), not in prose that mentions the label.
-_HOLD_SLOT_RE = re.compile(r"\*\*결론\*\*\s*:")
-# In such a slot only a 보류 that modifies a following noun is prose ("보류된 토픽", "보류 토픽 수");
-# 보류 중, 보류 상태, a particle or a predicate ("보류 중 6:6", "보류 상태로 종료", "보류입니다") is the verdict.
-_HOLD_SLOT_PROSE_RE = re.compile(r"보류(?:된|되는|될|하는|할|한)|보류\s*(?:시|토픽|결과|여부|항목|대상|이유)")
+# Keyed hold rows always need a code on the line, unless the row is a table header (the next line is
+# a separator row) or an empty placeholder: a "| 보류 사유 |" key row, a "- **보류 사유**" list key, or
+# the SUMMARY_TEMPLATE list shape "- 토픽 — 보류 사유 …" (any dash, label bold or not). Prose that only
+# mentions the label ("- 보류 사유는 …") is none of these.
+_HOLD_ROW_RE = re.compile(r"^\|\s*보류\s*사유\s*\||^\s*- (?:\*\*보류\s*사유\*\*|.*[—–-]\s*\**\s*보류\s*사유(?![가-힣]))")
+# A verdict slot is the "**결론**:" value or a table cell. When the slot opens with 보류, that 보류 is the
+# verdict even where the prose rules below would exempt it ("**결론**: 보류 중 6:6", "| 보류 상태 |",
+# "보류입니다"); only a 보류 that modifies a following noun stays prose ("보류된 토픽", "보류 토픽 수").
+_CONCLUSION = r"\*\*결론\*\*\s*:"
+_HOLD_SLOT_RE = re.compile(_CONCLUSION)
+_SLOT_OPEN_RE = re.compile(r"[\s*]*")
 # Hold verdict places: table cells, "**결론**: 보류" lines, backticked spans, list items and
 # "보류 (reason)" spans. Free prose outside these places (headings, paragraphs) is not scanned.
-_HOLD_VERDICT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류|`\s*보류(?!\s*사유)")
+_HOLD_VERDICT_RE = re.compile(_CONCLUSION + r"\s*\**\s*보류|`\s*보류(?!\s*사유)")
 _HOLD_SCAN_LINE_RE = re.compile(r"^\s*- |보류 \(")
 # Inside a verdict place every 보류 is a verdict that needs its own held:* code, except where the
 # grammar makes it a noun in a sentence (#928): an attached particle or modifier ("보류된 토픽은",
@@ -762,10 +761,14 @@ _HOLD_SCAN_LINE_RE = re.compile(r"^\s*- |보류 \(")
 # ("1개 보류") or a quoted checklist phrase ("명시적 보류"). The test fails closed: a form no rule
 # names ("보류됨", "보류로", "보류 처리", "보류 — 동점", "보류 6:6") is a verdict. The 보류 사유
 # label is a verdict inside a table cell (the bare label cell is skipped), never off a table.
+_HOLD_MODIFIER = "된|되는|될|하는|할|한"               # 보류 modifying a noun: 보류된 토픽, 보류할 항목
+_HOLD_NOUN = "시|토픽|결과|여부|항목|대상|이유"           # a noun 보류 modifies: 보류 시, 보류 이유를
 _HOLD_PROSE_RE = re.compile(
-    r"보류(?:하|합|했|되|됐|돼|된|될"                       # a verb form: 보류합니다, 보류되었어요, 보류된 (not 보류됨)
+    rf"보류(?:{_HOLD_MODIFIER}|하|합|했|되|됐|돼"             # any verb form: 보류합니다, 보류되었어요 (not 보류됨)
     r"|(?:는|은|를|을|가|이|의|에|와|과|도|만)"              # an attached particle: 보류는, 보류에서, 보류이며
-    r"|\s*(?:시|상태|토픽|결과|여부|항목|대상|중|이유))")    # a noun 보류 modifies: 보류 시, 보류 이유를
+    rf"|\s*(?:{_HOLD_NOUN}|상태|중))")                      # off a slot, 보류 상태 / 보류 중 are prose too
+# In a slot-opening position only the modifier and noun forms are prose (see _HOLD_SLOT_RE).
+_HOLD_SLOT_PROSE_RE = re.compile(rf"보류(?:{_HOLD_MODIFIER}|\s*(?:{_HOLD_NOUN}))")
 _HOLD_LEAD_RE = re.compile(r"(?:개|명시적) $")
 _HOLD_LABEL_RE = re.compile(r"보류\s*사유")
 _SEP_RE = re.compile(r"[-:\s]*")
@@ -787,21 +790,23 @@ def _is_hold_verdict(text: str, i: int, in_cell: bool) -> bool:
     return in_cell or not _HOLD_LABEL_RE.match(text, i)
 
 
-def _strict_hold(text: str) -> bool:
-    """The slot's value opens with a 보류 verdict (bold allowed), not a label or a noun modifier."""
-    i = re.match(r"\s*\**\s*", text).end()
-    return text.startswith("보류", i) and not _HOLD_LABEL_RE.match(text, i) and not _HOLD_SLOT_PROSE_RE.match(text, i)
-
-
-def _uncoded_holds(text: str, in_cell: bool) -> int:
+def _uncoded_holds(text: str, in_cell: bool, slot: bool = False) -> int:
     """Count hold verdicts in text left without a held: code. Every 보류, verdict or prose, ends the code
     range of the one before it, so a verdict owns only the codes up to the next 보류 of any kind: a long
     reason cannot hand its code to a later 보류, and a code after a prose 보류 never covers an earlier
-    verdict. Codes written before the first 보류 belong to it ("held:tie 이후 보류 (동점)")."""
+    verdict. Codes written before the first 보류 belong to it ("held:tie 이후 보류 (동점)"). With slot, a
+    보류 that opens the text is judged by the stricter slot rule (_HOLD_SLOT_RE)."""
     starts = [m.start() for m in re.finditer("보류", text)]
     bounds = starts + [len(text)]
+    opening = _SLOT_OPEN_RE.match(text).end() if slot else -1
+
+    def verdict(a: int) -> bool:
+        if a == opening:
+            return (in_cell or not _HOLD_LABEL_RE.match(text, a)) and not _HOLD_SLOT_PROSE_RE.match(text, a)
+        return _is_hold_verdict(text, a, in_cell)
+
     return sum(1 for i, a in enumerate(starts)
-               if _is_hold_verdict(text, a, in_cell) and "held:" not in text[0 if i == 0 else a:bounds[i + 1]])
+               if verdict(a) and "held:" not in text[0 if i == 0 else a:bounds[i + 1]])
 
 
 def _hold_token_problems(name: str, n: int, line: str, enum: set[str]) -> list[str]:
@@ -833,11 +838,16 @@ def _hold_uncoded_problem(name: str, n: int, line: str, cells: list[str] | None,
         return f"{name}:{n}: hold row without a held:* code"
     if cells is not None:
         bad = not header and any(c != "보류 사유" and not _SEP_RE.fullmatch(c)
-                                 and (_uncoded_holds(c, True) or (_strict_hold(c) and "held:" not in c))
+                                 and _uncoded_holds(c, True, slot=True)
                                  for c in cells)
     else:
-        bad = bool((_HOLD_VERDICT_RE.search(line) or _HOLD_SCAN_LINE_RE.search(line))
-                   and _uncoded_holds(line, False)) or bool((m := _HOLD_SLOT_RE.search(line)) and _strict_hold(line[m.end():]) and "held:" not in line)
+        m = _HOLD_SLOT_RE.search(line)
+        if m and line.startswith("보류", _SLOT_OPEN_RE.match(line, m.end()).end()):
+            # a **결론** value opening with 보류 is a verdict slot; text before the label is scanned as usual
+            bad = bool(_uncoded_holds(line[:m.start()], False) or _uncoded_holds(line[m.end():], False, slot=True))
+        else:
+            bad = bool((_HOLD_VERDICT_RE.search(line) or _HOLD_SCAN_LINE_RE.search(line))
+                       and _uncoded_holds(line, False))
     return f"{name}:{n}: hold verdict without a held:* code" if bad else None
 
 
