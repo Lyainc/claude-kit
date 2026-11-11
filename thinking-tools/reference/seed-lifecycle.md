@@ -195,7 +195,10 @@ closed와 철회·영향 불명 항목은 자동 후보에서 제외해요. acti
 닫힌 자식(completed 포함)이어도 자동 구현하지 않고 이행 여부를 부모 완료 규칙대로 따로 판단해요.
 `eligibility`는 그 항목을 `excluded_items`에 넣고 `held_items`(해당이 없으면 빈 목록)에 항목·자식
 경로·자식 상태를 사유로 내놓아요. 소비자는 그 항목을 구현하지 않고 보고하며, 재검토 표시는
-붙이지 않아요. build-spec과 unknown-discovery도
+붙이지 않아요.
+`lifecycle unverifiable`·`parent lifecycle unverifiable`은 이 환경에서 이력을 읽지 못했다는 뜻이에요(git 없음·
+저장소 아님·shallow clone·gh 실패). 기록 결함이 아니어도 `invalid lifecycle`처럼 보류하고, `errors`가
+밑바탕 메시지를 나열해요. build-spec과 unknown-discovery도
 동일 계약을 사용하고, 과거 Seed를 현재 요구사항으로 자동 승격하지 않아요.
 
 session-close 연동은 local-harness 소스에서 별도 변경·검증해요. claude-kit은 local-harness가
