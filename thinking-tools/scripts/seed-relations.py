@@ -10,11 +10,12 @@ declared relations, typed edges and per-Seed read errors. read explicitly return
 requirement bodies. walk preserves bounded BFS and all visited nodes, including
 closed/unknown Seeds; inactive nodes omit item_desc. Every node
 has lifecycle {state,outcome,reason} and eligibility {eligible,reason,excluded_items,
-review_required}. These are represented decision gates, never a judgment of fulfillment.
+review_required,held_items,errors}. These are represented decision gates, never a judgment of fulfillment.
 
 relations.version 2 or 3 and lifecycle-bearing edges pin exact files. Only unversioned legacy
 edges to legacy targets retain latest -vN resolution. Provenance reads the exact recorded
-file at its full Git commit, or reports historical source unavailable. Other-repo reads
+file at its full Git commit, or reports it unavailable (record defect) or unverifiable (this environment cannot tell: no git,
+shallow clone, gh failure); both stay held. Other-repo reads
 use gh api, GH_BIN may override the executable; external walk nodes are not expanded.
 
 check validates lifecycle and relationships; failed reads are visible. Exit codes: check
@@ -501,6 +502,11 @@ class Reader:
             return None, "response was not JSON"
 
     @staticmethod
+    def _gh_failure(err):
+        """A 404 is a record defect; any other gh failure means this environment could not tell."""
+        return err if "HTTP 404" in err else lifecycle.Unverifiable(err)
+
+    @staticmethod
     def _endpoint(repo, path):
         return f"repos/{repo}/contents" + (f"/{quote(path, safe='/')}" if path else "")
 
@@ -542,7 +548,10 @@ class Reader:
         repo,path = loc
         if repo is None:
             if commit:
-                if _run_git(self.root,"cat-file","-t",commit) != "commit":
+                status,why = lifecycle.commit_status(self.root,commit)
+                if status == "unverifiable":
+                    result = (None,lifecycle.Unverifiable(why))
+                elif status == "missing":
                     result = (None,"historical commit unavailable or not a commit object")
                 else:
                     value = _run_git(self.root,"show",f"{commit}:{path}")
@@ -557,11 +566,15 @@ class Reader:
             if commit:
                 obj,err = self._gh_api(f"repos/{repo}/git/commits/{commit}")
                 if err or not isinstance(obj,dict) or obj.get("sha") != commit.lower():
+                    if err:
+                        err = self._gh_failure(err)
                     result = (None,err or "historical commit unavailable or not a commit object")
                     self._raw_cache[cache_key] = result
                     return result
                 endpoint += "?ref=" + quote(commit,safe="")
             data,err = self._gh_api(endpoint)
+            if commit and err:
+                err = self._gh_failure(err)
             try:
                 if not err and isinstance(data,dict) and data.get("encoding") == "base64":
                     result = (base64.b64decode(data.get("content","")).decode("utf-8"),None)
@@ -712,7 +725,10 @@ def validate_provenance(rd, seed, ctx_repo):
         loc = rd.norm(row["seed"],ctx_repo)
         raw,err = rd.raw(loc,row["commit"])
         if raw is None:
-            errors.append(f"provenance historical source unavailable: {key(loc)}@{row['commit']} ({err})")
+            unverified = isinstance(err,lifecycle.Unverifiable)
+            msg = (f"provenance historical source {'unverifiable' if unverified else 'unavailable'}: "
+                   f"{key(loc)}@{row['commit']} ({err})")
+            errors.append(lifecycle.Unverifiable(msg) if unverified else msg)
             continue
         source = parse_seed(raw)
         ids = row.get("items",[])
@@ -734,9 +750,11 @@ def wholly_withdrawn(seed):
 
 def eligibility(rd, seed, ctx_repo=None, trail=None):
     """Deterministic candidate gate; excluded items are never evidence of fulfillment."""
-    def result(eligible,reason,excluded=(),review=False):
+    def result(eligible,reason,excluded=(),review=False,errors=()):
         return {"eligible":eligible,"reason":reason,"excluded_items":sorted(set(excluded)),
-                "review_required":review,"held_items":[]}
+                "review_required":review,"held_items":[],"errors":list(errors)}
+    def only_unverifiable(errs):
+        return all(isinstance(e,lifecycle.Unverifiable) for e in errs)
     if seed is None:
         return result(False,"Seed unavailable",review=True)
     if getattr(seed,"location",None) in rd.invalid_incoming:
@@ -744,7 +762,7 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
     errors = lifecycle.validate(seed,rd.root if ctx_repo is None else None)
     errors += validate_provenance(rd,seed,ctx_repo)
     if errors:
-        return result(False,"invalid lifecycle",review=True)
+        return result(False,"lifecycle unverifiable" if only_unverifiable(errors) else "invalid lifecycle",review=True,errors=errors)
     lc = lifecycle_summary(seed)
     inactive = lc["state"] != "active"
     # Only a child edge (parent + at least one acceptance in refines) is judged by the parent;
@@ -773,8 +791,9 @@ def eligibility(rd, seed, ctx_repo=None, trail=None):
             if seed.location not in back:
                 return result(False,"parent backlink missing",own,True)
         pe = lifecycle.validate(ps,rd.root if parent.loc[0] is None else None)
-        if pe or validate_provenance(rd,ps,parent.loc[0]):
-            return result(False,"parent lifecycle invalid",own,True)
+        pe += validate_provenance(rd,ps,parent.loc[0])
+        if pe:
+            return result(False,"parent lifecycle unverifiable" if only_unverifiable(pe) else "parent lifecycle invalid",own,True,pe)
         pl = lifecycle_summary(ps)
         if wholly_withdrawn(ps):
             return result(False,"parent discontinued; child review required",own,True)

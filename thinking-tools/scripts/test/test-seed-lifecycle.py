@@ -11,6 +11,11 @@ import tempfile
 import unittest
 from pathlib import Path
 
+# Fixture dirs must not be found inside an enclosing repository (a TMPDIR under a checkout),
+# or "not a git repository" would turn into "commit missing" depending on the machine.
+_tmp = tempfile.gettempdir()
+os.environ['GIT_CEILING_DIRECTORIES'] = os.pathsep.join(dict.fromkeys((_tmp,os.path.realpath(_tmp))))
+
 SCRIPTS = Path(__file__).resolve().parents[1]
 def module(name):
     spec = importlib.util.spec_from_file_location(name.replace('-','_'),SCRIPTS/(name+'.py'))
@@ -400,7 +405,8 @@ class LifecycleTests(unittest.TestCase):
         self.write('c.yaml',spec(parent=rel,refines=['acceptance-1']))
         self.assertEqual(lc.validate(parse(closed)),[])
         self.write('p.yaml',closed)
-        self.assertEqual(lc.validate(parse(closed),str(self.root)),['evidence commit unavailable: '+'a'*40])
+        # The fixture dir is not a git repository, so the commit cannot be verified here.
+        self.assertEqual(lc.validate(parse(closed),str(self.root)),['evidence commit unverifiable: '+'a'*40+' (not a git repository)'])
         # Re-judging an already closed Seed never applies the child rule.
         self.assertEqual(lc.transition(parse(closed),parse(closed),self.rd,rel),[])
 
@@ -443,7 +449,7 @@ class LifecycleTests(unittest.TestCase):
 
     def test_crossrepo_provenance_rejects_unconfirmed_commit(self):
         obj = spec(); obj['relations']['provenance'] = [{'seed':'acme/source:docs/specs/source.yaml','commit':'b'*40,'items':['constraint-1']}]
-        for response,error in ((None,'not a commit'),({'sha':'c'*40},None),({},None)):
+        for response,error in ((None,'gh: Not Found (HTTP 404)'),({'sha':'c'*40},None),({},None)):
             with self.subTest(response=response):
                 rd = sr.Reader(str(self.root)); rd._self_repo = None
                 endpoints = []
@@ -452,6 +458,46 @@ class LifecycleTests(unittest.TestCase):
                 rd._gh_api = api
                 self.assertIn('historical source unavailable',' '.join(sr.validate_provenance(rd,parse(obj),None)))
                 self.assertEqual(endpoints,['repos/acme/source/git/commits/'+'b'*40])
+
+    def fake_gh(self,body):
+        path = self.root/'fake-gh'
+        path.write_text('#!/bin/sh\n'+body+'\n'); path.chmod(0o755)
+        return str(path)
+
+    def test_unverifiable_commit_is_separated_from_record_defects(self):
+        obj = self.completed_parent([])
+        gate = sr.eligibility(self.rd,parse(obj))
+        self.assertEqual((gate['eligible'],gate['reason'],gate['review_required']),(False,'lifecycle unverifiable',True))
+        self.assertTrue(gate['errors'] and all('unverifiable' in e for e in gate['errors']),gate['errors'])
+        subprocess.run(['git','-C',str(self.root),'init','-q'],check=True)
+        gate = sr.eligibility(self.rd,parse(obj))
+        self.assertEqual((gate['eligible'],gate['reason'],gate['review_required']),(False,'invalid lifecycle',True))
+        self.assertIn('evidence commit unavailable: '+'a'*40,gate['errors'])
+        mixed = copy.deepcopy(obj); mixed['lifecycle']['reason'] = ''
+        other = tempfile.TemporaryDirectory(prefix='seed-nongit-')
+        try:
+            rd = sr.Reader(other.name); rd._self_repo = None
+            gate = sr.eligibility(rd,parse(mixed))
+        finally:
+            other.cleanup()
+        self.assertEqual((gate['eligible'],gate['reason']),(False,'invalid lifecycle'))
+        self.assertTrue(any(isinstance(e,lc.Unverifiable) for e in gate['errors']) and any(not isinstance(e,lc.Unverifiable) for e in gate['errors']))
+
+    def test_gh_failure_is_unverifiable_but_404_is_unavailable(self):
+        obj = spec(); obj['relations']['provenance'] = [{'seed':'acme/source:docs/specs/source.yaml','commit':'b'*40,'items':['constraint-1']}]
+        old = os.environ.get('GH_BIN')
+        try:
+            for body,expected in (('echo "connection refused" >&2; exit 1','historical source unverifiable'),
+                                  ('echo "gh: Not Found (HTTP 404)" >&2; exit 1','historical source unavailable')):
+                with self.subTest(body=body):
+                    os.environ['GH_BIN'] = self.fake_gh(body)
+                    rd = sr.Reader(str(self.root)); rd._self_repo = None
+                    self.assertIn(expected,' '.join(sr.validate_provenance(rd,parse(obj),None)))
+        finally:
+            if old is None:
+                os.environ.pop('GH_BIN',None)
+            else:
+                os.environ['GH_BIN'] = old
 
     def test_incoming_child_link_holds_even_duplicate_route(self):
         parent = spec('closed','discontinued',withdrawn=['constraint-1','constraint-2','acceptance-1'],children=['docs/specs/c.yaml'])
@@ -501,7 +547,7 @@ class LifecycleTests(unittest.TestCase):
         self.write('t.yaml',target)
         rd = sr.Reader(str(self.root)); rd._self_repo = None
         lines,code = sr.cmd_check(rd,'docs/specs/s.yaml',parse(source))
-        self.assertEqual(code,1); self.assertIn('historical source unavailable',' '.join(lines))
+        self.assertEqual(code,1); self.assertIn('historical source unverifiable',' '.join(lines))
 
     def test_malformed_transfer_fails_without_crash(self):
         obj = spec(); obj['relations']['transfers'] = [{'seed':'docs/specs/t.yaml','items':[{'unexpected':'value'}]}]

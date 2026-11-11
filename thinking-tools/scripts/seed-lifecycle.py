@@ -192,6 +192,27 @@ def path(v):
     return p.endswith(('.yaml','.yml')) and not p.startswith('/') and '..' not in p.split('/')
 
 
+class Unverifiable(str):
+    """An error meaning this environment could not verify history, not that the record is wrong."""
+
+
+def commit_status(root,sha):
+    """('commit'|'missing'|'unverifiable', why). Only a miss pays for the repository probes."""
+    def git(*args):
+        return subprocess.run(['git','-C',str(root),*args],capture_output=True,text=True,timeout=30)
+    try:
+        p = git('cat-file','-t',sha)
+        if not p.returncode:  # the object exists here; only a commit counts
+            return ('commit','') if p.stdout.strip() == 'commit' else ('missing','')
+        if git('rev-parse','--git-dir').returncode:
+            return 'unverifiable','not a git repository'
+        if git('rev-parse','--is-shallow-repository').stdout.strip() == 'true':
+            return 'unverifiable','shallow clone'
+    except (OSError,subprocess.TimeoutExpired):
+        return 'unverifiable','git not runnable'
+    return 'missing',''
+
+
 def validate(seed,root=None):
     errors,own = list(seed.format_errors),set(seed.item_map)
     if seed.duplicate_ids:
@@ -240,12 +261,11 @@ def validate(seed,root=None):
             if own-withdrawn-evidenced:
                 errors.append('completed lifecycle lacks evidence for: '+', '.join(sorted(own-withdrawn-evidenced)))
         if commit and isinstance(commit,str) and SHA.fullmatch(commit) and root:
-            try:
-                p = subprocess.run(['git','-C',str(root),'cat-file','-t',commit],capture_output=True,text=True,timeout=30)
-                if p.returncode or p.stdout.strip() != 'commit':
-                    errors.append('evidence commit unavailable: '+commit)
-            except (OSError,subprocess.TimeoutExpired):
+            status,why = commit_status(root,commit)
+            if status == 'missing':
                 errors.append('evidence commit unavailable: '+commit)
+            elif status == 'unverifiable':
+                errors.append(Unverifiable('evidence commit unverifiable: '+commit+' ('+why+')'))
     r = seed.relations_data
     structured = seed.relations_version in (2,3)
     if any(k in r for k in ('refines_map','provenance','replaces','transfers')) and not structured:
