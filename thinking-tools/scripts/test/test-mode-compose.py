@@ -742,15 +742,16 @@ _HOLD_BULLET_RE = re.compile(r"^\d+\. \*\*Hold\*\*[^\n]*$", re.MULTILINE)
 _HELD_TOKEN_RE = re.compile(r"held:\s*(?:\{([^}]*)\}|([A-Za-z0-9_-]*)(?![A-Za-z0-9_-]))")
 # Keyed hold rows ("| 보류 사유 | ..." / "- **보류 사유**") always need a code on the line, unless the
 # row is a table header (the next line is a separator row) or an empty placeholder.
-_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*|^\s*- .*—\s*보류 사유(?![가-힣])")
+_HOLD_ROW_RE = re.compile(r"^\|\s*보류 사유\s*\||^- \*\*보류 사유\*\*|^\s*- .*[—–-]\s*\**\s*보류 사유(?![가-힣])")
 # A slot that is itself the verdict: the "**결론**:" value or a table cell that reads just 보류, 보류 중
 # or 보류 상태 before punctuation or the end. Its 보류 needs a code even where prose rules would exempt
 # it ("**결론**: 보류 중", "| 보류 상태 |"); longer prose ("| 보류 토픽 수 |",
 # "**결론**: 보류된 토픽 없이 합의") stays out. Off a table, a 보류 사유 list line counts only in the
 # SUMMARY_TEMPLATE shape ("- 토픽 — 보류 사유 …"), not in prose that mentions the label.
-_HOLD_BARE = r"\**\s*보류(?:\s*(?:중|상태))?(?=\**\s*(?:[^\w\s*]|$))"  # 보류 / 보류 중 / 보류 상태, then end or punctuation
-_HOLD_SLOT_RE = re.compile(r"\*\*결론\*\*\s*:\s*" + _HOLD_BARE)
-_HOLD_CELL_OPEN_RE = re.compile(_HOLD_BARE)
+_HOLD_SLOT_RE = re.compile(r"\*\*결론\*\*\s*:")
+# In such a slot only a 보류 that modifies a following noun is prose ("보류된 토픽", "보류 토픽 수");
+# 보류 중, 보류 상태, a particle or a predicate ("보류 중 6:6", "보류 상태로 종료", "보류입니다") is the verdict.
+_HOLD_SLOT_PROSE_RE = re.compile(r"보류(?:된|되는|될|하는|할|한)|보류\s*(?:시|토픽|결과|여부|항목|대상|이유)")
 # Hold verdict places: table cells, "**결론**: 보류" lines, backticked spans, list items and
 # "보류 (reason)" spans. Free prose outside these places (headings, paragraphs) is not scanned.
 _HOLD_VERDICT_RE = re.compile(r"\*\*결론\*\*\s*:\s*\**\s*보류|`\s*보류(?!\s*사유)")
@@ -784,6 +785,12 @@ def _is_hold_verdict(text: str, i: int, in_cell: bool) -> bool:
     if _HOLD_LEAD_RE.search(text[max(0, i - 4):i]) or _HOLD_PROSE_RE.match(text, i):
         return False
     return in_cell or not _HOLD_LABEL_RE.match(text, i)
+
+
+def _strict_hold(text: str) -> bool:
+    """The slot's value opens with a 보류 verdict (bold allowed), not a label or a noun modifier."""
+    i = re.match(r"\s*\**\s*", text).end()
+    return text.startswith("보류", i) and not _HOLD_LABEL_RE.match(text, i) and not _HOLD_SLOT_PROSE_RE.match(text, i)
 
 
 def _uncoded_holds(text: str, in_cell: bool) -> int:
@@ -826,11 +833,11 @@ def _hold_uncoded_problem(name: str, n: int, line: str, cells: list[str] | None,
         return f"{name}:{n}: hold row without a held:* code"
     if cells is not None:
         bad = not header and any(c != "보류 사유" and not _SEP_RE.fullmatch(c)
-                                 and (_uncoded_holds(c, True) or (_HOLD_CELL_OPEN_RE.match(c) and "held:" not in c))
+                                 and (_uncoded_holds(c, True) or (_strict_hold(c) and "held:" not in c))
                                  for c in cells)
     else:
         bad = bool((_HOLD_VERDICT_RE.search(line) or _HOLD_SCAN_LINE_RE.search(line))
-                   and _uncoded_holds(line, False)) or bool(_HOLD_SLOT_RE.search(line) and "held:" not in line)
+                   and _uncoded_holds(line, False)) or bool((m := _HOLD_SLOT_RE.search(line)) and _strict_hold(line[m.end():]) and "held:" not in line)
     return f"{name}:{n}: hold verdict without a held:* code" if bad else None
 
 
@@ -1501,6 +1508,15 @@ def _self_test() -> int:
         ("conclusion 보류 중", lambda t: t + "\n**결론**: 보류 중\n"),
         ("conclusion 보류 상태", lambda t: t + "\n**결론**: 보류 상태\n"),
         ("table cell opening with 보류 중", lambda t: t + "\n| 인증 | 보류 중 | x |\n"),
+        # 90b9919 review: a strict slot followed by a score or predicate, and SUMMARY line variants.
+        ("conclusion 보류 중 with a score", lambda t: t + "\n**결론**: 보류 중 6:6\n"),
+        ("table cell 보류 중 with a score", lambda t: t + "\n| 인증 | 보류 중 6:6 | x |\n"),
+        ("conclusion 보류 중입니다", lambda t: t + "\n**결론**: 보류 중입니다\n"),
+        ("conclusion 보류 상태로 종료", lambda t: t + "\n**결론**: 보류 상태로 종료\n"),
+        ("conclusion 보류입니다", lambda t: t + "\n**결론**: 보류입니다\n"),
+        ("filled SUMMARY line, bold label", lambda t: t + "\n- 인증 — **보류 사유** 동점\n"),
+        ("filled SUMMARY line, hyphen", lambda t: t + "\n- 인증 - 보류 사유 동점\n"),
+        ("filled SUMMARY line, en dash", lambda t: t + "\n- 인증 – 보류 사유 동점\n"),
         ("brace choice notation outside the schema", lambda t: t + "\n- [토픽] — 보류 사유 held:{tie|evidence|quorum}\n"),
         ("brace with valid members in a verdict", lambda t: t + "\n**결론**: 보류 (held:{evidence,tie})\n"),
         ("brace form, comma separator", lambda t: t + "\nheld:{tie,other}\n"),
