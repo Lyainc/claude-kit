@@ -33,26 +33,33 @@ refine_generation: 0
 lifecycle:
   state: active
   outcome: null
-  reason: "현재 위임·반환 계약과 정적 검사는 확인했다. 실제 worker 반환·호출자 relay·파일 작성 및 동일 조건 총비용·품질 비교가 남아 있어 로컬 검증 대상으로 활성화한다."
-  approved_by: "2026-10-10 사용자 확인: 이 Seed를 포함한 10개 Seed별 상태 목록을 검토 후 승인 (active)"
+  reason: "위임·반환 계약, 정적 검사, 실제 worker 반환·호출자 relay·파일 작성은 확인했다. 메인 직접 실행과의 동일 조건 총비용·품질 비교(acceptance-1)가 남아 있어 활성 상태를 유지한다."
+  approved_by: "2026-11-11 사용자 지시: #864 마무리 후 '시드 정리할거 정리' (active 유지, 근거 갱신)"
   evidence:
-    commit: null
+    commit: 61a808c7d435e26a30b0e335492c4d6a0eeb42c2
     items:
       - id: constraint-1
         refs:
-          - "thinking-tools/skills/expert-panel/SKILL.md:25"
-          - "thinking-tools/scripts/test/test-mode-compose.py:119"
+          - "thinking-tools/skills/expert-panel/SKILL.md:30"
+          - "thinking-tools/scripts/test/test-mode-compose.py:121"
       - id: constraint-2
         refs:
-          - "thinking-tools/agents/expert-panel-worker.md:68"
+          - "thinking-tools/agents/expert-panel-worker.md:67"
       - id: constraint-5
         refs:
           - "thinking-tools/agents/expert-panel-worker.md:13"
           - "scripts/check-agent-tools-field.py"
+      - id: acceptance-2
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/864#issuecomment-6789912455"
       - id: acceptance-3
         refs:
           - "thinking-tools/scripts/test/test-mode-compose.py"
           - "scripts/check-agent-tools-field.py"
+          - "scripts/check-agent-tools-usage.py"
+          - "scripts/check-skill-token-budget.py"
+          - "scripts/check-version-sync.py"
+          - "vault-bridge/scripts/test/check-trigger-regression.py"
   withdrawn: []
 
 goal:
