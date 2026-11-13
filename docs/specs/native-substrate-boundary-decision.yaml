@@ -36,13 +36,30 @@ domain: "tech"
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: "active"
-  outcome: null
-  reason: "사용자가 옵션 (a)로 결정했다: harness는 OMC 또는 claude-kit 소유 harness 플러그인이고 Agent·hooks·Workflow는 선택적으로만 호출하는 substrate다. 정본 §3 반영과 다섯 스킬·vault-bridge 훅 정합성은 확인했고, #768 영향 댓글(acceptance-3)이 아직 게시되지 않아 활성 상태를 유지한다."
-  approved_by: "2026-11-13 실제 사용자 답변: '769도 같이 처리하자' 및 #769 방향 질문에서 '(a) 선택적 허용 (Recommended)' 선택"
+  state: "closed"
+  outcome: "completed"
+  reason: "옵션 (a) 결정이 정본 §3에 반영됐고, Agent를 선언하는 다섯 스킬과 vault-bridge 훅의 정합성 근거, #768 영향 댓글까지 지정 커밋 기준으로 모든 constraints와 success_criteria가 충족됐다."
+  approved_by: "2026-11-13 실제 사용자 지시: '모두 제안해준 방향으로 진행하고 PR에 달린 리뷰 확인해서 LGTM이면 충돌없도록 머지하고 이슈 close처리 순차적으로 진행'"
   evidence:
-    commit: null
+    commit: 4128e730965444990001b5fe7b695a7cd9c7e5e3
     items:
+      - id: constraint-1
+        refs:
+          - "docs/design/claude-kit-boundary.md:95 — harness를 OMC·자체 harness 플러그인으로 한정"
+          - "docs/design/claude-kit-boundary.md:97 — native Agent·hooks·Workflow를 substrate로 구별"
+      - id: constraint-2
+        refs:
+          - "docs/design/claude-kit-boundary.md:97 — 현재 Agent 사용 스킬과 vault-bridge 훅의 충족 여부 명시"
+      - id: constraint-3
+        refs:
+          - "git show --stat 4128e73: 정본 변경은 docs/design/claude-kit-boundary.md 한 곳이고 fan-out·실행 엔진 구현 없음"
+      - id: constraint-4
+        refs:
+          - "docs/design/claude-kit-boundary.md:97 — 선택적 호출 허용, 현재 Agent·hook 계약 검증을 보류시키지 않음"
+      - id: constraint-5
+        refs:
+          - "PR #945 이전에 사용자 선택(approved_by 참조) 후 정본 반영"
+          - "https://github.com/Lyainc/claude-kit/issues/768#issuecomment-6842453145"
       - id: acceptance-1
         refs:
           - "docs/design/claude-kit-boundary.md:95"
@@ -58,6 +75,9 @@ lifecycle:
           - "vault-bridge/hooks/pre-write-guard.sh:146-147 — 계약 off이거나 서브에이전트 식별자가 없으면(메인 컨텍스트) 통과"
           - "thinking-tools/reference/codex-portability.md:29-31 — Codex에서 Agent 대신 현재 컨텍스트나 가용 Codex 서브에이전트 사용"
           - "vault-bridge/reference/codex-portability.md:34-37 — Codex에서 Claude 훅 등록·payload를 전제하지 않고 스크립트 직접 실행 또는 unavailable 표기"
+      - id: acceptance-3
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/768#issuecomment-6842453145"
   withdrawn: []
 goal:
   statement: "leaf가 사용할 수 있는 native substrate와 금지된 harness의 범위를 하나의 근거 있는 경계 결정으로 명확히 한다."
