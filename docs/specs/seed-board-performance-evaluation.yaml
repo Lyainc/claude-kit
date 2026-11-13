@@ -36,13 +36,43 @@ domain: "tech"
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: "paused"
-  outcome: null
-  reason: "사용자가 결정 전까지 paused 생성으로 확정한 잔여 요구다. 재개 승인과 필요한 설계·측정 결정 전에는 자동 실행 후보로 적용하지 않는다."
-  approved_by: "2026-10-11 실제 사용자 답변: 수정한 계획대로 8개 Seed와 3개 이슈 작업으로 확정 (추천). 질문에서 #835·#814 active, #741·#824·#812·#769·#708·#770 paused, 새 8개는 독립 Seed이며 부분 선행 조건은 제약·완료조건으로 표현한다고 명시했다."
+  state: "closed"
+  outcome: "completed"
+  reason: "고정 입력 기준선과 matcher·병렬 읽기 후보를 같은 조건으로 측정했고, 두 후보 모두 채택 기준(관련 경로 20% 또는 1ms)에 못 미쳐 현행 유지로 결정했다. 채택한 성능 변경이 없어 소스 변경 없이 닫는다."
+  approved_by: "2026-11-13 실제 사용자 지시: '이번세션에서 할것과 정리할것은 바로 진행' (#812 기준선 측정 재개 제안에 대한 답)"
   evidence:
-    commit: null
-    items: []
+    commit: 9e38e43eeb0c31e021ed48eed0f76121027614a9
+    items:
+      - id: constraint-1
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/812#issuecomment-6849531964 — 후보 (a) matcher가 기존 판별식을 그대로 표현(기존 65개 테스트 통과), 병렬 읽기를 원자 snapshot으로 가정하지 않음"
+      - id: constraint-2
+        refs:
+          - "thinking-tools/mods/seed-board/hooks/register.tsx — 소스 변경 없음, 기존 순서·상태·오류 보호 유지"
+      - id: constraint-3
+        refs:
+          - "thinking-tools/mods/seed-board/hooks/register.tsx — 추가 파일·프로세스·네트워크·모델 호출 없음(측정 코드는 커밋하지 않음)"
+      - id: constraint-4
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/812#issuecomment-6849531964 — 후보를 성공한 최적화로 보고하지 않고 측정값과 채택 기준으로 기각"
+      - id: constraint-5
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/812#issuecomment-6849531964 — 기준선 측정과 후보 동등성 검증만 수행, 채택한 변경 없음"
+      - id: acceptance-1
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/812#issuecomment-6849531964 — handler 진입 수와 관련 명령·첫 열기·반복 렌더·큰 출력 지연 기준선(Claude Code 2.1.323, 3회 median/p95)"
+      - id: acceptance-2
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/812#issuecomment-6849531964 — 공식 matcher 동등 판별과 Promise.all 읽기 후보의 비용 대조"
+      - id: acceptance-3
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/812#issuecomment-6849531964 — 현행 유지 결정, 하네스 기준이며 실제 Desktop은 미검증으로 분리"
+      - id: acceptance-4
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/812#issuecomment-6849531964 — 유의미한 개선이 없어 현행 유지"
+      - id: acceptance-5
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/812#issuecomment-6849531964 — 채택한 성능 변경이 없어 별도 CI 요구 대상 없음, 기준선 측정은 CI와 분리해 착수"
   withdrawn: []
 goal:
   statement: "Seed board의 이벤트·상태 조회 비용을 측정해 보호 계약을 유지하면서 유의미한 최소 개선만 채택한다."
