@@ -92,8 +92,9 @@ Claude Workflow를 leaf 스킬의 전제로 추가하지 않아요.
 
 ### 3. 의존 방향 — 단방향 (harness → leaf)
 
-- **harness → leaf만 허용.** 호스트 네이티브 실행이나 선택적 외부 harness가 claude-kit 스킬을 호출하는 leaf capability 관계예요. OMC나 자체 경량 하네스 설치를 요구하지 않아요.
+- **harness → leaf만 허용.** 이 절의 harness는 OMC 같은 외부 harness나 claude-kit이 소유한 harness 플러그인이에요. 이런 harness가 claude-kit 스킬을 호출하는 leaf capability 관계예요. OMC나 자체 경량 하네스 설치를 요구하지 않아요.
 - **역방향 무조건 금지.** leaf(①②③④)가 harness API·동작을 import·call·assume하지 않아요. leaf는 independently installable + harness-neutral by construction이에요(leaf 레벨 vendor-neutrality는 커밋 `7a94a34`에서 이미 달성).
+- **호스트 네이티브 도구는 harness가 아니라 substrate예요(#769).** Agent·hooks·Workflow는 leaf가 선택적으로 호출해도 되지만 전제로 삼지 않고(호출이 없거나 실패하면 인라인으로 대체), Claude 전용 호출에는 그 플러그인의 `reference/codex-portability.md`에 Codex 경로를 둬요. (이 조건은 `Agent`를 선언하는 모든 스킬에 적용돼요. 현재는 expert-panel·build-spec·adversarial-review·unknown-discovery·doc-concretize와 vault-bridge 훅이 충족해요.)
 - **B안 기각 1줄 기록**: 루프 전체를 from-scratch 자체 엔진으로 흡수하는 옵션 B는 — 동작 중인 OMC 전면 교체는 lock-in 실측 증거 0건이라 정당화 못 하고 native supersession 시 매몰비용 — 기각. 대신 **native 위임 우선 + strangler 점진**으로 재정의.
 
 **규율 범위 (scope of "one-way")**: 이 단방향 규칙은 **harness↔leaf 경계에만** 적용돼요. leaf 내부 cognitive layer 간 호출(예: ①인지 스킬이 ②출력 스킬을 호출 — diverse-sampling Mode B → doc-concretize)은 ordinary module dependency로 **허용**돼요. 이게 issue-skill의 ②출력 leaf 귀속과 diverse-sampling Mode B 합성을 정당화하는 근거예요.
