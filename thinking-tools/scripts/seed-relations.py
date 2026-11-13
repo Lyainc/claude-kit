@@ -133,6 +133,12 @@ def _scalar(inline, body):
     return _unquote(" ".join(parts))
 
 
+def _nonscalar(inline, body):
+    """A flow/block list or mapping, which `_scalar` would flatten into a junk string."""
+    v = _strip_comment(inline)
+    return v[:1] in ("[", "{") or (not v and bool(_list(v, body) or _mapping_blocks(body)))
+
+
 def _null(v):
     return v is None or v.strip() in ("", "null", "~", "Null", "NULL")
 
@@ -285,7 +291,8 @@ def parse_seed(text):
     seed.semantic = {}
     seed.title = _short(target)
     seed.top_blocks = top  # raw top-level blocks; `index --full` reads open_questions/blindspots from here
-    seed.created = _scalar(*top["created"]) if "created" in top else None
+    created = top.get("created")
+    seed.created = None if created is None or _nonscalar(*created) else _scalar(*created)
     if _null(seed.created):
         seed.created = None
     goal = {k: (v,b) for k,v,b in _mapping_blocks(top.get("goal", ("",[]))[1])}

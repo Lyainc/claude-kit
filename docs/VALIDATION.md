@@ -995,7 +995,7 @@ python3 thinking-tools/scripts/test/test-next-candidate.py
 # #907: `refines`에 acceptance id가 없는 parent 연결은 tree에서 CHILD가 아닌 REFERENCE 행으로 나오고,
 # check는 자식 연결만 부모 `children`에 있어야 하며 참조 연결이 `children`에 있으면 양쪽에서 MISMATCH로 알려 준다.
 python3 thinking-tools/scripts/test/test-seed-relations.py
-# Expected: OK: all 35 test-seed-relations checks passed
+# Expected: OK: all 36 test-seed-relations checks passed
 
 # Seed 생애주기 (#814): 전이·완료 근거·철회 원문·고정 출처·부분 영향·소비자 후보 자격.
 # 임시 Git 픽스처로 검증하며 사용자 승인의 진위나 LLM 준수는 별도 실행 근거가 필요하다.
