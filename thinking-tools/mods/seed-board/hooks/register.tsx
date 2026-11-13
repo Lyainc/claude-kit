@@ -7,22 +7,33 @@
 //    $.state. The only things it does besides state writes: register one command, open the pane
 //    when the person asks, and fill (never submit) the prompt box when they press a button.
 //  - It judges nothing: candidates, reasons and order come from next-goal's judgment as given.
+//  - The Seed list tab reads what `seed-relations.py index <dir>... --json [--full]` printed in a
+//    Bash call someone else ran; it never runs `index` itself and never interprets lifecycle or
+//    relations: filter, search and counts only group and match the printed fields.
 import { atom, read, update } from 'claude-code'
 import type { EngineInterface, Register } from 'claude-code'
 
 import type {
+  SeedBoardIndex,
   SeedBoardJudgment,
   SeedBoardNode,
   SeedBoardWalk,
 } from '../types/index'
 import {
+  FILTERS,
   compareAt,
+  eligibilityLines,
   extractHeredoc,
+  indexModel,
+  isIndexCommand,
   isRenderCommand,
   isWalkCommand,
+  lifecycleLine,
+  parseIndex,
   parseJudgment,
   parseWalk,
   renderedLines,
+  seedDetailLines,
   walkFor,
 } from './parse'
 
@@ -41,6 +52,10 @@ const lastSwitchA = atom(
 )
 const expandedA = atom({ plugin: 'seed-board', key: 'expanded' } as const, {} as Record<string, true>)
 const seqA = atom({ plugin: 'seed-board', key: 'seq' } as const, 0)
+const indexA = atom({ plugin: 'seed-board', key: 'index' } as const, null as SeedBoardIndex | null)
+const viewA = atom({ plugin: 'seed-board', key: 'view' } as const, 'walk' as 'walk' | 'index')
+const filterA = atom({ plugin: 'seed-board', key: 'filter' } as const, 'open')
+const queryA = atom({ plugin: 'seed-board', key: 'query' } as const, '')
 
 type Dollar = Pick<EngineInterface, 'state' | 'clock'>
 
@@ -62,6 +77,9 @@ const DECISION_KO: Record<string, string> = {
   unverified: '미확인',
 }
 const NO_SWITCH = ['external', 'done']
+const FILTER_KO: Record<string, string> = { open: '열림', all: '전체' }
+const TAB_KO = { walk: '관계·판단', index: 'Seed 목록' } as const
+export const INDEX_EMPTY_TEXT = '조건에 맞는 Seed가 없어요.'
 
 export const STALE_BADGE = '근거가 바뀐 이전 판단 — next-goal 재실행 필요'
 export const EMPTY_TEXT = '아직 Seed 탐색 결과가 없어요. next-goal이 Seed를 탐색하면 여기에 보여요.'
@@ -103,6 +121,19 @@ const observeWalk = async ($: Dollar, text: string): Promise<void> => {
     if (prev !== undefined && compareAt(prev.at, walk.at) > 0) return walks
     return keepNewest({ ...walks, [walk.start]: walk })
   })
+}
+
+// The tab choice only matters once an index was observed; until then the pane is the walk view alone.
+const showView = async ($: Dollar, v: 'walk' | 'index'): Promise<void> => {
+  if ((await read($, indexA)) !== null) await update($, viewA, () => v)
+}
+
+const observeIndex = async ($: Dollar, text: string): Promise<void> => {
+  const parsed = parseIndex(text)
+  const kept = await update($, indexA, prev =>
+    prev !== null && compareAt(prev.generatedAt, parsed.generatedAt) > 0 ? prev : parsed,
+  )
+  if (kept?.generatedAt === parsed.generatedAt) await showView($, 'index')
 }
 
 const observeJudgment = async ($: Dollar, command: string, text: string, seq: number): Promise<void> => {
@@ -179,12 +210,22 @@ export const register: Register = on => {
       }
     }
     const ran = await next(e)
+    // `index` exits 1 when a Seed could not be read yet still prints the rest, so its failed
+    // result is looked at too; the parser skips anything that is not an index document.
+    if (isIndexCommand(e.command) && ran.deny === undefined && ran.text !== undefined) {
+      try {
+        await observeIndex($, ran.text)
+      } catch {
+        // A board fault must never break the session: output that is not an index document is skipped.
+      }
+    }
     if (ran.deny !== undefined || ran.isError === true || ran.text === undefined) return ran
     const text = ran.text
 
     if (isWalkCommand(e.command)) {
       try {
         await observeWalk($, text)
+        await showView($, 'walk')
       } catch {
         // A board fault must never break the session: the result goes on as it was.
       }
@@ -192,6 +233,7 @@ export const register: Register = on => {
     if (startSeq !== null && /^(?:NEXT|\+-{78}\+\r?\n\| NEXT )/.test(text.trimStart())) {
       try {
         await observeJudgment($, e.command, text, startSeq)
+        await showView($, 'walk')
       } catch {
         // Same: a malformed heredoc or judgment is skipped, not raised.
       }
@@ -201,12 +243,23 @@ export const register: Register = on => {
   })
 
   on('ui.render', { component: 'Pane', requestId: PANE }, async ($, e) => {
-    const { Box, Text, Button } = $.ui.resolve(e)
+    const { Box, Text, Button, Input, Select } = $.ui.resolve(e)
+    const index = await read($, indexA)
+    const view = await read($, viewA)
+    const filter = await read($, filterA)
+    const query = await read($, queryA)
     const walks = await read($, walksA)
     const judgment = await read($, judgmentA)
     const pending = await read($, pendingA)
     const lastSwitch = await read($, lastSwitchA)
     const expanded = await read($, expandedA)
+
+    // One detail-row builder for every list in the pane; `pad` is the left indent.
+    const row = (pad: number) => (text: string) => (
+      <Box paddingLeft={pad}>
+        <Text dimColor>{text}</Text>
+      </Box>
+    )
 
     const rows = e.viewport?.rows ?? 24
     const treeRoom = Math.max(8, rows - 16)
@@ -234,6 +287,76 @@ export const register: Register = on => {
       await update($, pendingA, () => ({ title, via, walk_id: walkId, requestedAt, seq }))
     }
 
+    // The tab bar exists only once an index was observed: until then the pane is the walk view alone.
+    const tabs: JSX.Element[] =
+      index === null
+        ? []
+        : [
+            <Box key="tabs" flexDirection="row" gap={1}>
+              {(['walk', 'index'] as const).map(id => (
+                <Button
+                  key={`tab:${id}`}
+                  plain
+                  label={view === id ? `[${TAB_KO[id]}]` : TAB_KO[id]}
+                  onPress={() => showView($, id)}
+                />
+              ))}
+            </Box>,
+          ]
+
+    if (index !== null && view === 'index') {
+      const { activeFilter, counts, done, dropped, matched } = indexModel(index, filter, query)
+      const listRoom = Math.max(8, rows - 16)
+      const rowsOut: JSX.Element[] = []
+      let drawn = 0
+      let hidden = 0
+      for (const sd of matched) {
+        const k = `seed:${sd.key}`
+        const isOpen = expanded[k] === true
+        // The cap counts Seeds, not detail lines: an opened Seed always shows whole.
+        if (drawn >= listRoom && !isOpen) {
+          hidden += 1
+          continue
+        }
+        drawn += 1
+        const st = sd.lifecycle.state === 'closed' && sd.lifecycle.outcome !== null
+          ? `closed: ${sd.lifecycle.outcome}`
+          : sd.lifecycle.state
+        rowsOut.push(<Button key={k} plain label={`${isOpen ? '▾' : '▸'} ${sd.title === '' ? sd.path : sd.title} [${st}]`} onPress={toggle(k)} />)
+        if (!isOpen) continue
+        rowsOut.push(...seedDetailLines(sd, index.edgesByFrom).map(row(2)))
+      }
+      return (
+        <Box flexDirection="column">
+          {tabs}
+          <Text bold>{`Seed ${index.seeds.length}개 · ${index.generatedAt}${index.isFull ? ' · full' : ''}`}</Text>
+          <Text>{`active ${counts.active} · paused ${counts.paused} · closed ${counts.closed} (completed ${done} · discontinued ${dropped})${(counts.unknown ?? 0) > 0 ? ` · unknown ${counts.unknown}` : ''}`}</Text>
+          {index.errors.length > 0 && <Text color="yellow">{`읽기 오류 ${index.errors.length}개`}</Text>}
+          <Select
+            key="filter"
+            label="보기"
+            options={FILTERS.map(f => ({ value: f, label: `${FILTER_KO[f] ?? f} (${counts[f] ?? 0})` }))}
+            value={activeFilter}
+            onSelect={value => update($, filterA, () => value)}
+          />
+          <Input
+            key="query"
+            label="검색"
+            value={query}
+            onInput={value => update($, queryA, () => value)}
+            onSubmit={value => update($, queryA, () => value)}
+          />
+          <Text dimColor>{`${matched.length} / ${index.seeds.length}`}</Text>
+          {rowsOut}
+          {matched.length === 0 && <Text dimColor>{INDEX_EMPTY_TEXT}</Text>}
+          {hidden > 0 && <Text dimColor>{`… Seed ${hidden}개 더 있어요`}</Text>}
+          {index.errors.map(x => (
+            <Text color="yellow">{`오류: ${x.path} — ${x.error}`}</Text>
+          ))}
+        </Box>
+      )
+    }
+
     const judged = judgment === null ? undefined : walkFor(walks, judgment.seed)
     const shown = judged ?? Object.values(walks).sort((a, b) => b.seq - a.seq)[0]
     const isStale =
@@ -242,6 +365,7 @@ export const register: Register = on => {
     if (shown === undefined && judgment === null) {
       return (
         <Box flexDirection="column">
+          {tabs}
           <Text dimColor>{EMPTY_TEXT}</Text>
         </Box>
       )
@@ -300,20 +424,13 @@ export const register: Register = on => {
             </Box>,
           )
           if (!isOpen) continue
-          const pad = Math.min(n.depth, 4) * 2 + 2
-          const d = (text: string) => (
-            <Box paddingLeft={pad}>
-              <Text dimColor>{text}</Text>
-            </Box>
-          )
+          const d = row(Math.min(n.depth, 4) * 2 + 2)
           tree.push(d(`경로: ${n.via.length === 0 ? '(출발점)' : n.via.map(([edge, key]) => `${edge} → ${key}`).join(' · ')}`))
           tree.push(d(`대상: ${n.target ?? '-'}`))
           tree.push(d(`refines: ${n.refines.length === 0 ? '-' : n.refines.join(', ')}`))
           tree.push(d(`링크 이유: ${n.linkReason}`))
           tree.push(d(`출처: ${n.source}`))
-          tree.push(d(`상태: ${n.lifecycle?.state ?? 'unknown'} · 결과: ${n.lifecycle?.outcome ?? '-'} · 이유: ${n.lifecycle?.reason ?? '미확인'}`))
-          tree.push(d(`후보 자격: ${n.eligibility?.eligible === true ? '가능' : '보류'} · 이유: ${n.eligibility?.reason ?? '미확인'}`))
-          tree.push(d(`제외 항목: ${n.eligibility?.excludedItems.join(', ') || '-'} · 검토 필요: ${n.eligibility?.reviewRequired === false ? '아니요' : '예'}`))
+          tree.push(d(lifecycleLine(n.lifecycle)), ...eligibilityLines(n.eligibility).map(d))
           for (const item of shown.items.filter(i => i.owner === n.key)) {
             tree.push(d(`${item.id} → refined by ${item.refinedBy.length === 0 ? '(none)' : item.refinedBy.join(', ')}`))
           }
@@ -347,11 +464,7 @@ export const register: Register = on => {
       }
       const detail = (k: string, lines: string[]) =>
         expanded[k] === true
-          ? lines.map(text => (
-              <Box paddingLeft={4}>
-                <Text dimColor>{text}</Text>
-              </Box>
-            ))
+          ? lines.map(row(4))
           : []
       const pick = judgment.pick
       if (pick === null) {
@@ -407,6 +520,7 @@ export const register: Register = on => {
 
     return (
       <Box flexDirection="column">
+        {tabs}
         {header}
         <Text bold>판단 요약</Text>
         {summary}

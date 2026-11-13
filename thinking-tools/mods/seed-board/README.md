@@ -1,7 +1,7 @@
 # seed-board
 
 An **optional** Claude Code mod: a read-only pane that shows the Seed relation tree and
-`next-goal`'s judgment next to the terminal output. Issue #792.
+`next-goal`'s judgment and a repo-wide Seed list next to the terminal output. Issues #792, #897.
 
 It is a separate plugin of function hooks. The `thinking-tools` plugin manifest does not load it,
 so Codex, older Claude Code builds and runs with no UI (`claude -p`) are unaffected: without this
@@ -49,6 +49,25 @@ The mod only watches Bash output that the skills already produce:
   반영 안 됨 once the next judgment arrives, so the person sees whether `next-goal` really changed
   its pick.
 
+- `seed-relations.py index <dir>... --json [--full]` (the JSON form only): the **Seed 목록** tab.
+  Whoever runs `index` (you or a skill) fills it; the pane never runs it, so it updates when
+  `index` is run again, not when the pane opens. It shows the Seed count, the generation time
+  (`· full` for `--full`), the count per lifecycle state (active, paused, closed with completed and
+  discontinued, unknown), the Seeds that could not be read, and a list of the Seeds ordered by
+  state. A **보기** select filters by the printed lifecycle state (`열림` = not closed, the
+  default; `전체`; active; paused; closed; unknown) and a **검색** field matches path, title, goal
+  and issue numbers (every word must match). Press a Seed to expand its printed detail: lifecycle,
+  candidate eligibility, issues, relation edges with the target's classification, and with
+  `--full` also acceptance fulfilment (충족, 미충족, 범위 밖), evidence, open questions and
+  blindspots. Without `--full` the detail simply has fewer lines. The list draws only as many Seeds
+  as fit the viewport (an opened Seed always shows whole; search reaches the rest), because one
+  tree draws at most its first 100,000 characters.
+  The tab bar (관계·판단 / Seed 목록) appears once an index was observed; a newer index replaces
+  the stored one, an older one does not, and the latest observation (an index, a walk or a judgment)
+  decides which tab is shown. An `index` run that exits 1 because a Seed could not be read is
+  still observed. The mod only groups and matches the printed fields; it does not interpret
+  lifecycle or relations.
+
 A walk replaces the stored one for the same start only if its `at` is not older, so a slow older
 run never overwrites a newer screen.
 
@@ -62,8 +81,9 @@ A judgment is ordered by when its renderer call started, not when it finished: a
   `$.agent` are not used; `claude plugin validate` lists the calls the module makes).
 - It never denies or rewrites a tool call. All parsing runs after the tool finished, inside
   try/catch; a malformed output is ignored and the tool result goes on unchanged.
-- No graph, SVG, Mermaid, drag or zoom. Only `Box`, `Text` and `Button`, which exist on both the
-  terminal and desktop element tables. `claude plugin test` mounts the pane on both surfaces; the kit
+- No graph, SVG, Mermaid, drag or zoom (the per-area flow graph stays in the HTML board). Only
+  `Box`, `Text`, `Button`, `Input` and `Select`, which exist on both the terminal and desktop
+  element tables. `claude plugin test` mounts the pane on both surfaces; the kit
   checks the returned tree, not the paint, so the desktop app's actual rendering is not verified here.
 
 ## Develop
