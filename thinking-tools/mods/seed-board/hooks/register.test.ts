@@ -12,6 +12,7 @@ import type { Engine } from 'claude-code/testing'
 import type { On } from 'claude-code'
 
 import { parseWalk } from './parse'
+import { INDEX_EMPTY_TEXT } from './register'
 
 const SURFACES = ['terminal', 'desktop'] as const
 const PLUGIN = 'seed-board'
@@ -662,5 +663,326 @@ test('a run started before the switch request does not resolve the pending switc
   const t = await texts(ui)
   expect(t).toContain(`반영 완료 — ${alt.title}`)
   expect(t.some(x => x.includes('반영 안 됨'))).toBe(false)
+  await ui.unmount()
+})
+
+// --- repo-wide Seed list (#897): `seed-relations.py index <dir>... --json [--full]` ---------------
+
+const SD = (name: string) => `docs/specs/${name}.yaml`
+const INDEX_CMD = 'python3 thinking-tools/scripts/seed-relations.py index docs/specs --json --full'
+const INDEX_LIGHT_CMD = 'python3 thinking-tools/scripts/seed-relations.py index docs/specs --json'
+
+type IndexOpts = { at?: string; isFull?: boolean; errors?: { path: string; error: string }[]; extra?: number }
+
+const seedRow = (name: string, lifecycle: unknown, over: Record<string, unknown> = {}, isFull = true) => ({
+  path: SD(name),
+  title: name,
+  goal: `${name} 목표`,
+  lifecycle,
+  reason: null,
+  eligibility: { eligible: false, reason: 'paused', excluded_items: [], review_required: false, held_items: [] },
+  relations: isFull
+    ? { parent: null, refines: [], depends_on: [], children: [], replaces: [], transfers: [], provenance: [], link_reason: null, refines_map: [] }
+    : { parent: null, refines: [], depends_on: [], children: [] },
+  ...(isFull ? { acceptance: [], open_questions: [], blindspots: [] } : {}),
+  issues: { source: null, tracking: [] },
+  created: '2026-10-01',
+  ...over,
+})
+
+const indexJson = ({ at = '2026-11-01T00:00:00Z', isFull = true, errors = [], extra = 0 }: IndexOpts = {}): string => {
+  const ev = (items: { id: string; refs: string[] }[], commit: string | null = null) => ({ commit, items })
+  const seeds = [
+    seedRow(
+      'alpha',
+      { state: 'active', outcome: null, reason: null, ...(isFull ? { evidence: ev([{ id: 'acceptance-1', refs: ['src/a.ts:1'] }], 'abc1234') } : {}) },
+      {
+        eligibility: { eligible: true, reason: 'active', excluded_items: ['acceptance-3'], review_required: false, held_items: [{ id: 'acceptance-2' }] },
+        issues: { source: '#10', tracking: ['#11'] },
+        ...(isFull
+          ? {
+              relations: { parent: null, refines: ['acceptance-1'], depends_on: [], children: [], replaces: [], transfers: [], provenance: [], link_reason: '쪼갠 이유', refines_map: [{ item: 'acceptance-1', parent_item: 'acceptance-9' }] },
+              acceptance: [
+                { id: 'acceptance-1', satisfied: true, out_of_scope: null },
+                { id: 'acceptance-2', satisfied: false, out_of_scope: 'held' },
+                { id: 'acceptance-3', satisfied: false, out_of_scope: null },
+              ],
+              open_questions: ['열린 질문 하나'],
+              blindspots: [{ area: 'assumptions', question: '맹점 질문 하나' }],
+            }
+          : {}),
+      },
+      isFull,
+    ),
+    seedRow('beta', { state: 'paused', outcome: null, reason: '외부 대기' }, {}, isFull),
+    seedRow('gamma', { state: 'paused', outcome: null, reason: null }, { goal: '감마 특별 목표' }, isFull),
+    seedRow('delta', { state: 'closed', outcome: 'completed', reason: '검증함' }, {}, isFull),
+    seedRow('eps', { state: 'closed', outcome: 'discontinued', reason: '방향 변경' }, {}, isFull),
+    seedRow('legacy', null, {}, isFull),
+    ...Array.from({ length: extra }, (_, i) => seedRow(`bulk${String(i).padStart(2, '0')}`, { state: 'paused', outcome: null, reason: null }, {}, isFull)),
+  ]
+  const edges: Record<string, unknown[]> = {
+    parent: [{ from: SD('beta'), to: SD('alpha'), target: 'indexed' }],
+    children: [{ from: SD('alpha'), to: SD('beta'), target: 'indexed' }],
+    depends_on: [{ from: SD('gamma'), to: SD('beta'), target: 'indexed', item: 'acceptance-1' }],
+  }
+  if (isFull) {
+    edges.replaces = [{ from: SD('gamma'), to: SD('eps'), target: 'indexed', items: ['acceptance-2'] }]
+    edges.transfers = []
+    edges.provenance = [{ from: SD('alpha'), to: SD('delta'), target: 'indexed', items: ['acceptance-1'], commit: 'abc1234' }]
+  }
+  return JSON.stringify({ schema_version: 1, generated_at: at, seeds, edges, errors, ...(isFull ? { schema: 'seed-index-full/1' } : {}) })
+}
+
+const keys = async (ui: Parameters<typeof texts>[0], type = 'Button') =>
+  (await (ui as unknown as { findAll: (q: { type: string }) => Promise<{ key: string }[]> }).findAll({ type })).map(x => x.key)
+const rowKeys = async (ui: Parameters<typeof texts>[0]) => (await keys(ui)).filter(k => k.startsWith('seed:'))
+
+for (const surface of SURFACES) {
+  test(`index: counts, default open filter and the tab bar (${surface})`, async ($, on) => {
+    const b = bench(on)
+    const out = indexJson({ errors: [{ path: SD('bad'), error: 'unparseable: x' }] })
+    const ran = await bash($, b, INDEX_CMD, out)
+    expect(ran.text).toBe(out)
+
+    const ui = await mountPane($, surface)
+    const all = await texts(ui)
+    expect(all).toContain('Seed 6개 · 2026-11-01T00:00:00Z · full')
+    expect(all).toContain('active 1 · paused 2 · closed 2 (completed 1 · discontinued 1) · unknown 1')
+    expect(all).toContain('읽기 오류 1개')
+    expect(all).toContain(`오류: ${SD('bad')} — unparseable: x`)
+    expect(all).toContain('4 / 6')
+    expect(await keys(ui)).toEqual(['tab:walk', 'tab:index', ...['alpha', 'beta', 'gamma', 'legacy'].map(n => `seed:${SD(n)}`)])
+    expect(await keys(ui, 'Select')).toEqual(['filter'])
+    expect(await keys(ui, 'Input')).toEqual(['query'])
+    expect(b.forbidden).toEqual([])
+    await ui.unmount()
+  })
+
+  test(`index: the filter groups by the printed lifecycle state (${surface})`, async ($, on) => {
+    const b = bench(on)
+    await bash($, b, INDEX_CMD, indexJson())
+    const ui = await mountPane($, surface)
+    const pick = async (value: string) => {
+      await ui.select({ key: 'filter', value })
+      return rowKeys(ui)
+    }
+    expect(await pick('closed')).toEqual([SD('delta'), SD('eps')].map(p => `seed:${p}`))
+    expect(await texts(ui)).toContain('2 / 6')
+    expect(await pick('paused')).toEqual([SD('beta'), SD('gamma')].map(p => `seed:${p}`))
+    expect(await pick('active')).toEqual([`seed:${SD('alpha')}`])
+    expect(await pick('unknown')).toEqual([`seed:${SD('legacy')}`])
+    expect(await pick('all')).toHaveLength(6)
+    expect(await pick('open')).toHaveLength(4)
+    // The counts line does not move with the filter.
+    expect(await texts(ui)).toContain('active 1 · paused 2 · closed 2 (completed 1 · discontinued 1) · unknown 1')
+    expect(b.forbidden).toEqual([])
+    await ui.unmount()
+  })
+
+  test(`index: search matches path, title, goal and issue numbers and combines with the filter (${surface})`, async ($, on) => {
+    const b = bench(on)
+    await bash($, b, INDEX_CMD, indexJson())
+    const ui = await mountPane($, surface)
+    const search = async (text: string) => {
+      await ui.input({ key: 'query', text, kind: 'change' })
+      return rowKeys(ui)
+    }
+    expect(await search('BETA')).toEqual([`seed:${SD('beta')}`])
+    expect(await search('감마 특별')).toEqual([`seed:${SD('gamma')}`])
+    expect(await search('#11')).toEqual([`seed:${SD('alpha')}`])
+    expect(await search('docs/specs/')).toHaveLength(4)
+    // Enter keeps the same text.
+    await ui.input({ key: 'query', text: 'alpha', kind: 'submit' })
+    expect(await rowKeys(ui)).toEqual([`seed:${SD('alpha')}`])
+    // A closed-only filter hides the open match; nothing matches, so the pane says so.
+    await ui.select({ key: 'filter', value: 'closed' })
+    expect(await rowKeys(ui)).toEqual([])
+    expect(await texts(ui)).toContain(INDEX_EMPTY_TEXT)
+    await ui.select({ key: 'filter', value: 'all' })
+    expect(await search('delta')).toEqual([`seed:${SD('delta')}`])
+    expect(await search('')).toHaveLength(6)
+    await ui.unmount()
+  })
+
+  test(`index: Seeds sharing a path get distinct keys and no foreign edges (${surface})`, async ($, on) => {
+    const b = bench(on)
+    const paused = { state: 'paused', outcome: null, reason: null }
+    const doc = JSON.stringify({
+      schema_version: 1,
+      generated_at: '2026-11-01T00:00:00Z',
+      schema: 'seed-index-full/1',
+      seeds: [
+        seedRow('dup', paused, { goal: '첫째 목표' }),
+        seedRow('dup', paused, { goal: '둘째 목표' }),
+        seedRow('solo', paused),
+      ],
+      edges: {
+        children: [{ from: SD('dup'), to: SD('solo'), target: 'indexed' }],
+        parent: [{ from: SD('solo'), to: SD('dup'), target: 'indexed' }],
+      },
+      errors: [],
+    })
+    await bash($, b, INDEX_CMD, doc)
+    const ui = await mountPane($, surface)
+    expect(await rowKeys(ui)).toEqual([`seed:${SD('dup')}#1`, `seed:${SD('dup')}#2`, `seed:${SD('solo')}`])
+    await ui.press({ key: `seed:${SD('dup')}#2` })
+    const open = await texts(ui)
+    expect(open).toContain('목표: 둘째 목표')
+    expect(open).not.toContain('목표: 첫째 목표')
+    expect(open.some(x => x.startsWith('하위:'))).toBe(false)
+    await ui.press({ key: `seed:${SD('dup')}#1` })
+    expect(await texts(ui)).toContain('목표: 첫째 목표')
+    expect((await texts(ui)).some(x => x.startsWith('하위:'))).toBe(false)
+    await ui.press({ key: `seed:${SD('solo')}` })
+    expect(await texts(ui)).toContain(`상위: ${SD('dup')} [indexed]`)
+    await ui.unmount()
+  })
+
+  test(`index: pressing a Seed expands its printed detail (${surface})`, async ($, on) => {
+    const b = bench(on)
+    await bash($, b, INDEX_CMD, indexJson())
+    const ui = await mountPane($, surface)
+    expect(await texts(ui)).not.toContain(`경로: ${SD('alpha')}`)
+    await ui.press({ key: `seed:${SD('alpha')}` })
+    const open = await texts(ui)
+    for (const line of [
+      `경로: ${SD('alpha')}`,
+      '목표: alpha 목표',
+      '생성: 2026-10-01',
+      '상태: active · 결과: - · 이유: 미확인',
+      '후보 자격: 가능 · 이유: active',
+      '제외 항목: acceptance-3 · 보류 항목: acceptance-2 · 검토 필요: 아니요',
+      '이슈: #10 · 추적: #11',
+      `하위: ${SD('beta')} [indexed]`,
+      `출처: ${SD('delta')} [indexed] · items acceptance-1 · commit abc1234`,
+      'refines: acceptance-1',
+      '링크 이유: 쪼갠 이유',
+      'refines_map: item: acceptance-1 · parent_item: acceptance-9',
+      'acceptance 1/3 충족',
+      '  acceptance-1: 충족',
+      '  acceptance-2: 범위 밖 (held)',
+      '  acceptance-3: 미충족',
+      '근거 커밋: abc1234',
+      '근거 acceptance-1: src/a.ts:1',
+      '열린 질문: 열린 질문 하나',
+      '맹점 (assumptions): 맹점 질문 하나',
+    ]) {
+      expect(open).toContain(line)
+    }
+    // Other Seeds stay collapsed; edges of other Seeds do not leak in.
+    expect(open).not.toContain(`경로: ${SD('beta')}`)
+    await ui.press({ key: `seed:${SD('gamma')}` })
+    const gamma = await texts(ui)
+    expect(gamma).toContain(`선행: ${SD('beta')} [indexed] · items acceptance-1`)
+    expect(gamma).toContain(`대체: ${SD('eps')} [indexed] · items acceptance-2`)
+    expect(gamma).toContain('상태: paused · 결과: - · 이유: 미확인')
+    await ui.press({ key: `seed:${SD('alpha')}` })
+    expect(await texts(ui)).not.toContain(`경로: ${SD('alpha')}`)
+    await ui.press({ key: `seed:${SD('gamma')}` })
+    // Closed Seeds show their outcome in the row and the reason in the detail.
+    await ui.select({ key: 'filter', value: 'closed' })
+    await ui.press({ key: `seed:${SD('eps')}` })
+    expect(await texts(ui)).toContain('상태: closed · 결과: discontinued · 이유: 방향 변경')
+    expect((await ui.findAll({ type: 'Button' })).map(x => x.text)).toContain('▾ eps [closed: discontinued]')
+    expect(b.forbidden).toEqual([])
+    expect(b.fills).toEqual([])
+    await ui.unmount()
+  })
+
+  test(`index: an index without --full draws the lighter detail (${surface})`, async ($, on) => {
+    const b = bench(on)
+    await bash($, b, INDEX_LIGHT_CMD, indexJson({ isFull: false }))
+    const ui = await mountPane($, surface)
+    const all = await texts(ui)
+    expect(all).toContain('Seed 6개 · 2026-11-01T00:00:00Z')
+    expect(all).not.toContain('Seed 6개 · 2026-11-01T00:00:00Z · full')
+    await ui.press({ key: `seed:${SD('alpha')}` })
+    const open = await texts(ui)
+    expect(open).toContain('상태: active · 결과: - · 이유: 미확인')
+    expect(open).toContain(`하위: ${SD('beta')} [indexed]`)
+    expect(open.some(t => t.startsWith('acceptance') || t.startsWith('열린 질문') || t.startsWith('맹점') || t.startsWith('근거'))).toBe(false)
+    await ui.unmount()
+  })
+
+  test(`index: tabs switch between the walk view and the list, and the newest observation wins (${surface})`, async ($, on) => {
+    const b = bench(on)
+    await bash($, b, WALK_CMD, walkText({ id: 'w1', at: '2026-10-01T10:00:00Z' }))
+    // No index yet: the walk view alone, no tab bar.
+    const before = await mountPane($, surface)
+    expect(await keys(before)).not.toContain('tab:index')
+    await before.unmount()
+
+    await bash($, b, INDEX_CMD, indexJson())
+    const ui = await mountPane($, surface)
+    expect(await rowKeys(ui)).toHaveLength(4)
+    await ui.press({ key: 'tab:walk' })
+    expect(await texts(ui)).toContain(`Seed: ${A}`)
+    expect(await rowKeys(ui)).toEqual([])
+    expect(await keys(ui)).toContain('tab:index')
+    await ui.press({ key: 'tab:index' })
+    expect(await rowKeys(ui)).toHaveLength(4)
+    // A later walk brings the walk view back; a later index brings the list back.
+    await bash($, b, WALK_CMD, walkText({ id: 'w2', at: '2026-10-01T11:00:00Z' }))
+    expect(await texts(ui)).toContain('walk w2 · 2026-10-01T11:00:00Z · fingerprint fp1')
+    await bash($, b, INDEX_CMD, indexJson({ at: '2026-11-02T00:00:00Z' }))
+    expect(await texts(ui)).toContain('Seed 6개 · 2026-11-02T00:00:00Z · full')
+    // A replayed older index changes no data, so it does not pull the view back to the list.
+    await ui.press({ key: 'tab:walk' })
+    await bash($, b, INDEX_CMD, indexJson({ at: '2026-11-01T00:00:00Z' }))
+    expect(await rowKeys(ui)).toEqual([])
+    await ui.unmount()
+  })
+}
+
+test('index: an older index never replaces a newer one; other output is ignored', async ($, on) => {
+  const b = bench(on)
+  await bash($, b, INDEX_CMD, indexJson({ at: '2026-11-02T00:00:00Z' }))
+  await bash($, b, INDEX_CMD, indexJson({ at: '2026-11-01T00:00:00Z', extra: 3 }))
+  const ui = await mountPane($, 'terminal')
+  expect(await texts(ui)).toContain('Seed 6개 · 2026-11-02T00:00:00Z · full')
+  // Malformed output, a non-JSON index call and a walk-shaped JSON leave the stored index alone.
+  const ran = await bash($, b, INDEX_CMD, '{"schema_version":1,"seeds":')
+  expect(ran.text).toBe('{"schema_version":1,"seeds":')
+  await bash($, b, 'python3 thinking-tools/scripts/seed-relations.py index docs/specs', indexJson({ at: '2026-11-09T00:00:00Z', extra: 3 }))
+  await bash($, b, INDEX_CMD, walkJson({ id: 'w1', at: '2026-10-01T10:00:00Z' }))
+  expect(await texts(ui)).toContain('Seed 6개 · 2026-11-02T00:00:00Z · full')
+  // The same instant from a later call replaces it (another directory set, same run second).
+  await bash($, b, INDEX_CMD, indexJson({ at: '2026-11-02T00:00:00Z', extra: 3 }))
+  expect(await texts(ui)).toContain('Seed 9개 · 2026-11-02T00:00:00Z · full')
+  expect(b.forbidden).toEqual([])
+  await ui.unmount()
+})
+
+test('index: a failed index call (a Seed could not be read) is still observed and returned untouched', async ($, on) => {
+  const b = bench(on)
+  const out = `${indexJson({ errors: [{ path: SD('bad'), error: 'unreadable: PermissionError' }] })}\n`
+  const ran = await bash($, b, INDEX_CMD, out, true)
+  expect(ran.text).toBe(out)
+  const ui = await mountPane($, 'terminal')
+  expect(await texts(ui)).toContain('읽기 오류 1개')
+  // A failed walk is still not observed: the walk view has nothing to show.
+  await bash($, b, WALK_CMD, walkText({ id: 'w1', at: '2026-10-01T10:00:00Z' }), true)
+  await ui.press({ key: 'tab:walk' })
+  expect(await texts(ui)).not.toContain(`Seed: ${A}`)
+  await ui.unmount()
+})
+
+test('index: a long list is capped to the viewport; an opened Seed always shows whole', async ($, on) => {
+  const b = bench(on)
+  await bash($, b, INDEX_CMD, indexJson({ extra: 40 }))
+  const ui = await mountPane($, 'terminal')
+  const drawn = (await rowKeys(ui)).length
+  expect(drawn).toBeLessThan(44)
+  const note = (await texts(ui)).find(t => t.startsWith('… Seed '))
+  expect(note).toBeDefined()
+  expect(drawn + Number((note ?? '').replace(/\D/g, ''))).toBe(44)
+  // Search reaches a Seed beyond the cap, and an opened one stays past the cap.
+  await ui.input({ key: 'query', text: 'bulk39', kind: 'change' })
+  expect(await rowKeys(ui)).toEqual([`seed:${SD('bulk39')}`])
+  await ui.press({ key: `seed:${SD('bulk39')}` })
+  await ui.input({ key: 'query', text: '', kind: 'change' })
+  expect(await rowKeys(ui)).toContain(`seed:${SD('bulk39')}`)
+  expect(await texts(ui)).toContain(`경로: ${SD('bulk39')}`)
   await ui.unmount()
 })

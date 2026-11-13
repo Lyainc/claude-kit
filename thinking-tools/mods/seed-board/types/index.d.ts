@@ -100,6 +100,52 @@ export type SeedBoardLastSwitch = {
   at: number
 }
 
+export type SeedBoardIndexEdge = {
+  from: string
+  to: string
+  /** The target's classification as `index` printed it (indexed, notfound, external, ...). */
+  target: string
+  /** Item ids the edge names (`depends_on` item, replaces/transfers/provenance items). */
+  items: string[]
+  commit: string | null
+}
+
+export type SeedBoardIndexSeed = {
+  path: string
+  /** Unique row key: `path`, or `path#N` (1-based) when several Seeds share a path; those get no edge rows. */
+  key: string
+  title: string
+  goal: string
+  created: string | null
+  /** Observed lifecycle as `index` printed it; never authority for selecting a candidate. */
+  lifecycle: NonNullable<SeedBoardNode['lifecycle']>
+  eligibility: NonNullable<SeedBoardNode['eligibility']> & { heldItems: string[] }
+  source: string | null
+  tracking: string[]
+  /** The fields below come with `--full` only; a plain index leaves them empty. */
+  refines: string[]
+  linkReason: string | null
+  refinesMap: string[]
+  evidence: { commit: string | null; items: { id: string; refs: string[] }[] }
+  acceptance: { id: string; satisfied: boolean; outOfScope: string | null }[]
+  openQuestions: string[]
+  blindspots: { area: string; question: string }[]
+  /** Lowercased path, title, goal and issue text, built once for the search box. */
+  search: string
+}
+
+export type SeedBoardIndex = {
+  generatedAt: string
+  /** `seed-index-full/1` (`--full`) when true; the lighter shape otherwise. */
+  isFull: boolean
+  seeds: SeedBoardIndexSeed[]
+  /** Edges per type (parent, children, depends_on, and with `--full` replaces, transfers, provenance). */
+  edges: Record<string, SeedBoardIndexEdge[]>
+  /** The same edges keyed by `from`, as `[type, edge]` in print order. */
+  edgesByFrom: Record<string, [string, SeedBoardIndexEdge][]>
+  errors: { path: string; error: string }[]
+}
+
 declare module 'claude-code' {
   interface PluginState {
     'seed-board': {
@@ -111,10 +157,18 @@ declare module 'claude-code' {
       pending: SeedBoardPending | null
       /** How the last candidate switch ended. */
       lastSwitch: SeedBoardLastSwitch | null
-      /** Expanded node keys (`node:<key>`) and candidate titles (`cand:<title>`). */
+      /** Expanded node keys (`node:<key>`), candidate titles (`cand:<title>`) and index rows (`seed:<key>`). */
       expanded: Record<string, true>
       /** Arrival counter for walks and judgments. */
       seq: number
+      /** Latest repo-wide `seed-relations.py index --json` output. */
+      index: SeedBoardIndex | null
+      /** Which tab the pane draws. */
+      view: 'walk' | 'index'
+      /** The index tab's lifecycle filter (`open`, `all`, `active`, `paused`, `closed`, `unknown`). */
+      filter: string
+      /** The index tab's search text. */
+      query: string
     }
   }
 }
