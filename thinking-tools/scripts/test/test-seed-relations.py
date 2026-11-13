@@ -1800,6 +1800,29 @@ def _index_full_repo():
     return repo
 
 
+def check_created_nonscalar() -> list[str]:
+    """#927: a list/mapping `created` becomes null in `index --full`; real scalars stay."""
+    repo = _index_full_repo()
+    spec_dir = Path(repo) / "docs" / "specs"
+    cases = {"flow": ("[]", None), "flowfull": ("[2026-01-01]", None),
+             "block": ("\n  - 2026-01-01", None), "map": ("\n  date: 2026-01-01", None),
+             "plain": (" 2026-01-01", "2026-01-01"), "quoted": (' "2026-01-02"', "2026-01-02")}
+    for name, (val, _) in cases.items():
+        text = _versioned(_seed_text("C" + name), 3).replace(
+            f"\ntarget: C{name}\n", f"\ntarget: C{name}\ncreated:{val}\n", 1)
+        (spec_dir / f"c{name}.yaml").write_text(text)
+    code, full, err = _index_json(repo, "docs/specs", extra=("--full",))
+    if full is None:
+        return [f"created non-scalar: no JSON output ({code}): {err}"]
+    by = {s["path"]: s for s in full["seeds"]}
+    failures = []
+    for name, (_, want) in cases.items():
+        got = by.get(SP + f"c{name}.yaml", {}).get("created", "<missing>")
+        if got != want:
+            failures.append(f"created non-scalar: {name}: {got!r} != {want!r}")
+    return failures
+
+
 def check_index_full() -> list[str]:
     """#919: `index --json --full` adds the remaining fields and edge kinds; plain stays as is."""
     failures = []
@@ -1980,6 +2003,7 @@ def main() -> int:
         check_reference_links,
         check_index,
         check_index_full,
+        check_created_nonscalar,
         check_tree_provenance,
     ]
     failures = []
