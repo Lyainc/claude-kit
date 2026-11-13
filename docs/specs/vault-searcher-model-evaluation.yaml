@@ -36,13 +36,22 @@ domain: "tech"
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: "paused"
+  state: "active"
   outcome: null
-  reason: "사용자가 결정 전까지 paused 생성으로 확정한 잔여 요구다. 재개 승인과 필요한 설계·측정 결정 전에는 자동 실행 후보로 적용하지 않는다."
-  approved_by: "2026-10-11 실제 사용자 답변: 수정한 계획대로 8개 Seed와 3개 이슈 작업으로 확정 (추천). 질문에서 #835·#814 active, #741·#824·#812·#769·#708·#770 paused, 새 8개는 독립 Seed이며 부분 선행 조건은 제약·완료조건으로 표현한다고 명시했다."
+  reason: "세 모드 실호출로 모델 identity·필터 후 입력량·품질을 관측했고 haiku 핀 유지로 판정해 핀 옆에 근거를 남긴다. 반영 커밋 SHA가 머지 후 생기므로 그때 근거 커밋을 고정하고 닫는다."
+  approved_by: "2026-11-13 실제 사용자 지시: '이번세션에서 할것과 정리할것은 바로 진행' (#812·#708 측정 재개 포함 제안에 대한 답)"
   evidence:
     commit: null
-    items: []
+    items:
+      - id: acceptance-1
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/708#issuecomment-6849396165 — provider·claude-haiku-5-5·호출당 최대 컨텍스트, effort는 선언 low·적용값 미확인으로 구별"
+      - id: acceptance-2
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/708#issuecomment-6849396165 — 세 모드 정확성·누락 독립 대조(good/good/acceptable)와 입력량 압박 없음"
+      - id: acceptance-3
+        refs:
+          - "vault-bridge/agents/vault-searcher.md:4 — 핀 유지 근거 주석"
   withdrawn: []
 goal:
   statement: "vault-searcher의 실제 후보 필터 후 입력과 세 모드 품질을 관측해 현재 모델 pin 유지·변경 여부를 판정한다."
