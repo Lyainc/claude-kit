@@ -23,7 +23,7 @@ when applying requirements or resuming paused work.
 
 The approved 2026-10-11 open-issue intake adds **8 independent Seeds: 2 active and
 6 paused**, authored with thinking-tools 6.0.2. The repository now has **19 Seeds:
-7 active, 10 paused, 1 closed/discontinued, 1 closed/completed, 0 unknown**. Their approval
+2 active, 8 paused, 1 closed/discontinued, 8 closed/completed, 0 unknown**. Their approval
 covers authoring and issue-path handoff; it does not mark implementation complete,
 resume paused work, or update installations. The original eleven files are preserved.
 The [delivery plan](../design/open-issue-delivery-plan-2026-10-11.md) groups related
@@ -34,28 +34,28 @@ work without creating a duplicate parent or blocking unrelated work.
 | Seed | Lifecycle | Current owner / remaining evidence |
 |---|---|---|
 | [build-spec-workflow-integration](build-spec-workflow-integration.yaml) | paused | Main-agent interview and `issue-raise`; acceptance-1–4 still need an approved real issue and authoring-session URL/body/backlog/STATE evidence |
-| [claude-kit-work-rules](claude-kit-work-rules.yaml) | active | `rules/RULES.md` and repository guards; reminder correction is committed with regression coverage, full registered suite is unrun, and constraint-8 rule liveness remains partial |
+| [claude-kit-work-rules](claude-kit-work-rules.yaml) | closed/completed | `rules/RULES.md` and repository guards; reminder correction is committed with regression coverage, full registered suite is unrun, and constraint-8 rule liveness remains partial |
 | [expert-panel-delegated-mode](expert-panel-delegated-mode.yaml) | active | `expert-panel` and its worker; acceptance-1–2 need controlled total-cost/quality comparison and actual worker/relay/file traces |
 | [harness-doctor](harness-doctor.yaml) | paused | Optional external local-harness; a refined generation alone does not establish original completion or discontinuation |
 | [harness-doctor-v2](harness-doctor-v2.yaml) | paused | External doctor; actual installed SessionStart behavior and full-target latency remain unverified |
 | [obsidian-bases-custom-views](obsidian-bases-custom-views.yaml) | closed/completed | #762; natural-language and explicit filter/sort input, new-file safety and four workload views; verified commit and item evidence are in the Seed |
-| [seed-relations-graph](seed-relations-graph.yaml) | active | `seed-relations.py` and `seed-lifecycle.py`; acceptance-2/7/10 need actual consumer/predecessor/Refine traces beyond deterministic fixtures |
+| [seed-relations-graph](seed-relations-graph.yaml) | closed/completed | `seed-relations.py` and `seed-lifecycle.py`; acceptance-2/7/10 need actual consumer/predecessor/Refine traces beyond deterministic fixtures |
 | [thinking-tools-code-reviewer](thinking-tools-code-reviewer.yaml) | closed/discontinued | Retired in #593; methodology moved to `requirement-gap-reviewer` with `seed-diff-grading.md`. This is retirement, not proof that acceptance-3–6 passed |
-| [thinking-tools-persona-library](thinking-tools-persona-library.yaml) | active | Shared original-input selection in `reference/personas.md`; acceptance-2/3/5 need actual session STATE/off-pool/consumer comparisons; acceptance-6 documentation is corrected |
-| [thinking-tools-ud-bs-boundary](thinking-tools-ud-bs-boundary.yaml) | active | `reference/ud-bs-boundary.md`; acceptance-2–3 need the current cross-session handoff, approval, feedback and skipped STATE traces |
+| [thinking-tools-persona-library](thinking-tools-persona-library.yaml) | closed/completed | Shared original-input selection in `reference/personas.md`; acceptance-2/3/5 need actual session STATE/off-pool/consumer comparisons; acceptance-6 documentation is corrected |
+| [thinking-tools-ud-bs-boundary](thinking-tools-ud-bs-boundary.yaml) | closed/completed | `reference/ud-bs-boundary.md`; acceptance-2–3 need the current cross-session handoff, approval, feedback and skipped STATE traces |
 | [vault-discussion-history-wiring](vault-discussion-history-wiring.yaml) | paused | `vault-save` capture and `manifest-recall.md`; external session-close handoff is absent, and actual 18-item migration/fresh-session recall is unverified |
 
 ## Approved open-issue residual Seeds
 
 | Seed | Source issue / lifecycle | Scope and remaining decision |
 |---|---|---|
-| [plugin-language-instructions](plugin-language-instructions.yaml) | #835 / active | Korean default, English response for English requests; preserve safety, explicit artifact language and discovery descriptions |
-| [seed-lifecycle-residual-validation](seed-lifecycle-residual-validation.yaml) | #814 / active | Exact previous-parent provenance on transitions and remaining actual approval/consumer verification; reuse existing graph checks |
+| [plugin-language-instructions](plugin-language-instructions.yaml) | #835 / closed/completed | Korean default, English response for English requests; preserve safety, explicit artifact language and discovery descriptions |
+| [seed-lifecycle-residual-validation](seed-lifecycle-residual-validation.yaml) | #814 / closed/completed | Exact previous-parent provenance on transitions and remaining actual approval/consumer verification; reuse existing graph checks |
 | [retro-nudge-design-validation](retro-nudge-design-validation.yaml) | #741 / paused | Signal thresholds, session scope, runtime support and external self-check boundaries need decisions |
 | [document-editing-preflight](document-editing-preflight.yaml) | #824 / paused | Reuse draft PR #847; utility, important revisions, repeatability, clean output and selected restoration remain unverified |
 | [seed-board-performance-evaluation](seed-board-performance-evaluation.yaml) | #812 / paused | Measure baseline and candidate equivalence before adoption; adopted changes need board CI, baseline does not wait for CI setup |
-| [native-substrate-boundary-decision](native-substrate-boundary-decision.yaml) | #769 / paused | Decide the native substrate/Workflow boundary; current Agent work is not held by that future decision |
-| [vault-searcher-model-evaluation](vault-searcher-model-evaluation.yaml) | #708 / paused | Observe actual filtered input, three-mode quality and runtime model identity before deciding the pin |
+| [native-substrate-boundary-decision](native-substrate-boundary-decision.yaml) | #769 / closed/completed | Decide the native substrate/Workflow boundary; current Agent work is not held by that future decision |
+| [vault-searcher-model-evaluation](vault-searcher-model-evaluation.yaml) | #708 / active | Observe actual filtered input, three-mode quality and runtime model identity before deciding the pin |
 | [skill-effort-evaluation](skill-effort-evaluation.yaml) | #770 / paused | Compare observed effort, quality and total cost; role audit is an expert-panel sample prerequisite, not a whole-skill blocker |
 
 The confirmed issue tasks #834 (manifest-path wording), #815 (board CI) and #793
