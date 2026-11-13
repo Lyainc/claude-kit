@@ -36,13 +36,28 @@ domain: "tech"
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: "paused"
+  state: "active"
   outcome: null
-  reason: "사용자가 결정 전까지 paused 생성으로 확정한 잔여 요구다. 재개 승인과 필요한 설계·측정 결정 전에는 자동 실행 후보로 적용하지 않는다."
-  approved_by: "2026-10-11 실제 사용자 답변: 수정한 계획대로 8개 Seed와 3개 이슈 작업으로 확정 (추천). 질문에서 #835·#814 active, #741·#824·#812·#769·#708·#770 paused, 새 8개는 독립 Seed이며 부분 선행 조건은 제약·완료조건으로 표현한다고 명시했다."
+  reason: "사용자가 옵션 (a)로 결정했다: harness는 OMC 또는 claude-kit 소유 harness 플러그인이고 Agent·hooks·Workflow는 선택적으로만 호출하는 substrate다. 정본 §3 반영과 다섯 스킬·vault-bridge 훅 정합성은 확인했고, #768 영향 댓글(acceptance-3)이 아직 게시되지 않아 활성 상태를 유지한다."
+  approved_by: "2026-11-13 실제 사용자 답변: '769도 같이 처리하자' 및 #769 방향 질문에서 '(a) 선택적 허용 (Recommended)' 선택"
   evidence:
     commit: null
-    items: []
+    items:
+      - id: acceptance-1
+        refs:
+          - "docs/design/claude-kit-boundary.md:95"
+          - "docs/design/claude-kit-boundary.md:97"
+      - id: acceptance-2
+        refs:
+          - "thinking-tools/skills/expert-panel/SKILL.md:46 — vault-searcher Agent 인용이 없으면 도메인 판단으로 대체"
+          - "thinking-tools/skills/build-spec/SKILL.md:88 — 격리 게이트 판정 실패·불가 시 인라인 채점"
+          - "thinking-tools/skills/build-spec/SKILL.md:97 — 맹점 패스 Agent 실패 시 skipped: no Agent"
+          - "thinking-tools/skills/adversarial-review/SKILL.md:43 — vault-searcher Agent가 없으면 일반 Evidence Attack으로 대체"
+          - "thinking-tools/skills/unknown-discovery/SKILL.md:56 — Agent 채점 실패·불가·무응답 시 인라인 채점"
+          - "thinking-tools/skills/doc-concretize/SKILL.md:100-103 — Verify Agent 실패·무응답 시 인라인 검증"
+          - "vault-bridge/hooks/pre-write-guard.sh:146-147 — 계약 off이거나 서브에이전트 식별자가 없으면(메인 컨텍스트) 통과"
+          - "thinking-tools/reference/codex-portability.md:29-31 — Codex에서 Agent 대신 현재 컨텍스트나 가용 Codex 서브에이전트 사용"
+          - "vault-bridge/reference/codex-portability.md:34-37 — Codex에서 Claude 훅 등록·payload를 전제하지 않고 스크립트 직접 실행 또는 unavailable 표기"
   withdrawn: []
 goal:
   statement: "leaf가 사용할 수 있는 native substrate와 금지된 harness의 범위를 하나의 근거 있는 경계 결정으로 명확히 한다."
@@ -79,7 +94,7 @@ success_criteria:
     verifiable: true
     measurable_via: "§2/§3·#282/#217/#132·현재 호출 표·실제 사용자 선택·정본 diff"
   - id: "acceptance-2"
-    description: "네 스킬의 Agent 호출과 vault-bridge 훅이 선택한 경계에서 위반이 아님을 설명하고 필요한 예외/adapter 조건을 명시한다."
+    description: "`Agent`를 선언하는 모든 스킬의 Agent 호출과 vault-bridge 훅이 선택한 경계에서 위반이 아님을 설명하고 필요한 예외/adapter 조건을 명시한다."
     verifiable: true
     measurable_via: "현재 호출·도구 선언·runtime 차이의 정합성 대조"
   - id: "acceptance-3"
