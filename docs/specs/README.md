@@ -11,8 +11,8 @@ authoring. They are preserved when correcting a contract; they are not rewritten
 to the compatibility baseline. Constraint and acceptance IDs are also preserved.
 
 The original eleven repository Seeds carry explicit lifecycle decisions following the user's
-request to refresh unknown states and fix diagnosed defects: **5 active, 4 paused,
-1 closed/discontinued, 1 closed/completed, 0 unknown**. Each Seed records the actual user
+request to refresh unknown states and fix diagnosed defects: **1 active, 4 paused,
+1 closed/discontinued, 5 closed/completed, 0 unknown**. Each Seed records the actual user
 instruction, decision reason and selected source/test references. These references
 are partial evidence; static contracts and fixtures do not prove live acceptance.
 Rule and persona correction evidence pins implementation commit
