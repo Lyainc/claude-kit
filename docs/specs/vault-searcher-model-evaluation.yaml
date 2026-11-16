@@ -36,13 +36,28 @@ domain: "tech"
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: "active"
-  outcome: null
-  reason: "세 모드 실호출로 모델 identity·필터 후 입력량·품질을 관측했고 haiku 핀 유지로 판정해 핀 옆에 근거를 남긴다. 반영 커밋 SHA가 머지 후 생기므로 그때 근거 커밋을 고정하고 닫는다."
-  approved_by: "2026-11-13 실제 사용자 지시: '이번세션에서 할것과 정리할것은 바로 진행' (#812·#708 측정 재개 포함 제안에 대한 답)"
+  state: "closed"
+  outcome: "completed"
+  reason: "세 모드 실호출로 모델 identity·필터 후 입력량·품질을 관측했고 haiku 핀 유지로 판정해 핀 옆에 근거를 남겼다. 모든 constraints와 success_criteria가 지정 커밋에서 충족됐다."
+  approved_by: "2026-11-13 실제 사용자 지시: '이번세션에서 할것과 정리할것은 바로 진행' (#812·#708 측정 재개 포함 제안에 대한 답), 2026-11-14 오너가 PR #950 머지"
   evidence:
-    commit: null
+    commit: 9ad1dbb2c3217d404fa8705574c39ce08564dfbd
     items:
+      - id: constraint-1
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/708#issuecomment-6849396165 — 현재 실행에서 provider·실제 모델(claude-haiku-5-5)·필터 후 입력량 확인, 전체 manifest 크기로 대신하지 않음"
+      - id: constraint-2
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/708#issuecomment-6849396165 — 세 모드 결과 품질과 호출당 입력량을 실제 필터 후 입력으로 관찰"
+      - id: constraint-3
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/708#issuecomment-6849396165 — 적용 effort는 transcript에 없어 미확인으로 기록, 수치를 만들지 않음"
+      - id: constraint-4
+        refs:
+          - "vault-bridge/agents/vault-searcher.md:4 — 관측 후 핀 유지, 다른 agent·전역 routing·가격표 변경 없음"
+      - id: constraint-5
+        refs:
+          - "vault-bridge/agents/vault-searcher.md:4 — 근거 주석만 좁게 반영, 전역 설정·설치 적용 없음"
       - id: acceptance-1
         refs:
           - "https://github.com/Lyainc/claude-kit/issues/708#issuecomment-6849396165 — provider·claude-haiku-5-5·호출당 최대 컨텍스트, effort는 선언 low·적용값 미확인으로 구별"
