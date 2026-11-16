@@ -23,7 +23,7 @@ when applying requirements or resuming paused work.
 
 The approved 2026-10-11 open-issue intake adds **8 independent Seeds: 2 active and
 6 paused**, authored with thinking-tools 6.0.2. The repository now has **19 Seeds:
-2 active, 7 paused, 1 closed/discontinued, 9 closed/completed, 0 unknown**. Their approval
+1 active, 7 paused, 1 closed/discontinued, 10 closed/completed, 0 unknown**. Their approval
 covers authoring and issue-path handoff; it does not mark implementation complete,
 resume paused work, or update installations. The original eleven files are preserved.
 The [delivery plan](../design/open-issue-delivery-plan-2026-10-11.md) groups related
@@ -55,7 +55,7 @@ work without creating a duplicate parent or blocking unrelated work.
 | [document-editing-preflight](document-editing-preflight.yaml) | #824 / paused | Reuse draft PR #847; utility, important revisions, repeatability, clean output and selected restoration remain unverified |
 | [seed-board-performance-evaluation](seed-board-performance-evaluation.yaml) | #812 / closed/completed | Measure baseline and candidate equivalence before adoption; adopted changes need board CI, baseline does not wait for CI setup |
 | [native-substrate-boundary-decision](native-substrate-boundary-decision.yaml) | #769 / closed/completed | Decide the native substrate/Workflow boundary; current Agent work is not held by that future decision |
-| [vault-searcher-model-evaluation](vault-searcher-model-evaluation.yaml) | #708 / active | Observe actual filtered input, three-mode quality and runtime model identity before deciding the pin |
+| [vault-searcher-model-evaluation](vault-searcher-model-evaluation.yaml) | #708 / closed/completed | Observe actual filtered input, three-mode quality and runtime model identity before deciding the pin |
 | [skill-effort-evaluation](skill-effort-evaluation.yaml) | #770 / paused | Compare observed effort, quality and total cost; role audit is an expert-panel sample prerequisite, not a whole-skill blocker |
 
 The confirmed issue tasks #834 (manifest-path wording), #815 (board CI) and #793
