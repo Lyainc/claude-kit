@@ -747,6 +747,22 @@ class LifecycleTests(unittest.TestCase):
         payload = {'tool_name':'Edit','tool_input':{'file_path':target,'old_string':line,'new_string':line.replace('a'*40,'b'*40)}}
         self.assertIn('append-only',guard.decide(payload,read_file=lambda _:prior))
 
+    def test_provenance_merge_keeps_pinned_items(self):
+        # Owner-judged non-defect (#689, docs/review-not-defects.md): keep pinned.
+        pin = lambda items: {'seed':'docs/specs/p.yaml','commit':'a'*40,'items':items}
+        base = spec(); base['relations']['provenance'] = [pin(['acceptance-1']),pin(['acceptance-2'])]
+        merged = copy.deepcopy(base); merged['relations']['provenance'] = [pin(['acceptance-1','acceptance-2'])]
+        self.assertEqual(lc.kept_provenance(parse(base),parse(merged)),[])  # many rows merge into one without loss
+        seedless = spec(); seedless['relations']['provenance'] = [{'commit':'a'*40,'items':['acceptance-1']}]
+        self.invalid(seedless,'provenance.seed must name an exact Seed file')  # a row without seed never reaches matching
+
+    def test_relations_block_removal_drops_pinned_rows(self):
+        pin = lambda items: {'seed':'docs/specs/p.yaml','commit':'a'*40,'items':items}
+        base = spec(); base['relations']['provenance'] = [pin(['acceptance-1']),pin(['acceptance-2'])]
+        gone = copy.deepcopy(base); del gone['relations']
+        self.assertEqual(parse(gone).relations_data,{})  # a deleted relations block parses to {}
+        self.assertEqual(len(lc.kept_provenance(parse(base),parse(gone))),2)  # so every prior row is reported dropped
+
     def test_legacy_previous_parent_pins_the_resolved_generation(self):
         # Legacy parents keep latest -vN resolution; the pin must name that file, never a guess.
         self.write('p.yaml',self.legacy()); self.write('p-v2.yaml',self.legacy())
@@ -758,6 +774,24 @@ class LifecycleTests(unittest.TestCase):
         self.assertIn('repository reader',' '.join(lc.transition(before,parse(after))))
         after['relations']['provenance'][0]['seed'] = 'docs/specs/p-v2.yaml'
         self.assertEqual(lc.transition(before,parse(after),rd),[])
+
+    def test_operational_callers_pass_reader(self):
+        # Entry (d) in docs/review-not-defects.md: operational callers never run reader-less.
+        import ast
+        seen = 0
+        for name in ('seed-lifecycle.py','seed-append-check.py'):
+            tree = ast.parse((SCRIPTS/name).read_text(encoding='utf-8'))
+            for node in ast.walk(tree):
+                if not isinstance(node,ast.Call): continue
+                f = node.func
+                fn = f.id if isinstance(f,ast.Name) else f.attr if isinstance(f,ast.Attribute) else None
+                if fn not in ('kept_provenance','transition'): continue
+                seen += 1
+                kw = 'rd' if fn == 'kept_provenance' else 'reader'
+                arg = node.args[2] if len(node.args) > 2 else next((k.value for k in node.keywords if k.arg == kw),None)
+                self.assertIsNotNone(arg,f'{name}:{node.lineno} {fn} lacks a reader')
+                self.assertFalse(isinstance(arg,ast.Constant) and arg.value is None,f'{name}:{node.lineno} {fn} passes None')
+        self.assertGreaterEqual(seen,3)
 
 if __name__ == '__main__':
     os.environ['GH_BIN'] = '/nonexistent/gh'
