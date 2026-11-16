@@ -91,6 +91,12 @@ python3 scripts/check-claude-md-attribution.py
 # `<plugin>는/은/가/이 \`<script>\`` mention in CLAUDE.md whose named script is NOT
 # exclusively owned by that plugin's scripts/ tree (e.g. #601's `check-trigger-regression.py`
 # called thinking-tools-only when all 4 plugins carry a copy).
+# #689 entries in `docs/review-not-defects.md`: each module-level Anchor symbol
+# and `test_*` Proof must still exist, paths stay inside the repo, so a stale owner-judged false-positive entry fails instead of rotting.
+python3 scripts/check-review-not-defects.py --self-test
+# Expected: OK: all check-review-not-defects self-test cases passed
+python3 scripts/check-review-not-defects.py
+# Expected: OK: check-review-not-defects clean - 4 entry(ies) checked
 python3 scripts/check-agent-tools-field.py --self-test
 # Expected: OK: all check-agent-tools-field self-test cases passed
 python3 scripts/check-agent-tools-field.py
@@ -1000,7 +1006,7 @@ python3 thinking-tools/scripts/test/test-seed-relations.py
 # Seed 생애주기 (#814): 전이·완료 근거·철회 원문·고정 출처·부분 영향·소비자 후보 자격.
 # 임시 Git 픽스처로 검증하며 사용자 승인의 진위나 LLM 준수는 별도 실행 근거가 필요하다.
 python3 thinking-tools/scripts/test/test-seed-lifecycle.py
-# Expected: OK: all 44 Seed lifecycle regression fixtures passed
+# Expected: OK: all 47 Seed lifecycle regression fixtures passed
 
 # seed-id-migrate.py 회귀 — 옛 c<N>/ac<N> id를 constraint-<N>/acceptance-<N>로 바꾸는 유일한 경로.
 # 생애주기·구조화된 참조가 있는 파일은 부분 이름 변경을 거부하며 구형 ID 그대로 읽을 수 있다.

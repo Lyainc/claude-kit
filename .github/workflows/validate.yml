@@ -143,6 +143,9 @@ jobs:
           # as #385 above and #380 hook-count miscount).
           python3 scripts/check-claude-md-attribution.py --self-test
           python3 scripts/check-claude-md-attribution.py
+          # #689 `Review: not defects` anchor/proof drift guard.
+          python3 scripts/check-review-not-defects.py --self-test
+          python3 scripts/check-review-not-defects.py
           # #472 tools: field existence, #577 declared-vs-body-usage. The first was in
           # scripts/ but wired into neither CI nor docs/VALIDATION.md until #577.
           python3 scripts/check-agent-tools-field.py --self-test
