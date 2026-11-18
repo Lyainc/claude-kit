@@ -36,13 +36,40 @@ domain: "tech"
 brownfield: true
 refine_generation: 0
 lifecycle:
-  state: "paused"
-  outcome: null
-  reason: "사용자가 결정 전까지 paused 생성으로 확정한 잔여 요구다. 재개 승인과 필요한 설계·측정 결정 전에는 자동 실행 후보로 적용하지 않는다."
-  approved_by: "2026-10-11 실제 사용자 답변: 수정한 계획대로 8개 Seed와 3개 이슈 작업으로 확정 (추천). 질문에서 #835·#814 active, #741·#824·#812·#769·#708·#770 paused, 새 8개는 독립 Seed이며 부분 선행 조건은 제약·완료조건으로 표현한다고 명시했다."
+  state: "closed"
+  outcome: "discontinued"
+  reason: "2.1.312 이후 Opus 5.5 실호출 12건에서 ambient medium→스킬 high 전이의 적용값과 캐시 유지를 관측해 expert-panel·unknown-discovery는 유지, 표본 0건인 adversarial-review는 보류로 판정하고 설정을 바꾸지 않았다. 같은 조건의 품질·시간·전체 사용량 비교(acceptance-2)는 수행하지 않은 채 종료한다."
+  approved_by: "2026-11-18 실제 사용자 지시: 'A안으로 하자' (실측 기록 후 유지·보류 판정, 품질 비교 없이 이슈 종료안에 대한 답)"
   evidence:
-    commit: null
-    items: []
+    commit: 48a52edbce71287adfc9af9d36e487eef4a31a78
+    items:
+      - id: constraint-1
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/770#issuecomment-6965726944 — 2.1.312~2.1.326·claude-opus-5-5·standard tier·1h TTL·현재 override 없음을 기록, 과거 세션 env는 미확인으로 구분"
+      - id: constraint-2
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/770#issuecomment-6965726944 — 선언 high와 transcript 적용값, 캐시 관측, 메인 호출만 집계했고 worker·사고량·종료 후 복귀는 미확인으로 기록"
+      - id: constraint-3
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/770#issuecomment-6965726944 — 캐시 미스가 없음을 근거로 제거하지 않았고 품질 인과는 비교 미수행으로 확정하지 않음"
+      - id: constraint-4
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/770#issuecomment-6965726944 — 환경별 지침 재구현·ambient 변경·405621 규명·routing 확장 없음, 과거 측정 보존"
+      - id: constraint-5
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/770#issuecomment-6965726944 — ambient medium과 스킬 high의 실제 차이가 있는 전이 12건을 판정 근거로 사용"
+      - id: constraint-6
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/770#issuecomment-6965726944 — #793 종료 후 expert-panel 표본을 사용했고 다른 두 스킬 판단을 막지 않음"
+      - id: constraint-7
+        refs:
+          - "thinking-tools/skills/expert-panel/SKILL.md:15 — 현재 관측으로 판정했고 근거 없는 설정 변경 없이 effort: high 유지"
+      - id: acceptance-1
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/770#issuecomment-6965726944 — 스킬별 실행 환경·선언값·적용값·미확정 경계 기록(adversarial-review는 표본 0건으로 명시)"
+      - id: acceptance-3
+        refs:
+          - "https://github.com/Lyainc/claude-kit/issues/770#issuecomment-6965726944 — 스킬별 유지·보류 근거를 이슈에 남김, 설정 diff 없음, 과거 근거 보존"
   withdrawn: []
 goal:
   statement: "세 스킬의 현재 선언 effort와 실제 적용값·동일 작업 품질·전체 비용을 구별해 각 high 설정의 유지·변경을 판정한다."
