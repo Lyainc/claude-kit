@@ -89,8 +89,9 @@ Explicit exclusions override it; a push/PR exclusion does not by itself exclude 
 PR needs a reviewable unit and owner authorization. Missing approval stays on hold;
 never call local work published or mandate a merge.
 
-State behavior and proof, not a plan. Repeat passing checks only for changes, failures or
-unresolved material issues. Source, installed contents, discovery and live behavior need separate evidence.
+State behavior and bounded proof, not a plan (§Condition evidence). Repeat passing
+checks only for changes, failures or unresolved material issues. Source, installed contents,
+discovery and live behavior need separate evidence.
 
 Nontrivial work needs one independent requirement-gap review of the explicit diff/base and
 requirements, ignoring style nits, via native review (`thinking-tools:requirement-gap-reviewer`
