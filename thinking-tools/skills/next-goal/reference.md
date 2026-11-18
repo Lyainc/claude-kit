@@ -235,6 +235,16 @@ Passing checks are not repeated without changed files, a new failure, or an unre
 issue. Source validation, installed contents, skill discovery, and live behavior are distinct
 claims requiring their own evidence when the task concerns installation or runtime compatibility.
 
+Make every verification clause bounded and falsifiable: a command with its expected result
+(generated-output or published-copy diff 0, zero check-script findings, passing tests) or a named
+finite sample with its selection rule. Never write "all" or "every" without a machine comparison
+behind it. A human or visual check covers only what no machine comparison can judge and is always
+a sample, such as one frame per configuration. When a delegate performs that human or visual check
+(for example a subagent reporting on rendered frames), the condition states that its report counts
+as evidence for that check only; do not require the main context to redo it. This governs clauses
+this skill authors: a caller-mandated check stays verbatim (§Abbreviation), and an unbounded one is
+reported as an unresolved fact, not rewritten (#954).
+
 ## Source safety
 
 Apply this whether the condition is full or abbreviated. A source pin is provenance, never
@@ -372,7 +382,7 @@ SKIPPED  · telemetry 리포트 서식 정리 (테마가 달라 이 에픽과 �
 ```
 
 ```
-/goal <owner/repo#issue>@<observed updatedAt>의 <선택 범위>를 충족한다. 시작 시 원본 상태·버전을 재확인하고 변경/조회 실패면 적용을 보류해 확인받으며, 통과 시 요구 원문과 <baseline> 이후 변경을 대화에 출력한다. <검사 명령> exit 0과 <base> 대비 독립 요구사항 리뷰 0건(2라운드 상한)을 보인다. <보호·Git 권한 제한>을 지킨다. 미충족이면 미완료이고 12턴에서 중단한다.
+/goal <owner/repo#issue>@<observed updatedAt>의 <선택 범위>를 충족한다. 시작 시 원본 상태·버전을 재확인하고 변경/조회 실패면 적용을 보류해 확인받으며, 통과 시 요구 원문과 <baseline> 이후 변경을 대화에 출력한다. <검사 명령> exit 0과 <base> 대비 독립 요구사항 리뷰 0건(2라운드 상한)을 보인다. <사람 확인이 필요할 때만: 표본 N(선택 기준)으로 한정, 서브에이전트 판독 보고도 그 확인의 증거로 인정>. <보호·Git 권한 제한>을 지킨다. 미충족이면 미완료이고 12턴에서 중단한다.
 ```
 
 ## Reference links and Rules (original wording)
