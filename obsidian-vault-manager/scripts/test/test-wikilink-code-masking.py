@@ -265,10 +265,26 @@ def case_mask_code_unit(errors: list) -> None:
                 f"mask_code [{label}]: {mask_code(text)!r} == {expected!r}", errors)
 
 
+def case_table_escaped_pipe(errors: list) -> None:
+    """[[note\\|alias]] inside a table: target must not keep the trailing backslash."""
+    with tempfile.TemporaryDirectory() as td:
+        vault = Path(td) / "vault"
+        (vault / "notes").mkdir(parents=True)
+        doc = vault / "notes" / "t.md"
+        doc.write_text("| a |\n|---|\n| [[note\\|alias]] [[n2#h\\|x]] |\n", encoding="utf-8")
+        env = {**os.environ, "VAULT_ROOT": str(vault)}
+        proc = subprocess.run(["bash", str(_PRIM_SH), "extract-wikilinks", str(doc)],
+                              capture_output=True, text=True, env=env)
+        links = [(l["target"], l["heading"]) for l in json.loads(proc.stdout)] if proc.returncode == 0 else None
+        _assert(links == [("note", None), ("n2", "h")],
+                f"table-escaped pipe drops the backslash from target and heading (got {links})", errors)
+
+
 def main() -> int:
     errors: list = []
     for case in (case_primitives_extract, case_audit_validate_collect,
-                 case_masker_patterns_are_identical, case_mask_code_unit):
+                 case_masker_patterns_are_identical, case_mask_code_unit,
+                 case_table_escaped_pipe):
         print(f"\n{case.__name__}:")
         case(errors)
     print()

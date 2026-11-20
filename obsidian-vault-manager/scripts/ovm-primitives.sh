@@ -25,7 +25,7 @@ log() { echo "$*" >&2; }
 validate_vault_path() {
   local p="$1"
   p="${p/#\~/$HOME}"
-  if [[ "$p" == *".."* ]]; then
+  if [[ "/$p/" == */../* ]]; then
     die "Path traversal detected: $p"
   fi
   local real vault_real
@@ -362,7 +362,7 @@ def parse_wikilink(raw):
     embed = raw.startswith('!')
     inner = raw.lstrip('!')
     # Remove [[ ]]
-    inner = inner[2:-2]
+    inner = inner[2:-2].replace('\\|', '|')  # table-escaped pipe: [[note\|alias]], [[note#h\|alias]]
     # Split alias
     if '|' in inner:
         target, alias = inner.split('|', 1)
@@ -545,6 +545,44 @@ abs_files = sys.argv[2:]
 STOPWORDS = frozenset({"the", "a", "an", "of", "and", "or", "to", "for"})
 TYPE_PREFIXES = ("note", "decision", "plan", "capture", "session")
 
+_NULLS = ('null', 'Null', 'NULL', '~')
+
+def strip_comment(s):
+    quote = None
+    depth = 0
+    i = 0
+    n = len(s)
+    while i < n:
+        ch = s[i]
+        if quote:
+            if ch == '\\' and quote == '"':
+                i += 2
+                continue
+            if ch == "'" and quote == "'" and s[i + 1:i + 2] == "'":  # '' escapes a single quote
+                i += 2
+                continue
+            if ch == quote:
+                quote = None
+        elif ch in '"\'' and (i == 0 or s[i - 1] in ' \t[,'):
+            quote = ch
+        elif ch == '[' and (i == 0 or depth):
+            depth += 1
+        elif ch == ']' and depth:
+            depth -= 1
+        elif ch == '#' and depth == 0 and (i == 0 or s[i - 1] in ' \t'):
+            return s[:i].rstrip()
+        i += 1
+    return s
+
+def scalar(raw):
+    """Comment-stripped scalar -> str, or None for an unquoted YAML null."""
+    v = strip_comment(raw).strip()
+    if v in _NULLS:
+        return None
+    if len(v) >= 2 and v[0] == v[-1] == "'":
+        return v[1:-1].replace("''", "'")
+    return v.strip('"\'')
+
 def parse_type(content):
     """Read only the `type:` scalar from the frontmatter block."""
     lines = content.split('\n')
@@ -555,7 +593,7 @@ def parse_type(content):
             break
         m = re.match(r'^type\s*:\s*(.+)$', line)
         if m:
-            return m.group(1).strip().strip('"\'') or None
+            return scalar(m.group(1)) or None
     return None
 
 def slug_from_filename(name):
@@ -1139,6 +1177,8 @@ if op == 'is-clean':
     if rec is None:
         # Unknown file — treat as dirty (untracked)
         print(json.dumps({"clean": False, "reason": "untracked"}))
+    elif rec.get('status') == 'dirty':
+        print(json.dumps({"clean": False, "reason": "explicitly_invalidated"}))
     else:
         mtime = file_mtime(arg1)
         if mtime is None:

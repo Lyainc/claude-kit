@@ -182,6 +182,18 @@ def case_list_dirty_since_file_missing_still_works(errors: list) -> None:
                 errors)
 
 
+def case_is_clean_after_invalidate(errors: list) -> None:
+    """is-clean must report an explicitly invalidated record as not clean."""
+    with tempfile.TemporaryDirectory() as td:
+        vault = Path(td)
+        write_note(vault, "notes/a.md")
+        audit_state(vault, "mark-clean", "notes/a.md")
+        audit_state(vault, "invalidate", "notes/a.md")
+        out = json.loads(audit_state(vault, "is-clean", "notes/a.md").stdout)
+        _assert(out == {"clean": False, "reason": "explicitly_invalidated"},
+                f"is-clean after invalidate -> explicitly_invalidated (got {out})", errors)
+
+
 def main() -> int:
     errors: list = []
     for case in (
@@ -191,6 +203,7 @@ def main() -> int:
         case_list_dirty_since_untracked,
         case_list_dirty_since_mixed_reasons,
         case_list_dirty_since_file_missing_still_works,
+        case_is_clean_after_invalidate,
     ):
         case(errors)
     print()
