@@ -304,10 +304,11 @@ def lifecycle_reason(existing: str, result: str, path: str) -> str:
         changed_parent = before.parent != after.parent
         if before.lifecycle is None and after.lifecycle is None and not changed_parent and not before.relations_version and not after.relations_version and "lifecycle:" not in existing+result:
             return ""
-        errors = sr.lifecycle.validate(after, sr.find_root(path))
-        errors += sr.validate_provenance(sr.Reader(sr.find_root(path)),after,None)
+        root = sr.find_root(path)
+        errors = sr.lifecycle.validate(after, root)
+        errors += sr.validate_provenance(sr.Reader(root),after,None)
         if existing:
-            errors += sr.lifecycle.transition(before,after,sr.Reader(sr.find_root(path)))
+            errors += sr.lifecycle.transition(before,after,sr.Reader(root))
         errors = [e for e in errors if not isinstance(e,sr.lifecycle.Unverifiable)]  # cannot verify here: fail open
         if errors:
             return "Seed 수명주기 변경이 유효하지 않아요: " + "; ".join(errors)

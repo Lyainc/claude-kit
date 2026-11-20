@@ -59,6 +59,8 @@ GLOB_CHARS = "*?["
 GLOB_CAP = 500
 GENERIC_HEAD = POST_HEAD + ": 출력에 Seed 본문이 있는데 어느 Seed인지"  # the post guard's unidentified block opens like this
 NAME_ONLY_LONG = {"--files-with-matches", "--files-without-match", "--count", "--quiet", "--silent"}
+# Short flags that print only names/counts/nothing; rg -L is --follow and still prints bodies.
+NAME_ONLY_SHORT = {"grep": "lLcq", "egrep": "lLcq", "fgrep": "lLcq", "rg": "lcq"}
 PATTERN_CMDS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}  # first non-option argument is a pattern/script
 PATTERN_OPT = re.compile(r"-[A-Za-z]*[ef]$")  # short option cluster ending in -e/-f takes a value
 VAR_REF = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
@@ -269,8 +271,7 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
             continue
         if first == "rg" and "--files" in words:  # lists file names only; reads no body (#934)
             continue
-        # grep family and rg only (sed/awk flags differ); rg -L is --follow and still prints bodies.
-        name_only = {"grep": "lLcq", "egrep": "lLcq", "fgrep": "lLcq", "rg": "lcq"}.get(first)
+        name_only = NAME_ONLY_SHORT.get(first)
         if name_only and any(
                 w in NAME_ONLY_LONG or (w.startswith("-") and not w.startswith("--") and len(w) > 1
                                         and any(ch in name_only for ch in w[1:])) for w in words[1:]):
