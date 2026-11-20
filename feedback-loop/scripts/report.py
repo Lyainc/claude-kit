@@ -816,7 +816,13 @@ def main() -> int:
     latency = latency_stats(events)
     latency_per_event = latency_by_event(events)
 
-    lifecycle = skill_lifecycle_view(events, since_days=since_days)
+    # The catalog must match the event filters, or every skill they excluded reads as never-fired.
+    catalog = scan_skill_catalog()
+    if args.plugin != "all":
+        catalog = [s for s in catalog if s.startswith(args.plugin + ":")]
+    if args.event not in ("all", "skill_invoke"):
+        catalog = []
+    lifecycle = skill_lifecycle_view(events, catalog=catalog, since_days=since_days)
     rule_fire_counts = rule_fire_view(events)
     token_cost = token_cost_view(events)
     delegation = agent_spawn_distribution_view(events)

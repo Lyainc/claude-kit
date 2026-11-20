@@ -532,6 +532,25 @@ def case_lifecycle_fired_bottom_e2e(errors: list[str]) -> None:
             f"windowed never_fired_label not overstated (got: {wlc.get('never_fired_label')})", errors)
 
 
+def case_lifecycle_catalog_follows_filters(errors: list[str]) -> None:
+    """--plugin / --event must not list skills they filtered out as never-fired."""
+    print("\ncase: lifecycle_catalog_follows_filters")
+    catalog = ["fa:used", "fa:idle", "fb:other"]
+    events = [
+        {**_ev("skill_invoke", plugin="fa", name="used", outcome="started"),
+         "qualified_name": "fa:used", "ts": "2099-01-01T00:00:00Z"},
+        {**_ev("agent_spawn", plugin="fa", name="w"), "ts": "2099-01-01T00:00:00Z"},
+    ]
+    out = _run_main_with(events, ["report.py", "--since=all", "--plugin=fa", "--format=json"],
+                         catalog=catalog)
+    nf = json.loads(out)["lifecycle"]["never_fired"]
+    _assert(nf == ["fa:idle"], f"--plugin keeps only its own unfired skills (got: {nf})", errors)
+    out = _run_main_with(events, ["report.py", "--since=all", "--event=agent_spawn",
+                                  "--format=json"], catalog=catalog)
+    nf = json.loads(out)["lifecycle"]["never_fired"]
+    _assert(nf == [], f"non-skill --event lists no never-fired skills (got: {nf})", errors)
+
+
 def case_lifecycle_counts_calls_not_events(errors: list[str]) -> None:
     """#696: one call must count as 1 regardless of how many skill_invoke lines
     it logs. Reproduces the real retro pattern — harness started+success PLUS a
@@ -1350,6 +1369,7 @@ def main() -> int:
     case_lifecycle_caveat_in_json(errors)
     case_lifecycle_guide_text_pinned(errors)
     case_lifecycle_fired_bottom_e2e(errors)
+    case_lifecycle_catalog_follows_filters(errors)
     case_lifecycle_counts_calls_not_events(errors)
     case_lifecycle_stale_tracks_any_outcome(errors)
     case_lifecycle_never_fired_excludes_uncountable_calls(errors)
