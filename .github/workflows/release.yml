@@ -66,6 +66,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          # Always release main, never the PR's merge ref — when auto-release.yml calls this
+          # on a pull_request event the default checkout is refs/pull/N/merge, not main.
+          ref: main
           fetch-depth: 0  # full history + tags for previous-tag detection and notes
           # Push over SSH as the write deploy key: the `main required checks` ruleset
           # rejects a direct push from GITHUB_TOKEN (checks are only ever "expected" on
@@ -121,6 +124,10 @@ jobs:
             gh api "repos/${{ github.repository }}/releases/generate-notes" \
               -f tag_name="v$VERSION" \
               --jq .body > /tmp/whatschanged.md || true
+          fi
+
+          if [ ! -s /tmp/whatschanged.md ]; then
+            echo "::warning::GitHub-generated release notes were empty or missing — What's Changed section omitted"
           fi
 
           {

@@ -472,7 +472,7 @@ python3 scripts/gen-release-notes.py --self-test
 # 백스톱, docs/chore는 세지도 트리거하지도 않음. bump는 커밋에서 도출(breaking>feat>나머지).
 # 순수 함수로 핀 — git 없이 합성 커밋 리스트로 정책 자체를 테스트한다.
 python3 scripts/next-version.py --self-test
-# Expected: OK: all 23 self-test cases passed
+# Expected: OK: all 25 self-test cases passed
 
 # auto-release.yml 트리거 회귀 (#493): 머지 후에 붙인 `release` 라벨이 어떤 경로로도 안
 # 읽히던 결함 — `pull_request: closed`는 머지 순간 한 번만 발화하고, 라벨을 나중에 붙여도
