@@ -59,8 +59,31 @@ GLOB_CHARS = "*?["
 GLOB_CAP = 500
 GENERIC_HEAD = POST_HEAD + ": 출력에 Seed 본문이 있는데 어느 Seed인지"  # the post guard's unidentified block opens like this
 NAME_ONLY_LONG = {"--files-with-matches", "--files-without-match", "--count", "--quiet", "--silent"}
-# Short flags that print only names/counts/nothing; rg -L is --follow and still prints bodies.
-NAME_ONLY_SHORT = {"grep": "lLcq", "egrep": "lLcq", "fgrep": "lLcq", "rg": "lcq"}
+# Per tool: (short flags that print only names/counts/nothing, value-free flags that may share
+# their cluster). rg -L is --follow and still prints bodies. A cluster holding any other letter
+# (-tyaml, -ecount) or a word that is an option's value (-e -c) is not name-only.
+_GREP_FLAGS = ("lLcq", "rRiIvwxnhHsEFGPoaUz")
+NAME_ONLY_SHORT = {"grep": _GREP_FLAGS, "egrep": _GREP_FLAGS, "fgrep": _GREP_FLAGS,
+                   "rg": ("lcq", "isSwxvnNHuFPz")}
+OPT_VALUE_PREV = re.compile(r"^(-[A-Za-z]*[efgtTmABCdDMj]|--(regexp|file|glob|type))$")
+
+
+def name_only_search(first: str, words: list[str]) -> bool:
+    """True when a grep/rg run prints only file names, counts or nothing (never Seed text)."""
+    if first not in NAME_ONLY_SHORT:
+        return False
+    only, boolean = NAME_ONLY_SHORT[first]
+    prev = ""
+    for w in words[1:]:
+        if w == "--":
+            break
+        if not OPT_VALUE_PREV.match(prev):
+            body = set(w[1:])
+            if w in NAME_ONLY_LONG or (w.startswith("-") and not w.startswith("--") and body
+                                       and body <= set(only + boolean) and body & set(only)):
+                return True
+        prev = w
+    return False
 PATTERN_CMDS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}  # first non-option argument is a pattern/script
 PATTERN_OPT = re.compile(r"-[A-Za-z]*[ef]$")  # short option cluster ending in -e/-f takes a value
 VAR_REF = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
@@ -271,10 +294,7 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
             continue
         if first == "rg" and "--files" in words:  # lists file names only; reads no body (#934)
             continue
-        name_only = NAME_ONLY_SHORT.get(first)
-        if name_only and any(
-                w in NAME_ONLY_LONG or (w.startswith("-") and not w.startswith("--") and len(w) > 1
-                                        and any(ch in name_only for ch in w[1:])) for w in words[1:]):
+        if name_only_search(first, words):
             continue  # names/counts/nothing only; never prints Seed text
         prev = ""
         need_pattern, skip_next = first in PATTERN_CMDS, False
@@ -768,6 +788,11 @@ def _self_test() -> int:
         check("bash rg -q is no read", decide(bash("rg -q x docs/specs/x.yaml", t_none)), False)
         check("bash plain grep still reads", decide(bash("grep x docs/specs/x.yaml", t_none)), True)
         check("bash rg -L still reads", decide(bash("rg -L x docs/specs/x.yaml", t_none)), True)
+        check("bash rg -tyaml goal still reads", decide(bash("rg -tyaml goal docs/specs/x.yaml", t_none)), True)
+        check("bash rg -g*.yaml goal still reads", decide(bash("rg -g*.yaml goal docs/specs/x.yaml", t_none)), True)
+        check("bash grep -e -c still reads", decide(bash("grep -e -c docs/specs/x.yaml", t_none)), True)
+        check("bash grep --regexp -c still reads", decide(bash("grep --regexp -c docs/specs/x.yaml", t_none)), True)
+        check("bash grep -rl is no read", decide(bash("grep -rl x docs/specs/x.yaml", t_none)), False)
         check("bash rg --files beside a cat still reads", decide(bash("rg --files docs; cat docs/specs/x.yaml", t_none)), True)
         # #934: metadata through a variable (live cd1/CDS/CB shape) is metadata, before and after.
         check("bash metadata loop through $S is not denied", decide(bash(
