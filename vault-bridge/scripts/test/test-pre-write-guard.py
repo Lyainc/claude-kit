@@ -156,6 +156,8 @@ def case_subagent_warn_explicit(errors: list[str], vault_root: str) -> None:
             f"stderr contains CONTRACT WARNING (got: {proc.stderr!r})", errors)
     _assert("systemMessage" in proc.stdout and "vault-bridge contract" in proc.stdout,
             f"stdout contains systemMessage with vault-bridge contract (got: {proc.stdout!r})", errors)
+    _assert("blocked" not in proc.stdout and "allowed (warn mode)" in proc.stdout,
+            f"warn message does not claim the write was blocked (got: {proc.stdout!r})", errors)
 
 
 def case_subagent_enforce(errors: list[str], vault_root: str) -> None:
