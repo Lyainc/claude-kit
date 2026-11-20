@@ -43,6 +43,7 @@ import importlib.util
 import os
 import re
 import sys
+import tempfile
 from pathlib import Path
 
 SEED_MARKERS = ("skill: build-spec", "generated_by: thinking-tools/build-spec")
@@ -303,10 +304,12 @@ def lifecycle_reason(existing: str, result: str, path: str) -> str:
         changed_parent = before.parent != after.parent
         if before.lifecycle is None and after.lifecycle is None and not changed_parent and not before.relations_version and not after.relations_version and "lifecycle:" not in existing+result:
             return ""
-        errors = sr.lifecycle.validate(after, sr.find_root(path))
-        errors += sr.validate_provenance(sr.Reader(sr.find_root(path)),after,None)
+        root = sr.find_root(path)
+        errors = sr.lifecycle.validate(after, root)
+        errors += sr.validate_provenance(sr.Reader(root),after,None)
         if existing:
-            errors += sr.lifecycle.transition(before,after,sr.Reader(sr.find_root(path)))
+            errors += sr.lifecycle.transition(before,after,sr.Reader(root))
+        errors = [e for e in errors if not isinstance(e,sr.lifecycle.Unverifiable)]  # cannot verify here: fail open
         if errors:
             return "Seed 수명주기 변경이 유효하지 않아요: " + "; ".join(errors)
     except (OSError,ValueError,TypeError,AttributeError) as exc:
@@ -893,6 +896,31 @@ def _self_test() -> int:
         if got != want_deny:
             failed += 1
             print(f"FAIL: {name} — expected deny={want_deny}, got deny={got}", file=sys.stderr)
+    lc_seed = (
+        "skill: build-spec\ntarget: Fixture\ngoal:\n  statement: Short goal\nconstraints:\n  - id: constraint-1\n"
+        "    description: First original requirement\nsuccess_criteria:\n  - id: acceptance-1\n    description: Observable result\n"
+        "relations:\n  version: 3\n  parent: null\n  refines: []\n  link_reason: null\n  depends_on: []\n  children: []\n"
+        "  provenance: []\n  replaces: []\n  transfers: []\nlifecycle:\n  state: closed\n  outcome: completed\n"
+        "  reason: User decision\n  approved_by: user request message 1\n  evidence:\n    commit: %s\n    items:\n"
+        "      - id: constraint-1\n        refs: [code.py:1]\n      - id: acceptance-1\n        refs: [code.py:1]\n  withdrawn: []\n")
+    with tempfile.TemporaryDirectory(prefix="seed-append-lc-") as tmp:
+        os.makedirs(f"{tmp}/docs/specs")
+        lc_path = f"{tmp}/docs/specs/x.yaml"
+        old_path = os.environ.get("PATH", "")
+        os.environ["PATH"] = "/nonexistent"  # git not runnable: evidence commit is unverifiable, not wrong
+        try:
+            lc_unverifiable = lifecycle_reason("", lc_seed % ("a" * 40), lc_path)
+        finally:
+            os.environ["PATH"] = old_path
+        lc_real = lifecycle_reason("", lc_seed % "zz", lc_path)
+    lc_checks = [
+        ("lifecycle commit unverifiable (git unavailable) fails open", not lc_unverifiable),
+        ("lifecycle real validation error still denies", bool(lc_real)),
+    ]
+    for name, ok in lc_checks:
+        if not ok:
+            failed += 1
+            print(f"FAIL: {name}", file=sys.stderr)
     migrate_hint = "seed-id-migrate.py <seed> --apply"
     reason_checks = [
         ("hand rename carries the migration pointer", {"tool_name": "Edit", "tool_input": {
@@ -911,7 +939,7 @@ def _self_test() -> int:
         if got != want:
             failed += 1
             print(f"FAIL: reason {name}", file=sys.stderr)
-    total = len(reason_checks) + len(cases) + len(spans) + len(key_checks) + len(id_checks) + len(foreign_checks)
+    total = len(reason_checks) + len(cases) + len(spans) + len(key_checks) + len(id_checks) + len(foreign_checks) + len(lc_checks)
     if failed:
         print(f"FAIL: {failed}/{total} seed-append-check case(s) failed", file=sys.stderr)
         return 1
