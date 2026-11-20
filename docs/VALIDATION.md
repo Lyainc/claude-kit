@@ -457,11 +457,11 @@ python3 thinking-tools/scripts/issue-template.py --self-test
 # constraint 항목 안이든 `status:` 같은 템플릿 밖 키를 새로 넣으면 deny, 기존 파일에 있던 키는 안 본다.
 # 기존 Seed에서 constraints[]/success_criteria[]의 constraint-N/acceptance-N id가 편집 뒤 사라지면 deny(#780 seed-relations-graph/constraint-3) — 다른 Seed의 relations.refines가 그 id를 가리킨다. 템플릿 경로는 면제.
 python3 thinking-tools/scripts/seed-append-check.py --self-test
-# Expected: OK: all 76 seed-append-check self-test cases passed
+# Expected: OK: all 78 seed-append-check self-test cases passed
 
 # Seed 읽기 가드 self-test — metadata 실행 전 Seed 본문 Read/cat은 같은 기록에서 Seed당 한 번 deny (Claude 메인·서브에이전트 기록과 Codex rollout 모두), 그리고 `--post`: Bash 출력에 Seed 본문이 metadata 없이 나오면(식별 불가 포함) block 피드백
 python3 thinking-tools/scripts/seed-read-check.py --self-test
-# Expected: OK: all 163 seed-read-check self-test cases passed
+# Expected: OK: all 168 seed-read-check self-test cases passed
 
 # 릴리스 도구 self-test (lockstep bump + 플러그인별 노트 생성) — RELEASING.md 참조
 python3 scripts/bump-version.py --self-test

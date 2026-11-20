@@ -58,6 +58,7 @@ SEED_KEYS = tuple(re.compile(r"(?m)^" + _PREFIX + k) for k in ("lifecycle:", "su
 GLOB_CHARS = "*?["
 GLOB_CAP = 500
 GENERIC_HEAD = POST_HEAD + ": 출력에 Seed 본문이 있는데 어느 Seed인지"  # the post guard's unidentified block opens like this
+NAME_ONLY_LONG = {"--files-with-matches", "--files-without-match", "--count", "--quiet", "--silent"}
 PATTERN_CMDS = {"grep", "egrep", "fgrep", "rg", "sed", "awk"}  # first non-option argument is a pattern/script
 PATTERN_OPT = re.compile(r"-[A-Za-z]*[ef]$")  # short option cluster ending in -e/-f takes a value
 VAR_REF = re.compile(r"\$(?:\{([A-Za-z_][A-Za-z0-9_]*)\}|([A-Za-z_][A-Za-z0-9_]*))")
@@ -268,6 +269,12 @@ def bash_candidates(command: str, cwd: str) -> list[str]:
             continue
         if first == "rg" and "--files" in words:  # lists file names only; reads no body (#934)
             continue
+        # grep family and rg only (sed/awk flags differ); rg -L is --follow and still prints bodies.
+        name_only = {"grep": "lLcq", "egrep": "lLcq", "fgrep": "lLcq", "rg": "lcq"}.get(first)
+        if name_only and any(
+                w in NAME_ONLY_LONG or (w.startswith("-") and not w.startswith("--") and len(w) > 1
+                                        and any(ch in name_only for ch in w[1:])) for w in words[1:]):
+            continue  # names/counts/nothing only; never prints Seed text
         prev = ""
         need_pattern, skip_next = first in PATTERN_CMDS, False
         for w in words[1:]:
@@ -451,10 +458,9 @@ def _seed_files(cands: list[str]) -> list[str]:
     return seeds
 
 
-def unseen_seeds(seeds: list[str], payload: dict, extra_calls=(), skip_denied: bool = True):
+def unseen_seeds(seeds: list[str], scanned, extra_calls=(), skip_denied: bool = True):
     """Seeds with no metadata call in the transcript (or already denied once, when skip_denied).
-    None when the transcript is unreadable (fail open)."""
-    scanned = scan_transcript(transcript_path(payload))
+    None when the transcript is unreadable (fail open). `scanned` is scan_transcript's result."""
     if scanned is None:
         return None
     calls, results = scanned
@@ -463,9 +469,8 @@ def unseen_seeds(seeds: list[str], payload: dict, extra_calls=(), skip_denied: b
             and not (skip_denied and any(s in r for r in results))]
 
 
-def _generic_blocked(payload: dict) -> bool:
+def _generic_blocked(scanned) -> bool:
     """The unidentified-Seed block was already given once in this transcript."""
-    scanned = scan_transcript(transcript_path(payload))
     return bool(scanned) and any(GENERIC_HEAD in r[:300] for r in scanned[1])
 
 
@@ -487,7 +492,7 @@ def decide(payload: dict) -> str:
     seeds = _seed_files(cands)
     if not seeds:
         return ""
-    unseen = unseen_seeds(seeds, payload)
+    unseen = unseen_seeds(seeds, scan_transcript(transcript_path(payload)))
     if not unseen:  # None (unreadable transcript) or empty
         return ""
     return f"{MARKER} metadata를 먼저 실행해요: {_metadata_cmds(unseen)} (seed-lifecycle.md §발견과 소비)"
@@ -528,13 +533,14 @@ def decide_post(payload: dict) -> str:
         return ""
     cur = _metadata_call(command, cwd)  # this call's own metadata/read output may not be in the transcript yet
     extra = [(m, lit, cur[1]) for m, lit in _pair_literals(META_PATH.findall(out), cur[0])] if cur else []
-    unseen = unseen_seeds(seeds, payload, extra, skip_denied=False)
+    scanned = scan_transcript(transcript_path(payload))
+    unseen = unseen_seeds(seeds, scanned, extra, skip_denied=False)
     if unseen is None:
         return ""
     # More Seed bodies than identified Seeds: some body is unidentified. Block that generically, but once
     # per transcript, so non-Seed YAML that merely has these keys (fixtures, diffs) cannot loop forever.
     bodies = len(SEED_KEYS[1].findall(out))
-    if (not seeds or bodies > len(seeds)) and not _generic_blocked(payload):
+    if (not seeds or bodies > len(seeds)) and not _generic_blocked(scanned):
         return (f"{GENERIC_HEAD} 확인하지 못했어요. 그 본문의 항목을 하나도 적용하지 말고, "
                 f'출력에 나온 Seed마다 python3 "{PLUGIN_ROOT}/scripts/seed-relations.py" metadata <seed> --json 을 먼저 실행해요 (seed-lifecycle.md §발견과 소비)')
     if not unseen:
@@ -756,6 +762,11 @@ def _self_test() -> int:
         check("bash rg --files over the spec dir is no read", decide(bash("rg --files docs/specs", t_none)), False)
         check("bash ls of the spec dir is no read", decide(bash("ls -la docs/specs; ls docs/specs/*.yaml", t_none)), False)
         check("bash rg content search still reads", decide(bash("rg goal -g '*.yaml' docs/specs/x.yaml", t_none)), True)
+        check("bash grep -c is no read", decide(bash("grep -c x docs/specs/x.yaml", t_none)), False)
+        check("bash grep -l is no read", decide(bash("grep -l x docs/specs/x.yaml", t_none)), False)
+        check("bash rg -q is no read", decide(bash("rg -q x docs/specs/x.yaml", t_none)), False)
+        check("bash plain grep still reads", decide(bash("grep x docs/specs/x.yaml", t_none)), True)
+        check("bash rg -L still reads", decide(bash("rg -L x docs/specs/x.yaml", t_none)), True)
         check("bash rg --files beside a cat still reads", decide(bash("rg --files docs; cat docs/specs/x.yaml", t_none)), True)
         # #934: metadata through a variable (live cd1/CDS/CB shape) is metadata, before and after.
         check("bash metadata loop through $S is not denied", decide(bash(
