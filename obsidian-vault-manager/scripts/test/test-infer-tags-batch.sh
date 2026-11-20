@@ -145,6 +145,27 @@ if [ $rc -eq 0 ] && ! printf '%s' "$tags" | jq -e 'index("2026")' >/dev/null; th
   ok "tier-3 year-folder: '2026' never proposed as a domain tag ($tags)"
 else bad "tier-3 year-folder" "rc=$rc tags=$tags"; fi
 
+# 11. dotted filename (`...` inside a segment) is not traversal; a `..` segment still is
+mkdir -p "$VAULT/notes"
+printf -- '---\ntype: note\n---\nbody\n' > "$VAULT/notes/so... what.md"
+out="$(VAULT_ROOT="$VAULT" bash "$PRIM" infer-tags "notes/so... what.md" 2>/dev/null)"; rc=$?
+if [ $rc -eq 0 ] && [ "$(printf '%s' "$out" | jq 'length')" = 1 ]; then
+  ok "dotted filename accepted"
+else bad "dotted filename" "rc=$rc out=$out"; fi
+out="$(VAULT_ROOT="$VAULT" bash "$PRIM" infer-tags "notes/../notes/note-foo-bar.md" 2>/dev/null)"; rc=$?
+if [ $rc -eq 1 ] && [ -z "$out" ]; then
+  ok ".. segment still rejected"
+else bad ".. segment" "rc=$rc out=$out"; fi
+
+# 12. type: value is normalized (comment stripped, null-ish -> no type tag)
+printf -- '---\ntype: note  # legacy\n---\nbody\n' > "$VAULT/notes/cmt.md"
+printf -- '---\ntype: ~\n---\nbody\n' > "$VAULT/notes/nul.md"
+out="$(VAULT_ROOT="$VAULT" bash "$PRIM" infer-tags notes/cmt.md notes/nul.md 2>/dev/null)"
+if [ "$(printf '%s' "$out" | jq -r '.[0].type')" = "note" ] && [ "$(printf '%s' "$out" | jq -r '.[1].type')" = "null" ] \
+   && ! printf '%s' "$out" | grep -q '#\|~'; then
+  ok "type: comment stripped, ~ -> null"
+else bad "type normalize" "$out"; fi
+
 printf '\n%d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ] || exit 1
 echo "OK: all infer-tags batch cases passed"
