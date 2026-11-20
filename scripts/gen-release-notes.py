@@ -130,7 +130,7 @@ def classify(commit):
     bang = m.group("bang")
     scope = m.group("scope")
     subject = m.group("subject").strip()
-    breaking = bool(bang) or "BREAKING CHANGE" in (commit.get("body") or "")
+    breaking = bool(bang) or bool(re.search(r"(?m)^BREAKING[ -]CHANGE:", commit.get("body") or ""))
     if breaking:
         return ("Breaking Changes", subject, scope)
     category = TYPE_TO_CATEGORY.get(ctype)
@@ -235,6 +235,12 @@ def run_self_test():
           ("Breaking Changes", "drop", "api"))
     check("body BREAKING→Breaking",
           classify({"subject": "fix: x", "body": "BREAKING CHANGE: removes y"}),
+          ("Breaking Changes", "x", None))
+    check("prose BREAKING CHANGE→not breaking",
+          classify({"subject": "fix: x", "body": "not a BREAKING CHANGE"}),
+          ("Fixed", "x", None))
+    check("BREAKING-CHANGE footer→Breaking",
+          classify({"subject": "fix: x", "body": "BREAKING-CHANGE: x"}),
           ("Breaking Changes", "x", None))
     check("docs omitted", classify({"subject": "docs: update", "body": ""}), None)
     check("chore omitted", classify({"subject": "chore: bump", "body": ""}), None)

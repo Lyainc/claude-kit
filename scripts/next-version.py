@@ -74,7 +74,7 @@ DEFAULT_BACKSTOP = 10
 
 def _is_breaking(commit: dict) -> bool:
     m = _HEADER_RE.match(commit.get("subject", ""))
-    return bool(m and m.group("bang")) or "BREAKING CHANGE" in (commit.get("body") or "")
+    return bool(m and m.group("bang")) or bool(re.search(r"(?m)^BREAKING[ -]CHANGE:", commit.get("body") or ""))
 
 
 def _ctype(commit: dict) -> str | None:
@@ -198,6 +198,10 @@ def _self_test() -> int:
     chore = _c("chore: d")
     breaking = _c("feat(x)!: e")
     breaking_body = _c("fix(x): f", "BREAKING CHANGE: gone")
+    check("prose mentioning BREAKING CHANGE is not breaking",
+          _is_breaking(_c("fix(x): g", "this is not a BREAKING CHANGE")), False)
+    check("BREAKING-CHANGE footer is breaking",
+          _is_breaking(_c("fix(x): h", "BREAKING-CHANGE: x")), True)
 
     # --- classification ---
     check("fix is user-visible", is_user_visible(fix), True)
