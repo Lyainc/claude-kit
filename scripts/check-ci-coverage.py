@@ -85,7 +85,13 @@ def extract_test_ids(text):
             line = line[: comment.start()]
         for pattern, template in _PATTERNS:
             for m in pattern.finditer(line):
-                ids.add(template.format(m.group(1)))
+                tid = template.format(m.group(1))
+                # A `--self-test` run is a different test from the plain invocation; only this
+                # command's own arguments count, not a later command on the same line.
+                own_args = re.split(r"&&|\|\||[;|]", line[m.end():], maxsplit=1)[0]
+                if template == "py:{}" and "--self-test" in own_args:
+                    tid += ":self-test"
+                ids.add(tid)
     return ids
 
 
@@ -125,7 +131,7 @@ def _referenced_paths(ids):
         kind, _, path = i.partition(":")
         if kind == "lint" or any(c in path for c in "*?["):
             continue
-        paths.append(path)
+        paths.append(path.removesuffix(":self-test"))
     return paths
 
 
@@ -222,6 +228,8 @@ def run_self_test():
         failures.append("  commented-out line was not skipped")
     if "py:dir/test/outside-section.py" in reg:
         failures.append("  line outside ## Validation section leaked in")
+    if extract_test_ids("python3 a.py && python3 b.py --self-test\n") != {"py:a.py", "py:b.py:self-test"}:
+        failures.append("  --self-test must tag only its own command, not the whole line")
 
     # #618: a registered path that no longer exists on disk is stale drift, and a glob
     # pattern (no single file to check) must not be flagged.
